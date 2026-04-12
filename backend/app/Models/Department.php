@@ -11,6 +11,7 @@ class Department extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'code',
         'name',
         'description',
@@ -18,6 +19,7 @@ class Department extends Model
     ];
 
     protected $casts = [
+        'company_id' => 'integer',
         'is_active' => 'boolean',
     ];
 

@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Team extends Model
 {
     protected $fillable = [
+        'company_id',
         'department_id',
         'name',
         'is_active',
     ];
 
     protected $casts = [
+        'company_id' => 'integer',
         'is_active' => 'boolean',
     ];
 

@@ -18,6 +18,7 @@ use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -1484,8 +1485,12 @@ class HcmEmployeeController extends Controller
         $perPage = (int) ($validated['perPage'] ?? 20);
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $paginator = Department::query()
+        $query = Department::query();
+        $this->applyTenantScope($query, $activeCompanyId);
+
+        $paginator = $query
             ->withCount('designations')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -1525,13 +1530,25 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:departments,code'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('departments', 'code')->where(function ($query) use ($activeCompanyId): void {
+                    if ($activeCompanyId) {
+                        $query->where('company_id', $activeCompanyId);
+                    }
+                }),
+            ],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
         $department = Department::query()->create([
+            'company_id' => $activeCompanyId,
             'name' => $validated['name'],
             'code' => $validated['code'] ?? $this->slugCode($validated['name']),
             'is_active' => (bool) ($validated['isActive'] ?? true),
@@ -1554,8 +1571,12 @@ class HcmEmployeeController extends Controller
 
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $rows = Department::query()
+        $query = Department::query();
+        $this->applyTenantScope($query, $activeCompanyId);
+
+        $rows = $query
             ->withCount('designations')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -1583,14 +1604,30 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $department = Department::query()->findOrFail($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        $departmentQuery = Department::query()->whereKey($id);
+        $this->applyTenantScope($departmentQuery, $activeCompanyId);
+        $department = $departmentQuery->firstOrFail();
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:departments,code,' . $department->id],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('departments', 'code')
+                    ->ignore($department->id)
+                    ->where(function ($query) use ($activeCompanyId): void {
+                        if ($activeCompanyId) {
+                            $query->where('company_id', $activeCompanyId);
+                        }
+                    }),
+            ],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
         $department->update([
+            'company_id' => $department->company_id ?: $activeCompanyId,
             'name' => $validated['name'],
             'code' => $validated['code'] ?? $this->slugCode($validated['name']),
             'is_active' => (bool) ($validated['isActive'] ?? true),
@@ -1617,8 +1654,12 @@ class HcmEmployeeController extends Controller
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $paginator = Designation::query()
+        $query = Designation::query();
+        $this->applyTenantScope($query, $activeCompanyId);
+
+        $paginator = $query
             ->with('department:id,name')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -1663,14 +1704,36 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:designations,code'],
-            'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('designations', 'code')->where(function ($query) use ($activeCompanyId): void {
+                    if ($activeCompanyId) {
+                        $query->where('company_id', $activeCompanyId);
+                    }
+                }),
+            ],
+            'departmentId' => [
+                'nullable',
+                'integer',
+                Rule::exists('departments', 'id')->where(function ($query) use ($activeCompanyId): void {
+                    if ($activeCompanyId) {
+                        $query->where(function ($inner) use ($activeCompanyId): void {
+                            $inner->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                        });
+                    }
+                }),
+            ],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
         $designation = Designation::query()->create([
+            'company_id' => $activeCompanyId,
             'name' => $validated['name'],
             'code' => $validated['code'] ?? $this->slugCode($validated['name']),
             'department_id' => $validated['departmentId'] ?? null,
@@ -1696,8 +1759,12 @@ class HcmEmployeeController extends Controller
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $rows = Designation::query()
+        $query = Designation::query();
+        $this->applyTenantScope($query, $activeCompanyId);
+
+        $rows = $query
             ->with('department:id,name')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -1728,15 +1795,41 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $designation = Designation::query()->findOrFail($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        $designationQuery = Designation::query()->whereKey($id);
+        $this->applyTenantScope($designationQuery, $activeCompanyId);
+        $designation = $designationQuery->firstOrFail();
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['nullable', 'string', 'max:50', 'unique:designations,code,' . $designation->id],
-            'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('designations', 'code')
+                    ->ignore($designation->id)
+                    ->where(function ($query) use ($activeCompanyId): void {
+                        if ($activeCompanyId) {
+                            $query->where('company_id', $activeCompanyId);
+                        }
+                    }),
+            ],
+            'departmentId' => [
+                'nullable',
+                'integer',
+                Rule::exists('departments', 'id')->where(function ($query) use ($activeCompanyId): void {
+                    if ($activeCompanyId) {
+                        $query->where(function ($inner) use ($activeCompanyId): void {
+                            $inner->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                        });
+                    }
+                }),
+            ],
             'isActive' => ['nullable', 'boolean'],
         ]);
 
         $designation->update([
+            'company_id' => $designation->company_id ?: $activeCompanyId,
             'name' => $validated['name'],
             'code' => $validated['code'] ?? $this->slugCode($validated['name']),
             'department_id' => $validated['departmentId'] ?? null,
@@ -1934,7 +2027,9 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $department = Department::query()->findOrFail($id);
+        $departmentQuery = Department::query()->whereKey($id);
+        $this->applyTenantScope($departmentQuery, $this->activeCompanyId($request));
+        $department = $departmentQuery->firstOrFail();
         $department->delete();
         return response()->json(['success' => true]);
     }
@@ -1945,9 +2040,29 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $designation = Designation::query()->findOrFail($id);
+        $designationQuery = Designation::query()->whereKey($id);
+        $this->applyTenantScope($designationQuery, $this->activeCompanyId($request));
+        $designation = $designationQuery->firstOrFail();
         $designation->delete();
         return response()->json(['success' => true]);
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if (! $companyId) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 
     public function destroyPolicy(Request $request, int $id): JsonResponse

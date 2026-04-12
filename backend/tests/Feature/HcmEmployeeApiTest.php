@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\Policy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -532,6 +533,29 @@ class HcmEmployeeApiTest extends TestCase
             ]);
     }
 
+    public function test_departments_forbidden_when_switching_to_unowned_company(): void
+    {
+        $token = $this->adminBearerToken();
+
+        Company::query()->create([
+            'code' => 'tenant_other_org',
+            'name' => 'Tenant Other Org',
+            'legal_name' => 'Tenant Other Org LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => 'tenant_other_org',
+        ])->getJson('/v1/hcm/departments')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
     public function test_employees_export_supports_xlsx_csv_and_pdf(): void
     {
         $token = $this->adminBearerToken();
@@ -971,7 +995,7 @@ class HcmEmployeeApiTest extends TestCase
 
     public function test_employee_show_returns_404_when_not_found(): void
     {
-        $admin = $this->adminToken();
+        $admin = $this->adminBearerToken();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->getJson('/v1/hcm/employees/999999')

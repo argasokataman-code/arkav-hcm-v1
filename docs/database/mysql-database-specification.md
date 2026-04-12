@@ -27,6 +27,14 @@ Rencana multi-database (tiap service satu DB):
 
 Skema HCM aktif **tidak** memakai multi-tenant bawaan: tabel legacy `tenants`, `subscription_plans`, `subscription_plan_features`, `tenant_subscriptions` dan kolom `users.tenant_id` dihapus lewat migrasi `2026_04_11_100000_drop_legacy_tenant_subscription_tables` (bekas dump gabungan).
 
+Update tenant foundation (April 2026):
+- Core SaaS tabel baru ditambahkan: `companies`, `company_users`, `subscriptions`, `payments`, `company_settings`.
+- Wave tenantization employee/org menambahkan `company_id` (nullable + indexed + backfill default company) ke:
+  - `employee_profiles`
+  - `departments`
+  - `designations`
+  - `teams`
+
 Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 
 ## 3) Identity service schema (`arcav_identity_db`)

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Designation extends Model
 {
     protected $fillable = [
+        'company_id',
         'department_id',
         'code',
         'name',
@@ -16,6 +17,7 @@ class Designation extends Model
     ];
 
     protected $casts = [
+        'company_id' => 'integer',
         'is_active' => 'boolean',
     ];
 

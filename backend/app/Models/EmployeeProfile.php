@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 class EmployeeProfile extends Model
 {
     protected $fillable = [
+        'company_id',
         'user_id',
         'nik',
         'hire_date',
@@ -45,6 +46,7 @@ class EmployeeProfile extends Model
     ];
 
     protected $casts = [
+        'company_id' => 'integer',
         'hire_date' => 'date',
         'date_of_birth' => 'date',
         'emergency_contacts' => 'array',

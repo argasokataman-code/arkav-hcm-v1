@@ -9,6 +9,7 @@ class HcmShift extends Model
     protected $table = 'hcm_shifts';
 
     protected $fillable = [
+        'company_id',
         'code',
         'name',
         'start_time',
@@ -21,6 +22,7 @@ class HcmShift extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];

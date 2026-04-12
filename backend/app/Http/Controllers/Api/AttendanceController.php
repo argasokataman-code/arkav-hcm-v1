@@ -10,6 +10,7 @@ use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,24 @@ class AttendanceController extends Controller
     private function tz(): string
     {
         return config('app.timezone');
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if (! $companyId) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 
     private function expectedCheckIn(string $dateYmd): Carbon
@@ -97,7 +116,7 @@ class AttendanceController extends Controller
     /**
      * Shared filter/join scope for admin attendance (one row per user per work date).
      */
-    private function adminAttendanceFilteredQuery(string $dateYmd, ?string $search, ?string $department, ?string $statusFilter)
+    private function adminAttendanceFilteredQuery(string $dateYmd, ?string $search, ?string $department, ?string $statusFilter, ?int $companyId)
     {
         $q = User::query()
             ->leftJoin('employee_profiles as ep', 'ep.user_id', '=', 'users.id')
@@ -105,6 +124,12 @@ class AttendanceController extends Controller
                 $join->on('ar.user_id', '=', 'users.id')
                     ->where('ar.work_date', '=', $dateYmd);
             });
+
+        if ($companyId) {
+            $q->where(function ($inner) use ($companyId): void {
+                $inner->where('ep.company_id', $companyId)->orWhereNull('ep.company_id');
+            });
+        }
 
         if ($search) {
             $q->where(function ($inner) use ($search) {
@@ -160,10 +185,11 @@ class AttendanceController extends Controller
         $statusFilter = $validated['status'] ?? null;
         $sort = $validated['sort'] ?? 'name_asc';
         $perPage = min(100, (int) ($validated['perPage'] ?? 50));
+        $activeCompanyId = $this->activeCompanyId($request);
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $isToday = $dateYmd === $todayYmd;
 
-        $base = $this->adminAttendanceFilteredQuery($dateYmd, $search, $department, $statusFilter);
+        $base = $this->adminAttendanceFilteredQuery($dateYmd, $search, $department, $statusFilter, $activeCompanyId);
 
         $statsRow = (clone $base)
             ->selectRaw('
@@ -189,7 +215,9 @@ class AttendanceController extends Controller
         $paginator = $listQuery->with(['employeeProfile:id,user_id,team,designation'])->paginate($perPage);
 
         $userIds = collect($paginator->items())->pluck('id');
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $activeCompanyId);
+        $records = $recordsQuery
             ->whereIn('user_id', $userIds)
             ->where('work_date', $dateYmd)
             ->get()
@@ -410,7 +438,9 @@ class AttendanceController extends Controller
         $todayYmd = Carbon::now($this->tz())->toDateString();
 
         $profile = $user->employeeProfile;
-        $rec = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $this->activeCompanyId($request));
+        $rec = $recordsQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $todayYmd)
             ->first();
@@ -532,7 +562,9 @@ class AttendanceController extends Controller
         $end = Carbon::now($tz)->startOfDay();
         $start = $end->copy()->subDays($days - 1);
 
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $this->activeCompanyId($request));
+        $records = $recordsQuery
             ->where('user_id', $user->id)
             ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
             ->orderByDesc('work_date')
@@ -590,12 +622,16 @@ class AttendanceController extends Controller
         $weekStart = $now->copy()->startOfWeek();
         $monthStart = $now->copy()->startOfMonth();
 
-        $weekMinutes = $this->sumProductionMinutes($user->id, $weekStart, $now);
-        $monthMinutes = $this->sumProductionMinutes($user->id, $monthStart, $now);
+        $activeCompanyId = $this->activeCompanyId($request);
+
+        $weekMinutes = $this->sumProductionMinutes($user->id, $weekStart, $now, $activeCompanyId);
+        $monthMinutes = $this->sumProductionMinutes($user->id, $monthStart, $now, $activeCompanyId);
 
         $weekHours = round($weekMinutes / 60, 2);
         $monthHours = round($monthMinutes / 60, 2);
-        $todayRec = AttendanceRecord::query()
+        $todayQuery = AttendanceRecord::query();
+        $this->applyTenantScope($todayQuery, $activeCompanyId);
+        $todayRec = $todayQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $now->toDateString())
             ->first();
@@ -607,7 +643,7 @@ class AttendanceController extends Controller
         );
         $todayHours = $todayNet !== null ? round($todayNet / 60, 2) : 0.0;
 
-        $monthOt = $this->sumOvertimeMinutes($user->id, $monthStart, $now);
+        $monthOt = $this->sumOvertimeMinutes($user->id, $monthStart, $now, $activeCompanyId);
 
         return response()->json([
             'success' => true,
@@ -624,12 +660,14 @@ class AttendanceController extends Controller
         ]);
     }
 
-    private function sumProductionMinutes(int $userId, Carbon $rangeStart, Carbon $rangeEnd): int
+    private function sumProductionMinutes(int $userId, Carbon $rangeStart, Carbon $rangeEnd, ?int $companyId): int
     {
         $total = 0;
         $todayYmd = Carbon::now($this->tz())->toDateString();
 
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $companyId);
+        $records = $recordsQuery
             ->where('user_id', $userId)
             ->whereBetween('work_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->get();
@@ -650,12 +688,14 @@ class AttendanceController extends Controller
         return $total;
     }
 
-    private function sumOvertimeMinutes(int $userId, Carbon $rangeStart, Carbon $rangeEnd): int
+    private function sumOvertimeMinutes(int $userId, Carbon $rangeStart, Carbon $rangeEnd, ?int $companyId): int
     {
         $total = 0;
         $todayYmd = Carbon::now($this->tz())->toDateString();
 
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $companyId);
+        $records = $recordsQuery
             ->where('user_id', $userId)
             ->whereBetween('work_date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
             ->get();
@@ -689,16 +729,20 @@ class AttendanceController extends Controller
         $user = $request->user();
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $now = Carbon::now($this->tz());
+        $activeCompanyId = $this->activeCompanyId($request);
 
         // Use whereDate + create instead of firstOrCreate: date column matching is unreliable
         // across drivers when the lookup attributes are normalized differently than stored values.
-        $rec = AttendanceRecord::query()
+        $recQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recQuery, $activeCompanyId);
+        $rec = $recQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $todayYmd)
             ->first();
 
         if (! $rec) {
             $rec = AttendanceRecord::query()->create([
+                'company_id' => $activeCompanyId,
                 'user_id' => $user->id,
                 'work_date' => $todayYmd,
                 'status' => 'present',
@@ -781,8 +825,11 @@ class AttendanceController extends Controller
         $user = $request->user();
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $now = Carbon::now($this->tz());
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $rec = AttendanceRecord::query()
+        $recQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recQuery, $activeCompanyId);
+        $rec = $recQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $todayYmd)
             ->first();
@@ -843,7 +890,9 @@ class AttendanceController extends Controller
         $user = $request->user();
         $tz = $this->tz();
         $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
-        $rec = AttendanceRecord::query()
+        $recQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recQuery, $this->activeCompanyId($request));
+        $rec = $recQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $workDate)
             ->first();
@@ -1021,8 +1070,16 @@ class AttendanceController extends Controller
         $perPage = min(100, (int) ($validated['perPage'] ?? 50));
         $tz = $this->tz();
         $since = Carbon::now($tz)->subDays(30)->toDateString();
+        $activeCompanyId = $this->activeCompanyId($request);
 
         $usersQuery = User::query()->with(['employeeProfile:id,user_id,designation']);
+        if ($activeCompanyId) {
+            $usersQuery->whereHas('employeeProfile', function ($query) use ($activeCompanyId): void {
+                $query->where(function ($inner) use ($activeCompanyId): void {
+                    $inner->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                });
+            });
+        }
         if ($searchRaw !== '') {
             $usersQuery->where(function ($q) use ($searchRaw) {
                 $q->where('name', 'like', '%'.$searchRaw.'%')
@@ -1039,14 +1096,18 @@ class AttendanceController extends Controller
         $paginator = $usersQuery->paginate($perPage);
         $users = collect($paginator->items());
 
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $activeCompanyId);
+        $records = $recordsQuery
             ->whereDate('work_date', '>=', $since)
             ->whereIn('user_id', $users->pluck('id'))
             ->whereNotNull('check_in_at')
             ->whereNotNull('check_out_at')
             ->get()
             ->groupBy('user_id');
-        $overrides = HcmScheduleTiming::query()
+        $overridesQuery = HcmScheduleTiming::query();
+        $this->applyTenantScope($overridesQuery, $activeCompanyId);
+        $overrides = $overridesQuery
             ->with(['shift:id,name'])
             ->whereIn('user_id', $users->pluck('id'))
             ->get()
@@ -1129,13 +1190,17 @@ class AttendanceController extends Controller
             'endTime' => ['required_without:shiftId', 'nullable', 'date_format:H:i'],
         ]);
 
+        $activeCompanyId = $this->activeCompanyId($request);
+
         $shiftId = isset($validated['shiftId']) ? (int) $validated['shiftId'] : null;
         $startStr = null;
         $endStr = null;
         $hcmShiftId = null;
 
         if ($shiftId) {
-            $shift = HcmShift::query()->whereKey($shiftId)->where('is_active', true)->first();
+            $shiftQuery = HcmShift::query()->whereKey($shiftId)->where('is_active', true);
+            $this->applyTenantScope($shiftQuery, $activeCompanyId);
+            $shift = $shiftQuery->first();
             if (! $shift) {
                 return response()->json([
                     'success' => false,
@@ -1167,6 +1232,7 @@ class AttendanceController extends Controller
         $row = HcmScheduleTiming::query()->updateOrCreate(
             ['user_id' => $userId],
             [
+            'company_id' => $activeCompanyId,
                 'hcm_shift_id' => $hcmShiftId,
                 'start_time' => $startStr,
                 'end_time' => $endStr,
@@ -1191,7 +1257,9 @@ class AttendanceController extends Controller
         }
 
         User::query()->findOrFail($userId);
-        HcmScheduleTiming::query()->where('user_id', $userId)->delete();
+        $deleteQuery = HcmScheduleTiming::query()->where('user_id', $userId);
+        $this->applyTenantScope($deleteQuery, $this->activeCompanyId($request));
+        $deleteQuery->delete();
 
         return response()->json(['success' => true]);
     }

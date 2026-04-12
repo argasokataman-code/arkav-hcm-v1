@@ -8,12 +8,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class HcmScheduleTiming extends Model
 {
     protected $fillable = [
+        'company_id',
         'user_id',
         'hcm_shift_id',
         'start_time',
         'end_time',
         'source',
         'updated_by_user_id',
+    ];
+
+    protected $casts = [
+        'company_id' => 'integer',
     ];
 
     public function user(): BelongsTo

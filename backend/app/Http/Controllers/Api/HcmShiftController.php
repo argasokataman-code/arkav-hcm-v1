@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\HcmShift;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,7 +21,12 @@ class HcmShiftController extends Controller
             return $forbidden;
         }
 
-        $rows = HcmShift::query()
+        $activeCompanyId = $this->activeCompanyId($request);
+
+        $query = HcmShift::query();
+        $this->applyTenantScope($query, $activeCompanyId);
+
+        $rows = $query
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -36,6 +42,8 @@ class HcmShiftController extends Controller
         if ($forbidden) {
             return $forbidden;
         }
+
+        $activeCompanyId = $this->activeCompanyId($request);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
@@ -57,19 +65,24 @@ class HcmShiftController extends Controller
             ], 422);
         }
 
-        if (! empty($validated['code']) && HcmShift::query()->where('code', $validated['code'])->exists()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => 'code already exists.',
-                ],
-            ], 422);
+        if (! empty($validated['code'])) {
+            $existsQuery = HcmShift::query()->where('code', $validated['code']);
+            $this->applyTenantScope($existsQuery, $activeCompanyId);
+            if ($existsQuery->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'code already exists.',
+                    ],
+                ], 422);
+            }
         }
 
-        $code = $this->uniqueCode($validated['code'] ?? null, $validated['name']);
+        $code = $this->uniqueCode($validated['code'] ?? null, $validated['name'], $activeCompanyId);
 
         $shift = HcmShift::query()->create([
+            'company_id' => $activeCompanyId,
             'code' => $code,
             'name' => $validated['name'],
             'start_time' => $validated['startTime'],
@@ -89,7 +102,10 @@ class HcmShiftController extends Controller
             return $forbidden;
         }
 
-        $shift = HcmShift::query()->find($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        $shiftQuery = HcmShift::query()->whereKey($id);
+        $this->applyTenantScope($shiftQuery, $activeCompanyId);
+        $shift = $shiftQuery->first();
         if (! $shift) {
             return response()->json([
                 'success' => false,
@@ -121,17 +137,22 @@ class HcmShiftController extends Controller
         }
 
         $code = $validated['code'] ?? $shift->code;
-        if ($code !== $shift->code && HcmShift::query()->where('code', $code)->whereKeyNot($shift->id)->exists()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => 'code already exists.',
-                ],
-            ], 422);
+        if ($code !== $shift->code) {
+            $existsQuery = HcmShift::query()->where('code', $code)->whereKeyNot($shift->id);
+            $this->applyTenantScope($existsQuery, $activeCompanyId);
+            if ($existsQuery->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'code already exists.',
+                    ],
+                ], 422);
+            }
         }
 
         $shift->update([
+            'company_id' => $shift->company_id ?: $activeCompanyId,
             'code' => $code,
             'name' => $validated['name'],
             'start_time' => $validated['startTime'],
@@ -151,7 +172,10 @@ class HcmShiftController extends Controller
             return $forbidden;
         }
 
-        $shift = HcmShift::query()->find($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        $shiftQuery = HcmShift::query()->whereKey($id);
+        $this->applyTenantScope($shiftQuery, $activeCompanyId);
+        $shift = $shiftQuery->first();
         if (! $shift) {
             return response()->json([
                 'success' => false,
@@ -200,7 +224,7 @@ class HcmShiftController extends Controller
         return \Carbon\Carbon::parse((string) $v)->format('H:i');
     }
 
-    private function uniqueCode(?string $requested, string $name): string
+    private function uniqueCode(?string $requested, string $name, ?int $companyId): string
     {
         $base = $requested ?: Str::slug($name, '_');
         if ($base === '') {
@@ -209,12 +233,30 @@ class HcmShiftController extends Controller
         $base = Str::limit($base, 60, '');
         $code = $base;
         $i = 0;
-        while (HcmShift::query()->where('code', $code)->exists()) {
+        while ($this->applyTenantScope(HcmShift::query()->where('code', $code), $companyId)->exists()) {
             $i++;
             $suffix = '_'.$i;
             $code = Str::limit($base, 64 - strlen($suffix), '').$suffix;
         }
 
         return $code;
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if (! $companyId) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 }

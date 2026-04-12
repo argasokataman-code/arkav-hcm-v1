@@ -6,6 +6,11 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/A
 
 `/v1/hcm`
 
+Tenant context:
+- Endpoint attendance membaca `activeCompany` dari middleware tenant context.
+- Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
+- Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
+
 ## Attendance (admin)
 
 ### GET `/attendance/admin`

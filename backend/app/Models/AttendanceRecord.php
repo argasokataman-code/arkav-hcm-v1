@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AttendanceRecord extends Model
 {
     protected $fillable = [
+        'company_id',
         'user_id',
         'work_date',
         'status',
@@ -31,6 +32,7 @@ class AttendanceRecord extends Model
     {
         return [
             'work_date' => 'date',
+            'company_id' => 'integer',
             'check_in_at' => 'datetime',
             'check_in_latitude' => 'float',
             'check_in_longitude' => 'float',

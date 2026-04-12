@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
@@ -63,6 +64,29 @@ class AttendanceApiTest extends TestCase
         ])->getJson('/v1/hcm/attendance/admin')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_attendance_admin_forbidden_when_switching_to_unowned_company(): void
+    {
+        $token = $this->bearerToken(true, 'att-admin@example.com');
+
+        Company::query()->create([
+            'code' => 'attendance_other_company',
+            'name' => 'Attendance Other Company',
+            'legal_name' => 'Attendance Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => 'attendance_other_company',
+        ])->getJson('/v1/hcm/attendance/admin')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_attendance_admin_returns_rows_and_summary(): void

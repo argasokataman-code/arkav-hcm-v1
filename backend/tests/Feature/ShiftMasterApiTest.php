@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\HcmShift;
 use App\Models\User;
@@ -110,5 +111,28 @@ class ShiftMasterApiTest extends TestCase
             'sortOrder' => 1,
         ])->assertStatus(404)
             ->assertJsonPath('error.code', 'SHIFT_NOT_FOUND');
+    }
+
+    public function test_shifts_forbidden_when_switching_to_unowned_company(): void
+    {
+        $token = $this->bearerToken();
+
+        Company::query()->create([
+            'code' => 'shift_other_company',
+            'name' => 'Shift Other Company',
+            'legal_name' => 'Shift Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => 'shift_other_company',
+        ])->getJson('/v1/hcm/shifts')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 }

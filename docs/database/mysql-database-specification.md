@@ -34,6 +34,10 @@ Update tenant foundation (April 2026):
   - `departments`
   - `designations`
   - `teams`
+- Wave tenantization attendance/shift menambahkan `company_id` (nullable + indexed + backfill default company) ke:
+  - `attendance_records`
+  - `hcm_shifts`
+  - `hcm_schedule_timings`
 
 Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 

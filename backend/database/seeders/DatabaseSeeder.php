@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\AttendanceRecord;
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Models\HcmShift;
 use App\Models\Designation;
@@ -13,6 +15,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -142,6 +145,8 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $this->ensureDefaultCompanyMembership();
+
         // Seed Performance demo data (Phase 1).
         $this->call(PerformanceSeeder::class);
 
@@ -150,5 +155,47 @@ class DatabaseSeeder extends Seeder
 
         // Rekening bank untuk profil yang masih kosong (karyawan luar demo / seed lama).
         $this->call(EmployeeProfileBankBackfillSeeder::class);
+    }
+
+    private function ensureDefaultCompanyMembership(): void
+    {
+        if (! Schema::hasTable('companies') || ! Schema::hasTable('company_users')) {
+            return;
+        }
+
+        $ownerId = User::query()->orderBy('id')->value('id');
+        if (! $ownerId) {
+            return;
+        }
+
+        $company = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'legal_name' => 'Default Company',
+                'status' => 'active',
+                'owner_user_id' => $ownerId,
+                'timezone' => (string) config('app.timezone', 'UTC'),
+                'currency' => 'IDR',
+                'country_code' => 'ID',
+            ]
+        );
+
+        User::query()->select('id')->chunkById(500, function ($users) use ($company, $ownerId): void {
+            foreach ($users as $user) {
+                CompanyUser::query()->firstOrCreate(
+                    [
+                        'company_id' => $company->id,
+                        'user_id' => $user->id,
+                    ],
+                    [
+                        'role' => (int) $user->id === (int) $ownerId ? 'owner' : 'admin',
+                        'status' => 'active',
+                        'joined_at' => now(),
+                        'invited_by_user_id' => null,
+                    ]
+                );
+            }
+        });
     }
 }

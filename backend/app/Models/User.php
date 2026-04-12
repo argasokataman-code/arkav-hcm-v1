@@ -63,6 +63,11 @@ class User extends Authenticatable
         return $this->hasMany(Ticket::class);
     }
 
+    public function companyMemberships(): HasMany
+    {
+        return $this->hasMany(CompanyUser::class);
+    }
+
     /**
      * Mirrors {@see \App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin} for API and `/auth/me` hints.
      */

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuthToken;
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +35,8 @@ class AuthController extends Controller
             'email' => $request->string('email'),
             'password' => Hash::make((string) $request->input('password')),
         ]);
+
+        $this->attachUserToDefaultCompany($user);
 
         return response()->json([
             'success' => true,
@@ -250,5 +254,38 @@ class AuthController extends Controller
     private function minutesFromSeconds(int $seconds): int
     {
         return max(1, (int) ceil($seconds / 60));
+    }
+
+    private function attachUserToDefaultCompany(User $user): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('companies') || ! \Illuminate\Support\Facades\Schema::hasTable('company_users')) {
+            return;
+        }
+
+        $defaultCompany = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'legal_name' => 'Default Company',
+                'status' => 'active',
+                'owner_user_id' => $user->id,
+                'timezone' => (string) config('app.timezone', 'UTC'),
+                'currency' => 'IDR',
+                'country_code' => 'ID',
+            ]
+        );
+
+        CompanyUser::query()->firstOrCreate(
+            [
+                'company_id' => $defaultCompany->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'member',
+                'status' => 'active',
+                'joined_at' => now(),
+                'invited_by_user_id' => null,
+            ]
+        );
     }
 }

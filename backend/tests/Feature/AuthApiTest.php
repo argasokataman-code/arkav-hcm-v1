@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -42,6 +44,19 @@ class AuthApiTest extends TestCase
             ->assertStatus(201)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.email', 'john@example.com');
+
+        $defaultCompany = Company::query()->where('code', 'default_company')->first();
+        $this->assertNotNull($defaultCompany);
+
+        $membership = CompanyUser::query()
+            ->where('company_id', $defaultCompany->id)
+            ->whereHas('user', function ($query): void {
+                $query->where('email', 'john@example.com');
+            })
+            ->first();
+        $this->assertNotNull($membership);
+        $this->assertSame('member', $membership->role);
+        $this->assertSame('active', $membership->status);
 
         $loginResponse = $this->postJson('/v1/identity/auth/login', [
             'email' => 'john@example.com',

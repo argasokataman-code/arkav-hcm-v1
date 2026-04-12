@@ -2,10 +2,12 @@
 .DS_Store
 .vscode/
 .windsurf/
+.idea/
 
 # Local AI/tooling state
 .phpunit.result.cache
 repomix-*.xml
+call_*.txt
 
 # Node / frontend
 node_modules/
@@ -23,6 +25,12 @@ backend/storage/framework/cache/*
 backend/storage/framework/sessions/*
 backend/storage/framework/views/*
 backend/bootstrap/cache/*.php
+backend/public/storage
+
+# Keep Laravel placeholder files tracked
+!backend/storage/framework/cache/.gitignore
+!backend/storage/framework/sessions/.gitignore
+!backend/storage/framework/views/.gitignore
 
 # Env files
 .env

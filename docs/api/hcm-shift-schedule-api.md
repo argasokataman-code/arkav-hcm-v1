@@ -48,10 +48,32 @@ RBAC:
 
 Body: sama seperti POST, dengan unique check ignore current id.
 
+Not found `404`:
+```json
+{
+	"success": false,
+	"error": {
+		"code": "SHIFT_NOT_FOUND",
+		"message": "Shift not found."
+	}
+}
+```
+
 ### DELETE `/shifts/{id}`
 
 RBAC:
 - HCM Admin only
+
+Not found `404`:
+```json
+{
+	"success": false,
+	"error": {
+		"code": "SHIFT_NOT_FOUND",
+		"message": "Shift not found."
+	}
+}
+```
 
 ## Schedule timing per user
 

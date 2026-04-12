@@ -97,11 +97,24 @@ class OvertimeTypeApiTest extends TestCase
     public function test_mutations_forbidden_for_non_admin(): void
     {
         $token = $this->bearerToken(false, 'ottypeemp2@example.com');
+        $existingId = (int) HcmOvertimeType::query()->value('id');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->postJson('/v1/hcm/overtime-types', [
                 'name' => 'X',
                 'paymentMultiplier' => 1,
             ])->assertStatus(403);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->putJson('/v1/hcm/overtime-types/'.$existingId, [
+                'name' => 'Forbidden update',
+                'code' => 'weekday_ot',
+                'paymentMultiplier' => 1.5,
+                'isActive' => true,
+            ])->assertStatus(403);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->deleteJson('/v1/hcm/overtime-types/'.$existingId)
+            ->assertStatus(403);
     }
 }

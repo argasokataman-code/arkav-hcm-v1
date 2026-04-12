@@ -89,7 +89,16 @@ class HcmShiftController extends Controller
             return $forbidden;
         }
 
-        $shift = HcmShift::query()->findOrFail($id);
+        $shift = HcmShift::query()->find($id);
+        if (! $shift) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SHIFT_NOT_FOUND',
+                    'message' => 'Shift not found.',
+                ],
+            ], 404);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
@@ -142,7 +151,18 @@ class HcmShiftController extends Controller
             return $forbidden;
         }
 
-        HcmShift::query()->whereKey($id)->delete();
+        $shift = HcmShift::query()->find($id);
+        if (! $shift) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SHIFT_NOT_FOUND',
+                    'message' => 'Shift not found.',
+                ],
+            ], 404);
+        }
+
+        $shift->delete();
 
         return response()->json(['success' => true]);
     }

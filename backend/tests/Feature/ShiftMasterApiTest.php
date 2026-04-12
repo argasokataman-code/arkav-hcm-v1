@@ -94,4 +94,21 @@ class ShiftMasterApiTest extends TestCase
 
         $this->assertNull(HcmShift::query()->find($id));
     }
+
+    public function test_update_shift_returns_404_when_not_found(): void
+    {
+        $token = $this->bearerToken();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/v1/hcm/shifts/999999', [
+            'name' => 'Not Found',
+            'code' => 'not_found',
+            'startTime' => '08:00',
+            'endTime' => '17:00',
+            'isActive' => true,
+            'sortOrder' => 1,
+        ])->assertStatus(404)
+            ->assertJsonPath('error.code', 'SHIFT_NOT_FOUND');
+    }
 }

@@ -57,7 +57,7 @@ class HcmPayrollItemApiTest extends TestCase
 
     public function test_index_requires_hcm_admin(): void
     {
-        $this->adminToken();
+        $admin = $this->adminToken();
         $emp = $this->employeeToken();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$emp])
@@ -72,6 +72,23 @@ class HcmPayrollItemApiTest extends TestCase
                 'category' => 'other_addition',
             ])
             ->assertStatus(403);
+
+        $existingId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll-items')
+            ->assertOk()
+            ->json('data.payrollItems.0.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$emp])
+            ->putJson('/v1/hcm/payroll-items/'.$existingId, [
+                'name' => 'Forbidden update',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$emp])
+            ->deleteJson('/v1/hcm/payroll-items/'.$existingId)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
     public function test_index_returns_payroll_items_only(): void

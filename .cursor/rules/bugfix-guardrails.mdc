@@ -1,0 +1,37 @@
+---
+description: Anti-bolak-balik — wajib regression test + root cause analysis untuk setiap bugfix
+alwaysApply: true
+---
+
+# Bugfix Guardrails (anti bolak-balik)
+
+Rule ini mencegah pola bugfix yang berulang: diperbaiki → muncul lagi → diperbaiki lagi.
+
+## Wajib untuk setiap bugfix
+
+1. **Root cause, bukan patch UI**
+   Cari penyebab sesungguhnya. Jangan hanya sembunyikan symptom di layer UI kalau akarnya ada di backend.
+
+2. **Minimal 1 regression test**
+   Tulis test yang **mereproduksi bug** dulu (fail), baru perbaiki. Target:
+   - Backend logic → `backend/tests/Unit/`
+   - API / auth / validasi → `backend/tests/Feature/`
+   - Tidak ada test yang membuktikan bug pernah ada = belum selesai
+
+3. **Cek API/permission jika tersentuh**
+   Setiap kali menyentuh validasi, middleware, permission, atau response format:
+   - Verifikasi `401`, `403`, `422` masih benar
+   - Pastikan `{ success, data?, error? }` shape konsisten
+
+4. **Cek dampak lintas query/schema**
+   Jika bug ada di query atau schema — verifikasi endpoint / listing lain yang pakai data yang sama tidak ikut rusak.
+
+5. **Ringkasan verifikasi sebelum tutup task**
+   Setelah perubahan lintas layer (backend + frontend), tulis ringkasan:
+   - ✅ Endpoint yang diuji
+   - ✅ Role yang diuji
+   - ✅ Hasil (pass / behaviour yang diharapkan)
+
+## Override sementara (jika darurat)
+
+Jika situasi darurat tidak memungkinkan test, **sebutkan eksplisit** ke user dan buat TODO dengan label `REGRESSION-TODO` di code/komentar agar tidak terlupakan.

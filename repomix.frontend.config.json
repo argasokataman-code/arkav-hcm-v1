@@ -1,0 +1,58 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-frontend.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "README.md",
+    "frontend/resources/js/**/*.js",
+    "frontend/**/*.json",
+    "backend/resources/views/**/*.blade.php",
+    ".github/instructions/frontend-hcm.instructions.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "frontend/resources/img/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

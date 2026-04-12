@@ -1,0 +1,100 @@
+---
+description: Matriks role/permission template HCM aktif + wajib selaras API/UI/docs (minim bug akses)
+alwaysApply: true
+---
+
+# Role & permission — template HCM aktif (matriks di rule)
+
+**Sinkronisasi wajib:** Isi matriks di bawah adalah **cerminan** dari `docs/planning/active-hcm-templates-and-permissions.md` (§2–§3). Jika mengubah baris/kolom target akses, **perbarui kedua file** dalam PR yang sama agar agent dan manusia tidak divergen.
+
+## Prinsip (jangan dilanggar)
+
+- Izin **wajib** ditegakkan di **backend** (`EnsuresHcmAdmin`, ownership `user_id`, dll.). UI hanya menyembunyikan tombol (UX).
+- Deteksi admin: `GET /v1/identity/auth/me` → `hcmAdmin` (selaras `User::isHcmAdmin()`).
+- Halaman bertanda **HCM Admin** → endpoint mutasi/list sensitif harus **403** untuk non-admin; jangan mengandalkan “user tidak tahu URL”.
+
+## Model role (target)
+
+| Role | Arti |
+|------|------|
+| **Anonim** | Belum login; hanya halaman auth publik. |
+| **Authenticated** | Cookie/token valid; belum tentu admin. |
+| **Karyawan** | Authenticated dan `hcmAdmin !== true`. |
+| **HCM Admin** | `hcmAdmin === true`. |
+
+## Matriks halaman aktif HCM (path web → siapa boleh → API)
+
+**Kolom:** Path | Fitur | JS utama | API `/v1/hcm` (ringkas) | Akses halaman (target) | API (target) | Catatan / gap |
+
+| Path | Fitur | JS | API | Halaman | API | Catatan |
+|------|-------|-----|-----|---------|-----|---------|
+| `/login`, `/` | Login | auth-login, api-client | `POST /v1/identity/auth/login` | Anonim | Publik login + cookie | — |
+| `/index` | Admin dashboard | chart-*, template | (bervariasi) | Authenticated | Sesuai yang di-wire | Banyak demo chart |
+| `/employee-dashboard` | Dashboard karyawan | template | (summary jika di-wire) | Authenticated | Prefer **self** | Milestone dashboard |
+| `/employees` | Daftar employee | employees-data | `GET/POST /employees`, `bulk-*` | **HCM Admin** (→ `/employee-dashboard`) | List/create/bulk **hcmAdmin** | `me.hcmAdmin` + API |
+| `/employees-grid` | Grid employee | sama | sama | **HCM Admin** | sama | — |
+| `/employee-details` | Detail employee | hcm-pages-data | `GET/PUT /employees/{id}`, `GET /training/users/{id}/trainings`, `GET /promotions/users/{id}/promotions`, `GET /resignations/users/{id}/resignations`, `GET /terminations/users/{id}/terminations` | Admin semua ID; karyawan **self** | Ownership + subset self-`PUT`; list training/promotion/resignation/termination per user sesuai RBAC endpoint | API + USE-CASES §5.2 |
+| `/departments` | Department | hcm-pages-data | `departments` CRUD | **HCM Admin** (→ `/employee-dashboard`) | Semua verb **hcmAdmin** | `me.hcmAdmin` + API |
+| `/designations` | Designation | hcm-pages-data | `designations` CRUD | **HCM Admin** | Semua verb **hcmAdmin** | idem |
+| `/policy` | Policies | hcm-pages-data | `policies` CRUD | **HCM Admin** | Semua verb **hcmAdmin** | idem |
+| `/ticket-master` | Master Ticket | tickets-data | `tickets/categories`, `tickets/category-options` | **HCM Admin** | CRUD kategori **hcmAdmin** | Master kategori untuk form ticket |
+| `/tickets-admin` | Tickets (Admin) | tickets-data | `GET/POST /tickets`, `PUT/DELETE /tickets/{id}` | **HCM Admin** (non-admin → `/tickets-employee`) | Admin all scope + status/assign/SLA | Jalur admin |
+| `/tickets-employee` | Tickets (Employee) | tickets-data | `GET/POST /tickets`, `GET /tickets/{id}` | Karyawan + Admin | Karyawan own scope | Jalur karyawan |
+| `/tickets-grid` | Tickets grid | tickets-data | `GET /tickets` | Karyawan + Admin | scope ikut role | Shared create modal |
+| `/ticket-details/{id}` | Ticket detail | tickets-data | `PUT/DELETE /tickets/{id}`, comments/attachments/history | Karyawan + Admin | Karyawan own + lock saat `closed`; Admin assign/status/delete | URL berbasis resource |
+| `/holidays` | Holidays | hcm-extras-data | `holidays` CRUD | **HCM Admin** (lain → `/employee-dashboard`) | Semua verb **hcmAdmin** | `me.hcmAdmin` + API |
+| `/leaves` | Cuti admin | hcm-extras-data | `leave-requests` CRUD | **HCM Admin** (non-admin → `/leaves-employee`) | Approve orang lain + `userId` hanya **hcmAdmin** | `me.hcmAdmin` + API |
+| `/leaves-employee` | Cuti karyawan | hcm-extras-data | `leave-requests?scope=me` | Karyawan + Admin | **Self** non-admin | — |
+| `/leave-settings` | Setting cuti | leave-settings-data | `leave-settings/*` | **HCM Admin** (lain → `/employee-dashboard`) | Semua verb **hcmAdmin** | `me.hcmAdmin` + API |
+| `/leave-type` | Tipe cuti UI theme | — | — | **HCM Admin** (nav) | — | **Gap:** tidak wired; data di `/leave-settings` |
+| `/attendance-admin` | Absensi admin | attendance-data | `attendance/admin`, timesheets, schedule | **HCM Admin** | Semua karyawan | — |
+| `/attendance-employee` | Absensi karyawan | attendance-data | `attendance/me/*` | Karyawan + Admin | **Self** punch non-admin | — |
+| `/timesheets` | Timesheet | attendance-data | `GET /timesheets` | **HCM Admin** | Admin view | — |
+| `/schedule-timing` | Jadwal per user | attendance-data | `schedule-timing`, `shifts` | **HCM Admin** | Mutasi orang lain | — |
+| `/shift-master` | Master shift | shift-master-data | `shifts` CRUD | **HCM Admin** | `EnsuresHcmAdmin` | OK pola |
+| `/overtime-master` | Master overtime | overtime-master-data | `overtime-types` | **HCM Admin** | Mutasi admin | — |
+| `/overtime` | Overtime (admin) | hcm-extras-data | `overtime-requests`, `calculate` | **HCM Admin** | Semua + kalkulator pilih karyawan | Non-admin → `/overtime-employee` |
+| `/overtime-employee` | Overtime (karyawan) | hcm-extras-data | `overtime-requests?scope=me`, `calculate` | Karyawan | Self only | — |
+| `/salary-component-master` | Redirect → `/payroll` | — | — | **HCM Admin** | — | Alias; kelola lewat payroll items |
+| `/payroll` | Payroll items (katalog + CRUD) | `payroll-items-data.js` | `GET/POST/PUT/DELETE /payroll-items`; `GET /payroll-items/export`; `GET /salary-components?isActive=1` (opsi taut) | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Satu layar untuk komponen payroll; taut/kustom + export CSV/XLSX |
+| `/payroll-overtime` | Payroll — lembur | `payroll-overtime-data.js` | `GET /overtime-requests` (`workDate`, `status`, …), `GET /overtime-types` | **HCM Admin** (`hcm.web.admin`) | Sama | `?date=` selaras `/attendance-admin` |
+| `/payroll-deduction` | Payroll — potongan | `payroll-items-data.js` | `GET/POST/PUT/DELETE /payroll-items?kind=deduction`, `GET /payroll-items/export`, `GET /salary-components?isActive=1` | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Filter `kind=deduction`; modal sama `/payroll` + export |
+| `/payroll-run` | Payroll — Run Bulanan (periode aktif) | `payroll-run.ts` | `GET /payroll-periods/active`, `POST /payroll-periods/calculate-draft`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | UI terkunci ke periode aktif; histori dipisah ke halaman `/payroll-run-history` |
+| `/payroll-run-history` | History Monthly Payroll | `payroll-run-history-data.js` | `GET /payroll-runs/history`, `GET /payroll-runs/{id}` | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Daftar historis run + detail audit trail |
+| `/payroll-thr` | THR — config + kalkulator + mass batch | payroll-thr-data, thr-payroll-batch | `thr-settings`, `thr-calculate`, `thr-batch` GET/generate/disburse/post-payroll/send-slip/slip (admin) | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Karyawan: **`GET /payroll/my-thr-slip`** + PDF self `lines/{id}/slip`; tidak ada halaman web Slip THR; `my-slip-lines` tetap gabung monthly+thr |
+| `/employee-salary` | Gaji karyawan | `employee-salary-data.js` | `GET /employees`, `PUT /employees/{id}` (kompensasi) | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Slip placeholder; selaras lembur & komponen gaji |
+| `/payslip` | Slip gaji (template) | — | `GET /payroll/my-slip-lines?periodYear&periodMonth` | Authenticated | **Self** setelah run **finalized** | UI belum di-wire; payroll admin lewat `payroll-periods` / `calculate-draft` / `finalize` |
+| `/employee-report` | Laporan employee | employees-data | `GET /employees` paginated | **HCM Admin** (→ `/employee-dashboard`) | **hcmAdmin** | Agregasi perPage≤100 |
+| `/attendance-report` | Laporan absensi | attendance-data | timesheets/admin | **HCM Admin** | — | — |
+| `/leave-report` | Laporan cuti | — | — (placeholder) | **HCM Admin** | — | **Gap:** belum API agregat |
+| `/performance-indicator` | Performance Indicator | performance-data | `indicator-templates`, `indicator-items` | **HCM Admin** | CRUD template+items **hcmAdmin** | — |
+| `/performance-appraisal` | Performance Appraisal | performance-data | `cycles`, `reviews (create)` | **HCM Admin** | CRUD cycle + create review **hcmAdmin** | — |
+| `/performance-review` | Performance Review | performance-data | `reviews` + submit/manager/finalize | Authenticated | Owner self; manager team; admin final | Workflow Phase 1 |
+| `/goal-type` | Goal Type (master) | goal-data | `performance/goal-types` | **HCM Admin** | CRUD goal types **hcmAdmin** | List boleh semua auth (untuk dropdown/filter) |
+| `/goal-tracking` | Goal Tracking | goal-data | `performance/goals`, `performance/goal-types` | Authenticated | scope: `me` (self), `team` (manager), `all` (admin) | Phase 1: export CSV dari UI |
+| `/training-type` | Training Type (master) | training-data | `training/types` | **HCM Admin** | CRUD training types **hcmAdmin** | List type untuk dropdown/filter di Training |
+| `/training` | Training | training-data | `training/trainings`, `training/types` | **HCM Admin** | CRUD trainings **hcmAdmin** | Phase 1: participants input manual user ID |
+| `/trainers` | Trainers (master) | training-data | `training/trainers` | **HCM Admin** | CRUD trainers **hcmAdmin** | Dipakai sebagai master trainer untuk menu training (Phase 2) |
+| `/promotion` | Promotion | promotion-data | `GET/POST/PUT/DELETE /promotions`, `GET /promotions/{id}`, `GET /promotions/users/{id}/promotions` | **HCM Admin** | List/mutasi **hcmAdmin**; detail/list per user: karyawan self | Web: `hcm.web.admin` redirect non-admin |
+| `/resignation` | Resignation | resignation-data | `GET/POST/PUT/DELETE /resignations`, `GET /resignations/{id}`, `GET /resignations/users/{id}/resignations` | **HCM Admin** | List/mutasi **hcmAdmin**; detail/list per user: karyawan self | Web: `hcm.web.admin` |
+| `/termination` | Termination | termination-data | `GET/POST/PUT/DELETE /terminations`, `GET /terminations/{id}`, `GET /terminations/users/{id}/terminations` | **HCM Admin** | List/mutasi **hcmAdmin**; detail/list per user: karyawan self | Web: `hcm.web.admin` |
+
+**Luar matriks:** menu Super Admin tenant, CRM penuh, Applications, Layout showcase — bukan inti HCM sampai diputuskan produk; jika di-wire ke API, **tambah baris** di matriks + dokumen planning.
+
+## Saat development / PR
+
+- Sebelum merge: cocokkan endpoint baru dengan baris matriks di atas; tambah baris jika path baru.
+- **Backend:** pola sama seperti shift/overtime master untuk admin-only.
+- **Frontend:** sembunyikan/nonaktifkan aksi admin jika `!hcmAdmin` pada baris yang mensyaratkan HCM Admin.
+- **Docs:** `docs/features/<fitur>/README.md` atau `USE-CASES.md`; employee detail: `docs/features/employees-organization/USE-CASES.md`.
+
+## Checklist PR (HCM)
+
+- [ ] Baris matriks (rule ini + `active-hcm-templates-and-permissions.md`) di-update jika path/izin berubah.
+- [ ] Endpoint berisiko punya **403** untuk non-admin bila halaman admin-only.
+- [ ] UI admin tidak menggantikan cek server.
+- [ ] Test: happy path + forbidden jika relevan.
+
+## Konflik requirement
+
+Jika produk minta akses berbeda dari matriks: **update matriks (rule + docs) dulu** atau minta konfirmasi eksplisit — jangan membuka akses tanpa dokumen.

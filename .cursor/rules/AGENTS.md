@@ -1,0 +1,7 @@
+# Agent instructions
+
+- **Where rules live:** `.cursor/rules/` (`.mdc` files with YAML frontmatter). Notable entries include `00-session-preamble.mdc`, **`development-closure-checklist.mdc` (wajib sebelum selesai task substantif: security + semua docs terdampak + OpenAPI bila API berubah)**, `backend-template-lock.mdc`, `no-hardcoded-dummy-template-data.mdc` (bukan data dummy hardcode di halaman HCM aktif), `documentation-sync-after-development.mdc` (sinkron `docs/` + `docs/features/*`), `openapi-collection-sync.mdc` (Swagger / `docs/api/openapi.yaml`), `role-permissions-with-features.mdc` (**matriks role/permission HCM aktif disalin di dalam rule** + sinkron dengan `docs/planning/active-hcm-templates-and-permissions.md`), `web-hcm-route-security.mdc` (web guard whitelist publik tunggal), `application-security-baseline.mdc` (cek auth/docs security saat ubah permukaan), and `quality-anomaly-pass.mdc` (cek anomali bisnis/teknis/UX sebelum selesai task).
+- **Security docs:** `docs/security/README.md` — inventaris API/web, guard, headers, hardening.
+- **Automatic context:** Rules with `alwaysApply: true` are merged into AI context without @-mentioning. Cursor does not offer a hard “must open rules before reply” switch.
+- **Strongest consistency:** Combine those project rules with **User rules** under **Cursor Settings → Rules** (global to your machine).
+- If a user request conflicts with a project rule, call out the conflict and confirm before overriding it.

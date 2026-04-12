@@ -1,0 +1,66 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-backend.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "README.md",
+    "AGENTS.md",
+    "backend/**/*.php",
+    "backend/routes/**",
+    "backend/config/**",
+    "backend/resources/views/**/*.blade.php",
+    "backend/database/**",
+    "backend/tests/**",
+    "docs/**/*.md",
+    "docs/**/*.yaml",
+    "docs/**/*.yml",
+    ".github/instructions/laravel-hcm.instructions.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "backend/public/**",
+      "backend/storage/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

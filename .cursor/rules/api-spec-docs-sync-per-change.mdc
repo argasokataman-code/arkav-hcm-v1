@@ -1,0 +1,49 @@
+---
+description: Setiap update/tambah/fix fitur yang mengubah API wajib update docs/api per fitur + index spec
+alwaysApply: true
+---
+
+# API spec docs sync (wajib, per perubahan)
+
+Saat mengerjakan **fitur baru**, **endpoint baru**, atau **bugfix/refactor** yang mengubah perilaku API/UI (kontrak request/response), agent **wajib** memastikan dokumentasi API ikut ter-update pada patch yang sama.
+
+## Yang TIDAK wajib update docs/api (biar tidak overkill)
+
+Tidak wajib update `docs/api/*` jika perubahan hanya:
+- **Kosmetik UI** (copy/spacing/css) tanpa mengubah payload yang dikirim/diterima
+- **Refactor internal** tanpa perubahan kontrak (request/response/error/RBAC tetap sama)
+- **Typos/formatting** di dokumentasi itu sendiri
+
+Jika ragu apakah kontrak berubah: anggap **berubah** dan update dokumen.
+
+## Kapan WAJIB update docs/api
+
+Update `docs/api/*.md` jika ada perubahan pada salah satu ini:
+- **Route/path/method** (contoh: `/v1/hcm/leave-requests` vs `/v1/leave/leaves`)
+- **Query/body field**: required/optional, nama field, min/max length, enum, format date/time, **regex**
+- **RBAC/ownership rule** (403 siapa, scope `me/team/all`, admin-only vs self)
+- **Error code + status HTTP** (422 domain lock, 404 not found, 429 throttle, 502 upstream, dll)
+- **Response shape** (`data/meta` keys, pagination, link URL preview/download, dll)
+- **Side-effects penting** (mis. sync, auto-close cycle lain, auto-create score rows, soft delete)
+
+## File yang harus disentuh
+
+- **Per fitur/service**: update file kontrak yang relevan di `docs/api/` (contoh: `docs/api/hcm-training-api.md`).
+- **Index & global**: update `docs/api/api-spec-phase-1.md` jika:
+  - ada fitur baru (tambah link), atau
+  - ada perubahan aturan global (regex shared, envelope error/success, mapping status).
+- **OpenAPI**: jika project menjaga OpenAPI sebagai sumber audit mesin, update `docs/api/openapi.yaml` untuk endpoint yang berubah/baru.
+
+## Minimal perubahan yang diharapkan di dokumen per fitur
+
+Untuk setiap endpoint yang berubah/baru, dokumen harus memuat (secukupnya untuk audit pribadi):
+- daftar endpoint + RBAC (admin/self/team)
+- query/body + constraint penting (min/max/enum/regex/format)
+- contoh response sukses (ringkas) + error code utama yang relevan
+
+## Checklist sebelum bilang “selesai”
+
+- [ ] `backend/routes/api.php` + controller validasi/RBAC sudah match dengan `docs/api/<fitur>-api.md`
+- [ ] Regex/constraint penting tidak “lebih longgar” di frontend dibanding backend/spec (lihat rule `api-spec-first-validation-parity`)
+- [ ] Tidak ada kontrak yang berubah tanpa update docs pada patch yang sama
+

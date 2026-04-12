@@ -1,0 +1,77 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "README.md",
+    "AGENTS.md",
+    "copilot-instructions.md",
+    "backend/**/*.php",
+    "backend/**/*.json",
+    "backend/**/*.xml",
+    "backend/**/*.yml",
+    "backend/**/*.yaml",
+    "backend/routes/**/*.php",
+    "backend/config/**/*.php",
+    "backend/resources/views/**/*.blade.php",
+    "frontend/resources/js/**/*.js",
+    "frontend/**/*.json",
+    "scripts/**/*.sh",
+    "docs/**/*.md",
+    "docs/**/*.yaml",
+    "docs/**/*.yml",
+    ".github/**/*.yml",
+    ".github/**/*.yaml",
+    ".github/instructions/**/*.md",
+    ".vscode/**/*.json"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "frontend/resources/img/**",
+      "backend/public/**",
+      "backend/storage/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-output*.xml",
+      "repomix-hcm*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

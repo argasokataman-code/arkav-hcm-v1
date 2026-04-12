@@ -1,0 +1,35 @@
+name: API docs sync check
+
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  api-docs-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base ref
+        id: base
+        shell: bash
+        run: |
+          if [[ -n "${{ github.base_ref }}" ]]; then
+            echo "ref=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=origin/main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch base branch
+        shell: bash
+        run: |
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Check backend API vs docs/api changes
+        shell: bash
+        run: |
+          bash scripts/check-api-docs-sync.sh "${{ steps.base.outputs.ref }}"
+

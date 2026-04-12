@@ -1,0 +1,55 @@
+---
+description: Cegah issue fatal "table not found" dengan disiplin migration + verifikasi DB setelah perubahan schema
+alwaysApply: true
+---
+
+# Disiplin migration (wajib)
+
+Masalah yang sering terjadi: fitur sudah dibuat (model/controller/UI), tapi migration belum dibuat/diterapkan sehingga runtime error seperti:
+- `SQLSTATE[42S02]: Base table or view not found` (table belum ada)
+- `Unknown column ...` (kolom belum ada)
+
+Rule ini memastikan setiap perubahan schema **selalu** diikuti migration + verifikasi.
+
+## Kapan WAJIB membuat migration
+
+Jika ada perubahan yang memengaruhi database, termasuk:
+- tambah tabel baru
+- tambah/ubah/hapus kolom
+- tambah/ubah index/unique constraint
+- tambah/ubah foreign key + onDelete behavior
+- perubahan enum/status yang disimpan di DB
+
+## Checklist wajib sebelum menganggap task selesai
+
+### A) Migration file
+
+- Buat migration di `backend/database/migrations/*` untuk perubahan schema.
+- Pastikan nama tabel/kolom konsisten dengan Eloquent model dan query.
+
+### B) Apply migration ke DB target (bukan cuma "pretend")
+
+- Jalankan migration pada environment yang dipakai untuk menjalankan app:
+
+```bash
+cd backend
+php artisan migrate
+```
+
+Jika konteksnya non-interactive / CI / server:
+
+```bash
+cd backend
+php artisan migrate --force --no-interaction
+```
+
+### C) Verifikasi cepat (minimum)
+
+- Hit endpoint/page yang menggunakan tabel/kolom baru → tidak ada error SQL.
+- Jalankan minimal satu test yang menyentuh flow tersebut (atau `php artisan test --filter=...`).
+
+## Hubungan dengan dokumentasi
+
+Jika perubahan schema substantif:
+- Update `docs/database/mysql-database-specification.md` bila kontrak schema perlu dicatat (lihat rule `documentation-sync-after-development`).
+

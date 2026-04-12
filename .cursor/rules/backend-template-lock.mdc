@@ -1,0 +1,60 @@
+---
+description: Wajib selaras template UI (Blade/Bootstrap) + pola integrasi API; cegah drift desain vs implementasi
+alwaysApply: true
+---
+
+# Backend Template Lock (detail)
+
+Rule ini mengikat **setiap** perubahan backend/frontend HCM agar tidak “nyasar” dari desain template dan pola integrasi yang sudah dipakai di repo ini. Agent **wajib** self-check sebelum dan sesudah implementasi.
+
+## 1. Sumber kebenaran UI
+
+- **Template = acuan visual & interaksi.** Komponen yang sudah ada di template (card, table, breadcrumb, dropdown, badge, `modal`, `btn-*`, `form-*`) **didahulukan** dibanding pola baru (drawer kustom, design system lain, native browser dialog).
+- **Jangan** menambah tipe pola UI baru hanya karena backend mengembalikan data berbeda, kecuali user secara eksplisit menyetujui penyimpangan dari template.
+
+## 2. Laravel Blade & struktur halaman
+
+- Halaman fitur HCM memakai **`@extends('layout.mainlayout')`**, `@section('content')`, dan pola **page wrapper** yang sama dengan halaman sejenis (mis. holidays, leaves, attendance).
+- **Script per halaman** dimuat lewat **`resources/views/layout/partials/footer-scripts.blade.php`** dengan `@if (Route::is([...]))` — **jangan** menambah `<script src>` acak di tengah blade kecuali template asli juga begitu untuk kasus yang sama.
+- Partial modal fitur: **`resources/views/hcm/partials/*.blade.php`**; hindari menduplikasi markup modal besar di banyak blade — pakai `@include`.
+- Modal konfirmasi bersama: **`hcm/partials/hcm-confirm-delete-modal.blade.php`** (di-include dari `mainlayout` untuk shell app). Aksi destructive memakai **`window.ArcavUi.confirmDelete`** dari **`api-client.js`**, **bukan** `window.confirm` / `window.alert` / `window.prompt`.
+- **Isi data di Blade:** ikut rule **`no-hardcoded-dummy-template-data`** — baris tabel/card berisi nama/angka palsu bawaan theme diganti aliran API/JS, seed DB, atau dihapus jika tidak relevan.
+
+## 3. Interaksi & feedback (wajib selaras template)
+
+- **Input / konfirmasi / error ke user:** Bootstrap **modal** atau **toast/alert in-app** (pola yang sudah ada di modul HCM), **bukan** dialog browser native.
+- **Pesan error API:** manfaatkan **`ApiErrorHelper.format`** / toast yang konsisten; hindari pesan generik tanpa konteks jika backend sudah mengirim detail.
+- Tombol dan label mengikuti **bahasa / tone** halaman sekitar (ID/EN konsisten per layar, jangan campur sembarang dalam satu alur).
+
+## 4. Integrasi API ↔ UI (checklist)
+
+Saat menambah atau mengubah endpoint:
+
+1. **Route** di `backend/routes/api.php` konsisten dengan prefix `/v1/hcm/...` (atau pola identity yang sudah ada).
+2. **Otorisasi** mengikuti pola modul setempat (mis. admin attendance / HCM: sama dengan **`EnsuresHcmAdmin`** / guard yang sudah dipakai halaman terkait — **jangan** bikin aturan admin beda sendiri tanpa alasan).
+3. **Response shape** tetap `{ success, data?, error? }` seperti endpoint lain agar JS satu pola.
+4. **Frontend:** handler di **`frontend/resources/js/*.js`** + **wajib menyalin** file yang diubah ke **`backend/public/build/js/`** agar halaman Blade yang memuat asset build ikut terbarui.
+5. **Tes:** minimal satu feature test untuk happy path + kasus forbidden/validasi bila ada risiko keamanan atau regresi.
+
+## 5. Backend yang “mendorong” UI aneh — dilarang
+
+- Jangan merancang API yang **memaksa** UI baru (mis. alur 5 langkah khusus) jika template hanya punya pola list + modal edit + export.
+- Jika kebutuhan bisnis butuh UI baru, **secara eksplisit** jelaskan gap ke user dan minta persetujuan; default-nya **sesuaikan kebutuhan dengan pola template** (mis. satu modal, satu tabel, filter sederhana).
+
+## 6. Auth & navigasi (stabil)
+
+- **Login, guard, redirect dashboard, logout** mengikuti implementasi yang ada (**`AuthApi`**, token `arcav_access_token`, redirect 401) — jangan mengubah kontrak ini kecuali task-nya memang migrasi auth.
+- Link menu / breadcrumb mengikuti **`url('...')`** dan route name yang sudah dipakai; tambah menu di **`sidebar` / `header`** konsisten dengan submenu yang ada.
+
+## 7. Checklist singkat sebelum selesai task (agent wajib jalankan mental/regresi)
+
+- [ ] Tidak ada **`window.alert` / `confirm` / `prompt`** untuk alur HCM yang sudah punya modal/toast.
+- [ ] Modal destructive memakai **`#arcav_hcm_confirm_delete`** + **`ArcavUi.confirmDelete`**.
+- [ ] Blade mengikuti layout & partial yang sama dengan fitur sejenis.
+- [ ] JS ter-update di **`public/build/js`** untuk file yang diubah.
+- [ ] Tidak memecah pola auth atau response API tanpa alasan.
+- [ ] Tes relevan masih hijau atau ditambah untuk perubahan berisiko.
+
+## 8. Eskalasi
+
+Jika requirement **tidak muat** di komponen template yang ada, **hentikan asumsi** dan tanyakan user **atau** usulkan adaptasi minimal (mis. reuse modal besar template dengan field tambah) — jangan langsung bangun komponen UI baru di luar pola repo.

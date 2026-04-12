@@ -1,0 +1,28 @@
+---
+description: Setelah development, wajib sinkronkan status ke dokumentasi project
+alwaysApply: true
+---
+
+# Dokumentasi wajib diperbarui setelah development
+
+Setelah **perubahan substantif** (fitur baru, API, migrasi DB, alur template/UI, auth, atau perilaku yang terdokumentasi):
+
+1. **Minimum (hampir selalu):**
+   - `docs/planning/implementation-status.md` — ringkas apa yang berubah (route, tabel, modul JS, tanggal snapshot bila perlu).
+   - `docs/planning/phase-1-todo-plan.md` — centang milestone, sesuaikan prioritas “next”, jangan biarkan status lawas yang sudah tidak benar.
+   - `docs/features/README.md` — pastikan index fitur tetap akurat.
+   - Bila menyentuh **halaman HCM aktif** (menu employees/leave/attendance/payroll terkait) atau izin akses: `docs/planning/active-hcm-templates-and-permissions.md` — baris matriks + target role/API harus selaras (lihat juga rule `role-permissions-with-features.mdc`).
+
+2. **Sesuai jenis perubahan (semua yang relevan harus ikut, jangan cherry-pick):**
+   - API / kontrak:
+     - update dokumen per-fitur di `docs/api/*.md` (kontrak endpoint yang disentuh)
+     - update index/global `docs/api/api-spec-phase-1.md` bila link fitur baru atau aturan global berubah
+     - jika menjaga OpenAPI, update `docs/api/openapi.yaml`
+   - Skema / migrasi: `docs/database/mysql-database-specification.md`.
+   - Garis besar arsitektur atau prefix route: `docs/architecture/microservice-concept.md`, `docs/README.md`, dan bila perlu **root** `README.md`.
+   - Struktur repo / layering / checklist engineering: `docs/engineering/phase-1-code-structure-todo.md`.
+   - **Dokumen per fitur:** update `docs/features/<feature>/README.md` untuk fitur yang disentuh (flow UI, endpoint, aturan bisnis, edge case, test). Jika fitur baru, **buat folder fitur baru** + daftarkan di `docs/features/README.md` dan `docs/README.md`.
+
+3. **Definisi “selesai” untuk task dev:** kode + tes yang disepakati + **dokumen yang terdampak** (termasuk docs per fitur) sudah konsisten. Jika user meminta melewati dokumentasi, minta konfirmasi eksplisit di pesan itu.
+
+4. Perubahan **hanya typo/format** tanpa dampak perilaku boleh tidak menyentuh planning snapshot — tetap jangan mengubah klaim fitur yang salah.

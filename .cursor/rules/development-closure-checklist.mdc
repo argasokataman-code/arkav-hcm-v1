@@ -1,0 +1,61 @@
+---
+description: Wajib — sebelum menutup task substantif: cek security, sinkron semua docs terdampak, update OpenAPI/Swagger bila API berubah
+alwaysApply: true
+---
+
+# Penutupan task dev — security + dokumentasi + OpenAPI (jangan dilupakan)
+
+Rule ini melengkapi `documentation-sync-after-development`, `openapi-collection-sync`, `application-security-baseline`, dan `web-hcm-route-security`. Isinya **ringkas tetapi wajib diingat**: hal-hal di bawah sering terlewat jika hanya “dianggap sudah ada di rule lain”.
+
+## Kapan wajib dijalankan (mental + patch)
+
+Setiap pekerjaan **substantif**: fitur baru, endpoint/route baru, perubahan RBAC, migrasi schema, halaman Blade/JS HCM baru, atau perubahan kontrak request/response.
+
+**Sebelum** menganggap task selesai atau berhenti coding, agent **wajib**:
+
+1. Menyelesaikan item checklist di bawah **dalam patch yang sama** (atau menjelaskan secara eksplisit di respons jika item tidak relevan — mis. “tidak ada perubahan API” → OpenAPI tidak perlu).
+2. **Tidak** menutup dengan “sudah jadi” hanya berdasarkan kode tanpa memverifikasi tiga pilar ini.
+
+## 1) Security (cek dulu)
+
+Sesuai risiko perubahan — minimal yang relevan:
+
+| Jika menyentuh | Wajib cek / lakukan |
+|----------------|---------------------|
+| **Route API** baru atau RBAC | Middleware `api.token`; admin/self/ownership di controller; respons `401/403` konsisten. Rujuk `application-security-baseline.mdc`. |
+| **Route web** GET/HEAD baru | Bukan konten sensitif tanpa auth; tamu non-whitelist → 404 guest. Halaman admin-only → middleware `hcm.web.admin` **setelah** auth web. Rujuk `web-hcm-route-security.mdc`. |
+| **Whitelist publik** (`arcav_hcm_web_guard.php`) | Update `docs/security/hcm-web-route-guard.md` + `docs/security/inventory-and-surface.md` bila perlu; tes `WebHcmRouteGuardTest`. |
+| **Halaman/admin-only baru** (pola promotion) | Tambahkan path ke tes admin vs non-admin di `WebHcmRouteGuardTest` (sama seperti `/promotion`, `/salary-component-master`, dll.) agar regresi tertangkap. |
+| **Input user / upload / data sensitif** | Validasi server-side, IDOR, tidak membocorkan stack ke klien. |
+
+## 2) Dokumentasi (semua yang terdampak, tidak cherry-pick)
+
+Ikuti **`documentation-sync-after-development.mdc`** secara utuh. Khususnya jangan lupa kombinasi ini pada satu PR:
+
+- **Planning snapshot:** `docs/planning/implementation-status.md`, `phase-1-todo-plan.md` (bila substantif).
+- **Matriks HCM:** `docs/planning/active-hcm-templates-and-permissions.md` + **mirror** `.cursor/rules/role-permissions-with-features.mdc` jika path/menu/API/izin berubah.
+- **Kontrak manusia:** `docs/api/<fitur>-api.md` untuk setiap endpoint yang disentuh; `docs/api/api-spec-phase-1.md` jika indeks/link global berubah.
+- **Fitur:** `docs/features/<feature>/README.md` atau buat folder baru + indeks `docs/features/README.md`.
+- **DB:** `docs/database/mysql-database-specification.md` jika schema berubah.
+- **Security:** `docs/security/*` jika permukaan serangan atau kebijakan guard berubah.
+
+## 3) OpenAPI / Swagger (wajib jika kontrak API berubah)
+
+Ikuti **`openapi-collection-sync.mdc`**. Inti yang sering terlupa:
+
+- File sumber koleksi QA: **`docs/api/openapi.yaml`** (dimuat Swagger UI lewat `/api-docs/openapi.yaml`).
+- Jika ada **path/method baru** atau perubahan **body/query/response/error/RBAC terdokumentasi**, OpenAPI **harus** di-patch **bersamaan** dengan kode — bukan “nanti” atau “opsional”.
+- **Minimum berguna:** `tags`, `summary`, `security`, skema request (required fields), respons `200/201`, serta `401/403/404/422` sesuai perilaku nyata.
+
+**Definisi gagal:** endpoint sudah ada di `routes/api.php` tapi tidak ada atau sudah usang di `openapi.yaml`.
+
+## 4) Checklist singkat sebelum “selesai”
+
+Agent wajib bisa menjawab ya untuk yang relevan:
+
+- [ ] **Security:** RBAC/guard/tes regresi untuk route baru sudah selaras?
+- [ ] **Docs:** Semua file `docs/` yang kontraknya ikut berubah sudah di-update?
+- [ ] **OpenAPI:** `docs/api/openapi.yaml` sudah selaras dengan implementasi (atau dijawab jelas: tidak ada perubahan kontrak API)?
+- [ ] **Tes:** Minimal satu tes yang menyentuh flow berisiko (happy + forbidden/422 bila perlu)?
+
+Jika user meminta **melewati** dokumentasi atau OpenAPI, minta **konfirmasi eksplisit** di pesan user — jangan diam-diam melewati rule project.

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+bash scripts/check-tests-on-change.sh
+bash scripts/check-api-docs-sync.sh --staged

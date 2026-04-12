@@ -1,0 +1,36 @@
+---
+description: Wajib cek API spec dulu; validasi regex & constraint harus parity FE/BE
+alwaysApply: true
+---
+
+# API spec-first + Validasi parity (FE/BE)
+
+Saat mengerjakan **fitur baru**, **endpoint baru**, atau **penyesuaian API/UI** yang memengaruhi input user:
+
+- **Wajib baca dulu** spesifikasi API sebelum coding:
+  - `docs/api/api-spec-phase-1.md` (utama)
+  - `docs/api/openapi.yaml` (jika sudah selaras / tersedia)
+- **Jadikan spec sebagai sumber kebenaran** untuk:
+  - field wajib/opsional, min/max length, enum, format date, dan **regex**
+  - response envelope `{ success, data?, error? }`
+  - aturan RBAC (siapa boleh mutate / list)
+
+## Validasi parity (jangan kebobolan)
+
+- **Backend tetap wajib memvalidasi** sesuai spec (server-side is source of truth).
+- **Frontend wajib mengikuti constraint yang sama** untuk UX:
+  - Input type/placeholder membantu user mengikuti format spec
+  - Jika spec punya **regex** atau constraint format (contoh: nama tanpa angka, code `[a-z0-9_-]+`, dll), UI **harus**:
+    - set `pattern` / `maxlength` / `min` / `max` yang relevan, dan/atau
+    - validasi JS sebelum submit (serta tampilkan pesan error yang jelas)
+- Kalau ada konflik antara implementasi existing dan spec:
+  - **Jangan diam-diam** mengubah aturan validasi.
+  - Update dokumen spec (atau tulis note gap di docs fitur) **dalam patch yang sama**.
+
+## Checklist sebelum selesai (untuk perubahan API/UI)
+
+- [ ] Sudah cek spec dan menyalin constraint penting ke validasi server-side
+- [ ] UI mengikuti constraint spec (terutama regex/format), bukan lebih longgar
+- [ ] Error message UI tidak menutupi detail error dari API bila tersedia
+- [ ] Docs terkait ikut disinkronkan jika kontrak berubah
+

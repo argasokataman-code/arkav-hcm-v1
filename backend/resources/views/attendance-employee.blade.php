@@ -1,0 +1,387 @@
+<?php $page = 'attendance-employee'; ?>
+@extends('layout.mainlayout')
+@section('content')
+    <style>
+        [data-attendance-me-history-body]:not([data-hydrated="1"]) {
+            display: none;
+        }
+        .arcav-attendance-page .arcav-punch-card .card-body {
+            padding: 1.25rem;
+        }
+        .arcav-attendance-page .arcav-punch-section-title {
+            font-size: 0.6875rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--gray-600, #6c757d);
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+        .arcav-attendance-page .arcav-stat-card {
+            border: 1px solid var(--border-color, #e8e8e8);
+            height: 100%;
+        }
+        .arcav-attendance-page .arcav-stat-card .card-body {
+            padding: 1.125rem 1.25rem;
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gray-700, #495057);
+            line-height: 1.35;
+            margin: 0;
+            max-width: 70%;
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-value-row {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.25rem 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--gray-900, #212529);
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-target {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--gray-500, #8a9099);
+        }
+        .arcav-attendance-page .arcav-stat-card .stat-foot {
+            font-size: 0.75rem;
+            color: var(--gray-600, #6c757d);
+            margin: 0;
+            padding-top: 0.5rem;
+            border-top: 1px dashed var(--border-color, #e8e8e8);
+        }
+        .arcav-attendance-page .arcav-summary-card .summary-item {
+            background: var(--light, #f8f9fa);
+            border-radius: 0.5rem;
+            padding: 0.875rem 1rem;
+            height: 100%;
+            border: 1px solid var(--border-color, #e8e8e8);
+        }
+        .arcav-attendance-page .arcav-summary-card .summary-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--gray-600, #6c757d);
+            margin-bottom: 0.35rem;
+        }
+        .arcav-attendance-page .arcav-summary-card .summary-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+            line-height: 1.3;
+        }
+        #arcav-attendance-punch-map {
+            min-height: 180px;
+            height: 180px;
+        }
+        .arcav-attendance-page .arcav-gps-debug {
+            border: 1px dashed var(--border-color, #d9d9d9);
+            border-radius: 0.5rem;
+            background: #fcfcfc;
+            padding: 0.75rem;
+        }
+    </style>
+
+    <!-- Page Wrapper -->
+    <div class="page-wrapper arcav-attendance-page">
+        <div class="content">
+
+            <!-- Breadcrumb -->
+            <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Absensi karyawan</h2>
+                    <nav>
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item">
+                                <a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
+                            </li>
+                            <li class="breadcrumb-item">
+                                Employee
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">Absensi</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
+                    <div class="me-2 mb-2">
+                        <div class="d-flex align-items-center border bg-white rounded p-1 me-2 icon-list">
+                            <a href="{{url('attendance-employee')}}" class="btn btn-icon btn-sm active bg-primary text-white me-1"><i class="ti ti-brand-days-counter"></i></a>
+                            <a href="{{url('attendance-admin')}}" class="btn btn-icon btn-sm"><i class="ti ti-calendar-event"></i></a>
+                        </div>
+                    </div>
+                    <div class="me-2 mb-2">
+                        <div class="dropdown">
+                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
+                                <i class="ti ti-file-export me-1"></i>Export
+                            </a>
+                            <ul class="dropdown-menu  dropdown-menu-end p-3">
+                                <li>
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1" data-attendance-me-export="csv"><i class="ti ti-file-type-xls me-1"></i>Export CSV</a>
+                                </li>
+                                <li>
+                                    <span class="dropdown-item rounded-1 text-muted">CSV format only</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <a href="{{ url('attendance-report') }}" class="btn btn-primary d-flex align-items-center">
+                            <i class="ti ti-file-analytics me-2"></i>Report
+                        </a>
+                    </div>
+                    <div class="ms-2 head-icons">
+                        <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
+                            <i class="ti ti-chevrons-up"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <!-- /Breadcrumb -->
+
+            <div class="row g-3">
+                <div class="col-xl-3 col-lg-4 d-flex">
+                    <div class="card flex-fill arcav-punch-card border shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <div class="text-center border-bottom pb-3 mb-3">
+                                <p class="arcav-punch-section-title mb-1">Status hari ini</p>
+                                <p class="fw-semibold text-gray-900 mb-0" data-attendance-me-greeting>Loading…</p>
+                                <p class="text-muted small mb-0" data-attendance-me-now>—</p>
+                            </div>
+                            <div class="attendance-circle-progress mx-auto mb-3 flex-shrink-0" data-value="0">
+                                <span class="progress-left">
+                                    <span class="progress-bar border-success"></span>
+                                </span>
+                                <span class="progress-right">
+                                    <span class="progress-bar border-success"></span>
+                                </span>
+                                <div class="avatar avatar-xxl avatar-rounded bg-primary-subtle d-inline-flex align-items-center justify-content-center">
+                                    <span class="avatar-title rounded-circle text-primary fs-2 fw-semibold" data-attendance-me-avatar-initial>?</span>
+                                </div>
+                            </div>
+                            <div class="text-center mb-3">
+                                <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-2 fw-medium" data-attendance-me-production-badge>Produktivitas: —</span>
+                            </div>
+                            <div class="rounded-3 bg-light p-3 mb-3 text-center">
+                                <p class="arcav-punch-section-title text-start mb-2">Absensi</p>
+                                <div class="fw-medium text-gray-700 d-flex align-items-center justify-content-center gap-2 mb-0" data-attendance-me-punch-line>
+                                    <i class="ti ti-fingerprint text-primary fs-18"></i>
+                                    <span>—</span>
+                                </div>
+                                <div class="d-none mt-2" data-attendance-me-break-indicator>
+                                    <span class="badge bg-warning text-dark">Istirahat</span>
+                                    <div class="small text-muted mt-1">Durasi: <span data-attendance-me-break-duration>00:00</span></div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning py-2 px-3 text-start small mb-3 d-none" data-attendance-me-alert></div>
+                            <div class="mb-3 flex-grow-1 d-flex flex-column">
+                                <p class="arcav-punch-section-title">Lokasi (wajib saat Punch)</p>
+                                <div id="arcav-attendance-punch-map" class="rounded-3 border bg-white shadow-sm flex-grow-1 w-100"></div>
+                                <p class="text-muted small mt-2 mb-0">
+                                    Peta Leaflet + OpenStreetMap. Jika GPS perangkat ditolak browser, klik titik di peta sebagai lokasi manual.
+                                </p>
+                                <p class="small mb-0 mt-1 text-primary" data-attendance-me-map-hint></p>
+                            </div>
+                            <div class="d-grid gap-2 mt-auto">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-attendance-gps-debug-btn>
+                                    Cek status GPS
+                                </button>
+                                <div class="arcav-gps-debug d-none text-start" data-attendance-gps-debug-box>
+                                    <p class="small mb-1"><strong>Secure Context:</strong> <span data-gps-debug-secure>—</span></p>
+                                    <p class="small mb-1"><strong>Permission:</strong> <span data-gps-debug-permission>—</span></p>
+                                    <p class="small mb-1"><strong>Coords:</strong> <span data-gps-debug-coords>—</span></p>
+                                    <p class="small mb-0"><strong>Status:</strong> <span data-gps-debug-status>Belum dicek.</span></p>
+                                </div>
+                                <button type="button" class="btn btn-outline-warning d-none" data-attendance-me-request-correction>
+                                    Ajukan koreksi
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" data-attendance-me-break-btn disabled>Mulai istirahat</button>
+                                <button type="button" class="btn btn-dark" data-attendance-me-punch-btn>Punch In</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-9 col-lg-8">
+                    <div class="row g-3">
+                        <div class="col-xxl-3 col-md-6">
+                            <div class="card arcav-stat-card shadow-sm">
+                                <div class="card-body">
+                                    <div class="stat-head">
+                                        <p class="stat-label">Jam kerja hari ini</p>
+                                        <span class="avatar avatar-sm bg-primary flex-shrink-0"><i class="ti ti-clock-stop"></i></span>
+                                    </div>
+                                    <div class="stat-value-row">
+                                        <span class="stat-value" data-attendance-stat-today-hours>—</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-today-target>9</span> jam</span>
+                                    </div>
+                                    <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-today>—</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xxl-3 col-md-6">
+                            <div class="card arcav-stat-card shadow-sm">
+                                <div class="card-body">
+                                    <div class="stat-head">
+                                        <p class="stat-label">Jam kerja minggu ini</p>
+                                        <span class="avatar avatar-sm bg-dark flex-shrink-0"><i class="ti ti-clock-up"></i></span>
+                                    </div>
+                                    <div class="stat-value-row">
+                                        <span class="stat-value" data-attendance-stat-week-hours>—</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-week-target>40</span> jam</span>
+                                    </div>
+                                    <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-week>—</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xxl-3 col-md-6">
+                            <div class="card arcav-stat-card shadow-sm">
+                                <div class="card-body">
+                                    <div class="stat-head">
+                                        <p class="stat-label">Jam kerja bulan ini</p>
+                                        <span class="avatar avatar-sm bg-info flex-shrink-0"><i class="ti ti-calendar-up"></i></span>
+                                    </div>
+                                    <div class="stat-value-row">
+                                        <span class="stat-value" data-attendance-stat-month-hours>—</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-month-target>98</span> jam</span>
+                                    </div>
+                                    <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-month>—</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xxl-3 col-md-6">
+                            <div class="card arcav-stat-card shadow-sm">
+                                <div class="card-body">
+                                    <div class="stat-head">
+                                        <p class="stat-label">Lembur bulan ini</p>
+                                        <span class="avatar avatar-sm bg-pink flex-shrink-0"><i class="ti ti-calendar-star"></i></span>
+                                    </div>
+                                    <div class="stat-value-row">
+                                        <span class="stat-value" data-attendance-stat-ot-hours>—</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-ot-target>28</span> jam</span>
+                                    </div>
+                                    <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-ot>—</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="card arcav-summary-card border shadow-sm">
+                                <div class="card-header bg-transparent border-bottom py-3">
+                                    <h5 class="mb-0 fs-16 fw-semibold">Ringkasan hari ini</h5>
+                                    <p class="text-muted small mb-0 mt-1">Diperbarui otomatis dari punch in / out Anda hari ini.</p>
+                                </div>
+                                <div class="card-body pt-3">
+                                    <div class="row g-3">
+                                        <div class="col-sm-6 col-xl-3">
+                                            <div class="summary-item">
+                                                <p class="summary-label mb-0">Total jam kerja</p>
+                                                <p class="summary-value text-dark" data-attendance-me-summary-total>—</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6 col-xl-3">
+                                            <div class="summary-item">
+                                                <p class="summary-label mb-0">Produktif</p>
+                                                <p class="summary-value text-success" data-attendance-me-summary-productive>—</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6 col-xl-3">
+                                            <div class="summary-item">
+                                                <p class="summary-label mb-0">Istirahat</p>
+                                                <p class="summary-value text-warning" data-attendance-me-summary-break>—</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6 col-xl-3">
+                                            <div class="summary-item">
+                                                <p class="summary-label mb-0">Lembur (hari ini)</p>
+                                                <p class="summary-value text-info" data-attendance-me-summary-ot>—</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3 border shadow-sm">
+                <div class="card-header bg-transparent d-flex align-items-center justify-content-between flex-wrap row-gap-2 py-3">
+                    <div>
+                        <h5 class="mb-0 fs-16 fw-semibold">Riwayat absensi</h5>
+                        <p class="text-muted small mb-0">30 hari terakhir</p>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="custom-datatable-filter table-responsive">
+                        <table class="table" id="attendance-me-history-table">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Status</th>
+                                    <th>Check Out</th>
+                                    <th>Break</th>
+                                    <th>Late</th>
+                                    <th>Overtime</th>
+                                    <th>Production Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody data-attendance-me-history-body>
+                                <tr>
+                                    <td class="text-center text-muted py-4">Loading history...</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+    </div>
+    <!-- /Page Wrapper -->
+
+    @component('components.modal-popup')
+    @endcomponent
+
+    <div class="modal fade" id="arcav_attendance_correction_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request Correction</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Reason</label>
+                    <textarea class="form-control" rows="4" data-attendance-correction-reason placeholder="Jelaskan alasan koreksi absensi"></textarea>
+                    <div class="form-text">Minimal 5 karakter.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" data-attendance-correction-submit>Send Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@endsection

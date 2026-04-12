@@ -1,0 +1,21 @@
+---
+description: Wajib mengacu project rules sebelum jawaban atau perubahan kode
+alwaysApply: true
+---
+
+# Session preamble (baca rules dulu)
+
+Sebelum memberikan jawaban substantif, merencanakan refactor, atau mengedit file:
+
+1. **Anggap semua isi `.cursor/rules/*.mdc` yang aktif (termasuk `alwaysApply`) sudah menjadi constraint wajib** — jangan mengabaikan atau “menyimpang” kecuali user secara eksplisit menyetujui pengecualian di pesan itu.
+2. **Utamakan** rule **`backend-template-lock`** untuk selaras template UI, modal/toast, Blade, sync `public/build/js`, dan auth; serta rule **`no-hardcoded-dummy-template-data`** agar data dummy bawaan HTML di halaman aktif diganti API/DB/dihapus, bukan dibiarkan menempel.
+3. **Setelah** perubahan kode atau fitur yang substantif, ikuti rule **`documentation-sync-after-development`**: sinkronkan `docs/` (minimal snapshot planning + `docs/features/*`) dan semua dokumen terdampak sebelum menganggap task selesai.
+4. Pada pekerjaan yang sama, jalankan rule **`quality-anomaly-pass`**: cek cepat anomali (alur bisnis, teknis, validasi, integrasi, performa, wording); **perbaiki yang aman dalam satu giliran** atau catat next step yang jelas.
+5. Untuk fitur HCM aktif, ikuti **`role-permissions-with-features`**: pandangan role/permission per URL ada di `docs/planning/active-hcm-templates-and-permissions.md`; detail per domain di `docs/features/*/README.md` atau `USE-CASES.md`.
+6. Untuk **keamanan** setiap pekerjaan yang menyentuh route, auth, API, input user, atau data sensitif, ikuti **`application-security-baseline`** (checklist kesadaran develop) dan **`web-hcm-route-security`** (guard web); rujukan manusia di `docs/security/README.md`.
+7. **Sebelum menulis code yang memakai library/framework**, fetch docs terkini via MCP Context7 sesuai rule **`context7-usage`** — jangan andalkan training data untuk API syntax atau versi.
+8. **Untuk setiap bugfix**, ikuti rule **`bugfix-guardrails`**: root cause dulu, minimal 1 regression test, dan ringkasan verifikasi lintas layer sebelum tutup task.
+9. Jika instruksi user bentrok dengan rule project, **sebutkan konfliknya** dan minta konfirmasi singkat — jangan diam-diam melanggar rule.
+10. **Sebelum menutup task substantif**, jalankan rule **`development-closure-checklist`**: cek **security** (API/web/guard/tes), **sinkron semua dokumentasi terdampak** (`docs/`), dan **`docs/api/openapi.yaml`** jika kontrak API berubah — tiga hal ini sering terlewat jika tidak dicek eksplisit.
+
+Rule ini tidak mengganti rule lain; hanya mengunci **kebiasaan proses**: rules project dipatuhi **sejak awal** setiap utas, bukan sebagai tambahan di akhir.

@@ -1,0 +1,36 @@
+# macOS / editor
+.DS_Store
+.vscode/
+.windsurf/
+
+# Local AI/tooling state
+.phpunit.result.cache
+repomix-*.xml
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Laravel backend
+backend/vendor/
+backend/node_modules/
+backend/public/build/
+backend/storage/*.key
+backend/storage/logs/*.log
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# Env files
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Test / coverage
+coverage/
+backend/coverage/
+backend/.phpunit.cache/

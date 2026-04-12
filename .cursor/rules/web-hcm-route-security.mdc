@@ -1,0 +1,31 @@
+---
+description: Web guard satu mode — hanya whitelist public_paths/public_prefixes; sisanya wajib auth
+alwaysApply: true
+---
+
+# Web HCM route security (wajib saat develop)
+
+## Konteks
+
+Halaman Blade memuat markup dan aset sensitif. Proyek memakai **cookie API** `arcav_access_token` dan opsional **sesi web** legacy (`Auth::check()`).
+
+**Satu kebijakan:** setiap **`GET`/`HEAD`** web wajib auth **kecuali** path cocok **`public_paths`** atau **`public_prefixes`** di `backend/config/arcav_hcm_web_guard.php`. Tidak ada mode legacy, tidak ada env yang membuka seluruh web.
+
+## Aturan wajib
+
+1. **Halaman baru untuk tamu** — tambahkan path ke **`public_paths`** atau **`public_prefixes`**. Jangan memperluas publik tanpa alasan (review keamanan).
+2. **Halaman hanya untuk pengguna login** — tidak perlu mendaftar di mana pun: default sudah terlindungi.
+3. **Jangan** mengandalkan hanya redirect atau cek token di JavaScript; **`EnsureHcmWebPagesAuthenticated`** harus konsisten.
+4. Tamu tanpa auth pada path non-publik → **404 + `error-404-guest`** (bukan `mainlayout` + sidebar).
+5. **RBAC admin/self** tetap di **API** (`EnsuresHcmAdmin`, ownership). Guard web tidak menggantikan 403 di endpoint.
+6. Resolver token: satu implementasi di **`App\Support\ArcavAccessTokenResolver`** bersama **`AuthenticateApiToken`**.
+7. Perubahan whitelist: update **`docs/security/hcm-web-route-guard.md`** + **`inventory-and-surface.md`** dan **`WebHcmRouteGuardTest`** bila perlu.
+
+## Checklist PR (route web baru)
+
+- [ ] Jika halaman untuk tamu: path ada di `public_paths` / `public_prefixes`
+- [ ] Tidak ada konten sensitif yang hanya “dilindungi” di JS
+- [ ] API tetap enforce 401/403 sesuai matriks HCM
+- [ ] Dokumen `docs/security/*` + planning snapshot disentuh bila whitelist berubah
+
+**Checklist security umum tiap develop:** rule **`application-security-baseline`**.

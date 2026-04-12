@@ -1,0 +1,4058 @@
+openapi: 3.0.3
+info:
+  title: Arcav HCM Phase 1 API
+  version: 1.0.0
+  description: |
+    Microservice-style contract for Identity, Core HCM, and Leave domains.
+    Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.
+    Lihat `backend/routes/api.php` dan `docs/planning/implementation-status.md` bila path di bawah belum tercantum di file ini.
+servers:
+  # Local backend (Laravel artisan serve via ./run.sh)
+  - url: http://127.0.0.1:8007
+    description: Local backend (recommended for Swagger Try it out)
+  # Local frontend proxy (Node) - optional, may require CORS depending on setup
+  - url: http://127.0.0.1:5179
+    description: Local frontend proxy (optional)
+  - url: https://api.example.com
+    description: Production (placeholder)
+tags:
+  - name: Identity
+  - name: HCM
+  - name: Tickets
+  - name: Attendance
+  - name: Leave
+  - name: Overtime
+  - name: Payroll
+  - name: Holidays
+  - name: Training
+  - name: Performance
+  - name: Promotion
+  - name: Resignation
+  - name: Termination
+paths:
+  /v1/identity/auth/register:
+    post:
+      tags: [Identity]
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/identity/auth/login:
+    post:
+      tags: [Identity]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/identity/auth/logout:
+    post:
+      tags: [Identity]
+      summary: Logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /v1/identity/auth/me:
+    get:
+      tags: [Identity]
+      summary: Current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /v1/hcm/departments:
+    get:
+      tags: [HCM]
+      summary: List departments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [HCM]
+      summary: Create department
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentUpsertRequest'
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/departments/{id}:
+    put:
+      tags: [HCM]
+      summary: Update department
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentUpsertRequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/hcm/designations:
+    get:
+      tags: [HCM]
+      summary: List designations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [HCM]
+      summary: Create designation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesignationUpsertRequest'
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/designations/{id}:
+    put:
+      tags: [HCM]
+      summary: Update designation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesignationUpsertRequest'
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/hcm/employees:
+    get:
+      tags: [HCM]
+      summary: List employees
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/DepartmentId'
+        - $ref: '#/components/parameters/DesignationId'
+        - $ref: '#/components/parameters/EmploymentStatus'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmployeeDirectoryRow'
+                  meta:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      perPage: { type: integer }
+                      total: { type: integer }
+                      summary:
+                        type: object
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [HCM]
+      summary: Create employee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreateRequest'
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/employees/{id}:
+    get:
+      tags: [HCM]
+      summary: Get employee detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetailResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [HCM]
+      summary: Update employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdateRequest'
+      responses:
+        '200':
+          description: Employee updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetailResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/hcm/employees/bulk-template:
+    get:
+      tags: [HCM]
+      summary: Download employee bulk import template
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: XLSX template file
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /v1/hcm/employees/bulk-upload:
+    post:
+      tags: [HCM]
+      summary: Bulk create/update employees from spreadsheet
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Bulk import applied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      createdRows: { type: integer }
+                      updatedRows: { type: integer }
+                      failedRows: { type: integer }
+                      errors:
+                        type: array
+                        items: { type: string }
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          description: Validation failure; import is rolled back all-or-nothing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  # -------------------------
+  # Tickets (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/tickets:
+    get:
+      tags: [Tickets]
+      summary: List tickets (admin all, employee own)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Tickets]
+      summary: Create ticket
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/tickets/{id}:
+    get:
+      tags: [Tickets]
+      summary: Ticket detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Tickets]
+      summary: Update ticket (admin can status/assign; employee limited)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Tickets]
+      summary: Delete ticket (employee own; locked if closed)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/tickets/assignable-users:
+    get:
+      tags: [Tickets]
+      summary: Assignable users (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/tickets/categories:
+    get:
+      tags: [Tickets]
+      summary: List ticket categories (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Tickets]
+      summary: Create ticket category (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/tickets/category-options:
+    get:
+      tags: [Tickets]
+      summary: Active ticket categories for dropdown (any authenticated)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  # -------------------------
+  # Attendance (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/attendance/admin:
+    get:
+      tags: [Attendance]
+      summary: Attendance admin list (admin only, paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: date, in: query, required: false, schema: { type: string, format: date } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: department, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [present, absent, needs_review] } }
+        - { name: sort, in: query, required: false, schema: { type: string } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/attendance/admin/record:
+    put:
+      tags: [Attendance]
+      summary: Admin upsert attendance record (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/today:
+    get:
+      tags: [Attendance]
+      summary: Employee attendance today (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/attendance/me/history:
+    get:
+      tags: [Attendance]
+      summary: Employee attendance history (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/attendance/me/stats:
+    get:
+      tags: [Attendance]
+      summary: Employee attendance stats (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/attendance/me/punch:
+    post:
+      tags: [Attendance]
+      summary: Punch in/out (self, requires latitude/longitude)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/break:
+    post:
+      tags: [Attendance]
+      summary: Toggle break (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/correction-request:
+    post:
+      tags: [Attendance]
+      summary: Request correction (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/timesheets:
+    get:
+      tags: [Attendance]
+      summary: Timesheets (admin only, DB paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: project, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: sort, in: query, required: false, schema: { type: string } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/schedule-timing:
+    get:
+      tags: [Attendance]
+      summary: Schedule timing list (admin only, paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: sort, in: query, required: false, schema: { type: string } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  # -------------------------
+  # Leave (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/leave-type-options:
+    get:
+      tags: [Leave]
+      summary: Enabled leave type options (any authenticated)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/leave-requests/export:
+    get:
+      tags: [Leave]
+      summary: Export leave requests CSV (server-side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [me] } }
+        - { name: leaveType, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
+        - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: userId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-requests:
+    get:
+      tags: [Leave]
+      summary: List leave requests (admin all, employee own, paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [me] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: leaveType, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
+        - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: userId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Leave]
+      summary: Create leave request (admin can create for other users)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-requests/{id}:
+    put:
+      tags: [Leave]
+      summary: Update leave request (owner pending; admin can update status)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Leave]
+      summary: Delete leave request (owner pending only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-settings:
+    get:
+      tags: [Leave]
+      summary: Leave settings (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  # -------------------------
+  # Payroll — salary component master (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/salary-components:
+    get:
+      tags: [Payroll]
+      summary: List salary components (HCM admin only)
+      description: |
+        Mengembalikan semua baris master komponen gaji (urut `sortOrder`, `name`).
+        Hanya **HCM Admin**; non-admin `403`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentListResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Payroll]
+      summary: Create salary component (HCM admin only)
+      description: |
+        `category` harus sesuai `kind` (lihat enum di schema). `code` opsional; regex `^[a-z0-9_-]+$`, unik.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryComponentCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentCreatedResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/salary-components/{id}:
+    get:
+      tags: [Payroll]
+      summary: Get salary component by id (HCM admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentDetailResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Payroll]
+      summary: Update salary component (HCM admin)
+      description: |
+        - Baris **bukan** `isSystemLocked`: kirim **payload penuh** (`SalaryComponentUpdateFullRequest`).
+        - Baris **sistem terkunci** (seed): subset `SalaryComponentUpdateLockedRequest` (termasuk penyesuaian `defaultPercent` / `percentBasis`).
+        Catatan: backend mengabaikan field lain pada baris terkunci; pada baris tidak terkunci, payload parsial akan gagal validasi.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SalaryComponentUpdateFullRequest'
+                - $ref: '#/components/schemas/SalaryComponentUpdateLockedRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentOkResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Payroll]
+      summary: Delete salary component (HCM admin)
+      description: |
+        Baris `isSystemLocked` (seed) tidak dapat dihapus — respons `422` dengan `error.code` = `DOMAIN_LOCKED`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentOkResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
+  # Payroll — period & run (draft / finalize / self slip lines)
+  # -------------------------
+  /v1/hcm/payroll-periods:
+    get:
+      tags: [Payroll]
+      summary: List payroll periods (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        periodYear:
+                          type: integer
+                          example: 2026
+                        periodMonth:
+                          type: integer
+                          example: 4
+                        status:
+                          type: string
+                          enum: [open, posted]
+                          example: open
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/payroll-periods/active:
+    get:
+      tags: [Payroll]
+      summary: Get active payroll period (HCM admin)
+      description: Returns latest `open` period; creates current month period when none exists.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Payroll]
+      summary: Create payroll period (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodYear, periodMonth]
+              properties:
+                periodYear: { type: integer, minimum: 2000, maximum: 2100 }
+                periodMonth: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      periodYear:
+                        type: integer
+                        example: 2026
+                      periodMonth:
+                        type: integer
+                        example: 4
+                      status:
+                        type: string
+                        enum: [open, posted]
+                        example: open
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422':
+          description: Validation error - PAYROLL_PERIOD_EXISTS
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: PAYROLL_PERIOD_EXISTS
+                      message:
+                        type: string
+                        example: Payroll period already exists.
+  /v1/hcm/payroll-periods/{id}:
+    get:
+      tags: [Payroll]
+      summary: Payroll period detail (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      periodYear:
+                        type: integer
+                        example: 2026
+                      periodMonth:
+                        type: integer
+                        example: 4
+                      status:
+                        type: string
+                        enum: [open, posted]
+                        example: open
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+                      latestRun:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          payrollPeriodId:
+                            type: integer
+                            example: 1
+                          purpose:
+                            type: string
+                            enum: [monthly, thr]
+                            example: monthly
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: draft
+                          calculatedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedByUserId:
+                            type: integer
+                            nullable: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/payroll-periods/{id}/calculate-draft:
+    post:
+      tags: [Payroll]
+      summary: Rebuild draft payroll run (HCM admin)
+      description: |
+        Menghapus draft lalu membuat run `draft` baru dengan baris dari profil karyawan aktif/probation.
+        `422` jika periode sudah punya run `finalized` (`PAYROLL_PERIOD_FINALIZED`).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      run:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          payrollPeriodId:
+                            type: integer
+                            example: 1
+                          purpose:
+                            type: string
+                            enum: [monthly, thr]
+                            example: monthly
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: draft
+                          calculatedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedByUserId:
+                            type: integer
+                            nullable: true
+                      lineCount:
+                        type: integer
+                        example: 15
+                      employeeCount:
+                        type: integer
+                        example: 5
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422':
+          description: Validation error - PAYROLL_PERIOD_FINALIZED
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: PAYROLL_PERIOD_FINALIZED
+                      message:
+                        type: string
+                        example: This period already has a finalized payroll run; void or use a new period before recalculating.
+  /v1/hcm/payroll-runs/{id}:
+    get:
+      tags: [Payroll]
+      summary: Payroll run with all lines (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      run:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          payrollPeriodId:
+                            type: integer
+                            example: 1
+                          purpose:
+                            type: string
+                            enum: [monthly, thr]
+                            example: monthly
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: draft
+                          calculatedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          finalizedByUserId:
+                            type: integer
+                            nullable: true
+                          period:
+                            type: object
+                            nullable: true
+                            properties:
+                              id:
+                                type: integer
+                              periodYear:
+                                type: integer
+                              periodMonth:
+                                type: integer
+                              status:
+                                type: string
+                      lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            userId:
+                              type: integer
+                            salaryComponentId:
+                              type: integer
+                              nullable: true
+                            componentCode:
+                              type: string
+                              nullable: true
+                            componentName:
+                              type: string
+                              nullable: true
+                            kind:
+                              type: string
+                              enum: [addition, deduction]
+                            category:
+                              type: string
+                              nullable: true
+                            amount:
+                              type: number
+                              format: float
+                              example: 5000000
+                            sortOrder:
+                              type: integer
+                              example: 1
+                            meta:
+                              type: object
+                              nullable: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/payroll-runs/history:
+    get:
+      tags: [Payroll]
+      summary: List payroll run history (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: periodYear, in: query, required: false, schema: { type: integer, minimum: 2000, maximum: 2100 } }
+        - { name: periodMonth, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 12 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [draft, finalized, void] } }
+        - { name: purpose, in: query, required: false, schema: { type: string, enum: [monthly, thr, pkwt_compensation] } }
+        - { name: paymentStatus, in: query, required: false, schema: { type: string, enum: [unpaid, partial, paid] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/payroll-runs/{id}/finalize:
+    post:
+      tags: [Payroll]
+      summary: Finalize draft payroll run (HCM admin)
+      description: |
+        Menandai run `finalized` dan periode `posted`. `422` dengan `PAYROLL_RUN_EMPTY` jika tidak ada baris;
+        `PAYROLL_RUN_NOT_DRAFT` / `PAYROLL_FINALIZED_EXISTS` (hanya jika sudah ada final dengan `purpose` yang sama).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 5
+                      payrollPeriodId:
+                        type: integer
+                        example: 1
+                      purpose:
+                        type: string
+                        enum: [monthly, thr]
+                        example: monthly
+                      status:
+                        type: string
+                        enum: [draft, finalized]
+                        example: finalized
+                      calculatedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      finalizedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      finalizedByUserId:
+                        type: integer
+                        nullable: true
+                      period:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                          periodYear:
+                            type: integer
+                          periodMonth:
+                            type: integer
+                          status:
+                            type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422':
+          description: Validation error - PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY]
+                      message:
+                        type: string
+  /v1/hcm/payroll-runs/{id}/disburse:
+    post:
+      tags: [Payroll]
+      summary: Disburse monthly payroll via gateway (HCM admin)
+      description: |
+        Menjalankan pembayaran gateway untuk subset `userIds` yang dipilih. Jika run masih `draft`, API akan
+        otomatis memfinalkan run dan menandai periodenya sebagai `posted` sebelum menulis status pembayaran per karyawan.
+        Pemanggilan berulang aman/idempotent: user yang sudah `paid` akan dilewati.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Optional subset of employee user IDs to disburse. If omitted, all employees in the run are processed.
+      responses:
+        '200':
+          description: Gateway disbursement processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      run:
+                        type: object
+                      selectedUserIds:
+                        type: array
+                        items: { type: integer }
+                      skippedAlreadyPaidUserIds:
+                        type: array
+                        items: { type: integer }
+                      gatewayReference:
+                        type: string
+                        nullable: true
+                      payment:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [unpaid, partial, paid]
+                          employeeCount:
+                            type: integer
+                          paidEmployeeCount:
+                            type: integer
+                          paidUserIds:
+                            type: array
+                            items: { type: integer }
+                          paidAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422':
+          description: Validation error - PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/hcm/payroll/my-slip:
+    get:
+      tags: [Payroll]
+      summary: Current user monthly payslip summary (authenticated)
+      description: |
+        Query `periodYear`, `periodMonth`. Mengembalikan ringkasan slip milik user login berupa
+        `earnings`, `deductions`, `totals`, `slipNumber`, dan `downloadUrl`.
+        Jika periode belum ada atau belum ada run `finalized`, endpoint tetap `200` dengan `run=null` dan total `0`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          periodYear:
+                            type: integer
+                            example: 2026
+                          periodMonth:
+                            type: integer
+                            example: 6
+                          status:
+                            type: string
+                            enum: [open, posted]
+                      run:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          purpose:
+                            type: string
+                            enum: [monthly, thr]
+                            example: monthly
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: finalized
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                      runs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            purpose:
+                              type: string
+                              enum: [monthly, thr]
+                            status:
+                              type: string
+                            finalizedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                      employee:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+                          employeeCode:
+                            type: string
+                            nullable: true
+                          positionName:
+                            type: string
+                            nullable: true
+                      earnings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            userId:
+                              type: integer
+                            salaryComponentId:
+                              type: integer
+                              nullable: true
+                            componentCode:
+                              type: string
+                              nullable: true
+                            componentName:
+                              type: string
+                              nullable: true
+                            kind:
+                              type: string
+                              enum: [addition, deduction]
+                            category:
+                              type: string
+                              nullable: true
+                            amount:
+                              type: number
+                              format: float
+                              example: 5000000
+                            sortOrder:
+                              type: integer
+                              example: 1
+                            meta:
+                              type: object
+                              nullable: true
+                      deductions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            userId:
+                              type: integer
+                            salaryComponentId:
+                              type: integer
+                              nullable: true
+                            componentCode:
+                              type: string
+                              nullable: true
+                            componentName:
+                              type: string
+                              nullable: true
+                            kind:
+                              type: string
+                              enum: [addition, deduction]
+                            category:
+                              type: string
+                              nullable: true
+                            amount:
+                              type: number
+                              format: float
+                              example: 150000
+                            sortOrder:
+                              type: integer
+                              example: 90
+                            meta:
+                              type: object
+                              nullable: true
+                      totals:
+                        type: object
+                        properties:
+                          earningsTotal:
+                            type: number
+                            format: float
+                            example: 5600000
+                          deductionsTotal:
+                            type: number
+                            format: float
+                            example: 250000
+                          netPay:
+                            type: number
+                            format: float
+                            example: 5350000
+                      slipNumber:
+                        type: string
+                        example: SLIP-2026-06-42
+                      downloadUrl:
+                        type: string
+                        nullable: true
+                        example: https://example.test/v1/hcm/payroll/my-slip-pdf?periodYear=2026&periodMonth=6
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422':
+          description: Validation error - invalid periodYear/periodMonth
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+  /v1/hcm/payroll/my-slip-pdf:
+    get:
+      tags: [Payroll]
+      summary: Download current user monthly payslip PDF (authenticated)
+      description: |
+        Query `periodYear`, `periodMonth`. Menghasilkan file PDF slip gaji milik user login.
+        Hanya tersedia jika periode tersebut sudah memiliki run payroll `finalized`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: PDF payslip
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404':
+          description: Not found - PAYROLL_SLIP_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: PAYROLL_SLIP_NOT_FOUND
+                      message:
+                        type: string
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/my-slip-lines:
+    get:
+      tags: [Payroll]
+      summary: Current user payslip lines for a month (authenticated)
+      description: |
+        Query `periodYear`, `periodMonth`. Baris diisi jika ada run `finalized` untuk periode tersebut;
+        menggabungkan baris dari run `purpose=monthly`, `purpose=thr`, dan `purpose=pkwt_compensation` bila ada pada periode yang sama.
+        `data.run` memilih monthly jika ada, lalu thr, lalu pkwt_compensation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          periodYear:
+                            type: integer
+                            example: 2026
+                          periodMonth:
+                            type: integer
+                            example: 4
+                          status:
+                            type: string
+                            enum: [open, posted]
+                      run:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          purpose:
+                            type: string
+                            enum: [monthly, thr, pkwt_compensation]
+                            example: monthly
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: finalized
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                      runs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            purpose:
+                              type: string
+                              enum: [monthly, thr, pkwt_compensation]
+                            status:
+                              type: string
+                            finalizedAt:
+                              type: string
+                              format: date-time
+                              nullable: true
+                      lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            userId:
+                              type: integer
+                            salaryComponentId:
+                              type: integer
+                              nullable: true
+                            componentCode:
+                              type: string
+                              nullable: true
+                            componentName:
+                              type: string
+                              nullable: true
+                            kind:
+                              type: string
+                              enum: [addition, deduction]
+                            category:
+                              type: string
+                              nullable: true
+                            amount:
+                              type: number
+                              format: float
+                              example: 5000000
+                            sortOrder:
+                              type: integer
+                              example: 1
+                            meta:
+                              type: object
+                              nullable: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422':
+          description: Validation error - invalid periodYear/periodMonth
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+  /v1/hcm/payroll/my-thr-slip:
+    get:
+      tags: [Payroll]
+      summary: Slip THR karyawan login (JSON; PDF lewat GET thr-batch/lines/{line}/slip)
+      description: |
+        Mengembalikan `data.line` + `data.batch` untuk slip PDF terbaru milik user (ada `slip_storage_path`),
+        atau `line`/`batch` null jika belum ada. `data.history` berisi `{ lineId, calendarYear }` untuk pemilih tahun.
+        Query opsional `calendarYear` memilih slip tahun tersebut.
+        Objek `line` menyertakan `thrSlipPublicNo` (unik di DB), `slipNumber` (dengan `#` di depan), `calendarYear`, serta `bankName` / `bankAccountNo` dari profil jika terisi.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: calendarYear
+          in: query
+          required: false
+          schema: { type: integer, minimum: 2000, maximum: 2100, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/pkwt-compensations:
+    get:
+      tags: [Payroll]
+      summary: Preview PKWT compensation list for a selected month (HCM admin)
+      description: |
+        Mengembalikan daftar karyawan PKWT yang `contract_end_date` jatuh pada bulan yang dipilih,
+        berikut estimasi kompensasi proporsional berdasarkan upah bulanan dan masa kerja kontrak.
+        Respons juga menyertakan status payroll run PKWT aktif untuk periode yang sama jika sudah pernah diposting.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      preview:
+                        type: object
+                        properties:
+                          period:
+                            type: object
+                            properties:
+                              periodYear: { type: integer, example: 2026 }
+                              periodMonth: { type: integer, example: 4 }
+                          summary:
+                            type: object
+                            properties:
+                              totalEmployees: { type: integer, example: 3 }
+                              eligibleEmployees: { type: integer, example: 3 }
+                              grandTotal: { type: number, format: float, example: 12500000 }
+                          lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                userId: { type: integer, example: 42 }
+                                employeeNo: { type: string, example: EMP-0042 }
+                                fullName: { type: string, example: Ayu PKWT }
+                                designation: { type: string, example: Designer }
+                                contractType: { type: string, example: pkwt }
+                                contractStartDate: { type: string, format: date }
+                                contractEndDate: { type: string, format: date }
+                                baseSalary: { type: number, format: float, example: 5000000 }
+                                fixedAllowance: { type: number, format: float, example: 500000 }
+                                referenceMonthlyWage: { type: number, format: float, example: 5500000 }
+                                monthsOfService: { type: integer, example: 12 }
+                                multiplier: { type: number, format: float, example: 1 }
+                                compensationAmount: { type: number, format: float, example: 5500000 }
+                      run:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer, example: 17 }
+                          purpose: { type: string, enum: [pkwt_compensation], example: pkwt_compensation }
+                          status: { type: string, enum: [draft, finalized], example: draft }
+                          finalizedAt: { type: string, format: date-time, nullable: true }
+                          period:
+                            type: object
+                            nullable: true
+                            properties:
+                              id: { type: integer, example: 9 }
+                              periodYear: { type: integer, example: 2026 }
+                              periodMonth: { type: integer, example: 4 }
+                              status: { type: string, enum: [open, posted], example: open }
+                          payment:
+                            type: object
+                            properties:
+                              status: { type: string, enum: [unpaid, partial, paid], example: unpaid }
+                              employeeCount: { type: integer, example: 3 }
+                              paidEmployeeCount: { type: integer, example: 0 }
+                              paidUserIds:
+                                type: array
+                                items: { type: integer }
+                              paidAt: { type: string, format: date-time, nullable: true }
+                              gatewayReference: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/pkwt-compensations/post-payroll:
+    post:
+      tags: [Payroll]
+      summary: Create or rebuild standalone PKWT compensation draft payroll (HCM admin)
+      description: |
+        Membuat atau membangun ulang payroll run draft dengan `purpose=pkwt_compensation` untuk periode terpilih.
+        Setelah draft terbentuk, pembayaran dilakukan melalui endpoint generic `POST /payroll-runs/{id}/disburse`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodYear, periodMonth]
+              properties:
+                periodYear: { type: integer, minimum: 2000, maximum: 2100 }
+                periodMonth: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: object
+                        properties:
+                          id: { type: integer, example: 9 }
+                          periodYear: { type: integer, example: 2026 }
+                          periodMonth: { type: integer, example: 4 }
+                          status: { type: string, enum: [open, posted], example: open }
+                      run:
+                        type: object
+                        properties:
+                          id: { type: integer, example: 17 }
+                          purpose: { type: string, enum: [pkwt_compensation], example: pkwt_compensation }
+                          status: { type: string, enum: [draft, finalized], example: draft }
+                          finalizedAt: { type: string, format: date-time, nullable: true }
+                          period:
+                            type: object
+                            nullable: true
+                            properties:
+                              id: { type: integer, example: 9 }
+                              periodYear: { type: integer, example: 2026 }
+                              periodMonth: { type: integer, example: 4 }
+                              status: { type: string, enum: [open, posted], example: open }
+                          payment:
+                            type: object
+                            properties:
+                              status: { type: string, enum: [unpaid, partial, paid], example: unpaid }
+                              employeeCount: { type: integer, example: 3 }
+                              paidEmployeeCount: { type: integer, example: 0 }
+                              paidUserIds:
+                                type: array
+                                items: { type: integer }
+                              paidAt: { type: string, format: date-time, nullable: true }
+                              gatewayReference: { type: string, nullable: true }
+                      preview:
+                        type: object
+                        properties:
+                          period:
+                            type: object
+                            properties:
+                              periodYear: { type: integer, example: 2026 }
+                              periodMonth: { type: integer, example: 4 }
+                          summary:
+                            type: object
+                            properties:
+                              totalEmployees: { type: integer, example: 3 }
+                              eligibleEmployees: { type: integer, example: 3 }
+                              grandTotal: { type: number, format: float, example: 12500000 }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422':
+          description: Validation or domain error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [PKWT_COMPENSATION_EMPTY, PKWT_COMPENSATION_COMPONENT_MISSING, PKWT_COMPENSATION_FINALIZED_EXISTS]
+                      message:
+                        type: string
+  /v1/hcm/payroll/pkwt-calculate:
+    post:
+      tags: [Payroll]
+      summary: Estimate PKWT compensation for one contract (HCM admin)
+      description: |
+        Kalkulator cepat kompensasi PKWT berdasarkan tanggal mulai/akhir kontrak dan upah bulanan.
+        Cocok untuk pengecekan HR sebelum review payroll/off-cycle.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contractStartDate, contractEndDate, baseMonthlySalary]
+              properties:
+                contractStartDate: { type: string, format: date }
+                contractEndDate: { type: string, format: date }
+                baseMonthlySalary: { type: number, minimum: 0 }
+                fixedMonthlyAllowance: { type: number, minimum: 0, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-calculate:
+    post:
+      tags: [Payroll]
+      summary: Estimate THR gross (Permenaker 6/2016 pro rata, HCM admin)
+      description: |
+        Estimasi THR bruto; bukan slip final. PPh 21 TER di luar endpoint ini.
+        Upah acuan = gaji pokok + tunjangan tetap bulanan (`fixedMonthlyAllowance`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [joinDate, cutoffDate, baseMonthlySalary]
+              properties:
+                joinDate: { type: string, format: date }
+                cutoffDate: { type: string, format: date }
+                baseMonthlySalary: { type: number, minimum: 0 }
+                fixedMonthlyAllowance: { type: number, minimum: 0, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-settings:
+    get:
+      tags: [Payroll]
+      summary: List THR yearly settings (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/payroll/thr-settings/{calendarYear}:
+    put:
+      tags: [Payroll]
+      summary: Upsert THR settings for a calendar year (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: calendarYear
+          in: path
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eidDate]
+              properties:
+                eidDate: { type: string, format: date }
+                paymentDate: { type: string, format: date, nullable: true }
+                calculationCutoffDate: { type: string, format: date, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch:
+    get:
+      tags: [Payroll]
+      summary: THR mass batch for a calendar year (HCM admin)
+      description: |
+        Draft batch terbaru atau batch assigned terakhir untuk `calendarYear`, beserta `lines[]`.
+        Setiap elemen `lines[]` menyertakan `bankName` dan `bankAccountNo` (dari profil karyawan; nullable) untuk verifikasi sebelum disburse.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: calendarYear
+          in: query
+          required: true
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch/generate:
+    post:
+      tags: [Payroll]
+      summary: Regenerate THR draft list for a year (HCM admin)
+      description: |
+        Membutuhkan `calculationCutoffDate` di thr-settings tahun tersebut. `422` THR_SETUP_CUTOFF_REQUIRED / THR_YEAR_ALREADY_ASSIGNED.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [calendarYear]
+              properties:
+                calendarYear: { type: integer, minimum: 2000, maximum: 2100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch/disburse:
+    post:
+      tags: [Payroll]
+      summary: Eksekusi pembayaran THR via payment gateway (subset userIds, HCM admin)
+      description: |
+        Batch harus `draft`. Memanggil driver disbursement (`hcm.thr_disbursement_driver`, default stub).
+        Baris `paid` dilewati. Sukses → `paymentStatus=paid`, generate slip PDF; gagal → `failed` + alasan (retry dari UI).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batchId, userIds]
+              properties:
+                batchId: { type: integer }
+                userIds:
+                  type: array
+                  minItems: 1
+                  items: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch/post-payroll:
+    post:
+      tags: [Payroll]
+      summary: Posting batch THR ke run payroll final (HCM admin)
+      description: |
+        Membutuhkan semua baris eligible THR>0 sudah `paid`. `paymentDate` di thr-settings. Run `purpose=thr` final; batch jadi `assigned`.
+        `422` THR_POST_UNPAID_PAYABLE_LINES jika masih ada eligible belum paid.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batchId]
+              properties:
+                batchId: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch/send-slip:
+    post:
+      tags: [Payroll]
+      summary: Tandai slip THR sudah dikirim (bulk, HCM admin)
+      description: |
+        Mencatat `slip_notify_sent_at` untuk `lineIds` di `batchId`. Integrasi email/WA dapat ditambahkan di belakang endpoint ini.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batchId, lineIds]
+              properties:
+                batchId: { type: integer }
+                lineIds:
+                  type: array
+                  minItems: 1
+                  items: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/thr-batch/lines/{line}/slip:
+    get:
+      tags: [Payroll]
+      summary: Unduh/preview PDF slip THR untuk satu baris batch
+      description: |
+        **HCM admin** semua baris. **Karyawan** hanya jika `line` milik user login (`user_id` sama).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: line
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: application/pdf
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: THR_SLIP_NOT_FOUND / THR_SLIP_FILE_MISSING }
+  /v1/hcm/payroll-items:
+    get:
+      tags: [Payroll]
+      summary: List payroll items catalog (HCM admin)
+      description: |
+        `data.payrollItems` dari `hcm_payroll_items`. Query `kind=addition|deduction` untuk halaman `/payroll` vs `/payroll-deduction`.
+        `meta.linkedSalaryComponentIds`: ID komponen yang sudah punya payroll item (untuk dropdown taut).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema: { type: string, enum: [addition, deduction] }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/payroll-items/export:
+    get:
+      tags: [Payroll]
+      summary: Export payroll items (CSV/XLSX)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: kind, in: query, required: false, schema: { type: string, enum: [addition, deduction] } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [csv, xlsx], default: csv } }
+      responses:
+        '200': { description: File stream (csv/xlsx) }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Payroll]
+      summary: Create payroll item (link to salary component or custom)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll-items/{id}:
+    put:
+      tags: [Payroll]
+      summary: Update payroll item
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Payroll]
+      summary: Delete payroll item
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  # -------------------------
+  # Overtime (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/overtime-types:
+    get:
+      tags: [Overtime]
+      summary: List overtime types (non-admin gets active only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Overtime]
+      summary: Create overtime type (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/overtime-requests:
+    get:
+      tags: [Overtime]
+      summary: List overtime requests (admin all, employee own, paginated)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [me] } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: workDate, in: query, required: false, schema: { type: string, format: date }, description: Filter single work_date; if set, dateFrom/dateTo ignored }
+        - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Overtime]
+      summary: Create overtime request
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/overtime-requests/calculate:
+    post:
+      tags: [Overtime]
+      summary: Overtime pay calculator
+      description: |
+        Estimasi upah lembur (`OvertimePayCalculator`). `data.salaryComponent` menautkan ke master komponen gaji (biasanya `upah_lembur`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseMonthlySalary, minutes, dayType]
+              properties:
+                baseMonthlySalary: { type: number, minimum: 0 }
+                fixedAllowance: { type: number, minimum: 0 }
+                minutes: { type: integer, minimum: 1, maximum: 1440 }
+                dayType: { type: string, enum: [workday, holiday] }
+                weeklyWorkDays: { type: integer, enum: [5, 6] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OvertimeCalculateSuccess'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
+  # Holidays (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/holidays:
+    get:
+      tags: [Holidays]
+      summary: List holidays (admin only)
+      description: Returns holiday rows with linkage summary (`meta.linkage`) for monitoring holidays-to-leaves calendar integrity.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Holidays]
+      summary: Create holiday (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/holidays/sync-indonesia:
+    post:
+      tags: [Holidays]
+      summary: Sync Indonesia holidays (admin only)
+      description: Reconciles API holidays for selected year using libur.deno.dev as primary provider and date.nager.at as automatic fallback, keeps manual holidays, and refreshes linkage to `holiday_calendars` for leave calculations.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year:
+                  type: integer
+                  minimum: 2000
+                  maximum: 2100
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '502': { description: Upstream holiday provider failure }
+
+  # -------------------------
+  # Training (implemented under /v1/hcm/training)
+  # -------------------------
+  /v1/hcm/training/types:
+    get:
+      tags: [Training]
+      summary: List training types (non-admin active only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Training]
+      summary: Create training type (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/training/trainings:
+    get:
+      tags: [Training]
+      summary: List trainings (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Training]
+      summary: Create training (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/training/trainers:
+    get:
+      tags: [Training]
+      summary: List trainers (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Training]
+      summary: Create trainer (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
+  # Performance (implemented under /v1/hcm/performance)
+  # -------------------------
+  /v1/hcm/performance/goal-types:
+    get:
+      tags: [Performance]
+      summary: List goal types
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Performance]
+      summary: Create goal type (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/performance/goals:
+    get:
+      tags: [Performance]
+      summary: List goals (scope me/team/all)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Performance]
+      summary: Create goal
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
+  # Promotion (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/promotions:
+    get:
+      tags: [Promotion]
+      summary: List promotions (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: dateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: dateTo
+          schema: { type: string, format: date }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Promotion]
+      summary: Create promotion (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, promotionDate]
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                designationFrom: { type: string, maxLength: 150, nullable: true }
+                designationTo: { type: string, maxLength: 150, nullable: true }
+                promotionDate: { type: string, format: date }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/promotions/users/{userId}/promotions:
+    get:
+      tags: [Promotion]
+      summary: List promotions for employee (admin any userId; employee self only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/promotions/{id}:
+    get:
+      tags: [Promotion]
+      summary: Get promotion by id (admin any; employee own row only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Promotion]
+      summary: Update promotion (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                designationFrom: { type: string, maxLength: 150, nullable: true }
+                designationTo: { type: string, maxLength: 150, nullable: true }
+                promotionDate: { type: string, format: date }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Promotion]
+      summary: Delete promotion (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  # -------------------------
+  # Resignation (implemented under /v1/hcm)
+  # -------------------------
+  /v1/hcm/resignations:
+    get:
+      tags: [Resignation]
+      summary: List resignations (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: dateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: dateTo
+          schema: { type: string, format: date }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Resignation]
+      summary: Create resignation (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, reason, noticeDate, resignationDate]
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                reason: { type: string, maxLength: 2000 }
+                noticeDate: { type: string, format: date }
+                resignationDate: { type: string, format: date }
+                status: { type: string, enum: [pending, approved, cancelled], nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/resignations/users/{userId}/resignations:
+    get:
+      tags: [Resignation]
+      summary: List resignations for employee (admin any userId; employee self only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/resignations/{id}:
+    get:
+      tags: [Resignation]
+      summary: Get resignation by id (admin any; employee own row only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Resignation]
+      summary: Update resignation (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                reason: { type: string, maxLength: 2000 }
+                noticeDate: { type: string, format: date }
+                resignationDate: { type: string, format: date }
+                status: { type: string, enum: [pending, approved, cancelled] }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Resignation]
+      summary: Delete resignation (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/terminations:
+    get:
+      tags: [Termination]
+      summary: List terminations (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: dateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: dateTo
+          schema: { type: string, format: date }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Termination]
+      summary: Create termination (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, terminationType, reason, noticeDate, terminationDate]
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                terminationType: { type: string, maxLength: 150 }
+                reason: { type: string, maxLength: 2000 }
+                noticeDate: { type: string, format: date }
+                terminationDate: { type: string, format: date }
+                status: { type: string, enum: [pending, approved, cancelled], nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/terminations/users/{userId}/terminations:
+    get:
+      tags: [Termination]
+      summary: List terminations for employee (admin any userId; employee self only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/terminations/{id}:
+    get:
+      tags: [Termination]
+      summary: Get termination by id (admin any; employee own row only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Termination]
+      summary: Update termination (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: integer }
+                department: { type: string, maxLength: 150, nullable: true }
+                terminationType: { type: string, maxLength: 150 }
+                reason: { type: string, maxLength: 2000 }
+                noticeDate: { type: string, format: date }
+                terminationDate: { type: string, format: date }
+                status: { type: string, enum: [pending, approved, cancelled] }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Termination]
+      summary: Delete termination (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: SanctumToken
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 100
+    DepartmentId:
+      name: departmentId
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    DesignationId:
+      name: designationId
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    EmploymentStatus:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [active, inactive, probation, resigned, terminated]
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFoundError:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ConflictError:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password, confirmPassword]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,149}$"
+        email:
+          type: string
+          format: email
+          pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+          pattern: "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)[A-Za-z\\d@$!%*?&._-]{8,64}$"
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 64
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+    DepartmentUpsertRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          minLength: 2
+          maxLength: 50
+          pattern: "^[A-Z][A-Z0-9_]{1,49}$"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 1000
+    DesignationUpsertRequest:
+      allOf:
+        - $ref: '#/components/schemas/DepartmentUpsertRequest'
+    EmployeeDirectoryRow:
+      type: object
+      properties:
+        id: { type: integer }
+        employeeNo: { type: string }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, description: 'Profil employee; kosong direpresentasikan sebagai "—"' }
+        team: { type: string }
+        departmentId: { type: integer, nullable: true }
+        departmentName: { type: string }
+        designationId: { type: integer, nullable: true }
+        designationName: { type: string, nullable: true }
+        designation: { type: string, description: 'Label tampilan; prioritas nama master designation jika ada' }
+        employeeType: { type: string, nullable: true, example: contract }
+        baseSalary: { type: number }
+        fixedAllowance: { type: number }
+        employmentStatus:
+          type: string
+          enum: [active, inactive, probation, resigned, terminated]
+        hireDate:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal bergabung di profil (nullable)
+        joinDate:
+          type: string
+          format: date
+          description: startDate / hireDate jika ada, selain itu tanggal created_at user
+        contractType:
+          type: string
+          enum: [pkwt, pkwtt]
+          nullable: true
+        contractStartDate: { type: string, format: date, nullable: true }
+        contractEndDate: { type: string, format: date, nullable: true }
+        pkwtDueThisMonth: { type: boolean }
+        estimatedPkwtCompensationThisMonth: { type: number }
+    EmployeeCreateRequest:
+      type: object
+      required: [name, email, password, confirmPassword, departmentId, designationId, employeeType, baseSalary, salaryType, contractType, contractStatus, contractStartDate, nik, phone, address, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, bankName, bankAccountNo, bankAccountHolderName, emergencyContacts]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 64
+        team:
+          type: string
+          maxLength: 100
+          nullable: true
+        departmentId:
+          type: integer
+          minimum: 1
+          nullable: true
+        designationId:
+          type: integer
+          minimum: 1
+          nullable: true
+        designation:
+          type: string
+          maxLength: 150
+          nullable: true
+        managerUserId:
+          type: integer
+          minimum: 1
+          nullable: true
+        employeeType:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        hireDate:
+          type: string
+          format: date
+          nullable: true
+        probationEndDate:
+          type: string
+          format: date
+          nullable: true
+        employmentStatus:
+          type: string
+          enum: [active, inactive, probation, resigned, terminated]
+          nullable: true
+        baseSalary:
+          type: number
+          format: float
+          nullable: true
+        fixedAllowance:
+          type: number
+          format: float
+          nullable: true
+        salaryType:
+          type: string
+          enum: [monthly, daily, hourly]
+          nullable: true
+        contractType:
+          type: string
+          enum: [pkwt, pkwtt, permanent]
+          nullable: true
+        contractStatus:
+          type: string
+          enum: [active, ended, terminated]
+          nullable: true
+        contractStartDate:
+          type: string
+          format: date
+          nullable: true
+        contractEndDate:
+          type: string
+          format: date
+          nullable: true
+          description: Required only when `contractType = pkwt`; must be omitted/empty for `pkwtt`.
+        nik:
+          type: string
+          maxLength: 16
+          pattern: '^[0-9]{16}$'
+          nullable: true
+          description: Required Indonesian NIK / KTP number, exactly 16 digits.
+        ktpNo:
+          type: string
+          maxLength: 16
+          pattern: '^[0-9]{16}$'
+          nullable: true
+          description: Alias of nik for frontend compatibility
+        phone:
+          type: string
+          maxLength: 13
+          pattern: '^[0-9]{10,13}$'
+          nullable: true
+          description: Required phone number, numeric only, 10–13 digits.
+        address:
+          type: string
+          maxLength: 2000
+          nullable: true
+        placeOfBirth:
+          type: string
+          maxLength: 150
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, other]
+          nullable: true
+        maritalStatus:
+          type: string
+          enum: [single, married, divorced, widowed]
+          nullable: true
+        religion:
+          type: string
+          enum: [Islam, Kristen Protestan, Katolik, Hindu, Buddha, Konghucu]
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+          example: BCA
+        bankAccountNo: { type: string, nullable: true }
+        bankAccountHolderName: { type: string, nullable: true }
+        bankIfscCode: { type: string, nullable: true }
+        bankBranch: { type: string, nullable: true }
+        npwp: { type: string, nullable: true }
+        taxStatus:
+          type: string
+          enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
+          nullable: true
+        ptkpStatus:
+          type: string
+          enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
+          nullable: true
+        bpjsKesehatanNo: { type: string, nullable: true }
+        bpjsKetenagakerjaanNo: { type: string, nullable: true }
+        emergencyContacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        educationItems:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        experienceItems:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    EmployeeUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
+        confirmPassword:
+          type: string
+          minLength: 8
+          maxLength: 64
+        team:
+          type: string
+          maxLength: 100
+          nullable: true
+        departmentId:
+          type: integer
+          minimum: 1
+          nullable: true
+        designationId:
+          type: integer
+          minimum: 1
+          nullable: true
+        designation:
+          type: string
+          maxLength: 150
+          nullable: true
+        managerUserId:
+          type: integer
+          minimum: 1
+          nullable: true
+        employeeType:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        hireDate:
+          type: string
+          format: date
+          nullable: true
+        probationEndDate:
+          type: string
+          format: date
+          nullable: true
+        employmentStatus:
+          type: string
+          enum: [active, inactive, probation, resigned, terminated]
+          nullable: true
+        baseSalary:
+          type: number
+          format: float
+          nullable: true
+        fixedAllowance:
+          type: number
+          format: float
+          nullable: true
+        salaryType:
+          type: string
+          enum: [monthly, daily, hourly]
+          nullable: true
+        contractType:
+          type: string
+          enum: [pkwt, pkwtt, permanent]
+          nullable: true
+        contractStatus:
+          type: string
+          enum: [active, ended, terminated]
+          nullable: true
+        contractStartDate:
+          type: string
+          format: date
+          nullable: true
+        contractEndDate:
+          type: string
+          format: date
+          nullable: true
+          description: Required only when `contractType = pkwt`; must be omitted/empty for `pkwtt`.
+        nik:
+          type: string
+          maxLength: 16
+          pattern: '^[0-9]{16}$'
+          nullable: true
+        ktpNo:
+          type: string
+          maxLength: 16
+          pattern: '^[0-9]{16}$'
+          nullable: true
+        phone:
+          type: string
+          maxLength: 13
+          pattern: '^[0-9]{10,13}$'
+          nullable: true
+        address:
+          type: string
+          maxLength: 2000
+          nullable: true
+        placeOfBirth:
+          type: string
+          maxLength: 150
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, other]
+          nullable: true
+        maritalStatus:
+          type: string
+          enum: [single, married, divorced, widowed]
+          nullable: true
+        religion:
+          type: string
+          enum: [Islam, Kristen Protestan, Katolik, Hindu, Buddha, Konghucu]
+          nullable: true
+        nationality:
+          type: string
+          maxLength: 100
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+        bankAccountNo: { type: string, nullable: true }
+        bankAccountHolderName: { type: string, nullable: true }
+        bankIfscCode: { type: string, nullable: true }
+        bankBranch: { type: string, nullable: true }
+        npwp: { type: string, nullable: true }
+        taxStatus:
+          type: string
+          enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
+          nullable: true
+        ptkpStatus:
+          type: string
+          enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
+          nullable: true
+        bpjsKesehatanNo: { type: string, nullable: true }
+        bpjsKetenagakerjaanNo: { type: string, nullable: true }
+        emergencyContacts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        educationItems:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        experienceItems:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    EmployeeDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id: { type: integer }
+            employeeNo: { type: string }
+            fullName: { type: string }
+            email: { type: string, format: email }
+            departmentId: { type: integer, nullable: true }
+            departmentName: { type: string, nullable: true }
+            designationId: { type: integer, nullable: true }
+            designationName: { type: string, nullable: true }
+            designation: { type: string, nullable: true }
+            team: { type: string, nullable: true }
+            employeeType: { type: string, nullable: true }
+            baseSalary: { type: number }
+            fixedAllowance: { type: number }
+            employmentStatus:
+              type: string
+              enum: [active, inactive, probation, resigned, terminated]
+            hireDate:
+              type: string
+              format: date
+              nullable: true
+            startDate:
+              type: string
+              format: date
+              nullable: true
+            joinDate:
+              type: string
+              format: date
+              nullable: true
+            contractType:
+              type: string
+              enum: [pkwt, pkwtt]
+              nullable: true
+            contractStartDate:
+              type: string
+              format: date
+              nullable: true
+            contractEndDate:
+              type: string
+              format: date
+              nullable: true
+            pkwtDueThisMonth: { type: boolean }
+            estimatedPkwtCompensationThisMonth: { type: number }
+            reportOffice: { type: string, nullable: true }
+            phone: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            bio: { type: string, nullable: true }
+            nik: { type: string, nullable: true }
+            ktpNo: { type: string, nullable: true }
+            placeOfBirth: { type: string, nullable: true }
+            dateOfBirth:
+              type: string
+              format: date
+              nullable: true
+            gender:
+              type: string
+              enum: [male, female, other]
+              nullable: true
+            maritalStatus:
+              type: string
+              enum: [single, married, divorced, widowed]
+              nullable: true
+            religion: { type: string, nullable: true }
+            nationality: { type: string, nullable: true }
+            personal:
+              type: object
+              additionalProperties: true
+            assignment:
+              type: object
+              additionalProperties: true
+            compensation:
+              type: object
+              additionalProperties: true
+            contract:
+              type: object
+              additionalProperties: true
+            bank:
+              type: object
+              additionalProperties: true
+            taxProfile:
+              type: object
+              additionalProperties: true
+            benefits:
+              type: object
+              additionalProperties: true
+            employmentHistory:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            assignmentHistory:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            compensationHistory:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            contractHistory:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            bankAccounts:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            documents:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            emergencyContacts:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            educationItems:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            experienceItems:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            schedule:
+              type: object
+              additionalProperties: true
+    LeaveCreateRequest:
+      type: object
+      required: [employeeId, leaveTypeId, startDate, endDate]
+      properties:
+        employeeId:
+          type: integer
+          minimum: 1
+        leaveTypeId:
+          type: integer
+          minimum: 1
+        startDate:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        endDate:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          maxLength: 1000
+    LeaveDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        comment:
+          type: string
+          maxLength: 500
+    AttendanceCreateRequest:
+      type: object
+      required: [employeeId, attendanceDate, status]
+      properties:
+        employeeId:
+          type: integer
+          minimum: 1
+        attendanceDate:
+          type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        checkInTime:
+          type: string
+          format: date-time
+        checkOutTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [present, late, absent, leave]
+        notes:
+          type: string
+          maxLength: 255
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message, traceId]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  rule:
+                    type: string
+                  message:
+                    type: string
+            traceId:
+              type: string
+              pattern: "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+    RegisterResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                email:
+                  type: string
+                status:
+                  type: string
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            tokenType:
+              type: string
+            expiresIn:
+              type: integer
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                email:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+    MeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+            roles:
+              type: array
+              items:
+                type: string
+    DepartmentListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              code:
+                type: string
+              name:
+                type: string
+              isActive:
+                type: boolean
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            perPage:
+              type: integer
+            total:
+              type: integer
+    OvertimeSalaryComponentLink:
+      type: object
+      nullable: true
+      description: Referensi baris `hcm_salary_components` untuk upah lembur di slip
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+    OvertimeCalculateSuccess:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            monthlyWage: { type: number }
+            hourlyWage: { type: number }
+            hours: { type: number }
+            dayType: { type: string }
+            weeklyWorkDays: { type: integer }
+            segments:
+              type: array
+              items: { type: object }
+            totalOvertimePay: { type: number }
+            regulationNote: { type: string }
+            salaryComponent:
+              $ref: '#/components/schemas/OvertimeSalaryComponentLink'
+    SalaryComponentOkResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+    SalaryComponent:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        code:
+          type: string
+          maxLength: 64
+          pattern: "^[a-z0-9_-]+$"
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        kind:
+          type: string
+          enum: [addition, deduction]
+        category:
+          $ref: '#/components/schemas/SalaryComponentCategory'
+        legalBasis:
+          type: string
+        legalNotes:
+          type: string
+        defaultPercent:
+          type: string
+          nullable: true
+          description: Nilai persen (empat desimal), contoh "1.0000" = 1%; null jika nominal per slip
+        percentBasis:
+          $ref: '#/components/schemas/SalaryComponentPercentBasis'
+          nullable: true
+        includeBpjsHealthWageBase:
+          type: boolean
+        includeBpjsTkWageBase:
+          type: boolean
+        includeThrCalculationBase:
+          type: boolean
+        includePph21TerGross:
+          type: boolean
+        includePph21AnnualReconciliation:
+          type: boolean
+        subjectOvertimeRegulation:
+          type: boolean
+        affectsNetPay:
+          type: boolean
+        employerCostLine:
+          type: boolean
+        isSystemLocked:
+          type: boolean
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+          minimum: 0
+          maximum: 65535
+    SalaryComponentPercentBasis:
+      type: string
+      nullable: true
+      description: Wajib diisi jika `defaultPercent` terisi; harus keduanya null untuk komponen nominal
+      enum:
+        - basic_wage
+        - wage_bpjs_health
+        - wage_bpjs_tk
+        - gross_monthly_ter
+        - thr_calculation_base
+    SalaryComponentCategory:
+      type: string
+      description: |
+        Harus konsisten dengan `kind`: untuk `addition` hanya kategori pendapatan; untuk `deduction` hanya kategori potongan.
+      enum:
+        - basic_wage
+        - fixed_allowance
+        - irregular_allowance
+        - overtime
+        - thr
+        - bonus
+        - natura_taxable
+        - natura_non_taxable
+        - employer_cost_display
+        - other_addition
+        - bpjs_health_employee
+        - bpjs_jht_employee
+        - bpjs_jp_employee
+        - pph21_ter
+        - pph21_december_recon
+        - other_statutory
+        - internal_loan
+        - internal_cooperative
+        - internal_other
+        - other_deduction
+    SalaryComponentListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryComponent'
+    SalaryComponentDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/SalaryComponent'
+    SalaryComponentCreatedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required: [id]
+          properties:
+            id:
+              type: integer
+              minimum: 1
+    SalaryComponentCreateRequest:
+      type: object
+      required: [name, kind, category]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 64
+          pattern: "^[a-z0-9_-]+$"
+        kind:
+          type: string
+          enum: [addition, deduction]
+        category:
+          $ref: '#/components/schemas/SalaryComponentCategory'
+        description:
+          type: string
+          maxLength: 2000
+        legalBasis:
+          type: string
+          maxLength: 500
+        legalNotes:
+          type: string
+          maxLength: 5000
+        defaultPercent:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        percentBasis:
+          $ref: '#/components/schemas/SalaryComponentPercentBasis'
+        includeBpjsHealthWageBase:
+          type: boolean
+          default: false
+        includeBpjsTkWageBase:
+          type: boolean
+          default: false
+        includeThrCalculationBase:
+          type: boolean
+          default: false
+        includePph21TerGross:
+          type: boolean
+          default: true
+        includePph21AnnualReconciliation:
+          type: boolean
+          default: false
+        subjectOvertimeRegulation:
+          type: boolean
+          default: false
+        affectsNetPay:
+          type: boolean
+          default: true
+        employerCostLine:
+          type: boolean
+          default: false
+        isActive:
+          type: boolean
+          default: true
+        sortOrder:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+    SalaryComponentUpdateFullRequest:
+      type: object
+      required:
+        - code
+        - name
+        - kind
+        - category
+        - includeBpjsHealthWageBase
+        - includeBpjsTkWageBase
+        - includeThrCalculationBase
+        - includePph21TerGross
+        - includePph21AnnualReconciliation
+        - subjectOvertimeRegulation
+        - affectsNetPay
+        - employerCostLine
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          pattern: "^[a-z0-9_-]+$"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        kind:
+          type: string
+          enum: [addition, deduction]
+        category:
+          $ref: '#/components/schemas/SalaryComponentCategory'
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        legalBasis:
+          type: string
+          maxLength: 500
+          nullable: true
+        legalNotes:
+          type: string
+          maxLength: 5000
+          nullable: true
+        defaultPercent:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        percentBasis:
+          $ref: '#/components/schemas/SalaryComponentPercentBasis'
+        includeBpjsHealthWageBase:
+          type: boolean
+        includeBpjsTkWageBase:
+          type: boolean
+        includeThrCalculationBase:
+          type: boolean
+        includePph21TerGross:
+          type: boolean
+        includePph21AnnualReconciliation:
+          type: boolean
+        subjectOvertimeRegulation:
+          type: boolean
+        affectsNetPay:
+          type: boolean
+        employerCostLine:
+          type: boolean
+        isActive:
+          type: boolean
+          default: true
+        sortOrder:
+          type: integer
+          minimum: 0
+          maximum: 65535
+    SalaryComponentUpdateLockedRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+          minimum: 0
+          maximum: 65535
+        defaultPercent:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        percentBasis:
+          $ref: '#/components/schemas/SalaryComponentPercentBasis'

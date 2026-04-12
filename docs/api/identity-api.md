@@ -84,17 +84,37 @@ Success `200`:
 Auth:
 - required
 
+Tenant context headers (opsional):
+- `X-Company-Id`: pilih company aktif berdasarkan id membership user
+- `X-Company-Code`: alternatif pemilihan berdasarkan kode company
+
+Jika header memilih company yang bukan membership aktif user, endpoint tenant-aware akan mengembalikan `403 TENANT_FORBIDDEN`.
+
 Success `200`:
 
 ```json
 {
   "success": true,
-  "data": { "id": 1, "name": "Budi", "email": "budi@company.com", "roles": ["employee"], "hcmAdmin": false }
+  "data": {
+    "id": 1,
+    "name": "Budi",
+    "email": "budi@company.com",
+    "roles": ["employee"],
+    "hcmAdmin": false,
+    "activeCompany": {
+      "id": 1,
+      "code": "default_company",
+      "name": "Default Company",
+      "role": "member"
+    }
+  }
 }
 ```
 
 Errors:
 - `401 AUTH_UNAUTHORIZED`
+- `403 TENANT_MEMBERSHIP_REQUIRED`
+- `403 TENANT_FORBIDDEN`
 
 ## Regex / validation parity
 

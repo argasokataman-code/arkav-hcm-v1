@@ -32,11 +32,14 @@ Route::prefix('v1/identity')->group(function () {
 
     Route::middleware('api.token')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+    });
+
+    Route::middleware(['api.token', 'tenant.context'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
     });
 });
 
-Route::prefix('v1/hcm')->middleware('api.token')->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::get('/dashboard-summary', [HcmDashboardController::class, 'summary']);
     Route::get('/employee-dashboard-summary', [HcmDashboardController::class, 'employeeSummary']);
 

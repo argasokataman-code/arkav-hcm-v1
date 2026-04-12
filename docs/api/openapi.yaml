@@ -3708,6 +3708,20 @@ components:
               type: array
               items:
                 type: string
+            hcmAdmin:
+              type: boolean
+            activeCompany:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                code:
+                  type: string
+                name:
+                  type: string
+                role:
+                  type: string
     DepartmentListResponse:
       type: object
       properties:

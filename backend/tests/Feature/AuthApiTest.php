@@ -159,4 +159,66 @@ class AuthApiTest extends TestCase
         ])->assertStatus(429)
             ->assertJsonPath('error.code', 'AUTH_TOO_MANY_ATTEMPTS');
     }
+
+    public function test_me_returns_active_company_context(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant User',
+            'email' => 'tenant.user@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'tenant.user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.email', 'tenant.user@example.com')
+            ->assertJsonPath('data.activeCompany.code', 'default_company')
+            ->assertJsonPath('data.activeCompany.role', 'member');
+    }
+
+    public function test_hcm_route_forbidden_when_requesting_unowned_company(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant User Two',
+            'email' => 'tenant.user2@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'tenant.user2@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $otherCompany = Company::query()->create([
+            'code' => 'other_company',
+            'name' => 'Other Company',
+            'legal_name' => 'Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Cookie' => $cookieHeader,
+            'X-Company-Id' => (string) $otherCompany->id,
+        ])->getJson('/v1/hcm/attendance/me/today')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
 }

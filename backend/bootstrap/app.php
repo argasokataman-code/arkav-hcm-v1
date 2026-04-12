@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
+use App\Http\Middleware\ResolveTenantContext;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use App\Http\Middleware\TraceIdMiddleware;
 
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'api.token' => AuthenticateApiToken::class,
+            'tenant.context' => ResolveTenantContext::class,
             'hcm.web.admin' => EnsureHcmWebAdminPage::class,
         ]);
     })

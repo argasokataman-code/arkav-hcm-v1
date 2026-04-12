@@ -151,6 +151,8 @@ class AuthController extends Controller
     {
         /** @var User|null $user */
         $user = $request->user();
+        $activeCompany = $request->attributes->get('activeCompany');
+        $activeCompanyRole = $request->attributes->get('activeCompanyRole');
 
         if (! $user) {
             return $this->errorResponse('AUTH_UNAUTHORIZED', 'Unauthorized.', 401, $request);
@@ -166,6 +168,12 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'roles' => ['employee'],
                 'hcmAdmin' => $user->isHcmAdmin(),
+                'activeCompany' => $activeCompany ? [
+                    'id' => $activeCompany->id,
+                    'code' => $activeCompany->code,
+                    'name' => $activeCompany->name,
+                    'role' => $activeCompanyRole,
+                ] : null,
             ],
         ]);
     }

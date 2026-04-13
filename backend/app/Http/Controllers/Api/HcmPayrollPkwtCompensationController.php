@@ -29,17 +29,21 @@ class HcmPayrollPkwtCompensationController extends Controller
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
+        $companyId = $this->activeCompanyId($request);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'preview' => $this->pkwtCompensationService->previewForMonth(
                     (int) $validated['periodYear'],
                     (int) $validated['periodMonth'],
+                    $companyId,
                 ),
                 'run' => $this->serializeRun(
                     $this->pkwtCompensationService->currentRunForMonth(
                         (int) $validated['periodYear'],
                         (int) $validated['periodMonth'],
+                        $companyId,
                     )
                 ),
             ],
@@ -62,6 +66,7 @@ class HcmPayrollPkwtCompensationController extends Controller
                 (int) $validated['periodYear'],
                 (int) $validated['periodMonth'],
                 $request->user()?->id,
+                $this->activeCompanyId($request),
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json([
@@ -187,5 +192,12 @@ class HcmPayrollPkwtCompensationController extends Controller
             'paidAt' => $latestPaidAt,
             'gatewayReference' => $latestGatewayReference,
         ];
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class HcmPayrollItem extends Model
 {
     protected $fillable = [
+        'company_id',
         'hcm_salary_component_id',
         'code',
         'name',
@@ -21,6 +22,7 @@ class HcmPayrollItem extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
         ];

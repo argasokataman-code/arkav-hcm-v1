@@ -6,6 +6,7 @@ Tenant context:
 - Endpoint payroll membaca `activeCompany` dari middleware tenant context.
 - Header opsional: `X-Company-Id` atau `X-Company-Code`.
 - Jika company tidak dimiliki user maka request ditolak `403` dengan `error.code = TENANT_FORBIDDEN`.
+- Scope ini berlaku untuk endpoint payroll period/run, payroll items, THR settings/batch, dan PKWT compensation preview/posting.
 
 ## Ringkasan
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
 use App\Services\Hcm\ThrBatchService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -30,7 +31,8 @@ class HcmPayrollThrBatchController extends Controller
         ]);
 
         $year = (int) $validated['calendarYear'];
-        $draft = $this->thrBatchService->findDraftBatch($year);
+        $companyId = $this->activeCompanyId($request);
+        $draft = $this->thrBatchService->findDraftBatch($year, $companyId);
         if ($draft !== null) {
             $lines = HcmThrBatchLine::query()
                 ->where('hcm_thr_batch_id', $draft->id)
@@ -51,6 +53,15 @@ class HcmPayrollThrBatchController extends Controller
         $assigned = HcmThrBatch::query()
             ->where('calendar_year', $year)
             ->where('status', HcmThrBatch::STATUS_ASSIGNED)
+            ->where(function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->orderByDesc('id')
             ->first();
 
@@ -94,6 +105,7 @@ class HcmPayrollThrBatchController extends Controller
             $result = $this->thrBatchService->generateList(
                 (int) $validated['calendarYear'],
                 $request->user()?->id,
+                $this->activeCompanyId($request),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->mapBatchException($e);
@@ -125,6 +137,7 @@ class HcmPayrollThrBatchController extends Controller
                 (int) $validated['batchId'],
                 $validated['userIds'],
                 (int) $request->user()->id,
+                $this->activeCompanyId($request),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->mapBatchException($e);
@@ -137,7 +150,19 @@ class HcmPayrollThrBatchController extends Controller
                 'skippedAlreadyPaidUserIds' => $out['skippedAlreadyPaidUserIds'],
                 'lines' => $out['lines'],
                 'batch' => $this->thrBatchService->serializeBatch(
-                    HcmThrBatch::query()->findOrFail((int) $validated['batchId']),
+                    HcmThrBatch::query()
+                        ->whereKey((int) $validated['batchId'])
+                        ->where(function (Builder $query) use ($request): void {
+                            $companyId = $this->activeCompanyId($request);
+                            if ($companyId !== null) {
+                                $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                                return;
+                            }
+
+                            $query->whereNull('company_id');
+                        })
+                        ->firstOrFail(),
                     true,
                 ),
             ],
@@ -158,6 +183,7 @@ class HcmPayrollThrBatchController extends Controller
             $out = $this->thrBatchService->postPaidLinesToPayroll(
                 (int) $validated['batchId'],
                 (int) $request->user()->id,
+                $this->activeCompanyId($request),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->mapBatchException($e);
@@ -193,6 +219,7 @@ class HcmPayrollThrBatchController extends Controller
         $validated = $request->validate([
             'calendarYear' => ['sometimes', 'nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
+        $companyId = $this->activeCompanyId($request);
         $filterYear = isset($validated['calendarYear']) ? (int) $validated['calendarYear'] : null;
 
         $candidates = HcmThrBatchLine::query()
@@ -200,6 +227,15 @@ class HcmPayrollThrBatchController extends Controller
             ->where('user_id', $user->id)
             ->whereNotNull('slip_storage_path')
             ->where('slip_storage_path', '!=', '')
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->get();
 
         $history = $candidates
@@ -255,7 +291,20 @@ class HcmPayrollThrBatchController extends Controller
             ], 401);
         }
 
-        $batchLine = HcmThrBatchLine::query()->with('batch')->find($line);
+        $companyId = $this->activeCompanyId($request);
+        $batchLine = HcmThrBatchLine::query()
+            ->with('batch')
+            ->whereKey($line)
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
+            ->first();
         if ($batchLine === null || $batchLine->slip_storage_path === null || $batchLine->slip_storage_path === '') {
             return response()->json([
                 'success' => false,
@@ -319,6 +368,7 @@ class HcmPayrollThrBatchController extends Controller
             $updated = $this->thrBatchService->markSlipNotificationsSent(
                 (int) $validated['batchId'],
                 $validated['lineIds'],
+                $this->activeCompanyId($request),
             );
         } catch (\InvalidArgumentException $e) {
             return $this->mapBatchException($e);
@@ -363,5 +413,12 @@ class HcmPayrollThrBatchController extends Controller
                 'message' => $message,
             ],
         ], $status);
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 }

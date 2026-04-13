@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,6 +77,29 @@ class HcmPayrollPkwtApiTest extends TestCase
             ->getJson('/v1/hcm/payroll/pkwt-compensations?periodYear=2026&periodMonth=4')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_pkwt_compensation_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+
+        Company::query()->create([
+            'code' => 'pkwt_other_company',
+            'name' => 'PKWT Other Company',
+            'legal_name' => 'PKWT Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'pkwt_other_company',
+        ])->getJson('/v1/hcm/payroll/pkwt-compensations?periodYear=2026&periodMonth=4')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_pkwt_compensation_preview_lists_employees_ending_this_month(): void

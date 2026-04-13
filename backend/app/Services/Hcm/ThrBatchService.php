@@ -17,6 +17,7 @@ use App\Models\HcmThrYearlySetting;
 use App\Models\User;
 use Carbon\Carbon;
 use App\Support\Hcm\ThrSlipPublicNoAllocator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class ThrBatchService
@@ -30,26 +31,34 @@ final class ThrBatchService
     /**
      * @return array{batch: HcmThrBatch, lines: list<array<string, mixed>>}
      */
-    public function generateList(int $calendarYear, ?int $generatedByUserId): array
+    public function generateList(int $calendarYear, ?int $generatedByUserId, ?int $companyId = null): array
     {
-        if (HcmThrBatch::query()->where('calendar_year', $calendarYear)->where('status', HcmThrBatch::STATUS_ASSIGNED)->exists()) {
+        $assignedBatchQuery = HcmThrBatch::query()
+            ->where('calendar_year', $calendarYear)
+            ->where('status', HcmThrBatch::STATUS_ASSIGNED);
+        $this->applyTenantScope($assignedBatchQuery, $companyId);
+        if ($assignedBatchQuery->exists()) {
             throw new \InvalidArgumentException('THR_YEAR_ALREADY_ASSIGNED');
         }
 
-        $setting = HcmThrYearlySetting::query()->where('calendar_year', $calendarYear)->first();
+        $settingQuery = HcmThrYearlySetting::query()->where('calendar_year', $calendarYear);
+        $this->applyTenantScope($settingQuery, $companyId);
+        $setting = $settingQuery->first();
         if ($setting === null || $setting->calculation_cutoff_date === null) {
             throw new \InvalidArgumentException('THR_SETUP_CUTOFF_REQUIRED');
         }
 
         $cutoff = $setting->calculation_cutoff_date->format('Y-m-d');
 
-        return DB::transaction(function () use ($calendarYear, $setting, $cutoff, $generatedByUserId) {
-            HcmThrBatch::query()
+        return DB::transaction(function () use ($calendarYear, $setting, $cutoff, $generatedByUserId, $companyId) {
+            $oldDraftsQuery = HcmThrBatch::query()
                 ->where('calendar_year', $calendarYear)
-                ->where('status', HcmThrBatch::STATUS_DRAFT)
-                ->delete();
+                ->where('status', HcmThrBatch::STATUS_DRAFT);
+            $this->applyTenantScope($oldDraftsQuery, $companyId);
+            $oldDraftsQuery->delete();
 
             $batch = HcmThrBatch::query()->create([
+                'company_id' => $companyId,
                 'calendar_year' => $calendarYear,
                 'hcm_thr_yearly_setting_id' => $setting->id,
                 'cutoff_date' => $cutoff,
@@ -68,12 +77,26 @@ final class ThrBatchService
             $resignedUserIds = HcmResignation::query()
                 ->where('status', 'approved')
                 ->whereDate('resignation_date', '<=', $cutoff)
+                ->when($companyId !== null, function (Builder $query) use ($companyId): void {
+                    $query->whereHas('user.employeeProfile', function (Builder $profileQuery) use ($companyId): void {
+                        $profileQuery->where(function (Builder $inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+                    });
+                })
                 ->pluck('user_id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
             $terminatedUserIds = HcmTermination::query()
                 ->where('status', 'approved')
                 ->whereDate('termination_date', '<=', $cutoff)
+                ->when($companyId !== null, function (Builder $query) use ($companyId): void {
+                    $query->whereHas('user.employeeProfile', function (Builder $profileQuery) use ($companyId): void {
+                        $profileQuery->where(function (Builder $inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+                    });
+                })
                 ->pluck('user_id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
@@ -82,6 +105,13 @@ final class ThrBatchService
             $users = User::query()
                 ->with('employeeProfile')
                 ->when($blockedUserIds !== [], fn ($q) => $q->whereNotIn('id', $blockedUserIds))
+                ->when($companyId !== null, function (Builder $query) use ($companyId): void {
+                    $query->whereHas('employeeProfile', function (Builder $profileQuery) use ($companyId): void {
+                        $profileQuery->where(function (Builder $inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+                    });
+                })
                 ->orderBy('id')
                 ->get()
                 ->filter(function (User $user) use ($snapshotService, $asOf): bool {
@@ -161,15 +191,17 @@ final class ThrBatchService
      * @param  list<int>  $userIds
      * @return array{disbursement: ?HcmThrDisbursement, lines: list<array<string, mixed>>, skippedAlreadyPaidUserIds: list<int>}
      */
-    public function disburseSelectedLines(int $batchId, array $userIds, int $initiatedByUserId): array
+    public function disburseSelectedLines(int $batchId, array $userIds, int $initiatedByUserId, ?int $companyId = null): array
     {
         $userIds = array_values(array_unique(array_map('intval', $userIds)));
         if ($userIds === []) {
             throw new \InvalidArgumentException('THR_DISBURSE_NO_EMPLOYEES');
         }
 
-        $result = DB::transaction(function () use ($batchId, $userIds, $initiatedByUserId) {
-            $batch = HcmThrBatch::query()->lockForUpdate()->findOrFail($batchId);
+        $result = DB::transaction(function () use ($batchId, $userIds, $initiatedByUserId, $companyId) {
+            $batchQuery = HcmThrBatch::query()->lockForUpdate()->whereKey($batchId);
+            $this->applyTenantScope($batchQuery, $companyId);
+            $batch = $batchQuery->firstOrFail();
             if ($batch->status !== HcmThrBatch::STATUS_DRAFT) {
                 throw new \InvalidArgumentException('THR_BATCH_NOT_DRAFT');
             }
@@ -213,7 +245,7 @@ final class ThrBatchService
             if ($gatewayItems === []) {
                 return [
                     'disbursement' => null,
-                    'lines' => $this->serializeAllLines($batch->id),
+                    'lines' => $this->serializeAllLines($batch->id, $companyId),
                     'skippedAlreadyPaidUserIds' => $skippedAlreadyPaid,
                 ];
             }
@@ -295,17 +327,19 @@ final class ThrBatchService
             ];
         });
 
-        $batchAfter = HcmThrBatch::find($batchId);
-        if ($batchAfter !== null && $this->canPostPayrollForBatch($batchAfter)) {
+        $batchAfterQuery = HcmThrBatch::query()->whereKey($batchId);
+        $this->applyTenantScope($batchAfterQuery, $companyId);
+        $batchAfter = $batchAfterQuery->first();
+        if ($batchAfter !== null && $this->canPostPayrollForBatch($batchAfter, $companyId)) {
             try {
-                $this->postPaidLinesToPayroll($batchAfter->id, $initiatedByUserId);
+                $this->postPaidLinesToPayroll($batchAfter->id, $initiatedByUserId, $companyId);
             } catch (\Exception $e) {
                 // Biarkan disburse re-fetch tanpa error di sini
                 // atau logging jika ada issue payroll
             }
         }
 
-        $result['lines'] = $this->serializeAllLines($batchId);
+        $result['lines'] = $this->serializeAllLines($batchId, $companyId);
         return $result;
     }
 
@@ -314,10 +348,12 @@ final class ThrBatchService
      *
      * @return array{run: HcmPayrollRun, period: HcmPayrollPeriod}
      */
-    public function postPaidLinesToPayroll(int $batchId, int $assignedByUserId): array
+    public function postPaidLinesToPayroll(int $batchId, int $assignedByUserId, ?int $companyId = null): array
     {
-        return DB::transaction(function () use ($batchId, $assignedByUserId) {
-            $batch = HcmThrBatch::query()->lockForUpdate()->findOrFail($batchId);
+        return DB::transaction(function () use ($batchId, $assignedByUserId, $companyId) {
+            $batchQuery = HcmThrBatch::query()->lockForUpdate()->whereKey($batchId);
+            $this->applyTenantScope($batchQuery, $companyId);
+            $batch = $batchQuery->firstOrFail();
             if ($batch->status !== HcmThrBatch::STATUS_DRAFT) {
                 throw new \InvalidArgumentException('THR_BATCH_NOT_DRAFT');
             }
@@ -344,7 +380,9 @@ final class ThrBatchService
                 throw new \InvalidArgumentException('THR_POST_UNPAID_PAYABLE_LINES');
             }
 
-            $setting = HcmThrYearlySetting::query()->where('calendar_year', $batch->calendar_year)->first();
+            $settingQuery = HcmThrYearlySetting::query()->where('calendar_year', $batch->calendar_year);
+            $this->applyTenantScope($settingQuery, $companyId);
+            $setting = $settingQuery->first();
             if ($setting === null || $setting->payment_date === null) {
                 throw new \InvalidArgumentException('THR_PAYMENT_DATE_REQUIRED');
             }
@@ -355,10 +393,14 @@ final class ThrBatchService
 
             $period = HcmPayrollPeriod::query()->firstOrCreate(
                 [
+                    'company_id' => $companyId,
                     'period_year' => $periodYear,
                     'period_month' => $periodMonth,
                 ],
-                ['status' => HcmPayrollPeriod::STATUS_OPEN],
+                [
+                    'company_id' => $companyId,
+                    'status' => HcmPayrollPeriod::STATUS_OPEN,
+                ],
             );
 
             $thrFinalizedExists = HcmPayrollRun::query()
@@ -373,6 +415,15 @@ final class ThrBatchService
             $thrComponent = HcmSalaryComponent::query()
                 ->where('code', 'thr')
                 ->where('is_active', true)
+                ->where(function (Builder $query) use ($companyId): void {
+                    if ($companyId !== null) {
+                        $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                        return;
+                    }
+
+                    $query->whereNull('company_id');
+                })
                 ->first();
             if ($thrComponent === null) {
                 throw new \InvalidArgumentException('THR_SALARY_COMPONENT_MISSING');
@@ -395,6 +446,7 @@ final class ThrBatchService
             }
 
             $run = HcmPayrollRun::query()->create([
+                'company_id' => $companyId,
                 'hcm_payroll_period_id' => $period->id,
                 'purpose' => HcmPayrollRun::PURPOSE_THR,
                 'status' => HcmPayrollRun::STATUS_DRAFT,
@@ -412,6 +464,7 @@ final class ThrBatchService
                     continue;
                 }
                 HcmPayrollLine::query()->create([
+                    'company_id' => $companyId,
                     'hcm_payroll_run_id' => $run->id,
                     'user_id' => $uid,
                     'hcm_salary_component_id' => $thrComponent->id,
@@ -459,7 +512,7 @@ final class ThrBatchService
      * @param  list<int>  $lineIds
      * @return list<int> line ids updated
      */
-    public function markSlipNotificationsSent(int $batchId, array $lineIds): array
+    public function markSlipNotificationsSent(int $batchId, array $lineIds, ?int $companyId = null): array
     {
         $lineIds = array_values(array_unique(array_map('intval', $lineIds)));
         if ($lineIds === []) {
@@ -469,6 +522,15 @@ final class ThrBatchService
         $lines = HcmThrBatchLine::query()
             ->where('hcm_thr_batch_id', $batchId)
             ->whereIn('id', $lineIds)
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->get();
 
         if ($lines->count() !== count($lineIds)) {
@@ -487,7 +549,7 @@ final class ThrBatchService
         return $updated;
     }
 
-    public function canPostPayrollForBatch(HcmThrBatch $batch): bool
+    public function canPostPayrollForBatch(HcmThrBatch $batch, ?int $companyId = null): bool
     {
         if ($batch->status !== HcmThrBatch::STATUS_DRAFT || $batch->hcm_payroll_run_id !== null) {
             return false;
@@ -497,6 +559,15 @@ final class ThrBatchService
             ->where('hcm_thr_batch_id', $batch->id)
             ->where('eligible', true)
             ->where('thr_gross', '>', 0)
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->exists();
 
         if (! $hasPayable) {
@@ -508,34 +579,46 @@ final class ThrBatchService
             ->where('eligible', true)
             ->where('thr_gross', '>', 0)
             ->where('payment_status', '!=', HcmThrBatchLine::PAYMENT_PAID)
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->exists();
     }
 
     /**
      * @return list<array<string, mixed>>
      */
-    public function listLinesForYear(int $calendarYear): array
+    public function listLinesForYear(int $calendarYear, ?int $companyId = null): array
     {
-        $batch = HcmThrBatch::query()
+        $batchQuery = HcmThrBatch::query()
             ->where('calendar_year', $calendarYear)
             ->where('status', HcmThrBatch::STATUS_DRAFT)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($batchQuery, $companyId);
+        $batch = $batchQuery->first();
 
         if ($batch === null) {
             return [];
         }
 
-        return $this->serializeAllLines($batch->id);
+        return $this->serializeAllLines($batch->id, $companyId);
     }
 
-    public function findDraftBatch(int $calendarYear): ?HcmThrBatch
+    public function findDraftBatch(int $calendarYear, ?int $companyId = null): ?HcmThrBatch
     {
-        return HcmThrBatch::query()
+        $query = HcmThrBatch::query()
             ->where('calendar_year', $calendarYear)
             ->where('status', HcmThrBatch::STATUS_DRAFT)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($query, $companyId);
+
+        return $query->first();
     }
 
     /**
@@ -556,7 +639,7 @@ final class ThrBatchService
             'payrollRunId' => $b->hcm_payroll_run_id,
         ];
         if ($includeFlags) {
-            $out['canPostToPayroll'] = $this->canPostPayrollForBatch($b);
+            $out['canPostToPayroll'] = $this->canPostPayrollForBatch($b, (int) ($b->company_id ?? 0) ?: null);
         }
 
         return $out;
@@ -619,15 +702,37 @@ final class ThrBatchService
     /**
      * @return list<array<string, mixed>>
      */
-    private function serializeAllLines(int $batchId): array
+    private function serializeAllLines(int $batchId, ?int $companyId = null): array
     {
         return HcmThrBatchLine::query()
             ->where('hcm_thr_batch_id', $batchId)
+            ->whereHas('batch', function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->with(['batch', 'user.employeeProfile'])
             ->orderBy('user_id')
             ->get()
             ->map(fn (HcmThrBatchLine $l) => $this->serializeBatchLine($l))
             ->all();
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            if ($companyId !== null) {
+                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                return;
+            }
+
+            $inner->whereNull('company_id');
+        });
     }
 
     private function effectiveJoinDate(User $user, EmployeeProfile $profile): string

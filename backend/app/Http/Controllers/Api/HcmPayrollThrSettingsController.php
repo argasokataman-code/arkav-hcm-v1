@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\HcmThrYearlySetting;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,18 @@ class HcmPayrollThrSettingsController extends Controller
             return $forbidden;
         }
 
+        $companyId = $this->activeCompanyId($request);
+
         $rows = HcmThrYearlySetting::query()
+            ->where(function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->orderByDesc('calendar_year')
             ->limit(25)
             ->get()
@@ -37,6 +49,8 @@ class HcmPayrollThrSettingsController extends Controller
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
+
+        $companyId = $this->activeCompanyId($request);
 
         if ($calendarYear < 2000 || $calendarYear > 2100) {
             return response()->json([
@@ -69,8 +83,12 @@ class HcmPayrollThrSettingsController extends Controller
         }
 
         $row = HcmThrYearlySetting::query()->updateOrCreate(
-            ['calendar_year' => $calendarYear],
             [
+                'company_id' => $companyId,
+                'calendar_year' => $calendarYear,
+            ],
+            [
+                'company_id' => $companyId,
                 'eid_date' => $validated['eidDate'],
                 'payment_date' => $paymentDate,
                 'calculation_cutoff_date' => $calculationCutoffDate,
@@ -97,5 +115,12 @@ class HcmPayrollThrSettingsController extends Controller
             'notes' => $r->notes,
             'updatedAt' => optional($r->updated_at)->toIso8601String(),
         ];
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 }

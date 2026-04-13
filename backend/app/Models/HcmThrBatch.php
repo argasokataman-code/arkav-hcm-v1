@@ -13,6 +13,7 @@ class HcmThrBatch extends Model
     public const STATUS_ASSIGNED = 'assigned';
 
     protected $fillable = [
+        'company_id',
         'calendar_year',
         'hcm_thr_yearly_setting_id',
         'cutoff_date',
@@ -30,6 +31,7 @@ class HcmThrBatch extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'calendar_year' => 'integer',
             'cutoff_date' => 'date',
             'grand_total_eligible' => 'decimal:2',

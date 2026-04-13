@@ -9,6 +9,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -139,12 +140,19 @@ final class PkwtCompensationService
     /**
      * @return array{period: array<string, int>, summary: array<string, int|float>, lines: list<array<string, mixed>>, regulationReference: string}
      */
-    public function previewForMonth(int $periodYear, int $periodMonth): array
+    public function previewForMonth(int $periodYear, int $periodMonth, ?int $companyId = null): array
     {
         $period = Carbon::create($periodYear, $periodMonth, 1)->startOfMonth();
 
         $contracts = EmployeeContract::query()
             ->with(['employee.user:id,name,email,created_at', 'employee.designationRef:id,name,department_id'])
+            ->when($companyId !== null, function (Builder $query) use ($companyId): void {
+                $query->whereHas('employee', function (Builder $profileQuery) use ($companyId): void {
+                    $profileQuery->where(function (Builder $inner) use ($companyId): void {
+                        $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                    });
+                });
+            })
             ->whereIn('contract_type', ['contract', 'pkwt'])
             ->whereNotNull('end_date')
             ->whereYear('end_date', $periodYear)
@@ -159,6 +167,11 @@ final class PkwtCompensationService
 
         $legacyFallback = EmployeeProfile::query()
             ->with(['user:id,name,email,created_at', 'designationRef:id,name,department_id'])
+            ->when($companyId !== null, function (Builder $query) use ($companyId): void {
+                $query->where(function (Builder $inner) use ($companyId): void {
+                    $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                });
+            })
             ->whereIn('contract_type', ['contract', 'pkwt'])
             ->whereNotNull('contract_end_date')
             ->whereYear('contract_end_date', $periodYear)
@@ -238,32 +251,35 @@ final class PkwtCompensationService
         return max(0, $months);
     }
 
-    public function currentRunForMonth(int $periodYear, int $periodMonth): ?HcmPayrollRun
+    public function currentRunForMonth(int $periodYear, int $periodMonth, ?int $companyId = null): ?HcmPayrollRun
     {
-        $period = HcmPayrollPeriod::query()
+        $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $periodYear)
-            ->where('period_month', $periodMonth)
-            ->first();
+            ->where('period_month', $periodMonth);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
 
         if ($period === null) {
             return null;
         }
 
-        return HcmPayrollRun::query()
+        $runQuery = HcmPayrollRun::query()
             ->with(['period', 'lines.user:id,name'])
             ->where('hcm_payroll_period_id', $period->id)
             ->where('purpose', HcmPayrollRun::PURPOSE_PKWT_COMPENSATION)
             ->orderByRaw("CASE WHEN status = 'finalized' THEN 0 ELSE 1 END")
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($runQuery, $companyId);
+
+        return $runQuery->first();
     }
 
     /**
      * @return array{period:HcmPayrollPeriod,run:HcmPayrollRun,preview:array<string,mixed>}
      */
-    public function createOrReplaceDraftRun(int $periodYear, int $periodMonth, ?int $finalizedByUserId = null): array
+    public function createOrReplaceDraftRun(int $periodYear, int $periodMonth, ?int $finalizedByUserId = null, ?int $companyId = null): array
     {
-        $preview = $this->previewForMonth($periodYear, $periodMonth);
+        $preview = $this->previewForMonth($periodYear, $periodMonth, $companyId);
         $eligibleRows = collect($preview['lines'] ?? [])
             ->filter(fn (array $row): bool => ($row['contractType'] ?? 'permanent') === 'contract')
             ->filter(fn (array $row): bool => (bool) ($row['eligible'] ?? false) && (float) ($row['compensationAmount'] ?? 0) > 0)
@@ -276,19 +292,32 @@ final class PkwtCompensationService
         $component = HcmSalaryComponent::query()
             ->where('code', 'kompensasi_pkwt')
             ->where('is_active', true)
+            ->where(function (Builder $query) use ($companyId): void {
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
             ->first();
 
         if ($component === null) {
             throw new \InvalidArgumentException('PKWT_COMPENSATION_COMPONENT_MISSING');
         }
 
-        return DB::transaction(function () use ($periodYear, $periodMonth, $finalizedByUserId, $eligibleRows, $component, $preview): array {
+        return DB::transaction(function () use ($periodYear, $periodMonth, $finalizedByUserId, $eligibleRows, $component, $preview, $companyId): array {
             $period = HcmPayrollPeriod::query()->firstOrCreate(
                 [
+                    'company_id' => $companyId,
                     'period_year' => $periodYear,
                     'period_month' => $periodMonth,
                 ],
-                ['status' => HcmPayrollPeriod::STATUS_OPEN],
+                [
+                    'company_id' => $companyId,
+                    'status' => HcmPayrollPeriod::STATUS_OPEN,
+                ],
             );
 
             $finalizedExists = HcmPayrollRun::query()
@@ -315,6 +344,7 @@ final class PkwtCompensationService
             }
 
             $run = HcmPayrollRun::query()->create([
+                'company_id' => $companyId,
                 'hcm_payroll_period_id' => $period->id,
                 'purpose' => HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
                 'status' => HcmPayrollRun::STATUS_DRAFT,
@@ -325,6 +355,7 @@ final class PkwtCompensationService
             $sortOrder = 0;
             foreach ($eligibleRows as $row) {
                 HcmPayrollLine::query()->create([
+                    'company_id' => $companyId,
                     'hcm_payroll_run_id' => $run->id,
                     'user_id' => (int) ($row['userId'] ?? 0),
                     'hcm_salary_component_id' => $component->id,
@@ -369,5 +400,18 @@ final class PkwtCompensationService
         }
 
         return null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            if ($companyId !== null) {
+                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                return;
+            }
+
+            $inner->whereNull('company_id');
+        });
     }
 }

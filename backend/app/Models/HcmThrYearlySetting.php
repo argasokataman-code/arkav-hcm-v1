@@ -9,6 +9,7 @@ class HcmThrYearlySetting extends Model
     protected $table = 'hcm_thr_yearly_settings';
 
     protected $fillable = [
+        'company_id',
         'calendar_year',
         'eid_date',
         'payment_date',
@@ -19,6 +20,7 @@ class HcmThrYearlySetting extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'calendar_year' => 'integer',
             'eid_date' => 'date',
             'payment_date' => 'date',

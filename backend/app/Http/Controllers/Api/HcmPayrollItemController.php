@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -31,12 +32,15 @@ class HcmPayrollItemController extends Controller
             'kind' => ['nullable', 'string', Rule::in(['addition', 'deduction'])],
         ]);
 
-        $this->syncLinkedRowsWithMaster();
+        $companyId = $this->activeCompanyId($request);
+
+        $this->syncLinkedRowsWithMaster($companyId);
 
         $query = HcmPayrollItem::query()
             ->with('salaryComponent')
             ->orderBy('sort_order')
             ->orderBy('id');
+        $this->applyTenantScope($query, $companyId);
 
         if (! empty($validated['kind'] ?? null)) {
             $query->where('kind', $validated['kind']);
@@ -46,6 +50,15 @@ class HcmPayrollItemController extends Controller
 
         $linkedSalaryComponentIds = HcmPayrollItem::query()
             ->whereNotNull('hcm_salary_component_id')
+            ->where(function (Builder $inner) use ($companyId): void {
+                if ($companyId !== null) {
+                    $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $inner->whereNull('company_id');
+            })
             ->pluck('hcm_salary_component_id')
             ->unique()
             ->values()
@@ -74,9 +87,12 @@ class HcmPayrollItemController extends Controller
             'format' => ['nullable', 'string', Rule::in(['csv', 'xlsx'])],
         ]);
 
-        $this->syncLinkedRowsWithMaster();
+        $companyId = $this->activeCompanyId($request);
+
+        $this->syncLinkedRowsWithMaster($companyId);
 
         $query = HcmPayrollItem::query()->with('salaryComponent')->orderBy('sort_order')->orderBy('id');
+        $this->applyTenantScope($query, $companyId);
         if (! empty($validated['kind'] ?? null)) {
             $query->where('kind', $validated['kind']);
         }
@@ -100,14 +116,32 @@ class HcmPayrollItemController extends Controller
             return $forbidden;
         }
 
+        $companyId = $this->activeCompanyId($request);
+
         if ($request->filled('salaryComponentId')) {
             $validated = $request->validate([
-                'salaryComponentId' => ['required', 'integer', 'exists:hcm_salary_components,id'],
+                'salaryComponentId' => [
+                    'required',
+                    'integer',
+                    Rule::exists('hcm_salary_components', 'id')->where(function ($query) use ($companyId): void {
+                        if ($companyId !== null) {
+                            $query->where(function ($inner) use ($companyId): void {
+                                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                            });
+
+                            return;
+                        }
+
+                        $query->whereNull('company_id');
+                    }),
+                ],
                 'notes' => ['nullable', 'string', 'max:5000'],
                 'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
                 'isActive' => ['nullable', 'boolean'],
             ]);
-            if (HcmPayrollItem::query()->where('hcm_salary_component_id', $validated['salaryComponentId'])->exists()) {
+            $takenQuery = HcmPayrollItem::query()->where('hcm_salary_component_id', $validated['salaryComponentId']);
+            $this->applyTenantScope($takenQuery, $companyId);
+            if ($takenQuery->exists()) {
                 return response()->json([
                     'success' => false,
                     'error' => [
@@ -116,7 +150,9 @@ class HcmPayrollItemController extends Controller
                     ],
                 ], 422);
             }
-            $comp = HcmSalaryComponent::query()->findOrFail($validated['salaryComponentId']);
+            $componentQuery = HcmSalaryComponent::query()->whereKey($validated['salaryComponentId']);
+            $this->applyTenantScope($componentQuery, $companyId);
+            $comp = $componentQuery->firstOrFail();
             if (! $comp->is_active) {
                 return response()->json([
                     'success' => false,
@@ -127,6 +163,7 @@ class HcmPayrollItemController extends Controller
                 ], 422);
             }
             $item = HcmPayrollItem::query()->create([
+                'company_id' => $companyId,
                 'hcm_salary_component_id' => $comp->id,
                 'code' => $comp->code,
                 'name' => $comp->name,
@@ -142,7 +179,23 @@ class HcmPayrollItemController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
-            'code' => ['nullable', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/', Rule::unique('hcm_payroll_items', 'code')],
+            'code' => [
+                'nullable',
+                'string',
+                'max:64',
+                'regex:/^[a-z0-9_\-]+$/',
+                Rule::unique('hcm_payroll_items', 'code')->where(function ($query) use ($companyId): void {
+                    if ($companyId !== null) {
+                        $query->where(function ($inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+
+                        return;
+                    }
+
+                    $query->whereNull('company_id');
+                }),
+            ],
             'kind' => ['required', 'string', Rule::in(['addition', 'deduction'])],
             'category' => [
                 'required',
@@ -161,6 +214,7 @@ class HcmPayrollItemController extends Controller
         }
 
         $item = HcmPayrollItem::query()->create([
+            'company_id' => $companyId,
             'hcm_salary_component_id' => null,
             'code' => $validated['code'] ?? null,
             'name' => $validated['name'],
@@ -181,7 +235,11 @@ class HcmPayrollItemController extends Controller
             return $forbidden;
         }
 
-        $item = HcmPayrollItem::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+
+        $itemQuery = HcmPayrollItem::query()->whereKey($id);
+        $this->applyTenantScope($itemQuery, $companyId);
+        $item = $itemQuery->firstOrFail();
 
         if ($item->hcm_salary_component_id !== null) {
             if ($request->has('salaryComponentId') && $request->input('salaryComponentId') === null) {
@@ -192,7 +250,19 @@ class HcmPayrollItemController extends Controller
                         'string',
                         'max:64',
                         'regex:/^[a-z0-9_\-]+$/',
-                        Rule::unique('hcm_payroll_items', 'code')->ignore($item->id),
+                        Rule::unique('hcm_payroll_items', 'code')
+                            ->ignore($item->id)
+                            ->where(function ($query) use ($companyId): void {
+                                if ($companyId !== null) {
+                                    $query->where(function ($inner) use ($companyId): void {
+                                        $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                                    });
+
+                                    return;
+                                }
+
+                                $query->whereNull('company_id');
+                            }),
                     ],
                     'kind' => ['required', 'string', Rule::in(['addition', 'deduction'])],
                     'category' => [
@@ -253,7 +323,19 @@ class HcmPayrollItemController extends Controller
                 'string',
                 'max:64',
                 'regex:/^[a-z0-9_\-]+$/',
-                Rule::unique('hcm_payroll_items', 'code')->ignore($item->id),
+                Rule::unique('hcm_payroll_items', 'code')
+                    ->ignore($item->id)
+                    ->where(function ($query) use ($companyId): void {
+                        if ($companyId !== null) {
+                            $query->where(function ($inner) use ($companyId): void {
+                                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                            });
+
+                            return;
+                        }
+
+                        $query->whereNull('company_id');
+                    }),
             ],
             'kind' => ['sometimes', 'required', 'string', Rule::in(['addition', 'deduction'])],
             'category' => [
@@ -265,7 +347,22 @@ class HcmPayrollItemController extends Controller
             'notes' => ['nullable', 'string', 'max:5000'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'isActive' => ['nullable', 'boolean'],
-            'salaryComponentId' => ['sometimes', 'nullable', 'integer', 'exists:hcm_salary_components,id'],
+            'salaryComponentId' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('hcm_salary_components', 'id')->where(function ($query) use ($companyId): void {
+                    if ($companyId !== null) {
+                        $query->where(function ($inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+
+                        return;
+                    }
+
+                    $query->whereNull('company_id');
+                }),
+            ],
         ]);
 
         $kind = $validated['kind'] ?? $item->kind;
@@ -281,7 +378,11 @@ class HcmPayrollItemController extends Controller
 
         if (array_key_exists('salaryComponentId', $validated) && $validated['salaryComponentId'] !== null) {
             $cid = (int) $validated['salaryComponentId'];
-            if (HcmPayrollItem::query()->where('hcm_salary_component_id', $cid)->where('id', '!=', $item->id)->exists()) {
+            $takenQuery = HcmPayrollItem::query()
+                ->where('hcm_salary_component_id', $cid)
+                ->where('id', '!=', $item->id);
+            $this->applyTenantScope($takenQuery, $companyId);
+            if ($takenQuery->exists()) {
                 return response()->json([
                     'success' => false,
                     'error' => [
@@ -290,7 +391,9 @@ class HcmPayrollItemController extends Controller
                     ],
                 ], 422);
             }
-            $comp = HcmSalaryComponent::query()->findOrFail($cid);
+            $componentQuery = HcmSalaryComponent::query()->whereKey($cid);
+            $this->applyTenantScope($componentQuery, $companyId);
+            $comp = $componentQuery->firstOrFail();
             if (! $comp->is_active) {
                 return response()->json([
                     'success' => false,
@@ -350,7 +453,9 @@ class HcmPayrollItemController extends Controller
             return $forbidden;
         }
 
-        $item = HcmPayrollItem::query()->findOrFail($id);
+        $itemQuery = HcmPayrollItem::query()->whereKey($id);
+        $this->applyTenantScope($itemQuery, $this->activeCompanyId($request));
+        $item = $itemQuery->firstOrFail();
         $item->delete();
 
         return response()->json(['success' => true]);
@@ -388,11 +493,20 @@ class HcmPayrollItemController extends Controller
         ];
     }
 
-    private function syncLinkedRowsWithMaster(): void
+    private function syncLinkedRowsWithMaster(?int $companyId): void
     {
         $items = HcmPayrollItem::query()
             ->with('salaryComponent:id,code,name,kind,category')
             ->whereNotNull('hcm_salary_component_id')
+            ->where(function (Builder $inner) use ($companyId): void {
+                if ($companyId !== null) {
+                    $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $inner->whereNull('company_id');
+            })
             ->get();
 
         foreach ($items as $item) {
@@ -419,6 +533,26 @@ class HcmPayrollItemController extends Controller
                 $item->update($dirty);
             }
         }
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            if ($companyId !== null) {
+                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                return;
+            }
+
+            $inner->whereNull('company_id');
+        });
     }
 
     /**

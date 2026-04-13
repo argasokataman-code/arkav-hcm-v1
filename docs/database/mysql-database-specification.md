@@ -44,6 +44,10 @@ Update tenant foundation (April 2026):
   - `hcm_payroll_lines`
   - `hcm_salary_components`
   - `hcm_overtime_types`
+- Wave tenantization payroll-adjacent menambahkan `company_id` (nullable + indexed + backfill default company) ke:
+  - `hcm_payroll_items`
+  - `hcm_thr_yearly_settings` (unique key diperlebar menjadi `(company_id, calendar_year)`)
+  - `hcm_thr_batches`
 
 Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 
@@ -239,7 +243,8 @@ Detail API & backlog engine: `docs/api/hcm-payroll-api.md`, `docs/planning/payro
 
 ### `hcm_thr_yearly_settings` (THR — pengaturan per tahun)
 
-- `id`, `calendar_year` SMALLINT UNSIGNED **UNIQUE** (tahun kalender perencanaan, mis. 2026)
+- `id`, `company_id` BIGINT UNSIGNED NULL (index), `calendar_year` SMALLINT UNSIGNED (tahun kalender perencanaan, mis. 2026)
+- UNIQUE komposit: (`company_id`, `calendar_year`)
 - `eid_date` DATE NOT NULL — tanggal Lebaran referensi
 - `payment_date` DATE NULL — rencana transfer **THR** (biasanya terpisah dari jadwal gaji bulanan; sering 7–10 hari sebelum H)
 - `calculation_cutoff_date` DATE NULL — cut-off perhitungan pro rata (mis. H-1)
@@ -248,7 +253,7 @@ Detail API & backlog engine: `docs/api/hcm-payroll-api.md`, `docs/planning/payro
 
 ### `hcm_thr_batches` / `hcm_thr_batch_lines` (THR mass calculate & assign)
 
-- **`hcm_thr_batches`**: `calendar_year`, FK opsional `hcm_thr_yearly_setting_id` → `hcm_thr_yearly_settings` (null on delete), `cutoff_date` DATE, agregat `grand_total_eligible`, `eligible_line_count`, `total_line_count`, `status` (`draft` | `assigned`), `assigned_at`, FK `assigned_by_user_id` / `generated_by_user_id` → `users` (null on delete), FK opsional `hcm_payroll_period_id` / `hcm_payroll_run_id` setelah assign. Migrasi: `2026_04_16_105000_create_hcm_thr_batch_tables`.
+- **`hcm_thr_batches`**: `company_id` BIGINT UNSIGNED NULL (index), `calendar_year`, FK opsional `hcm_thr_yearly_setting_id` → `hcm_thr_yearly_settings` (null on delete), `cutoff_date` DATE, agregat `grand_total_eligible`, `eligible_line_count`, `total_line_count`, `status` (`draft` | `assigned`), `assigned_at`, FK `assigned_by_user_id` / `generated_by_user_id` → `users` (null on delete), FK opsional `hcm_payroll_period_id` / `hcm_payroll_run_id` setelah assign. Index tenant utama: (`company_id`, `calendar_year`, `status`). Migrasi: `2026_04_16_105000_create_hcm_thr_batch_tables` + `2026_04_22_090000_tenantize_thr_and_payroll_item_tables`.
 - **`hcm_thr_batch_lines`**: FK `hcm_thr_batch_id` (cascade), FK `user_id` (cascade), **`thr_slip_public_no` VARCHAR(48) NOT NULL UNIQUE** — nomor slip resmi tercetak (format baru `THR-{tahun}-{ULID}`; data lama dari migrasi: `THR-{tahun}-{id}`), snapshot nama/no pegawai, `join_date_used`, `base_salary`, `fixed_allowance`, `reference_wage`, `months_of_service`, `multiplier`, `thr_gross`, `row_status` (`full` \| `pro_rata` \| `nihil` \| `invalid`), `eligible` boolean. UNIQUE(`hcm_thr_batch_id`, `user_id`). Migrasi tambahan: `2026_04_17_130000_add_thr_slip_public_no_to_hcm_thr_batch_lines`.
 
 ### `hcm_payroll_items` (katalog halaman Payroll Items)
@@ -256,7 +261,7 @@ Detail API & backlog engine: `docs/api/hcm-payroll-api.md`, `docs/planning/payro
 Baris katalog slip / payroll (boleh **mirror** master atau **kustom**):
 
 - FK opsional **`hcm_salary_component_id`** UNIQUE → `hcm_salary_components` (null on delete); jika null = item tanpa taut master.
-- `code`, `name`, `kind`, `category`, `notes` (TEXT nullable), `sort_order`, `is_active`, timestamps.
+- `company_id` BIGINT UNSIGNED NULL (index), `code`, `name`, `kind`, `category`, `notes` (TEXT nullable), `sort_order`, `is_active`, timestamps.
 
 Seed migrasi mengisi taut ke `upah_pokok`, `tunjangan_tetap_transport`, `upah_lembur` serta satu contoh kustom. API baca: `GET /v1/hcm/payroll-items` — `docs/api/hcm-payroll-items-api.md`.
 

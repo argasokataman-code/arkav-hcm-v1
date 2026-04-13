@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
 use App\Models\User;
@@ -89,6 +90,29 @@ class HcmPayrollItemApiTest extends TestCase
             ->deleteJson('/v1/hcm/payroll-items/'.$existingId)
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_payroll_items_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+
+        Company::query()->create([
+            'code' => 'payroll_item_other_company',
+            'name' => 'Payroll Item Other Company',
+            'legal_name' => 'Payroll Item Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'payroll_item_other_company',
+        ])->getJson('/v1/hcm/payroll-items')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_index_returns_payroll_items_only(): void

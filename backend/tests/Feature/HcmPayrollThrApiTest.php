@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\HcmResignation;
 use App\Models\HcmTermination;
 use App\Models\HcmThrYearlySetting;
@@ -179,6 +180,29 @@ class HcmPayrollThrApiTest extends TestCase
             ->getJson('/v1/hcm/payroll/thr-settings')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_thr_settings_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+
+        Company::query()->create([
+            'code' => 'thr_other_company',
+            'name' => 'THR Other Company',
+            'legal_name' => 'THR Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'thr_other_company',
+        ])->getJson('/v1/hcm/payroll/thr-settings')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_thr_settings_list_and_upsert(): void

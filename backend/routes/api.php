@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\PurchaseTransactionController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
@@ -308,6 +309,12 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::put('/subscriptions/{subscription}', [SubscriptionController::class, 'update']);
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy']);
     Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
+
+    // Purchase Transactions
+    Route::get('/transactions', [PurchaseTransactionController::class, 'index']);
+    Route::post('/transactions', [PurchaseTransactionController::class, 'store']);
+    Route::get('/transactions/{transaction}', [PurchaseTransactionController::class, 'show']);
+    Route::put('/transactions/{transaction}', [PurchaseTransactionController::class, 'update']);
 });
 
 Route::get('/health', function () {

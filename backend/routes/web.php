@@ -150,6 +150,22 @@ Route::get('/saas-dashboard', function () {
     return view('saas-dashboard');
 })->name('saas-dashboard');
 
+Route::get('/saas/packages', function () {
+    return view('saas.packages');
+})->name('saas.packages');
+
+Route::get('/saas/subscriptions', function () {
+    return view('saas.subscriptions');
+})->name('saas.subscriptions');
+
+Route::get('/saas/domains', function () {
+    return view('saas.domains');
+})->name('saas.domains');
+
+Route::get('/saas/transactions', function () {
+    return view('saas.transactions');
+})->name('saas.transactions');
+
 Route::middleware('auth')->group(function () {
     Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
 });

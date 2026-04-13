@@ -1,7 +1,7 @@
 (function (window, document) {
   "use strict";
 
-  const API_BASE = "/api/v1/saas/dashboard";
+  const API_BASE = "/v1/saas/dashboard";
   const PAGE_SIZE = 20;
 
   // Utility: API request with auth headers

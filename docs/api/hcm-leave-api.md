@@ -6,6 +6,14 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/H
 
 `/v1/hcm`
 
+## Tenant context
+
+- `leave_requests.company_id` — kolom tenant ditambahkan via migrasi; backfill ke `default_company`.
+- Semua query `LeaveRequest` di-scope ke `company_id` aktif (`WHERE company_id = ? OR company_id IS NULL`).
+- `GET /leave-requests`, `POST /leave-requests`, `PUT /leave-requests/:id`, `DELETE /leave-requests/:id`, `GET /leave-requests/export` — semua mem-filter by active company.
+- Admin dari company A tidak dapat approve/decline leave request milik company B.
+- Header opsional: `X-Company-Id` / `X-Company-Code`; jika company bukan milik user → `403 TENANT_FORBIDDEN`.
+
 ## Leave type options (untuk form request)
 
 ### GET `/leave-type-options`

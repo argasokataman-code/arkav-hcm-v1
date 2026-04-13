@@ -557,4 +557,39 @@ class LeaveRequestsApiTest extends TestCase
         $this->assertStringContainsString('export-me', $content);
         $this->assertStringNotContainsString('should-not-export', $content);
     }
+
+    public function test_leave_request_update_forbidden_when_switching_to_unowned_company(): void
+    {
+        $adminToken = $this->bearerToken('leave-idor-admin@example.com', 'HR Admin');
+
+        \App\Models\Company::query()->create([
+            'code' => 'leave_idor_other_company',
+            'name' => 'Leave IDOR Other Company',
+            'legal_name' => 'Leave IDOR Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherUser = User::factory()->create();
+        $leave = LeaveRequest::query()->create([
+            'user_id' => $otherUser->id,
+            'leave_type' => 'Annual',
+            'date_from' => '2026-04-10',
+            'date_to' => '2026-04-11',
+            'days' => 2,
+            'status' => 'pending',
+            'notes' => null,
+        ]);
+
+        // Admin from unowned company cannot approve/decline that leave
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => 'leave_idor_other_company',
+        ])->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
 }

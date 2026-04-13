@@ -333,8 +333,11 @@ class AttendanceController extends Controller
 
         $tz = $this->tz();
         $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
+        $activeCompanyId = $this->activeCompanyId($request);
 
-        $rec = AttendanceRecord::query()
+        $recQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recQuery, $activeCompanyId);
+        $rec = $recQuery
             ->where('user_id', $validated['userId'])
             ->whereDate('work_date', $workDate)
             ->first();
@@ -382,6 +385,7 @@ class AttendanceController extends Controller
 
         if (! $rec) {
             $rec = new AttendanceRecord([
+                'company_id' => $activeCompanyId,
                 'user_id' => $validated['userId'],
                 'work_date' => $workDate,
                 'status' => 'present',
@@ -977,10 +981,16 @@ class AttendanceController extends Controller
         $perPage = min(200, (int) ($validated['perPage'] ?? 50));
 
         $projectLabelExpr = $this->timesheetProjectLabelSql();
+        $activeCompanyId = $this->activeCompanyId($request);
         $projects = AttendanceRecord::query()
             ->join('users', 'users.id', '=', 'attendance_records.user_id')
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
             ->whereBetween('attendance_records.work_date', [$dateFrom, $dateTo])
+            ->when($activeCompanyId, function ($q, $cid): void {
+                $q->where(function ($inner) use ($cid): void {
+                    $inner->where('attendance_records.company_id', $cid)->orWhereNull('attendance_records.company_id');
+                });
+            })
             ->selectRaw('DISTINCT '.$projectLabelExpr.' as project')
             ->orderBy('project')
             ->pluck('project')
@@ -992,6 +1002,11 @@ class AttendanceController extends Controller
             ->join('users', 'users.id', '=', 'attendance_records.user_id')
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
             ->whereBetween('attendance_records.work_date', [$dateFrom, $dateTo])
+            ->when($activeCompanyId, function ($q, $cid): void {
+                $q->where(function ($inner) use ($cid): void {
+                    $inner->where('attendance_records.company_id', $cid)->orWhereNull('attendance_records.company_id');
+                });
+            })
             ->select('attendance_records.*');
 
         if ($projectFilter !== '') {

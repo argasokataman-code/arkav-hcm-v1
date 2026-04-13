@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LeaveRequest extends Model
 {
     protected $fillable = [
+        'company_id',
         'user_id',
         'leave_type',
         'date_from',
@@ -21,6 +22,7 @@ class LeaveRequest extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'date_from' => 'date',
             'date_to' => 'date',
             'days' => 'decimal:1',

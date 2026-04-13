@@ -10,6 +10,8 @@ Tenant context:
 - Endpoint attendance membaca `activeCompany` dari middleware tenant context.
 - Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
 - Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
+- `PUT /attendance/admin/record` — lookup record + create menggunakan `company_id` aktif; admin dari company lain tidak dapat menulis record employee company lain.
+- `GET /timesheets` — query `attendance_records` di-scope ke `company_id` aktif.
 
 ## Attendance (admin)
 

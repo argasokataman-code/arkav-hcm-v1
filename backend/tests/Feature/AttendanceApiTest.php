@@ -450,4 +450,56 @@ class AttendanceApiTest extends TestCase
         $this->assertStringContainsString('10:15', (string) $row->start_time);
         $this->assertStringContainsString('19:15', (string) $row->end_time);
     }
+
+    public function test_attendance_admin_upsert_record_forbidden_when_switching_to_unowned_company(): void
+    {
+        $token = $this->bearerToken(true, 'att-upsert-other@example.com');
+
+        Company::query()->create([
+            'code' => 'att_upsert_other_company',
+            'name' => 'Att Upsert Other Company',
+            'legal_name' => 'Att Upsert Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $target = User::factory()->create();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => 'att_upsert_other_company',
+        ])->putJson('/v1/hcm/attendance/admin/record', [
+            'userId' => $target->id,
+            'workDate' => now()->toDateString(),
+            'checkInTime' => '09:00',
+            'checkOutTime' => '18:00',
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
+    public function test_timesheets_forbidden_when_switching_to_unowned_company(): void
+    {
+        $token = $this->bearerToken(true, 'att-timesheet-other@example.com');
+
+        Company::query()->create([
+            'code' => 'att_timesheet_other_company',
+            'name' => 'Att Timesheet Other Company',
+            'legal_name' => 'Att Timesheet Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => 'att_timesheet_other_company',
+        ])->getJson('/v1/hcm/timesheets')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
 }

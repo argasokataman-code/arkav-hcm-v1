@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HcmLeaveTypeSetting;
+use Illuminate\Database\Eloquent\Builder;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
 use App\Models\LeaveLedger;
@@ -26,6 +27,24 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class HcmLeaveRequestController extends Controller
 {
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if (! $companyId) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+        });
+    }
+
     public function __construct(
         private readonly LeaveLedgerService $leaveLedgerService,
         private readonly LeaveWorkingDayCalculator $workingDayCalculator
@@ -47,11 +66,12 @@ class HcmLeaveRequestController extends Controller
         $scope = $validated['scope'] ?? null;
         $perPage = min(100, (int) ($validated['perPage'] ?? 20));
 
-        $query = LeaveRequest::query()->with('user:id,name,email')->orderByDesc('id');
+        $companyId = $this->activeCompanyId($request);
+        $query = $this->applyTenantScope(LeaveRequest::query()->with('user:id,name,email')->orderByDesc('id'), $companyId);
         $this->applyIndexFilters($query, $request, $validated, $scope);
 
         $meta = [];
-        $summaryQuery = LeaveRequest::query();
+        $summaryQuery = $this->applyTenantScope(LeaveRequest::query(), $companyId);
         $this->applyIndexFilters($summaryQuery, $request, $validated, $scope);
 
         $summaryRow = $summaryQuery
@@ -124,7 +144,7 @@ class HcmLeaveRequestController extends Controller
         ]);
 
         $scope = $validated['scope'] ?? null;
-        $query = LeaveRequest::query()->with('user:id,name,email')->orderByDesc('id');
+        $query = $this->applyTenantScope(LeaveRequest::query()->with('user:id,name,email')->orderByDesc('id'), $this->activeCompanyId($request));
         $this->applyIndexFilters($query, $request, $validated, $scope);
 
         $isAdminScope = $request->user()->isHcmAdmin() && $scope !== 'me';
@@ -369,6 +389,7 @@ class HcmLeaveRequestController extends Controller
         }
 
         $r = LeaveRequest::query()->create([
+            'company_id' => $this->activeCompanyId($request),
             'user_id' => $user->id,
             'leave_type' => $validated['leaveType'],
             'date_from' => $validated['dateFrom'],
@@ -385,7 +406,8 @@ class HcmLeaveRequestController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $r = LeaveRequest::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $r = $this->applyTenantScope(LeaveRequest::query(), $companyId)->whereKey($id)->firstOrFail();
 
         if ($r->user_id !== $request->user()->id) {
             if (! $request->user()->isHcmAdmin()) {
@@ -403,8 +425,8 @@ class HcmLeaveRequestController extends Controller
                 'notes' => ['nullable', 'string', 'max:2000'],
             ]);
 
-            DB::transaction(function () use ($r, $validated): void {
-                $r = LeaveRequest::query()->lockForUpdate()->findOrFail($r->id);
+            DB::transaction(function () use ($r, $validated, $companyId): void {
+                $r = $this->applyTenantScope(LeaveRequest::query()->lockForUpdate(), $companyId)->whereKey($r->id)->firstOrFail();
                 $fromStatus = (string) $r->status;
                 $toStatus = (string) $validated['status'];
 
@@ -679,7 +701,8 @@ class HcmLeaveRequestController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $r = LeaveRequest::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $r = $this->applyTenantScope(LeaveRequest::query(), $companyId)->whereKey($id)->firstOrFail();
         if ($r->user_id !== $request->user()->id) {
             return response()->json([
                 'success' => false,

@@ -343,6 +343,7 @@ Source of truth transaksi saldo cuti.
 
 Versi dokumen asli memakai `employee_id` + `leave_type_id`. **Tabel aktual di repo** (lihat migrasi):
 
+- `company_id` BIGINT UNSIGNED NULL INDEX — tenant scope (wave tenantization leave 2026-04-13); backfill ke default_company
 - `user_id` FK → `users`
 - `leave_type` string
 - `date_from`, `date_to` DATE

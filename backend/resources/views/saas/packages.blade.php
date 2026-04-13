@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends('layout.mainlayout')
 
-@section('title', 'Packages Management')
+@section('content')
+<?php $page = 'saas-packages'; ?>
 
 @section('content')
 <div class="container-fluid mt-4">
@@ -163,7 +164,7 @@
 </div>
 
 <!-- Toast Notification -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11" data-toast-container>
     <div id="toast_notification" class="toast" role="alert">
         <div class="toast-header">
             <strong class="me-auto" id="toast_title">Notification</strong>
@@ -178,7 +179,6 @@
 <script src="{{ asset('resources/js/packages-management.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        window.PackagesManager.init();
+        window.PackagesManager?.init();
     });
 </script>
-@endsection

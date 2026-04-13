@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends('layout.mainlayout')
 
-@section('title', 'Purchase Transactions')
+@section('content')
+<?php $page = 'saas-transactions'; ?>
 
 @section('content')
 <div class="container-fluid mt-4">
@@ -132,7 +133,7 @@
 </div>
 
 <!-- Toast Notification -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11" data-toast-container>
     <div id="toast_notification" class="toast" role="alert">
         <div class="toast-header">
             <strong class="me-auto" id="toast_title">Notification</strong>
@@ -147,7 +148,6 @@
 <script src="{{ asset('resources/js/purchase-transactions-data.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        window.TransactionsManager.init();
+        window.TransactionsManager?.init();
     });
 </script>
-@endsection

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -219,6 +221,117 @@ class AuthApiTest extends TestCase
             'X-Company-Id' => (string) $otherCompany->id,
         ])->getJson('/v1/hcm/attendance/me/today')
             ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
+    public function test_login_backfills_default_company_membership_for_legacy_user(): void
+    {
+        $user = User::create([
+            'name' => 'Legacy User',
+            'email' => 'legacy.user@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $this->assertFalse(
+            CompanyUser::query()->where('user_id', $user->id)->exists(),
+            'Precondition failed: legacy user should start without company membership.'
+        );
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'legacy.user@example.com',
+            'password' => 'StrongPass1',
+        ]);
+
+        $loginResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertCookie($this->cookieName());
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.activeCompany.code', 'default_company');
+
+        $membership = CompanyUser::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        $this->assertNotNull($membership);
+        $this->assertSame('member', $membership->role);
+    }
+
+    public function test_login_as_company_succeeds_for_member_company_code(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Company Member',
+            'email' => 'company.member@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', 'company.member@example.com')->firstOrFail();
+
+        $company = Company::query()->create([
+            'code' => 'acme_company',
+            'name' => 'Acme Company',
+            'legal_name' => 'Acme Company Ltd',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $this->postJson('/v1/identity/auth/login', [
+            'email' => 'company.member@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'acme_company',
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.activeCompany.code', 'acme_company')
+            ->assertJsonPath('data.activeCompany.role', 'admin');
+    }
+
+    public function test_login_as_company_fails_for_unowned_company_code(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Company Forbidden',
+            'email' => 'company.forbidden@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        Company::query()->create([
+            'code' => 'forbidden_company',
+            'name' => 'Forbidden Company',
+            'legal_name' => 'Forbidden Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->postJson('/v1/identity/auth/login', [
+            'email' => 'company.forbidden@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'forbidden_company',
+        ])->assertStatus(403)
+            ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 }

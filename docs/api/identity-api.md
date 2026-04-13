@@ -43,6 +43,7 @@ Body:
 - `email` required string email:rfc
 - `password` required string min 8 max 64
 - `rememberMe` optional boolean (ttl lebih lama)
+- `companyCode` optional string regex `^[A-Za-z0-9_-]+$` (mode "login as company")
 
 Success `200`:
 - set cookie `arcav_access_token` (HttpOnly) + juga return `accessToken` untuk client yang butuh header
@@ -54,13 +55,24 @@ Success `200`:
     "accessToken": "…",
     "tokenType": "Bearer",
     "expiresIn": 3600,
-    "user": { "id": 1, "name": "Budi", "email": "budi@company.com", "roles": ["employee"] }
+    "user": { "id": 1, "name": "Budi", "email": "budi@company.com", "roles": ["employee"] },
+    "activeCompany": {
+      "id": 1,
+      "code": "default_company",
+      "name": "Default Company",
+      "role": "member"
+    }
   }
 }
 ```
 
+Behavior note (tenant login mode):
+- Jika `companyCode` diisi, backend memverifikasi membership aktif user ke company tersebut saat login.
+- Jika tidak punya akses ke company yang diminta, login ditolak dengan `403 TENANT_FORBIDDEN`.
+
 Errors:
 - `401 AUTH_INVALID_CREDENTIALS`
+- `403 TENANT_FORBIDDEN`
 - `422 VALIDATION_ERROR`
 - `429 AUTH_TOO_MANY_ATTEMPTS`
 

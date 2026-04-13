@@ -72,6 +72,7 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email:rfc'],
             'password' => ['required', 'string', 'min:8', 'max:64'],
             'rememberMe' => ['nullable', 'boolean'],
+            'companyCode' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9_-]+$/'],
         ]);
 
         if ($validator->fails()) {
@@ -86,6 +87,14 @@ class AuthController extends Controller
             RateLimiter::hit($throttleKey, 60);
 
             return $this->errorResponse('AUTH_INVALID_CREDENTIALS', 'Invalid credentials.', 401, $request);
+        }
+
+        // Backfill tenant membership for legacy users so post-login /auth/me does not fail with TENANT_MEMBERSHIP_REQUIRED.
+        $this->ensureUserHasActiveCompanyMembership($user);
+
+        $requestedCompany = $this->resolveRequestedCompanyForLogin($request, $user);
+        if (($requestedCompany['error'] ?? null) === 'TENANT_FORBIDDEN') {
+            return $this->errorResponse('TENANT_FORBIDDEN', 'User does not have access to requested company.', 403, $request);
         }
 
         RateLimiter::clear($throttleKey);
@@ -112,6 +121,12 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'roles' => ['employee'],
                 ],
+                'activeCompany' => isset($requestedCompany['company']) ? [
+                    'id' => $requestedCompany['company']->id,
+                    'code' => $requestedCompany['company']->code,
+                    'name' => $requestedCompany['company']->name,
+                    'role' => $requestedCompany['role'] ?? null,
+                ] : null,
             ],
         ])->cookie(
             $this->cookieName(),
@@ -295,5 +310,54 @@ class AuthController extends Controller
                 'invited_by_user_id' => null,
             ]
         );
+    }
+
+    private function ensureUserHasActiveCompanyMembership(User $user): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('company_users')) {
+            return;
+        }
+
+        $hasActiveMembership = CompanyUser::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($hasActiveMembership) {
+            return;
+        }
+
+        $this->attachUserToDefaultCompany($user);
+    }
+
+    /**
+     * @return array{company?: Company, role?: string, error?: string}
+     */
+    private function resolveRequestedCompanyForLogin(Request $request, User $user): array
+    {
+        $companyCode = trim((string) $request->input('companyCode', ''));
+        if ($companyCode === '') {
+            return [];
+        }
+
+        $company = Company::query()->where('code', $companyCode)->first();
+        if (! $company) {
+            return ['error' => 'TENANT_FORBIDDEN'];
+        }
+
+        $membership = CompanyUser::query()
+            ->where('company_id', $company->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $membership) {
+            return ['error' => 'TENANT_FORBIDDEN'];
+        }
+
+        return [
+            'company' => $company,
+            'role' => (string) $membership->role,
+        ];
     }
 }

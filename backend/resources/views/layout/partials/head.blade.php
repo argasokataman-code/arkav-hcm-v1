@@ -114,7 +114,7 @@
 <!-- Rangeslider CSS -->
 <link rel="stylesheet" href="{{ url('build/plugins/ion-rangeslider/css/ion.rangeSlider.min.css') }}">
 
-@if (Route::is(['icon-ionic', 'plugin']))
+@if (Route::is(['icon-ionic']))
 <!-- Ionic CSS -->
 <link rel="stylesheet" href="{{ url('build/plugins/icons/ionic/ionicons.css') }}">
 @endif
@@ -128,7 +128,7 @@
 <!-- Pe7 CSS -->
 <link rel="stylesheet" href="{{ url('build/plugins/icons/pe7/pe-icon-7.css') }}">
 
-@if (Route::is(['icon-simpleline', 'plugin']))
+@if (Route::is(['icon-simpleline']))
 <!-- Material CSS -->
 <link rel="stylesheet" href="{{ url('build/plugins/simpleline/simple-line-icons.css') }}">
 @endif

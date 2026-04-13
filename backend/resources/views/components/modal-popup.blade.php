@@ -4084,7 +4084,7 @@
     <!-- /Delete Modal -->
 @endif
 
-@if (Route::is(['aseets','asset-categories']))
+@if (Route::is(['assets','asset-categories']))
     <!-- Add Assets -->
     <div class="modal fade" id="add_assets">
         <div class="modal-dialog modal-dialog-centered modal-lg">

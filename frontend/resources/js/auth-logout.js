@@ -22,6 +22,7 @@
                     // Ignore API logout errors and continue local cleanup.
                 } finally {
                     window.AuthApi.clearToken();
+                    window.AuthApi.clearTenantContext();
                     window.location.href = "/login";
                 }
             });

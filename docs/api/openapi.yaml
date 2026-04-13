@@ -70,8 +70,12 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
   /v1/identity/auth/logout:
     post:
       tags: [Identity]
@@ -3025,6 +3029,14 @@ components:
           type: string
           minLength: 8
           maxLength: 64
+        rememberMe:
+          type: boolean
+          nullable: true
+        companyCode:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Za-z0-9_-]+$"
+          nullable: true
     DepartmentUpsertRequest:
       type: object
       required: [code, name]
@@ -3689,6 +3701,18 @@ components:
                   type: array
                   items:
                     type: string
+            activeCompany:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                code:
+                  type: string
+                name:
+                  type: string
+                role:
+                  type: string
     MeResponse:
       type: object
       properties:

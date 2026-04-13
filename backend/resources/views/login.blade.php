@@ -40,6 +40,29 @@
                                         <p class="mb-0">Please enter your details to sign in</p>
                                     </div>
                                     <div class="mb-3">
+                                        <label class="form-label">Login Mode</label>
+                                        <div class="d-flex align-items-center gap-4">
+                                            <div class="form-check form-check-md mb-0">
+                                                <input class="form-check-input" type="radio" name="login_mode" id="login_mode_regular" value="regular" checked>
+                                                <label class="form-check-label mt-0" for="login_mode_regular">Regular Login</label>
+                                            </div>
+                                            <div class="form-check form-check-md mb-0">
+                                                <input class="form-check-input" type="radio" name="login_mode" id="login_mode_company" value="company">
+                                                <label class="form-check-label mt-0" for="login_mode_company">Login as Company</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="company-code-wrapper" class="mb-3 d-none">
+                                        <label class="form-label">Company Code</label>
+                                        <div class="input-group">
+                                            <input id="login-company-code" type="text" class="form-control border-end-0" placeholder="e.g. default_company" autocomplete="off">
+                                            <span class="input-group-text border-start-0">
+                                                <i class="ti ti-building"></i>
+                                            </span>
+                                        </div>
+                                        <small class="text-muted">Use your company code to enter tenant-specific workspace.</small>
+                                    </div>
+                                    <div class="mb-3">
                                         <label class="form-label">Email Address</label>
                                         <div class="input-group">
                                             <input id="login-email" type="email" value="" class="form-control border-end-0" required>

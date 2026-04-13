@@ -2,6 +2,7 @@
     "use strict";
 
     var TOKEN_KEY = "arcav_access_token";
+    var TENANT_CTX_KEY = "arcav_active_tenant";
     var baseURL = "/v1";
     var authRedirectScheduled = false;
 
@@ -53,6 +54,14 @@
             Accept: "application/json",
         };
 
+        var tenantContext = getTenantContext();
+        if (tenantContext.companyCode) {
+            headers["X-Company-Code"] = tenantContext.companyCode;
+        }
+        if (tenantContext.companyId) {
+            headers["X-Company-Id"] = String(tenantContext.companyId);
+        }
+
         if (extraHeaders) {
             Object.keys(extraHeaders).forEach(function (key) {
                 headers[key] = extraHeaders[key];
@@ -60,6 +69,48 @@
         }
 
         return headers;
+    }
+
+    function getTenantContext() {
+        try {
+            var raw = window.localStorage.getItem(TENANT_CTX_KEY);
+            if (!raw) {
+                return {};
+            }
+            var parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (_e) {
+            return {};
+        }
+    }
+
+    function setTenantContext(payload) {
+        var data = payload && typeof payload === "object" ? payload : {};
+        var normalized = {};
+
+        if (typeof data.companyCode === "string") {
+            var code = data.companyCode.trim();
+            if (code) {
+                normalized.companyCode = code;
+            }
+        }
+        if (data.companyId !== undefined && data.companyId !== null && data.companyId !== "") {
+            normalized.companyId = data.companyId;
+        }
+
+        try {
+            if (Object.keys(normalized).length === 0) {
+                window.localStorage.removeItem(TENANT_CTX_KEY);
+                return;
+            }
+            window.localStorage.setItem(TENANT_CTX_KEY, JSON.stringify(normalized));
+        } catch (_e) {}
+    }
+
+    function clearTenantContext() {
+        try {
+            window.localStorage.removeItem(TENANT_CTX_KEY);
+        } catch (_e) {}
     }
 
     function request(method, path, payload) {
@@ -130,6 +181,9 @@
                 window.localStorage.removeItem(TOKEN_KEY);
             } catch (_e) {}
         },
+        getTenantContext: getTenantContext,
+        setTenantContext: setTenantContext,
+        clearTenantContext: clearTenantContext,
         getToken: getToken,
         isUnauthorizedApiPayload: isUnauthorizedApiPayload,
         redirectToLoginAfterAuthFailure: redirectToLoginAfterAuthFailure,

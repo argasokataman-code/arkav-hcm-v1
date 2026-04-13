@@ -1,5 +1,5 @@
 @if (Route::is([
-        'horizontal-timeline',
+    'ui-timeline',
         'ui-accordion',
         'ui-alerts',
         'ui-avatar',
@@ -17,7 +17,6 @@
         'ui-media',
         'ui-modals',
         'ui-nav-tabs',
-        'ui-notification',
         'ui-offcanvas',
         'ui-pagination',
         'ui-placeholders',

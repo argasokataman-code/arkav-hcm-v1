@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\PurchaseTransactionController;
 use App\Http\Controllers\Api\CustomDomainController;
+use App\Http\Controllers\Api\SuperAdminDashboardController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
@@ -324,6 +325,18 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::put('/domains/{domain}', [CustomDomainController::class, 'update']);
     Route::delete('/domains/{domain}', [CustomDomainController::class, 'destroy']);
     Route::post('/domains/{domain}/verify', [CustomDomainController::class, 'verify']);
+
+    // Super Admin Dashboard
+    Route::get('/dashboard/kpi', [SuperAdminDashboardController::class, 'getKpi']);
+    Route::get('/dashboard/kpi/{metricKey}', [SuperAdminDashboardController::class, 'getMetricTrend']);
+    Route::get('/dashboard/companies', [SuperAdminDashboardController::class, 'getCompanies']);
+    Route::get('/dashboard/companies/top-performers', [SuperAdminDashboardController::class, 'getTopCompanies']);
+    Route::get('/dashboard/companies/{company}/details', [SuperAdminDashboardController::class, 'getCompanyDetails']);
+    Route::get('/dashboard/users', [SuperAdminDashboardController::class, 'getUserStats']);
+    Route::get('/dashboard/revenue/monthly', [SuperAdminDashboardController::class, 'getMonthlytRevenue']);
+    Route::get('/dashboard/revenue/by-plan', [SuperAdminDashboardController::class, 'getRevenueByPlan']);
+    Route::get('/dashboard/subscriptions/status', [SuperAdminDashboardController::class, 'getSubscriptionStatus']);
+    Route::get('/dashboard/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
 });
 
 Route::get('/health', function () {

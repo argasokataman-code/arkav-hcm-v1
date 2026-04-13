@@ -158,18 +158,12 @@
                                 </li>
                             </ul>
                         </div>
-                        <div class="dropdown me-3">
-                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                Select Status
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Active</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Inactive</a>
-                                </li>
-                            </ul>
+                        <div class=\"me-3\">
+                            <select id=\"status_filter\" class=\"form-select\">
+                                <option value=\"\">All Status</option>
+                                <option value=\"active\">Active</option>
+                                <option value=\"inactive\">Inactive</option>
+                            </select>
                         </div>
                         <div class="dropdown">
                             <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
@@ -207,396 +201,20 @@
                                     </th>
                                     <th>Company Name</th>
                                     <th>Email</th>
-                                    <th>Account URL</th>
+                                    <th>Legal Name</th>
                                     <th>Plan</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
-                                    <th></th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-01.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">BrightWave Innovations</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>michael@example.com</td>
-                                    <td>bwi.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Advanced (Monthly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>12 Sep 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"  data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-02.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Stellar Dynamics</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>sophie@example.com</td>
-                                    <td>sd.example.com</td>
-                                    <td>											
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Basic (Yearly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>24 Oct 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-03.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Quantum Nexus</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>cameron@example.com</td>
-                                    <td>qn.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Advanced (Monthly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>18 Feb 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-04.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">EcoVision Enterprises</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>doris@example.com</td>
-                                    <td>eve.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Advanced (Monthly)</p> 
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>17 Oct 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"  data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-05.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Aurora Technologies</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>thomas@example.com</td>
-                                    <td>at.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Enterprise (Monthly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>20 Jul 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-06.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">BlueSky Ventures</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>kathleen@example.com</td>
-                                    <td>bsv.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Advanced (Monthly)</p> 
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>10 Mar 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-07.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">TerraFusion Energy</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>bruce@example.com</td>
-                                    <td>tfe.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Enterprise (Yearly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>29 Aug 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-08.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">UrbanPulse Design</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>estelle@example.com</td>
-                                    <td>upd.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Basic (Monthly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>22 Feb 2024</td>
-                                    <td>
-                                        <span class="badge badge-danger d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Inactive
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"  data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-09.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Nimbus Networks</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>stephen@example.com</td>
-                                    <td>nn.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <p class="mb-0 me-2">Basic (Yearly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>03 Nov 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/company/company-10.svg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Epicurean Delights</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>angela@example.com</td>
-                                    <td>ed.example.com</td>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            `<p class="mb-0 me-2">Advanced (Monthly)</p>
-                                            <a href="#" data-bs-toggle="modal" class="badge badge-purple badge-xs" data-bs-target="#upgrade_info">Upgrade</a>
-                                        </div>
-                                    </td>
-                                    <td>17 dec 2024</td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#company_detail"><i class="ti ti-eye"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal" data-bs-target="#edit_company"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-target="#delete_modal" data-bs-toggle="modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
+                            <tbody id="companies_table_body">
+                                <tr><td colspan="8" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <div id="companies_pagination"></div>
                     </div>
                 </div>
             </div>
@@ -606,6 +224,131 @@
 
     </div>
     <!-- /Page Wrapper -->
+
+
+    <!-- Add Company Modal -->
+    <div class="modal fade" id="add_company" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Add Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="add_company_form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="company_code" class="form-label">Company Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="company_code" name="company_code" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_name" class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="company_name" name="company_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_legal_name" class="form-label">Legal Name</label>
+                            <input type="text" class="form-control" id="company_legal_name" name="company_legal_name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="company_status" name="company_status" required>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_timezone" class="form-label">Timezone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="company_timezone" name="company_timezone" placeholder="UTC" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_currency" class="form-label">Currency <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="company_currency" name="company_currency" placeholder="IDR" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company_country" class="form-label">Country Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="company_country" name="company_country" placeholder="ID" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Company</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Company Modal -->
+    <div class="modal fade" id="edit_company" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Edit Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="edit_company_form">
+                    <input type="hidden" id="edit_company_id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_company_code" class="form-label">Company Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_company_code" name="edit_company_code" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_name" class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_company_name" name="edit_company_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_legal_name" class="form-label">Legal Name</label>
+                            <input type="text" class="form-control" id="edit_company_legal_name" name="edit_company_legal_name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_status" class="form-label">Status <span class="text-danger">*</span></label>
+                            <select class="form-select" id="edit_company_status" name="edit_company_status" required>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_timezone" class="form-label">Timezone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_company_timezone" name="edit_company_timezone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_currency" class="form-label">Currency <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_company_currency" name="edit_company_currency" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_company_country" class="form-label">Country Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_company_country" name="edit_company_country" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Company</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="delete_modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Delete Company</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong id="delete_company_name"></strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="delete_confirm_btn" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('build/js/companies-management.js') }}"></script>
 
     @component('components.modal-popup')
     @endcomponent

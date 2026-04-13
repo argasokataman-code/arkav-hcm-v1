@@ -40,7 +40,16 @@ Route::prefix('v1/identity')->group(function () {
     });
 });
 
-Route::prefix('v1/company')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/company')->middleware(['api.token'])->group(function () {
+    // CRUD operations (no tenant context, as they're cross-tenant for admins)
+    Route::get('/', [CompanyController::class, 'index']);
+    Route::post('/', [CompanyController::class, 'store']);
+    Route::put('/{id}', [CompanyController::class, 'update']);
+    Route::delete('/{id}', [CompanyController::class, 'destroy']);
+});
+
+Route::prefix('v1/hcm/company')->middleware(['api.token', 'tenant.context'])->group(function () {
+    // Tenant-specific company operations
     Route::get('/active', [CompanyController::class, 'active']);
 });
 

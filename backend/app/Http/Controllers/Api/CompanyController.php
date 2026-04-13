@@ -77,4 +77,177 @@ class CompanyController extends Controller
             ],
         ]);
     }
+
+    /**
+     * GET /v1/company
+     * List all companies (for admin users; others only see their own).
+     * Supports pagination, filtering by status.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $page = (int) $request->get('page', 1);
+        $perPage = (int) $request->get('per_page', 10);
+        $status = $request->get('status'); // null, 'active', 'inactive'
+
+        // Build query: admin can see all, others only their joined companies
+        $query = Company::query();
+
+        if (!$user->isHcmAdmin()) {
+            // Non-admin users see only companies they're members of
+            $query->whereHas('users', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        }
+
+        // Apply status filter
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $companies = $query
+            ->with('owner:id,name,email', 'subscriptions')
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'companies' => $companies->items(),
+                'pagination' => [
+                    'total' => $companies->total(),
+                    'per_page' => $companies->perPage(),
+                    'page' => $companies->currentPage(),
+                    'last_page' => $companies->lastPage(),
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * POST /v1/company
+     * Create a new company (admin only).
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Only admins can create companies
+        if (!$user->isHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Only administrators can create companies.',
+                ],
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'code' => 'required|string|unique:companies,code|max:100',
+            'name' => 'required|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'status' => 'required|in:active,inactive',
+            'timezone' => 'required|string|max:100',
+            'currency' => 'required|string|max:10',
+            'country_code' => 'required|string|max:10',
+        ]);
+
+        $validated['owner_user_id'] = $user->id;
+
+        $company = Company::create($validated);
+        $company->load('owner:id,name,email');
+
+        return response()->json([
+            'success' => true,
+            'data' => $company,
+        ], 201);
+    }
+
+    /**
+     * PUT /v1/company/{id}
+     * Update an existing company (admin only).
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $company = Company::find($id);
+
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Company not found.',
+                ],
+            ], 404);
+        }
+
+        // Only admin or owner can edit
+        if (!$user->isHcmAdmin() && $company->owner_user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'You do not have permission to edit this company.',
+                ],
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'code' => 'sometimes|string|unique:companies,code,' . $id . '|max:100',
+            'name' => 'sometimes|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'status' => 'sometimes|in:active,inactive',
+            'timezone' => 'sometimes|string|max:100',
+            'currency' => 'sometimes|string|max:10',
+            'country_code' => 'sometimes|string|max:10',
+        ]);
+
+        $company->update($validated);
+        $company->load('owner:id,name,email');
+
+        return response()->json([
+            'success' => true,
+            'data' => $company,
+        ]);
+    }
+
+    /**
+     * DELETE /v1/company/{id}
+     * Delete a company (admin only).
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $company = Company::find($id);
+
+        if (!$company) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Company not found.',
+                ],
+            ], 404);
+        }
+
+        // Only admin can delete
+        if (!$user->isHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Only administrators can delete companies.',
+                ],
+            ], 403);
+        }
+
+        $company->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Company deleted successfully.',
+        ]);
+    }
 }

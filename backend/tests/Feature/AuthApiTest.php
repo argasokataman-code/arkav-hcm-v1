@@ -369,7 +369,7 @@ class AuthApiTest extends TestCase
             'companyCode' => 'test_company_detail',
         ])->assertStatus(200);
 
-        $response = $this->getJson('/v1/company/active', [
+        $response = $this->getJson('/v1/hcm/company/active', [
             'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
         ]);
 
@@ -388,6 +388,281 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.owner.name', 'Company Detail User')
             ->assertJsonPath('data.createdAt', $company->created_at->toIso8601String())
             ->assertJsonPath('data.updatedAt', $company->updated_at->toIso8601String());
+    }
+
+    public function test_company_list_endpoint_returns_paginated_companies(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin One',
+            'email' => 'qa.login@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company1 = Company::create([
+            'code' => 'company_1',
+            'name' => 'Company One',
+            'legal_name' => 'Company One Inc',
+            'status' => 'active',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $company2 = Company::create([
+            'code' => 'company_2',
+            'name' => 'Company Two',
+            'legal_name' => 'Company Two Inc',
+            'status' => 'inactive',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->getJson('/v1/company?page=1&per_page=10', [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.pagination.total', 3)
+            ->assertJsonPath('data.pagination.page', 1)
+            ->assertJsonPath('data.pagination.per_page', 10);
+    }
+
+    public function test_company_list_endpoint_filters_by_status(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin Two',
+            'email' => 'qa.login2@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        Company::create([
+            'code' => 'active_company',
+            'name' => 'Active Company',
+            'legal_name' => 'Active Company Inc',
+            'status' => 'active',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        Company::create([
+            'code' => 'inactive_company',
+            'name' => 'Inactive Company',
+            'legal_name' => 'Inactive Company Inc',
+            'status' => 'inactive',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login2@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->getJson('/v1/company?status=active', [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('data.pagination.total', 1)
+            ->assertJsonPath('data.companies.0.status', 'active');
+    }
+
+    public function test_company_create_endpoint_requires_admin(): void
+    {
+        $user = User::create([
+            'name' => 'Regular User',
+            'email' => 'user@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->postJson('/v1/company', [
+            'code' => 'new_company',
+            'name' => 'New Company',
+            'legal_name' => 'New Company Inc',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ], [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response->assertStatus(403)->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_company_create_endpoint_creates_company_for_admin(): void
+    {
+        $admin = User::create([
+            'name' => 'QA Admin',
+            'email' => 'qa.login@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->postJson('/v1/company', [
+            'code' => 'new_company_test',
+            'name' => 'New Company Test',
+            'legal_name' => 'New Company Test Inc',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ], [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.code', 'new_company_test')
+            ->assertJsonPath('data.name', 'New Company Test')
+            ->assertJsonPath('data.status', 'active');
+
+        $this->assertDatabaseHas('companies', [
+            'code' => 'new_company_test',
+            'name' => 'New Company Test',
+        ]);
+    }
+
+    public function test_company_update_endpoint_updates_company(): void
+    {
+        $admin = User::create([
+            'name' => 'Admin Four',
+            'email' => 'qa.login4@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::create([
+            'code' => 'update_test',
+            'name' => 'Update Test Company',
+            'legal_name' => 'Update Test Inc',
+            'status' => 'active',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login4@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->putJson('/v1/company/'.$company->id, [
+            'name' => 'Updated Company Name',
+            'status' => 'inactive',
+        ], [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'Updated Company Name')
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id,
+            'name' => 'Updated Company Name',
+            'status' => 'inactive',
+        ]);
+    }
+
+    public function test_company_delete_endpoint_requires_admin(): void
+    {
+        $user = User::create([
+            'name' => 'Delete User',
+            'email' => 'user_delete@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+        $admin = User::create([
+            'name' => 'Admin Five',
+            'email' => 'qa.login5@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::create([
+            'code' => 'delete_test',
+            'name' => 'Delete Test Company',
+            'legal_name' => 'Delete Test Inc',
+            'status' => 'active',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'user_delete@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->deleteJson('/v1/company/'.$company->id, [], [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response->assertStatus(403)->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_company_delete_endpoint_deletes_company_for_admin(): void
+    {
+        $admin = User::create([
+            'name' => 'QA Admin Delete',
+            'email' => 'qa.login@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::create([
+            'code' => 'delete_test_ok',
+            'name' => 'Delete Test OK',
+            'legal_name' => 'Delete Test OK Inc',
+            'status' => 'active',
+            'owner_user_id' => $admin->id,
+            'timezone' => 'UTC',
+            'currency' => 'USD',
+            'country_code' => 'US',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(200);
+
+        $response = $this->deleteJson('/v1/company/'.$company->id, [], [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('companies', [
+            'id' => $company->id,
+        ]);
     }
 }
 

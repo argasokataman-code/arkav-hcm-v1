@@ -16,12 +16,13 @@ final class MonthlyPayslipService
     /**
      * @return array<string, mixed>
      */
-    public function buildForUser(User $user, int $periodYear, int $periodMonth): array
+    public function buildForUser(User $user, int $periodYear, int $periodMonth, ?int $companyId = null): array
     {
-        $period = HcmPayrollPeriod::query()
+        $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $periodYear)
-            ->where('period_month', $periodMonth)
-            ->first();
+            ->where('period_month', $periodMonth);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
 
         if ($period === null) {
             return [
@@ -41,9 +42,9 @@ final class MonthlyPayslipService
             ];
         }
 
-        $monthlyRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_MONTHLY);
-        $thrRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_THR);
-        $pkwtRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION);
+        $monthlyRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_MONTHLY, $companyId);
+        $thrRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_THR, $companyId);
+        $pkwtRun = $this->latestFinalizedRun($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION, $companyId);
 
         $runs = collect([$monthlyRun, $thrRun, $pkwtRun])->filter();
         $primaryRun = $monthlyRun ?? $thrRun ?? $pkwtRun;
@@ -105,9 +106,9 @@ final class MonthlyPayslipService
         ];
     }
 
-    public function renderPdf(User $user, int $periodYear, int $periodMonth): string
+    public function renderPdf(User $user, int $periodYear, int $periodMonth, ?int $companyId = null): string
     {
-        $slip = $this->buildForUser($user, $periodYear, $periodMonth);
+        $slip = $this->buildForUser($user, $periodYear, $periodMonth, $companyId);
 
         $html = View::make('pdf.monthly-payslip', [
             'slip' => $slip,
@@ -199,14 +200,27 @@ final class MonthlyPayslipService
         return sprintf('PS-%04d-%02d-%d', $year, $month, $userId);
     }
 
-    private function latestFinalizedRun(int $periodId, string $purpose): ?HcmPayrollRun
+    private function latestFinalizedRun(int $periodId, string $purpose, ?int $companyId = null): ?HcmPayrollRun
     {
-        return HcmPayrollRun::query()
+        $query = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $periodId)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
             ->where('purpose', $purpose)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($query, $companyId);
+
+        return $query->first();
+    }
+
+    private function applyTenantScope($query, ?int $companyId): void
+    {
+        if ($companyId === null) {
+            return;
+        }
+
+        $query->where(function ($q) use ($companyId): void {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 
     private function logoAsDataUri(): ?string

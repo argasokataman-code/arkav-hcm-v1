@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
@@ -96,6 +97,29 @@ class HcmPayrollPeriodApiTest extends TestCase
             ->getJson('/v1/hcm/payroll-periods')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_payroll_periods_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+
+        Company::query()->create([
+            'code' => 'payroll_period_other_company',
+            'name' => 'Payroll Period Other Company',
+            'legal_name' => 'Payroll Period Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'payroll_period_other_company',
+        ])->getJson('/v1/hcm/payroll-periods')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_admin_can_list_payroll_periods(): void

@@ -9,6 +9,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Support\PayrollDraftBuilder;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,11 @@ class HcmPayrollPeriodController extends Controller
             return $forbidden;
         }
 
-        $rows = HcmPayrollPeriod::query()
+        $companyId = $this->activeCompanyId($request);
+        $query = HcmPayrollPeriod::query();
+        $this->applyTenantScope($query, $companyId);
+
+        $rows = $query
             ->orderByDesc('period_year')
             ->orderByDesc('period_month')
             ->limit(100)
@@ -46,11 +51,12 @@ class HcmPayrollPeriodController extends Controller
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $exists = HcmPayrollPeriod::query()
+        $companyId = $this->activeCompanyId($request);
+        $existsQuery = HcmPayrollPeriod::query()
             ->where('period_year', $validated['periodYear'])
-            ->where('period_month', $validated['periodMonth'])
-            ->exists();
-        if ($exists) {
+            ->where('period_month', $validated['periodMonth']);
+        $this->applyTenantScope($existsQuery, $companyId);
+        if ($existsQuery->exists()) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -61,6 +67,7 @@ class HcmPayrollPeriodController extends Controller
         }
 
         $period = HcmPayrollPeriod::query()->create([
+            'company_id' => $companyId,
             'period_year' => $validated['periodYear'],
             'period_month' => $validated['periodMonth'],
             'status' => HcmPayrollPeriod::STATUS_OPEN,
@@ -79,7 +86,11 @@ class HcmPayrollPeriodController extends Controller
             return $forbidden;
         }
 
-        $period = HcmPayrollPeriod::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $periodQuery = HcmPayrollPeriod::query();
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->where('id', $id)->firstOrFail();
+
         $latestRun = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
             ->orderByDesc('id')
@@ -100,8 +111,9 @@ class HcmPayrollPeriodController extends Controller
             return $forbidden;
         }
 
+        $companyId = $this->activeCompanyId($request);
         $now = Carbon::now('Asia/Jakarta');
-        $active = HcmPayrollPeriod::query()
+        $activeQuery = HcmPayrollPeriod::query()
             ->where('status', HcmPayrollPeriod::STATUS_OPEN)
             ->where(function ($q) use ($now): void {
                 $q->where('period_year', '<', $now->year)
@@ -111,14 +123,15 @@ class HcmPayrollPeriodController extends Controller
                     });
             })
             ->orderByDesc('period_year')
-            ->orderByDesc('period_month')
-            ->first();
+            ->orderByDesc('period_month');
+        $this->applyTenantScope($activeQuery, $companyId);
+        $active = $activeQuery->first();
 
         if ($active === null) {
-            $active = HcmPayrollPeriod::query()->firstOrCreate([
+            $active = HcmPayrollPeriod::query()->create([
+                'company_id' => $companyId,
                 'period_year' => (int) $now->year,
                 'period_month' => (int) $now->month,
-            ], [
                 'status' => HcmPayrollPeriod::STATUS_OPEN,
             ]);
         }
@@ -143,7 +156,10 @@ class HcmPayrollPeriodController extends Controller
             return $forbidden;
         }
 
-        $period = HcmPayrollPeriod::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $periodQuery = HcmPayrollPeriod::query();
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->where('id', $id)->firstOrFail();
 
         $finalizedExists = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
@@ -197,7 +213,7 @@ class HcmPayrollPeriodController extends Controller
             });
         }
 
-        $run = PayrollDraftBuilder::rebuildDraftRun($period);
+        $run = PayrollDraftBuilder::rebuildDraftRun($period, $companyId);
         $lines = HcmPayrollLine::query()
             ->where('hcm_payroll_run_id', $run->id)
             ->orderBy('user_id')
@@ -273,5 +289,21 @@ class HcmPayrollPeriodController extends Controller
             'finalizedAt' => $r->finalized_at?->toIso8601String(),
             'finalizedByUserId' => $r->finalized_by_user_id,
         ];
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        return $request->attributes->get('activeCompanyId');
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if ($companyId === null) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($companyId): void {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 }

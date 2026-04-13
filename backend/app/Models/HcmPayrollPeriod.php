@@ -13,6 +13,7 @@ class HcmPayrollPeriod extends Model
     public const STATUS_POSTED = 'posted';
 
     protected $fillable = [
+        'company_id',
         'period_year',
         'period_month',
         'status',
@@ -21,6 +22,7 @@ class HcmPayrollPeriod extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'period_year' => 'integer',
             'period_month' => 'integer',
         ];

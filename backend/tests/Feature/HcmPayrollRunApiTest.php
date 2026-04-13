@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Company;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
@@ -118,6 +119,29 @@ class HcmPayrollRunApiTest extends TestCase
             ->getJson('/v1/hcm/payroll-runs/history')
             ->assertOk()
             ->assertJsonPath('success', true);
+    }
+
+    public function test_payroll_runs_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+
+        Company::query()->create([
+            'code' => 'payroll_run_other_company',
+            'name' => 'Payroll Run Other Company',
+            'legal_name' => 'Payroll Run Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'payroll_run_other_company',
+        ])->getJson('/v1/hcm/payroll-runs/history')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
     public function test_admin_can_finalize_draft_run(): void

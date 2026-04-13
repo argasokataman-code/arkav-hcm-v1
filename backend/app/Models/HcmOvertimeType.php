@@ -10,6 +10,7 @@ class HcmOvertimeType extends Model
     protected $table = 'hcm_overtime_types';
 
     protected $fillable = [
+        'company_id',
         'code',
         'name',
         'description',
@@ -21,6 +22,7 @@ class HcmOvertimeType extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'payment_multiplier' => 'decimal:2',
             'is_active' => 'boolean',
         ];

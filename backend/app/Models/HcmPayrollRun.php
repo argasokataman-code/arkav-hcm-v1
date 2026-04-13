@@ -21,6 +21,7 @@ class HcmPayrollRun extends Model
     public const PURPOSE_PKWT_COMPENSATION = 'pkwt_compensation';
 
     protected $fillable = [
+        'company_id',
         'hcm_payroll_period_id',
         'purpose',
         'status',
@@ -32,6 +33,7 @@ class HcmPayrollRun extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'calculated_at' => 'datetime',
             'finalized_at' => 'datetime',
         ];

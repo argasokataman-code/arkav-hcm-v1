@@ -17,51 +17,66 @@ use Illuminate\Support\Facades\DB;
 
 final class PayrollDraftBuilder
 {
-    public static function rebuildDraftRun(HcmPayrollPeriod $period): HcmPayrollRun
+    public static function rebuildDraftRun(HcmPayrollPeriod $period, ?int $companyId = null): HcmPayrollRun
     {
-        return DB::transaction(function () use ($period) {
-            $drafts = HcmPayrollRun::query()
+        return DB::transaction(function () use ($period, $companyId) {
+            $companyId = $companyId ?? ($period->company_id ? (int) $period->company_id : null);
+
+            $draftsQuery = HcmPayrollRun::query()
                 ->where('hcm_payroll_period_id', $period->id)
                 ->where('status', HcmPayrollRun::STATUS_DRAFT)
-                ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-                ->get();
+                ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY);
+            self::applyTenantScope($draftsQuery, $companyId);
+            $drafts = $draftsQuery->get();
             foreach ($drafts as $draft) {
                 $draft->lines()->delete();
                 $draft->delete();
             }
 
             $run = HcmPayrollRun::query()->create([
+                'company_id' => $companyId,
                 'hcm_payroll_period_id' => $period->id,
                 'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
                 'status' => HcmPayrollRun::STATUS_DRAFT,
                 'calculated_at' => now(),
             ]);
 
-            $upahPokok = HcmSalaryComponent::query()
+            $upahPokokQuery = HcmSalaryComponent::query()
                 ->where('code', 'upah_pokok')
-                ->where('is_active', true)
-                ->first();
+                ->where('is_active', true);
+            self::applyTenantScope($upahPokokQuery, $companyId);
+            $upahPokok = $upahPokokQuery->first();
 
-            $fixedAllowanceComponent = HcmSalaryComponent::query()
+            $fixedAllowanceQuery = HcmSalaryComponent::query()
                 ->where('code', 'tunjangan_tetap')
-                ->where('is_active', true)
-                ->first();
+                ->where('is_active', true);
+            self::applyTenantScope($fixedAllowanceQuery, $companyId);
+            $fixedAllowanceComponent = $fixedAllowanceQuery->first();
 
             if ($fixedAllowanceComponent === null) {
-                $fixedAllowanceComponent = HcmSalaryComponent::query()
+                $fixedAllowanceFallbackQuery = HcmSalaryComponent::query()
                     ->where('kind', 'addition')
                     ->where('category', 'fixed_allowance')
                     ->where('is_active', true)
                     ->orderBy('sort_order')
-                    ->orderBy('id')
-                    ->first();
+                    ->orderBy('id');
+                self::applyTenantScope($fixedAllowanceFallbackQuery, $companyId);
+                $fixedAllowanceComponent = $fixedAllowanceFallbackQuery->first();
             }
 
             $overtimeComponent = HcmSalaryComponent::resolveForOvertimePay();
-            $bpjsHealthEmployeeComponent = HcmSalaryComponent::query()->where('code', 'iuran_bpjs_kes_pekerja')->where('is_active', true)->first();
-            $bpjsJhtEmployeeComponent = HcmSalaryComponent::query()->where('code', 'iuran_jht_pekerja')->where('is_active', true)->first();
-            $bpjsJpEmployeeComponent = HcmSalaryComponent::query()->where('code', 'iuran_jp_pekerja')->where('is_active', true)->first();
-            $pph21Component = HcmSalaryComponent::query()->where('code', 'pph21_ter')->where('is_active', true)->first();
+            $bpjsHealthQuery = HcmSalaryComponent::query()->where('code', 'iuran_bpjs_kes_pekerja')->where('is_active', true);
+            self::applyTenantScope($bpjsHealthQuery, $companyId);
+            $bpjsHealthEmployeeComponent = $bpjsHealthQuery->first();
+            $bpjsJhtQuery = HcmSalaryComponent::query()->where('code', 'iuran_jht_pekerja')->where('is_active', true);
+            self::applyTenantScope($bpjsJhtQuery, $companyId);
+            $bpjsJhtEmployeeComponent = $bpjsJhtQuery->first();
+            $bpjsJpQuery = HcmSalaryComponent::query()->where('code', 'iuran_jp_pekerja')->where('is_active', true);
+            self::applyTenantScope($bpjsJpQuery, $companyId);
+            $bpjsJpEmployeeComponent = $bpjsJpQuery->first();
+            $pph21Query = HcmSalaryComponent::query()->where('code', 'pph21_ter')->where('is_active', true);
+            self::applyTenantScope($pph21Query, $companyId);
+            $pph21Component = $pph21Query->first();
             $overtimeCalculator = app(OvertimePayCalculator::class);
             $snapshotService = app(EmployeeSnapshotService::class);
             $asOf = Carbon::create($period->period_year, $period->period_month, 1)->endOfMonth();
@@ -82,6 +97,13 @@ final class PayrollDraftBuilder
 
             $users = User::query()
                 ->with('employeeProfile')
+                ->whereHas('employeeProfile', function ($q) use ($companyId): void {
+                    if ($companyId !== null) {
+                        $q->where(function ($q2) use ($companyId): void {
+                            $q2->where('company_id', $companyId)->orWhereNull('company_id');
+                        });
+                    }
+                })
                 ->when($blockedUserIds !== [], fn ($q) => $q->whereNotIn('id', $blockedUserIds))
                 ->orderBy('id')
                 ->get()
@@ -116,6 +138,7 @@ final class PayrollDraftBuilder
                 // Selalu satu baris upah pokok agar karyawan eligible tetap muncul di run (termasuk gaji 0).
                 $base = max(0.0, (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0));
                 HcmPayrollLine::query()->create([
+                    'company_id' => $companyId,
                     'hcm_payroll_run_id' => $run->id,
                     'user_id' => $user->id,
                     'hcm_salary_component_id' => $upahPokok?->id,
@@ -135,6 +158,7 @@ final class PayrollDraftBuilder
                 $fixed = max(0.0, (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0));
                 if ($fixed > 0) {
                     HcmPayrollLine::query()->create([
+                        'company_id' => $companyId,
                         'hcm_payroll_run_id' => $run->id,
                         'user_id' => $user->id,
                         'hcm_salary_component_id' => $fixedAllowanceComponent?->id,
@@ -169,6 +193,7 @@ final class PayrollDraftBuilder
 
                 if ($overtimePay > 0) {
                     HcmPayrollLine::query()->create([
+                        'company_id' => $companyId,
                         'hcm_payroll_run_id' => $run->id,
                         'user_id' => $user->id,
                         'hcm_salary_component_id' => $overtimeComponent?->id,
@@ -198,22 +223,23 @@ final class PayrollDraftBuilder
                     'source' => 'bpjs_health_employee',
                     'userName' => $user->name,
                     'basisAmount' => round($bpjsHealthBase, 2),
-                ]);
+                ], $companyId);
                 self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJhtEmployeeComponent, $bpjsTkBase, [
                     'source' => 'bpjs_jht_employee',
                     'userName' => $user->name,
                     'basisAmount' => round($bpjsTkBase, 2),
-                ]);
+                ], $companyId);
                 self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJpEmployeeComponent, $bpjsTkBase, [
                     'source' => 'bpjs_jp_employee',
                     'userName' => $user->name,
                     'basisAmount' => round($bpjsTkBase, 2),
-                ]);
+                ], $companyId);
 
                 $pph21Amount = self::calculateMonthlyPph21($taxableGross, (string) ($taxProfile?->tax_status ?? 'TK0'));
                 if ($pph21Component !== null && $pph21Amount > 0) {
                     $taxStatusUsed = (string) ($taxProfile?->tax_status ?? 'TK0');
                     HcmPayrollLine::query()->create([
+                        'company_id' => $companyId,
                         'hcm_payroll_run_id' => $run->id,
                         'user_id' => $user->id,
                         'hcm_salary_component_id' => $pph21Component->id,
@@ -244,7 +270,7 @@ final class PayrollDraftBuilder
     /**
      * @param  array<string, mixed>  $meta
      */
-    private static function addPercentDeductionLine(int $runId, int $userId, int &$sortOrder, ?HcmSalaryComponent $component, float $basisAmount, array $meta = []): void
+    private static function addPercentDeductionLine(int $runId, int $userId, int &$sortOrder, ?HcmSalaryComponent $component, float $basisAmount, array $meta = [], ?int $companyId = null): void
     {
         if ($component === null || $basisAmount <= 0) {
             return;
@@ -261,6 +287,7 @@ final class PayrollDraftBuilder
         }
 
         HcmPayrollLine::query()->create([
+            'company_id' => $companyId,
             'hcm_payroll_run_id' => $runId,
             'user_id' => $userId,
             'hcm_salary_component_id' => $component->id,
@@ -276,6 +303,17 @@ final class PayrollDraftBuilder
                 'percentBasis' => $component->percent_basis,
             ]),
         ]);
+    }
+
+    private static function applyTenantScope($query, ?int $companyId): void
+    {
+        if ($companyId === null) {
+            return;
+        }
+
+        $query->where(function ($q) use ($companyId): void {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 
     private static function calculateMonthlyPph21(float $monthlyTaxableGross, string $taxStatus = 'TK0'): float

@@ -80,6 +80,7 @@ class HcmSalaryComponent extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'code',
         'name',
         'description',
@@ -105,6 +106,7 @@ class HcmSalaryComponent extends Model
     protected function casts(): array
     {
         return [
+            'company_id' => 'integer',
             'default_percent' => 'decimal:4',
             'include_bpjs_health_wage_base' => 'boolean',
             'include_bpjs_tk_wage_base' => 'boolean',

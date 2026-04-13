@@ -10,6 +10,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,10 @@ class HcmPayrollRunController extends Controller
             return $forbidden;
         }
 
-        $run = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $runQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name']);
+        $this->applyTenantScope($runQuery, $companyId);
+        $run = $runQuery->where('id', $id)->firstOrFail();
         $lines = $run->lines
             ->sortBy([['user_id', 'asc'], ['sort_order', 'asc']])
             ->values()
@@ -66,7 +70,9 @@ class HcmPayrollRunController extends Controller
         ]);
 
         $perPage = (int) ($validated['perPage'] ?? 20);
+        $companyId = $this->activeCompanyId($request);
         $query = HcmPayrollRun::query()->with(['period', 'finalizedBy:id,name', 'lines']);
+        $this->applyTenantScope($query, $companyId);
         if (! empty($validated['status'] ?? null)) {
             $query->where('status', $validated['status']);
         }
@@ -116,7 +122,10 @@ class HcmPayrollRunController extends Controller
             return $forbidden;
         }
 
-        $run = HcmPayrollRun::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        $runQuery = HcmPayrollRun::query();
+        $this->applyTenantScope($runQuery, $companyId);
+        $run = $runQuery->where('id', $id)->firstOrFail();
         if ($run->status !== HcmPayrollRun::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
@@ -129,12 +138,13 @@ class HcmPayrollRunController extends Controller
 
         $purpose = $run->purpose ?: HcmPayrollRun::PURPOSE_MONTHLY;
 
-        $otherFinalized = HcmPayrollRun::query()
+        $otherFinalizedQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $run->hcm_payroll_period_id)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
             ->where('purpose', $purpose)
-            ->where('id', '!=', $run->id)
-            ->exists();
+            ->where('id', '!=', $run->id);
+        $this->applyTenantScope($otherFinalizedQuery, $companyId);
+        $otherFinalized = $otherFinalizedQuery->exists();
         if ($otherFinalized) {
             return response()->json([
                 'success' => false,
@@ -186,11 +196,11 @@ class HcmPayrollRunController extends Controller
         ]);
 
         $selectedUserIds = collect($validated['userIds'] ?? [])->map(fn ($userId) => (int) $userId);
-        $result = DB::transaction(function () use ($id, $request, $selectedUserIds): array {
-            $run = HcmPayrollRun::query()
-                ->whereKey($id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        $companyId = $this->activeCompanyId($request);
+        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $companyId): array {
+            $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
+            $this->applyTenantScope($runQuery, $companyId);
+            $run = $runQuery->firstOrFail();
 
             $period = HcmPayrollPeriod::query()
                 ->whereKey($run->hcm_payroll_period_id)
@@ -380,11 +390,11 @@ class HcmPayrollRunController extends Controller
             ], 403);
         }
 
-        $result = DB::transaction(function () use ($id): array {
-            $run = HcmPayrollRun::query()
-                ->whereKey($id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        $companyId = $this->activeCompanyId($request);
+        $result = DB::transaction(function () use ($id, $companyId): array {
+            $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
+            $this->applyTenantScope($runQuery, $companyId);
+            $run = $runQuery->firstOrFail();
 
             $lines = HcmPayrollLine::query()
                 ->where('hcm_payroll_run_id', $run->id)
@@ -453,6 +463,7 @@ class HcmPayrollRunController extends Controller
                 $user,
                 (int) $validated['periodYear'],
                 (int) $validated['periodMonth'],
+                $this->activeCompanyId($request),
             ),
         ]);
     }
@@ -476,6 +487,7 @@ class HcmPayrollRunController extends Controller
             $user,
             (int) $validated['periodYear'],
             (int) $validated['periodMonth'],
+            $this->activeCompanyId($request),
         );
 
         if (($slip['run'] ?? null) === null) {
@@ -492,6 +504,7 @@ class HcmPayrollRunController extends Controller
             $user,
             (int) $validated['periodYear'],
             (int) $validated['periodMonth'],
+            $this->activeCompanyId($request),
         );
         $filename = strtolower((string) ($slip['slipNumber'] ?? 'payslip')).'.pdf';
 
@@ -515,10 +528,12 @@ class HcmPayrollRunController extends Controller
             'userIds.*' => ['integer', 'exists:users,id'],
         ]);
 
-        $period = HcmPayrollPeriod::query()
+        $companyId = $this->activeCompanyId($request);
+        $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $validated['periodYear'])
-            ->where('period_month', $validated['periodMonth'])
-            ->first();
+            ->where('period_month', $validated['periodMonth']);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
 
         if ($period === null) {
             return response()->json([
@@ -530,12 +545,13 @@ class HcmPayrollRunController extends Controller
             ], 404);
         }
 
-        $run = HcmPayrollRun::query()
+        $runQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
             ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($runQuery, $companyId);
+        $run = $runQuery->first();
 
         if ($run === null) {
             return response()->json([
@@ -573,6 +589,7 @@ class HcmPayrollRunController extends Controller
                 $user,
                 (int) $validated['periodYear'],
                 (int) $validated['periodMonth'],
+                $companyId,
             );
 
             if (($slip['run'] ?? null) === null) {
@@ -584,6 +601,7 @@ class HcmPayrollRunController extends Controller
                 $user,
                 (int) $validated['periodYear'],
                 (int) $validated['periodMonth'],
+                $companyId,
             );
 
             try {
@@ -621,10 +639,12 @@ class HcmPayrollRunController extends Controller
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $period = HcmPayrollPeriod::query()
+        $companyId = $this->activeCompanyId($request);
+        $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $validated['periodYear'])
-            ->where('period_month', $validated['periodMonth'])
-            ->first();
+            ->where('period_month', $validated['periodMonth']);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
 
         if ($period === null) {
             return response()->json([
@@ -637,9 +657,9 @@ class HcmPayrollRunController extends Controller
             ]);
         }
 
-        $monthlyRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY);
-        $thrRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR);
-        $pkwtRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION);
+        $monthlyRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY, $companyId);
+        $thrRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR, $companyId);
+        $pkwtRun = $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION, $companyId);
 
         $runs = collect([$monthlyRun, $thrRun, $pkwtRun])->filter();
 
@@ -696,10 +716,12 @@ class HcmPayrollRunController extends Controller
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $period = HcmPayrollPeriod::query()
+        $companyId = $this->activeCompanyId($request);
+        $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $validated['periodYear'])
-            ->where('period_month', $validated['periodMonth'])
-            ->first();
+            ->where('period_month', $validated['periodMonth']);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
 
         if ($period === null) {
             return response()->json([
@@ -709,9 +731,9 @@ class HcmPayrollRunController extends Controller
         }
 
         $runs = collect([
-            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY),
-            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR),
-            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION),
+            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY, $companyId),
+            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR, $companyId),
+            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION, $companyId),
         ])->filter();
 
         if ($runs->isEmpty()) {
@@ -791,7 +813,8 @@ class HcmPayrollRunController extends Controller
             'periodMonth' => ['nullable', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $runs = HcmPayrollRun::query()
+        $companyId = $this->activeCompanyId($request);
+        $runsQuery = HcmPayrollRun::query()
             ->with([
                 'period',
                 'lines.user:id,name,email',
@@ -809,8 +832,9 @@ class HcmPayrollRunController extends Controller
                 $q->whereHas('period', fn ($pq) => $pq->where('period_month', (int) $validated['periodMonth']));
             })
             ->orderByDesc('hcm_payroll_period_id')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
+        $this->applyTenantScope($runsQuery, $companyId);
+        $runs = $runsQuery->get();
 
         $rows = collect();
         foreach ($runs as $run) {
@@ -994,14 +1018,16 @@ class HcmPayrollRunController extends Controller
         ];
     }
 
-    private function latestFinalizedRunForPurpose(int $periodId, string $purpose): ?HcmPayrollRun
+    private function latestFinalizedRunForPurpose(int $periodId, string $purpose, ?int $companyId = null): ?HcmPayrollRun
     {
-        return HcmPayrollRun::query()
+        $query = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $periodId)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
             ->where('purpose', $purpose)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($query, $companyId);
+
+        return $query->first();
     }
 
     /**
@@ -1228,5 +1254,21 @@ class HcmPayrollRunController extends Controller
             'employeeBreakdown' => $employeeBreakdown,
             'componentBreakdown' => $componentBreakdown,
         ];
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        return $request->attributes->get('activeCompanyId');
+    }
+
+    private function applyTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if ($companyId === null) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($companyId): void {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+        });
     }
 }

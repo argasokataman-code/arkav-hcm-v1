@@ -2,6 +2,11 @@
 
 Prefix: `/v1/hcm` · middleware **`api.token`** · envelope `{ success, data?, error? }`.
 
+Tenant context:
+- Endpoint payroll membaca `activeCompany` dari middleware tenant context.
+- Header opsional: `X-Company-Id` atau `X-Company-Code`.
+- Jika company tidak dimiliki user maka request ditolak `403` dengan `error.code = TENANT_FORBIDDEN`.
+
 ## Ringkasan
 
 Fondasi **actual payroll** per kalender bulan: **periode** (`hcm_payroll_periods`), **run** (`hcm_payroll_runs` — status `draft` / `finalized`, kolom **`purpose`**: `monthly` untuk gaji rutin, `thr` untuk THR massal, `pkwt_compensation` untuk kompensasi PKWT off-cycle), **baris slip** (`hcm_payroll_lines`).

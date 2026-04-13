@@ -38,6 +38,12 @@ Update tenant foundation (April 2026):
   - `attendance_records`
   - `hcm_shifts`
   - `hcm_schedule_timings`
+- Wave tenantization payroll menambahkan `company_id` (nullable + indexed + backfill default company) ke:
+  - `hcm_payroll_periods` (termasuk update unique key menjadi `(company_id, period_year, period_month)`)
+  - `hcm_payroll_runs`
+  - `hcm_payroll_lines`
+  - `hcm_salary_components`
+  - `hcm_overtime_types`
 
 Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 

@@ -130,6 +130,8 @@ Menyetel run menjadi `finalized`, `finalized_at`, `finalized_by_user_id` = user 
 
 Eksekusi gateway pembayaran payroll bulanan untuk subset **`userIds[]`** yang dicentang pada halaman run. Jika run masih `draft`, endpoint ini akan **otomatis finalize + post period** lebih dulu, lalu menandai karyawan terpilih sebagai **`paid`** secara idempotent.
 
+Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan di `skippedAlreadyPaidUserIds`. Jika semua karyawan terpilih sudah paid, endpoint tetap mengembalikan **200** dengan `gatewayReference` yang sudah ada (no-op idempotent). Perlindungan race condition ditangani oleh `lockForUpdate()` pada transaksi DB.
+
 **Body JSON**
 
 | Field | Wajib | Aturan |

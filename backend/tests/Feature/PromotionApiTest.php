@@ -35,6 +35,13 @@ class PromotionApiTest extends TestCase
         return [$user, $token];
     }
 
+    private function adminToken(): string
+    {
+        [, $token] = $this->login(true);
+
+        return $token;
+    }
+
     public function test_promotions_admin_crud_and_employee_forbidden(): void
     {
         [$admin, $adminToken] = $this->login(true);

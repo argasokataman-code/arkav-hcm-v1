@@ -258,7 +258,7 @@ class HcmPayrollRunApiTest extends TestCase
         }
     }
 
-    public function test_admin_cannot_disburse_if_already_paid(): void
+    public function test_repeat_disburse_is_idempotent_when_all_paid(): void
     {
         $this->employeeToken();
         $admin = $this->adminToken();
@@ -269,14 +269,19 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         // First disburse succeeds
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+        $first = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
             ->assertOk();
 
-        // Second disburse should fail (already paid)
+        $gatewayRef = $first->json('data.gatewayReference');
+        $this->assertNotEmpty($gatewayRef);
+
+        // Second (repeat) disburse is idempotent: returns 200 with same gateway reference,
+        // all users appear in skippedAlreadyPaidUserIds
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
-            ->assertStatus(422);
+            ->assertOk()
+            ->assertJsonPath('data.gatewayReference', $gatewayRef);
     }
 
     public function test_admin_can_reset_payments(): void
@@ -362,7 +367,7 @@ class HcmPayrollRunApiTest extends TestCase
      * Test that adding early-return for already-paid employees prevents duplicate disbursements
      * even in concurrent scenarios due to transaction locking.
      */
-    public function test_race_condition_protection_already_paid_detection(): void
+    public function test_repeat_disburse_returns_existing_gateway_reference(): void
     {
         $this->employeeToken();
         $admin = $this->adminToken();
@@ -380,13 +385,14 @@ class HcmPayrollRunApiTest extends TestCase
         $gatewayRef1 = $resp1->json('data.gatewayReference');
         $this->assertNotNull($gatewayRef1);
 
-        // Concurrent attempt to disburse same run should be rejected atomically
+        // Repeat disburse is idempotent: returns 200 with same gateway reference.
+        // True concurrent race protection comes from lockForUpdate() inside the transaction.
         $resp2 = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
-            ->assertStatus(422);
+            ->assertOk();
 
-        // Verify error indicates already-paid status
-        $this->assertSame('PAYROLL_DISBURSE_ALREADY_PAID', $resp2->json('error.code'));
+        // Idempotent: same gateway reference returned
+        $this->assertSame($gatewayRef1, $resp2->json('data.gatewayReference'));
 
         // Verify all lines still have original gateway reference
         $lines = HcmPayrollLine::query()

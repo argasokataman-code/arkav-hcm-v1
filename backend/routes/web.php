@@ -1123,7 +1123,7 @@ Route::get('asset-categories', function() {
 })->name('asset-categories');
 
 Route::get('payslip', function() {
-    return view('payslip-report');
+    return view('payslip');
 })->name('payslip');
 
 Route::get('/prefixes', function () {

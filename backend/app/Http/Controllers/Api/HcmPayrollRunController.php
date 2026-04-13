@@ -297,16 +297,9 @@ class HcmPayrollRunController extends Controller
             // fail atomically to prevent partial/duplicate disbursements.
             // This check happens within the transaction with lockForUpdate() on all lines,
             // ensuring consistency even under concurrent access.
-            if (! empty($alreadyPaidUserIds)) {
-                return [
-                    'error' => [
-                        'code' => 'PAYROLL_DISBURSE_ALREADY_PAID',
-                        'message' => 'One or more selected employees already have paid lines in this run. Use reset-payments to retry, or check payment status before disbursing.',
-                    ],
-                    'status' => 422,
-                ];
-            }
-
+            // Already-paid users are tracked in $alreadyPaidUserIds and returned as
+            // skippedAlreadyPaidUserIds for idempotency. lockForUpdate() above ensures
+            // atomicity under concurrent access.
             $linesToMark = $lines->filter(function (HcmPayrollLine $line) use ($selectedSet): bool {
                 return $selectedSet->has((int) $line->user_id)
                     && strtolower((string) (($line->meta['paymentStatus'] ?? 'unpaid'))) !== 'paid';

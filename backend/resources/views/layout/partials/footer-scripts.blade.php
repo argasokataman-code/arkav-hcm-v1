@@ -323,7 +323,7 @@
 @endif
 
 @if (Route::is(['payslip']))
-    <script src="{{ URL::asset('build/js/payslip-admin-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payslip-data.js') }}"></script>
 @endif
 
 @if (Route::is(['payslip-report']))

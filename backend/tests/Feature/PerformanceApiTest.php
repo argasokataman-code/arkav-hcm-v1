@@ -40,6 +40,11 @@ class PerformanceApiTest extends TestCase
         ];
     }
 
+    private function adminToken(): string
+    {
+        return $this->login('perf-admin@example.com', 'Perf Admin', 'HR Admin')['token'];
+    }
+
     public function test_end_to_end_employee_manager_admin_workflow(): void
     {
         $admin = $this->login('perf-admin@example.com', 'Perf Admin', 'HR Admin');

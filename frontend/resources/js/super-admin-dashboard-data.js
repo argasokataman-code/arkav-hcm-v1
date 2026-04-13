@@ -15,6 +15,12 @@
       headers["Content-Type"] = "application/json";
     }
 
+    // Add authorization token if available
+    const token = localStorage.getItem("saas_api_token");
+    if (token) {
+      headers["Authorization"] = "Bearer " + token;
+    }
+
     const opts = {
       method: method,
       headers: headers,
@@ -46,6 +52,34 @@
         console.error("API request failed:", err);
         throw err;
       });
+  }
+
+  // Get API token from server
+  function getApiToken() {
+    return new Promise(function (resolve, reject) {
+      fetch("/api-token", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        credentials: "same-origin",
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (data.success && data.data.token) {
+            localStorage.setItem("saas_api_token", data.data.token);
+            resolve(data.data.token);
+          } else {
+            reject(new Error("Failed to get API token"));
+          }
+        })
+        .catch(function (err) {
+          console.error("Error getting API token:", err);
+          reject(err);
+        });
+    });
   }
 
   // Helper: escape HTML
@@ -95,8 +129,18 @@
      * Initialize the dashboard
      */
     init: function () {
-      this.bindEvents();
-      this.loadDashboard();
+      const self = this;
+      
+      // First, get the API token
+      getApiToken()
+        .then(function () {
+          self.bindEvents();
+          self.loadDashboard();
+        })
+        .catch(function (err) {
+          console.error("Failed to initialize dashboard:", err);
+          self.showError("Failed to initialize dashboard - authentication error");
+        });
     },
 
     /**

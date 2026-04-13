@@ -146,6 +146,14 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->name('dashboard');
 
+Route::get('/saas-dashboard', function () {
+    return view('saas-dashboard');
+})->name('saas-dashboard');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
+});
+
 Route::get('/companies', function () {
     return view('companies');
 })->name('companies');

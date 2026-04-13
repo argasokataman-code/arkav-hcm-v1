@@ -144,6 +144,31 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
+    public function test_payroll_run_disburse_forbidden_when_switching_to_unowned_company(): void
+    {
+        $admin = $this->adminToken();
+        $this->employeeToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 10);
+
+        Company::query()->create([
+            'code' => 'payroll_run_disburse_other_company',
+            'name' => 'Payroll Run Disburse Other Company',
+            'legal_name' => 'Payroll Run Disburse Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Code' => 'payroll_run_disburse_other_company',
+        ])->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
     public function test_admin_can_finalize_draft_run(): void
     {
         $this->employeeToken();

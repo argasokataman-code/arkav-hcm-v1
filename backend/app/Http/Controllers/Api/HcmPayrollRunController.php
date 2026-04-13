@@ -172,7 +172,9 @@ class HcmPayrollRunController extends Controller
             'finalized_by_user_id' => $user?->id,
         ]);
 
-        $period = HcmPayrollPeriod::query()->find($run->hcm_payroll_period_id);
+        $periodQuery = HcmPayrollPeriod::query()->whereKey($run->hcm_payroll_period_id);
+        $this->applyTenantScope($periodQuery, $companyId);
+        $period = $periodQuery->first();
         if ($period !== null) {
             $period->update(['status' => HcmPayrollPeriod::STATUS_POSTED]);
         }
@@ -204,6 +206,15 @@ class HcmPayrollRunController extends Controller
 
             $period = HcmPayrollPeriod::query()
                 ->whereKey($run->hcm_payroll_period_id)
+                ->where(function (Builder $inner) use ($companyId): void {
+                    if ($companyId !== null) {
+                        $inner->where('company_id', $companyId)->orWhereNull('company_id');
+
+                        return;
+                    }
+
+                    $inner->whereNull('company_id');
+                })
                 ->lockForUpdate()
                 ->first();
 
@@ -224,13 +235,14 @@ class HcmPayrollRunController extends Controller
             }
 
             if ($run->status === HcmPayrollRun::STATUS_DRAFT) {
-                $otherFinalized = HcmPayrollRun::query()
+                $otherFinalizedQuery = HcmPayrollRun::query()
                     ->where('hcm_payroll_period_id', $run->hcm_payroll_period_id)
                     ->where('status', HcmPayrollRun::STATUS_FINALIZED)
                     ->where('purpose', $run->purpose ?: HcmPayrollRun::PURPOSE_MONTHLY)
                     ->where('id', '!=', $run->id)
-                    ->lockForUpdate()
-                    ->exists();
+                    ->lockForUpdate();
+                $this->applyTenantScope($otherFinalizedQuery, $companyId);
+                $otherFinalized = $otherFinalizedQuery->exists();
 
                 if ($otherFinalized) {
                     return [
@@ -342,7 +354,9 @@ class HcmPayrollRunController extends Controller
                 }
             }
 
-            $freshRun = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->findOrFail($run->id);
+            $freshRunQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->whereKey($run->id);
+            $this->applyTenantScope($freshRunQuery, $companyId);
+            $freshRun = $freshRunQuery->firstOrFail();
 
             return [
                 'run' => $freshRun,
@@ -421,7 +435,9 @@ class HcmPayrollRunController extends Controller
                 }
             }
 
-            $freshRun = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->findOrFail($run->id);
+            $freshRunQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->whereKey($run->id);
+            $this->applyTenantScope($freshRunQuery, $companyId);
+            $freshRun = $freshRunQuery->firstOrFail();
 
             return [
                 'run' => $freshRun,

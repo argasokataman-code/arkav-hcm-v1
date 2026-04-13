@@ -10,12 +10,15 @@ class Subscription extends Model
 {
     protected $fillable = [
         'company_id',
+        'package_id',
         'plan_code',
         'status',
         'starts_at',
         'ends_at',
         'trial_ends_at',
         'auto_renew',
+        'billing_cycle',
+        'amount',
         'metadata',
     ];
 
@@ -24,6 +27,7 @@ class Subscription extends Model
         'ends_at' => 'datetime',
         'trial_ends_at' => 'datetime',
         'auto_renew' => 'boolean',
+        'amount' => 'decimal:2',
         'metadata' => 'array',
     ];
 
@@ -32,8 +36,68 @@ class Subscription extends Model
         return $this->belongsTo(Company::class);
     }
 
+    public function package(): BelongsTo
+    {
+        return $this->belongsTo(Package::class);
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get active subscription for a company
+     */
+    public static function activeForCompany(int $companyId): ?self
+    {
+        return static::where('company_id', $companyId)
+            ->whereIn('status', ['active', 'trial'])
+            ->latest('starts_at')
+            ->first();
+    }
+
+    /**
+     * Check if subscription is in trial period
+     */
+    public function isInTrial(): bool
+    {
+        return $this->status === 'trial' && $this->trial_ends_at?->isFuture();
+    }
+
+    /**
+     * Check if subscription is active
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active' && $this->ends_at?->isFuture();
+    }
+
+    /**
+     * Check if subscription is expired
+     */
+    public function isExpired(): bool
+    {
+        return $this->ends_at !== null && $this->ends_at->isPast();
+    }
+
+    /**
+     * Calculate price based on billing cycle
+     */
+    public function getPrice(): float
+    {
+        if ($this->billing_cycle === 'yearly') {
+            return (float)$this->package->yearly_price;
+        }
+        return (float)$this->package->monthly_price;
+    }
+
+    /**
+     * Get subscription duration in days
+     */
+    public function getDurationDays(): int
+    {
+        if ($this->ends_at === null) return 0;
+        return $this->starts_at->diffInDays($this->ends_at);
     }
 }

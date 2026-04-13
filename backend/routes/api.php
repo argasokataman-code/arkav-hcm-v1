@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\PackageController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
@@ -299,6 +300,14 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::post('/packages/{package}/features', [PackageController::class, 'addFeature']);
     Route::put('/packages/features/{feature}', [PackageController::class, 'updateFeature']);
     Route::delete('/packages/features/{feature}', [PackageController::class, 'deleteFeature']);
+
+    // Subscriptions
+    Route::get('/subscriptions', [SubscriptionController::class, 'index']);
+    Route::post('/subscriptions', [SubscriptionController::class, 'store']);
+    Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show']);
+    Route::put('/subscriptions/{subscription}', [SubscriptionController::class, 'update']);
+    Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy']);
+    Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
 });
 
 Route::get('/health', function () {

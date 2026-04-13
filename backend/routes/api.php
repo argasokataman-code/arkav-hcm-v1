@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmDashboardController;
+use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
@@ -282,6 +283,22 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::put('/{id}', [HcmTerminationController::class, 'update'])->whereNumber('id');
         Route::delete('/{id}', [HcmTerminationController::class, 'destroy'])->whereNumber('id');
     });
+});
+
+// SaaS Packages Routes
+Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
+    // Packages (public listing, admin CRUD)
+    Route::get('/packages', [PackageController::class, 'index']);
+    Route::get('/packages/{package}', [PackageController::class, 'show']);
+    Route::post('/packages', [PackageController::class, 'store']);
+    Route::put('/packages/{package}', [PackageController::class, 'update']);
+    Route::delete('/packages/{package}', [PackageController::class, 'destroy']);
+
+    // Package Features
+    Route::get('/packages/{package}/features', [PackageController::class, 'getFeatures']);
+    Route::post('/packages/{package}/features', [PackageController::class, 'addFeature']);
+    Route::put('/packages/features/{feature}', [PackageController::class, 'updateFeature']);
+    Route::delete('/packages/features/{feature}', [PackageController::class, 'deleteFeature']);
 });
 
 Route::get('/health', function () {

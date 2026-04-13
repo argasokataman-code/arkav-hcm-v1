@@ -100,3 +100,13 @@ Catatan:
 }
 ```
 
+- **SaaS Modules**
+  - Packages (subscription tiers, feature management): `docs/api/packages-api.md`
+  - Subscriptions (company subscription management): `docs/api/subscriptions-api.md`
+  - Purchase transactions (invoices, payments, revenue): `docs/api/purchase-transaction-api.md`
+  - Domain management (custom domains, DNS, SSL): `docs/api/domain-management-api.md`
+  - Super admin dashboard (analytics, KPIs): `docs/api/super-admin-dashboard-api.md`
+- Companies: `docs/api/company-api.md`
+
+## 1) Global conventions
+

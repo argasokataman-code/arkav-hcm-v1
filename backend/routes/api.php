@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\PurchaseTransactionController;
+use App\Http\Controllers\Api\CustomDomainController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
@@ -315,6 +316,14 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::post('/transactions', [PurchaseTransactionController::class, 'store']);
     Route::get('/transactions/{transaction}', [PurchaseTransactionController::class, 'show']);
     Route::put('/transactions/{transaction}', [PurchaseTransactionController::class, 'update']);
+
+    // Custom Domains
+    Route::get('/domains', [CustomDomainController::class, 'index']);
+    Route::post('/domains', [CustomDomainController::class, 'store']);
+    Route::get('/domains/{domain}', [CustomDomainController::class, 'show']);
+    Route::put('/domains/{domain}', [CustomDomainController::class, 'update']);
+    Route::delete('/domains/{domain}', [CustomDomainController::class, 'destroy']);
+    Route::post('/domains/{domain}/verify', [CustomDomainController::class, 'verify']);
 });
 
 Route::get('/health', function () {

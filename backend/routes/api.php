@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
@@ -37,6 +38,10 @@ Route::prefix('v1/identity')->group(function () {
     Route::middleware(['api.token', 'tenant.context'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
     });
+});
+
+Route::prefix('v1/company')->middleware(['api.token', 'tenant.context'])->group(function () {
+    Route::get('/active', [CompanyController::class, 'active']);
 });
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

@@ -334,4 +334,60 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
+
+    public function test_company_active_endpoint_returns_details(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Company Detail User',
+            'email' => 'company.detail@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'test_company_detail',
+            'name' => 'Test Company Detail',
+            'legal_name' => 'Test Company Detail Inc',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $companyUser = CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'company.detail@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'test_company_detail',
+        ])->assertStatus(200);
+
+        $response = $this->getJson('/v1/company/active', [
+            'Authorization' => 'Bearer '.$loginResponse->json('data.accessToken'),
+        ]);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.code', 'test_company_detail')
+            ->assertJsonPath('data.name', 'Test Company Detail')
+            ->assertJsonPath('data.legalName', 'Test Company Detail Inc')
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('data.timezone', 'Asia/Jakarta')
+            ->assertJsonPath('data.currency', 'IDR')
+            ->assertJsonPath('data.countryCode', 'ID')
+            ->assertJsonPath('data.currentUserRole', 'owner')
+            ->assertJsonPath('data.memberCount', 1)
+            ->assertJsonPath('data.owner.name', 'Company Detail User')
+            ->assertJsonPath('data.createdAt', $company->created_at->toIso8601String())
+            ->assertJsonPath('data.updatedAt', $company->updated_at->toIso8601String());
+    }
 }
+

@@ -5,17 +5,14 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomAuthController;
 use Illuminate\Http\Request;
 
-Route::get('index', [CustomAuthController::class, 'dashboard']); 
-Route::get('login', [CustomAuthController::class, 'index'])->name('login');
 Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
-Route::get('register', [CustomAuthController::class, 'register'])->name('register-user');
 Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 
 Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout');
 
 
 Route::get('/', function () {
     return view('login');
-})->name('login');
+});
 
 Route::get('/api-docs', function () {
     return view('api-docs.swagger');
@@ -881,62 +878,6 @@ Route::get('/tables-basic', function () {
 Route::get('/data-tables', function () {
     return view('data-tables');
 })->name('data-tables');
-
-Route::get('/form-checkbox-radios', function () {
-    return view('form-checkbox-radios');
-})->name('form-checkbox-radios');
-
-Route::get('/form-floating-labels', function () {
-    return view('form-floating-labels');
-})->name('form-floating-labels');
-
-Route::get('/form-grid-gutters', function () {
-    return view('form-grid-gutters');
-})->name('form-grid-gutters');
-
-Route::get('/form-elements', function () {
-    return view('form-elements');
-})->name('form-elements');
-
-Route::get('/form-select', function () {
-    return view('form-select');
-})->name('form-select');
-
-Route::get('/form-select2', function () {
-    return view('form-select2');
-})->name('form-select2');
-
-Route::get('/form-fileupload', function () {
-    return view('form-fileupload');
-})->name('form-fileupload');
-
-Route::get('/form-wizard', function () {
-    return view('form-wizard');
-})->name('form-wizard');
-
-Route::get('/form-basic-inputs', function () {
-    return view('form-basic-inputs');
-})->name('form-basic-inputs');
-
-Route::get('/form-input-groups', function () {
-    return view('form-input-groups');
-})->name('form-input-groups');
-
-Route::get('/form-horizontal', function () {
-    return view('form-horizontal');
-})->name('form-horizontal');
-
-Route::get('/form-vertical', function () {
-    return view('form-vertical');
-})->name('form-vertical');
-
-Route::get('/form-mask', function () {
-    return view('form-mask');
-})->name('form-mask');
-
-Route::get('/form-validation', function () {
-    return view('form-validation');
-})->name('form-validation');
 
 Route::get('/maps-vector', function () {
     return view('maps-vector');

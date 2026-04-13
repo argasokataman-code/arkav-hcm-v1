@@ -160,12 +160,15 @@
         var chartEl = document.querySelector("#leaves_chart");
         if (!chartEl || typeof window.ApexCharts !== "function") return;
 
-        var series = [
+        var baseSeries = [
             Number(leave.approved || 0),
             Number(leave.pending || 0),
             Number(leave.declined || 0),
             Number(overtime.approvedThisMonth || 0)
         ];
+        var hasData = baseSeries.some(function (val) { return Number(val || 0) > 0; });
+        var series = hasData ? baseSeries : [];
+        var labels = hasData ? ["Approved", "Pending", "Declined", "Overtime"] : [];
 
         if (legacyLeavesChart && typeof legacyLeavesChart.destroy === "function") legacyLeavesChart.destroy();
         chartEl.innerHTML = "";
@@ -173,12 +176,17 @@
         legacyLeavesChart = new window.ApexCharts(chartEl, {
             chart: { type: "donut", height: 220 },
             series: series,
-            labels: ["Approved", "Pending", "Declined", "Overtime"],
+            labels: labels,
             colors: ["#16a34a", "#eab308", "#dc2626", "#2563eb"],
             legend: { show: false },
             dataLabels: { enabled: false },
             stroke: { width: 0 },
-            plotOptions: { pie: { donut: { size: "70%" } } }
+            plotOptions: { pie: { donut: { size: "70%" } } },
+            noData: {
+                text: "Belum ada data",
+                align: "center",
+                verticalAlign: "middle"
+            }
         });
         legacyLeavesChart.render();
     }
@@ -190,13 +198,15 @@
         var seriesRows = Array.isArray(performance.series) ? performance.series : [];
         var categories = seriesRows.map(function (row) { return row.label || "-"; });
         var values = seriesRows.map(function (row) { return Number(row.score || 0); });
+        var hasData = values.some(function (val) { return Number(val || 0) > 0; });
+        var chartSeries = hasData ? [{ name: "Score", data: values }] : [];
 
         if (legacyPerformanceChart && typeof legacyPerformanceChart.destroy === "function") legacyPerformanceChart.destroy();
         chartEl.innerHTML = "";
 
         legacyPerformanceChart = new window.ApexCharts(chartEl, {
             chart: { type: "area", height: 220, toolbar: { show: false } },
-            series: [{ name: "Score", data: values }],
+            series: chartSeries,
             xaxis: { categories: categories },
             yaxis: { min: 0, max: 100 },
             colors: ["#2563eb"],
@@ -205,9 +215,32 @@
                 type: "gradient",
                 gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.08, stops: [0, 100] }
             },
-            dataLabels: { enabled: false }
+            dataLabels: { enabled: false },
+            noData: {
+                text: "Belum ada data",
+                align: "center",
+                verticalAlign: "middle"
+            }
         });
         legacyPerformanceChart.render();
+    }
+
+    function emptyDashboardData() {
+        return {
+            profile: {},
+            attendanceToday: {},
+            attendanceStats: {},
+            leave: {},
+            overtime: {},
+            payroll: {},
+            ui: {},
+            nextHoliday: {},
+            leavePolicy: {},
+            teamBirthday: {},
+            teamMembers: [],
+            performance: { currentPercent: 0, vsLastPercent: 0, series: [] },
+            mySkills: []
+        };
     }
 
     function renderMySkills(skills) {
@@ -617,14 +650,22 @@
         }
 
         apiGet(url).then(function (payload) {
-            if (!payload || payload.success !== true) return;
-            bindDashboard(payload.data || {});
+            if (!payload || payload.success !== true) {
+                notify("Data dashboard tidak valid. Menampilkan data kosong.", "warning");
+                bindDashboard(emptyDashboardData());
+                return;
+            }
+            bindDashboard(payload.data || emptyDashboardData());
         }).catch(function (err) {
             var status = err && err.status ? err.status : (err && err.response ? err.response.status : 0);
             var data = err && err.data ? err.data : (err && err.response ? err.response.data : null);
             if (window.AuthApi && window.AuthApi.handleUnauthorizedFromApi && window.AuthApi.handleUnauthorizedFromApi(status, data)) {
                 return;
             }
+
+            var apiMessage = data && data.error && data.error.message ? String(data.error.message) : "Gagal memuat dashboard employee.";
+            notify(apiMessage, "danger");
+            bindDashboard(latestDashboardData || emptyDashboardData());
         });
     }
 

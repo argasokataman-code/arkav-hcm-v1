@@ -100,7 +100,7 @@
     <script src="{{ URL::asset('build/js/jquery.ui.touch-punch.min.js') }}"></script>    
 @endif
 
-@if (Route::is(['plugin', 'ui-stickynote']))
+@if (Route::is(['ui-stickynote']))
 <script src="{{ URL::asset('build/plugins/stickynote/sticky.js') }}"></script>
 @endif
 

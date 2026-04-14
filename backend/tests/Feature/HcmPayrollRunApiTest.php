@@ -209,7 +209,9 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         $gatewayRef = $response->json('data.gatewayReference');
@@ -270,7 +272,9 @@ class HcmPayrollRunApiTest extends TestCase
 
         // First disburse succeeds
         $first = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         $gatewayRef = $first->json('data.gatewayReference');
@@ -279,7 +283,9 @@ class HcmPayrollRunApiTest extends TestCase
         // Second (repeat) disburse is idempotent: returns 200 with same gateway reference,
         // all users appear in skippedAlreadyPaidUserIds
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk()
             ->assertJsonPath('data.gatewayReference', $gatewayRef);
     }
@@ -295,7 +301,9 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         // Reset payments
@@ -305,7 +313,9 @@ class HcmPayrollRunApiTest extends TestCase
 
         // Should be able to disburse again
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
     }
 
@@ -320,7 +330,9 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$employee])
@@ -328,6 +340,31 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame('finalized', $response->json('data.run.status'));
+    }
+
+    public function test_employee_can_resolve_latest_finalized_payslip_period(): void
+    {
+        $employee = $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $older = $this->createAndFinalizeDraft($admin, 2026, 9);
+        $newer = $this->createAndFinalizeDraft($admin, 2026, 11);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$older['runId'].'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$newer['runId'].'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$employee])
+            ->getJson('/v1/hcm/payroll/my-slip-latest-period')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.period.periodYear', 2026)
+            ->assertJsonPath('data.period.periodMonth', 11)
+            ->assertJsonPath('data.run.status', 'finalized');
     }
 
     public function test_non_admin_cannot_finalize(): void
@@ -379,7 +416,9 @@ class HcmPayrollRunApiTest extends TestCase
 
         // First disburse succeeds
         $resp1 = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         $gatewayRef1 = $resp1->json('data.gatewayReference');
@@ -388,7 +427,9 @@ class HcmPayrollRunApiTest extends TestCase
         // Repeat disburse is idempotent: returns 200 with same gateway reference.
         // True concurrent race protection comes from lockForUpdate() inside the transaction.
         $resp2 = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         // Idempotent: same gateway reference returned
@@ -418,7 +459,9 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk();
 
         $gatewayRef = $response->json('data.gatewayReference');
@@ -445,5 +488,22 @@ class HcmPayrollRunApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->getJson('/v1/hcm/payroll-runs/999999')
             ->assertNotFound();
+    }
+
+    public function test_admin_disburse_requires_explicit_selection_or_apply_all_flag(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'PAYROLL_DISBURSE_NO_EMPLOYEES');
     }
 }

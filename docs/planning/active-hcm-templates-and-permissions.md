@@ -29,6 +29,8 @@ Dokumen ini menjadi **peta tunggal** untuk tim: halaman Blade mana yang dianggap
 | **Karyawan** | `Authenticated` dan **bukan** `hcmAdmin` (lihat `GET /v1/identity/auth/me` → `hcmAdmin`). |
 | **HCM Admin** | `hcmAdmin === true` (saat ini heuristik di `User::isHcmAdmin()`; bisa diganti role DB nanti tanpa mengubah struktur tabel dokumen ini). |
 
+**Catatan seed admin:** akun QA utama memakai `hcm.admin_email` dan tetap melihat katalog demo/template internal. Akun super admin kedua memakai `hcm.secondary_admin_email` dan diperlakukan sebagai **active-only admin**: menu yang tidak termasuk halaman HCM aktif/terintegrasi tidak ditampilkan di sidebar.
+
 **Prinsip keamanan:** izin **wajib** dicek di **backend**; UI hanya menyembunyikan tombol (UX), bukan sumber kebenaran.
 
 ---
@@ -60,7 +62,8 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/leaves` | Cuti (admin) | `hcm-extras-data.js` | `GET/POST/PUT/DELETE /leave-requests` | **HCM Admin** (non-admin di-redirect ke `/leaves-employee`) | List semua + approve/decline hanya **hcmAdmin**; `POST` dengan `userId` hanya **hcmAdmin** | UI mengikuti `GET /auth/me` → `hcmAdmin` |
 | `/leaves-employee` | Cuti (karyawan) | `hcm-extras-data.js` | `leave-requests?scope=me` | Karyawan + Admin | **Self** untuk non-admin | — |
 | `/leave-settings` | Pengaturan cuti | `leave-settings-data.js` | `GET/PUT/POST/DELETE /leave-settings/*` | **HCM Admin** (non-admin → `/employee-dashboard`) | Semua verb **hcmAdmin** (`EnsuresHcmAdmin`) | UI cek `me.hcmAdmin` |
-| `/leave-type` | Tipe cuti (UI theme) | (tidak memuat modul leave API) | — | **HCM Admin** (nav settings) | — | **Gap:** bukan duplikat `/leave-settings`; tidak memanggil API — sumber tipe cuti nyata di `/leave-settings` |
+| `/leave-type` | Katalog leave type | inline script pada halaman `leave-type.blade.php` | `GET/POST/PUT/DELETE /leave-types` | **HCM Admin** (`hcm.web.admin`) | Semua verb **hcmAdmin** (`EnsuresHcmAdmin`) | Sumber katalog `hcm_leave_type_settings`; dipakai juga oleh `GET /leave-type-options` |
+| `/cronjob` | Cronjob scheduler configuration | form Blade pada `cronjob.blade.php` | Web form `GET/POST /cronjob` (persist ke `settings` group `cronjob`) | **HCM Admin** (non-admin → `lock-screen`) | Mutasi konfigurasi cronjob **hcmAdmin** | Konfigurasi jadwal tidak hardcoded lagi; dipakai oleh Laravel scheduler (`Kernel` + `routes/console.php`) |
 | `/attendance-admin` | Absensi admin | `attendance-data.js` | `attendance/admin`, timesheets, schedule | **HCM Admin** | Data semua karyawan | — |
 | `/attendance-employee` | Absensi karyawan | `attendance-data.js` + **Leaflet** (unpkg) + OSM | `attendance/me/*` | Karyawan + Admin | **Self** punch untuk non-admin; punch wajib GPS | — |
 | `/timesheets` | Timesheet | `attendance-data.js` | `GET /timesheets` | **HCM Admin** | Admin view | — |
@@ -78,7 +81,7 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/payroll-run` | Payroll — Run Bulanan (periode aktif) | `payroll-run.ts` | `GET /payroll-periods/active`, `POST /payroll-periods/calculate-draft`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | UI terkunci ke periode aktif; histori dipisah ke halaman `/payroll-run-history` |
 | `/payroll-run-history` | History Monthly Payroll | `payroll-run-history-data.js` | `GET /payroll-runs/history`, `GET /payroll-runs/{id}` | **HCM Admin** (`hcm.web.admin`) | **hcmAdmin** | Daftar historis run + detail audit trail |
 | `/employee-salary` | Gaji karyawan (kompensasi) | `employee-salary-data.js` (footer) | `GET /employees` (list + filter), `PUT /employees/{id}` (baseSalary, fixedAllowance, contractType, contractStartDate, contractEndDate) | **HCM Admin** (`hcm.web.admin`) | Mutasi kompensasi **hcmAdmin** | Kontrak di UI ini sekarang distandardkan ke `pkwt` / `pkwtt` dan ikut memengaruhi preview kompensasi PKWT |
-| `/payslip` | Slip gaji mandiri | `payslip-data.js` | `GET /payroll/my-slip?periodYear&periodMonth`, `GET /payroll/my-slip-pdf?periodYear&periodMonth` | Authenticated | **Self** — hanya slip milik pemanggil; data muncul jika ada run **finalized** untuk bulan tersebut | UI sudah live: filter periode, ringkasan earnings/deductions/net pay, dan tombol unduh PDF |
+| `/payslip` | Slip gaji mandiri | `payslip-data.js` | `GET /payroll/my-slip-latest-period`, `GET /payroll/my-slip?periodYear&periodMonth`, `GET /payroll/my-slip-pdf?periodYear&periodMonth` | Authenticated | **Self** — hanya slip milik pemanggil; data muncul jika ada run **finalized** untuk bulan tersebut | UI sudah live: filter periode, ringkasan earnings/deductions/net pay, tombol unduh PDF, dan fallback awal ke periode slip terbaru |
 | `/attendance-report` | Laporan absensi | `attendance-data.js` | timesheets / admin | **HCM Admin** | — | — |
 | `/leave-report` | Laporan cuti | (cek modul) | leave-requests | **HCM Admin** | — | — |
 | `/performance-indicator` | Performance Indicator (master template) | `performance-data.js` | `performance/indicator-templates`, `indicator-items` | **HCM Admin** | CRUD template+items **hcmAdmin** | — |

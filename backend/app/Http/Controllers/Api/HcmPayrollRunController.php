@@ -195,11 +195,13 @@ class HcmPayrollRunController extends Controller
         $validated = $request->validate([
             'userIds' => ['nullable', 'array', 'min:1'],
             'userIds.*' => ['integer', 'exists:users,id'],
+            'applyAll' => ['nullable', 'boolean'],
         ]);
 
         $selectedUserIds = collect($validated['userIds'] ?? [])->map(fn ($userId) => (int) $userId);
+        $applyAll = (bool) ($validated['applyAll'] ?? false);
         $companyId = $this->activeCompanyId($request);
-        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $companyId): array {
+        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
@@ -265,15 +267,15 @@ class HcmPayrollRunController extends Controller
             }
 
             $availableUserIds = $lines->pluck('user_id')->filter()->unique()->map(fn ($userId) => (int) $userId)->values();
-            $effectiveSelectedUserIds = $selectedUserIds->isEmpty()
-                ? $availableUserIds
-                : $selectedUserIds->intersect($availableUserIds)->values();
+            $effectiveSelectedUserIds = $selectedUserIds->isNotEmpty()
+                ? $selectedUserIds->intersect($availableUserIds)->values()
+                : ($applyAll ? $availableUserIds : collect());
 
             if ($effectiveSelectedUserIds->isEmpty()) {
                 return [
                     'error' => [
                         'code' => 'PAYROLL_DISBURSE_NO_EMPLOYEES',
-                        'message' => 'Pilih minimal satu karyawan untuk pembayaran gateway.',
+                        'message' => 'Pilih minimal satu karyawan atau kirim applyAll=true untuk membayar semua.',
                     ],
                     'status' => 422,
                 ];
@@ -474,6 +476,41 @@ class HcmPayrollRunController extends Controller
                 (int) $validated['periodMonth'],
                 $this->activeCompanyId($request),
             ),
+        ]);
+    }
+
+    public function mySlipLatestPeriod(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'AUTH_REQUIRED', 'message' => 'Unauthorized.'],
+            ], 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        $latestRunQuery = HcmPayrollRun::query()
+            ->with('period:id,period_year,period_month,status')
+            ->where('status', HcmPayrollRun::STATUS_FINALIZED)
+            ->whereIn('purpose', [
+                HcmPayrollRun::PURPOSE_MONTHLY,
+                HcmPayrollRun::PURPOSE_THR,
+                HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+            ])
+            ->whereHas('period')
+            ->whereHas('lines', fn ($q) => $q->where('user_id', $user->id))
+            ->orderByDesc('hcm_payroll_period_id')
+            ->orderByDesc('id');
+        $this->applyTenantScope($latestRunQuery, $companyId);
+        $latestRun = $latestRunQuery->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'period' => $latestRun?->period ? $this->serializePeriodBrief($latestRun->period) : null,
+                'run' => $latestRun ? $this->serializeRunBrief($latestRun) : null,
+            ],
         ]);
     }
 

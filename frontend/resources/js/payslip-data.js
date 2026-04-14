@@ -51,7 +51,13 @@
     }).join('');
   }
 
-  async function loadPayslip() {
+  async function fetchLatestPayslipPeriod() {
+    const payload = await apiGet('/v1/hcm/payroll/my-slip-latest-period');
+    return payload?.data?.period || null;
+  }
+
+  async function loadPayslip(options = {}) {
+    const allowLatestFallback = options.allowLatestFallback === true;
     const yearInput = document.querySelector('[data-payslip-year]');
     const monthInput = document.querySelector('[data-payslip-month]');
     const errorBox = document.querySelector('[data-payslip-error]');
@@ -105,6 +111,18 @@
       renderRows(document.querySelector('[data-payslip-deductions]'), data.deductions || [], 'Belum ada komponen potongan.');
 
       const hasSlip = !!run;
+      if (!hasSlip && allowLatestFallback) {
+        const latestPeriod = await fetchLatestPayslipPeriod();
+        const latestYear = Number(latestPeriod?.periodYear || 0);
+        const latestMonth = Number(latestPeriod?.periodMonth || 0);
+
+        if (latestYear && latestMonth && (latestYear !== year || latestMonth !== month)) {
+          if (yearInput) yearInput.value = String(latestYear);
+          if (monthInput) monthInput.value = String(latestMonth);
+          return loadPayslip({ allowLatestFallback: false });
+        }
+      }
+
       if (emptyBox) emptyBox.classList.toggle('d-none', hasSlip);
       if (content) content.classList.toggle('d-none', !hasSlip);
 
@@ -126,8 +144,8 @@
   window.payslipLoad = loadPayslip;
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadPayslip);
+    document.addEventListener('DOMContentLoaded', () => loadPayslip({ allowLatestFallback: true }));
   } else {
-    loadPayslip();
+    loadPayslip({ allowLatestFallback: true });
   }
 })();

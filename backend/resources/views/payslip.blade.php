@@ -42,7 +42,7 @@
                             </select>
                         </div>
                         <div class="col-md-auto">
-                            <button type="button" class="btn btn-primary" onclick="if(window.payslipLoad) window.payslipLoad();">Load Slip</button>
+                            <button type="button" class="btn btn-primary" onclick="if(window.payslipLoad) window.payslipLoad({ allowLatestFallback: false });">Load Slip</button>
                         </div>
                     </div>
                     <div class="alert alert-danger d-none py-2 small mt-3 mb-0" role="alert" data-payslip-error></div>

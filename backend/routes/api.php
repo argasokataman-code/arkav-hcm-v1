@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\HcmActivityController;
 use App\Http\Controllers\Api\HcmDashboardController;
+use App\Http\Controllers\Api\HcmEmailSettingsController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TransactionController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Api\SuperAdminDashboardController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use App\Http\Controllers\Api\HcmLeaveRequestController;
+use App\Http\Controllers\Api\HcmLeaveTypeController;
 use App\Http\Controllers\Api\HcmLeaveSettingController;
 use App\Http\Controllers\Api\HcmOvertimeRequestController;
 use App\Http\Controllers\Api\HcmOvertimeTypeController;
@@ -39,6 +42,7 @@ use App\Http\Controllers\Api\HcmTicketController;
 use App\Http\Controllers\Api\HcmTrainingController;
 use App\Http\Controllers\Api\HcmUserManagementController;
 use App\Http\Controllers\Api\WilayahLookupController;
+use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/identity')->group(function () {
@@ -51,6 +55,7 @@ Route::prefix('v1/identity')->group(function () {
 
     Route::middleware(['api.token', 'tenant.context'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     });
 });
 
@@ -70,6 +75,10 @@ Route::prefix('v1/hcm/company')->middleware(['api.token', 'tenant.context'])->gr
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::get('/dashboard-summary', [HcmDashboardController::class, 'summary']);
     Route::get('/employee-dashboard-summary', [HcmDashboardController::class, 'employeeSummary']);
+    Route::get('/activity-feed', [HcmActivityController::class, 'index']);
+    Route::post('/activity-manual', [HcmActivityController::class, 'storeManual']);
+    Route::put('/activity-manual/{id}', [HcmActivityController::class, 'updateManual'])->whereNumber('id');
+    Route::delete('/activity-manual/{id}', [HcmActivityController::class, 'destroyManual'])->whereNumber('id');
 
     Route::get('/employees', [HcmEmployeeController::class, 'index']);
     Route::get('/employees/export', [HcmEmployeeController::class, 'exportEmployees']);
@@ -142,6 +151,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/payroll-runs/{id}/finalize', [HcmPayrollRunController::class, 'finalize'])->whereNumber('id');
     Route::post('/payroll-runs/{id}/disburse', [HcmPayrollRunController::class, 'disburse'])->whereNumber('id');
     Route::post('/payroll-runs/{id}/reset-payments', [HcmPayrollRunController::class, 'resetPayments'])->whereNumber('id');
+    Route::get('/payroll/my-slip-latest-period', [HcmPayrollRunController::class, 'mySlipLatestPeriod']);
     Route::get('/payroll/my-slip', [HcmPayrollRunController::class, 'mySlip']);
     Route::get('/payroll/my-slip-lines', [HcmPayrollRunController::class, 'mySlipLines']);
     Route::get('/payroll/my-slip-pdf', [HcmPayrollRunController::class, 'mySlipPdf']);
@@ -185,6 +195,10 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::delete('/holidays/{id}', [HcmHolidayController::class, 'destroy'])->whereNumber('id');
 
     Route::get('/leave-type-options', [HcmLeaveRequestController::class, 'enabledLeaveTypes']);
+    Route::get('/leave-types', [HcmLeaveTypeController::class, 'index']);
+    Route::post('/leave-types', [HcmLeaveTypeController::class, 'store']);
+    Route::put('/leave-types/{id}', [HcmLeaveTypeController::class, 'update'])->whereNumber('id');
+    Route::delete('/leave-types/{id}', [HcmLeaveTypeController::class, 'destroy'])->whereNumber('id');
     Route::get('/leave-requests/export', [HcmLeaveRequestController::class, 'export']);
     Route::get('/leave-requests', [HcmLeaveRequestController::class, 'index']);
     Route::post('/leave-requests', [HcmLeaveRequestController::class, 'store']);
@@ -196,6 +210,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/leave-settings/custom-policies', [HcmLeaveSettingController::class, 'storeCustomPolicy']);
     Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy'])->whereNumber('id');
     Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy'])->whereNumber('id');
+    Route::get('/email-settings/mailtrap-status', [HcmEmailSettingsController::class, 'mailtrapStatus']);
 
     Route::get('/overtime-requests', [HcmOvertimeRequestController::class, 'index']);
     Route::post('/overtime-requests', [HcmOvertimeRequestController::class, 'store']);
@@ -338,6 +353,16 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::delete('/users/{id}/roles/{assignmentId}', [HcmUserManagementController::class, 'revokeUserRole'])
             ->whereNumber('id')
             ->whereNumber('assignmentId');
+    });
+
+    // Settings Management
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [SettingsController::class, 'index']); // Get all settings by group query param
+        Route::post('/', [SettingsController::class, 'store']); // Save settings for a group
+        Route::post('/upload', [SettingsController::class, 'upload']); // Upload branding file and persist setting
+        Route::get('/{key}', [SettingsController::class, 'show']); // Get single setting by key
+        Route::put('/{key}', [SettingsController::class, 'update']); // Update single setting
+        Route::delete('/{key}', [SettingsController::class, 'destroy']); // Delete single setting
     });
 
     // Reporting - Snapshots

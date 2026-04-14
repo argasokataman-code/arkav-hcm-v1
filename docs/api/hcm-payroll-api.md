@@ -18,8 +18,9 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - **`base_salary`** → selalu satu baris addition **upah pokok** per karyawan eligible (nilai ≥ 0), agar karyawan **active/probation** tidak “hilang” dari run bila gaji pokok 0.
 - **`fixed_allowance`** → baris addition tambahan hanya jika nominal **> 0** (komponen master kategori `fixed_allowance` pertama yang aktif).
 - **Lembur approved** dalam periode ikut diakumulasi sebagai addition payroll bulanan.
-- **Potongan karyawan** dasar (mis. BPJS & estimasi **PPh21 bulanan berbasis annualized**) ikut dibentuk sebagai deduction lines.
+- **Potongan karyawan** dasar (mis. BPJS & **PPh21 bulanan berbasis lookup TER A/B/C** sesuai status pajak) ikut dibentuk sebagai deduction lines.
 - Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**.
+- UI `/payslip` dapat menemukan periode slip terbaru milik user lewat **`GET /payroll/my-slip-latest-period`** untuk fallback awal jika bulan berjalan belum memiliki run final.
 - Preview **kompensasi PKWT** bulanan untuk admin tersedia via **`GET /payroll/pkwt-compensations`**, dapat diposting menjadi draft payroll via **`POST /payroll/pkwt-compensations/post-payroll`**, lalu dibayar lewat endpoint generic **`POST /payroll-runs/{id}/disburse`** seperti flow off-cycle lain.
 - Nominal negatif dari DB diperlakukan sebagai **0**.
 - Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** pembayaran gateway, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
@@ -33,8 +34,9 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 | `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
-| `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji bulan berjalan milik sendiri (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
-| `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji bulan berjalan milik sendiri; `404` bila belum ada run final |
+| `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
+| `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
+| `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji milik sendiri untuk periode query; `404` bila belum ada run final |
 | `GET /payroll/my-slip-lines` | **Semua user terautentikasi** — hanya baris **`user_id` = pemanggil**; data slip hanya jika ada run **`finalized`** untuk periode tersebut; baris **digabung** dari run **`purpose` `monthly`**, **`thr`**, dan **`pkwt_compensation`** (jika ada pada bulan yang sama) |
 | `GET /payroll/my-thr-slip` | **Semua user terautentikasi** — JSON slip THR milik sendiri (baris batch yang sudah punya PDF); `data.history` untuk pemilih tahun |
 | `GET /payroll/pkwt-compensations`, `POST /payroll/pkwt-compensations/post-payroll`, `POST /payroll/pkwt-calculate` | **HCM Admin** saja — preview daftar karyawan PKWT jatuh tempo, generate/rebuild draft payroll kompensasi PKWT, dan kalkulator estimasi cepat |
@@ -70,15 +72,14 @@ Daftar periode (maks. 100 terbaru), urut tahun & bulan menurun.
 
 ### `POST /payroll-periods/{id}/calculate-draft`
 
-Membangun ulang **satu** run `draft` untuk periode:
+Membangun run `draft` payroll untuk periode secara **aman dari multi-click**:
 
-- Menghapus semua run `draft` lama beserta barisnya di periode ini.
-- Membuat run baru `draft`, mengisi `calculated_at`.
-- Menyisipkan baris per karyawan `active` / `probation` yang punya profil (lihat ringkasan engine di atas).
+- Jika sudah ada run `draft` bulanan pada periode yang sama, endpoint **tidak rebuild ulang** dan mengembalikan run draft existing (`reusedExistingDraft = true`).
+- Jika belum ada draft, endpoint membuat run `draft` baru dan menyisipkan baris per karyawan `active` / `probation` yang punya profil (lihat ringkasan engine di atas).
 
 **422** `PAYROLL_PERIOD_FINALIZED` jika periode sudah memiliki run `finalized` (recalc tidak diizinkan sampai ada void / periode baru — backlog).
 
-**200** `data`: `run` (ringkas), `lineCount`, `employeeCount`, `anomalies`.
+**200** `data`: `run` (ringkas), `lineCount`, `employeeCount`, `anomalies`, `reusedExistingDraft`.
 
 `anomalies` saat ini memuat:
 
@@ -89,7 +90,7 @@ Digunakan untuk audit cepat user yang perhitungan PPh21-nya masih fallback tax s
 
 ### `GET /payroll-periods/active`
 
-Mengembalikan periode payroll aktif (`status=open`) terbaru. Jika belum ada periode open, endpoint akan membuat periode bulan berjalan otomatis.
+Mengembalikan periode payroll aktif (`status=open`) terbaru. Jika belum ada periode open, endpoint akan mencari periode bulan berjalan yang sudah ada (termasuk status `posted`) untuk mencegah duplikasi period; jika tetap tidak ada, baru membuat periode bulan berjalan otomatis.
 
 **200** `data`: shape periode + `latestRun` (jika ada).
 
@@ -136,7 +137,8 @@ Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan d
 
 | Field | Wajib | Aturan |
 |-------|--------|--------|
-| `userIds` | tidak | array int `users.id`; bila kosong → semua karyawan di run |
+| `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
+| `applyAll` | kondisional | boolean; kirim `true` untuk disburse seluruh karyawan eligible di run |
 
 **200** `data`:
 - `run` — ringkasan run dengan `paymentStatus`, `paidEmployeeCount`, `employeeCount`, `paidAt`, `gatewayReference`
@@ -282,6 +284,17 @@ Query wajib: `periodYear`, `periodMonth` (sama aturan seperti POST periode).
 - `downloadUrl` ke endpoint PDF jika slip tersedia; `null` bila belum ada run final
 
 Jika periode tidak ada atau belum ada run `finalized`, endpoint tetap **200** dengan `run = null` dan total `0`.
+
+### `GET /payroll/my-slip-latest-period`
+
+Mengembalikan periode payroll terbaru yang memiliki run `finalized` dan memuat baris slip untuk user pemanggil.
+
+**200** `data`:
+
+- `period`: `{ id, periodYear, periodMonth, status }` atau `null` jika user belum memiliki slip final sama sekali.
+- `run`: ringkasan run (`id`, `purpose`, `status`, `finalizedAt`) yang menjadi sumber periode terbaru, atau `null`.
+
+Endpoint ini dipakai sebagai fallback UX pada initial load halaman `/payslip` agar user otomatis diarahkan ke periode slip terakhir yang tersedia.
 
 ### `GET /payroll/my-slip-pdf?periodYear=&periodMonth=`
 

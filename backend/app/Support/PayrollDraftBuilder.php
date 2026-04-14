@@ -17,6 +17,151 @@ use Illuminate\Support\Facades\DB;
 
 final class PayrollDraftBuilder
 {
+    private const TER_STATUS_TO_CATEGORY = [
+        'TK0' => 'A',
+        'TK1' => 'A',
+        'K0' => 'A',
+        'TK2' => 'B',
+        'K1' => 'B',
+        'TK3' => 'B',
+        'K2' => 'B',
+        'K3' => 'C',
+    ];
+
+    private const TER_TABLES = [
+        'A' => [
+            [5_400_000.0, 0.0],
+            [5_650_000.0, 0.0025],
+            [5_950_000.0, 0.005],
+            [6_300_000.0, 0.0075],
+            [6_750_000.0, 0.01],
+            [7_500_000.0, 0.0125],
+            [8_550_000.0, 0.015],
+            [9_650_000.0, 0.0175],
+            [10_050_000.0, 0.02],
+            [10_350_000.0, 0.0225],
+            [10_700_000.0, 0.025],
+            [11_050_000.0, 0.03],
+            [11_600_000.0, 0.035],
+            [12_500_000.0, 0.04],
+            [13_750_000.0, 0.05],
+            [15_100_000.0, 0.06],
+            [16_950_000.0, 0.07],
+            [19_750_000.0, 0.08],
+            [24_150_000.0, 0.09],
+            [26_450_000.0, 0.10],
+            [28_000_000.0, 0.11],
+            [30_050_000.0, 0.12],
+            [32_400_000.0, 0.13],
+            [35_400_000.0, 0.14],
+            [39_100_000.0, 0.15],
+            [43_850_000.0, 0.16],
+            [47_800_000.0, 0.17],
+            [51_400_000.0, 0.18],
+            [56_300_000.0, 0.19],
+            [62_200_000.0, 0.20],
+            [68_600_000.0, 0.21],
+            [77_500_000.0, 0.22],
+            [89_000_000.0, 0.23],
+            [103_000_000.0, 0.24],
+            [125_000_000.0, 0.25],
+            [157_000_000.0, 0.26],
+            [206_000_000.0, 0.27],
+            [337_000_000.0, 0.28],
+            [454_000_000.0, 0.29],
+            [550_000_000.0, 0.30],
+            [695_000_000.0, 0.31],
+            [910_000_000.0, 0.32],
+            [1_400_000_000.0, 0.33],
+            [1.0e30, 0.34],
+        ],
+        'B' => [
+            [6_200_000.0, 0.0],
+            [6_500_000.0, 0.0025],
+            [6_850_000.0, 0.005],
+            [7_300_000.0, 0.0075],
+            [9_200_000.0, 0.01],
+            [10_750_000.0, 0.015],
+            [11_250_000.0, 0.02],
+            [11_600_000.0, 0.025],
+            [12_600_000.0, 0.03],
+            [13_600_000.0, 0.04],
+            [14_950_000.0, 0.05],
+            [16_400_000.0, 0.06],
+            [18_450_000.0, 0.07],
+            [21_850_000.0, 0.08],
+            [26_000_000.0, 0.09],
+            [27_700_000.0, 0.10],
+            [29_350_000.0, 0.11],
+            [31_450_000.0, 0.12],
+            [33_950_000.0, 0.13],
+            [37_100_000.0, 0.14],
+            [41_100_000.0, 0.15],
+            [45_800_000.0, 0.16],
+            [49_500_000.0, 0.17],
+            [53_800_000.0, 0.18],
+            [58_500_000.0, 0.19],
+            [64_000_000.0, 0.20],
+            [71_000_000.0, 0.21],
+            [80_000_000.0, 0.22],
+            [93_000_000.0, 0.23],
+            [109_000_000.0, 0.24],
+            [129_000_000.0, 0.25],
+            [163_000_000.0, 0.26],
+            [211_000_000.0, 0.27],
+            [374_000_000.0, 0.28],
+            [459_000_000.0, 0.29],
+            [555_000_000.0, 0.30],
+            [704_000_000.0, 0.31],
+            [957_000_000.0, 0.32],
+            [1_405_000_000.0, 0.33],
+            [1.0e30, 0.34],
+        ],
+        'C' => [
+            [6_600_000.0, 0.0],
+            [6_950_000.0, 0.0025],
+            [7_350_000.0, 0.005],
+            [7_800_000.0, 0.0075],
+            [8_850_000.0, 0.01],
+            [9_800_000.0, 0.0125],
+            [10_950_000.0, 0.015],
+            [11_200_000.0, 0.0175],
+            [12_050_000.0, 0.02],
+            [12_950_000.0, 0.03],
+            [14_150_000.0, 0.04],
+            [15_550_000.0, 0.05],
+            [17_050_000.0, 0.06],
+            [19_500_000.0, 0.07],
+            [22_700_000.0, 0.08],
+            [26_600_000.0, 0.09],
+            [28_100_000.0, 0.10],
+            [30_100_000.0, 0.11],
+            [32_600_000.0, 0.12],
+            [35_400_000.0, 0.13],
+            [38_900_000.0, 0.14],
+            [43_000_000.0, 0.15],
+            [47_400_000.0, 0.16],
+            [51_200_000.0, 0.17],
+            [55_800_000.0, 0.18],
+            [60_400_000.0, 0.19],
+            [66_700_000.0, 0.20],
+            [74_500_000.0, 0.21],
+            [83_200_000.0, 0.22],
+            [95_600_000.0, 0.23],
+            [110_000_000.0, 0.24],
+            [134_000_000.0, 0.25],
+            [169_000_000.0, 0.26],
+            [221_000_000.0, 0.27],
+            [390_000_000.0, 0.28],
+            [463_000_000.0, 0.29],
+            [561_000_000.0, 0.30],
+            [709_000_000.0, 0.31],
+            [965_000_000.0, 0.32],
+            [1_419_000_000.0, 0.33],
+            [1.0e30, 0.34],
+        ],
+    ];
+
     public static function rebuildDraftRun(HcmPayrollPeriod $period, ?int $companyId = null): HcmPayrollRun
     {
         return DB::transaction(function () use ($period, $companyId) {
@@ -133,6 +278,7 @@ final class PayrollDraftBuilder
                 }
 
                 $sortOrder = 0;
+                $taxableGross = 0.0;
                 $compensation = $snapshotService->latestCompensation($profile, $asOf);
 
                 // Selalu satu baris upah pokok agar karyawan eligible tetap muncul di run (termasuk gaji 0).
@@ -155,6 +301,10 @@ final class PayrollDraftBuilder
                     ],
                 ]);
 
+                if ((bool) ($upahPokok?->include_pph21_ter_gross ?? true)) {
+                    $taxableGross += $base;
+                }
+
                 $fixed = max(0.0, (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0));
                 if ($fixed > 0) {
                     HcmPayrollLine::query()->create([
@@ -174,6 +324,10 @@ final class PayrollDraftBuilder
                             'affectsNetPay' => (bool) ($fixedAllowanceComponent?->affects_net_pay ?? true),
                         ],
                     ]);
+
+                    if ((bool) ($fixedAllowanceComponent?->include_pph21_ter_gross ?? true)) {
+                        $taxableGross += $fixed;
+                    }
                 }
 
                 $approvedOvertime = OvertimeRequest::query()
@@ -212,11 +366,14 @@ final class PayrollDraftBuilder
                             'calculationMode' => 'workday_default',
                         ],
                     ]);
+
+                    if ((bool) ($overtimeComponent?->include_pph21_ter_gross ?? true)) {
+                        $taxableGross += $overtimePay;
+                    }
                 }
 
                 $bpjsHealthBase = $base + $fixed;
                 $bpjsTkBase = $base + $fixed;
-                $taxableGross = $base + $fixed + $overtimePay;
                 $taxProfile = $snapshotService->latestTaxProfile($profile, $asOf);
 
                 self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsHealthEmployeeComponent, $bpjsHealthBase, [
@@ -250,11 +407,12 @@ final class PayrollDraftBuilder
                         'amount' => round($pph21Amount, 2),
                         'sort_order' => $sortOrder++,
                         'meta' => [
-                            'source' => 'pph21_annualized_estimate',
+                            'source' => 'pph21_ter_lookup',
                             'userName' => $user->name,
                             'affectsNetPay' => (bool) ($pph21Component->affects_net_pay ?? true),
                             'monthlyTaxableGross' => round($taxableGross, 2),
-                            'ptkpAnnual' => 54000000,
+                            'pph21TerCategory' => self::resolveTerCategory($taxStatusUsed),
+                            'ptkpAnnual' => self::resolvePtkpAnnual($taxStatusUsed),
                             'taxStatusUsed' => $taxStatusUsed,
                             'taxStatusSource' => $taxProfile?->tax_status ? 'employee_tax_profiles' : 'fallback_tk0',
                             'missingTaxProfile' => $taxProfile?->tax_status ? false : true,
@@ -322,46 +480,48 @@ final class PayrollDraftBuilder
             return 0.0;
         }
 
-        $annualizedGross = $monthlyTaxableGross * 12;
-        $taxKey = strtoupper(str_replace(['/', ' '], '', trim($taxStatus)));
-        if ($taxKey === 'TK') {
-            $taxKey = 'TK0';
+        $category = self::resolveTerCategory($taxStatus);
+        $table = self::TER_TABLES[$category] ?? self::TER_TABLES['A'];
+        $rate = 0.0;
+
+        foreach ($table as [$upperBound, $tableRate]) {
+            $rate = $tableRate;
+            if ($monthlyTaxableGross <= $upperBound) {
+                break;
+            }
         }
-        if ($taxKey === 'K') {
-            $taxKey = 'K0';
-        }
-        $ptkpAnnual = match ($taxKey) {
+
+        return round($monthlyTaxableGross * $rate, 2);
+    }
+
+    private static function resolveTerCategory(string $taxStatus): string
+    {
+        $taxKey = self::normalizeTaxStatus($taxStatus);
+
+        return self::TER_STATUS_TO_CATEGORY[$taxKey] ?? 'A';
+    }
+
+    private static function resolvePtkpAnnual(string $taxStatus): float
+    {
+        $taxKey = self::normalizeTaxStatus($taxStatus);
+
+        return match ($taxKey) {
             'TK1', 'K0' => 58_500_000.0,
             'TK2', 'K1' => 63_000_000.0,
             'TK3', 'K2' => 67_500_000.0,
             'K3' => 72_000_000.0,
             default => 54_000_000.0,
         };
-        $pkp = max(0.0, $annualizedGross - $ptkpAnnual);
+    }
 
-        if ($pkp <= 0) {
-            return 0.0;
-        }
+    private static function normalizeTaxStatus(string $taxStatus): string
+    {
+        $taxKey = strtoupper(str_replace(['/', ' '], '', trim($taxStatus)));
 
-        $brackets = [
-            [60_000_000.0, 0.05],
-            [190_000_000.0, 0.15],
-            [250_000_000.0, 0.25],
-            [4_500_000_000.0, 0.30],
-            [INF, 0.35],
-        ];
-
-        $remaining = $pkp;
-        $annualTax = 0.0;
-        foreach ($brackets as [$cap, $rate]) {
-            if ($remaining <= 0) {
-                break;
-            }
-            $chunk = min($remaining, $cap);
-            $annualTax += $chunk * $rate;
-            $remaining -= $chunk;
-        }
-
-        return round($annualTax / 12, 2);
+        return match ($taxKey) {
+            'TK' => 'TK0',
+            'K' => 'K0',
+            default => $taxKey,
+        };
     }
 }

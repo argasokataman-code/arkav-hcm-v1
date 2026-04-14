@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Support\CronjobSettings;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -12,14 +13,19 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // Send payment reminders daily at 8am
-        $schedule->job(\App\Jobs\SendPaymentReminder::class)
-            ->daily()
-            ->at('08:00');
+        $paymentReminder = CronjobSettings::get('payment_reminder');
+        if (($paymentReminder['enabled'] ?? true) === true) {
+            $schedule->job(\App\Jobs\SendPaymentReminder::class)
+                ->dailyAt((string) ($paymentReminder['time'] ?? '08:00'))
+                ->timezone((string) ($paymentReminder['timezone'] ?? 'Asia/Jakarta'));
+        }
 
-        $schedule->command('wilayah:sync')
-            ->monthlyOn(1, '01:00')
-            ->timezone('Asia/Jakarta');
+        $wilayahSync = CronjobSettings::get('wilayah_sync');
+        if (($wilayahSync['enabled'] ?? true) === true) {
+            $schedule->command('wilayah:sync')
+                ->monthlyOn((int) ($wilayahSync['dayOfMonth'] ?? 1), (string) ($wilayahSync['time'] ?? '01:00'))
+                ->timezone((string) ($wilayahSync['timezone'] ?? 'Asia/Jakarta'));
+        }
     }
 
     /**

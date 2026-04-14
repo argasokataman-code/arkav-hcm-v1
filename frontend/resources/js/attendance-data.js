@@ -900,7 +900,7 @@
 
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+                '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
@@ -919,6 +919,8 @@
                       esc(row.correctionReason || "") +
                       '" data-bs-toggle="modal" data-bs-target="#arcav_attendance_correction_detail"><i class="ti ti-message-circle"></i></a>'
                     : "";
+                var checkInLoc = row.checkInLocation || "-";
+                var checkOutLoc = row.checkOutLocation || "-";
                 return (
                     "<tr data-attendance-user-id=\"" +
                     esc(row.userId) +
@@ -942,9 +944,15 @@
                     "<td>" +
                     esc(row.checkIn) +
                     "</td>" +
+                    '<td><span class="fs-12">' +
+                    esc(checkInLoc) +
+                    "</span></td>" +
                     "<td>" +
                     esc(row.checkOut) +
                     "</td>" +
+                    '<td><span class="fs-12">' +
+                    esc(checkOutLoc) +
+                    "</span></td>" +
                     "<td>" +
                     esc(row.break) +
                     "</td>" +
@@ -1461,13 +1469,15 @@
         }
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td class="text-center text-muted py-4">No attendance history yet.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+                '<tr><td class="text-center text-muted py-4">No attendance history yet.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
         tbody.innerHTML = rows
             .map(function (row) {
                 var prodClass = row.productionBadgeClass === "success" ? "success" : "danger";
+                var checkInLoc = row.checkInLocation || "-";
+                var checkOutLoc = row.checkOutLocation || "-";
                 return (
                     "<tr>" +
                     "<td>" +
@@ -1476,6 +1486,9 @@
                     "<td>" +
                     esc(row.checkIn) +
                     "</td>" +
+                    '<td><span class="fs-12">' +
+                    esc(checkInLoc) +
+                    "</span></td>" +
                     '<td><span class="badge badge-' +
                     esc(row.statusBadgeClass) +
                     ' d-inline-flex align-items-center"><i class="ti ti-point-filled me-1"></i>' +
@@ -1484,6 +1497,9 @@
                     "<td>" +
                     esc(row.checkOut) +
                     "</td>" +
+                    '<td><span class="fs-12">' +
+                    esc(checkOutLoc) +
+                    "</span></td>" +
                     "<td>" +
                     esc(row.break) +
                     "</td>" +
@@ -1513,7 +1529,7 @@
         tbody.innerHTML =
             '<tr><td class="text-center text-muted py-4">' +
             esc(msg) +
-            '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+            '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
         tbody.setAttribute("data-hydrated", "1");
     }
 
@@ -1545,7 +1561,7 @@
         var tbody = document.querySelector("[data-attendance-me-history-body]");
         if (tbody) {
             tbody.innerHTML =
-                '<tr><td class="text-center text-muted py-4">Loading history...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+                '<tr><td class="text-center text-muted py-4">Loading history...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.removeAttribute("data-hydrated");
         }
         ensureInteractivePunchMap();
@@ -1773,14 +1789,27 @@
         var dateLabel = formatIsoDate(dateYmd);
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td class="text-center text-muted py-4">No rows for this date.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+                '<tr><td class="text-center text-muted py-4">No rows for this date.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
+        
+        // DEBUG: Log first row to console
+        if (rows.length > 0) {
+            console.log('=== REPORT ROWS DEBUG ===');
+            console.log('Total rows:', rows.length);
+            console.log('First row:', rows[0]);
+            console.log('checkInLocation value:', rows[0].checkInLocation);
+            console.log('checkInLocationName value:', rows[0].checkInLocationName);
+        }
+        
         tbody.innerHTML = rows
             .map(function (row) {
                 var prodClass = row.productionBadgeClass === "success" ? "success" : "danger";
                 var ot = row.overtime != null && row.overtime !== undefined ? row.overtime : "-";
+                var checkInLoc = row.checkInLocation || row.checkInLocationName || "-";
+                var checkOutLoc = row.checkOutLocation || row.checkOutLocationName || "-";
+                console.log('Row:', row.employeeName, '| checkInLoc:', checkInLoc, '| checkOutLoc:', checkOutLoc);
                 return (
                     "<tr>" +
                     '<td><div class="d-flex align-items-center">' +
@@ -1799,6 +1828,9 @@
                     "<td>" +
                     esc(row.checkIn) +
                     "</td>" +
+                    '<td style="background:#ffff99;"><span class="fs-12">' +
+                    esc(checkInLoc) +
+                    " [LOCATION] </span></td>" +
                     '<td><span class="badge badge-soft-' +
                     (row.statusKey === "present" ? "success" : "danger") +
                     ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
@@ -1807,6 +1839,9 @@
                     "<td>" +
                     esc(row.checkOut) +
                     "</td>" +
+                    '<td><span class="fs-12">' +
+                    esc(checkOutLoc) +
+                    "</span></td>" +
                     "<td>" +
                     esc(row.break) +
                     "</td>" +
@@ -2132,6 +2167,18 @@
                 reportActiveDate = meta.date || dateParam;
                 applyReportSummary(meta.summary || {}, meta.date || dateParam);
                 reportRowsCache = Array.isArray(payload.data) ? payload.data : [];
+                
+                // DEBUG: Log the raw API response
+                console.log('=== API RESPONSE ===');
+                console.log('URL:', url);
+                console.log('Payload success:', payload.success);
+                console.log('Data length:', reportRowsCache.length);
+                if (reportRowsCache.length > 0) {
+                    console.log('First row from API:', reportRowsCache[0]);
+                    console.log('First row checkInLocation:', reportRowsCache[0].checkInLocation);
+                    console.log('First row checkOutLocation:', reportRowsCache[0].checkOutLocation);
+                }
+                
                 fillReportDepartmentFilter(reportRowsCache);
                 var filtered = filterAndSortReportRows(reportRowsCache);
                 renderReportRows(filtered, meta.date || dateParam);
@@ -2410,16 +2457,18 @@
             if (reportExport) {
                 e.preventDefault();
                 var rows = filterAndSortReportRows(reportRowsCache || []);
-                var headers = ["Employee", "Department", "Date", "Status", "Check In", "Check Out", "Break", "Late", "Overtime", "Production Hours"];
+                var headers = ["Employee", "Department", "Date", "Check In", "Check In Location", "Status", "Check Out", "Check Out Location", "Break", "Late", "Overtime", "Production Hours"];
                 var dateLabel = formatIsoDate(getSelectedReportDate());
                 var data = rows.map(function (r) {
                     return [
                         r.employeeName || "",
                         r.team || "",
                         dateLabel,
-                        r.statusLabel || "",
                         r.checkIn || "",
+                        (r.checkInLocation || r.checkInLocationName || "-"),
+                        r.statusLabel || "",
                         r.checkOut || "",
+                        (r.checkOutLocation || r.checkOutLocationName || "-"),
                         r.break || "",
                         r.late || "",
                         r.overtime || "",

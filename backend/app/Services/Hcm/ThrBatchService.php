@@ -15,6 +15,7 @@ use App\Models\HcmThrBatchLine;
 use App\Models\HcmThrDisbursement;
 use App\Models\HcmThrYearlySetting;
 use App\Models\User;
+use App\Support\WebsiteSettings;
 use Carbon\Carbon;
 use App\Support\Hcm\ThrSlipPublicNoAllocator;
 use Illuminate\Database\Eloquent\Builder;
@@ -151,7 +152,7 @@ final class ThrBatchService
                     'hcm_thr_batch_id' => $batch->id,
                     'user_id' => $user->id,
                     'full_name' => $user->name,
-                    'employee_no' => sprintf('EMP-%04d', $user->id),
+                    'employee_no' => sprintf('%s%04d', WebsiteSettings::prefixEmployee(), $user->id),
                     'join_date_used' => $joinYmd,
                     'base_salary' => round($base, 2),
                     'fixed_allowance' => round($fixed, 2),

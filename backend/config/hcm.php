@@ -13,6 +13,8 @@ return [
     */
     'admin_email' => env('HCM_ADMIN_EMAIL', 'qa.login@example.com'),
     'admin_password' => env('HCM_ADMIN_PASSWORD', 'StrongPass1'),
+    'secondary_admin_email' => env('HCM_SECONDARY_ADMIN_EMAIL', 'qa.hcm@example.com'),
+    'secondary_admin_password' => env('HCM_SECONDARY_ADMIN_PASSWORD', 'StrongPass1'),
 
     /*
     |--------------------------------------------------------------------------

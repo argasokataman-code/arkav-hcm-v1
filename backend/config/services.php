@@ -28,6 +28,13 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'mailtrap' => [
+        'api_token' => env('MAILTRAP_API_TOKEN'),
+        'account_id' => env('MAILTRAP_ACCOUNT_ID'),
+        'base_url' => env('MAILTRAP_API_BASE_URL', 'https://mailtrap.io/api'),
+        'timeout' => (int) env('MAILTRAP_API_TIMEOUT', 10),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

@@ -72,9 +72,17 @@ class HcmUserManagementSeeder extends Seeder
         }
 
         // Assign ADMIN role to the default QA admin user
-        $adminEmail = config('hcm.admin_email', 'qa.login@example.com');
-        $adminUser = User::query()->where('email', $adminEmail)->first();
-        if ($adminUser) {
+        $adminEmails = array_filter([
+            config('hcm.admin_email', 'qa.login@example.com'),
+            config('hcm.secondary_admin_email', 'qa.hcm@example.com'),
+        ]);
+
+        foreach ($adminEmails as $adminEmail) {
+            $adminUser = User::query()->where('email', strtolower(trim((string) $adminEmail)))->first();
+            if (! $adminUser) {
+                continue;
+            }
+
             HcmUserRole::query()->updateOrCreate(
                 [
                     'user_id' => $adminUser->id,

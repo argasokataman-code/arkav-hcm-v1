@@ -114,3 +114,4 @@ Semua pemanggilan mengasumsikan base path API yang di-proxy (mis. `/v1/...`) sep
 
 1. Menyelaraskan `openapi.yaml` dan bagian “Leave Service” di `api-spec-phase-1.md` dengan path `/v1/hcm` atau menambahkan gateway `/v1/leave` proxy.
 2. Memperbarui matriks role di spec jika RBAC penuh sudah diverifikasi di kode.
+3. Menambahkan platform-level Recovery Vault untuk audit immutable, snapshot, dan restore bencana agar incident response tidak bergantung pada binlog manual.

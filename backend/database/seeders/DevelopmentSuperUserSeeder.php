@@ -16,27 +16,45 @@ class DevelopmentSuperUserSeeder extends Seeder
             return;
         }
 
-        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
-        $adminPassword = (string) config('hcm.admin_password', 'StrongPass1');
+        $this->seedSuperUser(
+            email: (string) config('hcm.admin_email', 'qa.login@example.com'),
+            password: (string) config('hcm.admin_password', 'StrongPass1'),
+            name: 'Super User 1',
+            team: 'HR',
+            designation: 'Super Admin'
+        );
 
+        $this->seedSuperUser(
+            email: (string) config('hcm.secondary_admin_email', 'qa.hcm@example.com'),
+            password: (string) config('hcm.secondary_admin_password', 'StrongPass1'),
+            name: 'Super User 2',
+            team: 'HCM',
+            designation: 'HCM Admin'
+        );
+    }
+
+    private function seedSuperUser(string $email, string $password, string $name, string $team, string $designation): User
+    {
         $superUser = User::query()->updateOrCreate(
-            ['email' => $adminEmail],
+            ['email' => strtolower(trim($email))],
             [
-                'name' => 'Super User 1',
-                'password' => Hash::make($adminPassword),
+                'name' => $name,
+                'password' => Hash::make($password),
             ]
         );
 
         if (! Schema::hasTable('employee_profiles')) {
-            return;
+            return $superUser;
         }
 
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $superUser->id],
             [
-                'team' => 'HR',
-                'designation' => 'Super Admin',
+                'team' => $team,
+                'designation' => $designation,
             ]
         );
+
+        return $superUser;
     }
 }

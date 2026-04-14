@@ -20,6 +20,7 @@ use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,7 +28,25 @@ class HcmDashboardController extends Controller
 {
     use EnsuresHcmAdmin;
 
-    private const EMPLOYEE_TARGET_DAILY_MINUTES = 9 * 60;
+    private const EMPLOYEE_TARGET_DAILY_MINUTES = 8 * 60;
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function applyAttendanceTenantScope(Builder $query, ?int $companyId): Builder
+    {
+        if (! $companyId) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $inner) use ($companyId): void {
+            $inner->where('company_id', $companyId)->orWhereNull('company_id');
+        });
+    }
 
     public function summary(Request $request): JsonResponse
     {
@@ -242,6 +261,7 @@ class HcmDashboardController extends Controller
         ]);
 
         $now = Carbon::now('Asia/Jakarta');
+        $activeCompanyId = $this->activeCompanyId($request);
         $today = $now->copy()->startOfDay();
         $referenceDate = ! empty($validated['date'] ?? null)
             ? Carbon::parse((string) $validated['date'], 'Asia/Jakarta')->startOfDay()
@@ -260,7 +280,9 @@ class HcmDashboardController extends Controller
         ]);
         $profile = $user->employeeProfile;
 
-        $todayRecord = AttendanceRecord::query()
+        $todayRecordQuery = AttendanceRecord::query();
+        $this->applyAttendanceTenantScope($todayRecordQuery, $activeCompanyId);
+        $todayRecord = $todayRecordQuery
             ->where('user_id', $user->id)
             ->whereDate('work_date', $referenceDate->toDateString())
             ->first();
@@ -275,8 +297,8 @@ class HcmDashboardController extends Controller
             ? 0
             : (int) min(100, round(($todayProductiveMinutes / self::EMPLOYEE_TARGET_DAILY_MINUTES) * 100));
 
-        $weekProductiveMinutes = $this->sumProductiveMinutes($user->id, $weekStart, $rangeEnd);
-        $monthProductiveMinutes = $this->sumProductiveMinutes($user->id, $monthStart, $rangeEnd);
+        $weekProductiveMinutes = $this->sumProductiveMinutes($user->id, $weekStart, $rangeEnd, $activeCompanyId);
+        $monthProductiveMinutes = $this->sumProductiveMinutes($user->id, $monthStart, $rangeEnd, $activeCompanyId);
 
         $monthOvertimeMinutes = (int) OvertimeRequest::query()
             ->where('user_id', $user->id)
@@ -387,7 +409,7 @@ class HcmDashboardController extends Controller
                 ],
                 'attendanceStats' => [
                     'todayHours' => round(($todayProductiveMinutes ?? 0) / 60, 2),
-                    'todayTarget' => 9,
+                    'todayTarget' => 8,
                     'weekHours' => round($weekProductiveMinutes / 60, 2),
                     'weekTarget' => 40,
                     'monthHours' => round($monthProductiveMinutes / 60, 2),
@@ -651,10 +673,12 @@ class HcmDashboardController extends Controller
         return max(0, $mins - $breakMinutes);
     }
 
-    private function sumProductiveMinutes(int $userId, Carbon $start, Carbon $end): int
+    private function sumProductiveMinutes(int $userId, Carbon $start, Carbon $end, ?int $companyId = null): int
     {
         $todayYmd = Carbon::now('Asia/Jakarta')->toDateString();
-        $rows = AttendanceRecord::query()
+        $rowsQuery = AttendanceRecord::query();
+        $this->applyAttendanceTenantScope($rowsQuery, $companyId);
+        $rows = $rowsQuery
             ->where('user_id', $userId)
             ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
             ->get(['work_date', 'check_in_at', 'check_out_at', 'break_minutes']);

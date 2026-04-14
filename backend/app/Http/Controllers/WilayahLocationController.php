@@ -3,16 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Console\Commands\WilayahSyncCommand;
+use App\Services\Wilayah\WilayahSyncService;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Symfony\Component\Process\Process;
+use Illuminate\Support\Carbon;
 
 class WilayahLocationController extends Controller
 {
@@ -23,6 +26,15 @@ class WilayahLocationController extends Controller
     public function sync(): RedirectResponse
     {
         try {
+            $existingStatus = Cache::get(WilayahSyncService::PROGRESS_CACHE_KEY);
+            if (is_array($existingStatus) && (bool) ($existingStatus['running'] ?? false)) {
+                return redirect()->back()->with('wilayahSyncStatus', [
+                    'type' => 'info',
+                    'message' => 'Sync masih berjalan. Tunggu proses saat ini selesai terlebih dahulu.',
+                    'output' => null,
+                ]);
+            }
+
             if (app()->runningUnitTests()) {
                 Artisan::call('wilayah:sync');
                 $output = trim((string) Artisan::output());
@@ -34,14 +46,32 @@ class WilayahLocationController extends Controller
                 ]);
             }
 
-            $process = new Process([
-                PHP_BINARY,
-                base_path('artisan'),
-                WilayahSyncCommand::NAME,
-                '--isolated',
-            ]);
-            $process->disableOutput();
-            $process->start();
+            Cache::put(WilayahSyncService::PROGRESS_CACHE_KEY, [
+                'running' => true,
+                'progress' => 1,
+                'stage' => 'queued',
+                'message' => 'Sync masuk antrean dan akan mulai sebentar lagi.',
+                'processed' => 0,
+                'total' => 0,
+                'error' => null,
+                'summary' => null,
+                'startedAt' => Carbon::now()->toIso8601String(),
+                'updatedAt' => Carbon::now()->toIso8601String(),
+                'finishedAt' => null,
+            ], 86400);
+
+            $phpBinary = escapeshellarg(PHP_BINARY);
+            $artisanPath = escapeshellarg(base_path('artisan'));
+            $commandName = escapeshellarg(WilayahSyncCommand::NAME);
+            $logPath = escapeshellarg(storage_path('logs/wilayah-sync.log'));
+            $command = sprintf('%s %s %s --isolated > %s 2>&1 &', $phpBinary, $artisanPath, $commandName, $logPath);
+
+            $process = Process::fromShellCommandline($command, base_path());
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                throw new \RuntimeException('Background process launcher failed.');
+            }
 
             return redirect()->back()->with('wilayahSyncStatus', [
                 'type' => 'success',
@@ -57,6 +87,28 @@ class WilayahLocationController extends Controller
                 'output' => null,
             ]);
         }
+    }
+
+    public function syncStatus(): JsonResponse
+    {
+        $status = Cache::get(WilayahSyncService::PROGRESS_CACHE_KEY, [
+            'running' => false,
+            'progress' => 0,
+            'stage' => 'idle',
+            'message' => 'Belum ada sync berjalan.',
+            'processed' => 0,
+            'total' => 0,
+            'error' => null,
+            'summary' => null,
+            'startedAt' => null,
+            'updatedAt' => null,
+            'finishedAt' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $status,
+        ]);
     }
 
     public function countries(Request $request): View

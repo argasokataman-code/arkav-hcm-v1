@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('subscription_id')->constrained('subscriptions')->onDelete('cascade');
+            $table->unsignedBigInteger('subscription_id')->nullable();
             $table->string('invoice_number')->unique();
             $table->decimal('amount', 12, 2);
             $table->enum('status', ['pending', 'completed', 'failed', 'refunded'])->default('pending');

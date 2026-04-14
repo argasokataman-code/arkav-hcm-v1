@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\PasswordResetLinkNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -66,6 +67,13 @@ class User extends Authenticatable
     public function companyMemberships(): HasMany
     {
         return $this->hasMany(CompanyUser::class);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $url = url('/reset-password/'.$token).'?email='.urlencode($this->email);
+
+        $this->notify(new PasswordResetLinkNotification($url));
     }
 
     /**

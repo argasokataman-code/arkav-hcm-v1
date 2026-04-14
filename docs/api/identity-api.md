@@ -111,6 +111,16 @@ Success `200`:
     "id": 1,
     "name": "Budi",
     "email": "budi@company.com",
+    "profile": {
+      "firstName": "Budi",
+      "lastName": "Santoso",
+      "phone": "08123456789",
+      "address": "Jl. Merdeka 1",
+      "addressDetail": "Jakarta",
+      "designation": "Staff",
+      "team": "HR",
+      "profilePhotoUrl": "/storage/profile-photos/1.jpg"
+    },
     "roles": ["employee"],
     "hcmAdmin": false,
     "activeCompany": {
@@ -127,6 +137,51 @@ Errors:
 - `401 AUTH_UNAUTHORIZED`
 - `403 TENANT_MEMBERSHIP_REQUIRED`
 - `403 TENANT_FORBIDDEN`
+
+### PUT `/auth/profile` (protected)
+
+Auth:
+- required (middleware `api.token` + `tenant.context`)
+
+Body:
+- `name` required string min 2 max 150
+- `email` required string email:rfc max 255 unique `users.email` (ignore current user)
+- `phone` optional nullable string max 50
+- `address` optional nullable string max 500
+- `addressDetail` optional nullable string max 500
+- `currentPassword` optional string max 64 (wajib jika ubah password)
+- `newPassword` optional string regex `password_strong`
+- `confirmPassword` required_with:newPassword same:newPassword
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Budi Santoso",
+    "email": "budi.santoso@company.com",
+    "profile": {
+      "firstName": "Budi",
+      "lastName": "Santoso",
+      "phone": "08123456789",
+      "address": "Jl. Merdeka 1",
+      "addressDetail": "Jakarta",
+      "designation": "Staff",
+      "team": "HR",
+      "profilePhotoUrl": "/storage/profile-photos/1.jpg"
+    }
+  }
+}
+```
+
+Errors:
+- `401 AUTH_UNAUTHORIZED`
+- `403 TENANT_MEMBERSHIP_REQUIRED`
+- `403 TENANT_FORBIDDEN`
+- `422 VALIDATION_ERROR`
+- `422 AUTH_INVALID_CREDENTIALS` (saat `currentPassword` tidak valid ketika ubah password)
 
 ## Regex / validation parity
 

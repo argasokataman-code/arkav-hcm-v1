@@ -361,6 +361,34 @@ class HcmPayrollPeriodApiTest extends TestCase
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
+    public function test_active_period_reuses_existing_current_month_period_even_if_posted(): void
+    {
+        $admin = $this->adminToken();
+
+        $now = now('Asia/Jakarta');
+        $existing = HcmPayrollPeriod::query()->create([
+            'company_id' => 1,
+            'period_year' => (int) $now->year,
+            'period_month' => (int) $now->month,
+            'status' => HcmPayrollPeriod::STATUS_POSTED,
+        ]);
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll-periods/active')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame($existing->id, (int) $response->json('data.id'));
+
+        $periodCount = HcmPayrollPeriod::query()
+            ->where('company_id', 1)
+            ->where('period_year', (int) $now->year)
+            ->where('period_month', (int) $now->month)
+            ->count();
+
+        $this->assertSame(1, $periodCount);
+    }
+
     public function test_create_period_validates_year_and_month(): void
     {
         $admin = $this->adminToken();

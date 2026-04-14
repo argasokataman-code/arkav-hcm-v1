@@ -1,8 +1,14 @@
 <!-- Apple Touch Icon -->
-<link rel="apple-touch-icon" sizes="180x180" href="{{ url('build/img/apple-touch-icon1.png') }}">
+@php
+    $companyName = \App\Support\WebsiteSettings::businessCompanyName();
+    $faviconUrl = \App\Support\WebsiteSettings::brandingUrl('favicon', url('build/img/favicon.png'));
+    $appleIconUrl = \App\Support\WebsiteSettings::brandingUrl('apple_icon', url('build/img/apple-touch-icon1.png'));
+@endphp
+<meta name="application-name" content="{{ $companyName }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ $appleIconUrl }}">
 
 <!-- Favicon -->
-<link rel="shortcut icon" type="image/x-icon" href="{{ url('build/img/favicon.png') }}">
+<link rel="shortcut icon" type="image/x-icon" href="{{ $faviconUrl }}">
 
 @if (!Route::is(['login', 'layout-horizontal', 'layout-detached', 'layout-modern', 'layout-horizontal-overlay', 'layout-two-column', 
 'layout-hovered', 'layout-box', 'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu', 'layout-vertical-transparent',

@@ -111,6 +111,56 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->assertOk();
     }
 
+    public function test_secondary_super_admin_sees_only_active_hcm_menus(): void
+    {
+        $company = $this->createCompanyWithActiveSubscriptionWithoutAssetFeature();
+
+        $user = User::query()->create([
+            'name' => 'Super User 2',
+            'email' => 'qa.hcm@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'employment_status' => 'active',
+            'designation' => 'HCM Admin',
+            'team' => 'HCM',
+            'nik' => 'EMP-303',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/employees');
+
+        $response->assertOk();
+        $response->assertSee('href="'.url('employees').'"', false);
+        $response->assertSee('href="'.url('leaves').'"', false);
+        $response->assertSee('href="'.url('attendance-admin').'"', false);
+        $response->assertSee('href="'.url('employee-salary').'"', false);
+        $response->assertSee('href="'.url('payroll-run').'"', false);
+        $response->assertSee('href="'.url('users').'"', false);
+        $response->assertSee('href="'.url('roles-permissions').'"', false);
+        $response->assertDontSee('href="'.url('dashboard').'"', false);
+        $response->assertDontSee('href="'.url('companies').'"', false);
+        $response->assertDontSee('href="'.url('subscription').'"', false);
+        $response->assertDontSee('href="'.url('deals-dashboard').'"', false);
+        $response->assertDontSee('href="'.url('refferals').'"', false);
+        $response->assertDontSee('href="'.url('pages').'"', false);
+        $response->assertDontSee('href="'.url('login').'"', false);
+    }
+
     private function createCompanyWithActiveSubscriptionWithoutAssetFeature(): Company
     {
         $company = Company::query()->create([

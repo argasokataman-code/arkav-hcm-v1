@@ -35,7 +35,7 @@
                 <a class="nav-link" href="{{ url('profile-settings') }}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active" href="{{ url('bussiness-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
+                <a class="nav-link active" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('salary-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
@@ -55,7 +55,7 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
-                            <a href="{{ url('bussiness-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Business Settings</a>
+                            <a href="{{ url('business-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Business Settings</a>
                             <a href="{{ url('seo-settings') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>SEO Settings</a>
                             <a href="{{ url('localization-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Localization</a>
                             <a href="{{ url('prefixes') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Prefixes</a>

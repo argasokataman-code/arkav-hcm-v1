@@ -17,6 +17,12 @@ return [
         '',
         'up',
         'login',
+        'forgot-password',
+        'forgot-password-2',
+        'forgot-password-3',
+        'reset-password',
+        'reset-password-2',
+        'reset-password-3',
         'lock-screen',
         'register',
         'signout',
@@ -25,6 +31,8 @@ return [
     ],
 
     'public_prefixes' => [
+        // Allow tokenized reset URL: /reset-password/{token}
+        'reset-password',
         // Contoh dev: 'dev-theme-preview'
     ],
 ];

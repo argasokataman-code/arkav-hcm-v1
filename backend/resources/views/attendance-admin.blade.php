@@ -190,7 +190,9 @@
                                     <th>Employee</th>
                                     <th>Status</th>
                                     <th>Check In</th>
+                                    <th>Check In Location</th>
                                     <th>Check Out</th>
+                                    <th>Check Out Location</th>
                                     <th>Break</th>
                                     <th>Late</th>
                                     <th>Production Hours</th>

@@ -1,3 +1,47 @@
+## Sync Progress Monitoring
+
+Manual sync Data Alamat sekarang expose progress status agar terlihat apakah request ke API third-party (`wilayah.id`) berjalan di setiap level data.
+
+### Endpoint status
+
+- `GET /locations/sync-status`
+- Response envelope: `{ success, data }`
+
+Contoh payload `data`:
+
+```json
+{
+	"running": true,
+	"progress": 67,
+	"stage": "districts",
+	"message": "Sync districts dari seluruh regencies.",
+	"processed": 340,
+	"total": 514,
+	"error": null,
+	"summary": {
+		"provinces": 38,
+		"regencies": 514,
+		"districts": 341,
+		"villages": 0,
+		"source": "wilayah.id",
+		"syncedAt": "2026-04-15 06:30:00"
+	},
+	"startedAt": "2026-04-15T06:28:00+07:00",
+	"updatedAt": "2026-04-15T06:31:12+07:00",
+	"finishedAt": null
+}
+```
+
+### Stage sync yang dipantau
+
+- `provinces`
+- `regencies`
+- `districts`
+- `villages`
+- terminal state: `completed` atau `failed`
+
+UI halaman Locations melakukan polling endpoint ini untuk menampilkan progress bar persentase dan status per tahap.
+
 # Locations / Wilayah Sync - Implementation
 
 ## Komponen backend

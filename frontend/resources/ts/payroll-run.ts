@@ -242,7 +242,7 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     }
 
     if (calculateBtn) {
-        calculateBtn.disabled = !_state.currentPeriodId;
+        calculateBtn.disabled = !_state.currentPeriodId || !!_state.currentRunId;
     }
     if (disburseBtn) {
         disburseBtn.disabled = !_state.currentRunId || _state.currentRows.length === 0;
@@ -402,7 +402,9 @@ async function calculateDraft(silent = false): Promise<void> {
     } catch (e: any) {
         toast(formatApiError(e.response?.data || {}, 500), true);
     } finally {
-        if (calculateBtn) calculateBtn.disabled = false;
+        if (calculateBtn) {
+            calculateBtn.disabled = !_state.currentPeriodId || !!_state.currentRunId;
+        }
     }
 }
 

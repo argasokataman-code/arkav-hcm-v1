@@ -13,11 +13,13 @@
 - `POST /v1/identity/auth/login`
 - `POST /v1/identity/auth/logout`
 - `GET /v1/identity/auth/me`
+- `PUT /v1/identity/auth/profile`
 
 ## Respons penting
 
 - `GET /auth/me` mengembalikan:
   - `id`, `name`, `email`
+  - `profile` (`firstName`, `lastName`, `phone`, `address`, `addressDetail`, `designation`, `team`, `profilePhotoUrl`)
   - `roles` (transitional)
   - `hcmAdmin` (boolean hint untuk UI HCM admin-only)
 

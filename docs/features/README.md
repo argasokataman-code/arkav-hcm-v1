@@ -42,6 +42,8 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 25 | User Management | ✅ Implemented (Backend API) | [→](user-management/) | [📘 Implementation](user-management/IMPLEMENTATION.md) | [🧪 E2E Testing](user-management/E2E-TESTING.md) |
 | 26 | Reporting System | 🚧 In Progress (Phase 3) | [→](reporting/) | [📘 Implementation](reporting/IMPLEMENTATION.md) | [🧪 E2E Testing](reporting/E2E-TESTING.md) |
 | 27 | Locations / Wilayah Sync | ✅ Complete | [→](locations/) | [📘 Implementation](locations/IMPLEMENTATION.md) | [🧪 E2E Testing](locations/E2E-TESTING.md) |
+| 28 | Recovery Vault | 🚧 Proposed | [→](recovery-vault/) | [📘 Implementation](recovery-vault/IMPLEMENTATION.md) | [🧪 E2E Testing](recovery-vault/E2E-TESTING.md) |
+| 29 | Cronjob Scheduler | ✅ Complete | [→](cronjob/) | [📘 Implementation](cronjob/IMPLEMENTATION.md) | [🧪 E2E Testing](cronjob/E2E-TESTING.md) |
 
 ---
 
@@ -80,6 +82,13 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `locations/README.md` - **Locations / Wilayah Sync:** lokasi Indonesia dari `wilayah.id` disimpan lokal, dipakai halaman Provinces / Regencies / Districts.
 - `locations/IMPLEMENTATION.md` - Arsitektur tabel `wilayah_*`, command `wilayah:sync`, scheduler bulanan, dan alur pruning/upsert.
 - `locations/E2E-TESTING.md` - Skenario smoke UI untuk verifikasi halaman lokasi dan sync lokal.
+- `cronjob/README.md` - **Cronjob Scheduler:** konfigurasi jadwal task via UI (`/cronjob`) dengan persist ke settings.
+- `cronjob/IMPLEMENTATION.md` - Wiring controller + setting helper + konsumsi scheduler (`Kernel` dan `routes/console.php`).
+- `cronjob/E2E-TESTING.md` - Skenario manual simpan konfigurasi + verifikasi role guard HCM Admin.
+- `recovery-vault/README.md` - **Recovery Vault:** audit trail CRUD immutable + snapshot/restore pipeline untuk recovery bencana, hanya service internal dan super admin.
+- `recovery-vault/IMPLEMENTATION.md` - Arsitektur service, database terpisah, model event, retention 90 hari, dan hardening keamanan.
+- `recovery-vault/API-CONTRACT.md` - Draft kontrak endpoint internal/admin, payload, idempotency, dan error code.
+- `recovery-vault/E2E-TESTING.md` - Skenario verifikasi API internal, permission super admin, dan simulasi restore bencana.
 
 ---
 

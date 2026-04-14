@@ -1,6 +1,12 @@
 <!-- Header -->
 @php
     $authUser = request()->user() ?: auth()->user();
+    $authUser?->loadMissing('employeeProfile:id,user_id,profile_photo_path');
+    $primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+    $secondarySuperAdminEmail = strtolower(trim((string) config('hcm.secondary_admin_email', 'qa.hcm@example.com')));
+    $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
+    $isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
+    $showTemplateCatalogMenus = $isPrimarySuperAdmin;
     $activeCompany = request()->attributes->get('activeCompany');
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription()
@@ -12,6 +18,12 @@
             || (bool) ($authUser->is_super_admin ?? false)
         );
     $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin;
+    $headerProfileName = trim((string) ($authUser->name ?? 'User')) ?: 'User';
+    $headerProfileEmail = trim((string) ($authUser->email ?? '')) ?: 'user@example.com';
+    $headerProfilePhotoPath = trim((string) ($authUser->employeeProfile->profile_photo_path ?? ''));
+    $headerProfilePhotoUrl = $headerProfilePhotoPath !== ''
+        ? asset('storage/'.ltrim($headerProfilePhotoPath, '/'))
+        : URL::asset('build/img/profiles/avatar-12.jpg');
 @endphp
 <div class="header">
     <div class="main-header">
@@ -121,16 +133,19 @@
                                     <span>Main</span>
                                 </li>
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('index','employee-dashboard','deals-dashboard','leads-dashboard') ? 'active subdrop' : '' }}">
+                                    <a href="#" class="{{ Request::is('index','employee-dashboard') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-smart-home"></i><span>Dashboard</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
                                         <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
+@if ($showTemplateCatalogMenus)
                                         <li><a href="{{url('deals-dashboard')}}" class="{{ Request::is('deals-dashboard') ? 'active' : '' }}">Deals Dashboard</a></li>
-                                        <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>                                    </ul>
+                                        <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>
+@endif                                    </ul>
                                 </li>
+@if ($showTemplateCatalogMenus)
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Super Admin</span>
@@ -145,6 +160,7 @@
                         <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction') ? 'active' : '' }}">Purchase Transaction</a></li>
                                     </ul>
                                 </li>
+@endif
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
                             'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? 'active subdrop' : '' }}">
@@ -267,6 +283,9 @@
                                             <a href="{{url('clients-grid')}}" class="{{ Request::is('clients-grid') ? 'active' : '' }}"><span>Clients</span>
                                             </a>
                                         </li>
+                                        @if ($showTemplateCatalogMenus)
+                                        @if ($showTemplateCatalogMenus)
+                                        @if ($showTemplateCatalogMenus)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('projects-grid','project-details','tasks','task-board') ? 'active subdrop' : '' }}"><span>Projects</span>
                                                 <span class="menu-arrow"></span>
@@ -290,6 +309,7 @@
                                 <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}"><span>Activities</span></a></li>
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
                                                 <span class="menu-arrow"></span>
@@ -302,6 +322,7 @@
                                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
                                                 <span class="menu-arrow"></span>
@@ -343,6 +364,7 @@
                 
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}"><span>Performance</span>
                                                 <span class="menu-arrow"></span>
@@ -355,6 +377,7 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                                             </ul>
                                         </li>
+                                        @if ($showTemplateCatalogMenus)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}"><span>Training</span>
                                                 <span class="menu-arrow"></span>
@@ -374,7 +397,7 @@
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
                                     'assets','asset-categories','knowledgebase','activity', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
-                                    'profile-settings','security-settings','notification-settings','connected-apps','bussiness-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
+                                    'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                                      'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Administration</span>
                                         <span class="menu-arrow"></span>
@@ -393,6 +416,7 @@
                                                 <li><a href="{{url('taxes')}}" class="{{ Request::is('taxes') ? 'active' : '' }}">Taxes</a></li>
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('categories','budgets','budget-expenses','budget-revenues') ? 'active subdrop' : '' }}"><span>Accounting</span>
                                                 <span class="menu-arrow"></span>
@@ -476,7 +500,7 @@
                                             </ul>
                                         </li>
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps','bussiness-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
+                                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
@@ -490,9 +514,9 @@
                                                         <li><a href="{{url('connected-apps')}}" class="{{ Request::is('connected-apps') ? 'active' : '' }}">Connected Apps</a></li>                                                    </ul>
                                                 </li>
                                                 <li class="submenu">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('bussiness-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">Website Settings<span class="menu-arrow"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">Website Settings<span class="menu-arrow"></span></a>
                                                     <ul>
-                                                        <li><a href="{{url('bussiness-settings')}}" class="{{ Request::is('bussiness-settings') ? 'active' : '' }}">Business Settings</a></li>
+                                                        <li><a href="{{url('business-settings')}}" class="{{ Request::is('business-settings') ? 'active' : '' }}">Business Settings</a></li>
                                         <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
                                         <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
                                         <li><a href="{{url('prefixes')}}" class="{{ Request::is('prefixes') ? 'active' : '' }}">Prefixes</a></li>
@@ -574,7 +598,9 @@
                                             <li class="submenu">
                                             <a href="#" class="{{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}"><span>Content</span> <span class="menu-arrow"></span></a>
                                             <ul>
+                                                @if ($showTemplateCatalogMenus)
                                                 <li class="{{ Request::is('pages') ? 'active' : '' }}"><a href="{{url('pages')}}">Pages</a></li>
+                                                @endif
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);"class="{{ Request::is('blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}">Blogs<span class="menu-arrow"></span></a>
                                                     <ul>
@@ -595,6 +621,7 @@
                                 <li><a href="{{url('faq')}}" class="{{ Request::is('faq') ? 'active' : '' }}">FAQ’S</a></li>
                                             </ul>
                                         </li>
+                                        @if ($showTemplateCatalogMenus)
                                         <li class="submenu">
                                             <a href="#" class="{{ Request::is('login','login-2','login-3','register','register-2','register-3','forgot-password','forgot-password-2','forgot-password-3',
                                             'reset-password','reset-password-2','reset-password-3','email-verification','email-verification-2','email-verification-3','two-step-verification','two-step-verification-2','two-step-verification-3',
@@ -655,6 +682,7 @@
 
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="#" class="{{ Request::is('ui-alerts',
                                             'ui-accordion',
@@ -1287,7 +1315,7 @@
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <span class="avatar avatar-sm online">
-                                <img src="{{URL::asset('build/img/profiles/avatar-12.jpg')}}" alt="Img" class="img-fluid rounded-circle">
+                                <img src="{{ $headerProfilePhotoUrl }}" alt="Img" class="img-fluid rounded-circle" data-profile-display-avatar="1">
                             </span>
                         </a>
                         <div class="dropdown-menu shadow-none">
@@ -1295,11 +1323,11 @@
                                 <div class="card-header">
                                     <div class="d-flex align-items-center">
                                         <span class="avatar avatar-lg me-2 avatar-rounded">
-                                            <img src="{{URL::asset('build/img/profiles/avatar-12.jpg')}}" alt="img">
+                                            <img src="{{ $headerProfilePhotoUrl }}" alt="img" data-profile-display-avatar="1">
                                         </span>
                                         <div>
-                                            <h5 class="mb-0">Kevin Larry</h5>
-                                            <p class="fs-12 fw-medium mb-0">warren@example.com</p>
+                                            <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>
+                                            <p class="fs-12 fw-medium mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1307,7 +1335,7 @@
                                     <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile')}}">
                                         <i class="ti ti-user-circle me-1"></i>My Profile
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('bussiness-settings')}}">
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('business-settings')}}">
                                         <i class="ti ti-settings me-1"></i>Settings
                                     </a>
                                     <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('security-settings')}}">

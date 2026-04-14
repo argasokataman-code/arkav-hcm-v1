@@ -35,7 +35,7 @@
                     <a class="nav-link " href="{{url('profile-settings')}}"><i class="ti ti-settings me-2"></i>General Settings</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{url('bussiness-settings')}}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
+                    <a class="nav-link" href="{{url('business-settings')}}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{url('salary-settings')}}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
@@ -71,6 +71,20 @@
                         <div class="card-body">
                             <div class="border-bottom mb-3 pb-3">
                                 <h4>Email Settings</h4>
+                            </div>
+                            <div class="card border mb-3" id="mailtrapStatusCard">
+                                <div class="card-body py-3">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div>
+                                            <h6 class="mb-1">Mailtrap API Status</h6>
+                                            <p class="text-muted mb-0" id="mailtrapStatusText">Checking configuration...</p>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge badge-secondary" id="mailtrapStatusBadge">Unknown</span>
+                                            <button type="button" class="btn btn-sm btn-outline-light border" id="refreshMailtrapStatus">Refresh</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <form action="{{url("email-settings")}}">
                                 <div class="border-bottom mb-3">
@@ -152,4 +166,85 @@
 
     @component('components.modal-popup')
     @endcomponent
+
+    <script>
+        $(document).ready(function() {
+            function getAuthToken() {
+                return localStorage.getItem('arcav_access_token') ||
+                    sessionStorage.getItem('arcav_access_token') ||
+                    localStorage.getItem('token') ||
+                    sessionStorage.getItem('token') ||
+                    $('meta[name="api-token"]').attr('content') ||
+                    $('meta[name="auth-token"]').attr('content') ||
+                    null;
+            }
+
+            function applyStatus(connected, text) {
+                var badge = $('#mailtrapStatusBadge');
+                badge.removeClass('badge-success badge-danger badge-warning badge-secondary');
+                if (connected === true) {
+                    badge.addClass('badge-success').text('Connected');
+                } else if (connected === false) {
+                    badge.addClass('badge-warning').text('Not Connected');
+                } else {
+                    badge.addClass('badge-secondary').text('Unknown');
+                }
+                $('#mailtrapStatusText').text(text || 'No details.');
+            }
+
+            function loadMailtrapStatus() {
+                applyStatus(null, 'Checking configuration...');
+                var token = getAuthToken();
+                if (!token) {
+                    applyStatus(false, 'Auth token not found. Please login again.');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/v1/hcm/email-settings/mailtrap-status',
+                    type: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    }
+                }).done(function(response) {
+                    var data = response && response.data ? response.data : {};
+                    if (!response || response.success !== true) {
+                        applyStatus(false, 'Failed reading Mailtrap status.');
+                        return;
+                    }
+
+                    if (!data.tokenConfigured || !data.accountId) {
+                        applyStatus(false, 'MAILTRAP_API_TOKEN / MAILTRAP_ACCOUNT_ID belum lengkap di env.');
+                        return;
+                    }
+
+                    if (data.connected) {
+                        applyStatus(true,
+                            'Account #' + data.accountId + ' connected. Visible tokens: ' + (data.visibleTokenCount || 0) + '. Token suffix: ' + (data.tokenLast4 || 'n/a')
+                        );
+                        return;
+                    }
+
+                    applyStatus(false, data.error || 'Unable to connect to Mailtrap API.');
+                }).fail(function(xhr) {
+                    if (xhr && xhr.status === 403) {
+                        applyStatus(false, 'Forbidden: hanya HCM Admin yang boleh lihat status Mailtrap.');
+                        return;
+                    }
+                    var msg = (xhr && xhr.responseJSON && xhr.responseJSON.error && xhr.responseJSON.error.message)
+                        ? xhr.responseJSON.error.message
+                        : 'Request failed while checking Mailtrap status.';
+                    applyStatus(false, msg);
+                });
+            }
+
+            $('#refreshMailtrapStatus').on('click', function() {
+                loadMailtrapStatus();
+            });
+
+            loadMailtrapStatus();
+        });
+    </script>
 @endsection

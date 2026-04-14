@@ -35,7 +35,7 @@
                 <a class="nav-link active" href="{{ url('profile-settings') }}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ url('bussiness-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
+                <a class="nav-link" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('salary-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
@@ -69,7 +69,8 @@
                         <div class="border-bottom mb-3 pb-3">
                             <h4>Profile Settings</h4>
                         </div>
-                        <form action="{{ url('profile-settings') }}">
+                        <div class="alert d-none" data-profile-settings-feedback></div>
+                        <form action="javascript:void(0);" data-profile-settings-form>
                             <div class="border-bottom mb-3">
                                 <div class="row">
                                     <div class="col-md-12">
@@ -82,14 +83,10 @@
                                                 <div class="profile-upload">
                                                     <div class="mb-2">
                                                         <h6 class="mb-1">Profile Photo</h6>
-                                                        <p class="fs-12">Recommended image size is 40px x 40px</p>
+                                                        <p class="fs-12">Kelola foto profil user lewat halaman Profile.</p>
                                                     </div>
                                                     <div class="profile-uploader d-flex align-items-center">
-                                                        <div class="drag-upload-btn btn btn-sm btn-primary me-2">
-                                                            Upload
-                                                            <input type="file" class="form-control image-sign" multiple="">
-                                                        </div>
-                                                        <a href="javascript:void(0);" class="btn btn-light btn-sm">Cancel</a>
+                                                        <a href="{{ url('profile') }}" class="btn btn-sm btn-primary me-2">Buka My Profile</a>
                                                     </div>
                                                     
                                                 </div>
@@ -104,7 +101,7 @@
                                                 <label class="form-label mb-md-0">First Name</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="first_name" required>
                                             </div>
                                         </div>
                                     </div>
@@ -114,7 +111,7 @@
                                                 <label class="form-label mb-md-0">Last Name</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="last_name">
                                             </div>
                                         </div>
                                     </div>
@@ -124,7 +121,7 @@
                                                 <label class="form-label mb-md-0">Email</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="email" class="form-control" data-general-setting="email" required>
                                             </div>
                                         </div>
                                     </div>
@@ -134,7 +131,7 @@
                                                 <label class="form-label mb-md-0">Phone</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="phone">
                                             </div>
                                         </div>
                                     </div>
@@ -149,7 +146,7 @@
                                                 <label class="form-label mb-md-0">Address</label>
                                             </div>
                                             <div class="col-md-10">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="address">
                                             </div>	
                                         </div>
                                     </div>
@@ -159,7 +156,7 @@
                                                 <label class="form-label mb-md-0">City</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="city">
                                             </div>	
                                         </div>
                                     </div>
@@ -169,14 +166,7 @@
                                                 <label class="form-label mb-md-0">State</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <div>
-                                                    <select class="select">
-                                                        <option>Select</option>
-                                                        <option>France</option>
-                                                        <option>India</option>
-                                                        <option>UK</option>
-                                                    </select>
-                                                </div>
+                                                <input type="text" class="form-control" data-general-setting="state">
                                             </div>	
                                         </div>
                                     </div>
@@ -186,14 +176,7 @@
                                                 <label class="form-label mb-md-0">Country</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <div>
-                                                    <select class="select">
-                                                        <option>Select</option>
-                                                        <option>Belgium</option>
-                                                        <option>Turkey</option>
-                                                        <option>Ukraine</option>
-                                                    </select>
-                                                </div>
+                                                <input type="text" class="form-control" data-general-setting="country">
                                             </div>	
                                         </div>
                                     </div>
@@ -203,15 +186,59 @@
                                                 <label class="form-label mb-md-0">Postal Code</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-general-setting="postal_code">
                                             </div>	
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            <div class="border-bottom mb-3 pb-3">
+                                <h6 class="mb-3">Change Password</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="row align-items-center mb-3">
+                                            <div class="col-md-5">
+                                                <label class="form-label mb-md-0">Current Password</label>
+                                            </div>
+                                            <div class="col-md-7">
+                                                <div class="pass-group">
+                                                    <input type="password" class="pass-input form-control" data-profile-settings-current-password autocomplete="current-password">
+                                                    <span class="ti toggle-password ti-eye-off"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="row align-items-center mb-3">
+                                            <div class="col-md-5">
+                                                <label class="form-label mb-md-0">New Password</label>
+                                            </div>
+                                            <div class="col-md-7">
+                                                <div class="pass-group">
+                                                    <input type="password" class="pass-inputs form-control" data-profile-settings-new-password autocomplete="new-password">
+                                                    <span class="ti toggle-passwords ti-eye-off"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="row align-items-center mb-3">
+                                            <div class="col-md-5">
+                                                <label class="form-label mb-md-0">Confirm Password</label>
+                                            </div>
+                                            <div class="col-md-7">
+                                                <div class="pass-group">
+                                                    <input type="password" class="pass-inputa form-control" data-profile-settings-confirm-password autocomplete="new-password">
+                                                    <span class="ti toggle-passworda ti-eye-off"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="d-flex align-items-center justify-content-end">
-                                <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="button" class="btn btn-outline-light border me-3" data-profile-settings-reset>Cancel</button>
+                                <button type="submit" class="btn btn-primary" data-profile-settings-submit>Save</button>
                             </div>
                         </form>
                     </div>

@@ -110,6 +110,300 @@ paths:
                 $ref: '#/components/schemas/MeResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /v1/identity/auth/profile:
+    put:
+      tags: [Identity]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/hcm/settings:
+    get:
+      tags: [HCM]
+      summary: Get settings by group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [general, prefix, business, localization, seo]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [HCM]
+      summary: Save settings by group
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group, settings]
+              properties:
+                group:
+                  type: string
+                  enum: [general, prefix, business, localization, seo]
+                settings:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/activity-feed:
+    get:
+      tags: [HCM]
+      summary: Get tenant activity feed for /activity page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, asset, user_access, payroll, manual]
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sourceType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, system, manual]
+        - name: statusType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/activity-manual:
+    post:
+      tags: [HCM]
+      summary: Create manual activity record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, activityKind, statusType]
+              properties:
+                title:
+                  type: string
+                activityKind:
+                  type: string
+                  enum: [task, call, email, meeting, note]
+                statusType:
+                  type: string
+                  enum: [planned, in_progress, completed, cancelled]
+                dueDate:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/activity-manual/{id}:
+    put:
+      tags: [HCM]
+      summary: Update manual activity record
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, activityKind, statusType]
+              properties:
+                title:
+                  type: string
+                activityKind:
+                  type: string
+                  enum: [task, call, email, meeting, note]
+                statusType:
+                  type: string
+                  enum: [planned, in_progress, completed, cancelled]
+                dueDate:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [HCM]
+      summary: Delete manual activity record
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/settings/upload:
+    post:
+      tags: [HCM]
+      summary: Upload business branding file
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [group, field, file]
+              properties:
+                group:
+                  type: string
+                  enum: [business]
+                field:
+                  type: string
+                  enum: [white_logo, dark_logo, white_mini_logo, dark_mini_logo, favicon, apple_icon]
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/settings/{key}:
+    get:
+      tags: [HCM]
+      summary: Get single setting value by key
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [HCM]
+      summary: Update single setting value by key
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  nullable: true
+                group:
+                  type: string
+                  enum: [general, prefix, business, localization, seo]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [HCM]
+      summary: Delete setting by key
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
   /v1/hcm/departments:
     get:
@@ -1178,6 +1472,50 @@ paths:
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/leave-types:
+    get:
+      tags: [Leave]
+      summary: Leave type catalog (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Leave]
+      summary: Create leave type (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-types/{id}:
+    put:
+      tags: [Leave]
+      summary: Update leave type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Leave]
+      summary: Disable leave type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
   /v1/hcm/leave-requests/export:
     get:
       tags: [Leave]
@@ -1582,7 +1920,7 @@ paths:
       tags: [Payroll]
       summary: Rebuild draft payroll run (HCM admin)
       description: |
-        Menghapus draft lalu membuat run `draft` baru dengan baris dari profil karyawan aktif/probation.
+        Membuat draft payroll untuk periode. Jika draft `monthly` sudah ada, endpoint mengembalikan draft existing (idempotent, tanpa rebuild ulang).
         `422` jika periode sudah punya run `finalized` (`PAYROLL_PERIOD_FINALIZED`).
       security:
         - bearerAuth: []
@@ -1636,6 +1974,9 @@ paths:
                       employeeCount:
                         type: integer
                         example: 5
+                      reusedExistingDraft:
+                        type: boolean
+                        example: false
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -1881,7 +2222,10 @@ paths:
                   type: array
                   items:
                     type: integer
-                  description: Optional subset of employee user IDs to disburse. If omitted, all employees in the run are processed.
+                  description: Optional subset of employee user IDs to disburse. Required when applyAll is not true.
+                applyAll:
+                  type: boolean
+                  description: Set true to disburse all employees in the run explicitly.
       responses:
         '200':
           description: Gateway disbursement processed
@@ -1933,6 +2277,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/hcm/payroll/my-slip-latest-period:
+    get:
+      tags: [Payroll]
+      summary: Resolve latest finalized payslip period for current user
+      description: |
+        Mengembalikan periode payroll terbaru yang memiliki run `finalized` dan memuat baris slip untuk user login.
+        Dipakai UI `/payslip` sebagai fallback awal saat periode bulan berjalan belum punya slip final.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 4
+                          periodYear:
+                            type: integer
+                            example: 2026
+                          periodMonth:
+                            type: integer
+                            example: 11
+                          status:
+                            type: string
+                            enum: [open, posted]
+                      run:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 19
+                          status:
+                            type: string
+                            enum: [draft, finalized]
+                            example: finalized
+                          purpose:
+                            type: string
+                            enum: [monthly, thr, pkwt_compensation]
+                          finalizedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
   /v1/hcm/payroll/my-slip:
     get:
       tags: [Payroll]
@@ -4419,6 +4821,31 @@ components:
               type: string
             email:
               type: string
+            profile:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+                  nullable: true
+                address:
+                  type: string
+                  nullable: true
+                addressDetail:
+                  type: string
+                  nullable: true
+                designation:
+                  type: string
+                  nullable: true
+                team:
+                  type: string
+                  nullable: true
+                profilePhotoUrl:
+                  type: string
+                  nullable: true
             roles:
               type: array
               items:
@@ -4437,6 +4864,84 @@ components:
                   type: string
                 role:
                   type: string
+    UpdateProfileRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 50
+        address:
+          type: string
+          nullable: true
+          maxLength: 500
+        addressDetail:
+          type: string
+          nullable: true
+          maxLength: 500
+        currentPassword:
+          type: string
+          nullable: true
+          maxLength: 64
+        newPassword:
+          type: string
+          nullable: true
+          minLength: 8
+          maxLength: 64
+        confirmPassword:
+          type: string
+          nullable: true
+          minLength: 8
+          maxLength: 64
+    UpdateProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+            profile:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+                  nullable: true
+                address:
+                  type: string
+                  nullable: true
+                addressDetail:
+                  type: string
+                  nullable: true
+                designation:
+                  type: string
+                  nullable: true
+                team:
+                  type: string
+                  nullable: true
+                profilePhotoUrl:
+                  type: string
+                  nullable: true
     DepartmentListResponse:
       type: object
       properties:

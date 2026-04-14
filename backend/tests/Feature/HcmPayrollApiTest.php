@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Mail\MonthlyPayslipMail;
 use App\Models\EmployeeProfile;
+use App\Models\EmployeeTaxProfile;
 use App\Models\HcmResignation;
+use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
 use App\Models\OvertimeRequest;
@@ -314,7 +316,8 @@ class HcmPayrollApiTest extends TestCase
             ->first();
 
         $this->assertGreaterThan(0, $selectedUserId);
-        $this->assertNotSame((int) $firstDraft->json('data.run.id'), $runId);
+        $this->assertSame((int) $firstDraft->json('data.run.id'), $runId);
+        $this->assertTrue((bool) $secondDraft->json('data.reusedExistingDraft'));
 
         $disburse = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', [
@@ -436,6 +439,261 @@ class HcmPayrollApiTest extends TestCase
         $this->assertSame(7000000, (int) ($line['gross_pay'] ?? 0));
         $this->assertLessThanOrEqual(7000000, (int) ($line['net_pay'] ?? 0));
         $this->assertGreaterThan(0, (int) ($line['net_pay'] ?? 0));
+    }
+
+    public function test_pph21_ter_uses_monthly_rate_table(): void
+    {
+        $token = $this->adminToken();
+
+        $employee = User::factory()->create([
+            'name' => 'TER Lookup User',
+            'email' => 'ter-lookup@example.com',
+        ]);
+
+        $profile = EmployeeProfile::query()->create([
+            'user_id' => $employee->id,
+            'employment_status' => 'active',
+            'base_salary' => 5_500_000,
+            'fixed_allowance' => 0,
+        ]);
+
+        EmployeeTaxProfile::query()->create([
+            'employee_id' => $profile->id,
+            'tax_status' => 'TK0',
+            'ptkp_status' => 'TK/0',
+            'effective_date' => '2026-04-01',
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $draft = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk();
+
+        $line = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $draft->json('data.run.id'))
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'pph21_ter')
+            ->first();
+
+        $this->assertNotNull($line);
+        $this->assertEquals(5_500_000.0, (float) ($line->meta['monthlyTaxableGross'] ?? 0));
+        $this->assertEquals(13_750.0, (float) $line->amount);
+        $this->assertSame('pph21_ter_lookup', $line->meta['source'] ?? null);
+        $this->assertSame('A', $line->meta['pph21TerCategory'] ?? null);
+    }
+
+    public function test_pph21_ter_matrix_matches_category_rate_tables(): void
+    {
+        $token = $this->adminToken();
+
+        $cases = [
+            [
+                'email' => 'ter-a-zero@example.com',
+                'name' => 'TER A Zero',
+                'tax_status' => 'TK0',
+                'ptkp_status' => 'TK/0',
+                'gross' => 5_400_000.0,
+                'expected' => 0.0,
+                'category' => 'A',
+            ],
+            [
+                'email' => 'ter-b-quarter@example.com',
+                'name' => 'TER B Quarter',
+                'tax_status' => 'TK2',
+                'ptkp_status' => 'TK/2',
+                'gross' => 6_500_000.0,
+                'expected' => 16_250.0,
+                'category' => 'B',
+            ],
+            [
+                'email' => 'ter-c-half@example.com',
+                'name' => 'TER C Half',
+                'tax_status' => 'K3',
+                'ptkp_status' => 'K/3',
+                'gross' => 7_000_000.0,
+                'expected' => 35_000.0,
+                'category' => 'C',
+            ],
+        ];
+
+        foreach ($cases as $case) {
+            $employee = User::factory()->create([
+                'name' => $case['name'],
+                'email' => $case['email'],
+            ]);
+
+            $profile = EmployeeProfile::query()->create([
+                'user_id' => $employee->id,
+                'employment_status' => 'active',
+                'base_salary' => $case['gross'],
+                'fixed_allowance' => 0,
+            ]);
+
+            EmployeeTaxProfile::query()->create([
+                'employee_id' => $profile->id,
+                'tax_status' => $case['tax_status'],
+                'ptkp_status' => $case['ptkp_status'],
+                'effective_date' => '2026-04-01',
+            ]);
+        }
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        foreach ($cases as $case) {
+            $employeeId = (int) User::query()->where('email', $case['email'])->value('id');
+
+            $line = HcmPayrollLine::query()
+                ->where('hcm_payroll_run_id', $runId)
+                ->where('user_id', $employeeId)
+                ->where('component_code', 'pph21_ter')
+                ->first();
+
+            if ((float) $case['expected'] === 0.0) {
+                $this->assertNull($line);
+                continue;
+            }
+
+            $this->assertNotNull($line);
+            $this->assertEquals($case['gross'], (float) ($line->meta['monthlyTaxableGross'] ?? 0));
+            $this->assertEquals($case['expected'], (float) $line->amount);
+            $this->assertSame($case['category'], $line->meta['pph21TerCategory'] ?? null);
+            $this->assertSame('pph21_ter_lookup', $line->meta['source'] ?? null);
+        }
+    }
+
+    public function test_pph21_ter_boundaries_are_inclusive_per_table_thresholds(): void
+    {
+        $token = $this->adminToken();
+
+        $cases = [
+            [
+                'email' => 'ter-a-boundary-zero@example.com',
+                'name' => 'TER A Boundary Zero',
+                'tax_status' => 'TK0',
+                'ptkp_status' => 'TK/0',
+                'gross' => 5_400_000.0,
+                'expected' => 0.0,
+                'category' => 'A',
+            ],
+            [
+                'email' => 'ter-a-boundary-next@example.com',
+                'name' => 'TER A Boundary Next',
+                'tax_status' => 'TK0',
+                'ptkp_status' => 'TK/0',
+                'gross' => 5_400_001.0,
+                'expected' => 13_500.0,
+                'category' => 'A',
+            ],
+            [
+                'email' => 'ter-b-boundary-zero@example.com',
+                'name' => 'TER B Boundary Zero',
+                'tax_status' => 'TK2',
+                'ptkp_status' => 'TK/2',
+                'gross' => 6_200_000.0,
+                'expected' => 0.0,
+                'category' => 'B',
+            ],
+            [
+                'email' => 'ter-b-boundary-next@example.com',
+                'name' => 'TER B Boundary Next',
+                'tax_status' => 'TK2',
+                'ptkp_status' => 'TK/2',
+                'gross' => 6_200_001.0,
+                'expected' => 15_500.0,
+                'category' => 'B',
+            ],
+            [
+                'email' => 'ter-c-boundary-zero@example.com',
+                'name' => 'TER C Boundary Zero',
+                'tax_status' => 'K3',
+                'ptkp_status' => 'K/3',
+                'gross' => 6_600_000.0,
+                'expected' => 0.0,
+                'category' => 'C',
+            ],
+            [
+                'email' => 'ter-c-boundary-next@example.com',
+                'name' => 'TER C Boundary Next',
+                'tax_status' => 'K3',
+                'ptkp_status' => 'K/3',
+                'gross' => 6_600_001.0,
+                'expected' => 16_500.0,
+                'category' => 'C',
+            ],
+        ];
+
+        foreach ($cases as $case) {
+            $employee = User::factory()->create([
+                'name' => $case['name'],
+                'email' => $case['email'],
+            ]);
+
+            $profile = EmployeeProfile::query()->create([
+                'user_id' => $employee->id,
+                'employment_status' => 'active',
+                'base_salary' => $case['gross'],
+                'fixed_allowance' => 0,
+            ]);
+
+            EmployeeTaxProfile::query()->create([
+                'employee_id' => $profile->id,
+                'tax_status' => $case['tax_status'],
+                'ptkp_status' => $case['ptkp_status'],
+                'effective_date' => '2026-04-01',
+            ]);
+        }
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        foreach ($cases as $case) {
+            $employeeId = (int) User::query()->where('email', $case['email'])->value('id');
+
+            $line = HcmPayrollLine::query()
+                ->where('hcm_payroll_run_id', $runId)
+                ->where('user_id', $employeeId)
+                ->where('component_code', 'pph21_ter')
+                ->first();
+
+            if ((float) $case['expected'] === 0.0) {
+                $this->assertNull($line);
+                continue;
+            }
+
+            $this->assertNotNull($line);
+            $this->assertEquals($case['gross'], (float) ($line->meta['monthlyTaxableGross'] ?? 0));
+            $this->assertEquals($case['expected'], (float) $line->amount);
+            $this->assertSame($case['category'], $line->meta['pph21TerCategory'] ?? null);
+            $this->assertSame('pph21_ter_lookup', $line->meta['source'] ?? null);
+        }
     }
 
     public function test_monthly_payslip_summary_includes_overtime_and_deductions(): void

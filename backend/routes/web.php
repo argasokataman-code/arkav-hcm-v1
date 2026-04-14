@@ -3,8 +3,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomAuthController;
+use App\Http\Controllers\CronjobController;
 use App\Http\Controllers\WilayahLocationController;
 use Illuminate\Http\Request;
+use App\Models\HcmLeaveTypeSetting;
 
 Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
 Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 
@@ -953,6 +955,7 @@ Route::get('/register-3', function () {
 Route::get('/forgot-password', function () {
     return view('forgot-password');
 })->name('forgot-password');
+Route::post('/forgot-password', [CustomAuthController::class, 'sendPasswordResetLink'])->name('password.email');
 Route::get('/forgot-password-2', function () {
     return view('forgot-password-2');
 })->name('forgot-password-2');
@@ -960,8 +963,10 @@ Route::get('/forgot-password-3', function () {
     return view('forgot-password-3');
 })->name('forgot-password-3');
 Route::get('/reset-password', function () {
-    return view('reset-password');
+    return redirect()->route('forgot-password');
 })->name('reset-password');
+Route::get('/reset-password/{token}', [CustomAuthController::class, 'showResetPasswordForm'])->name('password.reset');
+Route::post('/reset-password', [CustomAuthController::class, 'updatePassword'])->name('password.update');
 Route::get('/reset-password-2', function () {
     return view('reset-password-2');
 })->name('reset-password-2');
@@ -989,6 +994,7 @@ Route::get('/two-step-verification-3', function () {
 Route::get('/lock-screen', function () {
     return view('lock-screen');
 })->name('lock-screen');
+Route::post('/lock-screen/verify', [CustomAuthController::class, 'verifyLockScreen'])->name('lock-screen.verify');
 Route::get('/error-404', function () {
     return view('error-404');
 })->name('error-404');
@@ -1024,6 +1030,10 @@ Route::get('/connected-apps', function () {
 Route::get('/bussiness-settings', function () {
     return view('bussiness-settings');
 })->name('bussiness-settings');
+
+Route::get('/business-settings', function () {
+    return redirect()->route('bussiness-settings');
+})->name('business-settings');
 
 Route::get('/seo-settings', function () {
     return view('seo-settings');
@@ -1163,9 +1173,14 @@ Route::get( '/invoice-settings', function () {
     return view('invoice-settings');
 })->name('invoice-settings');
 
-Route::get( '/leave-type', function () {
-    return view('leave-type');
-})->name('leave-type');
+Route::get('/leave-type', function () {
+    $leaveTypes = HcmLeaveTypeSetting::query()
+        ->orderBy('sort_order')
+        ->orderBy('id')
+        ->get();
+
+    return view('leave-type', ['leaveTypes' => $leaveTypes]);
+})->middleware('hcm.web.admin')->name('leave-type');
 
 Route::get( '/custom-fields', function () {
     return view('custom-fields');
@@ -1230,6 +1245,8 @@ Route::get( '/blog-tags',  function () {
 Route::get('/countries', [WilayahLocationController::class, 'countries'])->name('countries');
 
 Route::post('/locations/sync', [WilayahLocationController::class, 'sync'])->name('locations.sync');
+
+Route::get('/locations/sync-status', [WilayahLocationController::class, 'syncStatus'])->name('locations.sync-status');
 
 Route::get('/states', [WilayahLocationController::class, 'states'])->name('states');
 
@@ -1325,9 +1342,8 @@ Route::get('/custom-js', function () {
     return view('custom-js');
 })->name('custom-js');
 
-Route::get('/cronjob', function () {
-    return view('cronjob');
-})->name('cronjob');
+Route::get('/cronjob', [CronjobController::class, 'index'])->name('cronjob');
+Route::post('/cronjob', [CronjobController::class, 'update'])->name('cronjob.update');
 
 Route::get('/cronjob-schedule', function () {
     return view('cronjob-schedule');

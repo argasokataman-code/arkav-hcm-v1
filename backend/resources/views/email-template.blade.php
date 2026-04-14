@@ -36,7 +36,7 @@
                         Settings</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url('bussiness-settings') }}"><i class="ti ti-world-cog me-2"></i>Website
+                    <a class="nav-link" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website
                         Settings</a>
                 </li>
                 <li class="nav-item">

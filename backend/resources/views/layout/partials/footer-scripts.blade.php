@@ -281,6 +281,18 @@
     <script src="{{ URL::asset('build/js/tickets-data.js') }}"></script>
 @endif
 
+@if (Route::is(['profile']))
+    <script src="{{ URL::asset('build/js/profile-data.js') }}"></script>
+@endif
+
+@if (Route::is(['profile-settings']))
+    <script src="{{ URL::asset('build/js/profile-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['activity']))
+    <script src="{{ URL::asset('build/js/activity-data.js') }}?v={{ file_exists(public_path('build/js/activity-data.js')) ? filemtime(public_path('build/js/activity-data.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['performance-indicator', 'performance-appraisal', 'performance-review']))
     <script src="{{ URL::asset('build/js/performance-data.js') }}"></script>
 @endif

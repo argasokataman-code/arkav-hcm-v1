@@ -35,7 +35,8 @@
                 <div class="border-bottom mb-3 pb-3">
                     <h4>Profile </h4>
                 </div>
-                <form action="{{url('profile')}}">
+                <div class="alert d-none" data-profile-feedback></div>
+                <form action="javascript:void(0);" data-profile-form>
                     <div class="border-bottom mb-3">
                         <div class="row">
                             <div class="col-md-12">
@@ -43,19 +44,15 @@
                                     <h6 class="mb-3">Basic Information</h6>
                                     <div class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">                                                
                                         <div class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
-                                            <i class="ti ti-photo text-gray-3 fs-16"></i>
+                                            <img src="{{ URL::asset('build/img/profiles/avatar-12.jpg') }}" alt="Profile photo" class="img-fluid rounded-circle" data-profile-photo>
                                         </div>                                              
                                         <div class="profile-upload">
                                             <div class="mb-2">
                                                 <h6 class="mb-1">Profile Photo</h6>
-                                                <p class="fs-12">Recommended image size is 40px x 40px</p>
+                                                <p class="fs-12">Photo diambil dari profil karyawan aktif (Employees).</p>
                                             </div>
                                             <div class="profile-uploader d-flex align-items-center">
-                                                <div class="drag-upload-btn btn btn-sm btn-primary me-2">
-                                                    Upload
-                                                    <input type="file" class="form-control image-sign" multiple="">
-                                                </div>
-                                                <a href="javascript:void(0);" class="btn btn-light btn-sm">Cancel</a>
+                                                <a href="{{ url('employee-details') }}" class="btn btn-sm btn-primary me-2">Kelola di Employee Details</a>
                                             </div>
                                             
                                         </div>
@@ -70,7 +67,7 @@
                                         <label class="form-label mb-md-0">First Name</label>
                                     </div>
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control">
+                                        <input type="text" class="form-control" name="firstName" data-profile-first-name required>
                                     </div>
                                 </div>
                             </div>
@@ -80,7 +77,7 @@
                                         <label class="form-label mb-md-0">Last Name</label>
                                     </div>
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control">
+                                        <input type="text" class="form-control" name="lastName" data-profile-last-name>
                                     </div>
                                 </div>
                             </div>
@@ -90,7 +87,7 @@
                                         <label class="form-label mb-md-0">Email</label>
                                     </div>
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control">
+                                        <input type="email" class="form-control" name="email" data-profile-email required>
                                     </div>
                                 </div>
                             </div>
@@ -100,7 +97,7 @@
                                         <label class="form-label mb-md-0">Phone</label>
                                     </div>
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control">
+                                        <input type="text" class="form-control" name="phone" data-profile-phone>
                                     </div>
                                 </div>
                             </div>
@@ -115,7 +112,7 @@
                                         <label class="form-label mb-md-0">Address</label>
                                     </div>
                                     <div class="col-md-10">
-                                        <input type="text" class="form-control">
+                                        <input type="text" class="form-control" name="address" data-profile-address>
                                     </div>	
                                 </div>
                             </div>
@@ -125,7 +122,7 @@
                                         <label class="form-label mb-md-0">City</label>
                                     </div>
                                     <div class="col-md-8">
-                                        <input type="text" class="form-control">
+                                        <input type="text" class="form-control" name="addressDetail" data-profile-address-detail>
                                     </div>	
                                 </div>
                             </div>
@@ -185,7 +182,7 @@
                                     </div>
                                     <div class="col-md-7">
                                         <div class="pass-group">
-                                            <input type="password" class="pass-input form-control">
+                                            <input type="password" class="pass-input form-control" name="currentPassword" autocomplete="current-password">
                                             <span class="ti toggle-password ti-eye-off"></span>
                                         </div>
                                     </div>	
@@ -198,7 +195,7 @@
                                     </div>
                                     <div class="col-md-7">
                                         <div class="pass-group">
-                                            <input type="password" class="pass-inputs form-control">
+                                            <input type="password" class="pass-inputs form-control" name="newPassword" autocomplete="new-password">
                                             <span class="ti toggle-passwords ti-eye-off"></span>
                                         </div>
                                     </div>	
@@ -211,7 +208,7 @@
                                     </div>
                                     <div class="col-md-7">
                                         <div class="pass-group">
-                                            <input type="password" class="pass-inputa form-control">
+                                            <input type="password" class="pass-inputa form-control" name="confirmPassword" autocomplete="new-password">
                                             <span class="ti toggle-passworda ti-eye-off"></span>
                                         </div>
                                     </div>	
@@ -220,8 +217,8 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-center justify-content-end">
-                        <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-outline-light border me-3" data-profile-reset>Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-profile-submit>Save</button>
                     </div>
                 </form>
             </div>

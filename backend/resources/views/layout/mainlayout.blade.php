@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 
 @php
+	$authUser = request()->user() ?: auth()->user();
+	$primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+	$authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
+	$isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
+	$isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
+	$activeCompany = request()->attributes->get('activeCompany');
+	$activeCompanySubscription = $activeCompany instanceof \App\Models\Company
+		? $activeCompany->activeSubscription()
+		: null;
+	$activePackage = $activeCompanySubscription?->package;
+	$canUseTemplateLayouts = (bool) $isPrimarySuperAdmin;
+	$hasPayrollFeature = (bool) ($activePackage?->hasFeature('payroll') ?? false);
+	$hasPerformanceFeature = (bool) ($activePackage?->hasFeature('performance') ?? false);
+	$hasAssetManagementFeature = (bool) ($activePackage?->hasFeature('asset_management') ?? false);
+	$companyCode = (string) ($activeCompany->code ?? '');
+
 	$authRouteNames = [
 		'login',
 		'login-2',
@@ -33,44 +49,47 @@
 	$isAuthPage = request()->routeIs($authRouteNames) || request()->is('/') || request()->is('login');
 @endphp
 
-@if (Route::is(['layout-horizontal']))
+@if ($canUseTemplateLayouts && Route::is(['layout-horizontal']))
 	<html lang="en" data-layout="horizontal">
-@elseif (Route::is(['layout-detached']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-detached']))
 	<html lang="en" data-layout="detached">
-@elseif (Route::is(['layout-modern']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-modern']))
 	<html lang="en" data-layout="modern">
-@elseif (Route::is(['layout-horizontal-overlay']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-horizontal-overlay']))
 	<html lang="en"  data-layout="horizontal-overlay">
-@elseif (Route::is(['layout-two-column']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-two-column']))
 	<html lang="en"  data-layout="twocolumn">
-@elseif (Route::is(['layout-hovered']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-hovered']))
 	<html lang="en" data-layout="layout-hovered">
-@elseif (Route::is(['layout-box']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-box']))
 	<html lang="en" data-layout="default" data-width="box">
-@elseif (Route::is(['layout-horizontal-single']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-horizontal-single']))
 	<html lang="en"  data-layout="horizontal-single">
-@elseif (Route::is(['layout-horizontal-box']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-horizontal-box']))
 	<html lang="en"  data-layout="horizontal-box">
-@elseif (Route::is(['layout-horizontal-sidemenu']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-horizontal-sidemenu']))
 	<html lang="en"  data-layout="horizontal-sidemenu">
-@elseif (Route::is(['layout-vertical-transparent']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-vertical-transparent']))
 	<html lang="en" data-layout="transparent">
-@elseif (Route::is(['layout-without-header']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-without-header']))
 	<html lang="en" data-layout="without-header">
-@elseif (Route::is(['layout-dark']))
+@elseif ($canUseTemplateLayouts && Route::is(['layout-dark']))
 	<html lang="en" data-theme="dark">
 @else
 	<html lang="en">
 @endif
 
 <head>
+	@php
+		$companyName = \App\Support\WebsiteSettings::businessCompanyName();
+	@endphp
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
 	<meta name="description" content="Empowering your Human Capital Organization">
 	<meta name="keywords" content="admin, estimates, bootstrap, business, html5, responsive, Projects">
-	<meta name="author" content="Arkav - Human Capital Management">
+	<meta name="author" content="{{ $companyName }}">
 	<meta name="robots" content="noindex, nofollow">
-	<title>Arkav - Human Capital Management</title>
+	<title>{{ $companyName }}</title>
 
 
     @include('layout.partials.head')
@@ -110,29 +129,37 @@
 	<body class="bg-linear-gradiant d-flex align-items-center justify-content-center">
 @endif
 
-@if (Route::is(['layout-horizontal', 'layout-horizontal-overlay', 'layout-horizontal-single', 'layout-horizontal-box']))
+@if ($canUseTemplateLayouts && Route::is(['layout-horizontal', 'layout-horizontal-overlay', 'layout-horizontal-single', 'layout-horizontal-box']))
 	<body class="menu-horizontal">
 @endif
 
-@if (Route::is(['layout-hovered']))
+@if ($canUseTemplateLayouts && Route::is(['layout-hovered']))
 	<body class="mini-sidebar expand-menu">
 @endif
 
-@if (Route::is(['layout-box']))
+@if ($canUseTemplateLayouts && Route::is(['layout-box']))
 	<body class="mini-sidebar layout-box-mode">
 @endif
 
-@if (Route::is(['layout-vertical-transparent']))
+@if ($canUseTemplateLayouts && Route::is(['layout-vertical-transparent']))
 	<body class="data-layout-transparent">
 @endif
 
-@if (Route::is(['layout-rtl']))
+@if ($canUseTemplateLayouts && Route::is(['layout-rtl']))
 	<body class="layout-mode-rtl">
 @endif
 
 
 <!-- Main Wrapper -->
-<div class="main-wrapper">
+<div class="main-wrapper"
+	data-role-scope="{{ $isHcmAdmin ? 'hcm-admin' : 'employee' }}"
+	data-primary-super-admin="{{ $isPrimarySuperAdmin ? '1' : '0' }}"
+	data-template-layouts-enabled="{{ $canUseTemplateLayouts ? '1' : '0' }}"
+	data-company-code="{{ $companyCode }}"
+	data-feature-payroll="{{ $hasPayrollFeature ? '1' : '0' }}"
+	data-feature-performance="{{ $hasPerformanceFeature ? '1' : '0' }}"
+	data-feature-asset-management="{{ $hasAssetManagementFeature ? '1' : '0' }}"
+>
 
 	@if (! $isAuthPage)
         @include('layout.partials.header')

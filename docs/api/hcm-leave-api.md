@@ -32,6 +32,81 @@ Success `200`:
 }
 ```
 
+## Leave type catalog (admin-only)
+
+Sumber data: `hcm_leave_type_settings`
+
+### GET `/leave-types`
+
+RBAC:
+- HCM Admin only
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "code": "sick_leave",
+      "name": "Sick Leave",
+      "isEnabled": true,
+      "days": 5,
+      "carryForward": false,
+      "maxCarryDays": null,
+      "earnedLeave": false,
+      "sortOrder": 1
+    }
+  ]
+}
+```
+
+### POST `/leave-types`
+
+Body:
+- `code` required string max 64, regex `[a-z0-9_]+`, unique
+- `name` required string max 150
+- `days` optional numeric 0..366
+- `carryForward` optional boolean
+- `maxCarryDays` optional integer 0..366
+- `earnedLeave` optional boolean
+- `isEnabled` optional boolean
+- `sortOrder` optional integer 0..255
+
+Success `201`:
+
+```json
+{ "success": true, "data": { "id": 1 } }
+```
+
+### PUT `/leave-types/{id}`
+
+Body:
+- `name` required string max 150
+- `days` optional numeric 0..366
+- `carryForward` optional boolean
+- `maxCarryDays` optional integer 0..366
+- `earnedLeave` optional boolean
+- `isEnabled` optional boolean
+- `sortOrder` optional integer 0..255
+
+Success `200`:
+
+```json
+{ "success": true, "data": { "id": 1 } }
+```
+
+### DELETE `/leave-types/{id}`
+
+Soft-disable leave type by setting `is_enabled = false`.
+
+Success `200`:
+
+```json
+{ "success": true, "message": "Leave type disabled successfully." }
+```
+
 ## Leave requests
 
 Resource: `/leave-requests`

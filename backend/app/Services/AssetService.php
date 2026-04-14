@@ -11,6 +11,7 @@ use App\Models\EmployeeProfile;
 use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\WebsiteSettings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -61,7 +62,9 @@ class AssetService
             ->whereMonth('created_at', now()->month)
             ->count() + 1;
 
-        return sprintf('AST-%s-%s-%04d', $companyCode, now()->format('Ym'), $sequence);
+        $prefix = WebsiteSettings::prefixAssets();
+
+        return sprintf('%s%s-%s-%04d', $prefix, $companyCode, now()->format('Ym'), $sequence);
     }
 
     public function createAsset(int $companyId, array $payload, int $performedBy): Asset
@@ -226,10 +229,11 @@ class AssetService
             $issueType = (string) ($payload['issue_type'] ?? 'damaged');
             $priority = (string) ($payload['priority'] ?? 'high');
             $description = trim((string) ($payload['description'] ?? ''));
+            $assetPrefix = WebsiteSettings::prefixAssets();
 
             $ticket = Ticket::query()->create([
                 'user_id' => $reporter->id,
-                'code' => 'AST-'.Str::upper(Str::random(6)).'-'.str_pad((string) $asset->id, 4, '0', STR_PAD_LEFT),
+                'code' => $assetPrefix.Str::upper(Str::random(6)).'-'.str_pad((string) $asset->id, 4, '0', STR_PAD_LEFT),
                 'subject' => sprintf('Asset %s reported %s', $asset->asset_code, $issueType),
                 'description' => trim($description !== '' ? $description : sprintf('Asset issue reported for %s (%s).', $asset->name, $asset->asset_code)),
                 'category' => 'asset_issue',

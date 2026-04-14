@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuthToken;
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -173,7 +174,9 @@ class AuthController extends Controller
             return $this->errorResponse('AUTH_UNAUTHORIZED', 'Unauthorized.', 401, $request);
         }
 
-        $user->loadMissing('employeeProfile:id,user_id,designation,team');
+        $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
+        $profile = $user->employeeProfile;
+        [$firstName, $lastName] = $this->splitName((string) ($user->name ?? ''));
 
         return response()->json([
             'success' => true,
@@ -181,6 +184,16 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'profile' => [
+                    'firstName' => $firstName,
+                    'lastName' => $lastName,
+                    'phone' => $profile?->phone,
+                    'address' => $profile?->address,
+                    'addressDetail' => $profile?->address_detail,
+                    'designation' => $profile?->designation,
+                    'team' => $profile?->team,
+                    'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
+                ],
                 'roles' => ['employee'],
                 'hcmAdmin' => $user->isHcmAdmin(),
                 'activeCompany' => $activeCompany ? [
@@ -191,6 +204,102 @@ class AuthController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('AUTH_UNAUTHORIZED', 'Unauthorized.', 401, $request);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'min:2', 'max:150', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,149}$/'],
+            'email' => ['required', 'string', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'addressDetail' => ['nullable', 'string', 'max:500'],
+            'currentPassword' => ['nullable', 'string', 'max:64'],
+            'newPassword' => ['nullable', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
+            'confirmPassword' => ['required_with:newPassword', 'same:newPassword'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors()->toArray(), $request);
+        }
+
+        $newPassword = (string) $request->input('newPassword', '');
+        if ($newPassword !== '') {
+            $currentPassword = (string) $request->input('currentPassword', '');
+            if ($currentPassword === '' || ! Hash::check($currentPassword, $user->password)) {
+                return $this->errorResponse('AUTH_INVALID_CREDENTIALS', 'Current password is invalid.', 422, $request);
+            }
+            $user->password = Hash::make($newPassword);
+        }
+
+        $user->name = trim((string) $request->input('name', $user->name));
+        $user->email = trim((string) $request->input('email', $user->email));
+        $user->save();
+
+        $activeCompany = $request->attributes->get('activeCompany');
+        $profile = EmployeeProfile::query()->firstOrNew(['user_id' => $user->id]);
+        if (! $profile->exists && $activeCompany instanceof Company) {
+            $profile->company_id = $activeCompany->id;
+        }
+        $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
+        $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
+        $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
+        $profile->save();
+
+        $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
+        [$firstName, $lastName] = $this->splitName((string) $user->name);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'profile' => [
+                    'firstName' => $firstName,
+                    'lastName' => $lastName,
+                    'phone' => $user->employeeProfile?->phone,
+                    'address' => $user->employeeProfile?->address,
+                    'addressDetail' => $user->employeeProfile?->address_detail,
+                    'designation' => $user->employeeProfile?->designation,
+                    'team' => $user->employeeProfile?->team,
+                    'profilePhotoUrl' => $this->profilePhotoUrl($user->employeeProfile?->profile_photo_path),
+                ],
+            ],
+        ]);
+    }
+
+    private function splitName(string $name): array
+    {
+        $clean = trim($name);
+        if ($clean === '') {
+            return ['', ''];
+        }
+
+        $parts = preg_split('/\s+/', $clean) ?: [];
+        if (count($parts) <= 1) {
+            return [$clean, ''];
+        }
+
+        $first = array_shift($parts);
+
+        return [$first, implode(' ', $parts)];
+    }
+
+    private function profilePhotoUrl(?string $path): ?string
+    {
+        $normalized = ltrim((string) $path, '/');
+        if ($normalized === '') {
+            return null;
+        }
+
+        return '/storage/'.$normalized;
     }
 
     private function validationError(array $errors, Request $request): JsonResponse

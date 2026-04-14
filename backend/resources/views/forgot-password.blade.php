@@ -27,7 +27,8 @@
             <div class="col-lg-7 col-md-12 col-sm-12">
                 <div class="row justify-content-center align-items-center vh-100 overflow-auto flex-wrap">
                     <div class="col-md-7 mx-auto vh-100">
-                        <form action="{{url('email-verification')}}" class="vh-100">
+                        <form method="POST" action="{{ route('password.email') }}" class="vh-100">
+                            @csrf
                             <div class="vh-100 d-flex flex-column justify-content-between p-4 pb-0">
                                 <div class=" mx-auto mb-5 text-center">
                                     <img src="{{URL::asset('build/img/image111.png')}}"
@@ -38,10 +39,16 @@
                                         <h2 class="mb-2">Forgot Password?</h2>
                                         <p class="mb-0">If you forgot your password, well, then we'll email you instructions to reset your password.</p>
                                     </div>
+                                    @if (session('status'))
+                                        <div class="alert alert-success">{{ session('status') }}</div>
+                                    @endif
+                                    @if ($errors->any())
+                                        <div class="alert alert-danger">{{ $errors->first() }}</div>
+                                    @endif
                                     <div class="mb-3">
                                         <label class="form-label">Email Address</label>
                                         <div class="input-group">
-                                            <input type="text" value="" class="form-control border-end-0">
+                                            <input type="email" name="email" value="{{ old('email') }}" class="form-control border-end-0" required>
                                             <span class="input-group-text border-start-0">
                                                 <i class="ti ti-mail"></i>
                                             </span>

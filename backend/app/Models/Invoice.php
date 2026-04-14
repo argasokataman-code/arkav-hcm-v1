@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\WebsiteSettings;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -100,10 +101,13 @@ class Invoice extends Model
     {
         $year = date('Y');
         $month = date('m');
+        $prefix = WebsiteSettings::prefixInvoice();
+
         $count = static::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count() + 1;
         $sequenceNumber = str_pad($count, 4, '0', STR_PAD_LEFT);
-        return "INV-{$year}{$month}-{$sequenceNumber}";
+
+        return "{$prefix}{$year}{$month}-{$sequenceNumber}";
     }
 }

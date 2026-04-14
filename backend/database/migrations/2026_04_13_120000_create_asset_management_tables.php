@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('asset_categories', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
             $table->string('code', 80);
             $table->string('name', 150);
             $table->text('description')->nullable();
@@ -24,8 +24,8 @@ return new class extends Migration
 
         Schema::create('assets', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
-            $table->foreignId('asset_category_id')->constrained('asset_categories')->restrictOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('asset_category_id')->nullable();
             $table->string('asset_code', 120);
             $table->string('name', 150);
             $table->string('brand', 120)->nullable();
@@ -51,9 +51,9 @@ return new class extends Migration
 
         Schema::create('asset_assignments', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
-            $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
-            $table->foreignId('employee_id')->nullable()->constrained('employee_profiles')->nullOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('asset_id')->nullable();
+            $table->unsignedBigInteger('employee_id')->nullable();
             $table->timestamp('assigned_date');
             $table->timestamp('returned_date')->nullable();
             $table->string('condition_at_assign', 30);
@@ -69,12 +69,12 @@ return new class extends Migration
 
         Schema::create('asset_logs', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
-            $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('asset_id')->nullable();
             $table->enum('action', ['created', 'assigned', 'returned', 'updated', 'maintenance', 'issue_reported', 'retired']);
             $table->string('reference_id', 120)->nullable();
             $table->text('description');
-            $table->foreignId('performed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('performed_by')->nullable();
             $table->timestamps();
 
             $table->index(['company_id', 'asset_id']);
@@ -83,14 +83,14 @@ return new class extends Migration
 
         Schema::create('asset_attachments', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
-            $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('asset_id')->nullable();
             $table->string('file_path', 500);
             $table->string('file_type', 120);
             $table->string('disk', 40)->default('public');
             $table->string('original_name', 255)->nullable();
             $table->unsignedBigInteger('size_bytes')->default(0);
-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('uploaded_by')->nullable();
             $table->timestamps();
 
             $table->index(['company_id', 'asset_id']);

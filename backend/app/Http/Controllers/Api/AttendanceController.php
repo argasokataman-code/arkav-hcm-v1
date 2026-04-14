@@ -9,6 +9,7 @@ use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
 use App\Models\User;
+use App\Services\LocationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -168,6 +169,9 @@ class AttendanceController extends Controller
         if ($forbidden) {
             return $forbidden;
         }
+        
+        // Clear old cache if exists
+        \Illuminate\Support\Facades\Cache::forget('admin_attendance_'.Carbon::now($this->tz())->toDateString());
 
         $validated = $request->validate([
             'date' => ['nullable', 'date'],
@@ -255,6 +259,20 @@ class AttendanceController extends Controller
 
             $initial = strtoupper(mb_substr((string) $user->name, 0, 1));
 
+            $checkInLoc = $rec?->check_in_location_name;
+            if (!$checkInLoc) {
+                $checkInLoc = ($rec?->check_in_latitude && $rec?->check_in_longitude) 
+                    ? round((float)$rec->check_in_latitude, 4) . ', ' . round((float)$rec->check_in_longitude, 4)
+                    : '—';
+            }
+            
+            $checkOutLoc = $rec?->check_out_location_name;
+            if (!$checkOutLoc) {
+                $checkOutLoc = ($rec?->check_out_latitude && $rec?->check_out_longitude) 
+                    ? round((float)$rec->check_out_latitude, 4) . ', ' . round((float)$rec->check_out_longitude, 4)
+                    : '—';
+            }
+
             $rows[] = [
                 'userId' => $user->id,
                 'recordId' => $rec?->id,
@@ -268,6 +286,8 @@ class AttendanceController extends Controller
                 'checkOut' => $this->formatTime($checkOut),
                 'checkInTime24' => $checkIn ? $checkIn->copy()->timezone($this->tz())->format('H:i') : '',
                 'checkOutTime24' => $checkOut ? $checkOut->copy()->timezone($this->tz())->format('H:i') : '',
+                'checkInLocation' => $checkInLoc,
+                'checkOutLocation' => $checkOutLoc,
                 'breakMinutesRaw' => $breakMin,
                 'lateMinutesRaw' => $lateMin,
                 'break' => $breakMin > 0 ? $breakMin.' Min' : '-',
@@ -520,6 +540,12 @@ class AttendanceController extends Controller
                 'summaryProductive' => $this->formatMinutesAsHm($net),
                 'summaryBreak' => $this->formatMinutesAsHm($breakMin),
                 'summaryOvertime' => $otSummaryLabel,
+                // Location data: names instead of just coordinates
+                'checkInLocationName' => $rec?->check_in_location_name ?? ($rec?->check_in_latitude && $rec?->check_in_longitude ? round((float)$rec->check_in_latitude, 4) . ', ' . round((float)$rec->check_in_longitude, 4) : null),
+                'checkInLocationAddress' => $rec?->check_in_location_address,
+                'checkOutLocationName' => $rec?->check_out_location_name ?? ($rec?->check_out_latitude && $rec?->check_out_longitude ? round((float)$rec->check_out_latitude, 4) . ', ' . round((float)$rec->check_out_longitude, 4) : null),
+                'checkOutLocationAddress' => $rec?->check_out_location_address,
+                // Keep coordinates for backward compatibility
                 'checkInLatitude' => $rec?->check_in_latitude !== null ? (float) $rec->check_in_latitude : null,
                 'checkInLongitude' => $rec?->check_in_longitude !== null ? (float) $rec->check_in_longitude : null,
                 'checkOutLatitude' => $rec?->check_out_latitude !== null ? (float) $rec->check_out_latitude : null,
@@ -628,10 +654,26 @@ class AttendanceController extends Controller
                 $statusClass = 'warning-transparent';
             }
 
+            $checkInLoc = $rec->check_in_location_name;
+            if (!$checkInLoc) {
+                $checkInLoc = ($rec->check_in_latitude && $rec->check_in_longitude) 
+                    ? round((float)$rec->check_in_latitude, 4) . ', ' . round((float)$rec->check_in_longitude, 4)
+                    : '-';
+            }
+            
+            $checkOutLoc = $rec->check_out_location_name;
+            if (!$checkOutLoc) {
+                $checkOutLoc = ($rec->check_out_latitude && $rec->check_out_longitude) 
+                    ? round((float)$rec->check_out_latitude, 4) . ', ' . round((float)$rec->check_out_longitude, 4)
+                    : '-';
+            }
+
             return [
                 'dateLabel' => $rec->work_date->format('d M Y'),
                 'checkIn' => $this->formatTime($checkIn),
                 'checkOut' => $this->formatTime($checkOut),
+                'checkInLocation' => $checkInLoc,
+                'checkOutLocation' => $checkOutLoc,
                 'statusLabel' => $statusLabel,
                 'statusBadgeClass' => $statusClass,
                 'break' => $breakMin > 0 ? $breakMin.' Min' : '-',
@@ -795,6 +837,13 @@ class AttendanceController extends Controller
             $rec->check_in_at = $now;
             $rec->check_in_latitude = $lat;
             $rec->check_in_longitude = $lng;
+            
+            // Reverse geocode location
+            $locationData = LocationService::reverseGeocode($lat, $lng);
+            $rec->check_in_location_name = $locationData['name'];
+            $rec->check_in_location_address = $locationData['address'];
+            $rec->check_in_location_source = $locationData['source'];
+            
             $expected = $this->expectedCheckIn($todayYmd);
             if ($now->greaterThan($expected)) {
                 $rec->late_minutes = (int) $expected->diffInMinutes($now);
@@ -806,7 +855,11 @@ class AttendanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => ['action' => 'in', 'message' => 'Punch in recorded.'],
+                'data' => [
+                    'action' => 'in',
+                    'message' => 'Punch in recorded.',
+                    'location' => $rec->check_in_location_name,
+                ],
             ]);
         }
 
@@ -823,6 +876,13 @@ class AttendanceController extends Controller
             $rec->check_out_at = $now;
             $rec->check_out_latitude = $lat;
             $rec->check_out_longitude = $lng;
+            
+            // Reverse geocode location
+            $locationData = LocationService::reverseGeocode($lat, $lng);
+            $rec->check_out_location_name = $locationData['name'];
+            $rec->check_out_location_address = $locationData['address'];
+            $rec->check_out_location_source = $locationData['source'];
+            
             $net = $this->netProductionMinutes(
                 $rec->check_in_at,
                 $rec->check_out_at,
@@ -846,6 +906,7 @@ class AttendanceController extends Controller
                     'message' => $needsReview
                         ? 'Punch out recorded and marked as Needs Review.'
                         : 'Punch out recorded.',
+                    'location' => $rec->check_out_location_name,
                 ],
             ]);
         }

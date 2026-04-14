@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PackageAddon extends Model
 {
@@ -25,5 +26,10 @@ class PackageAddon extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(PurchaseTransaction::class, 'package_addon_id');
     }
 }

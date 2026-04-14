@@ -27,7 +27,9 @@
             <div class="col-lg-7 col-md-12 col-sm-12">
                 <div class="row justify-content-center align-items-center vh-100 overflow-auto flex-wrap">
                     <div class="col-md-7 mx-auto vh-100">
-                        <form action="{{url('success')}}" class="vh-100">
+                        <form method="POST" action="{{ route('password.update') }}" class="vh-100">
+                            @csrf
+                            <input type="hidden" name="token" value="{{ $token ?? '' }}">
                             <div class="vh-100 d-flex flex-column justify-content-between p-4 pb-0">
                                 <div class=" mx-auto mb-5 text-center">
                                     <img src="{{URL::asset('build/img/image111.png')}}"
@@ -39,12 +41,27 @@
                                         <p class="mb-0">Your new password must be different from previous used
                                             passwords.</p>
                                     </div>
+                                    @if (session('status'))
+                                        <div class="alert alert-success">{{ session('status') }}</div>
+                                    @endif
+                                    @if ($errors->any())
+                                        <div class="alert alert-danger">{{ $errors->first() }}</div>
+                                    @endif
+                                    <div class="mb-3">
+                                        <label class="form-label">Email Address</label>
+                                        <div class="input-group">
+                                            <input type="email" name="email" value="{{ old('email', $email ?? request('email')) }}" class="form-control border-end-0" required>
+                                            <span class="input-group-text border-start-0">
+                                                <i class="ti ti-mail"></i>
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div>
                                         <div class="input-block mb-3">
                                             <div class="mb-3">
                                                 <label class="form-label">Password</label>
                                                 <div class="pass-group" id="passwordInput">
-                                                    <input type="password" class="form-control pass-input">
+                                                    <input type="password" name="password" class="form-control pass-input" required>
                                                     <span class="ti toggle-password ti-eye-off"></span>
                                                 </div>
                                             </div>
@@ -61,7 +78,7 @@
                                         <div class="mb-3">
                                             <label class="form-label">Confirm Password</label>
                                             <div class="pass-group">
-                                                <input type="password" class="pass-inputs form-control">
+                                                <input type="password" name="password_confirmation" class="pass-inputs form-control" required>
                                                 <span class="ti toggle-passwords ti-eye-off"></span>
                                             </div>
                                         </div>

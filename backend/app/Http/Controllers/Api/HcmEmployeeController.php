@@ -20,6 +20,7 @@ use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
+use App\Support\WebsiteSettings;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\Eloquent\Builder;
@@ -308,7 +309,7 @@ class HcmEmployeeController extends Controller
             return [
                 'id' => $user->id,
                 'employeeProfileId' => $profile?->id,
-                'employeeNo' => sprintf('EMP-%04d', $user->id),
+                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
                 'phone' => $profile?->phone ? (string) $profile->phone : '—',
@@ -425,7 +426,7 @@ class HcmEmployeeController extends Controller
             'data' => [
                 'id' => $user->id,
                 'employeeProfileId' => $profile?->id,
-                'employeeNo' => sprintf('EMP-%04d', $user->id),
+                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
             ],
@@ -515,7 +516,7 @@ class HcmEmployeeController extends Controller
             $snapshot = $this->employeeSnapshotService->snapshotForUser($user);
 
             return [
-                sprintf('EMP-%04d', $user->id),
+                $this->formatEmployeeNo($user->id),
                 (string) $user->name,
                 (string) $user->email,
                 (string) ($profile?->phone ?: ''),
@@ -793,7 +794,7 @@ class HcmEmployeeController extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
-                'employeeNo' => sprintf('EMP-%04d', $user->id),
+                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
                 'departmentId' => $snapshot['departmentId'],
@@ -959,7 +960,7 @@ class HcmEmployeeController extends Controller
 
         $rows = [
             [
-                'EMP-0001', 'Budi Santoso', 'budi@company.com', '', '',
+                $this->formatEmployeeNo(1), 'Budi Santoso', 'budi@company.com', '', '',
                 '', 'HR Shared Services', 1, 1, 'HR Officer', 'active', 'permanent', '2024-01-15', '',
                 5000000, 750000, 'monthly',
                 'permanent', 'active', '2024-01-15', '', '',
@@ -1490,12 +1491,26 @@ class HcmEmployeeController extends Controller
         if ($employeeNo === '') {
             return null;
         }
-        if (!preg_match('/^EMP-\d+$/', $employeeNo)) {
+
+        $prefix = preg_quote($this->employeeNoPrefix(), '/');
+        if (!preg_match('/^'.$prefix.'\d+$/', $employeeNo)) {
             return null;
         }
-        $idPart = ltrim(substr($employeeNo, 4), '0');
+
+        $idPart = ltrim(substr($employeeNo, strlen($this->employeeNoPrefix())), '0');
         $userId = $idPart === '' ? 0 : (int) $idPart;
+
         return $userId > 0 ? $userId : null;
+    }
+
+    private function employeeNoPrefix(): string
+    {
+        return WebsiteSettings::prefixEmployee();
+    }
+
+    private function formatEmployeeNo(int $userId): string
+    {
+        return sprintf('%s%04d', $this->employeeNoPrefix(), $userId);
     }
 
     private function nullableString(mixed $value): ?string

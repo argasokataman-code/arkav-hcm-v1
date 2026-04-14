@@ -104,3 +104,10 @@ Feature-level flow docs for team handoff live in `docs/features/` (start from `d
 
 
 untuk performaa https://github.com/upstash/context7
+
+
+Username: qa.hcm@example.com
+Password: StrongPass1
+Untuk akun QA dev:
+Username: qa.login@example.com
+Password: StrongPass1

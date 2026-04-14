@@ -15,7 +15,7 @@ class PurchaseTransactionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = PurchaseTransaction::with(['company', 'subscription']);
+        $query = PurchaseTransaction::with(['company', 'subscription', 'packageAddon']);
 
         // Filters
         if ($request->has('status')) {
@@ -54,7 +54,7 @@ class PurchaseTransactionController extends Controller
      */
     public function show(PurchaseTransaction $transaction): JsonResponse
     {
-        $transaction->load('company', 'subscription');
+        $transaction->load('company', 'subscription', 'packageAddon');
 
         return response()->json([
             'success' => true,
@@ -78,6 +78,7 @@ class PurchaseTransactionController extends Controller
         $validated = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'subscription_id' => 'nullable|integer|exists:subscriptions,id',
+            'package_addon_id' => 'nullable|integer|exists:package_addons,id',
             'transaction_type' => 'required|in:subscription,addon,refund,credit,manual',
             'description' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
@@ -85,6 +86,16 @@ class PurchaseTransactionController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'status' => 'required|in:draft,issued,sent,paid,overdue,cancelled',
         ]);
+
+        if ($validated['transaction_type'] === 'addon' && empty($validated['package_addon_id'])) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PACKAGE_ADDON_REQUIRED',
+                    'message' => 'package_addon_id is required when transaction_type is addon.',
+                ],
+            ], 422);
+        }
 
         // Generate transaction code
         $validated['transaction_code'] = PurchaseTransaction::generateCode();
@@ -95,7 +106,7 @@ class PurchaseTransactionController extends Controller
         $validated['total_amount'] = $validated['amount'] + $tax - $discount;
 
         $transaction = PurchaseTransaction::create($validated);
-        $transaction->load('company', 'subscription');
+        $transaction->load('company', 'subscription', 'packageAddon');
 
         return response()->json([
             'success' => true,
@@ -125,7 +136,7 @@ class PurchaseTransactionController extends Controller
         ]);
 
         $transaction->update($validated);
-        $transaction->load('company', 'subscription');
+        $transaction->load('company', 'subscription', 'packageAddon');
 
         return response()->json([
             'success' => true,
@@ -152,6 +163,12 @@ class PurchaseTransactionController extends Controller
                 'id' => $t->subscription->id,
                 'planCode' => $t->subscription->plan_code,
                 'status' => $t->subscription->status,
+            ] : null,
+            'packageAddonId' => $t->package_addon_id,
+            'packageAddon' => $t->packageAddon ? [
+                'id' => $t->packageAddon->id,
+                'code' => $t->packageAddon->code,
+                'name' => $t->packageAddon->name,
             ] : null,
             'transactionType' => $t->transaction_type,
             'description' => $t->description,

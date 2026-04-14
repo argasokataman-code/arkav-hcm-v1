@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('domains', function (Blueprint $table) {
             $table->id();
             $table->string('domain_name')->unique();
-            $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
+            $table->unsignedBigInteger('company_id')->nullable();
             $table->enum('verification_type', ['dns', 'file']);
             $table->enum('status', ['pending', 'verified', 'failed'])->default('pending');
             $table->string('verification_token')->nullable();

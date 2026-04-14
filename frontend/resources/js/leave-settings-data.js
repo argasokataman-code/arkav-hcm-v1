@@ -8,6 +8,7 @@
         activeTypeCode: null,
         pending: null, // used only for toggle confirmation
     };
+    var LEAVE_TYPE_CATALOG_ROUTE = "/leave-type";
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -139,6 +140,14 @@
             return;
         }
         var isNew = typeSelect.value === "__new__";
+        if (isNew) {
+            typeSelect.value = "";
+            newTypeInput.classList.add("d-none");
+            newTypeInput.required = false;
+            newTypeInput.value = "";
+            window.location.assign(LEAVE_TYPE_CATALOG_ROUTE);
+            return;
+        }
         newTypeInput.classList.toggle("d-none", !isNew);
         newTypeInput.required = isNew;
         if (!isNew) {
@@ -859,11 +868,14 @@
                 }
                 var id = customForm.querySelector('[data-hcm-ls-field="id"]').value;
                 var leaveTypeCode = customForm.querySelector('[data-hcm-ls-field="leaveTypeCode"]').value;
-                var leaveTypeName = customForm.querySelector('[data-hcm-ls-field="newLeaveTypeName"]').value.trim();
                 var name = customForm.querySelector('[data-hcm-ls-field="name"]').value.trim();
                 var days = parseFloat(customForm.querySelector('[data-hcm-ls-field="days"]').value, 10);
-                if (!id && !leaveTypeCode && !leaveTypeName) {
-                    notify("Leave type wajib dipilih atau buat baru.", true);
+                if (leaveTypeCode === "__new__") {
+                    window.location.assign(LEAVE_TYPE_CATALOG_ROUTE);
+                    return;
+                }
+                if (!id && !leaveTypeCode) {
+                    notify("Leave type wajib dipilih.", true);
                     return;
                 }
                 if (!name) {
@@ -888,8 +900,8 @@
                 var payload = id
                     ? { name: name, days: days, assigneeUserIds: assigneeUserIds }
                     : {
-                          leaveTypeCode: leaveTypeCode === "__new__" ? null : leaveTypeCode,
-                          leaveTypeName: leaveTypeCode === "__new__" ? leaveTypeName : null,
+                          leaveTypeCode: leaveTypeCode,
+                          leaveTypeName: null,
                           name: name,
                           days: days,
                           assigneeUserIds: assigneeUserIds,

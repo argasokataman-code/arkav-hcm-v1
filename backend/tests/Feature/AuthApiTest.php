@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -186,6 +187,103 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.email', 'tenant.user@example.com')
             ->assertJsonPath('data.activeCompany.code', 'default_company')
             ->assertJsonPath('data.activeCompany.role', 'member');
+    }
+
+    public function test_user_can_update_profile_via_identity_endpoint(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Profile User',
+            'email' => 'profile.user@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'profile.user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Profile Updated',
+                'email' => 'profile.updated@example.com',
+                'phone' => '08123456789',
+                'address' => 'Jl. Merdeka 1',
+                'addressDetail' => 'Jakarta',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'Profile Updated')
+            ->assertJsonPath('data.email', 'profile.updated@example.com')
+            ->assertJsonPath('data.profile.phone', '08123456789')
+            ->assertJsonPath('data.profile.address', 'Jl. Merdeka 1')
+            ->assertJsonPath('data.profile.addressDetail', 'Jakarta');
+
+        $user = User::query()->where('email', 'profile.updated@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertSame('Profile Updated', $user->name);
+
+        $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
+        $this->assertNotNull($profile);
+        $this->assertSame('08123456789', $profile->phone);
+        $this->assertSame('Jl. Merdeka 1', $profile->address);
+        $this->assertSame('Jakarta', $profile->address_detail);
+    }
+
+    public function test_profile_password_update_requires_valid_current_password(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Password User',
+            'email' => 'password.user@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'password.user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Password User',
+                'email' => 'password.user@example.com',
+                'currentPassword' => 'WrongPass1',
+                'newPassword' => 'NewStrongPass1',
+                'confirmPassword' => 'NewStrongPass1',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'AUTH_INVALID_CREDENTIALS');
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Password User',
+                'email' => 'password.user@example.com',
+                'currentPassword' => 'StrongPass1',
+                'newPassword' => 'NewStrongPass1',
+                'confirmPassword' => 'NewStrongPass1',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->postJson('/v1/identity/auth/login', [
+            'email' => 'password.user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(401)
+            ->assertJsonPath('error.code', 'AUTH_INVALID_CREDENTIALS');
+
+        $this->postJson('/v1/identity/auth/login', [
+            'email' => 'password.user@example.com',
+            'password' => 'NewStrongPass1',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
     }
 
     public function test_hcm_route_forbidden_when_requesting_unowned_company(): void

@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('report_snapshots', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->unsignedBigInteger('company_id')->nullable();
             $table->string('report_type', 80);
             $table->date('period_start')->nullable();
             $table->date('period_end')->nullable();
             $table->timestamp('generated_at')->nullable();
-            $table->foreignId('generated_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('generated_by_user_id')->nullable();
             $table->string('status', 30)->default('pending')->index();
             $table->json('meta')->nullable();
             $table->timestamps();
@@ -27,7 +27,7 @@ return new class extends Migration
 
         Schema::create('report_data_blocks', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('snapshot_id')->constrained('report_snapshots')->cascadeOnDelete();
+            $table->unsignedBigInteger('snapshot_id')->nullable();
             $table->string('module', 80);
             $table->string('data_key', 120);
             $table->json('data_value');
@@ -39,7 +39,7 @@ return new class extends Migration
 
         Schema::create('report_filters', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('snapshot_id')->constrained('report_snapshots')->cascadeOnDelete();
+            $table->unsignedBigInteger('snapshot_id')->nullable();
             $table->string('filter_key', 120);
             $table->json('filter_value');
             $table->timestamps();
@@ -49,7 +49,7 @@ return new class extends Migration
 
         Schema::create('report_exports', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('snapshot_id')->constrained('report_snapshots')->cascadeOnDelete();
+            $table->unsignedBigInteger('snapshot_id')->nullable();
             $table->string('file_type', 30);
             $table->string('file_url', 500);
             $table->timestamp('generated_at')->nullable();

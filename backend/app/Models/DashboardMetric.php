@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DashboardMetric extends Model
@@ -10,6 +11,7 @@ class DashboardMetric extends Model
     protected $table = 'dashboard_metrics';
 
     protected $fillable = [
+        'company_id',
         'metric_date',
         'metric_key',
         'metric_value',
@@ -19,6 +21,7 @@ class DashboardMetric extends Model
     ];
 
     protected $casts = [
+        'company_id' => 'integer',
         'metric_date' => 'date',
         'metric_value' => 'float',
         'metric_metadata' => 'json',
@@ -27,6 +30,11 @@ class DashboardMetric extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     /**
      * Get metric by key for a specific date

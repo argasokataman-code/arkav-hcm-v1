@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Contracts\Hcm\ThrDisbursementGatewayInterface;
+use App\Support\WebsiteSettings;
 use App\Services\Hcm\StubThrDisbursementGateway;
 use App\Services\Media\AvatarStorageService;
 use App\Services\Media\ImageProcessor;
 use App\Services\Media\MediaFileDeleter;
 use App\Services\Media\PolicyAttachmentStorageService;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\View;
 use Intervention\Image\ImageManager;
 
 class AppServiceProvider extends ServiceProvider
@@ -44,6 +46,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        View::composer('*', function ($view): void {
+            $view->with('runtimeLocalizationSettings', [
+                'language' => WebsiteSettings::localizationLanguage(),
+                'timezone' => WebsiteSettings::localizationTimezone(),
+                'dateFormat' => WebsiteSettings::localizationDateFormat(),
+                'timeFormat' => WebsiteSettings::localizationTimeFormat(),
+            ]);
+
+            $view->with('runtimeBusinessSettings', [
+                'companyName' => WebsiteSettings::businessCompanyName(),
+                'email' => WebsiteSettings::businessEmail(),
+                'phone' => WebsiteSettings::businessPhone(),
+            ]);
+        });
     }
 }

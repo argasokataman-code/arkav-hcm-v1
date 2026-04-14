@@ -18,6 +18,9 @@
   - `POST /leave-requests` — field opsional `userId` hanya untuk **hcmAdmin** (buat cuti atas nama karyawan lain).
   - `PUT /leave-requests/{id}` — pemilik hanya boleh mengubah field cuti sendiri selagi `status=pending`; **hcmAdmin** boleh mengubah `status`/`notes` untuk pengajuan milik orang lain (approve/decline).
   - `DELETE /leave-requests/{id}` — hanya pemilik, hanya `pending`.
+- Leave type catalog:
+  - `GET /leave-types` — katalog admin untuk `hcm_leave_type_settings`; dipakai juga oleh dropdown `GET /leave-type-options`.
+  - `POST /leave-types` / `PUT /leave-types/{id}` / `DELETE /leave-types/{id}` — CRUD admin dari halaman Blade `/leave-type`.
 - Leave settings (semua endpoint **hcmAdmin** saja — `HcmLeaveSettingController` + `EnsuresHcmAdmin`):
   - `GET /leave-settings`
   - `PUT /leave-settings/types/{code}`
@@ -40,6 +43,7 @@ Halaman Blade:
 
 - `/leaves` — daftar admin (kolom karyawan); setelah `GET /auth/me`, pengguna tanpa `hcmAdmin` diarahkan ke `/leaves-employee` agar layout tabel selaras dengan data (scope `me`). Dropdown karyawan di modal Add Leave memuat `GET /v1/hcm/employees` dengan **`perPage` maks. 100** (sesuai validasi API); jika karyawan >100, JS mengambil halaman berikutnya sampai habis.
 - `/leaves-employee` — pengajuan cuti sendiri; `leave-modals` dengan `arcavLeaveAdmin` false. Jenis cuti: `<select>` diisi dari `GET /leave-type-options` (nilai = **nama** tipe, selaras kolom `leave_requests.leave_type`).
+- `/leave-type` — halaman admin katalog leave type yang membaca `hcm_leave_type_settings`, menampilkan data real, dan menjalankan CRUD via `/v1/hcm/leave-types`.
 - `/leave-settings` — tipe + custom policies (API di atas).
 - `/holidays` — master libur; non-admin diarahkan ke `/employee-dashboard` (selaras API).
 - Halaman `/holidays` menyediakan input tahun + tombol **Sync ID** untuk menarik data nasional ke tabel lokal.
@@ -49,7 +53,6 @@ Halaman Blade:
 ## Halaman terkait cuti tanpa API khusus (gap)
 
 - `/leave-report` — placeholder: belum ada endpoint laporan agregat; tabel kosong sengaja.
-- `/leave-type` — masih halaman settings theme generik; **bukan** mirror `/leave-settings`; tidak memuat `leave-settings-data.js`.
 
 ## Catatan
 

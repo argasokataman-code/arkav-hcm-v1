@@ -8,6 +8,7 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
+use App\Support\WebsiteSettings;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -201,7 +202,7 @@ final class PkwtCompensationService
 
             return [
                 'userId' => $profile->user_id,
-                'employeeNo' => sprintf('EMP-%04d', $profile->user_id),
+                'employeeNo' => sprintf('%s%04d', WebsiteSettings::prefixEmployee(), $profile->user_id),
                 'fullName' => $profile->user?->name ?? 'Unknown',
                 'email' => $profile->user?->email,
                 'designation' => $profile->designationRef?->name ?: ($profile->designation ?: 'Employee'),

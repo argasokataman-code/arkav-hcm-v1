@@ -16,9 +16,15 @@ class AttendanceRecord extends Model
         'check_in_at',
         'check_in_latitude',
         'check_in_longitude',
+        'check_in_location_name',
+        'check_in_location_address',
+        'check_in_location_source',
         'check_out_at',
         'check_out_latitude',
         'check_out_longitude',
+        'check_out_location_name',
+        'check_out_location_address',
+        'check_out_location_source',
         'break_minutes',
         'break_started_at',
         'late_minutes',
@@ -44,6 +50,8 @@ class AttendanceRecord extends Model
             'late_minutes' => 'integer',
             'correction_requested_at' => 'datetime',
             'corrected_at' => 'datetime',
+            'check_in_location_source' => 'string',
+            'check_out_location_source' => 'string',
         ];
     }
 

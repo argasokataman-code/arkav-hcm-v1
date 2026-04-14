@@ -124,6 +124,12 @@
         var hint = document.querySelector("[data-employee-legacy-map-hint]");
         if (!mapRoot) return;
 
+        function parseCoordinate(raw) {
+            if (raw === null || raw === undefined || raw === "") return null;
+            var num = Number(raw);
+            return Number.isFinite(num) ? num : null;
+        }
+
         if (!window.L || typeof window.L.map !== "function") {
             if (hint) {
                 hint.textContent = "Library map belum termuat.";
@@ -142,13 +148,13 @@
             }, 120);
         }
 
-        var checkOutLat = Number(attendanceToday && attendanceToday.checkOutLatitude);
-        var checkOutLng = Number(attendanceToday && attendanceToday.checkOutLongitude);
-        var checkInLat = Number(attendanceToday && attendanceToday.checkInLatitude);
-        var checkInLng = Number(attendanceToday && attendanceToday.checkInLongitude);
+        var checkOutLat = parseCoordinate(attendanceToday && attendanceToday.checkOutLatitude);
+        var checkOutLng = parseCoordinate(attendanceToday && attendanceToday.checkOutLongitude);
+        var checkInLat = parseCoordinate(attendanceToday && attendanceToday.checkInLatitude);
+        var checkInLng = parseCoordinate(attendanceToday && attendanceToday.checkInLongitude);
 
-        var hasCheckOut = Number.isFinite(checkOutLat) && Number.isFinite(checkOutLng);
-        var hasCheckIn = Number.isFinite(checkInLat) && Number.isFinite(checkInLng);
+        var hasCheckOut = checkOutLat !== null && checkOutLng !== null;
+        var hasCheckIn = checkInLat !== null && checkInLng !== null;
 
         var lat = null;
         var lng = null;

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiToken;
+use App\Http\Middleware\ApplyLocalizationSettings;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(TraceIdMiddleware::class);
         $middleware->append(HandleCorsRequests::class);
         $middleware->append(SecurityHeadersMiddleware::class);
+        $middleware->append(ApplyLocalizationSettings::class);
         $middleware->web(append: [
             EnsureHcmWebPagesAuthenticated::class,
         ]);

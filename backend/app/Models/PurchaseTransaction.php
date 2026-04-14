@@ -14,6 +14,7 @@ class PurchaseTransaction extends Model
         'transaction_code',
         'company_id',
         'subscription_id',
+        'package_addon_id',
         'transaction_type',
         'description',
         'amount',
@@ -58,6 +59,11 @@ class PurchaseTransaction extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function packageAddon(): BelongsTo
+    {
+        return $this->belongsTo(PackageAddon::class, 'package_addon_id');
     }
 
     public function invoice(): BelongsTo

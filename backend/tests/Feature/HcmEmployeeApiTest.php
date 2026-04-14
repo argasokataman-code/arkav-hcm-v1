@@ -10,6 +10,10 @@ use App\Models\Policy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use App\Models\WilayahDistrict;
+use App\Models\WilayahProvince;
+use App\Models\WilayahRegency;
+use App\Models\WilayahVillage;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -91,7 +95,8 @@ class HcmEmployeeApiTest extends TestCase
             'maritalStatus' => 'single',
             'religion' => 'Islam',
             'nationality' => 'Indonesia',
-            'address' => 'Jl. Jenderal Sudirman No. 1, Jakarta',
+            'address' => null,
+            'addressDetail' => 'Jl. Cilandak KKO No. 12, RT 01/RW 05',
             'baseSalary' => 6500000,
             'fixedAllowance' => 500000,
             'salaryType' => 'monthly',
@@ -104,7 +109,49 @@ class HcmEmployeeApiTest extends TestCase
             'emergencyContacts' => [
                 ['name' => 'Ibu Valid', 'relationship' => 'Mother', 'phone' => '081234567891'],
             ],
-        ], $overrides);
+        ], $this->validWilayahSelection(), $overrides);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function validWilayahSelection(): array
+    {
+        $province = WilayahProvince::query()->firstOrCreate(
+            ['code' => '31'],
+            ['name' => 'DKI Jakarta'],
+        );
+
+        $regency = WilayahRegency::query()->firstOrCreate(
+            ['code' => '31.74'],
+            [
+                'province_id' => $province->id,
+                'name' => 'Kota Administrasi Jakarta Selatan',
+            ],
+        );
+
+        $district = WilayahDistrict::query()->firstOrCreate(
+            ['code' => '31.74.09'],
+            [
+                'regency_id' => $regency->id,
+                'name' => 'Jagakarsa',
+            ],
+        );
+
+        $village = WilayahVillage::query()->firstOrCreate(
+            ['code' => '31.74.09.1001'],
+            [
+                'district_id' => $district->id,
+                'name' => 'Jagakarsa',
+            ],
+        );
+
+        return [
+            'provinceId' => $province->id,
+            'regencyId' => $regency->id,
+            'districtId' => $district->id,
+            'villageId' => $village->id,
+        ];
     }
 
     public function test_employees_list_requires_auth(): void
@@ -355,7 +402,10 @@ class HcmEmployeeApiTest extends TestCase
                 'employeeType',
                 'contractStartDate',
                 'contractStatus',
-                'address',
+                'provinceId',
+                'regencyId',
+                'districtId',
+                'villageId',
                 'placeOfBirth',
                 'dateOfBirth',
                 'gender',
@@ -399,7 +449,65 @@ class HcmEmployeeApiTest extends TestCase
         $unexpectedEndDate->assertStatus(422)
             ->assertJsonValidationErrors(['contractEndDate']);
     }
+    public function test_employee_create_can_compose_address_from_wilayah_hierarchy(): void
+    {
+        $token = $this->adminBearerToken();
 
+        $province = WilayahProvince::query()->create([
+            'code' => '31',
+            'name' => 'DKI Jakarta',
+        ]);
+        $regency = WilayahRegency::query()->create([
+            'province_id' => $province->id,
+            'code' => '31.74',
+            'name' => 'Kota Administrasi Jakarta Selatan',
+        ]);
+        $district = WilayahDistrict::query()->create([
+            'regency_id' => $regency->id,
+            'code' => '31.74.09',
+            'name' => 'Jagakarsa',
+        ]);
+        $village = WilayahVillage::query()->create([
+            'district_id' => $district->id,
+            'code' => '31.74.09.1001',
+            'name' => 'Jagakarsa',
+        ]);
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+                'name' => 'Wilayah Address Employee',
+                'email' => 'wilayah.address.employee@example.com',
+                'address' => null,
+                'addressDetail' => 'Blok A2, dekat masjid, RT 02/RW 03',
+                'provinceId' => $province->id,
+                'regencyId' => $regency->id,
+                'districtId' => $district->id,
+                'villageId' => $village->id,
+            ]));
+
+        $response->assertStatus(201)->assertJsonPath('success', true);
+        $userId = (int) $response->json('data.id');
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $userId,
+            'province_id' => $province->id,
+            'regency_id' => $regency->id,
+            'district_id' => $district->id,
+            'village_id' => $village->id,
+            'address' => 'Jagakarsa, Jagakarsa, Kota Administrasi Jakarta Selatan, DKI Jakarta',
+            'address_detail' => 'Blok A2, dekat masjid, RT 02/RW 03',
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/v1/hcm/employees/'.$userId)
+            ->assertOk()
+            ->assertJsonPath('data.addressDetail', 'Blok A2, dekat masjid, RT 02/RW 03')
+            ->assertJsonPath('data.addressRegion.provinceId', $province->id)
+            ->assertJsonPath('data.addressRegion.regencyId', $regency->id)
+            ->assertJsonPath('data.addressRegion.districtId', $district->id)
+            ->assertJsonPath('data.addressRegion.villageId', $village->id)
+            ->assertJsonPath('data.addressRegion.provinceName', 'DKI Jakarta');
+    }
     public function test_employees_filter_by_status(): void
     {
         $token = $this->adminBearerToken();

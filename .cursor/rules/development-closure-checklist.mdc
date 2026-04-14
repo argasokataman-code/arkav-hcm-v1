@@ -58,4 +58,45 @@ Agent wajib bisa menjawab ya untuk yang relevan:
 - [ ] **OpenAPI:** `docs/api/openapi.yaml` sudah selaras dengan implementasi (atau dijawab jelas: tidak ada perubahan kontrak API)?
 - [ ] **Tes:** Minimal satu tes yang menyentuh flow berisiko (happy + forbidden/422 bila perlu)?
 
+## 5) Gate berurutan wajib (role -> UIUX -> manual UI E2E)
+
+Untuk setiap development/fix yang menyentuh halaman HCM aktif, agent wajib menjalankan urutan ini sebelum menutup task:
+
+1. **Role & use case gate (desain + backend):**
+	- Cocokkan use case per role dengan `docs/planning/active-hcm-templates-and-permissions.md`.
+	- Pastikan endpoint sensitif tetap enforce role di server (403 non-admin bila admin-only).
+	- Tambahkan/regresi tes role permission bila ada route/aksi baru atau perubahan perilaku.
+2. **UIUX per role gate (validasi tampilan):**
+	- Verifikasi halaman untuk setiap role relevan (minimal HCM Admin + Karyawan/company user).
+	- Cek visibilitas aksi, state kosong/loading/error, redirect/guard, dan konsistensi komponen (badge, tabel, modal, pagination).
+	- Pastikan tidak ada aksi terlarang yang masih terlihat/terpicu untuk role yang salah.
+3. **Manual UI E2E gate (eksekusi akhir):**
+	- Jalankan skenario click-by-click dari dokumen `docs/features/<feature>/E2E-TESTING.md` di browser.
+	- Catat hasil aktual (pass/fail), tanggal, role yang diuji, dan deviasi yang ditemukan.
+	- Task **belum boleh** dinyatakan selesai jika manual UI E2E belum dieksekusi atau belum didokumentasikan hasilnya.
+
+### Setup minimal untuk Manual UI E2E
+
+Sebelum menjalankan browser test manual/headed automation, siapkan baseline berikut:
+
+1. **Runtime lokal hidup**
+	- Backend health harus `200`: `http://127.0.0.1:8007/health`
+	- Frontend proxy/login harus bisa diakses: `http://127.0.0.1:5179/login`
+	- Jika belum hidup, jalankan `./run.sh` dari root repo.
+2. **Seed data fitur relevan**
+	- Untuk SaaS module gunakan: `cd backend && php artisan db:seed --class=SaasUiFlowSeeder`
+	- Jika fitur punya seeder khusus, cantumkan di `docs/features/<feature>/E2E-TESTING.md`.
+3. **Akun uji wajib jelas**
+	- Admin default QA: `qa.login@example.com / StrongPass1`
+	- Non-admin/company contoh SaaS seed: `demo.owner01@example.com / StrongPass1`
+	- Jika login mode company dipakai, sertakan juga `company code` yang valid di dokumen fitur.
+4. **Browser runner**
+	- Manual browser biasa boleh.
+	- Untuk headed automation, gunakan Playwright browser nyata; minimum install browser: `npx playwright install chromium`.
+5. **Evidence wajib**
+	- Simpan hasil pass/fail per skenario di log E2E fitur.
+	- Jika ada deviasi UIUX antar role, catat sebelum task ditutup.
+
+Jika user meminta skip salah satu gate, minta konfirmasi eksplisit di chat dan catat pengecualiannya di respons akhir.
+
 Jika user meminta **melewati** dokumentasi atau OpenAPI, minta **konfirmasi eksplisit** di pesan user — jangan diam-diam melewati rule project.

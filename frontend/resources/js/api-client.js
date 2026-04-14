@@ -7,7 +7,12 @@
     var authRedirectScheduled = false;
 
     function getToken() {
-        return null;
+        try {
+            var token = window.localStorage.getItem(TOKEN_KEY);
+            return token && typeof token === "string" ? token : null;
+        } catch (_e) {
+            return null;
+        }
     }
 
     function isUnauthorizedApiPayload(status, data) {
@@ -53,6 +58,11 @@
             "Content-Type": "application/json",
             Accept: "application/json",
         };
+
+        var token = getToken();
+        if (token) {
+            headers["Authorization"] = "Bearer " + token;
+        }
 
         var tenantContext = getTenantContext();
         if (tenantContext.companyCode) {

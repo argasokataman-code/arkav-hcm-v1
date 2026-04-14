@@ -1,4 +1,22 @@
 <!-- Sidebar -->
+@php
+    $authUser = request()->user() ?: auth()->user();
+    $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
+    $isQaSuperAdmin = $authUser
+        && (
+            strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
+            || (bool) ($authUser->is_super_admin ?? false)
+        );
+    $activeCompany = request()->attributes->get('activeCompany');
+    $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
+        ? $activeCompany->activeSubscription()
+        : null;
+    $hasCompanyBillingAccess = (bool) $activeCompanySubscription;
+    $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
+    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin;
+    $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
+    $hasPerformance = (bool) ($activeCompanySubscription?->package?->hasFeature('performance') ?? false);
+@endphp
 <div class="sidebar" id="sidebar">
     <!-- Logo -->
     <div class="sidebar-logo">
@@ -121,6 +139,7 @@
                                 <li><a href="{{url('invoices')}}"  class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </li> -->
+@if ($isHcmAdmin)
                         <li class="submenu">
                             <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Super Admin</span>
@@ -135,6 +154,17 @@
                                 <li><a href="{{url('purchase-transaction')}}"  class="{{ Request::is('purchase-transaction') ? 'active' : '' }}">Purchase Transaction</a></li>
                             </ul>
                         </li>
+@elseif ($hasCompanyBillingAccess)
+                        <li class="submenu">
+                            <a href="#" class="{{ Request::is('company/invoices') ? 'active subdrop' : '' }}">
+                                <i class="ti ti-receipt-2"></i><span>Billing</span>
+                                <span class="menu-arrow"></span>
+                            </a>
+                            <ul>
+                                <li><a href="{{url('company/invoices')}}" class="{{ Request::is('company/invoices') ? 'active' : '' }}">My Invoices</a></li>
+                            </ul>
+                        </li>
+@endif
                     </ul>
                 </li>
                 <!-- <li class="menu-title"><span>LAYOUT</span></li>
@@ -335,6 +365,7 @@
                                 </li>
                             </ul>
                         </li>
+@if ($isHcmAdmin || $hasPerformance)
                         <li class="submenu">
                             <a href="javascript:void(0);"  class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-school"></i><span>Performance</span>
@@ -348,6 +379,7 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                             </ul>
                         </li>
+@endif
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-edit"></i><span>Training</span>
@@ -425,6 +457,7 @@
                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                             </ul>
                         </li> -->
+@if ($isHcmAdmin || $hasPayroll)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Payroll</span>
@@ -450,11 +483,13 @@
                                 </li>
                             </ul>
                         </li>
+@endif
                     </ul>
                 </li>						
                 <li class="menu-title"><span>ADMINISTRATION</span></li>
                 <li>
                     <ul>
+@if ($canSeeAssetManagementMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Assets</span>
@@ -465,6 +500,7 @@
                                 <li><a href="{{url('asset-categories')}}" class="{{ Request::is('asset-categories') ? 'active subdrop' : '' }}">Asset Categories</a></li>
                             </ul>
                         </li>
+@endif
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-headset"></i><span>Help & Supports</span>
@@ -606,14 +642,15 @@
                             </ul>
                         </li>
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-map-pin-check"></i><span>Locations</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
-                                <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Countries</a></li>
-                                <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">States</a></li>
-                                <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Cities</a></li>
+                                <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Provinces</a></li>
+                                <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">Regencies</a></li>
+                                <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Districts</a></li>
+                                <li><a href="{{url('villages')}}" class="{{ Request::is('villages') ? 'active' : '' }}">Villages</a></li>
                             </ul>
                         </li>
                         <li class="{{ Request::is('testimonials') ? 'active' : '' }}">
@@ -1405,6 +1442,7 @@
                                 </li>
                             </ul>
                         </li>
+@if ($isHcmAdmin || $hasPerformance)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}"><span>Performance</span>
                                 <span class="menu-arrow"></span>
@@ -1417,6 +1455,7 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                             </ul>
                         </li>
+@endif
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}"><span>Training</span>
                                 <span class="menu-arrow"></span>
@@ -1465,6 +1504,7 @@
                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                             </ul>
                         </li>
+@if ($isHcmAdmin || $hasPayroll)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                 <span class="menu-arrow"></span>
@@ -1489,6 +1529,8 @@
                                 </li>
                             </ul>
                         </li>
+@endif
+@if ($canSeeAssetManagementMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}"><span>Assets</span>
                                 <span class="menu-arrow"></span>
@@ -1498,6 +1540,7 @@
                                 <li><a href="{{url('asset-categories')}}" class="{{ Request::is('asset-categories') ? 'active' : '' }}">Asset Categories</a></li>
                             </ul>
                         </li>
+@endif
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                 <span class="menu-arrow"></span>
@@ -1611,7 +1654,7 @@
                 </li>
                 <li class="submenu">
                     <a href="#" class="{{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition',
-                    'pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','testimonials','faq') ? 'active' : '' }}">
+                    'pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? 'active' : '' }}">
                         <i class="ti ti-page-break"></i><span>Pages</span>
                         <span class="menu-arrow"></span>
                     </a>
@@ -1642,11 +1685,11 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities') ? 'active' : '' }}">Locations<span class="menu-arrow"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active' : '' }}">Locations<span class="menu-arrow"></span></a>
                                     <ul>
-                                        <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Countries</a></li>
-                                        <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">States</a></li>
-                                        <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Cities</a></li>
+                                        <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Provinces</a></li>
+                                        <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">Regencies</a></li>
+                                        <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Districts</a></li>
                                     </ul>
                                 </li>
                                 <li><a href="{{url('testimonials')}}" class="{{ Request::is('testimonials') ? 'active' : '' }}">Testimonials</a></li>
@@ -2239,7 +2282,7 @@
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
                         <i class="ti ti-cash"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#content">
+                    <a href="#" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#content">
                         <i class="ti ti-license"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" title="Pages" data-bs-toggle="tab" data-bs-target="#pages">
@@ -2577,6 +2620,7 @@
                     ) ? ' show active ' : '' }}" id="administration">
                         <ul>
                             <li class="menu-title"><span>ADMINISTRATION</span></li>
+@if ($canSeeAssetManagementMenu)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}"><span>Assets</span>
                                     <span class="menu-arrow"></span>
@@ -2586,6 +2630,7 @@
                                     <li><a href="{{url('asset-categories')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Asset Categories</a></li>
                                 </ul>
                             </li>
+@endif
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                     <span class="menu-arrow"></span>
@@ -2701,7 +2746,7 @@
                             </li>
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','testimonials','faq') ? 'active' : '' }}" id="content">
+                    <div class="tab-pane fade {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? 'active' : '' }}" id="content">
                         <ul>
                             <li class="menu-title"><span>CONTENT</span></li>
                             <li class="{{ Request::is('pages') ? 'active' : '' }}"><a href="{{url('pages')}}">Pages</a></li>
@@ -2718,14 +2763,14 @@
                                 </ul>
                             </li>
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities') ? 'active' : '' }}">
+                                <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active' : '' }}">
                                     Locations
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
-                                    <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Countries</a></li>
-                                    <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">States</a></li>
-                                    <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Cities</a></li>
+                                    <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Provinces</a></li>
+                                    <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">Regencies</a></li>
+                                    <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Districts</a></li>
                                 </ul>
                             </li>
                             <li><a href="{{url('testimonials')}}" class="{{ Request::is('testimonials') ? 'active' : '' }}">Testimonials</a></li>
@@ -3377,7 +3422,7 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-content" role="tab" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#menu-content" aria-selected="false">
+                                <a href="#menu-content" role="tab" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#menu-content" aria-selected="false">
                                     <span><i class="ti ti-license"></i></span>
                                     <p>Contents</p>
                                 </a>
@@ -3751,6 +3796,7 @@
                         'profile-settings','security-settings','notification-settings','connected-apps','bussiness-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" id="menu-administration">
                             <ul class="stack-submenu">
+@if ($canSeeAssetManagementMenu)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}"><span>Assets</span>
                                         <span class="menu-arrow"></span>
@@ -3760,6 +3806,7 @@
                                         <li><a href="{{url('asset-categories')}}" class="{{ Request::is('asset-categories') ? 'active' : '' }}">Asset Categories</a></li>
                                     </ul>
                                 </li>
+@endif
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                         <span class="menu-arrow"></span>
@@ -3873,7 +3920,7 @@
                                
                             </ul>
                         </div>
-                        <div class="tab-pane fade {{ Request::is('blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','testimonials','faq') ? '  active subdrop' : '' }}" id="menu-content">
+                        <div class="tab-pane fade {{ Request::is('blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" id="menu-content">
                             <ul class="stack-submenu">
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}">Blogs<span class="menu-arrow"></span></a>
@@ -3885,7 +3932,7 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities') ? 'active' : '' }}">Locations<span class="menu-arrow"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active' : '' }}">Locations<span class="menu-arrow"></span></a>
                                     <ul>
                                         <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Countries</a></li>
                                         <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">States</a></li>

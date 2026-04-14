@@ -106,7 +106,7 @@
         window.URL.revokeObjectURL(url);
     }
 
-    var state = { rows: [], summary: null, meAdmin: false, assignables: [] };
+    var state = { rows: [], summary: null, meAdmin: false, assignables: [], categoryOptions: [] };
 
     function currentMode() {
         var pageEl = document.querySelector("[data-tickets-page]");
@@ -132,11 +132,12 @@
         return apiRequest("get", "/v1/hcm/tickets/category-options").then(function (p) {
             if (!p || p.success !== true) return;
             var list = Array.isArray(p.data) ? p.data : [];
+            state.categoryOptions = list;
             var sel = document.querySelector('[data-ticket-form="create"] select[name="category"]');
             if (!sel) return;
             var html = '<option value="">-- Pilih kategori --</option>';
             list.forEach(function (x) {
-                html += '<option value="' + esc(x.name) + '">' + esc(x.name) + "</option>";
+                html += '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>";
             });
             sel.innerHTML = html;
         }).catch(function () {});
@@ -259,9 +260,15 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             var fd = new FormData(form);
+            var categoryRaw = String(fd.get("category") || "").trim();
+            var categoryId = categoryRaw ? Number(categoryRaw) : null;
+            var selectedCategory = state.categoryOptions.find(function (x) {
+                return Number(x.id) === categoryId;
+            });
             var body = {
                 subject: String(fd.get("subject") || "").trim(),
-                category: String(fd.get("category") || "").trim() || null,
+                categoryId: Number.isFinite(categoryId) && categoryId > 0 ? categoryId : null,
+                category: selectedCategory ? String(selectedCategory.name || "") : null,
                 priority: String(fd.get("priority") || "medium"),
                 description: String(fd.get("description") || "").trim(),
                 slaDueAt: String(fd.get("slaDueAt") || "").trim() || null,

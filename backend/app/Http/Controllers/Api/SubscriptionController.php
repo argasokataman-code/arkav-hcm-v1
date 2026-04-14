@@ -18,26 +18,54 @@ class SubscriptionController extends Controller
     {
         $query = Subscription::with(['company', 'package']);
 
+        $status = trim((string) $request->get('status', ''));
+        $companyId = (int) $request->get('company_id', 0);
+        $planCode = trim((string) $request->get('plan_code', ''));
+        $billingCycle = trim((string) $request->get('billing_cycle', ''));
+        $search = trim((string) $request->get('search', ''));
+
         // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->get('status'));
+        if ($status !== '') {
+            $query->where('status', $status);
         }
 
         // Filter by company_id
-        if ($request->has('company_id')) {
-            $query->where('company_id', $request->get('company_id'));
+        if ($companyId > 0) {
+            $query->where('company_id', $companyId);
         }
 
         // Filter by plan_code
-        if ($request->has('plan_code')) {
-            $query->where('plan_code', $request->get('plan_code'));
+        if ($planCode !== '') {
+            $query->where('plan_code', $planCode);
         }
 
-        $subscriptions = $query->paginate(15);
+        // Filter by billing_cycle
+        if ($billingCycle !== '') {
+            $query->where('billing_cycle', $billingCycle);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('plan_code', 'like', '%' . $search . '%')
+                    ->orWhereHas('company', function ($companyQuery) use ($search) {
+                        $companyQuery->where('name', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('package', function ($packageQuery) use ($search) {
+                        $packageQuery->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('code', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        $subscriptions = $query->latest('created_at')->paginate(15);
+
+        $items = collect($subscriptions->items())
+            ->map(fn (Subscription $subscription) => $this->formatSubscription($subscription))
+            ->values();
 
         return response()->json([
             'success' => true,
-            'data' => $subscriptions->items(),
+            'data' => $items,
             'pagination' => [
                 'total' => $subscriptions->total(),
                 'per_page' => $subscriptions->perPage(),
@@ -205,26 +233,36 @@ class SubscriptionController extends Controller
      */
     private function formatSubscription(Subscription $subscription): array
     {
+        $company = $subscription->company;
+        $package = $subscription->package;
+
+        $companyName = $company?->name ?: ('Company #'.$subscription->company_id);
+        $packageName = $package?->name ?: strtoupper((string) $subscription->plan_code ?: 'N/A');
+
         return [
             'id' => $subscription->id,
             'companyId' => $subscription->company_id,
+            'companyName' => $companyName,
             'company' => [
-                'id' => $subscription->company->id,
-                'code' => $subscription->company->code,
-                'name' => $subscription->company->name,
+                'id' => $company?->id,
+                'code' => $company?->code,
+                'name' => $companyName,
             ],
             'packageId' => $subscription->package_id,
+            'packageName' => $packageName,
             'package' => [
-                'id' => $subscription->package->id,
-                'code' => $subscription->package->code,
-                'name' => $subscription->package->name,
-                'monthlyPrice' => (float)$subscription->package->monthly_price,
-                'yearlyPrice' => (float)$subscription->package->yearly_price,
+                'id' => $package?->id,
+                'code' => $package?->code,
+                'name' => $packageName,
+                'monthlyPrice' => (float) ($package?->monthly_price ?? 0),
+                'yearlyPrice' => (float) ($package?->yearly_price ?? 0),
             ],
             'planCode' => $subscription->plan_code,
             'status' => $subscription->status,
             'startsAt' => $subscription->starts_at?->toIso8601String(),
             'endsAt' => $subscription->ends_at?->toIso8601String(),
+            'startDate' => $subscription->starts_at?->toDateString(),
+            'endDate' => $subscription->ends_at?->toDateString(),
             'trialEndsAt' => $subscription->trial_ends_at?->toIso8601String(),
             'autoRenew' => $subscription->auto_renew,
             'billingCycle' => $subscription->billing_cycle,
@@ -244,21 +282,6 @@ class SubscriptionController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        if (!$user) return false;
-
-        $adminEmail = config('hcm.admin_email', 'qa.login@example.com');
-        if ($user->email === $adminEmail) return true;
-
-        $adminKeywords = ['admin', 'hr', 'lead', 'supervisor', 'owner'];
-        $designation = strtolower($user->designation ?? '');
-        $team = strtolower($user->team ?? '');
-
-        foreach ($adminKeywords as $keyword) {
-            if (str_contains($designation, $keyword) || str_contains($team, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $user ? $user->isHcmAdmin() : false;
     }
 }

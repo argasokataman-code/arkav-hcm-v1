@@ -253,21 +253,7 @@ class CustomDomainController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        if (!$user) return false;
 
-        $adminEmail = config('hcm.admin_email', 'qa.login@example.com');
-        if ($user->email === $adminEmail) return true;
-
-        $adminKeywords = ['admin', 'hr', 'lead', 'supervisor', 'owner'];
-        $designation = strtolower($user->designation ?? '');
-        $team = strtolower($user->team ?? '');
-
-        foreach ($adminKeywords as $keyword) {
-            if (str_contains($designation, $keyword) || str_contains($team, $keyword)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $user ? $user->isHcmAdmin() : false;
     }
 }

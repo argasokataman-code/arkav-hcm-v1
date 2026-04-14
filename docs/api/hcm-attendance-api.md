@@ -67,6 +67,7 @@ RBAC:
 
 Success `200`:
 - Mengembalikan summary UI (progress, punch state, badge) + lokasi punch in/out jika ada
+- Menyertakan `profilePhotoUrl` (nullable) dari `employee_profiles.profile_photo_path` untuk avatar halaman `/attendance-employee`
 
 ### GET `/attendance/me/history`
 
@@ -80,6 +81,7 @@ Success `200`:
 
 Success `200`:
 - `todayHours`, `weekHours`, `monthHours`, `monthOvertimeHours` + target UI
+- Baseline saat ini: target harian `8` jam, week target berbasis hari kerja (Senin-Jumat) dalam 1 minggu penuh (`40` jam), month target berbasis jumlah hari kerja (Senin-Jumat) pada bulan berjalan, dan overtime dihitung setelah melewati `8` jam kerja net per hari.
 
 ### POST `/attendance/me/punch`
 

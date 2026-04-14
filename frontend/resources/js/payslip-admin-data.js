@@ -4,6 +4,41 @@
     var _slips = [];
     var _sendingRowKey = null;
 
+    function getSourceMode() {
+        var sel = document.querySelector("[data-payslip-admin-source]");
+        var mode = sel ? String(sel.value || "live").toLowerCase() : "live";
+        return mode === "archive" ? "archive" : "live";
+    }
+
+    function getSnapshotId() {
+        var input = document.querySelector("[data-payslip-admin-snapshot-id]");
+        if (!input) return 0;
+        var id = parseInt(String(input.value || "0"), 10);
+        return Number.isFinite(id) && id > 0 ? id : 0;
+    }
+
+    function syncSourceUi() {
+        var mode = getSourceMode();
+        var wrap = document.querySelector("[data-payslip-admin-snapshot-wrap]");
+        var year = document.querySelector("[data-payslip-admin-year]");
+        var month = document.querySelector("[data-payslip-admin-month]");
+        var badge = document.querySelector("[data-payslip-admin-source-badge]");
+
+        if (wrap) {
+            wrap.classList.toggle("d-none", mode !== "archive");
+        }
+        if (year) {
+            year.disabled = mode === "archive";
+        }
+        if (month) {
+            month.disabled = mode === "archive";
+        }
+        if (badge) {
+            var suffix = mode === "archive" && getSnapshotId() > 0 ? (" #" + String(getSnapshotId())) : "";
+            badge.textContent = mode === "archive" ? ("Source: Archive" + suffix) : "Source: Live";
+        }
+    }
+
     function formatIdr(value) {
         return new Intl.NumberFormat("id-ID", {
             style: "currency",
@@ -162,6 +197,92 @@
         }
     }
 
+    function normalizeArchivePayrollRows(snapshot) {
+        var moduleData = snapshot && snapshot.dataByModule ? snapshot.dataByModule.payroll : null;
+        if (!moduleData || typeof moduleData !== "object") {
+            return [];
+        }
+
+        var keys = Object.keys(moduleData);
+        var out = [];
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            if (key.indexOf("user_") !== 0) {
+                continue;
+            }
+            var item = moduleData[key] || {};
+            var userId = Number(item.user_id || 0);
+            var gross = Number(item.total_gross || 0);
+            var deductions = Number(item.total_deductions || 0);
+            var net = Number(item.total_net || (gross - deductions));
+
+            out.push({
+                rowKey: "archive-user-" + String(userId || i + 1),
+                periodYear: snapshot.periodEnd ? Number(String(snapshot.periodEnd).slice(0, 4)) : null,
+                periodMonth: snapshot.periodEnd ? Number(String(snapshot.periodEnd).slice(5, 7)) : null,
+                runStatus: "archive",
+                paymentStatus: "paid",
+                employeeName: item.user_name || "Unknown",
+                email: "",
+                designation: "Archive Snapshot",
+                team: "-",
+                userId: userId,
+                totals: {
+                    earningsTotal: gross,
+                    deductionsTotal: deductions,
+                    netPay: net,
+                },
+            });
+        }
+
+        return out;
+    }
+
+    function loadArchiveSlips(snapshotId) {
+        var errEl = document.querySelector("[data-payslip-admin-error]");
+        var runInfoEl = document.querySelector("[data-payslip-admin-run-info]");
+        var body = document.querySelector("[data-payslip-admin-body]");
+        var selectAll = document.querySelector("[data-payslip-admin-select-all]");
+        var summaryEl = document.querySelector("[data-payslip-admin-summary]");
+
+        if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
+        if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
+        if (summaryEl) summaryEl.style.setProperty("display", "none", "important");
+        if (runInfoEl) runInfoEl.textContent = "";
+        if (selectAll) selectAll.checked = false;
+        refreshSendBtn();
+
+        apiRequest("get", "/v1/hcm/reports/snapshots/" + encodeURIComponent(String(snapshotId)))
+            .then(function (resp) {
+                if (!resp || resp.success !== true || !resp.data) {
+                    throw { status: 0, data: resp };
+                }
+                var snapshot = resp.data;
+                _slips = normalizeArchivePayrollRows(snapshot);
+
+                if (runInfoEl) {
+                    runInfoEl.textContent = _slips.length
+                        ? (_slips.length + " baris payroll dari snapshot #" + snapshotId)
+                        : "Tidak ada data payroll pada snapshot ini.";
+                }
+
+                renderRows(_slips);
+                if (_slips.length) {
+                    updateSummary(_slips, {
+                        totalRows: _slips.length,
+                        totalEmployees: _slips.length,
+                        totalPeriods: 1,
+                    });
+                }
+            })
+            .catch(function (err) {
+                if (err === null) return;
+                var msg = formatApiError(err && err.data, err && err.status) || "Gagal memuat snapshot payroll.";
+                if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = msg; }
+                if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
+            });
+    }
+
     function loadSlips() {
         var yearEl = document.querySelector("[data-payslip-admin-year]");
         var monthEl = document.querySelector("[data-payslip-admin-month]");
@@ -171,8 +292,20 @@
         var selectAll = document.querySelector("[data-payslip-admin-select-all]");
         var summaryEl = document.querySelector("[data-payslip-admin-summary]");
 
+        var mode = getSourceMode();
+        var snapshotId = getSnapshotId();
         var year = parseInt(yearEl && yearEl.value ? yearEl.value : 0, 10);
         var month = parseInt(monthEl && monthEl.value ? monthEl.value : 0, 10);
+
+        if (mode === "archive") {
+            if (!snapshotId) {
+                if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = "Snapshot ID wajib diisi untuk mode Archive."; }
+                if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Isi Snapshot ID lalu klik Muat.</td></tr>';
+                return;
+            }
+            loadArchiveSlips(snapshotId);
+            return;
+        }
 
         if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
         if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Memuat…</td></tr>';
@@ -349,6 +482,23 @@
             loadBtn.addEventListener("click", loadSlips);
         }
 
+        var sourceSel = document.querySelector("[data-payslip-admin-source]");
+        if (sourceSel && !sourceSel.getAttribute("data-bound")) {
+            sourceSel.setAttribute("data-bound", "1");
+            sourceSel.addEventListener("change", function () {
+                syncSourceUi();
+                loadSlips();
+            });
+        }
+
+        var snapshotInput = document.querySelector("[data-payslip-admin-snapshot-id]");
+        if (snapshotInput && !snapshotInput.getAttribute("data-bound")) {
+            snapshotInput.setAttribute("data-bound", "1");
+            snapshotInput.addEventListener("change", function () {
+                syncSourceUi();
+            });
+        }
+
         var selectAll = document.querySelector("[data-payslip-admin-select-all]");
         if (selectAll && !selectAll.getAttribute("data-bound")) {
             selectAll.setAttribute("data-bound", "1");
@@ -401,6 +551,7 @@
         if (!document.querySelector("[data-payslip-admin-body]")) return;
 
         bind();
+        syncSourceUi();
 
         if (window.AuthApi && window.AuthApi.request) {
             window.AuthApi.request("get", "/identity/auth/me").then(function (me) {

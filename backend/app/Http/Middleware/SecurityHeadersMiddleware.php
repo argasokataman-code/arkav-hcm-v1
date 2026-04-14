@@ -15,6 +15,7 @@ class SecurityHeadersMiddleware
     {
         $response = $next($request);
 
+        // Basic security headers
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');

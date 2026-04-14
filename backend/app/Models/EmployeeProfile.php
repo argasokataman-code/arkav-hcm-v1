@@ -23,6 +23,11 @@ class EmployeeProfile extends Model
         'designation',
         'phone',
         'address',
+        'address_detail',
+        'province_id',
+        'regency_id',
+        'district_id',
+        'village_id',
         'place_of_birth',
         'date_of_birth',
         'gender',
@@ -57,6 +62,10 @@ class EmployeeProfile extends Model
         'contract_start_date' => 'date',
         'contract_end_date' => 'date',
         'manager_user_id' => 'integer',
+        'province_id' => 'integer',
+        'regency_id' => 'integer',
+        'district_id' => 'integer',
+        'village_id' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -72,6 +81,26 @@ class EmployeeProfile extends Model
     public function designationRef(): BelongsTo
     {
         return $this->belongsTo(Designation::class, 'designation_id');
+    }
+
+    public function province(): BelongsTo
+    {
+        return $this->belongsTo(WilayahProvince::class, 'province_id');
+    }
+
+    public function regency(): BelongsTo
+    {
+        return $this->belongsTo(WilayahRegency::class, 'regency_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(WilayahDistrict::class, 'district_id');
+    }
+
+    public function village(): BelongsTo
+    {
+        return $this->belongsTo(WilayahVillage::class, 'village_id');
     }
 
     public function employmentHistories(): HasMany
@@ -107,6 +136,11 @@ class EmployeeProfile extends Model
     public function benefits(): HasMany
     {
         return $this->hasMany(EmployeeBenefit::class, 'employee_id');
+    }
+
+    public function assetAssignments(): HasMany
+    {
+        return $this->hasMany(AssetAssignment::class, 'employee_id');
     }
 
     public function emergencyContacts(): HasMany

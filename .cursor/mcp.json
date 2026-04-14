@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "command": "/bin/bash",
+      "args": ["./.vscode/context7-mcp.sh"]
     },
     "mysql": {
       "command": "/bin/bash",

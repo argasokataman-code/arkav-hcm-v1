@@ -43,6 +43,7 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/login` (root `/`) | Login | `auth-login.js` (per halaman), `api-client.js` | `POST /v1/identity/auth/login` | Anonim | Publik login + set cookie | — |
 | `/index` | Admin dashboard | `chart-*`, template | (varies; banyak demo chart) | Authenticated | Sesuai endpoint yang dipakai saat di-wire | Banyak konten belum terikat API HCM |
 | `/employee-dashboard` | Dashboard karyawan | template | (bila di-wire ke summary) | Authenticated | Prefer **self** data | Perlu selaraskan dengan milestone dashboard |
+| *(API only)* `/v1/hcm/user-management/*` | User Management (backend) | Belum ada halaman web final | users/roles/permissions/assignment/export | N/A | **HCM Admin only** (`EnsuresHcmAdmin`) | Endpoint live untuk fondasi settings akses; UI web menyusul |
 | `/employees` | Daftar employee | `employees-data.js` (footer) | `GET/POST /employees`, bulk `bulk-*` | **HCM Admin** (non-admin → `/employee-dashboard`) | List/create/bulk hanya **hcmAdmin** | Selaras `USE-CASES.md` + `HcmEmployeeApiTest`; bulk sekarang strict **all-or-nothing** dan masih memakai template single-sheet |
 | `/employees-grid` | Employee grid | sama | sama | **HCM Admin** | sama | — |
 | `/employee-details` | Detail employee | `hcm-pages-data.js` | `GET/PUT /employees/{id}`, `GET /training/users/{id}/trainings`, `GET /promotions/users/{id}/promotions`, `GET /resignations/users/{id}/resignations`, `GET /terminations/users/{id}/terminations` | Admin: semua ID; Karyawan: **self** | `GET/PUT` by id dengan ownership di API; training/promotion/resignation/termination list per user mengikuti RBAC endpoint terkait | Detail sekarang menampilkan riwayat normalized (employment/assignment/compensation/contract/bank) + personal data lengkap |
@@ -91,6 +92,9 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/promotion` | Promotion | `promotion-data.js` | `GET/POST/PUT/DELETE /promotions` | **HCM Admin** | Semua verb **hcmAdmin** | Web: middleware `hcm.web.admin` → non-admin redirect `/employee-dashboard` |
 | `/resignation` | Resignation | `resignation-data.js` | `GET/POST/PUT/DELETE /resignations` | **HCM Admin** | Semua verb **hcmAdmin** | Web: sama (`hcm.web.admin`) |
 | `/termination` | Termination | `termination-data.js` | `GET/POST/PUT/DELETE /terminations` | **HCM Admin** | Semua verb **hcmAdmin** | Web: sama (`hcm.web.admin`) |
+| `/countries` | Locations - Provinces | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; tidak ada mutasi web |
+| `/states` | Locations - Regencies | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; tidak ada mutasi web |
+| `/cities` | Locations - Districts | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; data villages disimpan di backend |
 
 **Halaman di menu yang bukan inti HCM bisnis** (Super Admin, CRM, Applications, Layout): tidak wajib diisi di matriks ini sampai diputuskan jadi produk; jika disentuh untuk data nyata, tambahkan baris baru di tabel.
 
@@ -116,6 +120,20 @@ Saat menulis use case baru untuk fitur lain, tambahkan referensi balik: “Lihat
 - [ ] Endpoint baru punya aturan **403** untuk non-admin jika halaman admin-only.
 - [ ] UI: tombol admin disembunyikan atau dinonaktifkan jika `hcmAdmin === false` (setelah `/auth/me` tersedia).
 - [ ] Test feature: minimal happy path + forbidden untuk route berisiko.
+
+### Gate eksekusi wajib sebelum task dinyatakan selesai
+
+Jalankan berurutan (tidak boleh loncat):
+
+1. [ ] **Role permission + use case check**
+	- Verifikasi use case per role sesuai matriks §3.
+	- Pastikan backend tetap jadi source of truth untuk izin (bukan UI saja).
+2. [ ] **UIUX cross-check tiap role**
+	- Uji minimal role HCM Admin dan Karyawan/company user pada halaman yang diubah.
+	- Cek aksi, visibilitas tombol, redirect guard, empty/loading/error states, dan stabilitas modal/tabel/pagination.
+3. [ ] **Manual UI E2E execution**
+	- Jalankan skenario browser click-by-click di `docs/features/<feature>/E2E-TESTING.md`.
+	- Catat snapshot eksekusi (tanggal, role, skenario pass/fail, catatan deviasi).
 
 ---
 

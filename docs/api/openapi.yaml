@@ -26,9 +26,13 @@ tags:
   - name: Holidays
   - name: Training
   - name: Performance
+  - name: Asset Management
   - name: Promotion
   - name: Resignation
   - name: Termination
+  - name: SaaS
+  - name: User Management
+  - name: Reporting
 paths:
   /v1/identity/auth/register:
     post:
@@ -420,6 +424,338 @@ paths:
                 $ref: '#/components/schemas/ErrorEnvelope'
 
   # -------------------------
+  # User Management (implemented under /v1/hcm/user-management)
+  # -------------------------
+  /v1/hcm/user-management/users:
+    get:
+      tags: [User Management]
+      summary: List users (admin only, tenant-scoped)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [active, inactive, all] } }
+        - { name: roleCode, in: query, required: false, schema: { type: string, maxLength: 80 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [User Management]
+      summary: Create user (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                roleCodes:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/users/export:
+    get:
+      tags: [User Management]
+      summary: Export user list as CSV (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/user-management/users/{id}:
+    get:
+      tags: [User Management]
+      summary: User detail with role assignments and effective permissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [User Management]
+      summary: Update user profile/status (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/roles:
+    get:
+      tags: [User Management]
+      summary: List roles (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [global, company] } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [active, inactive, archived, all] } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [User Management]
+      summary: Create role (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/roles/{id}:
+    put:
+      tags: [User Management]
+      summary: Update role (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [User Management]
+      summary: Delete or archive role (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/permissions:
+    get:
+      tags: [User Management]
+      summary: List permissions (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: module, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 120 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/user-management/roles/{id}/permissions:sync:
+    post:
+      tags: [User Management]
+      summary: Replace role permissions with provided permission codes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/users/{id}/roles:
+    get:
+      tags: [User Management]
+      summary: List role assignments for a user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    post:
+      tags: [User Management]
+      summary: Assign role to user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/user-management/users/{id}/roles/{assignmentId}:
+    delete:
+      tags: [User Management]
+      summary: Revoke role assignment from user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: assignmentId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
+  # Reporting Snapshots (implemented under /v1/hcm/reports/snapshots)
+  # -------------------------
+  /v1/hcm/reports/snapshots:
+    post:
+      tags: [Reporting]
+      summary: Generate report snapshot
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportType, periodStart, periodEnd]
+              properties:
+                reportType:
+                  type: string
+                  enum: [attendance, payroll, employee, leave, finance]
+                periodStart:
+                  type: string
+                  format: date
+                periodEnd:
+                  type: string
+                  format: date
+                filters:
+                  type: object
+                  additionalProperties: true
+                async:
+                  type: boolean
+      responses:
+        '202': { description: Accepted }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [Reporting]
+      summary: List report snapshots
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - name: reportType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [attendance, payroll, employee, leave, finance]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed]
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/reports/snapshots/{id}:
+    get:
+      tags: [Reporting]
+      summary: Get report snapshot detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/reports/snapshots/{id}/export:
+    post:
+      tags: [Reporting]
+      summary: Export snapshot file (csv, excel, pdf)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileType]
+              properties:
+                fileType:
+                  type: string
+                  enum: [csv, excel, pdf]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer, example: 12 }
+                      fileType: { type: string, enum: [csv, excel, pdf], example: csv }
+                      fileUrl: { type: string, example: /storage/report-exports/company_1/snapshot_8/employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
+                      fileName: { type: string, example: employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
+                      generatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { description: Export generation failed }
+
+  # -------------------------
   # Tickets (implemented under /v1/hcm)
   # -------------------------
   /v1/hcm/tickets:
@@ -519,6 +855,170 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
 
   # -------------------------
+  # Asset Management
+  # -------------------------
+  /v1/hcm/asset-categories:
+    get:
+      tags: [Asset Management]
+      summary: List asset categories
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Asset Management]
+      summary: Create asset category
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/asset-categories/{category}:
+    put:
+      tags: [Asset Management]
+      summary: Update asset category
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Asset Management]
+      summary: Delete asset category
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/assets:
+    get:
+      tags: [Asset Management]
+      summary: List assets
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Asset Management]
+      summary: Create asset
+      security:
+        - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/assets/{asset}:
+    get:
+      tags: [Asset Management]
+      summary: Get asset details
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Asset Management]
+      summary: Update asset
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Asset Management]
+      summary: Retire asset
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/assets/{asset}/assign:
+    post:
+      tags: [Asset Management]
+      summary: Assign asset to employee
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/assets/{asset}/return:
+    post:
+      tags: [Asset Management]
+      summary: Return assigned asset
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/assets/{asset}/issue-report:
+    post:
+      tags: [Asset Management]
+      summary: Report asset issue as ticket
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/assets/{asset}/attachments:
+    post:
+      tags: [Asset Management]
+      summary: Upload asset attachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # -------------------------
   # Attendance (implemented under /v1/hcm)
   # -------------------------
   /v1/hcm/attendance/admin:
@@ -557,7 +1057,32 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      userName:
+                        type: string
+                      team:
+                        type: string
+                      profilePhotoUrl:
+                        type: string
+                        nullable: true
+                        description: Public URL avatar employee dari profile photo path.
+                      nowLabel:
+                        type: string
+                      punchState:
+                        type: string
+                        enum: [none, in, done]
         '401': { $ref: '#/components/responses/UnauthorizedError' }
   /v1/hcm/attendance/me/history:
     get:
@@ -2911,6 +3436,123 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/saas/package-addons:
+    get:
+      tags: [SaaS]
+      summary: List package add-ons
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        code: { type: string }
+                        name: { type: string }
+                        description: { type: string, nullable: true }
+                        pricePerUnit: { type: number }
+                        unitName: { type: string }
+                        status: { type: string, enum: [active, inactive] }
+                        createdAt: { type: string, format: date-time, nullable: true }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [SaaS]
+      summary: Create package add-on (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name, price_per_unit, unit_name]
+              properties:
+                code: { type: string, maxLength: 100 }
+                name: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true }
+                price_per_unit: { type: number, minimum: 0 }
+                unit_name: { type: string, maxLength: 100 }
+                status: { type: string, enum: [active, inactive] }
+      responses:
+        '201':
+          description: Created
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/package-addons/{id}:
+    get:
+      tags: [SaaS]
+      summary: Get package add-on by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [SaaS]
+      summary: Update package add-on (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, maxLength: 100 }
+                name: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true }
+                price_per_unit: { type: number, minimum: 0 }
+                unit_name: { type: string, maxLength: 100 }
+                status: { type: string, enum: [active, inactive] }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [SaaS]
+      summary: Delete package add-on (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3095,7 +3737,7 @@ components:
         estimatedPkwtCompensationThisMonth: { type: number }
     EmployeeCreateRequest:
       type: object
-      required: [name, email, password, confirmPassword, departmentId, designationId, employeeType, baseSalary, salaryType, contractType, contractStatus, contractStartDate, nik, phone, address, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, bankName, bankAccountNo, bankAccountHolderName, emergencyContacts]
+      required: [name, email, password, confirmPassword, departmentId, designationId, employeeType, baseSalary, salaryType, contractType, contractStatus, contractStartDate, nik, phone, provinceId, regencyId, districtId, villageId, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, bankName, bankAccountNo, bankAccountHolderName, emergencyContacts]
       properties:
         name:
           type: string
@@ -3198,10 +3840,36 @@ components:
           pattern: '^[0-9]{10,13}$'
           nullable: true
           description: Required phone number, numeric only, 10–13 digits.
+        provinceId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Required for create; selected province id from wilayah hierarchy.
+        regencyId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Required for create; must belong to selected province.
+        districtId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Required for create; must belong to selected regency.
+        villageId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Required for create; must belong to selected district.
         address:
           type: string
           maxLength: 2000
           nullable: true
+          description: Auto-composed from wilayah hierarchy when complete region ids are provided.
+        addressDetail:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:
           type: string
           maxLength: 150
@@ -3361,10 +4029,32 @@ components:
           maxLength: 13
           pattern: '^[0-9]{10,13}$'
           nullable: true
+        provinceId:
+          type: integer
+          minimum: 1
+          nullable: true
+        regencyId:
+          type: integer
+          minimum: 1
+          nullable: true
+        districtId:
+          type: integer
+          minimum: 1
+          nullable: true
+        villageId:
+          type: integer
+          minimum: 1
+          nullable: true
         address:
           type: string
           maxLength: 2000
           nullable: true
+          description: Auto-composed from wilayah hierarchy when complete region ids are provided.
+        addressDetail:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:
           type: string
           maxLength: 150
@@ -3475,6 +4165,7 @@ components:
             reportOffice: { type: string, nullable: true }
             phone: { type: string, nullable: true }
             address: { type: string, nullable: true }
+            addressDetail: { type: string, nullable: true }
             bio: { type: string, nullable: true }
             nik: { type: string, nullable: true }
             ktpNo: { type: string, nullable: true }
@@ -4094,3 +4785,327 @@ components:
           maximum: 100
         percentBasis:
           $ref: '#/components/schemas/SalaryComponentPercentBasis'
+    TicketCreateRequest:
+      type: object
+      required: [subject, description, priority]
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        categoryId:
+          type: integer
+          minimum: 1
+          description: Foreign key to ticket_categories (recommended over legacy `category`)
+        category:
+          type: string
+          maxLength: 120
+          description: Legacy support; category name. If `categoryId` provided, backend syncs from master.
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        slaDueAt:
+          type: string
+          format: date
+          nullable: true
+        assigneeUserId:
+          type: integer
+          minimum: 1
+          description: Admin only; non-admin sends this → 403
+    TicketUpdateRequest:
+      type: object
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        categoryId:
+          type: integer
+          minimum: 1
+        category:
+          type: string
+          maxLength: 120
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+          description: Admin only
+        slaDueAt:
+          type: string
+          format: date
+          nullable: true
+          description: Admin only
+        assigneeUserId:
+          type: integer
+          minimum: 1
+          description: Admin only
+    TicketResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+          pattern: "^TIC-[0-9]{8}-[0-9]{3}$"
+        subject:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+          description: FK to ticket_categories; may be null if created with legacy string `category`
+        category:
+          type: string
+          nullable: true
+          description: Category name (synced from master if FK exists)
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        slaDueAt:
+          type: string
+          format: date
+          nullable: true
+        reporter:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+        assignee:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+        commentsCount:
+          type: integer
+        attachmentsCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TicketCategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 120
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TrainingTypeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    TrainingCreateRequest:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        trainingTypeId:
+          type: integer
+          minimum: 1
+          nullable: true
+        trainerId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: FK to hcm_trainers (recommended over legacy `trainerName`)
+        trainerName:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Legacy support; trainer name. If `trainerId` provided, backend syncs from master.
+        participantUserIds:
+          type: array
+          maxItems: 200
+          items:
+            type: integer
+            minimum: 1
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        costCents:
+          type: integer
+          minimum: 0
+          maximum: 1000000000
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, completed]
+          default: active
+    TrainingUpdateRequest:
+      type: object
+      properties:
+        trainingTypeId:
+          type: integer
+          minimum: 1
+          nullable: true
+        trainerId:
+          type: integer
+          minimum: 1
+          nullable: true
+        trainerName:
+          type: string
+          maxLength: 200
+          nullable: true
+        participantUserIds:
+          type: array
+          maxItems: 200
+          items:
+            type: integer
+            minimum: 1
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+        costCents:
+          type: integer
+          minimum: 0
+          maximum: 1000000000
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, completed]
+    TrainerResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TrainingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        trainingTypeId:
+          type: integer
+          nullable: true
+        type:
+          $ref: '#/components/schemas/TrainingTypeResponse'
+        trainerId:
+          type: integer
+          nullable: true
+          description: FK to hcm_trainers; may be null if created with legacy string `trainerName`
+        trainer:
+          type: object
+          nullable: true
+          description: Enriched trainer object from master
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            isActive:
+              type: boolean
+        trainerName:
+          type: string
+          nullable: true
+          description: Trainer name (synced from master if FK exists)
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              email:
+                type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        description:
+          type: string
+          nullable: true
+        costCents:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, completed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

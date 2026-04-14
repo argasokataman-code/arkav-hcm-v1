@@ -35,10 +35,15 @@ Success `200` (ringkas):
 Body:
 - `subject` required string max 255
 - `description` required string max 10000
+- `categoryId` optional int exists `ticket_categories.id` (disarankan)
 - `category` optional string max 120
 - `priority` required enum
 - `slaDueAt` optional date
 - `assigneeUserId` optional int exists `users.id` (**admin only**)
+
+Catatan relasi:
+- Jika `categoryId` dikirim, backend menyimpan FK `tickets.category_id` dan sinkronkan `category` dengan nama master.
+- Jika hanya `category` dikirim (legacy payload), backend tetap menerima; FK diisi jika nama cocok dengan master.
 
 RBAC:
 - Non-admin mengirim `assigneeUserId` → `403 AUTH_FORBIDDEN`
@@ -65,6 +70,7 @@ Success `200`:
 Body (semua optional via `sometimes`, tergantung role):
 - `subject` string max 255
 - `description` string max 10000
+- `categoryId` optional int exists `ticket_categories.id`
 - `category` optional string max 120
 - `priority` enum
 - `status` enum (**admin only**)
@@ -103,7 +109,7 @@ Body:
 
 Success `201`:
 
-```json
+- `data[]` item menyertakan `reporter`, `assignee`, `commentsCount`, `attachmentsCount`, `categoryId`
 { "success": true, "data": { "id": 1 } }
 ```
 

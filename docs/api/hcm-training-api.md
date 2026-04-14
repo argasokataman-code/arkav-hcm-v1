@@ -85,6 +85,7 @@ Query:
 
 Success `200`:
 - `data[]` item menyertakan `type` dan `participants[]` (id,name,email)
+- `data[]` item menyertakan `trainerId` dan `trainer` (id,name,isActive) untuk referensi relasi
 - `meta` paginated (`currentPage/lastPage/perPage/total`)
 
 ### POST `/trainings`
@@ -94,6 +95,7 @@ RBAC:
 
 Body:
 - `trainingTypeId` optional integer exists `hcm_training_types.id`
+- `trainerId` optional integer exists `hcm_trainers.id` (disarankan)
 - `trainerName` optional string max 200
 - `participantUserIds` optional array max 200; items integer exists `users.id`
 - `startDate` required date
@@ -101,6 +103,10 @@ Body:
 - `description` optional string max 5000
 - `costCents` optional int min 0 max 1000000000
 - `status` optional enum `active|inactive|completed` (default `active`)
+
+Catatan relasi:
+- Jika `trainerId` dikirim, backend menyimpan FK `hcm_trainings.trainer_id` dan sinkronkan `trainerName` dari master trainer.
+- Jika hanya `trainerName` dikirim (legacy payload), backend tetap menerima; FK diisi bila nama trainer cocok.
 
 Success `201`: `{ success: true, data: { id } }`
 
@@ -110,7 +116,7 @@ RBAC:
 - HCM Admin only
 
 Body:
-- field `sometimes` (same keys as POST)
+- field `sometimes` (same keys as POST, termasuk `trainerId`)
 - jika `participantUserIds` dikirim (termasuk null/[]) → sync participants sesuai payload
 
 ### DELETE `/trainings/{id}`

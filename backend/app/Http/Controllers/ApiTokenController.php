@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuthToken;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class ApiTokenController extends Controller
@@ -13,7 +12,8 @@ class ApiTokenController extends Controller
      */
     public function getToken(Request $request)
     {
-        $user = auth()->user();
+        $token = $request->attributes->get('authToken');
+        $user = $request->user() ?: ($token?->user);
 
         if (!$user) {
             return response()->json([
@@ -22,34 +22,19 @@ class ApiTokenController extends Controller
             ], 401);
         }
 
-        // Check if user already has a valid token
-        $existingToken = AuthToken::where('user_id', $user->id)
-            ->whereNull('revoked_at')
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->first();
-
-        if ($existingToken) {
-            $rawToken = $existingToken->token;
-        } else {
-            // Create a new token
-            $token = bin2hex(random_bytes(32));
-            $existingToken = AuthToken::create([
-                'user_id' => $user->id,
-                'token_hash' => hash('sha256', $token),
-                'name' => 'Web Dashboard Token',
-                'expires_at' => now()->addDays(30),
-            ]);
-            $rawToken = $token;
-        }
+        // Raw token values are not persisted in DB, so always mint a new one.
+        $rawToken = bin2hex(random_bytes(32));
+        $createdToken = AuthToken::create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $rawToken),
+            'expires_at' => now()->addDays(30),
+        ]);
 
         return response()->json([
             'success' => true,
             'data' => [
                 'token' => $rawToken,
-                'expiresAt' => $existingToken->expires_at,
+                'expiresAt' => $createdToken->expires_at,
             ],
         ]);
     }

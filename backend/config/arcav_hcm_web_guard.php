@@ -17,6 +17,7 @@ return [
         '',
         'up',
         'login',
+        'lock-screen',
         'register',
         'signout',
         'api-docs',

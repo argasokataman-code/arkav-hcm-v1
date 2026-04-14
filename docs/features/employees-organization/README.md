@@ -42,6 +42,8 @@
 - Navigasi dari list ke detail menyertakan `returnTo` + restore posisi scroll/list state saat kembali.
 - Halaman **`/employee-salary`** (HCM Admin, `hcm.web.admin`): tabel kompensasi dari API yang sama + modal sunting; lihat `docs/features/employee-salary/README.md`.
 - Modal `Add Employee` dan `Edit Employee` di halaman employee sekarang memuat input kompensasi (`baseSalary`, `fixedAllowance`) dan submit langsung ke API employee.
+- Modal `Add Employee` dan `Edit Employee` sekarang juga menggunakan dropdown berjenjang wilayah (`provinceId` → `regencyId` → `districtId` → `villageId`) untuk input alamat, lalu field `address` disusun otomatis agar data tersimpan konsisten.
+- Detail alamat manual (jalan/gedung/RT-RW/patokan) disimpan terpisah di field `addressDetail` melalui textarea, tanpa mengganti alamat utama hasil komposisi wilayah.
 - Aksi edit dari tabel employee dibuka via ikon pensil, data employee diprefill ke modal edit, lalu disimpan via `PUT /employees/{id}`.
 - Admin bisa melakukan bulk upload detail employee via modal `Bulk Upload Employee` di halaman employee.
 - Template Excel bulk tersedia dari endpoint `GET /v1/hcm/employees/bulk-template`, dan upload via `POST /v1/hcm/employees/bulk-upload`.

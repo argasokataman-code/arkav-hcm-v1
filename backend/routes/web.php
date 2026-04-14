@@ -3,6 +3,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomAuthController;
+use App\Http\Controllers\WilayahLocationController;
 use Illuminate\Http\Request;
 
 Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
@@ -11,8 +12,8 @@ Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout')
 
 
 Route::get('/', function () {
-    return view('login');
-});
+    return redirect()->route('login');
+})->name('root');
 
 Route::get('/api-docs', function () {
     return view('api-docs.swagger');
@@ -143,7 +144,7 @@ Route::get('/invoice-details', function () {
 })->name('invoice-details');
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return view('saas-dashboard');
 })->name('dashboard');
 
 Route::get('/saas-dashboard', function () {
@@ -166,7 +167,28 @@ Route::get('/saas/transactions', function () {
     return view('saas.transactions');
 })->name('saas.transactions');
 
-Route::middleware('auth')->group(function () {
+Route::get('/saas/invoices', function () {
+    return view('saas.invoices');
+})->name('saas.invoices');
+
+Route::get('/saas/payments', function () {
+    return view('saas.payments');
+})->name('saas.payments');
+
+Route::get('/saas/reports', function () {
+    return view('saas.reports');
+})->name('saas.reports');
+
+Route::get('/saas/reminders', function () {
+    return view('saas.reminders');
+})->name('saas.reminders');
+
+// Company views for billing
+Route::get('/company/invoices', function () {
+    return view('company.invoices');
+})->name('company.invoices');
+
+Route::middleware('api.token')->group(function () {
     Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
 });
 
@@ -175,11 +197,11 @@ Route::get('/companies', function () {
 })->name('companies');
 
 Route::get('/subscription', function () {
-    return view('subscription');
+    return view('saas.subscriptions');
 })->name('subscription');
 
 Route::get('/packages', function () {
-    return view('packages');
+    return view('saas.packages');
 })->name('packages');
 
 Route::get('/packages-grid', function () {
@@ -187,11 +209,11 @@ Route::get('/packages-grid', function () {
 })->name('packages-grid');
 
 Route::get('/domain', function () {
-    return view('domain');
+    return view('saas.domains');
 })->name('domain');
 
 Route::get('/purchase-transaction', function () {
-    return view(view: 'purchase-transaction');
+    return view('saas.transactions');
 })->name('purchase-transaction');
 
 Route::get('/layout-horizontal', function () {
@@ -1055,6 +1077,10 @@ Route::get('daily-report', function () {
     return view('daily-report');
 })->name('daily-report');
 
+Route::get('reports', function () {
+    return view('reports.hub');
+})->name('reports-hub');
+
 Route::get('roles-permissions', function() {
     return view('roles-permissions');
 })->name('roles-permissions');
@@ -1079,13 +1105,15 @@ Route::get('users', function() {
     return view('users');
 })->name('users');
 
-Route::get('assets', function() {
-    return view('assets');
-})->name('assets');
+Route::middleware(['hcm.web.admin', 'hcm.web.asset-management'])->group(function (): void {
+    Route::get('assets', function() {
+        return view('assets');
+    })->name('assets');
 
-Route::get('asset-categories', function() {
-    return view('asset-categories');
-})->name('asset-categories');
+    Route::get('asset-categories', function() {
+        return view('asset-categories');
+    })->name('asset-categories');
+});
 
 Route::get('payslip', function() {
     return view('payslip');
@@ -1199,17 +1227,15 @@ Route::get( '/blog-tags',  function () {
     return view( 'blog-tags');
 })->name( 'blog-tags');
 
-Route::get( '/countries',  function () {
-    return view( 'countries');
-})->name( 'countries');
+Route::get('/countries', [WilayahLocationController::class, 'countries'])->name('countries');
 
-Route::get(uri: '/states', action: function () {
-    return view( 'states');
-})->name( 'states');
+Route::post('/locations/sync', [WilayahLocationController::class, 'sync'])->name('locations.sync');
 
-Route::get( '/cities', function () {
-    return view( 'cities');
-})->name( 'cities');
+Route::get('/states', [WilayahLocationController::class, 'states'])->name('states');
+
+Route::get('/cities', [WilayahLocationController::class, 'cities'])->name('cities');
+
+Route::get('/villages', [WilayahLocationController::class, 'villages'])->name('villages');
 
 Route::get( '/testimonials', function () {
     return view( 'testimonials');

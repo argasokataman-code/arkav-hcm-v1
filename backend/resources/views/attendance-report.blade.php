@@ -28,6 +28,22 @@
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
+                    <div class="mb-2 me-2 d-flex align-items-center gap-2">
+                        <label class="mb-0 small text-muted">Source</label>
+                        <select class="form-select form-select-sm" style="min-width: 170px;" data-attendance-report-source>
+                            <option value="live" selected>Live Data</option>
+                            <option value="archive">Archive Snapshot</option>
+                        </select>
+                    </div>
+                    <div class="mb-2 me-2 d-none" data-attendance-report-snapshot-wrap>
+                        <input type="number" class="form-control form-control-sm" placeholder="Snapshot ID" min="1" data-attendance-report-snapshot-id>
+                    </div>
+                    <div class="mb-2 me-2">
+                        <span class="badge bg-light text-dark" data-attendance-report-source-badge>Source: Live</span>
+                    </div>
+                    <div class="mb-2 me-2 w-100">
+                        <span class="text-muted small">Live memakai API attendance admin; Archive memakai Snapshot ID dari Reports Hub.</span>
+                    </div>
                 <div class="mb-2 me-2">
                     <a href="{{ url('attendance-admin') }}" class="btn btn-light d-inline-flex align-items-center">
                         <i class="ti ti-arrow-left me-1"></i>Back
@@ -170,6 +186,11 @@
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                     <div class="me-3">
                         <input type="date" class="form-control" data-attendance-report-date title="Work date">
+                    </div>
+                    <div class="me-3">
+                        <button type="button" class="btn btn-outline-primary" data-attendance-report-load>
+                            <i class="ti ti-refresh me-1"></i>Load
+                        </button>
                     </div>
                     <div class="me-3">
                         <select class="form-select" data-attendance-report-filter-department title="Department filter">

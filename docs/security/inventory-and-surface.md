@@ -10,6 +10,7 @@ Ringkasan untuk **April 2026** — selaraskan dengan `backend/routes/api.php` da
 | `POST /v1/identity/auth/login` | Publik | Set cookie HttpOnly + hash token DB |
 | `POST /v1/identity/auth/logout`, `GET /v1/identity/auth/me` | **api.token** | Bearer atau cookie |
 | `GET|POST|PUT|DELETE /v1/hcm/...` (seluruh tree HCM) | **api.token** | RBAC per controller |
+| `GET|POST|PUT|DELETE /v1/hcm/user-management/...` | **api.token** + **hcmAdmin** | Endpoint sensitif role/permission; non-admin harus `403 AUTH_FORBIDDEN` |
 | `GET /health` | Publik | Health check JSON (pertimbangkan pembatasan IP di reverse proxy produksi) |
 
 **Temuan audit:** Tidak ada endpoint HCM yang terbuka tanpa token. Risiko utama bukan di API, melainkan **halaman web** yang memuat markup + aset bila tidak dilindungi server-side.

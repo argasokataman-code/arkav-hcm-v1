@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Support\ArcavAccessTokenResolver;
+use App\Support\TenantContextResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +12,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureHcmWebPagesAuthenticated
 {
+    public function __construct(private readonly TenantContextResolver $tenantContextResolver)
+    {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         if (! $this->pathRequiresToken($request)) {
@@ -19,19 +25,24 @@ class EnsureHcmWebPagesAuthenticated
         $token = ArcavAccessTokenResolver::validTokenFromRequest($request);
         if ($token && $token->user) {
             $request->setUserResolver(fn () => $token->user);
+            $this->resolveTenantContext($request, $token->user);
 
             return $next($request);
         }
 
         // Legacy web login (custom-login / session guard) tanpa cookie API — tetap boleh render halaman.
         if (Auth::check()) {
+            $sessionUser = Auth::user();
+            if ($sessionUser instanceof User) {
+                $request->setUserResolver(fn () => $sessionUser);
+                $this->resolveTenantContext($request, $sessionUser);
+            }
+
             return $next($request);
         }
 
-        // Layout terpisah (bukan mainlayout): Route::is('error-404') tidak pernah true di sini;
-        // pakai view tamu agar tidak membocorkan sidebar/header aplikasi.
-        return response()
-            ->view('error-404-guest', [], 404)
+        return redirect()
+            ->guest(url('lock-screen'))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
@@ -72,5 +83,24 @@ class EnsureHcmWebPagesAuthenticated
         }
 
         return false;
+    }
+
+    private function resolveTenantContext(Request $request, User $user): void
+    {
+        $result = $this->tenantContextResolver->resolve($request, $user);
+        if (isset($result['error'])) {
+            return;
+        }
+
+        $company = $result['company'] ?? null;
+        $membership = $result['membership'] ?? null;
+        if (! $company || ! $membership) {
+            return;
+        }
+
+        $request->attributes->set('activeCompany', $company);
+        $request->attributes->set('activeCompanyId', $company->id);
+        $request->attributes->set('activeCompanyCode', $company->code);
+        $request->attributes->set('activeCompanyRole', $membership->role);
     }
 }

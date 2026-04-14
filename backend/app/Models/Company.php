@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'code',
         'name',
@@ -42,5 +45,24 @@ class Company extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->with(['package.features'])
+            ->whereIn('status', ['active', 'trial'])
+            ->latest('starts_at')
+            ->first();
+    }
+
+    public function hasFeature(string $featureCode): bool
+    {
+        $subscription = $this->activeSubscription();
+        if (! $subscription || ! $subscription->package) {
+            return false;
+        }
+
+        return $subscription->package->hasFeature($featureCode);
     }
 }

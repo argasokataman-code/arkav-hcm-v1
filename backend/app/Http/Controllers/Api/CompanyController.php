@@ -91,14 +91,22 @@ class CompanyController extends Controller
         $status = $request->get('status'); // null, 'active', 'inactive'
 
         // Build query: admin can see all, others only their joined companies
-        $query = Company::query();
+        $baseQuery = Company::query();
 
         if (!$user->isHcmAdmin()) {
             // Non-admin users see only companies they're members of
-            $query->whereHas('users', function ($q) use ($user) {
+            $baseQuery->whereHas('users', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
             });
         }
+
+        $statsScope = clone $baseQuery;
+        $totalCompanies = (clone $statsScope)->count();
+        $activeCompanies = (clone $statsScope)->where('status', 'active')->count();
+        $inactiveCompanies = (clone $statsScope)->where('status', 'inactive')->count();
+        $locationCount = (clone $statsScope)->whereNotNull('country_code')->distinct('country_code')->count('country_code');
+
+        $query = clone $baseQuery;
 
         // Apply status filter
         if ($status) {
@@ -119,6 +127,12 @@ class CompanyController extends Controller
                     'per_page' => $companies->perPage(),
                     'page' => $companies->currentPage(),
                     'last_page' => $companies->lastPage(),
+                ],
+                'stats' => [
+                    'totalCompanies' => $totalCompanies,
+                    'activeCompanies' => $activeCompanies,
+                    'inactiveCompanies' => $inactiveCompanies,
+                    'locationCount' => $locationCount,
                 ],
             ],
         ]);

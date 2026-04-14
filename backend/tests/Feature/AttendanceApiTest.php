@@ -246,6 +246,73 @@ class AttendanceApiTest extends TestCase
             ->assertJsonPath('data.needsReview', true);
     }
 
+    public function test_attendance_me_today_returns_profile_photo_url_from_employee_profile(): void
+    {
+        $token = $this->bearerToken();
+        $user = User::query()->where('email', 'att@example.com')->firstOrFail();
+
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['profile_photo_path' => 'employee-photos/att-user.png']
+        );
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->getJson('/v1/hcm/attendance/me/today')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.profilePhotoUrl', '/storage/employee-photos/att-user.png');
+    }
+
+    public function test_attendance_daily_target_and_progress_are_aligned(): void
+    {
+        $token = $this->bearerToken();
+        $user = User::query()->where('email', 'att@example.com')->firstOrFail();
+        $today = now(config('app.timezone'))->toDateString();
+
+        \App\Models\AttendanceRecord::query()->updateOrCreate(
+            ['user_id' => $user->id, 'work_date' => $today],
+            [
+                'status' => 'present',
+                'check_in_at' => now(config('app.timezone'))->startOfDay()->setTime(9, 0),
+                'check_out_at' => now(config('app.timezone'))->startOfDay()->setTime(17, 0),
+                'break_minutes' => 0,
+                'late_minutes' => 0,
+            ]
+        );
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->getJson('/v1/hcm/attendance/me/today')
+            ->assertOk()
+            ->assertJsonPath('data.productionProgressPercent', 100);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->getJson('/v1/hcm/attendance/me/stats')
+            ->assertOk()
+            ->assertJsonPath('data.todayTarget', 8)
+            ->assertJsonPath('data.weekTarget', 40)
+            ->assertJsonPath('data.monthTarget', $this->expectedCurrentMonthWorkHoursTarget());
+    }
+
+    private function expectedCurrentMonthWorkHoursTarget(): int
+    {
+        $start = now(config('app.timezone'))->copy()->startOfMonth()->startOfDay();
+        $end = $start->copy()->endOfMonth()->startOfDay();
+
+        $weekdayCount = 0;
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            if ($cursor->isWeekday()) {
+                $weekdayCount++;
+            }
+            $cursor->addDay();
+        }
+
+        return $weekdayCount * 8;
+    }
+
     public function test_attendance_can_request_correction_after_checkout(): void
     {
         $token = $this->bearerToken();

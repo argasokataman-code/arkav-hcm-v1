@@ -1,0 +1,228 @@
+---
+description: "Super Admin SaaS modules: align template aktif, use Context7 for validation"
+alwaysApply: false
+---
+
+# Super Admin SaaS Module Development Rule
+
+**Intent:** Ensure all Super Admin menu features (packages, subscriptions, domains, transactions, companies, dashboard) align with the active template style and follow library best practices.
+
+## Mandatory Before Fixing / Adding Features
+
+### 1. Context7 Validation
+**Before** writing controller/view/JS changes:
+
+```bash
+# For Laravel/PHP:
+- Call `mcp_context7_resolve-library-id` for 'Laravel'
+- Call `mcp_context7_query-docs` for validation patterns, response structure, tes authorization
+
+# For Frontend/JavaScript:
+- Call `mcp_context7_resolve-library-id` for 'Bootstrap'
+- Call `mcp_context7_query-docs` for modal/table/form/badge consistency patterns
+```
+
+**Do not rely on training data.** Pull official docs every time.
+
+### 2. Template Active Alignment
+**Every UI change must match `docs/planning/active-hcm-templates-and-permissions.md`:**
+
+- Button classes: `.btn .btn-primary`, `.btn .btn-sm`, `.btn-icon` (not custom classes).
+- Table structure: `.table-responsive`, `.table-hover`, `.table-light` for thead.
+- Badges: `.badge .text-bg-` classes (not `.badge-` alone).
+- Modals: always use Bootstrap `.modal` → test with `window.bootstrap.Modal`.
+- Action row: icon buttons in `.d-flex .gap-1` or `.action-icon` container.
+- Delete confirm: use `window.ArcavUi.confirmDelete()` → fallback `confirm()`.
+- Toast/alert: use existing HCM template methods, not custom JS alerts.
+- Script includes: always cache-bust via `?v={{ filemtime(...) }}`.
+
+### 3. Response Consistency
+**Backend API responses** must always follow this structure:
+
+```json
+{
+  "success": true,
+  "data": { /* payload */ },
+  "pagination": { "total": 100, "per_page": 15, "current_page": 1, "last_page": 7 },
+  "error": null
+}
+```
+
+Or on error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ADMIN_REQUIRED",
+    "message": "Admin access required."
+  }
+}
+```
+
+**Status codes:** 200/201 (OK), 400/422 (validation), 401/403 (auth), 404 (not found).
+
+### 4. Frontend Field Mapping
+**JavaScript field names** should match camelCase API response:
+
+```javascript
+// API returns:
+{ "monthlyPrice": 100000, "verificationToken": "xxx", "domainName": "example.com" }
+
+// JS accesses:
+packageData.monthlyPrice  // NOT monthly_price
+subscription.startDate   // NOT starts_at
+```
+
+### 5. Validation & Permission Check
+**Server-side always enforces:**
+
+- `api.token` middleware for all `/v1/saas/*` routes.
+- `isHcmAdmin()` check in every **mutating** endpoint (POST/PUT/DELETE).
+- Return **403 Forbidden** if non-admin tries mutate.
+- Return **422 Unprocessable Entity** on validation failure with `errors` array.
+
+**UI hides/disables** mutating buttons for non-admins (UX only; server is source of truth).
+
+### 6. Test Coverage Minimum
+**Add test for each new endpoint:**
+
+- ✓ Happy path (200/201).
+- ✓ Unauthorized (401 if not authenticated).
+- ✓ Forbidden (403 if authenticated but not admin).
+- ✓ Validation error (422 with specific field messages).
+
+```php
+public function test_create_package_requires_admin()
+{
+    $response = $this->postJson('/v1/saas/packages', [...]);
+    $response->assertForbidden();
+}
+```
+
+---
+
+## Checklist Before Submitting PR:
+
+- [ ] **Context7 docs pulled**: link to specific pattern used (section/heading from doc).
+- [ ] **Template alignment**: button/modal/badge/table classes match active template.
+- [ ] **Response structure**: all API responses match format above.
+- [ ] **Security**: endpoints check `isHcmAdmin()`, return 403 if needed.
+- [ ] **Frontend build**: `npm run build` succeeds.
+- [ ] **Tests**: new endpoints have at least happy + forbidden scenario.
+- [ ] **Script includes**: views use cache-bust `?v={{filemtime(...)}}`.
+- [ ] **No hardcoded UI strings**: use camelCase field mapping from API.
+
+---
+
+## Example: Correct Package CRUD Flow
+
+### 1. Controller (Laravel 11 + Context7 pattern)
+```php
+public function store(Request $request): JsonResponse
+{
+    // Context7: "Laravel 11 authorization patterns"
+    if (!$this->isHcmAdmin($request)) {
+        return response()->json([
+            'success' => false,
+            'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin only.'],
+        ], 403);
+    }
+    
+    // Validate per Context7 "validation best practices"
+    $validated = $request->validate([
+        'name' => 'required|string|max:100',
+        'monthly_price' => 'required|numeric|min:0',
+        'status' => 'sometimes|in:active,inactive,archived',
+    ]);
+    
+    $package = Package::create($validated);
+    return response()->json(['success' => true, 'data' => $package], 201);
+}
+```
+
+### 2. Table View (Bootstrap 5.3 per Context7)
+```html
+<!-- Context7: "Bootstrap responsive table + badge patterns" -->
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr><th>Name</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Pro Package</td>
+                <td>Rp 500.000</td>
+                <td>
+                    <!-- Context7: "Badge text-bg-* utilities" -->
+                    <span class="badge text-bg-success">active</span>
+                </td>
+                <td>
+                    <!-- Context7: "Flexbox action layout" -->
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-icon btn-sm" data-edit-package="1">
+                            <i class="ti ti-edit"></i>
+                        </button>
+                        <button class="btn btn-icon btn-sm" data-delete-package="1">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+```
+
+### 3. JavaScript (Unified modal, camelCase mapping)
+```javascript
+const PackagesManager = {
+    currentEditId: null,
+    packageModalInstance: null,
+    
+    init: function() {
+        this.bindEvents();
+        this.packageModalInstance = window.bootstrap.Modal.getOrCreateInstance(
+            document.getElementById("packageModal")
+        );
+    },
+    
+    handleSavePackage: function(form) {
+        // Field mapping: API → Form → Payload
+        const name = document.getElementById("input_package_name").value;
+        const monthlyPrice = document.getElementById("input_package_price").value;
+        
+        const data = {
+            name: name,
+            monthly_price: parseFloat(monthlyPrice),  // snake_case for backend
+            status: this.currentEditId ? "active" : "inactive",
+        };
+        
+        const url = this.currentEditId 
+            ? `/v1/saas/packages/${this.currentEditId}`
+            : `/v1/saas/packages`;
+        const method = this.currentEditId ? "PUT" : "POST";
+        
+        apiRequest(method, url, data)
+            .then(response => {
+                if (response.success) {
+                    // Use window.ArcavUi if available
+                    if (window.ArcavUi?.showSuccess) {
+                        window.ArcavUi.showSuccess("Package saved");
+                    }
+                    this.packageModalInstance.hide();
+                    this.loadPackages();
+                }
+            });
+    }
+};
+```
+
+---
+
+## Links & Reference
+- **Active template guide**: `docs/planning/active-hcm-templates-and-permissions.md`
+- **Template lock rule**: `.cursor/rules/backend-template-lock.mdc`
+- **Response patterns**: `.cursor/rules/laravel-hcm.instructions.md`
+- **Frontend patterns**: `.cursor/rules/frontend-hcm.instructions.md`
+- **Closure checklist**: `.cursor/rules/development-closure-checklist.mdc`

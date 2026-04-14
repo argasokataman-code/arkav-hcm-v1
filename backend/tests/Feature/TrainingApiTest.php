@@ -110,9 +110,16 @@ class TrainingApiTest extends TestCase
             ->assertStatus(201);
         $typeId = (int) $typeRes->json('data.id');
 
+        $trainerRes = $this->withHeaders($hAdmin)->postJson('/v1/hcm/training/trainers', [
+            'name' => 'Trainer A',
+            'email' => 'trainer.a@example.com',
+            'isActive' => true,
+        ])->assertStatus(201);
+        $trainerId = (int) $trainerRes->json('data.id');
+
         $tRes = $this->withHeaders($hAdmin)->postJson('/v1/hcm/training/trainings', [
                 'trainingTypeId' => $typeId,
-                'trainerName' => 'Trainer A',
+                'trainerId' => $trainerId,
                 'participantUserIds' => [$employee['user']->id],
                 'startDate' => '2026-04-09',
                 'endDate' => '2026-04-10',
@@ -130,6 +137,12 @@ class TrainingApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonFragment(['id' => $trainingId, 'trainerName' => 'Trainer A']);
+
+        $this->assertDatabaseHas('hcm_trainings', [
+            'id' => $trainingId,
+            'trainer_id' => $trainerId,
+            'trainer_name' => 'Trainer A',
+        ]);
 
         // Admin update
         $this->withHeaders($hAdmin)->putJson("/v1/hcm/training/trainings/{$trainingId}", [
@@ -163,6 +176,7 @@ class TrainingApiTest extends TestCase
 
         $tRes = $this->withHeaders($hAdmin)->postJson('/v1/hcm/training/trainings', [
             'trainingTypeId' => $typeId,
+            'trainerId' => null,
             'trainerName' => 'Trainer A',
             'participantUserIds' => [$employee['user']->id],
             'startDate' => '2026-04-09',

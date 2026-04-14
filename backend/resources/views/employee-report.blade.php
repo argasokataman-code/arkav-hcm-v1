@@ -22,6 +22,27 @@
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
+                <div class="mb-2 me-2 d-flex align-items-center gap-2">
+                    <label class="mb-0 small text-muted">Source</label>
+                    <select class="form-select form-select-sm" style="min-width: 170px;" data-employee-report-source>
+                        <option value="live" selected>Live Data</option>
+                        <option value="archive">Archive Snapshot</option>
+                    </select>
+                </div>
+                <div class="mb-2 me-2 d-none" data-employee-report-snapshot-wrap>
+                    <input type="number" class="form-control form-control-sm" min="1" placeholder="Snapshot ID" data-employee-report-snapshot-id>
+                </div>
+                <div class="mb-2 me-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-employee-report-load>
+                        <i class="ti ti-refresh me-1"></i>Load
+                    </button>
+                </div>
+                <div class="mb-2 me-2">
+                    <span class="badge bg-light text-dark" data-employee-report-source-badge>Source: Live</span>
+                </div>
+                <div class="mb-2 me-2 w-100">
+                    <span class="text-muted small">Live memakai employee directory API; Archive memakai Snapshot ID dari Reports Hub.</span>
+                </div>
                 <div class="mb-2">
                     <div class="dropdown">
                         <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
@@ -164,7 +185,7 @@
                         </div>
                     </div>
                     <div class="card-body py-0">
-                        <div id="employee-reports" class="py-4 text-center text-muted small">Chart menyusul — ringkasan di kartu kiri memakai data API.</div>
+                        <div id="employee-reports" class="py-4 text-center text-muted small">Ringkasan visual belum dipasang. Kartu kiri dan tabel di bawah sudah memakai data API / snapshot.</div>
                     </div>
                 </div>
             </div>					
@@ -248,7 +269,13 @@
                         </thead>
                         <tbody data-employee-report-body>
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Loading…</td>
+                                <td class="text-center text-muted py-4">Loading…</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
                             </tr>
                         </tbody>
                     </table>

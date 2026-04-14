@@ -1,45 +1,84 @@
 (function (window, document) {
   "use strict";
 
-  const API_BASE = "/api/v1/company";
+  const API_BASE = "/v1/company";
   const PAGE_SIZE = 10;
+  let apiToken = null;
+
+  /**
+   * Fetch API token from /api-token endpoint
+   */
+  function getApiToken() {
+    if (apiToken) {
+      return Promise.resolve(apiToken);
+    }
+
+    return fetch("/api-token", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.success) {
+            return Promise.reject({
+              status: res.status,
+              data: data,
+            });
+          }
+          apiToken = data.data.token;
+          return apiToken;
+        });
+      })
+      .catch(function (err) {
+        console.error("Failed to fetch API token:", err);
+        throw err;
+      });
+  }
 
   // Utility: API request with auth headers
   function apiRequest(method, url, body) {
-    const headers = {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    };
+    return getApiToken()
+      .then(function (token) {
+        const headers = {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "Authorization": "Bearer " + token,
+        };
 
-    if (body && typeof body === "object" && !(body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
+        if (body && typeof body === "object" && !(body instanceof FormData)) {
+          headers["Content-Type"] = "application/json";
+        }
 
-    const opts = {
-      method: method,
-      headers: headers,
-      credentials: "same-origin",
-    };
+        const opts = {
+          method: method,
+          headers: headers,
+          credentials: "same-origin",
+        };
 
-    if (body && method !== "GET") {
-      opts.body = body instanceof FormData ? body : JSON.stringify(body);
-    }
+        if (body && method !== "GET") {
+          opts.body = body instanceof FormData ? body : JSON.stringify(body);
+        }
 
-    return fetch(url, opts)
-      .then(function (res) {
-        return res
-          .json()
-          .catch(function () {
-            return {};
-          })
-          .then(function (data) {
-            if (!res.ok) {
-              return Promise.reject({
-                status: res.status,
-                data: data,
+        return fetch(url, opts)
+          .then(function (res) {
+            return res
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (data) {
+                if (!res.ok) {
+                  return Promise.reject({
+                    status: res.status,
+                    data: data,
+                  });
+                }
+                return data;
               });
-            }
-            return data;
           });
       })
       .catch(function (err) {
@@ -167,6 +206,7 @@
         .then(function (response) {
           if (response.success && response.data) {
             self.companies = response.data.companies || [];
+            self.renderSummaryStats(response.data.stats || {});
             self.renderTable(response.data.companies || []);
             self.renderPagination(response.data.pagination || {});
           } else {
@@ -183,6 +223,22 @@
               '<tr><td colspan="8" class="text-center text-danger">Failed to load companies</td></tr>';
           }
         });
+    },
+
+    /**
+     * Render top summary stats
+     */
+    renderSummaryStats: function (stats) {
+      const totalEl = document.getElementById("companies_total_count");
+      const activeEl = document.getElementById("companies_active_count");
+      const inactiveEl = document.getElementById("companies_inactive_count");
+      const locationEl = document.getElementById("companies_location_count");
+
+      if (totalEl) totalEl.textContent = String(stats.totalCompanies || 0);
+      if (activeEl) activeEl.textContent = String(stats.activeCompanies || 0);
+      if (inactiveEl)
+        inactiveEl.textContent = String(stats.inactiveCompanies || 0);
+      if (locationEl) locationEl.textContent = String(stats.locationCount || 0);
     },
 
     /**

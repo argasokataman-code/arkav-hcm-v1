@@ -3,43 +3,82 @@
 
   const API_BASE = "/v1/saas/subscriptions";
   const PAGE_SIZE = 10;
+  let apiToken = null;
+
+  /**
+   * Fetch API token from /api-token endpoint
+   */
+  function getApiToken() {
+    if (apiToken) {
+      return Promise.resolve(apiToken);
+    }
+
+    return fetch("/api-token", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.success) {
+            return Promise.reject({
+              status: res.status,
+              data: data,
+            });
+          }
+          apiToken = data.data.token;
+          return apiToken;
+        });
+      })
+      .catch(function (err) {
+        console.error("Failed to fetch API token:", err);
+        throw err;
+      });
+  }
 
   // Utility: API request with auth headers
   function apiRequest(method, url, body) {
-    const headers = {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    };
+    return getApiToken()
+      .then(function (token) {
+        const headers = {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+          "Authorization": "Bearer " + token,
+        };
 
-    if (body && typeof body === "object" && !(body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
+        if (body && typeof body === "object" && !(body instanceof FormData)) {
+          headers["Content-Type"] = "application/json";
+        }
 
-    const opts = {
-      method: method,
-      headers: headers,
-      credentials: "same-origin",
-    };
+        const opts = {
+          method: method,
+          headers: headers,
+          credentials: "same-origin",
+        };
 
-    if (body && method !== "GET") {
-      opts.body = body instanceof FormData ? body : JSON.stringify(body);
-    }
+        if (body && method !== "GET") {
+          opts.body = body instanceof FormData ? body : JSON.stringify(body);
+        }
 
-    return fetch(url, opts)
-      .then(function (res) {
-        return res
-          .json()
-          .catch(function () {
-            return {};
-          })
-          .then(function (data) {
-            if (!res.ok) {
-              return Promise.reject({
-                status: res.status,
-                data: data,
+        return fetch(url, opts)
+          .then(function (res) {
+            return res
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (data) {
+                if (!res.ok) {
+                  return Promise.reject({
+                    status: res.status,
+                    data: data,
+                  });
+                }
+                return data;
               });
-            }
-            return data;
           });
       })
       .catch(function (err) {
@@ -79,17 +118,68 @@
 
   // Main SubscriptionsManager object
   const SubscriptionsManager = {
+    isInitialized: false,
+    currentUser: null,
+    isAdminUser: false,
     currentPage: 1,
     totalPages: 1,
     subscriptions: [],
+    companies: [],
+    packages: [],
     currentEditId: null,
+    subscriptionModalInstance: null,
 
     /**
      * Initialize the subscriptions list page
      */
     init: function () {
+      if (this.isInitialized) return;
+      this.isInitialized = true;
+
+      this.subscriptionModalInstance = window.bootstrap
+        ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("subscriptionModal"))
+        : null;
+
       this.bindEvents();
-      this.loadSubscriptions();
+      this.loadCurrentUser()
+        .then(() => {
+          this.applyRoleUi();
+
+          const tasks = [this.loadSubscriptions()];
+          if (this.isAdminUser) {
+            tasks.unshift(this.loadPackages());
+            tasks.unshift(this.loadCompanies());
+          }
+          return Promise.all(tasks);
+        })
+        .catch((err) => {
+          if (err && window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
+            window.AuthApi.handleUnauthorizedFromApi(err.status, err.data);
+          }
+        });
+    },
+
+    loadCurrentUser: function () {
+      const self = this;
+      return apiRequest("GET", "/v1/identity/auth/me", null)
+        .then(function (response) {
+          self.currentUser = response?.data || null;
+          self.isAdminUser = !!response?.data?.hcmAdmin;
+          return response;
+        });
+    },
+
+    applyRoleUi: function () {
+      const addButton = document.querySelector("[data-subscription-add-button]");
+      const readOnlyNotice = document.querySelector("[data-subscription-readonly-notice]");
+
+      if (addButton) {
+        addButton.classList.toggle("d-none", !this.isAdminUser);
+      }
+
+      if (readOnlyNotice) {
+        readOnlyNotice.classList.toggle("d-none", this.isAdminUser);
+      }
     },
 
     /**
@@ -98,61 +188,169 @@
     bindEvents: function () {
       const self = this;
 
-      // Add form submission
-      const addForm = document.getElementById("add_subscription_form");
-      if (addForm) {
-        addForm.addEventListener("submit", function (e) {
+      const form = document.getElementById("subscriptionForm");
+      if (form) {
+        form.addEventListener("submit", function (e) {
           e.preventDefault();
-          self.handleAddSubscription(e.target);
+          self.handleSaveSubscription();
         });
       }
 
-      // Edit form submission
-      const editForm = document.getElementById("edit_subscription_form");
-      if (editForm) {
-        editForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-          self.handleEditSubscription(e.target);
+      const addBtn = document.getElementById("btn_add_subscription");
+      if (addBtn) {
+        addBtn.addEventListener("click", function () {
+          self.openCreateModal();
+        });
+      }
+
+      const statusFilter = document.getElementById("filter_status");
+      if (statusFilter) {
+        statusFilter.addEventListener("change", function () {
+          self.currentPage = 1;
+          self.loadSubscriptions();
+        });
+      }
+
+      const cycleFilter = document.getElementById("filter_cycle");
+      if (cycleFilter) {
+        cycleFilter.addEventListener("change", function () {
+          self.currentPage = 1;
+          self.loadSubscriptions();
+        });
+      }
+
+      const searchInput = document.getElementById("search_subscriptions");
+      if (searchInput) {
+        let timer = null;
+        searchInput.addEventListener("input", function () {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(function () {
+            self.currentPage = 1;
+            self.loadSubscriptions();
+          }, 250);
+        });
+      }
+
+      const resetBtn = document.getElementById("btn_reset_filters");
+      if (resetBtn) {
+        resetBtn.addEventListener("click", function () {
+          const status = document.getElementById("filter_status");
+          const cycle = document.getElementById("filter_cycle");
+          const search = document.getElementById("search_subscriptions");
+          if (status) status.value = "";
+          if (cycle) cycle.value = "";
+          if (search) search.value = "";
+          self.currentPage = 1;
+          self.loadSubscriptions();
         });
       }
 
       // Pagination buttons
       document.addEventListener("click", function (e) {
-        if (e.target.matches("[data-page]")) {
+        const pageLink = e.target.closest("[data-page]");
+        if (pageLink) {
           e.preventDefault();
-          const page = parseInt(e.target.getAttribute("data-page"));
+          const page = parseInt(pageLink.getAttribute("data-page"), 10);
           self.currentPage = page;
           self.loadSubscriptions();
         }
 
-        // Edit button
-        if (e.target.matches("[data-edit-subscription]")) {
+        const editBtn = e.target.closest("[data-edit-subscription]");
+        if (editBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-edit-subscription");
+          const id = editBtn.getAttribute("data-edit-subscription");
           self.editSubscription(id);
         }
 
-        // Delete button
-        if (e.target.matches("[data-delete-subscription]")) {
+        const deleteBtn = e.target.closest("[data-delete-subscription]");
+        if (deleteBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-delete-subscription");
+          const id = deleteBtn.getAttribute("data-delete-subscription");
           self.deleteSubscription(id);
         }
 
-        // Cancel subscription button
-        if (e.target.matches("[data-cancel-subscription]")) {
+        const cancelBtn = e.target.closest("[data-cancel-subscription]");
+        if (cancelBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-cancel-subscription");
+          const id = cancelBtn.getAttribute("data-cancel-subscription");
           self.cancelSubscription(id);
         }
 
-        // View details button
-        if (e.target.matches("[data-view-subscription]")) {
+        const viewBtn = e.target.closest("[data-view-subscription]");
+        if (viewBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-view-subscription");
+          const id = viewBtn.getAttribute("data-view-subscription");
           self.viewSubscriptionDetails(id);
         }
       });
+    },
+
+    loadCompanies: function () {
+      const self = this;
+      if (!this.isAdminUser) {
+        self.companies = [];
+        self.renderCompanyOptions();
+        return Promise.resolve([]);
+      }
+
+      apiRequest("GET", "/v1/company?page=1&per_page=200", null)
+        .then(function (response) {
+          const list = response?.data?.companies || response?.data || [];
+          self.companies = Array.isArray(list) ? list : [];
+          self.renderCompanyOptions();
+          return self.companies;
+        })
+        .catch(function () {
+          self.companies = [];
+          self.renderCompanyOptions();
+          return [];
+        });
+    },
+
+    loadPackages: function () {
+      const self = this;
+      if (!this.isAdminUser) {
+        self.packages = [];
+        self.renderPackageOptions();
+        return Promise.resolve([]);
+      }
+
+      apiRequest("GET", "/v1/saas/packages?status=active&per_page=200", null)
+        .then(function (response) {
+          const list = response?.data || [];
+          self.packages = Array.isArray(list) ? list : [];
+          self.renderPackageOptions();
+          return self.packages;
+        })
+        .catch(function () {
+          self.packages = [];
+          self.renderPackageOptions();
+          return [];
+        });
+    },
+
+    renderCompanyOptions: function () {
+      const select = document.getElementById("input_subscription_company");
+      if (!select) return;
+
+      const options = this.companies
+        .map(function (company) {
+          return '<option value="' + esc(company.id) + '">' + esc(company.name || ("Company #" + company.id)) + "</option>";
+        })
+        .join("");
+      select.innerHTML = '<option value="">Select company</option>' + options;
+    },
+
+    renderPackageOptions: function () {
+      const select = document.getElementById("input_subscription_package");
+      if (!select) return;
+
+      const options = this.packages
+        .map(function (pkg) {
+          return '<option value="' + esc(pkg.id) + '">' + esc(pkg.name || pkg.code || ("Package #" + pkg.id)) + "</option>";
+        })
+        .join("");
+      select.innerHTML = '<option value="">Select package</option>' + options;
     },
 
     /**
@@ -160,7 +358,19 @@
      */
     loadSubscriptions: function () {
       const self = this;
-      const url = API_BASE + "?page=" + this.currentPage + "&per_page=" + PAGE_SIZE;
+      const params = new URLSearchParams({
+        page: String(this.currentPage),
+        per_page: String(PAGE_SIZE),
+      });
+
+      const status = document.getElementById("filter_status")?.value || "";
+      const cycle = document.getElementById("filter_cycle")?.value || "";
+      const search = String(document.getElementById("search_subscriptions")?.value || "").trim();
+      if (status) params.set("status", status);
+      if (cycle) params.set("billing_cycle", cycle);
+      if (search) params.set("search", search);
+
+      const url = API_BASE + "?" + params.toString();
 
       apiRequest("GET", url, null)
         .then(function (response) {
@@ -168,7 +378,6 @@
             self.subscriptions = response.data;
             self.totalPages = response.pagination ? response.pagination.last_page : 1;
             self.renderSubscriptions();
-            self.updateStats();
           } else {
             self.showError("Failed to load subscriptions");
           }
@@ -183,59 +392,99 @@
      * Render subscriptions table
      */
     renderSubscriptions: function () {
-      const tbody = document.querySelector("#subscriptions_table tbody");
-      if (!tbody) return;
+      const container = document.querySelector('[data-subscriptions-list-container]');
+      if (!container) return;
 
-      tbody.innerHTML = "";
-
+      let html = '';
       if (this.subscriptions.length === 0) {
-        tbody.innerHTML =
-          '<tr><td colspan="7" class="text-center py-3">No subscriptions found</td></tr>';
-        return;
-      }
-
-      this.subscriptions.forEach((sub) => {
-        const statusBadge = `badge bg-${
-          sub.status === "active"
-            ? "success"
-            : sub.status === "trial"
-            ? "info"
-            : "danger"
-        }`;
-        const autoRenewBadge = `badge bg-${sub.autoRenew ? "success" : "warning"}`;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${esc(sub.companyName || "N/A")}</td>
-          <td>${esc(sub.packageName || "N/A")}</td>
-          <td><span class="${statusBadge}">${esc(sub.status)}</span></td>
-          <td>${formatDate(sub.startDate)}</td>
-          <td>${formatDate(sub.endDate)}</td>
-          <td><span class="${autoRenewBadge}">${sub.autoRenew ? "Yes" : "No"}</span></td>
-          <td>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-info" data-view-subscription="${sub.id}" title="View Details">
-                <i class="ti ti-eye"></i>
-              </button>
-              <button class="btn btn-sm btn-primary" data-edit-subscription="${sub.id}" title="Edit">
-                <i class="ti ti-edit"></i>
-              </button>
-              ${
-                sub.status === "active"
-                  ? `<button class="btn btn-sm btn-warning" data-cancel-subscription="${sub.id}" title="Cancel">
-                      <i class="ti ti-x"></i>
-                    </button>`
-                  : ""
-              }
-              <button class="btn btn-sm btn-danger" data-delete-subscription="${sub.id}" title="Delete">
-                <i class="ti ti-trash"></i>
-              </button>
+        html = '<div class="card"><div class="card-body text-center text-muted py-4">No subscriptions found</div></div>';
+      } else {
+        html = `
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Company</th>
+                    <th>Package</th>
+                    <th>Status</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Auto Renew</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.subscriptions.map(sub => {
+                    const statusBadgeClass =
+                      sub.status === "active"
+                        ? "badge-success"
+                        : sub.status === "trial"
+                        ? "badge-info"
+                        : sub.status === "inactive"
+                        ? "badge-secondary"
+                        : sub.status === "expired"
+                        ? "badge-warning"
+                        : "badge-danger";
+                    const companyName = sub.companyName || sub.company?.name || "-";
+                    const packageName = sub.packageName || sub.package?.name || sub.planCode || "-";
+                    const startDate = sub.startDate || sub.startsAt || null;
+                    const endDate = sub.endDate || sub.endsAt || null;
+                    return `
+                      <tr>
+                        <tr data-subscription-row="${sub.id}">
+                        <td>${esc(companyName)}</td>
+                        <td>${esc(packageName)}</td>
+                        <td>
+                          <span class="badge ${statusBadgeClass} d-inline-flex align-items-center badge-xs">
+                            <i class="ti ti-point-filled me-1"></i>${esc(sub.status)}
+                          </span>
+                        </td>
+                        <td>${formatDate(startDate)}</td>
+                        <td>${formatDate(endDate)}</td>
+                        <td>
+                          <span class="badge ${sub.autoRenew ? "badge-success" : "badge-warning"} d-inline-flex align-items-center badge-xs">
+                            <i class="ti ti-point-filled me-1"></i>${sub.autoRenew ? "Yes" : "No"}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="action-icon d-inline-flex">
+                            <button class="btn btn-icon btn-sm me-2" data-view-subscription="${sub.id}" title="View Details">
+                              <i class="ti ti-eye"></i>
+                            </button>
+                            ${this.isAdminUser ? `
+                              <button class="btn btn-icon btn-sm me-2" data-edit-subscription="${sub.id}" title="Edit">
+                                <i class="ti ti-edit"></i>
+                              </button>
+                              ${
+                                sub.status === "active"
+                                  ? `<button class="btn btn-icon btn-sm me-2" data-cancel-subscription="${sub.id}" title="Cancel">
+                                      <i class="ti ti-x"></i>
+                                    </button>`
+                                  : ""
+                              }
+                              <button class="btn btn-icon btn-sm" data-delete-subscription="${sub.id}" title="Delete">
+                                <i class="ti ti-trash"></i>
+                              </button>
+                            ` : ""}
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
             </div>
-          </td>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+              <small class="text-muted">Showing ${this.subscriptions.length} subscriptions</small>
+              <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0" data-subscription-pagination></ul>
+              </nav>
+            </div>
+          </div>
         `;
-        tbody.appendChild(row);
-      });
-
+      }
+      container.innerHTML = html;
       this.renderPagination();
     },
 
@@ -243,94 +492,100 @@
      * Render pagination
      */
     renderPagination: function () {
-      const container = document.getElementById("pagination_container");
+      const container = document.querySelector('[data-subscription-pagination]');
       if (!container) return;
-
       container.innerHTML = "";
-      const nav = document.createElement("nav");
-      const ul = document.createElement("ul");
-      ul.className = "pagination mb-0";
-
       if (this.currentPage > 1) {
         const li = document.createElement("li");
         li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage - 1
-        }">Previous</a>`;
-        ul.appendChild(li);
+        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${this.currentPage - 1}">Previous</a>`;
+        container.appendChild(li);
       }
-
       for (let i = 1; i <= this.totalPages; i++) {
         const li = document.createElement("li");
         li.className = "page-item" + (i === this.currentPage ? " active" : "");
         li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${i}">${i}</a>`;
-        ul.appendChild(li);
+        container.appendChild(li);
       }
-
       if (this.currentPage < this.totalPages) {
         const li = document.createElement("li");
         li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage + 1
-        }">Next</a>`;
-        ul.appendChild(li);
+        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${this.currentPage + 1}">Next</a>`;
+        container.appendChild(li);
+      }
+    },
+
+    openCreateModal: function () {
+      if (!this.isAdminUser) {
+        this.showError("Admin access required.");
+        return;
       }
 
-      nav.appendChild(ul);
-      container.appendChild(nav);
+      this.currentEditId = null;
+      const form = document.getElementById("subscriptionForm");
+      if (form) form.reset();
+      const title = document.getElementById("subscriptionModalTitle");
+      const submitBtn = document.querySelector("#subscriptionForm button[type='submit']");
+      if (title) title.textContent = "Add Subscription";
+      if (submitBtn) submitBtn.textContent = "Save Subscription";
     },
 
-    /**
-     * Update statistics
-     */
-    updateStats: function () {
-      const totalEl = document.getElementById("total_subscriptions");
-      const activeEl = document.getElementById("active_subscriptions");
-      const trialEl = document.getElementById("trial_subscriptions");
+    handleSaveSubscription: function () {
+      if (!this.isAdminUser) {
+        this.showError("Admin access required.");
+        return;
+      }
 
-      const activeCount = this.subscriptions.filter(
-        (s) => s.status === "active"
-      ).length;
-      const trialCount = this.subscriptions.filter((s) => s.status === "trial").length;
-
-      if (totalEl) totalEl.textContent = this.subscriptions.length;
-      if (activeEl) activeEl.textContent = activeCount;
-      if (trialEl) trialEl.textContent = trialCount;
-    },
-
-    /**
-     * Handle add subscription
-     */
-    handleAddSubscription: function (form) {
       const self = this;
-      const formData = new FormData(form);
+      const companyId = document.getElementById("input_subscription_company")?.value;
+      const packageId = document.getElementById("input_subscription_package")?.value;
+      const startDate = document.getElementById("input_subscription_start")?.value;
+      const billingCycle = document.getElementById("input_subscription_cycle")?.value;
+
+      if (!companyId || !packageId || !startDate || !billingCycle) {
+        self.showError("Company, package, start date, dan billing cycle wajib diisi.");
+        return;
+      }
+
+      let endDate = null;
+      const start = new Date(startDate + "T00:00:00");
+      if (!Number.isNaN(start.getTime())) {
+        if (billingCycle === "yearly") {
+          start.setFullYear(start.getFullYear() + 1);
+        } else {
+          start.setMonth(start.getMonth() + 1);
+        }
+        endDate = start.toISOString().slice(0, 10);
+      }
+
       const data = {
-        companyId: parseInt(formData.get("company_id")),
-        packageId: parseInt(formData.get("package_id")),
-        status: formData.get("status"),
-        startDate: formData.get("start_date"),
-        endDate: formData.get("end_date"),
-        autoRenew: formData.get("auto_renew") === "1",
+        company_id: Number(companyId),
+        package_id: Number(packageId),
+        status: "active",
+        starts_at: startDate,
+        ends_at: endDate,
+        auto_renew: true,
+        billing_cycle: billingCycle,
       };
 
-      apiRequest("POST", API_BASE, data)
+      const isEdit = !!this.currentEditId;
+      const method = isEdit ? "PUT" : "POST";
+      const url = isEdit ? API_BASE + "/" + this.currentEditId : API_BASE;
+
+      apiRequest(method, url, data)
         .then(function (response) {
           if (response.success) {
-            self.showSuccess("Subscription created successfully");
-            form.reset();
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("add_subscription")
-            );
-            if (modal) modal.hide();
+            self.showSuccess(isEdit ? "Subscription updated successfully" : "Subscription created successfully");
+            self.currentEditId = null;
+            if (self.subscriptionModalInstance) self.subscriptionModalInstance.hide();
             self.currentPage = 1;
             self.loadSubscriptions();
           } else {
-            self.showError(response.error?.message || "Failed to create subscription");
+            self.showError(response.error?.message || "Failed to save subscription");
           }
         })
         .catch(function (err) {
-          console.error(err);
-          self.showError("Error creating subscription");
+          self.showError(err?.data?.error?.message || "Error saving subscription");
         });
     },
 
@@ -338,6 +593,11 @@
      * Edit subscription
      */
     editSubscription: function (id) {
+      if (!this.isAdminUser) {
+        this.showError("Admin access required.");
+        return;
+      }
+
       const self = this;
       const url = API_BASE + "/" + id;
 
@@ -345,17 +605,17 @@
         .then(function (response) {
           if (response.success && response.data) {
             const sub = response.data;
-            document.getElementById("edit_subscription_id").value = sub.id;
-            document.getElementById("edit_company_id").value = sub.companyId;
-            document.getElementById("edit_package_id").value = sub.packageId;
-            document.getElementById("edit_status").value = sub.status;
-            document.getElementById("edit_start_date").value = sub.startDate;
-            document.getElementById("edit_end_date").value = sub.endDate;
-            document.getElementById("edit_auto_renew").checked = sub.autoRenew;
+            document.getElementById("input_subscription_company").value = String(sub.companyId || "");
+            document.getElementById("input_subscription_package").value = String(sub.packageId || "");
+            document.getElementById("input_subscription_start").value = sub.startDate || "";
+            document.getElementById("input_subscription_cycle").value = sub.billingCycle || "monthly";
 
             self.currentEditId = id;
-            const modal = new bootstrap.Modal(document.getElementById("edit_subscription"));
-            modal.show();
+            const title = document.getElementById("subscriptionModalTitle");
+            const submitBtn = document.querySelector("#subscriptionForm button[type='submit']");
+            if (title) title.textContent = "Edit Subscription";
+            if (submitBtn) submitBtn.textContent = "Update Subscription";
+            if (self.subscriptionModalInstance) self.subscriptionModalInstance.show();
           } else {
             self.showError("Failed to load subscription");
           }
@@ -366,45 +626,22 @@
         });
     },
 
-    /**
-     * Handle edit subscription
-     */
-    handleEditSubscription: function (form) {
-      const self = this;
-      const id = document.getElementById("edit_subscription_id").value;
-      const formData = new FormData(form);
-      const data = {
-        status: formData.get("status"),
-        endDate: formData.get("end_date"),
-        autoRenew: formData.get("auto_renew") === "1",
-      };
+    cancelSubscription: async function (id) {
+      if (!this.isAdminUser) {
+        this.showError("Admin access required.");
+        return;
+      }
 
-      const url = API_BASE + "/" + id;
-
-      apiRequest("PUT", url, data)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Subscription updated successfully");
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("edit_subscription")
-            );
-            if (modal) modal.hide();
-            self.loadSubscriptions();
-          } else {
-            self.showError(response.error?.message || "Failed to update subscription");
-          }
-        })
-        .catch(function (err) {
-          console.error(err);
-          self.showError("Error updating subscription");
-        });
-    },
-
-    /**
-     * Cancel subscription
-     */
-    cancelSubscription: function (id) {
-      if (!confirm("Are you sure you want to cancel this subscription?")) return;
+      let confirmed = false;
+      if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function") {
+        confirmed = await window.ArcavUi.confirmDelete(
+          "Batalkan subscription ini?",
+          "Cancel Subscription"
+        );
+      } else {
+        confirmed = window.confirm("Are you sure you want to cancel this subscription?");
+      }
+      if (!confirmed) return;
 
       const self = this;
       const url = API_BASE + "/" + id;
@@ -425,11 +662,22 @@
         });
     },
 
-    /**
-     * Delete subscription
-     */
-    deleteSubscription: function (id) {
-      if (!confirm("Are you sure you want to delete this subscription?")) return;
+    deleteSubscription: async function (id) {
+      if (!this.isAdminUser) {
+        this.showError("Admin access required.");
+        return;
+      }
+
+      let confirmed = false;
+      if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function") {
+        confirmed = await window.ArcavUi.confirmDelete(
+          "Hapus subscription ini? Tindakan tidak dapat dibatalkan.",
+          "Delete Subscription"
+        );
+      } else {
+        confirmed = window.confirm("Are you sure you want to delete this subscription?");
+      }
+      if (!confirmed) return;
 
       const self = this;
       const url = API_BASE + "/" + id;
@@ -453,38 +701,26 @@
      * View subscription details
      */
     viewSubscriptionDetails: function (id) {
-      const self = this;
-      const url = API_BASE + "/" + id;
+      const sub = this.subscriptions.find(function (item) {
+        return String(item.id) === String(id);
+      });
 
-      apiRequest("GET", url, null)
-        .then(function (response) {
-          if (response.success && response.data) {
-            const sub = response.data;
-            const html = `
-              <div class="row">
-                <div class="col-md-6">
-                  <p><strong>Company:</strong> ${esc(sub.companyName)}</p>
-                  <p><strong>Package:</strong> ${esc(sub.packageName)}</p>
-                  <p><strong>Status:</strong> ${esc(sub.status)}</p>
-                </div>
-                <div class="col-md-6">
-                  <p><strong>Start Date:</strong> ${formatDate(sub.startDate)}</p>
-                  <p><strong>End Date:</strong> ${formatDate(sub.endDate)}</p>
-                  <p><strong>Auto Renew:</strong> ${sub.autoRenew ? "Yes" : "No"}</p>
-                </div>
-              </div>
-            `;
-            document.getElementById("details_content").innerHTML = html;
-            const modal = new bootstrap.Modal(document.getElementById("details_modal"));
-            modal.show();
-          } else {
-            self.showError("Failed to load subscription details");
-          }
-        })
-        .catch(function (err) {
-          console.error(err);
-          self.showError("Error loading subscription details");
-        });
+      if (!sub) {
+        this.showError("Subscription details not found");
+        return;
+      }
+
+      const text =
+        "Company: " + (sub.companyName || "-") + "\n" +
+        "Package: " + (sub.packageName || sub.planCode || "-") + "\n" +
+        "Status: " + (sub.status || "-") + "\n" +
+        "Start Date: " + formatDate(sub.startDate || sub.startsAt) + "\n" +
+        "End Date: " + formatDate(sub.endDate || sub.endsAt) + "\n" +
+        "Auto Renew: " + (sub.autoRenew ? "Yes" : "No") + "\n" +
+        "Billing Cycle: " + (sub.billingCycle || "-") + "\n" +
+        "Amount: " + formatCurrency(sub.amount || 0);
+
+      window.alert(text);
     },
 
     /**

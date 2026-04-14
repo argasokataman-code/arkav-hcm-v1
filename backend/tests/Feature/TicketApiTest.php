@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
 use App\Models\Ticket;
+use App\Models\TicketCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -49,14 +50,25 @@ class TicketApiTest extends TestCase
         Storage::fake('public');
         $employee = $this->loginWithRole(false, 'ticket-employee@example.com');
         $headers = ['Authorization' => 'Bearer '.$employee['token']];
+        $category = TicketCategory::query()->create([
+            'name' => 'IT',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
 
         $create = $this->withHeaders($headers)->postJson('/v1/hcm/tickets', [
             'subject' => 'Laptop freeze',
             'description' => 'Laptop keeps freezing.',
-            'category' => 'IT',
+            'categoryId' => $category->id,
             'priority' => 'high',
         ])->assertStatus(201)->assertJsonPath('success', true);
         $ticketId = (int) $create->json('data.id');
+
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticketId,
+            'category_id' => $category->id,
+            'category' => 'IT',
+        ]);
 
         $this->withHeaders($headers)->getJson('/v1/hcm/tickets')
             ->assertOk()
@@ -65,7 +77,7 @@ class TicketApiTest extends TestCase
         $this->withHeaders($headers)->putJson("/v1/hcm/tickets/{$ticketId}", [
             'subject' => 'Laptop freeze urgent',
             'description' => 'Still freezing',
-            'category' => 'IT Ops',
+            'categoryId' => $category->id,
             'priority' => 'urgent',
         ])->assertOk()->assertJsonPath('success', true);
 

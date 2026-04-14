@@ -1,5 +1,38 @@
 <!DOCTYPE html>
 
+@php
+	$authRouteNames = [
+		'login',
+		'login-2',
+		'login-3',
+		'register',
+		'register-2',
+		'register-3',
+		'forgot-password',
+		'forgot-password-2',
+		'forgot-password-3',
+		'reset-password',
+		'reset-password-2',
+		'reset-password-3',
+		'email-verification',
+		'email-verification-2',
+		'email-verification-3',
+		'two-step-verification',
+		'two-step-verification-2',
+		'two-step-verification-3',
+		'lock-screen',
+		'success',
+		'success-2',
+		'success-3',
+		'error-404',
+		'error-500',
+		'coming-soon',
+		'under-maintenance',
+		'under-construction',
+	];
+	$isAuthPage = request()->routeIs($authRouteNames) || request()->is('/') || request()->is('login');
+@endphp
+
 @if (Route::is(['layout-horizontal']))
 	<html lang="en" data-layout="horizontal">
 @elseif (Route::is(['layout-detached']))
@@ -43,32 +76,7 @@
     @include('layout.partials.head')
 </head>
 
-@if (!Route::is(['login',
-'login-2',
-'login-3',
-'register',
-'register-2',
-'register-3',
-'forgot-password',
-'forgot-password-2',
-'forgot-password-3',
-'reset-password',
-'reset-password-2',
-'reset-password-3',
-'email-verification',
-'email-verification-2',
-'email-verification-3',
-'lock-screen',
-'error-404',
-'error-500',
-'coming-soon',
-'under-maintenance',
-'under-construction',
-'success',
-'success-2',
-'success-3'
-
-]))
+@if (! $isAuthPage)
 <body>
 @endif
 
@@ -126,34 +134,7 @@
 <!-- Main Wrapper -->
 <div class="main-wrapper">
 
-    @if (!Route::is(['login',
-'login-2',
-'login-3',
-'register',
-'register-2',
-'register-3',
-'forgot-password',
-'forgot-password-2',
-'forgot-password-3',
-'reset-password',
-'reset-password-2',
-'reset-password-3',
-'email-verification',
-'email-verification-2',
-'email-verification-3',
-'lock-screen',
-'error-404',
-'error-500',
-'coming-soon',
-'under-maintenance',
-'under-construction',
-'success',
-'success-2',
-'success-3',
-'two-step-verification',
-'two-step-verification-2',
-'two-step-verification-3'
-	]))
+	@if (! $isAuthPage)
         @include('layout.partials.header')
         @include('layout.partials.sidebar')
         @include('hcm.partials.hcm-confirm-delete-modal')

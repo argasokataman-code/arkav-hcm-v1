@@ -168,7 +168,38 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Address <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="3" {{ $fieldAttr }}="address" placeholder="Alamat lengkap employee" required></textarea>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Province</label>
+                                        <select class="form-select" {{ $fieldAttr }}="provinceId" data-employee-wilayah-province required>
+                                            <option value="">Select province</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Regency / City</label>
+                                        <select class="form-select" {{ $fieldAttr }}="regencyId" data-employee-wilayah-regency required disabled>
+                                            <option value="">Select regency</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">District</label>
+                                        <select class="form-select" {{ $fieldAttr }}="districtId" data-employee-wilayah-district required disabled>
+                                            <option value="">Select district</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Village / Ward</label>
+                                        <select class="form-select" {{ $fieldAttr }}="villageId" data-employee-wilayah-village required disabled>
+                                            <option value="">Select village</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small text-muted">Address Detail (manual)</label>
+                                        <input type="hidden" {{ $fieldAttr }}="address" data-employee-address-autofill>
+                                        <textarea class="form-control" rows="2" {{ $fieldAttr }}="addressDetail" placeholder="Street, building, RT/RW, landmark"></textarea>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-2">Wilayah tetap dipilih dari dropdown. Isi detail alamat manual jika diperlukan.</small>
                             </div>
                         </div>
                     </div>

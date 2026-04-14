@@ -37,6 +37,9 @@ Checklist struktur kode agar implementasi Phase 1 tetap rapi dan konsisten denga
 ## 5) CI/CD, testing, observability baseline
 
 - [ ] Gate: lint + test + build sebelum merge
+- [ ] Gate: role permission + use case review untuk setiap perubahan fitur/bugfix
+- [ ] Gate: cross-check UIUX per role (admin vs non-admin/company)
+- [ ] Gate: manual UI E2E click-by-click setelah fix/development selesai
 - [ ] Unit/integration/smoke test untuk flow utama
 - [x] `/health` endpoint backend
 - [ ] request logging untuk endpoint critical

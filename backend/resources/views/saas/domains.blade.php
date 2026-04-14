@@ -154,7 +154,7 @@
     </div>
 </div>
 
-<script src="{{ asset('resources/js/domain-management.js') }}"></script>
+<script src="{{ asset('build/js/domain-management.js') }}?v={{ filemtime(public_path('build/js/domain-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.DomainManager?.init?.();

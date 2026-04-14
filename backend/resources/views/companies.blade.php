@@ -62,7 +62,7 @@
                                 </span>
                                 <div class="ms-2 overflow-hidden">
                                     <p class="fs-12 fw-medium mb-1 text-truncate">Total Companies</p>
-                                    <h4>950</h4>
+                                    <h4 id="companies_total_count">0</h4>
                                 </div>
                             </div>
                             <div id="total-chart"></div>
@@ -81,7 +81,7 @@
                                 </span>
                                 <div class="ms-2 overflow-hidden">
                                     <p class="fs-12 fw-medium mb-1 text-truncate">Active Companies</p>
-                                    <h4>920</h4>
+                                    <h4 id="companies_active_count">0</h4>
                                 </div>
                             </div>
                             <div id="active-chart"></div>
@@ -100,7 +100,7 @@
                                 </span>
                                 <div class="ms-2 overflow-hidden">
                                     <p class="fs-12 fw-medium mb-1 text-truncate">Inactive Companies</p>
-                                    <h4>30</h4>
+                                    <h4 id="companies_inactive_count">0</h4>
                                 </div>
                             </div>
                             <div id="inactive-chart"></div>
@@ -119,7 +119,7 @@
                                 </span>
                                 <div class="ms-2 overflow-hidden">
                                     <p class="fs-12 fw-medium mb-1 text-truncate">Company Location</p>
-                                    <h4>180</h4>
+                                    <h4 id="companies_location_count">0</h4>
                                 </div>
                             </div>
                             <div id="location-chart"></div>
@@ -135,7 +135,7 @@
                     <h5>Companies List</h5>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                         <div class="me-3">
-                            <div class="input-icon-end position-relative">
+                            <select id="status_filter" class="form-select">
                                 <input type="text" class="form-control date-range bookingrange" placeholder="dd/mm/yyyy - dd/mm/yyyy">
                                 <span class="input-icon-addon">
                                     <i class="ti ti-chevron-down"></i>
@@ -191,7 +191,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
+                        <table class="table">
                             <thead class="thead-light">
                                 <tr>
                                     <th class="no-sort">
@@ -348,7 +348,7 @@
         </div>
     </div>
 
-    <script src="{{ asset('build/js/companies-management.js') }}"></script>
+    <script src="{{ asset('build/js/companies-management.js') }}?v={{ filemtime(public_path('build/js/companies-management.js')) }}"></script>
 
     @component('components.modal-popup')
     @endcomponent

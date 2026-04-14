@@ -2,10 +2,17 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "e2e": "playwright test",
+        "e2e:headed": "playwright test --headed",
+        "e2e:subscriptions": "playwright test e2e/tests/subscriptions.spec.js --project=chromium",
+        "e2e:subscriptions:mobile": "playwright test e2e/tests/subscriptions.spec.js --project=mobile-chromium",
+        "e2e:employee-salary": "playwright test e2e/tests/employee-salary.spec.js --project=chromium",
+        "e2e:employee-salary:mobile": "playwright test e2e/tests/employee-salary.spec.js --project=mobile-chromium",
         "build": "vite build",
         "dev": "vite"
     },
     "devDependencies": {
+        "@playwright/test": "^1.59.1",
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",

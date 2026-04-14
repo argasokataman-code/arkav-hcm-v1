@@ -12,6 +12,8 @@ Detail flow per modul sekarang dipisah di `docs/features/*` (mulai dari `docs/fe
 
 **Guard halaman web HCM:** middleware `EnsureHcmWebPagesAuthenticated` (group `web`) + `config/arcav_hcm_web_guard.php`. **Satu mode:** setiap GET/HEAD web wajib cookie API valid atau sesi web, **kecuali** whitelist `public_paths` / `public_prefixes` (/, login, register, signout, up, api-docs, …). Tidak ada lagi daftar `protected_paths` atau env yang mematikan guard global. Tamu pada path lain → **404** + **`error-404-guest`**. **Security headers** global: `SecurityHeadersMiddleware`. Indeks: `docs/security/README.md`. Tes: `WebHcmRouteGuardTest`.
 
+**Locations / Wilayah Sync:** menu `countries` / `states` / `cities` sekarang membaca DB lokal dari `wilayah_*` tables dan disinkronkan dengan `wilayah.id` via `wilayah:sync` yang dijadwalkan bulanan pada tanggal 1 pukul 01:00 WIB. Data desa/kelurahan juga disimpan di `wilayah_villages` walau belum ditampilkan di menu. Dokumentasi fitur: `docs/features/locations/`.
+
 ## Runtime
 
 - **Backend:** satu aplikasi Laravel di `backend/`; domain dipisah lewat prefix route, bukan deploy microservice terpisah.
@@ -41,6 +43,7 @@ Detail flow per modul sekarang dipisah di `docs/features/*` (mulai dari `docs/fe
 - Holidays punya sinkronisasi baseline nasional: `POST /v1/hcm/holidays/sync-indonesia` (libur.deno.dev, per tahun) dengan strategi `source=api` vs override admin `source=manual`.
 - **Leave-requests**, **overtime-requests** — non-admin hanya melihat/mengubah data sendiri; persetujuan status (`approved` / `declined`) untuk **leave** milik orang lain hanya **hcmAdmin** (`HcmLeaveRequestController::update`; `LeaveRequestsApiTest`). Halaman `/leaves` mengarahkan non-admin ke `/leaves-employee`. **`GET /leave-type-options`** menyediakan tipe cuti aktif untuk dropdown modal (user terautentikasi). **Overtime-requests** (`overtimeTypeId` opsional, `requestType`, `policyNote`) plus **FK `hcm_salary_component_id`** → `hcm_salary_components` (slip upah lembur; otomatis saat create, refresh saat owner mengubah pending). List & kalkulator menyertakan `salaryComponent*` / `salaryComponent`. **Web:** `/overtime` untuk admin HCM; non-admin dialihkan ke **`/overtime-employee`** (satu view, flag Blade; menu *Overtime (Admin)* vs *Overtime (Employee)*).
 - **Kalkulator lembur:** `POST /overtime-requests/calculate` (acuan PP 35/2021, upah sejam=(gaji pokok+tunjangan tetap)/173) + `salaryComponent` selaras master komponen gaji.
+- **Reporting snapshots:** `POST/GET /reports/snapshots`, `GET /reports/snapshots/{id}`, `POST /reports/snapshots/{id}/export` (admin-only, tenant-scoped). Export sekarang menghasilkan file nyata `csv|excel|pdf` di storage publik; halaman `/attendance-report`, `/payslip-report`, `/employee-report`, `/leave-report` mendukung mode **Live** vs **Archive**.
 - **Health:** `GET /health` (tanpa auth)
 
 **Catatan namespace:** banyak fitur “leave & attendance” secara **logis** tetap domain terpisah, tetapi **path HTTP saat ini** berada di `/v1/hcm/*`, bukan `/v1/leave/*`. Rencana atau OpenAPI yang masih menyebut `/v1/leave/...` diperlakukan sebagai referensi domain hingga diselaraskan.
@@ -51,6 +54,7 @@ Selain `users`, `departments`, `designations`, dan data employee inti, migrasi y
 
 - `attendance_records`, `hcm_schedule_timings` (+ FK **`hcm_shift_id`** → `hcm_shifts`)
 - **`hcm_shifts`** (code, name, start/end time, sort order, is_active)
+- **`wilayah_provinces`**, **`wilayah_regencies`**, **`wilayah_districts`**, **`wilayah_villages`** — cache lokal data wilayah Indonesia dari `wilayah.id`; sync via `wilayah:sync`.
 - `holidays`, `leave_requests`, `overtime_requests` (+ FK `hcm_overtime_type_id`, FK `hcm_salary_component_id` → `hcm_salary_components`)
 - `holidays` kini menyimpan metadata sinkronisasi: `source` (`manual|api`) dan `last_synced_at`
 - `hcm_leave_type_settings`, `hcm_leave_custom_policies`

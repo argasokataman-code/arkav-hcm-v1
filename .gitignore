@@ -19,6 +19,9 @@ frontend/.vite/
 backend/vendor/
 backend/node_modules/
 backend/public/build/
+backend/playwright-report/
+backend/test-results/
+backend/.playwright/
 backend/storage/*.key
 backend/storage/logs/*.log
 backend/storage/framework/cache/*

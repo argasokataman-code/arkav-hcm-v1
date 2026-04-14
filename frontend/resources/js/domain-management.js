@@ -2,31 +2,61 @@
   "use strict";
 
   const API_BASE = "/v1/saas/domains";
+  const COMPANY_API = "/v1/company";
   const PAGE_SIZE = 10;
+  let apiToken = null;
 
-  // Utility: API request with auth headers
-  function apiRequest(method, url, body) {
-    const headers = {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    };
-
-    if (body && typeof body === "object" && !(body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
+  function getApiToken() {
+    if (apiToken) {
+      return Promise.resolve(apiToken);
     }
 
-    const opts = {
-      method: method,
-      headers: headers,
+    return fetch("/api-token", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
       credentials: "same-origin",
-    };
-
-    if (body && method !== "GET") {
-      opts.body = body instanceof FormData ? body : JSON.stringify(body);
-    }
-
-    return fetch(url, opts)
+    })
       .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.success) {
+            return Promise.reject({ status: res.status, data: data });
+          }
+          apiToken = data.data.token;
+          return apiToken;
+        });
+      })
+      .catch(function (err) {
+        console.error("Failed to fetch API token:", err);
+        throw err;
+      });
+  }
+
+  function apiRequest(method, url, body) {
+    return getApiToken().then(function (token) {
+      const headers = {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        Authorization: "Bearer " + token,
+      };
+
+      if (body && typeof body === "object" && !(body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
+
+      const opts = {
+        method: method,
+        headers: headers,
+        credentials: "same-origin",
+      };
+
+      if (body && method !== "GET") {
+        opts.body = body instanceof FormData ? body : JSON.stringify(body);
+      }
+
+      return fetch(url, opts).then(function (res) {
         return res
           .json()
           .catch(function () {
@@ -34,31 +64,23 @@
           })
           .then(function (data) {
             if (!res.ok) {
-              return Promise.reject({
-                status: res.status,
-                data: data,
-              });
+              return Promise.reject({ status: res.status, data: data });
             }
             return data;
           });
-      })
-      .catch(function (err) {
-        console.error("API request failed:", err);
-        throw err;
       });
+    });
   }
 
-  // Helper: escape HTML
   function esc(v) {
     return String(v || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
+      .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#39;");
   }
 
-  // Format date as DD/MM/YYYY
   function formatDate(dateStr) {
     if (!dateStr) return "-";
     const d = new Date(dateStr);
@@ -71,467 +93,504 @@
     );
   }
 
-  // Main DomainManager object
+  function toTitleCase(value) {
+    return String(value || "")
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, function (s) {
+        return s.toUpperCase();
+      });
+  }
+
   const DomainManager = {
+    isInitialized: false,
     currentPage: 1,
     totalPages: 1,
     domains: [],
+    companies: [],
     currentEditId: null,
+    pendingVerifyDomainId: null,
+    domainModalInstance: null,
+    verificationModalInstance: null,
 
-    /**
-     * Initialize the domains list page
-     */
     init: function () {
+      if (this.isInitialized) return;
+      this.isInitialized = true;
+
+      this.domainModalInstance = window.bootstrap
+        ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("domainModal"))
+        : null;
+      this.verificationModalInstance = window.bootstrap
+        ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("verificationModal"))
+        : null;
+
       this.bindEvents();
+      this.loadCompanies();
       this.loadDomains();
     },
 
-    /**
-     * Bind event listeners
-     */
     bindEvents: function () {
       const self = this;
 
-      // Add form submission
-      const addForm = document.getElementById("add_domain_form");
-      if (addForm) {
-        addForm.addEventListener("submit", function (e) {
+      const form = document.getElementById("domainForm");
+      if (form) {
+        form.addEventListener("submit", function (e) {
           e.preventDefault();
-          self.handleAddDomain(e.target);
+          self.handleSaveDomain();
         });
       }
 
-      // Edit form submission
-      const editForm = document.getElementById("edit_domain_form");
-      if (editForm) {
-        editForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-          self.handleEditDomain(e.target);
+      const addBtn = document.getElementById("btn_add_domain");
+      if (addBtn) {
+        addBtn.addEventListener("click", function () {
+          self.openCreateModal();
         });
       }
 
-      // Pagination buttons
+      const statusFilter = document.getElementById("filter_status");
+      if (statusFilter) {
+        statusFilter.addEventListener("change", function () {
+          self.currentPage = 1;
+          self.loadDomains();
+        });
+      }
+
+      const companyFilter = document.getElementById("filter_company");
+      if (companyFilter) {
+        companyFilter.addEventListener("change", function () {
+          self.currentPage = 1;
+          self.loadDomains();
+        });
+      }
+
+      const searchInput = document.getElementById("search_domains");
+      if (searchInput) {
+        let timer = null;
+        searchInput.addEventListener("input", function () {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(function () {
+            self.currentPage = 1;
+            self.loadDomains();
+          }, 250);
+        });
+      }
+
+      const resetBtn = document.getElementById("btn_reset_filters");
+      if (resetBtn) {
+        resetBtn.addEventListener("click", function () {
+          const status = document.getElementById("filter_status");
+          const company = document.getElementById("filter_company");
+          const search = document.getElementById("search_domains");
+          if (status) status.value = "";
+          if (company) company.value = "";
+          if (search) search.value = "";
+          self.currentPage = 1;
+          self.loadDomains();
+        });
+      }
+
+      const verifyBtn = document.getElementById("btn_verify_domain");
+      if (verifyBtn) {
+        verifyBtn.addEventListener("click", function () {
+          if (self.pendingVerifyDomainId) {
+            self.verifyDomain(self.pendingVerifyDomainId);
+          }
+        });
+      }
+
       document.addEventListener("click", function (e) {
-        if (e.target.matches("[data-page]")) {
+        const pageLink = e.target.closest("[data-page]");
+        if (pageLink) {
           e.preventDefault();
-          const page = parseInt(e.target.getAttribute("data-page"));
-          self.currentPage = page;
+          self.currentPage = parseInt(pageLink.getAttribute("data-page"), 10) || 1;
           self.loadDomains();
         }
 
-        // Edit button
-        if (e.target.matches("[data-edit-domain]")) {
+        const editBtn = e.target.closest("[data-edit-domain]");
+        if (editBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-edit-domain");
-          self.editDomain(id);
+          self.editDomain(editBtn.getAttribute("data-edit-domain"));
         }
 
-        // Delete button
-        if (e.target.matches("[data-delete-domain]")) {
+        const deleteBtn = e.target.closest("[data-delete-domain]");
+        if (deleteBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-delete-domain");
-          self.deleteDomain(id);
+          self.deleteDomain(deleteBtn.getAttribute("data-delete-domain"));
         }
 
-        // Verify button
-        if (e.target.matches("[data-verify-domain]")) {
+        const detailBtn = e.target.closest("[data-verify-details]");
+        if (detailBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-verify-domain");
-          self.verifyDomain(id);
+          self.showVerificationDetails(detailBtn.getAttribute("data-verify-details"));
         }
 
-        // View verification details button
-        if (e.target.matches("[data-verify-details]")) {
+        const verifyDomainBtn = e.target.closest("[data-verify-domain]");
+        if (verifyDomainBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-verify-details");
-          self.showVerificationDetails(id);
+          self.verifyDomain(verifyDomainBtn.getAttribute("data-verify-domain"));
         }
       });
     },
 
-    /**
-     * Load domains from API
-     */
+    loadCompanies: function () {
+      const self = this;
+      apiRequest("GET", COMPANY_API + "?page=1&per_page=200", null)
+        .then(function (response) {
+          const list =
+            response?.data?.companies ||
+            response?.data ||
+            [];
+          self.companies = Array.isArray(list) ? list : [];
+          self.renderCompanyOptions();
+        })
+        .catch(function () {
+          self.companies = [];
+          self.renderCompanyOptions();
+        });
+    },
+
+    renderCompanyOptions: function () {
+      const modalSelect = document.getElementById("input_domain_company");
+      const filterSelect = document.getElementById("filter_company");
+
+      const options = this.companies
+        .map(function (company) {
+          const id = company.id;
+          const name = company.name || ("Company #" + id);
+          return '<option value="' + esc(id) + '">' + esc(name) + "</option>";
+        })
+        .join("");
+
+      if (modalSelect) {
+        modalSelect.innerHTML = '<option value="">Select company</option>' + options;
+      }
+      if (filterSelect) {
+        filterSelect.innerHTML = '<option value="">All Companies</option>' + options;
+      }
+    },
+
     loadDomains: function () {
       const self = this;
-      const url = API_BASE + "?page=" + this.currentPage + "&per_page=" + PAGE_SIZE;
+      const params = new URLSearchParams({
+        page: String(this.currentPage),
+        per_page: String(PAGE_SIZE),
+      });
 
-      apiRequest("GET", url, null)
+      const status = document.getElementById("filter_status")?.value || "";
+      const companyId = document.getElementById("filter_company")?.value || "";
+      const search = String(document.getElementById("search_domains")?.value || "").trim();
+
+      if (status) params.set("status", status);
+      if (companyId) params.set("company_id", companyId);
+      if (search) params.set("search", search);
+
+      apiRequest("GET", API_BASE + "?" + params.toString(), null)
         .then(function (response) {
-          if (response.success && response.data) {
-            self.domains = response.data;
-            self.totalPages = response.pagination ? response.pagination.last_page : 1;
-            self.renderDomains();
-            self.updateStats();
-          } else {
-            self.showError("Failed to load domains");
-          }
+          self.domains = response?.data || [];
+          self.totalPages = response?.pagination?.last_page || 1;
+          self.renderDomains();
         })
-        .catch(function (err) {
-          console.error(err);
+        .catch(function () {
           self.showError("Error loading domains");
         });
     },
 
-    /**
-     * Render domains table
-     */
     renderDomains: function () {
-      const tbody = document.querySelector("#domains_table tbody");
-      if (!tbody) return;
+      const container = document.querySelector("[data-domains-list-container]");
+      if (!container) return;
 
-      tbody.innerHTML = "";
-
-      if (this.domains.length === 0) {
-        tbody.innerHTML =
-          '<tr><td colspan="7" class="text-center py-3">No domains found</td></tr>';
+      if (!this.domains.length) {
+        container.innerHTML =
+          '<div class="card"><div class="card-body text-center text-muted py-4">No domains found</div></div>';
         return;
       }
 
-      this.domains.forEach((domain) => {
-        const statusBadge = `badge bg-${
-          domain.verified || domain.status === "verified"
-            ? "success"
-            : domain.status === "pending"
-            ? "warning"
-            : "danger"
-        }`;
-        const verificationMethodBadge = `badge bg-light text-dark`;
+      const html =
+        '<div class="card">' +
+        '<div class="table-responsive">' +
+        '<table class="table table-hover mb-0">' +
+        '<thead class="table-light">' +
+        '<tr><th>Domain</th><th>Company</th><th>Verification Type</th><th>Status</th><th>Verified At</th><th>Actions</th></tr>' +
+        '</thead><tbody>' +
+        this.domains
+          .map(function (domain) {
+            const statusClass =
+              domain.status === "verified"
+                ? "badge-success"
+                : domain.status === "pending"
+                ? "badge-warning"
+                : "badge-danger";
+            const verificationType = toTitleCase(domain.verificationType || "-");
+            const showVerify = domain.status !== "verified";
 
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td><strong>${esc(domain.domain)}</strong></td>
-          <td>${esc(domain.companyName || "N/A")}</td>
-          <td><span class="${verificationMethodBadge}">${esc(domain.verificationMethod)}</span></td>
-          <td><span class="${statusBadge}">${esc(domain.verified ? "verified" : domain.status)}</span></td>
-          <td>${formatDate(domain.verifiedAt) || "Not verified"}</td>
-          <td>
-            <div class="d-flex gap-2">
-              ${
-                !domain.verified
-                  ? `<button class="btn btn-sm btn-warning" data-verify-details="${domain.id}" title="Verification Details">
-                      <i class="ti ti-info-circle"></i>
-                    </button>
-                    <button class="btn btn-sm btn-success" data-verify-domain="${domain.id}" title="Verify">
-                      <i class="ti ti-check"></i>
-                    </button>`
-                  : ""
-              }
-              <button class="btn btn-sm btn-primary" data-edit-domain="${domain.id}" title="Edit">
-                <i class="ti ti-edit"></i>
-              </button>
-              <button class="btn btn-sm btn-danger" data-delete-domain="${domain.id}" title="Delete">
-                <i class="ti ti-trash"></i>
-              </button>
-            </div>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
+            return (
+              '<tr>' +
+              '<td><strong>' + esc(domain.domainName) + "</strong></td>" +
+              "<td>" +
+              esc(domain.companyName || "N/A") +
+              "</td>" +
+              '<td><span class="badge bg-light text-dark">' +
+              esc(verificationType) +
+              "</span></td>" +
+              '<td><span class="badge ' +
+              statusClass +
+              ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
+              esc(domain.status) +
+              "</span></td>" +
+              "<td>" +
+              formatDate(domain.verifiedAt) +
+              "</td>" +
+              '<td><div class="action-icon d-inline-flex">' +
+              '<button class="btn btn-icon btn-sm me-2" data-edit-domain="' +
+              esc(domain.id) +
+              '" title="Edit"><i class="ti ti-edit"></i></button>' +
+              (showVerify
+                ? '<button class="btn btn-icon btn-sm me-2" data-verify-details="' +
+                  esc(domain.id) +
+                  '" title="Verification Details"><i class="ti ti-info-circle"></i></button>' +
+                  '<button class="btn btn-icon btn-sm me-2" data-verify-domain="' +
+                  esc(domain.id) +
+                  '" title="Verify"><i class="ti ti-check"></i></button>'
+                : "") +
+              '<button class="btn btn-icon btn-sm" data-delete-domain="' +
+              esc(domain.id) +
+              '" title="Delete"><i class="ti ti-trash"></i></button>' +
+              "</div></td>" +
+              "</tr>"
+            );
+          })
+          .join("") +
+        "</tbody></table></div>" +
+        '<div class="card-footer d-flex justify-content-end"><ul class="pagination pagination-sm mb-0" data-domain-pagination></ul></div>' +
+        "</div>";
 
+      container.innerHTML = html;
       this.renderPagination();
     },
 
-    /**
-     * Render pagination
-     */
     renderPagination: function () {
-      const container = document.getElementById("pagination_container");
+      const container = document.querySelector("[data-domain-pagination]");
       if (!container) return;
-
       container.innerHTML = "";
-      const nav = document.createElement("nav");
-      const ul = document.createElement("ul");
-      ul.className = "pagination mb-0";
 
       if (this.currentPage > 1) {
-        const li = document.createElement("li");
-        li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage - 1
-        }">Previous</a>`;
-        ul.appendChild(li);
+        container.insertAdjacentHTML(
+          "beforeend",
+          '<li class="page-item"><a class="page-link" href="javascript:void(0);" data-page="' +
+            (this.currentPage - 1) +
+            '">Previous</a></li>'
+        );
       }
 
-      for (let i = 1; i <= this.totalPages; i++) {
-        const li = document.createElement("li");
-        li.className = "page-item" + (i === this.currentPage ? " active" : "");
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${i}">${i}</a>`;
-        ul.appendChild(li);
+      for (let i = 1; i <= this.totalPages; i += 1) {
+        container.insertAdjacentHTML(
+          "beforeend",
+          '<li class="page-item' +
+            (i === this.currentPage ? " active" : "") +
+            '"><a class="page-link" href="javascript:void(0);" data-page="' +
+            i +
+            '">' +
+            i +
+            "</a></li>"
+        );
       }
 
       if (this.currentPage < this.totalPages) {
-        const li = document.createElement("li");
-        li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage + 1
-        }">Next</a>`;
-        ul.appendChild(li);
+        container.insertAdjacentHTML(
+          "beforeend",
+          '<li class="page-item"><a class="page-link" href="javascript:void(0);" data-page="' +
+            (this.currentPage + 1) +
+            '">Next</a></li>'
+        );
       }
-
-      nav.appendChild(ul);
-      container.appendChild(nav);
     },
 
-    /**
-     * Update statistics
-     */
-    updateStats: function () {
-      const totalEl = document.getElementById("total_domains");
-      const verifiedEl = document.getElementById("verified_domains");
+    openCreateModal: function () {
+      this.currentEditId = null;
+      const form = document.getElementById("domainForm");
+      if (form) form.reset();
 
-      if (totalEl) totalEl.textContent = this.domains.length;
-
-      const verifiedCount = this.domains.filter((d) => d.verified || d.status === "verified")
-        .length;
-      if (verifiedEl) verifiedEl.textContent = verifiedCount;
+      const title = document.getElementById("domainModalTitle");
+      const submitBtn = document.querySelector("#domainForm button[type='submit']");
+      if (title) title.textContent = "Add Domain";
+      if (submitBtn) submitBtn.textContent = "Add Domain";
     },
 
-    /**
-     * Handle add domain
-     */
-    handleAddDomain: function (form) {
-      const self = this;
-      const formData = new FormData(form);
-      const data = {
-        domain: formData.get("domain"),
-        companyId: parseInt(formData.get("company_id")),
-        verificationMethod: formData.get("verification_method"),
-      };
-
-      apiRequest("POST", API_BASE, data)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Domain added successfully");
-            form.reset();
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("add_domain")
-            );
-            if (modal) modal.hide();
-            self.currentPage = 1;
-            self.loadDomains();
-          } else {
-            self.showError(response.error?.message || "Failed to add domain");
-          }
-        })
-        .catch(function (err) {
-          console.error(err);
-          self.showError("Error adding domain");
-        });
-    },
-
-    /**
-     * Edit domain
-     */
     editDomain: function (id) {
       const self = this;
-      const url = API_BASE + "/" + id;
-
-      apiRequest("GET", url, null)
+      apiRequest("GET", API_BASE + "/" + id, null)
         .then(function (response) {
-          if (response.success && response.data) {
-            const domain = response.data;
-            document.getElementById("edit_domain_id").value = domain.id;
-            document.getElementById("edit_domain").value = domain.domain;
-            document.getElementById("edit_company_id").value = domain.companyId;
-            document.getElementById("edit_verification_method").value =
-              domain.verificationMethod;
-
-            self.currentEditId = id;
-            const modal = new bootstrap.Modal(document.getElementById("edit_domain"));
-            modal.show();
-          } else {
+          const domain = response?.data;
+          if (!domain) {
             self.showError("Failed to load domain");
+            return;
           }
+
+          self.currentEditId = domain.id;
+
+          const company = document.getElementById("input_domain_company");
+          const name = document.getElementById("input_domain_name");
+          const notes = document.getElementById("input_domain_notes");
+          if (company) company.value = String(domain.companyId || "");
+          if (name) name.value = domain.domainName || "";
+          if (notes) notes.value = domain.notes || "";
+
+          const dnsRadio = document.getElementById("verification_dns");
+          const fileRadio = document.getElementById("verification_file");
+          if (dnsRadio) dnsRadio.checked = domain.verificationType === "dns";
+          if (fileRadio) fileRadio.checked = domain.verificationType === "file";
+
+          const title = document.getElementById("domainModalTitle");
+          const submitBtn = document.querySelector("#domainForm button[type='submit']");
+          if (title) title.textContent = "Edit Domain";
+          if (submitBtn) submitBtn.textContent = "Update Domain";
+
+          if (self.domainModalInstance) self.domainModalInstance.show();
         })
-        .catch(function (err) {
-          console.error(err);
+        .catch(function () {
           self.showError("Error loading domain");
         });
     },
 
-    /**
-     * Handle edit domain
-     */
-    handleEditDomain: function (form) {
+    handleSaveDomain: function () {
       const self = this;
-      const id = document.getElementById("edit_domain_id").value;
-      const formData = new FormData(form);
-      const data = {
-        domain: formData.get("domain"),
-        verificationMethod: formData.get("verification_method"),
+      const companyId = document.getElementById("input_domain_company")?.value;
+      const domainName = String(document.getElementById("input_domain_name")?.value || "").trim();
+      const notes = String(document.getElementById("input_domain_notes")?.value || "").trim();
+      const verificationType = document.querySelector("input[name='verification_type']:checked")?.value;
+
+      if (!companyId || !domainName || !verificationType) {
+        self.showError("Company, domain name, dan verification type wajib diisi.");
+        return;
+      }
+
+      const payload = {
+        company_id: Number(companyId),
+        domain_name: domainName,
+        verification_type: verificationType,
+        notes: notes || null,
       };
 
-      const url = API_BASE + "/" + id;
+      const isEdit = !!this.currentEditId;
+      const method = isEdit ? "PUT" : "POST";
+      const url = isEdit ? API_BASE + "/" + this.currentEditId : API_BASE;
 
-      apiRequest("PUT", url, data)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Domain updated successfully");
-            const modal = bootstrap.Modal.getInstance(
-              document.getElementById("edit_domain")
-            );
-            if (modal) modal.hide();
-            self.loadDomains();
-          } else {
-            self.showError(response.error?.message || "Failed to update domain");
-          }
+      apiRequest(method, url, payload)
+        .then(function () {
+          self.showSuccess(isEdit ? "Domain updated successfully" : "Domain added successfully");
+          self.currentEditId = null;
+          if (self.domainModalInstance) self.domainModalInstance.hide();
+          self.currentPage = 1;
+          self.loadDomains();
         })
         .catch(function (err) {
-          console.error(err);
-          self.showError("Error updating domain");
+          const message = err?.data?.message || err?.data?.error?.message || "Failed to save domain";
+          self.showError(message);
         });
     },
 
-    /**
-     * Delete domain
-     */
-    deleteDomain: function (id) {
-      if (!confirm("Are you sure you want to delete this domain?")) return;
+    deleteDomain: async function (id) {
+      let confirmed = false;
+      if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function") {
+        confirmed = await window.ArcavUi.confirmDelete(
+          "Hapus domain ini? Tindakan tidak dapat dibatalkan.",
+          "Delete Domain"
+        );
+      } else {
+        confirmed = window.confirm("Are you sure you want to delete this domain?");
+      }
+
+      if (!confirmed) return;
 
       const self = this;
-      const url = API_BASE + "/" + id;
-
-      apiRequest("DELETE", url, null)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Domain deleted successfully");
-            self.loadDomains();
-          } else {
-            self.showError(response.error?.message || "Failed to delete domain");
-          }
+      apiRequest("DELETE", API_BASE + "/" + id, null)
+        .then(function () {
+          self.showSuccess("Domain deleted successfully");
+          self.loadDomains();
         })
         .catch(function (err) {
-          console.error(err);
-          self.showError("Error deleting domain");
+          const message = err?.data?.message || err?.data?.error?.message || "Failed to delete domain";
+          self.showError(message);
         });
     },
 
-    /**
-     * Show verification details modal
-     */
     showVerificationDetails: function (id) {
       const self = this;
-      const url = API_BASE + "/" + id;
-
-      apiRequest("GET", url, null)
+      apiRequest("GET", API_BASE + "/" + id + "/verification-details", null)
         .then(function (response) {
-          if (response.success && response.data) {
-            const domain = response.data;
-            let html = `<div class="alert alert-info">
-              <p><strong>Domain:</strong> ${esc(domain.domain)}</p>
-              <p><strong>Verification Method:</strong> ${esc(domain.verificationMethod)}</p>
-              <p><strong>Status:</strong> ${esc(domain.verified ? "Verified" : domain.status)}</p>
-            </div>`;
-
-            if (domain.verificationMethod === "dns") {
-              html += `
-                <div class="card">
-                  <div class="card-header">
-                    <strong>DNS Record to Add:</strong>
-                  </div>
-                  <div class="card-body">
-                    <p><strong>Type:</strong> TXT</p>
-                    <p><strong>Name:</strong> <code>${esc(domain.dnsRecord?.name || "arcav-verify")}</code></p>
-                    <p><strong>Value:</strong> <code>${esc(domain.dnsRecord?.value || "N/A")}</code></p>
-                    <p class="text-muted">Add this DNS TXT record to your domain provider and click "Verify Domain" button above.</p>
-                  </div>
-                </div>
-              `;
-            } else if (domain.verificationMethod === "file") {
-              html += `
-                <div class="card">
-                  <div class="card-header">
-                    <strong>File Verification:</strong>
-                  </div>
-                  <div class="card-body">
-                    <p><strong>File Name:</strong> <code>${esc(domain.fileRecord?.filename || "arcav-verification.txt")}</code></p>
-                    <p><strong>File URL:</strong> <code>${esc(domain.fileRecord?.url || "N/A")}</code></p>
-                    <p><strong>Content:</strong></p>
-                    <textarea class="form-control mb-2" rows="3" readonly>${esc(domain.fileRecord?.content || "N/A")}</textarea>
-                    <p class="text-muted">Upload this file to your domain and click "Verify Domain" button above.</p>
-                  </div>
-                </div>
-              `;
-            }
-
-            document.getElementById("verification_details_content").innerHTML = html;
-            const modal = new bootstrap.Modal(
-              document.getElementById("verification_details_modal")
-            );
-            modal.show();
-          } else {
+          const data = response?.data;
+          if (!data) {
             self.showError("Failed to load verification details");
+            return;
           }
+
+          self.pendingVerifyDomainId = id;
+
+          const instructions = data.instructions || {};
+          const html =
+            '<div class="alert alert-info mb-3">' +
+            '<p class="mb-1"><strong>Domain:</strong> ' + esc(data.domainName) + "</p>" +
+            '<p class="mb-0"><strong>Type:</strong> ' + esc(toTitleCase(data.verificationType)) + "</p>" +
+            "</div>" +
+            '<div class="card"><div class="card-body">' +
+            '<ol class="mb-3">' +
+            '<li>' + esc(instructions.step1 || "-") + "</li>" +
+            '<li>' + esc(instructions.step2 || "-") + "</li>" +
+            '<li>' + esc(instructions.step3 || "-") + "</li>" +
+            '<li>' + esc(instructions.step4 || "-") + "</li>" +
+            "</ol>" +
+            '<p class="mb-1"><strong>Verification Token</strong></p>' +
+            '<code class="d-block p-2 bg-light rounded">' + esc(data.token || "-") + "</code>" +
+            "</div></div>";
+
+          const target = document.getElementById("verification_instructions");
+          if (target) target.innerHTML = html;
+          if (self.verificationModalInstance) self.verificationModalInstance.show();
         })
-        .catch(function (err) {
-          console.error(err);
+        .catch(function () {
           self.showError("Error loading verification details");
         });
     },
 
-    /**
-     * Verify domain
-     */
     verifyDomain: function (id) {
-      if (
-        !confirm(
-          "Verify this domain? Make sure you have completed the verification steps."
-        )
-      )
-        return;
-
       const self = this;
-      const url = API_BASE + "/" + id + "/verify";
-
-      apiRequest("POST", url, {})
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Domain verified successfully!");
-            self.loadDomains();
-          } else {
-            self.showError(
-              response.error?.message || "Failed to verify domain. Please check your verification details."
-            );
-          }
+      apiRequest("POST", API_BASE + "/" + id + "/verify", {})
+        .then(function () {
+          self.showSuccess("Domain verified successfully");
+          self.pendingVerifyDomainId = null;
+          if (self.verificationModalInstance) self.verificationModalInstance.hide();
+          self.loadDomains();
         })
         .catch(function (err) {
-          console.error(err);
-          self.showError("Error verifying domain");
+          const message = err?.data?.message || err?.data?.error?.message || "Failed to verify domain";
+          self.showError(message);
         });
     },
 
-    /**
-     * Show success message
-     */
     showSuccess: function (message) {
       this.showToast(message, "success");
     },
 
-    /**
-     * Show error message
-     */
     showError: function (message) {
       this.showToast(message, "danger");
     },
 
-    /**
-     * Show toast notification
-     */
     showToast: function (message, type) {
       const alertDiv = document.createElement("div");
-      alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+      alertDiv.className =
+        "alert alert-" +
+        type +
+        " alert-dismissible fade show position-fixed top-0 end-0 m-3";
       alertDiv.style.zIndex = 9999;
-      alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
+      alertDiv.innerHTML =
+        esc(message) +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
       document.body.appendChild(alertDiv);
-      setTimeout(() => alertDiv.remove(), 5000);
+      window.setTimeout(function () {
+        alertDiv.remove();
+      }, 5000);
     },
   };
 
-  // Initialize when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       DomainManager.init();
@@ -540,6 +599,5 @@
     DomainManager.init();
   }
 
-  // Expose to global scope
   window.DomainManager = DomainManager;
 })(window, document);

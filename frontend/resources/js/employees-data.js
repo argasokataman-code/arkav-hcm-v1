@@ -596,6 +596,266 @@
         var addForm = document.querySelector("[data-employee-add-form]");
         var editForm = document.querySelector("[data-employee-edit-form]");
 
+        function getWilayahElements(form) {
+            if (!form) {
+                return null;
+            }
+            var province = form.querySelector('[data-employee-wilayah-province]');
+            var regency = form.querySelector('[data-employee-wilayah-regency]');
+            var district = form.querySelector('[data-employee-wilayah-district]');
+            var village = form.querySelector('[data-employee-wilayah-village]');
+            var address = form.querySelector('[data-employee-address-autofill]');
+            if (!province || !regency || !district || !village || !address) {
+                return null;
+            }
+            return {
+                province: province,
+                regency: regency,
+                district: district,
+                village: village,
+                address: address,
+            };
+        }
+
+        function setSelectOptions(selectEl, rows, placeholder, selectedValue) {
+            if (!selectEl) {
+                return;
+            }
+            var selected = selectedValue == null ? "" : String(selectedValue);
+            selectEl.innerHTML = '';
+            var first = document.createElement("option");
+            first.value = "";
+            first.textContent = placeholder;
+            selectEl.appendChild(first);
+
+            (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                var opt = document.createElement("option");
+                opt.value = String(row && row.id != null ? row.id : "");
+                opt.textContent = String(row && row.name ? row.name : "");
+                selectEl.appendChild(opt);
+            });
+
+            if (selected) {
+                var exists = Array.prototype.slice.call(selectEl.options).some(function (optEl) {
+                    return optEl.value === selected;
+                });
+                if (exists) {
+                    selectEl.value = selected;
+                }
+            }
+        }
+
+        function setSelectLoading(selectEl, placeholder) {
+            if (!selectEl) {
+                return;
+            }
+            selectEl.disabled = true;
+            selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        }
+
+        function composeAddressLabel(form) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return "";
+            }
+            var villageLabel = wilayah.village.options[wilayah.village.selectedIndex] && wilayah.village.value
+                ? wilayah.village.options[wilayah.village.selectedIndex].textContent
+                : "";
+            var districtLabel = wilayah.district.options[wilayah.district.selectedIndex] && wilayah.district.value
+                ? wilayah.district.options[wilayah.district.selectedIndex].textContent
+                : "";
+            var regencyLabel = wilayah.regency.options[wilayah.regency.selectedIndex] && wilayah.regency.value
+                ? wilayah.regency.options[wilayah.regency.selectedIndex].textContent
+                : "";
+            var provinceLabel = wilayah.province.options[wilayah.province.selectedIndex] && wilayah.province.value
+                ? wilayah.province.options[wilayah.province.selectedIndex].textContent
+                : "";
+
+            return [villageLabel, districtLabel, regencyLabel, provinceLabel].filter(function (item) {
+                return !!item;
+            }).join(", ");
+        }
+
+        function syncAddressAutofill(form) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return;
+            }
+            var composed = composeAddressLabel(form);
+            var current = String(wilayah.address.value || "").trim();
+            var previousAuto = String(form.getAttribute("data-employee-address-auto") || "").trim();
+            if (current === "" || current === previousAuto) {
+                wilayah.address.value = composed || "";
+            }
+            form.setAttribute("data-employee-address-auto", composed || "");
+        }
+
+        function resetWilayahSelect(selectEl, placeholder) {
+            if (!selectEl) {
+                return;
+            }
+            selectEl.disabled = true;
+            selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        }
+
+        function fetchWilayah(url) {
+            return requestJson("get", url, null).then(function (resp) {
+                if (!resp || resp.success !== true || !Array.isArray(resp.data)) {
+                    return [];
+                }
+                return resp.data;
+            }).catch(function () {
+                return [];
+            });
+        }
+
+        function loadProvinces(form, selectedProvinceId) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return Promise.resolve();
+            }
+            setSelectLoading(wilayah.province, "Loading provinces...");
+            return fetchWilayah("/v1/hcm/wilayah/provinces").then(function (rows) {
+                setSelectOptions(wilayah.province, rows, "Select province", selectedProvinceId || "");
+                wilayah.province.disabled = false;
+                syncAddressAutofill(form);
+            });
+        }
+
+        function loadRegencies(form, provinceId, selectedRegencyId) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return Promise.resolve();
+            }
+            resetWilayahSelect(wilayah.regency, "Select regency");
+            resetWilayahSelect(wilayah.district, "Select district");
+            resetWilayahSelect(wilayah.village, "Select village");
+            syncAddressAutofill(form);
+            if (!provinceId) {
+                return Promise.resolve();
+            }
+
+            setSelectLoading(wilayah.regency, "Loading regencies...");
+            return fetchWilayah("/v1/hcm/wilayah/regencies?provinceId=" + encodeURIComponent(String(provinceId))).then(function (rows) {
+                setSelectOptions(wilayah.regency, rows, "Select regency", selectedRegencyId || "");
+                wilayah.regency.disabled = false;
+                syncAddressAutofill(form);
+            });
+        }
+
+        function loadDistricts(form, regencyId, selectedDistrictId) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return Promise.resolve();
+            }
+            resetWilayahSelect(wilayah.district, "Select district");
+            resetWilayahSelect(wilayah.village, "Select village");
+            syncAddressAutofill(form);
+            if (!regencyId) {
+                return Promise.resolve();
+            }
+
+            setSelectLoading(wilayah.district, "Loading districts...");
+            return fetchWilayah("/v1/hcm/wilayah/districts?regencyId=" + encodeURIComponent(String(regencyId))).then(function (rows) {
+                setSelectOptions(wilayah.district, rows, "Select district", selectedDistrictId || "");
+                wilayah.district.disabled = false;
+                syncAddressAutofill(form);
+            });
+        }
+
+        function loadVillages(form, districtId, selectedVillageId) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return Promise.resolve();
+            }
+            resetWilayahSelect(wilayah.village, "Select village");
+            syncAddressAutofill(form);
+            if (!districtId) {
+                return Promise.resolve();
+            }
+
+            setSelectLoading(wilayah.village, "Loading villages...");
+            return fetchWilayah("/v1/hcm/wilayah/villages?districtId=" + encodeURIComponent(String(districtId))).then(function (rows) {
+                setSelectOptions(wilayah.village, rows, "Select village", selectedVillageId || "");
+                wilayah.village.disabled = false;
+                syncAddressAutofill(form);
+            });
+        }
+
+        function resetWilayahCascade(form) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return;
+            }
+            resetWilayahSelect(wilayah.province, "Select province");
+            resetWilayahSelect(wilayah.regency, "Select regency");
+            resetWilayahSelect(wilayah.district, "Select district");
+            resetWilayahSelect(wilayah.village, "Select village");
+            wilayah.address.value = "";
+            form.setAttribute("data-employee-address-auto", "");
+            loadProvinces(form, "").then(function () {
+                resetWilayahSelect(wilayah.regency, "Select regency");
+                resetWilayahSelect(wilayah.district, "Select district");
+                resetWilayahSelect(wilayah.village, "Select village");
+                syncAddressAutofill(form);
+            });
+        }
+
+        function setWilayahCascade(form, region, fallbackAddress) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah) {
+                return Promise.resolve();
+            }
+            var provinceId = region && region.provinceId != null ? String(region.provinceId) : "";
+            var regencyId = region && region.regencyId != null ? String(region.regencyId) : "";
+            var districtId = region && region.districtId != null ? String(region.districtId) : "";
+            var villageId = region && region.villageId != null ? String(region.villageId) : "";
+
+            return loadProvinces(form, provinceId)
+                .then(function () {
+                    return loadRegencies(form, provinceId, regencyId);
+                })
+                .then(function () {
+                    return loadDistricts(form, regencyId, districtId);
+                })
+                .then(function () {
+                    return loadVillages(form, districtId, villageId);
+                })
+                .then(function () {
+                    var composed = composeAddressLabel(form);
+                    var fallback = String(fallbackAddress || "").trim();
+                    wilayah.address.value = fallback || composed || "";
+                    form.setAttribute("data-employee-address-auto", composed || "");
+                });
+        }
+
+        function bindWilayahChangeHandlers(form) {
+            var wilayah = getWilayahElements(form);
+            if (!wilayah || form.getAttribute("data-employee-wilayah-bound") === "1") {
+                return;
+            }
+            form.setAttribute("data-employee-wilayah-bound", "1");
+
+            wilayah.province.addEventListener("change", function () {
+                var provinceId = wilayah.province.value || "";
+                loadRegencies(form, provinceId, "");
+            });
+
+            wilayah.regency.addEventListener("change", function () {
+                var regencyId = wilayah.regency.value || "";
+                loadDistricts(form, regencyId, "");
+            });
+
+            wilayah.district.addEventListener("change", function () {
+                var districtId = wilayah.district.value || "";
+                loadVillages(form, districtId, "");
+            });
+
+            wilayah.village.addEventListener("change", function () {
+                syncAddressAutofill(form);
+            });
+        }
+
         function readField(form, key) {
             var el = form ? form.querySelector('[data-employee-add-field="' + key + '"], [data-employee-edit-field="' + key + '"]') : null;
             return el ? String(el.value || "").trim() : "";
@@ -867,6 +1127,7 @@
             resetRepeatable(form, "educationItems", []);
             resetRepeatable(form, "experienceItems", []);
             toggleContractEndDateVisibility(form);
+            resetWilayahCascade(form);
             setStep(form, 0);
         }
 
@@ -881,6 +1142,11 @@
                 phone: readText(form, "phone"),
                 nik: readText(form, "nik"),
                 address: readText(form, "address"),
+                addressDetail: readText(form, "addressDetail"),
+                provinceId: readInteger(form, "provinceId"),
+                regencyId: readInteger(form, "regencyId"),
+                districtId: readInteger(form, "districtId"),
+                villageId: readInteger(form, "villageId"),
                 placeOfBirth: readText(form, "placeOfBirth"),
                 dateOfBirth: readText(form, "dateOfBirth"),
                 gender: readText(form, "gender"),
@@ -937,7 +1203,7 @@
             writeField(editForm, "team", item.team || "");
             writeField(editForm, "phone", item.phone && item.phone !== "-" ? item.phone : "");
             writeField(editForm, "nik", item.nik || (item.personal && item.personal.nik ? item.personal.nik : ""));
-            writeField(editForm, "address", item.address && item.address !== "-" ? item.address : "");
+            writeField(editForm, "addressDetail", item.addressDetail && item.addressDetail !== "-" ? item.addressDetail : "");
             writeField(editForm, "placeOfBirth", item.placeOfBirth || (item.personal && item.personal.placeOfBirth ? item.personal.placeOfBirth : ""));
             writeField(editForm, "dateOfBirth", item.dateOfBirth || (item.personal && item.personal.dateOfBirth ? item.personal.dateOfBirth : ""));
             writeField(editForm, "gender", item.gender || (item.personal && item.personal.gender ? item.personal.gender : ""));
@@ -983,6 +1249,7 @@
             resetRepeatable(editForm, "emergencyContacts", Array.isArray(item.emergencyContacts) ? item.emergencyContacts : []);
             resetRepeatable(editForm, "educationItems", Array.isArray(item.educationItems) ? item.educationItems : []);
             resetRepeatable(editForm, "experienceItems", Array.isArray(item.experienceItems) ? item.experienceItems : []);
+            setWilayahCascade(editForm, item.addressRegion || null, item.address && item.address !== "-" ? item.address : "");
             updateModalEmployeeNo(editForm, item);
             setStep(editForm, 0);
         }
@@ -995,6 +1262,7 @@
             resetRepeatable(form, "emergencyContacts", []);
             resetRepeatable(form, "educationItems", []);
             resetRepeatable(form, "experienceItems", []);
+            bindWilayahChangeHandlers(form);
             setStep(form, 0);
 
             form.addEventListener("change", function (event) {
@@ -1062,6 +1330,14 @@
             addModalEl.addEventListener("show.bs.modal", function () {
                 resetFormState(addForm);
             });
+        }
+
+        if (addForm) {
+            resetWilayahCascade(addForm);
+        }
+
+        if (editForm) {
+            resetWilayahCascade(editForm);
         }
 
         if (addForm) {
@@ -1536,7 +1812,7 @@
             return;
         }
         tbody.innerHTML =
-            '<tr><td colspan="7" class="text-center text-muted py-4">' + escapeHtml(message) + "</td></tr>";
+            '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + "</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
         tbody.removeAttribute("data-hydrated");
     }
 
@@ -1547,7 +1823,7 @@
         }
         if (!rows.length) {
             tbody.innerHTML =
-                '<tr><td colspan="7" class="text-center text-muted py-4">No employees.</td></tr>';
+                '<tr><td class="text-center text-muted py-4">No employees.</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
@@ -1582,22 +1858,126 @@
 
     function updateReportSummary(meta) {
         var summary = (meta && meta.summary) || {};
+        var totalEmployees = summary.totalEmployees != null ? summary.totalEmployees : summary.total;
+        var activeEmployees = summary.activeEmployees != null ? summary.activeEmployees : summary.total_active;
+        var inactiveEmployees = summary.inactiveEmployees != null ? summary.inactiveEmployees : summary.total_inactive;
+        var newJoiners = summary.newJoiners != null ? summary.newJoiners : summary.total_pending;
         var total = document.querySelector("[data-employee-report-total]");
         var active = document.querySelector("[data-employee-report-active]");
         var inactive = document.querySelector("[data-employee-report-inactive]");
         var newEl = document.querySelector("[data-employee-report-new]");
         if (total) {
-            total.textContent = String(summary.totalEmployees || 0);
+            total.textContent = String(totalEmployees || 0);
         }
         if (active) {
-            active.textContent = String(summary.activeEmployees || 0);
+            active.textContent = String(activeEmployees || 0);
         }
         if (inactive) {
-            inactive.textContent = String(summary.inactiveEmployees || 0);
+            inactive.textContent = String(inactiveEmployees || 0);
         }
         if (newEl) {
-            newEl.textContent = String(summary.newJoiners || 0);
+            newEl.textContent = String(newJoiners || 0);
         }
+    }
+
+    function getEmployeeReportSourceMode() {
+        var sourceEl = document.querySelector("[data-employee-report-source]");
+        var source = sourceEl ? String(sourceEl.value || "live").toLowerCase() : "live";
+        return source === "archive" ? "archive" : "live";
+    }
+
+    function getEmployeeReportSnapshotId() {
+        var input = document.querySelector("[data-employee-report-snapshot-id]");
+        if (!input) {
+            return 0;
+        }
+        var parsed = parseInt(String(input.value || "0"), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function setEmployeeReportSourceBadge() {
+        var badge = document.querySelector("[data-employee-report-source-badge]");
+        if (!badge) {
+            return;
+        }
+        var mode = getEmployeeReportSourceMode();
+        if (mode === "archive") {
+            var snapshotId = getEmployeeReportSnapshotId();
+            badge.textContent = "Source: Archive" + (snapshotId > 0 ? " #" + String(snapshotId) : "");
+            return;
+        }
+        badge.textContent = "Source: Live";
+    }
+
+    function syncEmployeeReportSourceControls() {
+        var wrap = document.querySelector("[data-employee-report-snapshot-wrap]");
+        var mode = getEmployeeReportSourceMode();
+        if (wrap) {
+            if (mode === "archive") {
+                wrap.classList.remove("d-none");
+            } else {
+                wrap.classList.add("d-none");
+            }
+        }
+        setEmployeeReportSourceBadge();
+    }
+
+    function normalizeArchiveEmployeeRows(snapshot) {
+        var moduleData = snapshot && snapshot.dataByModule ? snapshot.dataByModule.employee : null;
+        if (!moduleData) {
+            return [];
+        }
+        var byStatus = moduleData.by_status || {};
+        return Object.keys(byStatus).map(function (status) {
+            var item = byStatus[status] || {};
+            return {
+                employeeNo: "#" + String(snapshot.id || "-"),
+                fullName: "Status: " + String(item.status || status),
+                email: "Employees: " + String(item.count || 0),
+                team: "Share: " + String(item.percentage != null ? item.percentage : 0) + "%",
+                departmentName: "Archive Snapshot",
+                joinDate: snapshot.periodEnd || snapshot.generatedAt || "-",
+                employmentStatus: String(item.status || status || "active"),
+            };
+        });
+    }
+
+    function loadArchiveEmployeeReport(snapshotId) {
+        if (!snapshotId) {
+            renderReportMessage("Snapshot ID wajib diisi untuk mode Archive.");
+            updateReportSummary({ summary: {} });
+            return;
+        }
+
+        requestJson("get", "/v1/hcm/reports/snapshots/" + encodeURIComponent(String(snapshotId)), null)
+            .then(function (payload) {
+                if (!payload || payload.success !== true || !payload.data) {
+                    renderReportMessage("Snapshot tidak ditemukan atau tidak bisa diakses.");
+                    updateReportSummary({ summary: {} });
+                    return;
+                }
+                var snapshot = payload.data;
+                if (snapshot.reportType !== "employee") {
+                    renderReportMessage("Snapshot ini bukan untuk employee report.");
+                    updateReportSummary({ summary: {} });
+                    return;
+                }
+                var rows = normalizeArchiveEmployeeRows(snapshot);
+                if (!rows.length) {
+                    renderReportMessage("Snapshot employee tidak memiliki data baris.");
+                } else {
+                    renderReportTable(rows);
+                }
+                var moduleData = snapshot.dataByModule && snapshot.dataByModule.employee ? snapshot.dataByModule.employee : {};
+                updateReportSummary({ summary: moduleData.summary || {} });
+            })
+            .catch(function (error) {
+                if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
+                    return;
+                }
+                renderReportMessage(formatApiError(error && error.data, error && error.status) || "Gagal memuat snapshot employee.");
+                updateReportSummary({ summary: {} });
+            });
     }
 
     function loadEmployeesData() {
@@ -1674,13 +2054,18 @@
         var tbody = document.querySelector("[data-employee-report-body]");
         if (tbody) {
             tbody.innerHTML =
-                '<tr><td colspan="7" class="text-center text-muted py-4">Loading employees…</td></tr>';
+                '<tr><td class="text-center text-muted py-4">Loading employees…</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.removeAttribute("data-hydrated");
         }
         requestAuthMe()
             .then(function (me) {
                 if (!me || !me.success || !me.data || !me.data.hcmAdmin) {
                     window.location.replace("/employee-dashboard");
+                    return null;
+                }
+                var mode = getEmployeeReportSourceMode();
+                if (mode === "archive") {
+                    loadArchiveEmployeeReport(getEmployeeReportSnapshotId());
                     return null;
                 }
                 return requestAllEmployeesAggregated(100);
@@ -1710,6 +2095,26 @@
         bindEmployeesListControls();
         bindEmployeePhotoModalPreview();
         loadEmployeesData();
+        syncEmployeeReportSourceControls();
+        document.addEventListener("change", function (event) {
+            var sourceEl = event.target && event.target.closest ? event.target.closest("[data-employee-report-source]") : null;
+            if (sourceEl) {
+                syncEmployeeReportSourceControls();
+                return;
+            }
+            var snapshotInput = event.target && event.target.closest ? event.target.closest("[data-employee-report-snapshot-id]") : null;
+            if (snapshotInput) {
+                setEmployeeReportSourceBadge();
+            }
+        });
+        document.addEventListener("click", function (event) {
+            var trigger = event.target && event.target.closest ? event.target.closest("[data-employee-report-load]") : null;
+            if (!trigger) {
+                return;
+            }
+            event.preventDefault();
+            loadEmployeeReportData();
+        });
         loadEmployeeReportData();
         bindQuickPreview();
         bindEmployeeCompensationForms();

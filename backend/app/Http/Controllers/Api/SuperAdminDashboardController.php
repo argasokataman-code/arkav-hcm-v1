@@ -28,7 +28,7 @@ class SuperAdminDashboardController extends Controller
 
         $kpis = [
             'totalCompanies' => Company::count(),
-            'totalUsers' => User::whereNotNull('company_id')->count(),
+            'totalUsers' => User::whereHas('companyMemberships')->count(),
             'mrr' => $this->calculateMRR(),
             'arr' => $this->calculateARR(),
             'activeSubscriptions' => Subscription::where('status', 'active')->count(),
@@ -205,9 +205,11 @@ class SuperAdminDashboardController extends Controller
             ], 403);
         }
 
-        $totalUsers = User::whereNotNull('company_id')->count();
-        $verifiedUsers = User::whereNotNull('company_id')->where('email_verified_at', '!=', null)->count();
-        $newUsersThisMonth = User::whereNotNull('company_id')
+        $totalUsers = User::whereHas('companyMemberships')->count();
+        $verifiedUsers = User::whereHas('companyMemberships')
+            ->whereNotNull('email_verified_at')
+            ->count();
+        $newUsersThisMonth = User::whereHas('companyMemberships')
             ->whereMonth('created_at', now()->month)
             ->count();
 
@@ -442,6 +444,7 @@ class SuperAdminDashboardController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        return $user && $user->email === 'qa.login@example.com';
+
+        return $user ? $user->isHcmAdmin() : false;
     }
 }

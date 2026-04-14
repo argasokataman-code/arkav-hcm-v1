@@ -1,11 +1,8 @@
 <?php $page = 'assets'; ?>
 @extends('layout.mainlayout')
 @section('content')
-    <!-- Page Wrapper -->
     <div class="page-wrapper">
         <div class="content">
-
-            <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Assets</h2>
@@ -14,525 +11,336 @@
                             <li class="breadcrumb-item">
                                 <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                             </li>
-                            <li class="breadcrumb-item">
-                                Administration
-                            </li>
+                            <li class="breadcrumb-item">Administration</li>
                             <li class="breadcrumb-item active" aria-current="page">Assets</li>
                         </ol>
                     </nav>
                 </div>
-                <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
-                    <div class="me-2 mb-2">
-                        <div class="dropdown">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                <i class="ti ti-file-export me-1"></i>Export
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_assets"
-                            class="btn btn-primary d-flex align-items-center"><i class="ti ti-circle-plus me-2"></i>Add
-                            Asset</a>
-                    </div>
+                <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
+                    <a href="{{ url('asset-categories') }}" class="btn btn-white d-inline-flex align-items-center mb-2">
+                        <i class="ti ti-category me-1"></i>Manage Categories
+                    </a>
+                    <button type="button" class="btn btn-primary d-flex align-items-center mb-2" data-bs-toggle="modal"
+                        data-bs-target="#asset_add_modal">
+                        <i class="ti ti-circle-plus me-2"></i>Add Asset
+                    </button>
                     <div class="ms-2 head-icons">
-                        <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top"
+                        <a href="javascript:void(0);" data-bs-toggle="tooltip" data-bs-placement="top"
                             data-bs-original-title="Collapse" id="collapse-header">
                             <i class="ti ti-chevrons-up"></i>
                         </a>
                     </div>
                 </div>
             </div>
-            <!-- /Breadcrumb -->
 
-            <!-- Assets Lists -->
             <div class="card">
-                <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                    <h5>Assets List</h5>
-                    <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                        <div class="me-3">
-                            <div class="input-icon-end position-relative">
-                                <input type="text" class="form-control date-range bookingrange"
-                                    placeholder="dd/mm/yyyy - dd/mm/yyyy">
-                                <span class="input-icon-addon">
-                                    <i class="ti ti-chevron-down"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="dropdown me-3">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                Status
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Active</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Inactive</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="dropdown">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                Sort By : Last 7 Days
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Recently Added</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Ascending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Desending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last Month</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last 7 Days</a>
-                                </li>
-                            </ul>
-                        </div>
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3 gap-2">
+                    <h5 class="mb-0">Assets List</h5>
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <input type="search" class="form-control form-control-sm" style="min-width: 220px;" maxlength="120"
+                            placeholder="Search code / name / serial..." data-hcm-assets-search>
+                        <select class="form-select form-select-sm" style="width: auto; min-width: 160px;" data-hcm-assets-status>
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="retired">Retired</option>
+                        </select>
+                        <select class="form-select form-select-sm" style="width: auto; min-width: 190px;" data-hcm-assets-category>
+                            <option value="">All Categories</option>
+                        </select>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
                             <thead class="thead-light">
                                 <tr>
-                                    <th class="no-sort">
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox" id="select-all">
-                                        </div>
-                                    </th>
-                                    <th>Asset Name</th>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
                                     <th>Asset User</th>
-                                    <th>Purchase Date </th>
-                                    <th>Warranty</th>
-                                    <th>Warranty End Date</th>
+                                    <th>Purchase Date</th>
+                                    <th>Price</th>
+                                    <th>Warranty End</th>
                                     <th>Status</th>
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody data-hcm-assets-body>
                                 <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-32.jpg') }}" class="img-fluid"
-                                                    alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Anthony Lewis</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>12 Sep 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        12 Sep 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Canon Portable Printer</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-09.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Brian Villalobos</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>24 Oct 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        24 Oct 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-38.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Sophie Headrick</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>18 Feb 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        18 Feb 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-33.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Stephan Peralt</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>17 Oct 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        17 Oct 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-27.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Thomas Bordelon</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>20 Jul 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        20 Jul 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-32.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Doglas Martini</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>10 Mar 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        10 Mar 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-05.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Cameron Drake</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>29 Aug 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        29 Aug 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-30.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Harvey Smith</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>22 Feb 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        22 Feb 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-danger d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Inactive
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border rounded-circle">
-                                                <img src="{{ URL::asset('build/img/users/user-16.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Michael Walker</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>03 Nov 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        03 Nov 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <h6 class="fs-14 fw-medium">Dell Laptop</h6>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-07.jpg') }}"
-                                                    class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Doris Crowley</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>17 Dec 2024</td>
-                                    <td>12 months</td>
-                                    <td>
-                                        17 Dec 2024
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_assets"><i class="ti ti-edit"></i></a>
-                                            <a href="javascript:void(0);" data-bs-toggle="modal"
-                                                data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
+                                    <td colspan="9" class="text-center text-muted py-4">Loading assets...</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <div class="card-footer d-flex justify-content-between align-items-center flex-wrap py-3 gap-2"
+                    data-hcm-assets-pagination style="display:none;">
+                    <span class="text-muted small" data-hcm-assets-page-info></span>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-hcm-assets-prev>Previous</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-hcm-assets-next>Next</button>
+                    </div>
+                </div>
             </div>
-
         </div>
-
-
-
     </div>
-    <!-- /Page Wrapper -->
-    @component('components.modal-popup')
-    @endcomponent
+
+    <div class="modal fade" id="asset_add_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Add Asset</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-form="add">
+                    <div class="modal-body pb-0">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" data-hcm-field="asset_category_id" required></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Asset Name</label>
+                                <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Purchase Date</label>
+                                <input type="date" class="form-control" data-hcm-field="purchase_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Purchase Price</label>
+                                <input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Brand</label>
+                                <input type="text" class="form-control" data-hcm-field="brand" maxlength="120">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Model</label>
+                                <input type="text" class="form-control" data-hcm-field="model" maxlength="120">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" class="form-control" data-hcm-field="serial_number" maxlength="150">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" data-hcm-field="location" maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Condition</label>
+                                <select class="form-select" data-hcm-field="condition">
+                                    <option value="good">Good</option>
+                                    <option value="damaged">Damaged</option>
+                                    <option value="lost">Lost</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" data-hcm-field="status">
+                                    <option value="available">Available</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="retired">Retired</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Warranty Start Date</label>
+                                <input type="date" class="form-control" data-hcm-field="warranty_start_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Warranty End Date</label>
+                                <input type="date" class="form-control" data-hcm-field="warranty_end_date">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" rows="2" data-hcm-field="notes" maxlength="10000"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Add Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="asset_edit_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Edit Asset</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-form="edit">
+                    <input type="hidden" data-hcm-field="id" value="">
+                    <div class="modal-body pb-0">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" data-hcm-field="asset_category_id" required></select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Asset Name</label>
+                                <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Purchase Date</label>
+                                <input type="date" class="form-control" data-hcm-field="purchase_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Purchase Price</label>
+                                <input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Brand</label>
+                                <input type="text" class="form-control" data-hcm-field="brand" maxlength="120">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Model</label>
+                                <input type="text" class="form-control" data-hcm-field="model" maxlength="120">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" class="form-control" data-hcm-field="serial_number" maxlength="150">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Location</label>
+                                <input type="text" class="form-control" data-hcm-field="location" maxlength="255">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Condition</label>
+                                <select class="form-select" data-hcm-field="condition">
+                                    <option value="good">Good</option>
+                                    <option value="damaged">Damaged</option>
+                                    <option value="lost">Lost</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" data-hcm-field="status">
+                                    <option value="available">Available</option>
+                                    <option value="assigned">Assigned</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="retired">Retired</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Warranty Start Date</label>
+                                <input type="date" class="form-control" data-hcm-field="warranty_start_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Warranty End Date</label>
+                                <input type="date" class="form-control" data-hcm-field="warranty_end_date">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" rows="2" data-hcm-field="notes" maxlength="10000"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Save Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="asset_assign_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Assign Asset</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-assign-form>
+                    <input type="hidden" data-hcm-field="asset_id" value="">
+                    <div class="modal-body pb-0">
+                        <div class="mb-3">
+                            <label class="form-label">Asset</label>
+                            <input type="text" class="form-control" data-hcm-field="asset_name" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Employee</label>
+                            <select class="form-select" data-hcm-field="employee_id" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Assigned Date</label>
+                            <input type="date" class="form-control" data-hcm-field="assigned_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Condition at Assign</label>
+                            <select class="form-select" data-hcm-field="condition_at_assign">
+                                <option value="good">Good</option>
+                                <option value="damaged">Damaged</option>
+                                <option value="lost">Lost</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" rows="2" data-hcm-field="notes" maxlength="5000"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Assign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="asset_return_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Return Asset</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-return-form>
+                    <input type="hidden" data-hcm-field="asset_id" value="">
+                    <div class="modal-body pb-0">
+                        <div class="mb-3">
+                            <label class="form-label">Asset</label>
+                            <input type="text" class="form-control" data-hcm-field="asset_name" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Returned Date</label>
+                            <input type="date" class="form-control" data-hcm-field="returned_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Condition at Return</label>
+                            <select class="form-select" data-hcm-field="condition_at_return">
+                                <option value="good">Good</option>
+                                <option value="damaged">Damaged</option>
+                                <option value="lost">Lost</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" rows="2" data-hcm-field="notes" maxlength="5000"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Return Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection

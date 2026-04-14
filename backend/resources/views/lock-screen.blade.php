@@ -4,7 +4,7 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-5">
-            <form action="{{url('index')}}">
+            <form action="{{url('login')}}">
                 <div class="d-flex flex-column justify-content-between vh-100">
                     <div class=" mx-auto p-4 text-center">
                         <img src="{{URL::asset('build/img/image111.png')}}" class="img-fluid" alt="Logo">

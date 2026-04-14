@@ -4,6 +4,8 @@
     var legacyLeavesChart = null;
     var legacyPerformanceChart = null;
     var latestDashboardData = null;
+    var attendanceMap = null;
+    var attendanceMarker = null;
 
     function notify(message, tone) {
         var text = String(message || "");
@@ -115,6 +117,69 @@
 
         rightBar.style.transform = "rotate(" + rightDeg + "deg)";
         leftBar.style.transform = "rotate(" + leftDeg + "deg)";
+    }
+
+    function renderAttendanceMap(attendanceToday) {
+        var mapRoot = document.querySelector("[data-employee-legacy-attendance-map]");
+        var hint = document.querySelector("[data-employee-legacy-map-hint]");
+        if (!mapRoot) return;
+
+        if (!window.L || typeof window.L.map !== "function") {
+            if (hint) {
+                hint.textContent = "Library map belum termuat.";
+            }
+            return;
+        }
+
+        if (!attendanceMap) {
+            attendanceMap = window.L.map(mapRoot).setView([-6.200000, 106.816666], 11);
+            window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(attendanceMap);
+            window.setTimeout(function () {
+                attendanceMap.invalidateSize();
+            }, 120);
+        }
+
+        var checkOutLat = Number(attendanceToday && attendanceToday.checkOutLatitude);
+        var checkOutLng = Number(attendanceToday && attendanceToday.checkOutLongitude);
+        var checkInLat = Number(attendanceToday && attendanceToday.checkInLatitude);
+        var checkInLng = Number(attendanceToday && attendanceToday.checkInLongitude);
+
+        var hasCheckOut = Number.isFinite(checkOutLat) && Number.isFinite(checkOutLng);
+        var hasCheckIn = Number.isFinite(checkInLat) && Number.isFinite(checkInLng);
+
+        var lat = null;
+        var lng = null;
+        var label = "Belum ada titik attendance hari ini.";
+
+        if (hasCheckOut) {
+            lat = checkOutLat;
+            lng = checkOutLng;
+            label = "Lokasi punch out tercatat.";
+        } else if (hasCheckIn) {
+            lat = checkInLat;
+            lng = checkInLng;
+            label = "Lokasi punch in tercatat.";
+        }
+
+        if (lat !== null && lng !== null) {
+            attendanceMap.setView([lat, lng], 16);
+            if (!attendanceMarker) {
+                attendanceMarker = window.L.marker([lat, lng]).addTo(attendanceMap);
+            } else {
+                attendanceMarker.setLatLng([lat, lng]);
+            }
+        } else if (attendanceMarker) {
+            attendanceMap.removeLayer(attendanceMarker);
+            attendanceMarker = null;
+            attendanceMap.setView([-6.200000, 106.816666], 11);
+        }
+
+        if (hint) {
+            hint.textContent = label;
+        }
     }
 
     function apiGet(url) {
@@ -339,6 +404,7 @@
         setText("[data-employee-legacy-total-hours]", attendanceToday.summaryTotalWorking);
         setText("[data-employee-legacy-production-badge]", "Production : " + formatHours(attendanceToday.productionHours) + " hrs");
         setText("[data-employee-legacy-punch-line]", "Punch In at " + (attendanceToday.punchInAt || "-"));
+        renderAttendanceMap(attendanceToday);
 
         var punchButton = document.querySelector("[data-employee-legacy-punch-button]");
         if (punchButton) {

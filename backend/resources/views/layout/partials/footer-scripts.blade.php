@@ -220,6 +220,14 @@
 <script src="{{ URL::asset('build/js/employee-salary-data.js') }}?v={{ file_exists(public_path('build/js/employee-salary-data.js')) ? filemtime(public_path('build/js/employee-salary-data.js')) : time() }}"></script>
 @endif
 
+@if (Route::is(['assets', 'asset-categories']))
+<script src="{{ URL::asset('build/js/asset-management-data.js') }}?v={{ file_exists(public_path('build/js/asset-management-data.js')) ? filemtime(public_path('build/js/asset-management-data.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['pricing']))
+<script src="{{ URL::asset('build/js/pricing-data.js') }}?v={{ file_exists(public_path('build/js/pricing-data.js')) ? filemtime(public_path('build/js/pricing-data.js')) : time() }}"></script>
+@endif
+
 <!-- Fancybox JS -->
 <script src="{{ URL::asset('build/plugins/fancybox/jquery.fancybox.min.js') }}"></script>
 
@@ -259,13 +267,13 @@
 @if (Route::is(['employee-dashboard']))
     <script src="{{ URL::asset('build/js/employee-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/employee-dashboard-data.js')) ? filemtime(public_path('build/js/employee-dashboard-data.js')) : time() }}"></script>
 @endif
-@if (Route::is(['attendance-employee']))
+@if (Route::is(['attendance-employee', 'employee-dashboard']))
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 @endif
 <script src="{{ URL::asset('build/js/attendance-data.js?v=20260409-gpsfix-2') }}"></script>
 
-@if (Route::is(['holidays', 'leaves', 'leaves-employee', 'overtime', 'overtime-employee']))
+@if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
     <script src="{{ URL::asset('build/js/hcm-extras-data.js') }}"></script>
 @endif
 
@@ -283,6 +291,22 @@
 
 @if (Route::is(['training', 'training-type']))
     <script src="{{ URL::asset('build/js/training-data.js') }}"></script>
+@endif
+
+@if (Route::is(['users']))
+    <script src="{{ URL::asset('build/js/users-management.js') }}?v={{ file_exists(public_path('build/js/users-management.js')) ? filemtime(public_path('build/js/users-management.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['roles-permissions']))
+    <script src="{{ URL::asset('build/js/roles-permissions.js') }}?v={{ file_exists(public_path('build/js/roles-permissions.js')) ? filemtime(public_path('build/js/roles-permissions.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['reports-hub']))
+    <script src="{{ URL::asset('build/js/reports-hub.js') }}?v={{ file_exists(public_path('build/js/reports-hub.js')) ? filemtime(public_path('build/js/reports-hub.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['invoice-report', 'payment-report', 'expenses-report', 'user-report', 'daily-report', 'project-report', 'task-report']))
+    <script src="{{ URL::asset('build/js/reports-api-sync.js') }}?v={{ file_exists(public_path('build/js/reports-api-sync.js')) ? filemtime(public_path('build/js/reports-api-sync.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['trainers']))

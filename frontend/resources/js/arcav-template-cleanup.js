@@ -32,6 +32,9 @@
         if (table.hasAttribute("data-employees-table")) {
             return true;
         }
+        if (table.hasAttribute("data-api-report-table")) {
+            return true;
+        }
         var tid = table.id || "";
         if (SKIP_TABLE_IDS.indexOf(tid) !== -1) {
             return true;
@@ -79,6 +82,23 @@
         var msg =
             "Baris contoh template telah dihapus. Data akan tampil setelah modul ini dihubungkan ke API.";
 
+        function buildPlaceholderRow(cols, message) {
+            var row = '<tr class="arcav-template-placeholder-row">';
+            var i;
+            for (i = 0; i < cols; i++) {
+                if (i === 0) {
+                    row +=
+                        '<td class="text-center text-muted py-4">' +
+                        message +
+                        "</td>";
+                } else {
+                    row += '<td aria-hidden="true"></td>';
+                }
+            }
+            row += "</tr>";
+            return row;
+        }
+
         for (t = 0; t < tables.length; t++) {
             var table = tables[t];
             if (shouldSkipTable(table)) {
@@ -89,12 +109,8 @@
                 continue;
             }
             var cols = countTableColumns(table);
-            tbody.innerHTML =
-                '<tr><td colspan="' +
-                String(cols) +
-                '" class="text-center text-muted py-4">' +
-                msg +
-                "</td></tr>";
+            // DataTables does not support colspan in tbody rows (tn/18).
+            tbody.innerHTML = buildPlaceholderRow(cols, msg);
             tbody.setAttribute("data-arcav-placeholder", "1");
         }
     }

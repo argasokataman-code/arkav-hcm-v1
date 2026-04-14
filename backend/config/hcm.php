@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Development Super User
+    |--------------------------------------------------------------------------
+    |
+    | Akun ini dipakai sebagai super user default untuk environment development
+    | dan testing. Seeder akan memastikan akun ini selalu tersedia.
+    |
+    */
+    'admin_email' => env('HCM_ADMIN_EMAIL', 'qa.login@example.com'),
+    'admin_password' => env('HCM_ADMIN_PASSWORD', 'StrongPass1'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Alamat organisasi (slip PDF / surat resmi)
     |--------------------------------------------------------------------------
     */

@@ -73,8 +73,9 @@ class User extends Authenticatable
      */
     public function isHcmAdmin(): bool
     {
-        $email = strtolower((string) ($this->email ?? ''));
-        if ($email === 'qa.login@example.com') {
+        $email = strtolower(trim((string) ($this->email ?? '')));
+        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        if ($email === $adminEmail) {
             return true;
         }
 
@@ -92,5 +93,29 @@ class User extends Authenticatable
         }
 
         return false;
+    }
+
+    /**
+     * Check if user is HCM admin for a specific company.
+     * Global admins have access to all companies.
+     * Company-specific admins must have an active admin role assignment.
+     */
+    public function isHcmAdminForCompany(int $companyId): bool
+    {
+        // Global super-admin
+        if ($this->isHcmAdmin()) {
+            return true;
+        }
+
+        // Check if user has an active admin-level role in this specific company
+        return HcmUserRole::query()
+            ->where('user_id', $this->id)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereHas('role', function ($q) {
+                // Only ADMIN, HR_ADMIN, OPS_ADMIN roles grant HCM access
+                $q->whereIn('code', ['ADMIN', 'HR_ADMIN', 'OPS_ADMIN']);
+            })
+            ->exists();
     }
 }

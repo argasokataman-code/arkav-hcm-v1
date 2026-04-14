@@ -210,52 +210,76 @@
      * Render transactions table
      */
     renderTransactions: function () {
-      const tbody = document.querySelector("#transactions_table tbody");
-      if (!tbody) return;
+      const container = document.querySelector('[data-transactions-list-container]');
+      if (!container) return;
 
-      tbody.innerHTML = "";
-
+      let html = '';
       if (this.transactions.length === 0) {
-        tbody.innerHTML =
-          '<tr><td colspan="8" class="text-center py-3">No transactions found</td></tr>';
-        return;
-      }
-
-      this.transactions.forEach((txn) => {
-        const statusBadge = `badge bg-${
-          txn.status === "completed"
-            ? "success"
-            : txn.status === "pending"
-            ? "warning"
-            : txn.status === "failed"
-            ? "danger"
-            : "info"
-        }`;
-        const paymentMethodBadge = `badge bg-light text-dark`;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td><strong>${esc(txn.transactionCode)}</strong></td>
-          <td>${esc(txn.companyName || "N/A")}</td>
-          <td>${formatCurrency(txn.amount)}</td>
-          <td><span class="${paymentMethodBadge}">${esc(txn.paymentMethod)}</span></td>
-          <td><span class="${statusBadge}">${esc(txn.status)}</span></td>
-          <td>${formatDate(txn.createdAt)}</td>
-          <td>${formatDate(txn.paidAt) || "-"}</td>
-          <td>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-info" data-view-transaction="${txn.id}" title="View Details">
-                <i class="ti ti-eye"></i>
-              </button>
-              <button class="btn btn-sm btn-secondary" data-download-receipt="${txn.id}" title="Download Receipt">
-                <i class="ti ti-download"></i>
-              </button>
+        html = '<div class="card"><div class="card-body text-center text-muted py-4">No transactions found</div></div>';
+      } else {
+        html = `
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Company</th>
+                    <th>Amount</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Paid At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.transactions.map(txn => {
+                    const statusBadge = `badge bg-${
+                      txn.status === "completed"
+                        ? "success"
+                        : txn.status === "pending"
+                        ? "warning"
+                        : txn.status === "failed"
+                        ? "danger"
+                        : "info"
+                    }`;
+                    const paymentMethodBadge = `badge bg-light text-dark`;
+                    return `
+                      <tr>
+                        <td><strong>${esc(txn.transactionCode)}</strong></td>
+                        <td>${esc(txn.companyName || "N/A")}</td>
+                        <td>${formatCurrency(txn.amount)}</td>
+                        <td><span class="${paymentMethodBadge}">${esc(txn.paymentMethod)}</span></td>
+                        <td><span class="${statusBadge}">${esc(txn.status)}</span></td>
+                        <td>${formatDate(txn.createdAt)}</td>
+                        <td>${formatDate(txn.paidAt) || "-"}</td>
+                        <td>
+                          <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-info" data-view-transaction="${txn.id}" title="View Details">
+                              <i class="ti ti-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary" data-download-receipt="${txn.id}" title="Download Receipt">
+                              <i class="ti ti-download"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
             </div>
-          </td>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+              <small class="text-muted">Showing ${this.transactions.length} transactions</small>
+              <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0" data-transaction-pagination></ul>
+              </nav>
+            </div>
+          </div>
         `;
-        tbody.appendChild(row);
-      });
-
+      }
+      container.innerHTML = html;
       this.renderPagination();
     },
 
@@ -263,41 +287,27 @@
      * Render pagination
      */
     renderPagination: function () {
-      const container = document.getElementById("pagination_container");
+      const container = document.querySelector('[data-transaction-pagination]');
       if (!container) return;
-
       container.innerHTML = "";
-      const nav = document.createElement("nav");
-      const ul = document.createElement("ul");
-      ul.className = "pagination mb-0";
-
       if (this.currentPage > 1) {
         const li = document.createElement("li");
         li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage - 1
-        }">Previous</a>`;
-        ul.appendChild(li);
+        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${this.currentPage - 1}">Previous</a>`;
+        container.appendChild(li);
       }
-
       for (let i = 1; i <= this.totalPages; i++) {
         const li = document.createElement("li");
         li.className = "page-item" + (i === this.currentPage ? " active" : "");
         li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${i}">${i}</a>`;
-        ul.appendChild(li);
+        container.appendChild(li);
       }
-
       if (this.currentPage < this.totalPages) {
         const li = document.createElement("li");
         li.className = "page-item";
-        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${
-          this.currentPage + 1
-        }">Next</a>`;
-        ul.appendChild(li);
+        li.innerHTML = `<a class="page-link" href="javascript:void(0);" data-page="${this.currentPage + 1}">Next</a>`;
+        container.appendChild(li);
       }
-
-      nav.appendChild(ul);
-      container.appendChild(nav);
     },
 
     /**

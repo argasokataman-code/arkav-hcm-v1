@@ -216,6 +216,56 @@ Untuk menjaga payroll/HCM tetap konsisten, data master employee kini juga disimp
 - `sort_order` small unsigned default 0
 - `created_at`, `updated_at`
 
+### `hcm_roles` (User Management)
+- `id BIGINT UNSIGNED PK`
+- `company_id BIGINT UNSIGNED NULL` (FK `companies`, null on delete)
+- `code VARCHAR(80) NOT NULL`
+- `name VARCHAR(150) NOT NULL`
+- `description VARCHAR(2000) NULL`
+- `status VARCHAR(30) NOT NULL DEFAULT 'active'`
+- `is_system` boolean default false
+- `created_at`, `updated_at`
+- Constraint: unique (`company_id`, `code`)
+
+### `hcm_permissions` (User Management)
+- `id BIGINT UNSIGNED PK`
+- `code VARCHAR(120) NOT NULL UNIQUE`
+- `module`, `resource`, `action` (indexed)
+- `name VARCHAR(150) NOT NULL`
+- `description VARCHAR(2000) NULL`
+- `is_active` boolean default true
+- `created_at`, `updated_at`
+
+### `hcm_role_permissions` (User Management)
+- `id BIGINT UNSIGNED PK`
+- `role_id BIGINT UNSIGNED NOT NULL` (FK `hcm_roles`, cascade on delete)
+- `permission_id BIGINT UNSIGNED NOT NULL` (FK `hcm_permissions`, cascade on delete)
+- `created_at TIMESTAMP NULL`
+- Constraint: unique (`role_id`, `permission_id`)
+
+### `hcm_user_roles` (User Management)
+- `id BIGINT UNSIGNED PK`
+- `user_id BIGINT UNSIGNED NOT NULL` (FK `users`, cascade on delete)
+- `company_id BIGINT UNSIGNED NOT NULL` (FK `companies`, cascade on delete)
+- `role_id BIGINT UNSIGNED NOT NULL` (FK `hcm_roles`, cascade on delete)
+- `assigned_by_user_id BIGINT UNSIGNED NULL` (FK `users`, null on delete)
+- `status VARCHAR(30) NOT NULL DEFAULT 'active'`
+- `effective_from DATE NULL`
+- `effective_until DATE NULL`
+- `revoked_at TIMESTAMP NULL`
+- `created_at`, `updated_at`
+
+### `hcm_user_role_audits` (User Management)
+- `id BIGINT UNSIGNED PK`
+- `company_id BIGINT UNSIGNED NULL` (FK `companies`, null on delete)
+- `actor_user_id BIGINT UNSIGNED NULL` (FK `users`, null on delete)
+- `target_user_id BIGINT UNSIGNED NOT NULL` (FK `users`, cascade on delete)
+- `role_id BIGINT UNSIGNED NULL` (FK `hcm_roles`, null on delete)
+- `action VARCHAR(80) NOT NULL`
+- `notes TEXT NULL`
+- `metadata JSON NULL`
+- `created_at TIMESTAMP NOT NULL`
+
 ### `hcm_salary_components`
 - `id BIGINT UNSIGNED PK`
 - `code VARCHAR(64) NOT NULL UNIQUE`, `name VARCHAR(200) NOT NULL`, `description` TEXT NULL

@@ -12,6 +12,7 @@ class HcmTraining extends Model
 
     protected $fillable = [
         'training_type_id',
+        'trainer_id',
         'trainer_name',
         'start_date',
         'end_date',
@@ -29,6 +30,11 @@ class HcmTraining extends Model
     public function type(): BelongsTo
     {
         return $this->belongsTo(HcmTrainingType::class, 'training_type_id');
+    }
+
+    public function trainer(): BelongsTo
+    {
+        return $this->belongsTo(HcmTrainer::class, 'trainer_id');
     }
 
     public function participants(): BelongsToMany

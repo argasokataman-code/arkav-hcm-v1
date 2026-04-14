@@ -17,6 +17,7 @@ class Ticket extends Model
         'subject',
         'description',
         'category',
+        'category_id',
         'priority',
         'status',
         'sla_due_at',
@@ -48,6 +49,11 @@ class Ticket extends Model
     public function resolver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resolver_user_id');
+    }
+
+    public function categoryRef(): BelongsTo
+    {
+        return $this->belongsTo(TicketCategory::class, 'category_id');
     }
 
     public function comments(): HasMany

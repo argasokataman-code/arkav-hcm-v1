@@ -72,6 +72,7 @@ class HcmTicketController extends Controller
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
             'category' => ['nullable', 'string', 'max:120'],
+            'categoryId' => ['nullable', 'integer', 'exists:ticket_categories,id'],
             'priority' => ['required', 'in:low,medium,high,urgent'],
             'slaDueAt' => ['nullable', 'date'],
             'assigneeUserId' => ['nullable', 'integer', 'exists:users,id'],
@@ -81,12 +82,15 @@ class HcmTicketController extends Controller
             return $this->forbidden();
         }
 
+        $resolvedCategory = $this->resolveCategoryInput($validated);
+
         $ticket = Ticket::query()->create([
             'user_id' => $user->id,
             'code' => $this->generateCode(),
             'subject' => trim((string) $validated['subject']),
             'description' => trim((string) $validated['description']),
-            'category' => isset($validated['category']) ? trim((string) $validated['category']) : null,
+            'category' => $resolvedCategory['name'],
+            'category_id' => $resolvedCategory['id'],
             'priority' => $validated['priority'],
             'status' => 'open',
             'sla_due_at' => $validated['slaDueAt'] ?? null,
@@ -142,6 +146,7 @@ class HcmTicketController extends Controller
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'required', 'string', 'max:10000'],
             'category' => ['nullable', 'string', 'max:120'],
+            'categoryId' => ['nullable', 'integer', 'exists:ticket_categories,id'],
             'priority' => ['sometimes', 'required', 'in:low,medium,high,urgent'],
             'status' => ['sometimes', 'required', 'in:open,in_progress,resolved,closed'],
             'slaDueAt' => ['nullable', 'date'],
@@ -169,8 +174,10 @@ class HcmTicketController extends Controller
         if (array_key_exists('description', $validated)) {
             $ticket->description = trim((string) $validated['description']);
         }
-        if (array_key_exists('category', $validated)) {
-            $ticket->category = $validated['category'] !== null ? trim((string) $validated['category']) : null;
+        if (array_key_exists('categoryId', $validated) || array_key_exists('category', $validated)) {
+            $resolvedCategory = $this->resolveCategoryInput($validated);
+            $ticket->category_id = $resolvedCategory['id'];
+            $ticket->category = $resolvedCategory['name'];
         }
         if (array_key_exists('priority', $validated)) {
             $ticket->priority = $validated['priority'];
@@ -392,6 +399,7 @@ class HcmTicketController extends Controller
             'subject' => $t->subject,
             'description' => Str::limit($t->description, 220),
             'category' => $t->category ?? '',
+            'categoryId' => $t->category_id ? (int) $t->category_id : null,
             'priority' => $t->priority,
             'status' => $t->status,
             'slaDueAt' => $t->sla_due_at?->toIso8601String(),
@@ -473,6 +481,38 @@ class HcmTicketController extends Controller
         $today = now()->format('Ymd');
         $count = (int) Ticket::query()->whereDate('created_at', now()->toDateString())->count() + 1;
         return sprintf('TIC-%s-%03d', $today, $count);
+    }
+
+    /**
+     * @return array{id:int|null,name:string|null}
+     */
+    private function resolveCategoryInput(array $validated): array
+    {
+        if (array_key_exists('categoryId', $validated) && $validated['categoryId'] !== null) {
+            $category = TicketCategory::query()->find((int) $validated['categoryId']);
+            if ($category) {
+                return [
+                    'id' => (int) $category->id,
+                    'name' => (string) $category->name,
+                ];
+            }
+        }
+
+        if (array_key_exists('category', $validated)) {
+            $name = $validated['category'] !== null ? trim((string) $validated['category']) : null;
+            if ($name === null || $name === '') {
+                return ['id' => null, 'name' => null];
+            }
+
+            $matchedCategory = TicketCategory::query()->where('name', $name)->first();
+
+            return [
+                'id' => $matchedCategory ? (int) $matchedCategory->id : null,
+                'name' => $name,
+            ];
+        }
+
+        return ['id' => null, 'name' => null];
     }
 
     private function forbidden(): JsonResponse

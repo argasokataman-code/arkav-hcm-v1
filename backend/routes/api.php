@@ -6,8 +6,13 @@ use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
-use App\Http\Controllers\Api\PurchaseTransactionController;
-use App\Http\Controllers\Api\CustomDomainController;
+use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\DomainController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\ReportSnapshotController;
+use App\Http\Controllers\Api\BulkPaymentImportController;
 use App\Http\Controllers\Api\SuperAdminDashboardController;
 use App\Http\Controllers\Api\HcmEmployeeController;
 use App\Http\Controllers\Api\HcmHolidayController;
@@ -23,6 +28,8 @@ use App\Http\Controllers\Api\HcmPayrollThrController;
 use App\Http\Controllers\Api\HcmPayrollThrBatchController;
 use App\Http\Controllers\Api\HcmPayrollThrSettingsController;
 use App\Http\Controllers\Api\HcmPerformanceController;
+use App\Http\Controllers\Api\HcmAssetController;
+use App\Http\Controllers\Api\HcmAssetCategoryController;
 use App\Http\Controllers\Api\HcmPromotionController;
 use App\Http\Controllers\Api\HcmResignationController;
 use App\Http\Controllers\Api\HcmTerminationController;
@@ -30,6 +37,8 @@ use App\Http\Controllers\Api\HcmSalaryComponentController;
 use App\Http\Controllers\Api\HcmShiftController;
 use App\Http\Controllers\Api\HcmTicketController;
 use App\Http\Controllers\Api\HcmTrainingController;
+use App\Http\Controllers\Api\HcmUserManagementController;
+use App\Http\Controllers\Api\WilayahLookupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/identity')->group(function () {
@@ -72,6 +81,10 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/employees/{id}', [HcmEmployeeController::class, 'show'])->whereNumber('id');
     Route::put('/employees/{id}', [HcmEmployeeController::class, 'update'])->whereNumber('id');
     Route::post('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'uploadProfilePhoto'])->whereNumber('id');
+    Route::get('/wilayah/provinces', [WilayahLookupController::class, 'provinces']);
+    Route::get('/wilayah/regencies', [WilayahLookupController::class, 'regencies']);
+    Route::get('/wilayah/districts', [WilayahLookupController::class, 'districts']);
+    Route::get('/wilayah/villages', [WilayahLookupController::class, 'villages']);
     Route::get('/departments', [HcmEmployeeController::class, 'departments']);
     Route::get('/departments/export', [HcmEmployeeController::class, 'exportDepartments']);
     Route::post('/departments', [HcmEmployeeController::class, 'storeDepartment']);
@@ -103,6 +116,21 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/salary-components/{id}', [HcmSalaryComponentController::class, 'show'])->whereNumber('id');
     Route::put('/salary-components/{id}', [HcmSalaryComponentController::class, 'update'])->whereNumber('id');
     Route::delete('/salary-components/{id}', [HcmSalaryComponentController::class, 'destroy'])->whereNumber('id');
+
+    Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);
+    Route::post('/asset-categories', [HcmAssetCategoryController::class, 'store']);
+    Route::put('/asset-categories/{category}', [HcmAssetCategoryController::class, 'update'])->whereNumber('category');
+    Route::delete('/asset-categories/{category}', [HcmAssetCategoryController::class, 'destroy'])->whereNumber('category');
+
+    Route::get('/assets', [HcmAssetController::class, 'index']);
+    Route::post('/assets', [HcmAssetController::class, 'store']);
+    Route::get('/assets/{asset}', [HcmAssetController::class, 'show'])->whereNumber('asset');
+    Route::put('/assets/{asset}', [HcmAssetController::class, 'update'])->whereNumber('asset');
+    Route::delete('/assets/{asset}', [HcmAssetController::class, 'destroy'])->whereNumber('asset');
+    Route::post('/assets/{asset}/assign', [HcmAssetController::class, 'assign'])->whereNumber('asset');
+    Route::post('/assets/{asset}/return', [HcmAssetController::class, 'returnAsset'])->whereNumber('asset');
+    Route::post('/assets/{asset}/issue-report', [HcmAssetController::class, 'reportIssue'])->whereNumber('asset');
+    Route::post('/assets/{asset}/attachments', [HcmAssetController::class, 'attach'])->whereNumber('asset');
 
     Route::get('/payroll-periods', [HcmPayrollPeriodController::class, 'index']);
     Route::get('/payroll-periods/active', [HcmPayrollPeriodController::class, 'active']);
@@ -287,6 +315,40 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::put('/{id}', [HcmTerminationController::class, 'update'])->whereNumber('id');
         Route::delete('/{id}', [HcmTerminationController::class, 'destroy'])->whereNumber('id');
     });
+
+    // User Management
+    Route::prefix('user-management')->group(function () {
+        Route::get('/users', [HcmUserManagementController::class, 'users']);
+        Route::get('/users/export', [HcmUserManagementController::class, 'usersExport']);
+        Route::get('/users/{id}', [HcmUserManagementController::class, 'userDetail'])->whereNumber('id');
+        Route::post('/users', [HcmUserManagementController::class, 'createUser']);
+        Route::put('/users/{id}', [HcmUserManagementController::class, 'updateUser'])->whereNumber('id');
+        Route::delete('/users/{id}', [HcmUserManagementController::class, 'deleteUser'])->whereNumber('id');
+
+        Route::get('/roles', [HcmUserManagementController::class, 'roles']);
+        Route::post('/roles', [HcmUserManagementController::class, 'createRole']);
+        Route::put('/roles/{id}', [HcmUserManagementController::class, 'updateRole'])->whereNumber('id');
+        Route::delete('/roles/{id}', [HcmUserManagementController::class, 'deleteRole'])->whereNumber('id');
+
+        Route::get('/permissions', [HcmUserManagementController::class, 'permissions']);
+        Route::post('/roles/{id}/permissions:sync', [HcmUserManagementController::class, 'syncRolePermissions'])->whereNumber('id');
+
+        Route::get('/users/{id}/roles', [HcmUserManagementController::class, 'userRoles'])->whereNumber('id');
+        Route::post('/users/{id}/roles', [HcmUserManagementController::class, 'assignUserRole'])->whereNumber('id');
+        Route::delete('/users/{id}/roles/{assignmentId}', [HcmUserManagementController::class, 'revokeUserRole'])
+            ->whereNumber('id')
+            ->whereNumber('assignmentId');
+    });
+
+    // Reporting - Snapshots
+    Route::prefix('reports')->group(function () {
+        Route::prefix('snapshots')->group(function () {
+            Route::post('/', [ReportSnapshotController::class, 'generate']);
+            Route::get('/', [ReportSnapshotController::class, 'list']);
+            Route::get('/{id}', [ReportSnapshotController::class, 'show'])->whereNumber('id');
+            Route::post('/{id}/export', [ReportSnapshotController::class, 'export'])->whereNumber('id');
+        });
+    });
 });
 
 // SaaS Packages Routes
@@ -297,6 +359,13 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::post('/packages', [PackageController::class, 'store']);
     Route::put('/packages/{package}', [PackageController::class, 'update']);
     Route::delete('/packages/{package}', [PackageController::class, 'destroy']);
+
+    // Package Add-ons
+    Route::get('/package-addons', [PackageController::class, 'addons']);
+    Route::get('/package-addons/{addon}', [PackageController::class, 'showAddon'])->whereNumber('addon');
+    Route::post('/package-addons', [PackageController::class, 'storeAddon']);
+    Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon'])->whereNumber('addon');
+    Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon'])->whereNumber('addon');
 
     // Package Features
     Route::get('/packages/{package}/features', [PackageController::class, 'getFeatures']);
@@ -313,18 +382,46 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
 
     // Purchase Transactions
-    Route::get('/transactions', [PurchaseTransactionController::class, 'index']);
-    Route::post('/transactions', [PurchaseTransactionController::class, 'store']);
-    Route::get('/transactions/{transaction}', [PurchaseTransactionController::class, 'show']);
-    Route::put('/transactions/{transaction}', [PurchaseTransactionController::class, 'update']);
+    Route::get('/transactions/export', [TransactionController::class, 'export']);
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::post('/transactions', [TransactionController::class, 'store']);
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->whereNumber('transaction');
+    Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->whereNumber('transaction');
 
     // Custom Domains
-    Route::get('/domains', [CustomDomainController::class, 'index']);
-    Route::post('/domains', [CustomDomainController::class, 'store']);
-    Route::get('/domains/{domain}', [CustomDomainController::class, 'show']);
-    Route::put('/domains/{domain}', [CustomDomainController::class, 'update']);
-    Route::delete('/domains/{domain}', [CustomDomainController::class, 'destroy']);
-    Route::post('/domains/{domain}/verify', [CustomDomainController::class, 'verify']);
+    Route::get('/domains', [DomainController::class, 'index']);
+    Route::post('/domains', [DomainController::class, 'store']);
+    Route::get('/domains/{domain}', [DomainController::class, 'show']);
+    Route::put('/domains/{domain}', [DomainController::class, 'update']);
+    Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
+    Route::post('/domains/{domain}/verify', [DomainController::class, 'verify']);
+    Route::get('/domains/{domain}/verification-details', [DomainController::class, 'verificationDetails']);
+
+    // Invoices
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::post('/invoices', [InvoiceController::class, 'store']);
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+    Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
+    Route::put('/invoices/{invoice}/send', [InvoiceController::class, 'markAsSent']);
+    Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
+    Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
+
+    // Payments
+    Route::get('/payments', [PaymentController::class, 'index']);
+    Route::post('/payments', [PaymentController::class, 'store']);
+    Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+    Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
+    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy']);
+    Route::post('/payments/bulk-upload', [BulkPaymentImportController::class, 'upload']);
+
+    // Reports
+    Route::get('/reports/revenue', [ReportController::class, 'revenue']);
+    Route::get('/reports/aging', [ReportController::class, 'aging']);
+    Route::get('/reports/churn', [ReportController::class, 'churn']);
+
+    // Invoice Actions
+    Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
 
     // Super Admin Dashboard
     Route::get('/dashboard/kpi', [SuperAdminDashboardController::class, 'getKpi']);

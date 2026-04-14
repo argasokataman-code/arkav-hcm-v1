@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Package extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'code',
         'name',
@@ -32,6 +35,11 @@ class Package extends Model
         return $this->hasMany(PackageFeature::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     /**
      * Scope for active packages
      */
@@ -53,7 +61,13 @@ class Package extends Model
      */
     public function hasFeature(string $code): bool
     {
-        return $this->features()->where('feature_code', $code)->exists();
+        return $this->features()
+            ->where('feature_code', $code)
+            ->where(function ($query): void {
+                $query->whereNull('limit')
+                    ->orWhere('limit', '!=', 0);
+            })
+            ->exists();
     }
 
     /**

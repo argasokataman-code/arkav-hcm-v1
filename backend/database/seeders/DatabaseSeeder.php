@@ -24,13 +24,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $qaUser = User::query()->updateOrCreate(
-            ['email' => 'qa.login@example.com'],
-            [
-                'name' => 'QA Login User',
-                'password' => Hash::make('StrongPass1'),
-            ]
-        );
+        $this->call(DevelopmentSuperUserSeeder::class);
+
+        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $adminPassword = (string) config('hcm.admin_password', 'StrongPass1');
+
+        $qaUser = User::query()->where('email', $adminEmail)->first()
+            ?? User::query()->updateOrCreate(
+                ['email' => $adminEmail],
+                [
+                    'name' => 'Super User 1',
+                    'password' => Hash::make($adminPassword),
+                ]
+            );
 
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $qaUser->id],
@@ -155,6 +161,9 @@ class DatabaseSeeder extends Seeder
 
         // Rekening bank untuk profil yang masih kosong (karyawan luar demo / seed lama).
         $this->call(EmployeeProfileBankBackfillSeeder::class);
+
+        // Baseline role/permission catalog untuk user management.
+        $this->call(HcmUserManagementSeeder::class);
     }
 
     private function ensureDefaultCompanyMembership(): void

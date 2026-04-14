@@ -31,6 +31,7 @@ alwaysApply: true
 | `/login`, `/` | Login | auth-login, api-client | `POST /v1/identity/auth/login` | Anonim | Publik login + cookie | — |
 | `/index` | Admin dashboard | chart-*, template | (bervariasi) | Authenticated | Sesuai yang di-wire | Banyak demo chart |
 | `/employee-dashboard` | Dashboard karyawan | template | (summary jika di-wire) | Authenticated | Prefer **self** | Milestone dashboard |
+| *(API only)* `/v1/hcm/user-management/*` | User Management (backend) | Belum ada halaman web final | users/roles/permissions/assignment/export | N/A | **HCM Admin only** (`EnsuresHcmAdmin`) | Endpoint live; UI web menyusul |
 | `/employees` | Daftar employee | employees-data | `GET/POST /employees`, `bulk-*` | **HCM Admin** (→ `/employee-dashboard`) | List/create/bulk **hcmAdmin** | `me.hcmAdmin` + API |
 | `/employees-grid` | Grid employee | sama | sama | **HCM Admin** | sama | — |
 | `/employee-details` | Detail employee | hcm-pages-data | `GET/PUT /employees/{id}`, `GET /training/users/{id}/trainings`, `GET /promotions/users/{id}/promotions`, `GET /resignations/users/{id}/resignations`, `GET /terminations/users/{id}/terminations` | Admin semua ID; karyawan **self** | Ownership + subset self-`PUT`; list training/promotion/resignation/termination per user sesuai RBAC endpoint | API + USE-CASES §5.2 |
@@ -94,6 +95,20 @@ alwaysApply: true
 - [ ] Endpoint berisiko punya **403** untuk non-admin bila halaman admin-only.
 - [ ] UI admin tidak menggantikan cek server.
 - [ ] Test: happy path + forbidden jika relevan.
+
+## Gate wajib sebelum lanjut fitur lain
+
+Urutan ini wajib dijalankan untuk development maupun bugfix pada halaman HCM aktif:
+
+1. [ ] **Role & use case tervalidasi**
+	- Mapping role/use case sudah dicek terhadap matriks.
+	- Dampak pada ownership/admin-only sudah diverifikasi di backend.
+2. [ ] **UIUX lintas role tervalidasi**
+	- HCM Admin: semua aksi sesuai requirement.
+	- Karyawan/company user: aksi terbatas sesuai role, termasuk redirect/empty/error state.
+3. [ ] **Manual UI E2E sudah dijalankan**
+	- Skenario di `docs/features/<feature>/E2E-TESTING.md` dieksekusi click-by-click.
+	- Hasil pass/fail + tanggal + role dicatat pada snapshot eksekusi.
 
 ## Konflik requirement
 

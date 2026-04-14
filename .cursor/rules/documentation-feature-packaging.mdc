@@ -1,0 +1,307 @@
+---
+description: KETAT — SEMUA fitur (old & new) WAJIB punya README + IMPLEMENTATION (minimal). Docs harus di docs/features/<feature>/, tidak boleh tersebar. Enforce untuk: attendance, employee, payroll, leave, overtime, tickets, performance, goal, training, promotion, resignation, termination, policies, subscriptions, identity-auth, dan SEMUA feature lainnya.
+alwaysApply: true
+---
+
+# Dokumentasi Feature — Packaging & Lokasi Wajib (SEMUA Feature)
+
+**Tujuan:** Hindari file dokumentasi bertebaran di root atau tempat random. **SETIAP feature yang sudah dikembang (HCM + SaaS) WAJIB self-contained** dengan dokumentasi di folder khusus `docs/features/<feature>/` dengan struktur yang konsisten.
+
+**Cakupan:** Berlaku untuk:
+- ✅ Fitur HCM lama (attendance, payroll, leave, overtime, tickets, performance, goal, training, promotion, resignation, termination, etc)
+- ✅ Fitur SaaS baru (subscriptions, packages, domain-management, super-admin-dashboard, purchase-transaction, etc)
+- ✅ Fitur auth/identity (identity-auth, user-tenant-management)
+
+## Peraturan Ketat
+
+### 1) Lokasi Dokumentasi Wajib
+
+❌ **DILARANG:**
+```
+/README.md                            (feature docs di root)
+/FEATURE-NAME-DOCS.md                 (docs Feature X di root)
+/features/payment/PAYMENT-SETUP.md    (random lokasi)
+/backend/docs/...                     (docs di backend folder)
+```
+
+✅ **WAJIB:**
+```
+/docs/features/<feature-name>/
+├── README.md                          (overview + navigation)
+├── IMPLEMENTATION.md                  (teknis lengkap)
+└── [sesuai jenis: E2E-TESTING.md, SETUP.md, SCHEMA.md, API.md, dll]
+```
+
+### 2) README.md — WAJIB di Setiap Feature Folder
+
+**Isi minimal:**
+```markdown
+# Feature Name
+
+## 📚 Documentation Structure
+
+Dokumentasi feature ini terorganisir di folder ini:
+- **README.md** (ini) — Overview & navigasi
+- **IMPLEMENTATION.md** — Technical docs, architecture, code structure
+- **E2E-TESTING.md** (atau sesuai jenis) — Testing guide / Setup / Schema docs
+
+## 🎯 Quick Overview
+
+[Ringkas 2-3 paragraf tentang feature]
+
+## 📊 Feature Statistics
+
+[Tabel: API endpoints, Controllers, Models, etc]
+
+## 📂 Data Model
+
+[Entity relationship & key fields]
+
+## 🚀 Quick Start
+
+[Dev setup / deployment instructions]
+
+## 📞 Documentation Links
+
+| Document | Topic | Audience |
+|----------|-------|----------|
+| [IMPLEMENTATION.md](IMPLEMENTATION.md) | Technical docs | Developers |
+| [OTHER.md](OTHER.md) | ... | ... |
+
+## ✅ Status
+
+[Module version, status, completion date]
+```
+
+### 3) Jenis File Dokumentasi Per Feature
+
+**Pilih file yang relevan, HARUS konsisten:**
+
+| File | Kapan Wajib | Isi |
+|------|-----------|-----|
+| `README.md` | **SELALU** | Overview, navigation, statistics, quick start |
+| `IMPLEMENTATION.md` | **SELALU** jika punya backend | Architecture, API endpoints, database schema, file structure, configuration |
+| `E2E-TESTING.md` | Jika ada UI/testing | Test scenarios, UAT checklist, debugging tips |
+| `SETUP.md` | Jika setup kompleks | Environment, migrations, seeding, first-run steps |
+| `API.md` atau `ENDPOINTS.md` | Jika pure API feature | Endpoint reference, request/response examples |
+| `SCHEMA.md` | Jika database utama | Detailed schema, relationships, constraints |
+| `ARCHITECTURE.md` | Jika arsitektur kompleks | System design, integration points, data flow |
+
+**Rule: Jangan random, gunakan naming konsisten di project.**
+
+### 4) Struktur Folder Standard
+
+```
+docs/features/
+├── README.md                          (main index)
+├── <feature-1>/
+│   ├── README.md                      (overview + nav)
+│   ├── IMPLEMENTATION.md              (teknis)
+│   ├── E2E-TESTING.md                 (testing)
+│   └── [SCHEMA.md, SETUP.md, etc]
+├── <feature-2>/
+│   ├── README.md
+│   └── IMPLEMENTATION.md
+└── ...
+```
+
+### 5) Cleanup Wajib: Root Harus Bersih
+
+**Sebelum menganggap feature selesai:**
+
+1. ✅ Semua docs sudah dipindah ke `docs/features/<feature>/`
+2. ✅ File di root (`*.md` yang bukan global) dihapus
+3. ✅ README di feature folder punya link ke semua docs
+4. ✅ `docs/features/README.md` (main index) ter-update dengan feature baru
+
+**Contoh cleanup:**
+```bash
+# SALAH: file masih di root
+rm -f /ROOT/FEATURE-DOCS.md /ROOT/E2E-TESTING.md
+
+# BENAR: pindah ke folder feature
+mv /ROOT/FEATURE-DOCS.md /docs/features/feature-name/IMPLEMENTATION.md
+mv /ROOT/E2E-TESTING.md /docs/features/feature-name/E2E-TESTING.md
+```
+
+### 6) Main Index — `docs/features/README.md`
+
+File ini WAJIB di-update setiap ada feature baru:
+
+```markdown
+# Features Documentation
+
+## Index
+
+| Feature | Status | Links |
+|---------|--------|-------|
+| [Feature X](feature-x/) | ✅ Complete | [Overview](feature-x/README.md), [Docs](feature-x/IMPLEMENTATION.md), [Testing](feature-x/E2E-TESTING.md) |
+| [Feature Y](feature-y/) | ✅ Complete | [Overview](feature-y/README.md), [Docs](feature-y/IMPLEMENTATION.md) |
+
+[alphabetically sorted]
+```
+
+### 7) Compliance Audit — Semua Feature (HCM + SaaS) — ENFORCE
+
+**Fitur wajib sudah ada dan HARUS follow rule ini (23 fitur):**
+
+| # | Feature | README | IMPLEMENTATION | Testing | Status | Link |
+|----|---------|--------|---|---|---|---|
+| 1-23 | attendance, domain, employee-salary, employees-org, goal, identity, leave, overtime, packages, payroll-items, payroll-runs, payroll-components, performance, policies, promotion, resignation, subscriptions, super-admin, termination, tickets, training, purchase-tx, user-tenant | ✅ Ada | ⚠️ Minimal* | ❌▪Mostly | ⚠️ Partial | [Audit Table](../../docs/features/README.md) |
+
+**Legend:**
+- ✅ Ada = Semua feature folder punya README.md
+- ⚠️ Minimal* = 21/23 features punya basic IMPLEMENTATION.md (incomplete), hanya purchase-transaction lengkap
+- ❌ Mostly = Hanya purchase-transaction punya E2E-TESTING.md lengkap
+- ⚠️ Partial = Compliance status mixed → **HARUS diperbaiki sebelum release**
+
+**Action items:**
+1. ✅ Purchase Transactions → Complete (sudah done)
+2. 🔄 HCM Core Features (payroll, attendance, leave, HR) → Lengkapi IMPLEMENTATION.md dengan detail
+3. 📋 Optional Features (tickets, training, policies) → Minimal IMPLEMENTATION.md cukup
+
+### 8) Jangan Boleh Bypass — Enforcement Ketat
+
+**Rule ini STRICT dan NON-NEGOTIABLE:**
+- ❌ DILARANG commit docs di root (`.md` non-global)
+- ❌ DILARANG feature "selesai" tanpa folder di `docs/features/<feature>/`
+- ❌ DILARANG skip IMPLEMENTATION.md hanya karena "sudah ada di API docs"
+- ❌ DILARANG update feature docs tapi lupa update `docs/features/README.md` main index
+- ❌ DILARANG tulis documentation di Backend folder atau random lokasi
+
+**Jika user/dev request bypass:** Tolak dan explain rule ini. Dokumentasi = deliverable, bukan opsional.
+
+### 9) Checklist Sebelum "Feature Selesai"
+
+Agent HARUS bisa jawab YES untuk semua:
+
+- [ ] Feature folder exist di `docs/features/<feature-name>/`?
+- [ ] `README.md` exist dengan overview + navigation + quick start?
+- [ ] `IMPLEMENTATION.md` exist dengan technical docs lengkap (jika ada backend)?
+- [ ] Testing/Setup/Schema docs exist sesuai jenis feature?
+- [ ] Semua doc files pindah dari root / random folder?
+- [ ] Root directory bersih (tidak ada `<FEATURE-NAME>-DOCS.md` dll)?
+- [ ] `docs/features/README.md` ter-update dengan feature di main index?
+- [ ] Link antar docs berfungsi (gunakan relative path)?
+
+### 10) Hak Istimewa: Dokumentasi Global vs Feature
+
+**Boleh di root atau docs global:**
+```
+/docs/architecture/        (big picture system design)
+/docs/database/            (global schema reference)
+/docs/security/            (security baseline global)
+/docs/api/                 (OpenAPI, global API spec)
+/docs/planning/            (project planning, roadmap)
+/QUICK-REFERENCE.md        (global quick ref)
+/README.md                 (project main README)
+```
+
+**DILARANG di root (harus di feature folder):**
+```
+/PAYMENT-SETUP.md          → /docs/features/payments/SETUP.md
+/INVOICE-DOCS.md           → /docs/features/invoices/IMPLEMENTATION.md
+/PAYROLL-E2E-GUIDE.md      → /docs/features/payroll-runs/E2E-TESTING.md
+```
+
+### 11) Tool Usage
+
+**Create folder + file:**
+```bash
+mkdir -p docs/features/<feature-name>
+# Create: README.md, IMPLEMENTATION.md, etc
+```
+
+**Move docs:**
+```bash
+mv /<random-location>/<FILE>.md docs/features/<feature-name>/IMPLEMENTATION.md
+```
+
+**Update docs/features/README.md:**
+```markdown
+| [Feature Name](feature-name/) | ✅ Complete | [README](feature-name/README.md), [Impl](feature-name/IMPLEMENTATION.md), [Testing](feature-name/E2E-TESTING.md) |
+```
+
+**Verify links:**
+```bash
+# Cek file exist
+ls -la docs/features/*/README.md
+ls -la docs/features/*/IMPLEMENTATION.md
+```
+
+### 12) Bagaimana Jika Docs Kecil?
+
+**Tetap wajib 3 file minimum:**
+- `README.md` — minimal: overview 1 paragraf + quick start + statistics table
+- `IMPLEMENTATION.md` — minimal: architecture diagram + file structure + config
+- (Jika ada testing) `E2E-TESTING.md` — minimal: test scenarios dengan step-by-step
+
+**Jangan:** "Kecil aja, satukan di satu file." → Tujuan adalah navigasi mudah & modular, bukan file size.
+
+---
+
+## Failure Cases
+
+### ❌ Gagal
+
+```
+Feature: Payment Manager
+Goal: Create payment feature
+
+❌ FAILS:
+- Dev buat 3 controller, migration, service
+- Tulis hanya 1 file README.md di root
+- Tidak ada file IMPLEMENTATION.md (teknis)
+- Cleanup tidak dijalankan → E2E-TESTING.md masih di root
+- docs/features/README.md tidak ter-update
+```
+
+**Diagnosis:** Agent lupa step packaging & cleanup. Feature "selesai" tapi docs amburadul.
+
+### ✅ Benar
+
+```
+Feature: Payment Manager
+Goal: Create payment feature
+
+✅ CORRECT:
+1. Dev selesai coding
+2. Bikin folder: docs/features/payment-manager/
+3. Create & push 3 files:
+   - README.md (overview + nav)
+   - IMPLEMENTATION.md (22 sections + architecture)
+   - E2E-TESTING.md (6 scenarios + checklist)
+4. Update docs/features/README.md dengan entry baru
+5. Confirm: root bersih, links work, checklist 100%
+```
+
+---
+
+## Integration dengan Development Closure
+
+**Rule ini melengkapi `development-closure-checklist.mdc`:**
+
+```
+development-closure-checklist → "Dokumentasi semua files terdampak sudah update?"
+    ↓
+documentation-feature-packaging → "Docs sudah di folder feature/<name>/ dengan struktur lengkap?"
+```
+
+**Urutan eksekusi:**
+1. Selesai coding
+2. **Jalankan** `documentation-feature-packaging` checklist (7 item)
+3. **Jalankan** `development-closure-checklist` (security + links update + OpenAPI)
+
+---
+
+## Reference
+
+- **`.cursor/rules/development-closure-checklist.mdc`** — Task closure (security, docs, OpenAPI)
+- **`.cursor/rules/documentation-sync-after-development.mdc`** — Sinkron docs global
+- **`docs/features/README.md`** — Feature index
+- **`docs/features/<feature>/`** — Individual feature folders
+
+---
+
+**Last Updated:** 2026-04-13  
+**Status:** Active / Strictly Enforced

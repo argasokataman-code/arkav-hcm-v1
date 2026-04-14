@@ -34,6 +34,17 @@
             <div class="card-body">
                 <div class="row align-items-end g-2">
                     <div class="col-md-3">
+                        <label class="form-label">Sumber Data</label>
+                        <select class="form-select" data-payslip-admin-source>
+                            <option value="live" selected>Live Data</option>
+                            <option value="archive">Archive Snapshot</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-none" data-payslip-admin-snapshot-wrap>
+                        <label class="form-label">Snapshot ID</label>
+                        <input type="number" class="form-control" data-payslip-admin-snapshot-id min="1" placeholder="Contoh: 12">
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">Tahun</label>
                         <select class="form-select" data-payslip-admin-year>
                             @php($currentYear = (int) date('Y'))
@@ -59,7 +70,9 @@
                         </button>
                     </div>
                     <div class="col-md-auto ms-md-auto">
-                        <span class="text-muted small" data-payslip-admin-run-info></span>
+                        <span class="text-muted small" data-payslip-admin-run-info></span><br>
+                        <span class="badge bg-light text-dark mt-1" data-payslip-admin-source-badge>Source: Live</span>
+                        <div class="text-muted small mt-1">Live memakai payroll admin API; Archive memakai Snapshot ID dari Reports Hub.</div>
                     </div>
                 </div>
                 <div class="alert alert-danger d-none py-2 small mt-3 mb-0" data-payslip-admin-error></div>

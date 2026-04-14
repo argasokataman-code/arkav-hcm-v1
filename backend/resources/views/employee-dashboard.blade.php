@@ -277,6 +277,8 @@
                                     <i class="ti ti-fingerprint text-primary me-1"></i>
                                     Punch In at  10.00 AM
                                 </h6>
+                                <div class="rounded border mb-3" data-employee-legacy-attendance-map style="height: 180px;"></div>
+                                <p class="small text-muted mb-3" data-employee-legacy-map-hint>Map attendance belum tersedia.</p>
                                 <a href="{{ url('attendance-employee') }}" class="btn btn-primary w-100" data-employee-legacy-punch-button>Punch Out</a>
                             </div>
                         </div>

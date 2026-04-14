@@ -114,7 +114,7 @@
     </div>
 </div>
 
-<script src="{{ asset('resources/js/purchase-transactions-data.js') }}"></script>
+<script src="{{ asset('build/js/purchase-transactions-data.js') }}?v={{ filemtime(public_path('build/js/purchase-transactions-data.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.TransactionsManager?.init?.();

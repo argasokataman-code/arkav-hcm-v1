@@ -141,6 +141,7 @@ class HcmTrainingController extends Controller
         $query = HcmTraining::query()
             ->with([
                 'type:id,name',
+                'trainer:id,name,is_active',
                 'participants:id,name,email',
             ])
             ->orderByDesc('id');
@@ -155,6 +156,7 @@ class HcmTrainingController extends Controller
             $q = trim((string) $v['q']);
             $query->where(function ($qq) use ($q): void {
                 $qq->where('trainer_name', 'like', '%'.$q.'%')
+                    ->orWhereHas('trainer', fn ($trainerQuery) => $trainerQuery->where('name', 'like', '%'.$q.'%'))
                     ->orWhere('description', 'like', '%'.$q.'%');
             });
         }
@@ -163,7 +165,13 @@ class HcmTrainingController extends Controller
         $data = $rows->getCollection()->map(fn (HcmTraining $t) => [
             'id' => $t->id,
             'type' => $t->type ? ['id' => $t->type->id, 'name' => $t->type->name] : null,
+            'trainerId' => $t->trainer_id ? (int) $t->trainer_id : null,
             'trainerName' => $t->trainer_name ?? '',
+            'trainer' => $t->trainer ? [
+                'id' => (int) $t->trainer->id,
+                'name' => (string) $t->trainer->name,
+                'isActive' => (bool) $t->trainer->is_active,
+            ] : null,
             'participants' => $t->participants->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -197,6 +205,7 @@ class HcmTrainingController extends Controller
 
         $v = $request->validate([
             'trainingTypeId' => ['nullable', 'integer', 'exists:hcm_training_types,id'],
+            'trainerId' => ['nullable', 'integer', 'exists:hcm_trainers,id'],
             'trainerName' => ['nullable', 'string', 'max:200'],
             'participantUserIds' => ['nullable', 'array', 'max:200'],
             'participantUserIds.*' => ['integer', 'exists:users,id'],
@@ -207,9 +216,12 @@ class HcmTrainingController extends Controller
             'status' => ['nullable', Rule::in(['active', 'inactive', 'completed'])],
         ]);
 
+        $trainerData = $this->resolveTrainerInput($v, false);
+
         $t = HcmTraining::query()->create([
             'training_type_id' => $v['trainingTypeId'] ?? null,
-            'trainer_name' => isset($v['trainerName']) ? trim((string) $v['trainerName']) : null,
+            'trainer_id' => $trainerData['trainer_id'],
+            'trainer_name' => $trainerData['trainer_name'],
             'start_date' => $v['startDate'] ?? null,
             'end_date' => $v['endDate'] ?? null,
             'description' => isset($v['description']) ? trim((string) $v['description']) : null,
@@ -234,6 +246,7 @@ class HcmTrainingController extends Controller
 
         $v = $request->validate([
             'trainingTypeId' => ['sometimes', 'nullable', 'integer', 'exists:hcm_training_types,id'],
+            'trainerId' => ['sometimes', 'nullable', 'integer', 'exists:hcm_trainers,id'],
             'trainerName' => ['sometimes', 'nullable', 'string', 'max:200'],
             'participantUserIds' => ['sometimes', 'nullable', 'array', 'max:200'],
             'participantUserIds.*' => ['integer', 'exists:users,id'],
@@ -248,8 +261,11 @@ class HcmTrainingController extends Controller
         if (array_key_exists('trainingTypeId', $v)) {
             $data['training_type_id'] = $v['trainingTypeId'];
         }
-        if (array_key_exists('trainerName', $v)) {
-            $data['trainer_name'] = $v['trainerName'] !== null ? trim((string) $v['trainerName']) : null;
+
+        $trainerData = $this->resolveTrainerInput($v, true);
+        if (array_key_exists('trainer_id', $trainerData)) {
+            $data['trainer_id'] = $trainerData['trainer_id'];
+            $data['trainer_name'] = $trainerData['trainer_name'];
         }
         if (array_key_exists('startDate', $v)) {
             $data['start_date'] = $v['startDate'];
@@ -304,7 +320,7 @@ class HcmTrainingController extends Controller
         ]);
 
         $query = HcmTraining::query()
-            ->with(['type:id,name'])
+            ->with(['type:id,name', 'trainer:id,name,is_active'])
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
             ->orderByDesc('start_date')
             ->orderByDesc('id');
@@ -313,7 +329,13 @@ class HcmTrainingController extends Controller
         $data = $rows->getCollection()->map(fn (HcmTraining $t) => [
             'id' => $t->id,
             'type' => $t->type ? ['id' => $t->type->id, 'name' => $t->type->name] : null,
+            'trainerId' => $t->trainer_id ? (int) $t->trainer_id : null,
             'trainerName' => $t->trainer_name ?? '',
+            'trainer' => $t->trainer ? [
+                'id' => (int) $t->trainer->id,
+                'name' => (string) $t->trainer->name,
+                'isActive' => (bool) $t->trainer->is_active,
+            ] : null,
             'startDate' => $t->start_date?->toDateString(),
             'endDate' => $t->end_date?->toDateString(),
             'description' => $t->description ?? '',
@@ -444,6 +466,46 @@ class HcmTrainingController extends Controller
         HcmTrainer::query()->whereKey($id)->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * @return array{trainer_id?:int|null,trainer_name?:string|null}
+     */
+    private function resolveTrainerInput(array $validated, bool $partialUpdate): array
+    {
+        $hasTrainerId = array_key_exists('trainerId', $validated);
+        $hasTrainerName = array_key_exists('trainerName', $validated);
+
+        if (! $hasTrainerId && ! $hasTrainerName) {
+            return $partialUpdate ? [] : ['trainer_id' => null, 'trainer_name' => null];
+        }
+
+        if ($hasTrainerId && $validated['trainerId'] !== null) {
+            $trainer = HcmTrainer::query()->find((int) $validated['trainerId']);
+
+            if ($trainer) {
+                return [
+                    'trainer_id' => (int) $trainer->id,
+                    'trainer_name' => (string) $trainer->name,
+                ];
+            }
+        }
+
+        if ($hasTrainerName) {
+            $name = $validated['trainerName'] !== null ? trim((string) $validated['trainerName']) : null;
+            if ($name === null || $name === '') {
+                return ['trainer_id' => null, 'trainer_name' => null];
+            }
+
+            $matchedTrainer = HcmTrainer::query()->where('name', $name)->first();
+
+            return [
+                'trainer_id' => $matchedTrainer ? (int) $matchedTrainer->id : null,
+                'trainer_name' => $name,
+            ];
+        }
+
+        return ['trainer_id' => null, 'trainer_name' => null];
     }
 }
 

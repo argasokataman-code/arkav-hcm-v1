@@ -14,6 +14,10 @@ use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\Policy;
 use App\Models\User;
+use App\Models\WilayahDistrict;
+use App\Models\WilayahProvince;
+use App\Models\WilayahRegency;
+use App\Models\WilayahVillage;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
 use Dompdf\Dompdf;
@@ -303,6 +307,7 @@ class HcmEmployeeController extends Controller
 
             return [
                 'id' => $user->id,
+                'employeeProfileId' => $profile?->id,
                 'employeeNo' => sprintf('EMP-%04d', $user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
@@ -365,8 +370,9 @@ class HcmEmployeeController extends Controller
         }
 
         $user = null;
+        $profile = null;
 
-        DB::transaction(function () use (&$user, $validated, $org): void {
+        DB::transaction(function () use (&$user, &$profile, $validated, $org): void {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -390,6 +396,11 @@ class HcmEmployeeController extends Controller
                 'nik' => $validated['nik'] ?? ($validated['ktpNo'] ?? null),
                 'phone' => $validated['phone'] ?? null,
                 'address' => $validated['address'] ?? null,
+                'address_detail' => $validated['addressDetail'] ?? null,
+                'province_id' => $validated['provinceId'] ?? null,
+                'regency_id' => $validated['regencyId'] ?? null,
+                'district_id' => $validated['districtId'] ?? null,
+                'village_id' => $validated['villageId'] ?? null,
                 'place_of_birth' => $validated['placeOfBirth'] ?? null,
                 'date_of_birth' => $validated['dateOfBirth'] ?? null,
                 'gender' => $validated['gender'] ?? null,
@@ -413,6 +424,7 @@ class HcmEmployeeController extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
+                'employeeProfileId' => $profile?->id,
                 'employeeNo' => sprintf('EMP-%04d', $user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
@@ -600,6 +612,11 @@ class HcmEmployeeController extends Controller
             'managerUserId' => 'manager_user_id',
             'phone' => 'phone',
             'address' => 'address',
+            'addressDetail' => 'address_detail',
+            'provinceId' => 'province_id',
+            'regencyId' => 'regency_id',
+            'districtId' => 'district_id',
+            'villageId' => 'village_id',
             'placeOfBirth' => 'place_of_birth',
             'dateOfBirth' => 'date_of_birth',
             'gender' => 'gender',
@@ -667,7 +684,7 @@ class HcmEmployeeController extends Controller
 
     private function updateEmployeeSelf(Request $request, User $user): JsonResponse
     {
-        $selfKeys = ['nik', 'ktpNo', 'phone', 'address', 'placeOfBirth', 'dateOfBirth', 'gender', 'maritalStatus', 'religion', 'nationality', 'bio', 'emergencyContacts', 'educationItems', 'experienceItems'];
+        $selfKeys = ['nik', 'ktpNo', 'phone', 'address', 'addressDetail', 'placeOfBirth', 'dateOfBirth', 'gender', 'maritalStatus', 'religion', 'nationality', 'bio', 'emergencyContacts', 'educationItems', 'experienceItems'];
         $present = collect(array_keys($request->all()))
             ->filter(fn (string $k) => ! in_array($k, ['_token'], true))
             ->values()
@@ -694,6 +711,11 @@ class HcmEmployeeController extends Controller
         $fieldMap = [
             'phone' => 'phone',
             'address' => 'address',
+            'addressDetail' => 'address_detail',
+            'provinceId' => 'province_id',
+            'regencyId' => 'regency_id',
+            'districtId' => 'district_id',
+            'villageId' => 'village_id',
             'placeOfBirth' => 'place_of_birth',
             'dateOfBirth' => 'date_of_birth',
             'gender' => 'gender',
@@ -750,7 +772,7 @@ class HcmEmployeeController extends Controller
 
         $profile = EmployeeProfile::query()
             ->where('user_id', $user->id)
-            ->with(['department:id,name', 'designationRef:id,name,department_id'])
+            ->with(['department:id,name', 'designationRef:id,name,department_id', 'province:id,name', 'regency:id,name,province_id', 'district:id,name,regency_id', 'village:id,name,district_id'])
             ->first();
         $snapshot = $this->employeeSnapshotService->snapshotForProfile($profile, $user);
         $employmentStatus = $snapshot['employmentStatus'] ?? 'active';
@@ -795,6 +817,17 @@ class HcmEmployeeController extends Controller
                 'reportOffice' => '-',
                 'phone' => $profile?->phone ?: '-',
                 'address' => $profile?->address ?: '-',
+                'addressDetail' => $profile?->address_detail ?: '-',
+                'addressRegion' => [
+                    'provinceId' => $profile?->province_id,
+                    'provinceName' => $profile?->province?->name,
+                    'regencyId' => $profile?->regency_id,
+                    'regencyName' => $profile?->regency?->name,
+                    'districtId' => $profile?->district_id,
+                    'districtName' => $profile?->district?->name,
+                    'villageId' => $profile?->village_id,
+                    'villageName' => $profile?->village?->name,
+                ],
                 'bio' => $profile?->bio ?: '-',
                 'nik' => $snapshot['personal']['nik'] ?? null,
                 'ktpNo' => $snapshot['personal']['ktpNo'] ?? null,
@@ -1282,6 +1315,11 @@ class HcmEmployeeController extends Controller
             $profile->nik = $this->nullableString($row['nik'] ?? ($row['ktp_no'] ?? null));
             $profile->phone = $this->nullableString($row['phone'] ?? null);
             $profile->address = $this->nullableString($row['address'] ?? null);
+            $profile->address_detail = $this->nullableString($row['address_detail'] ?? null);
+            $profile->province_id = isset($row['province_id']) && is_numeric($row['province_id']) ? (int) $row['province_id'] : $profile->province_id;
+            $profile->regency_id = isset($row['regency_id']) && is_numeric($row['regency_id']) ? (int) $row['regency_id'] : $profile->regency_id;
+            $profile->district_id = isset($row['district_id']) && is_numeric($row['district_id']) ? (int) $row['district_id'] : $profile->district_id;
+            $profile->village_id = isset($row['village_id']) && is_numeric($row['village_id']) ? (int) $row['village_id'] : $profile->village_id;
             $profile->place_of_birth = $this->nullableString($row['place_of_birth'] ?? null);
             $profile->date_of_birth = $this->nullableString($row['date_of_birth'] ?? null);
             $profile->gender = $gender;
@@ -1467,6 +1505,41 @@ class HcmEmployeeController extends Controller
         }
         $text = trim((string) $value);
         return $text === '' ? null : $text;
+    }
+
+    private function nullableInteger(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+        return is_numeric($text) ? (int) $text : null;
+    }
+
+    private function composeWilayahAddress(?int $provinceId, ?int $regencyId, ?int $districtId, ?int $villageId): ?string
+    {
+        if (! $provinceId && ! $regencyId && ! $districtId && ! $villageId) {
+            return null;
+        }
+
+        $province = $provinceId ? WilayahProvince::query()->find($provinceId) : null;
+        $regency = $regencyId ? WilayahRegency::query()->find($regencyId) : null;
+        $district = $districtId ? WilayahDistrict::query()->find($districtId) : null;
+        $village = $villageId ? WilayahVillage::query()->find($villageId) : null;
+
+        if (! $province && ! $regency && ! $district && ! $village) {
+            return null;
+        }
+
+        return collect([
+            $village?->name,
+            $district?->name,
+            $regency?->name,
+            $province?->name,
+        ])->filter()->implode(', ');
     }
 
     public function departments(Request $request): JsonResponse
@@ -2098,6 +2171,27 @@ class HcmEmployeeController extends Controller
             $request->merge(['contractType' => $this->normalizeContractType($request->input('contractType'))]);
         }
 
+        foreach (['provinceId', 'regencyId', 'districtId', 'villageId'] as $key) {
+            if ($request->has($key)) {
+                $request->merge([$key => $this->nullableInteger($request->input($key))]);
+            }
+        }
+
+        $provinceId = $this->nullableInteger($request->input('provinceId'));
+        $regencyId = $this->nullableInteger($request->input('regencyId'));
+        $districtId = $this->nullableInteger($request->input('districtId'));
+        $villageId = $this->nullableInteger($request->input('villageId'));
+        $address = $this->nullableString($request->input('address'));
+        if ($request->has('addressDetail')) {
+            $request->merge(['addressDetail' => $this->nullableString($request->input('addressDetail'))]);
+        }
+        if ($address === null) {
+            $composedAddress = $this->composeWilayahAddress($provinceId, $regencyId, $districtId, $villageId);
+            if ($composedAddress !== null) {
+                $request->merge(['address' => $composedAddress]);
+            }
+        }
+
         $nationality = $this->nullableString($request->input('nationality'));
         if ($nationality === null) {
             $request->merge(['nationality' => 'Indonesia']);
@@ -2203,7 +2297,36 @@ class HcmEmployeeController extends Controller
             'nik' => $nikRules,
             'ktpNo' => ['sometimes', 'nullable', 'regex:/^[0-9]{16}$/'],
             'phone' => $phoneRules,
-            'address' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:2000'],
+            'provinceId' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'integer',
+                'required_with:regencyId,districtId,villageId',
+                Rule::exists('wilayah_provinces', 'id'),
+            ],
+            'regencyId' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'integer',
+                'required_with:provinceId,districtId,villageId',
+                Rule::exists('wilayah_regencies', 'id')->where(fn ($query) => $query->where('province_id', $this->nullableInteger($request->input('provinceId')))),
+            ],
+            'districtId' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'integer',
+                'required_with:provinceId,regencyId,villageId',
+                Rule::exists('wilayah_districts', 'id')->where(fn ($query) => $query->where('regency_id', $this->nullableInteger($request->input('regencyId')))),
+            ],
+            'villageId' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'integer',
+                'required_with:provinceId,regencyId,districtId',
+                Rule::exists('wilayah_villages', 'id')->where(fn ($query) => $query->where('district_id', $this->nullableInteger($request->input('districtId')))),
+            ],
+            'address' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'addressDetail' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'placeOfBirth' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:150'],
             'dateOfBirth' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'date'],
             'gender' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'in:male,female,other'],
@@ -2252,6 +2375,10 @@ class HcmEmployeeController extends Controller
                 $rules['probationEndDate'],
                 $rules['employmentStatus'],
                 $rules['hireDate'],
+                $rules['provinceId'],
+                $rules['regencyId'],
+                $rules['districtId'],
+                $rules['villageId'],
                 $rules['bankName'],
                 $rules['bankAccountNo'],
                 $rules['bankAccountHolderName'],

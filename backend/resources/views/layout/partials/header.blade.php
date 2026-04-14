@@ -1,4 +1,18 @@
 <!-- Header -->
+@php
+    $authUser = request()->user() ?: auth()->user();
+    $activeCompany = request()->attributes->get('activeCompany');
+    $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
+        ? $activeCompany->activeSubscription()
+        : null;
+    $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
+    $isQaSuperAdmin = $authUser
+        && (
+            strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
+            || (bool) ($authUser->is_super_admin ?? false)
+        );
+    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin;
+@endphp
 <div class="header">
     <div class="main-header">
 
@@ -414,6 +428,7 @@
                                                 </li>
                                             </ul>
                                         </li>
+@if ($canSeeAssetManagementMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}"><span>Assets</span>
                                                 <span class="menu-arrow"></span>
@@ -423,6 +438,7 @@
                                                 <li><a href="{{url('asset-categories')}}" class="{{ Request::is('asset-categories') ? 'active' : '' }}">Asset Categories</a></li>
                                             </ul>
                                         </li>
+@endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                                 <span class="menu-arrow"></span>
@@ -571,9 +587,9 @@
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities') ? 'active' : '' }}">Locations<span class="menu-arrow"></span></a>
                                                     <ul>
-                                                        <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Countries</a></li>
-                                        <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">States</a></li>
-                                        <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Cities</a></li>                                                    </ul>
+                                                        <li><a href="{{url('countries')}}" class="{{ Request::is('countries') ? 'active' : '' }}">Provinces</a></li>
+                                        <li><a href="{{url('states')}}" class="{{ Request::is('states') ? 'active' : '' }}">Regencies</a></li>
+                                        <li><a href="{{url('cities')}}" class="{{ Request::is('cities') ? 'active' : '' }}">Districts</a></li>                                                    </ul>
                                                 </li>
                                                 <li><a href="{{url('testimonials')}}" class="{{ Request::is('testimonials') ? 'active' : '' }}">Testimonials</a></li>
                                 <li><a href="{{url('faq')}}" class="{{ Request::is('faq') ? 'active' : '' }}">FAQ’S</a></li>

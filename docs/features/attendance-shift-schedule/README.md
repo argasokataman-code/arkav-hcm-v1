@@ -37,6 +37,7 @@
 - `frontend/resources/js/attendance-data.js`
 - `frontend/resources/js/shift-master-data.js`
 - Halaman **`/attendance-employee`**: sebelum Punch In/Out, browser meminta **Geolocation** (`enableHighAccuracy`); koordinat ditampilkan di peta **Leaflet 1.9** dengan tile **OpenStreetMap** (gratis). CSS/JS Leaflet dimuat dari **unpkg** hanya pada route tersebut (`footer-scripts.blade.php`). Respons `GET /attendance/me/today` menyertakan `checkInLatitude` / `checkInLongitude` / `checkOutLatitude` / `checkOutLongitude` untuk menampilkan lokasi tersimpan.
+- Header profil `/attendance-employee` mengambil avatar dari `data.profilePhotoUrl` endpoint `GET /attendance/me/today` (nullable; fallback ke inisial nama bila foto belum ada).
 - **Catatan:** geolokasi umumnya membutuhkan **HTTPS** (atau `localhost`). Input admin manual (`PUT /attendance/admin/record`) tidak mengisi kolom GPS.
 
 ## Aturan bisnis penting

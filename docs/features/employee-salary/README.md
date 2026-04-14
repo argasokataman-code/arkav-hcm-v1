@@ -4,6 +4,10 @@
 
 Halaman **`/employee-salary`** memberi HCM Admin tampilan terpusat untuk **gaji pokok** (`baseSalary`) dan **tunjangan tetap** (`fixedAllowance`) yang disimpan di `employee_profiles`, konsisten dengan **`GET/PUT /v1/hcm/employees`** dan halaman detail karyawan.
 
+## Dokumentasi QA
+
+- E2E browser flow: `docs/features/employee-salary/E2E-TESTING.md`
+
 ## Akses
 
 - **Web:** route di grup middleware **`hcm.web.admin`** — pengguna terautentikasi yang bukan `User::isHcmAdmin()` diarahkan ke `/employee-dashboard` (sama seperti `/payroll`).

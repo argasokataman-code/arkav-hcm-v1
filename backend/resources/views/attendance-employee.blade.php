@@ -8,6 +8,51 @@
         .arcav-attendance-page .arcav-punch-card .card-body {
             padding: 1.25rem;
         }
+        .arcav-attendance-page .arcav-punch-card {
+            border: 1px solid #e6ecf4;
+            background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
+        }
+        .arcav-attendance-page .arcav-profile-head {
+            border: 1px solid #e8eef7;
+            background: #ffffff;
+            border-radius: 0.75rem;
+            padding: 0.875rem;
+            margin-bottom: 1rem;
+        }
+        .arcav-attendance-page .arcav-profile-meta-name {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: #1f2a37;
+            margin: 0;
+        }
+        .arcav-attendance-page .arcav-profile-meta-team {
+            font-size: 0.8125rem;
+            color: #64748b;
+            margin: 0.125rem 0 0;
+        }
+        .arcav-attendance-page .arcav-profile-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid #dbe7ff;
+            background: #eef4ff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .arcav-attendance-page .arcav-profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .arcav-attendance-page .arcav-profile-avatar.has-image img {
+            display: block;
+        }
+        .arcav-attendance-page .arcav-profile-avatar.has-image [data-attendance-me-avatar-initial] {
+            display: none;
+        }
         .arcav-attendance-page .arcav-punch-section-title {
             font-size: 0.6875rem;
             letter-spacing: 0.04em;
@@ -156,10 +201,22 @@
                 <div class="col-xl-3 col-lg-4 d-flex">
                     <div class="card flex-fill arcav-punch-card border shadow-sm">
                         <div class="card-body d-flex flex-column">
+                            <div class="arcav-profile-head">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="arcav-profile-avatar" data-attendance-me-avatar>
+                                        <img alt="Employee photo" data-attendance-me-avatar-image>
+                                        <span class="avatar-title rounded-circle text-primary fs-4 fw-semibold" data-attendance-me-avatar-initial>?</span>
+                                    </div>
+                                    <div class="text-start min-w-0">
+                                        <p class="arcav-profile-meta-name" data-attendance-me-user-name>Loading…</p>
+                                        <p class="arcav-profile-meta-team" data-attendance-me-team>—</p>
+                                        <p class="text-muted small mb-0 mt-1" data-attendance-me-now>—</p>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="text-center border-bottom pb-3 mb-3">
                                 <p class="arcav-punch-section-title mb-1">Status hari ini</p>
                                 <p class="fw-semibold text-gray-900 mb-0" data-attendance-me-greeting>Loading…</p>
-                                <p class="text-muted small mb-0" data-attendance-me-now>—</p>
                             </div>
                             <div class="attendance-circle-progress mx-auto mb-3 flex-shrink-0" data-value="0">
                                 <span class="progress-left">
@@ -169,7 +226,7 @@
                                     <span class="progress-bar border-success"></span>
                                 </span>
                                 <div class="avatar avatar-xxl avatar-rounded bg-primary-subtle d-inline-flex align-items-center justify-content-center">
-                                    <span class="avatar-title rounded-circle text-primary fs-2 fw-semibold" data-attendance-me-avatar-initial>?</span>
+                                    <i class="ti ti-fingerprint text-primary fs-2"></i>
                                 </div>
                             </div>
                             <div class="text-center mb-3">
@@ -225,7 +282,7 @@
                                     </div>
                                     <div class="stat-value-row">
                                         <span class="stat-value" data-attendance-stat-today-hours>—</span>
-                                        <span class="stat-target">/ <span data-attendance-stat-today-target>9</span> jam</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-today-target>8</span> jam</span>
                                     </div>
                                     <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-today>—</span></p>
                                 </div>
@@ -255,7 +312,7 @@
                                     </div>
                                     <div class="stat-value-row">
                                         <span class="stat-value" data-attendance-stat-month-hours>—</span>
-                                        <span class="stat-target">/ <span data-attendance-stat-month-target>98</span> jam</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-month-target>—</span> jam</span>
                                     </div>
                                     <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-month>—</span></p>
                                 </div>
@@ -270,7 +327,7 @@
                                     </div>
                                     <div class="stat-value-row">
                                         <span class="stat-value" data-attendance-stat-ot-hours>—</span>
-                                        <span class="stat-target">/ <span data-attendance-stat-ot-target>28</span> jam</span>
+                                        <span class="stat-target">/ <span data-attendance-stat-ot-target>—</span> jam</span>
                                     </div>
                                     <p class="stat-foot mb-0"><span data-attendance-me-stat-foot-ot>—</span></p>
                                 </div>

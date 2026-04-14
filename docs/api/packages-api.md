@@ -41,6 +41,8 @@ Mendapatkan daftar semua package aktif dengan features.
       "billingUnit": "flat",
       "color": "#007bff",
       "sortOrder": 1,
+      "activeSubscriptionsCount": 24,
+      "totalSubscriptionsCount": 31,
       "features": [
         {
           "id": 1,
@@ -85,6 +87,8 @@ Mendapatkan detail package dengan semua features.
     "status": "active",
     "color": "#28a745",
     "sortOrder": 2,
+    "activeSubscriptionsCount": 80,
+    "totalSubscriptionsCount": 95,
     "features": [
       {
         "id": 1,
@@ -216,6 +220,71 @@ Menghapus package (cascade delete features).
   "success": true,
   "message": "Package deleted successfully."
 }
+```
+
+## Package Add-ons
+
+### List Add-ons
+
+```
+GET /v1/saas/package-addons
+```
+
+Mendapatkan daftar add-on aktif dengan pagination.
+
+**Response (200 OK)**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "code": "extra_users",
+      "name": "Extra Users",
+      "description": "Add more active users beyond the package limit.",
+      "pricePerUnit": 25000,
+      "unitName": "user / month",
+      "status": "active",
+      "createdAt": "2026-04-13T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Get Add-on Details
+
+```
+GET /v1/saas/package-addons/{id}
+```
+
+### Create Add-on (Admin Only)
+
+```
+POST /v1/saas/package-addons
+```
+
+**Request**
+```json
+{
+  "code": "storage_gb",
+  "name": "Storage Pack",
+  "description": "Additional storage for documents",
+  "price_per_unit": 12000,
+  "unit_name": "GB",
+  "status": "active"
+}
+```
+
+### Update Add-on (Admin Only)
+
+```
+PUT /v1/saas/package-addons/{id}
+```
+
+### Delete Add-on (Admin Only)
+
+```
+DELETE /v1/saas/package-addons/{id}
 ```
 
 ## Features Management

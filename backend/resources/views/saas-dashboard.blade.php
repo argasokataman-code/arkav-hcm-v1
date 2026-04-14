@@ -199,6 +199,6 @@
         </div>
     </div>
 
-    <script src="{{ asset('resources/js/super-admin-dashboard-data.js') }}"></script>
+    <script src="{{ asset('build/js/super-admin-dashboard-data.js') }}?v={{ filemtime(public_path('build/js/super-admin-dashboard-data.js')) }}"></script>
 
 @endsection

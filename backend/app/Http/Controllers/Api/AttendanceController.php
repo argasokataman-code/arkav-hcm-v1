@@ -21,7 +21,7 @@ class AttendanceController extends Controller
 
     private const TARGET_DAILY_MINUTES = 8 * 60;
 
-    private const OVERTIME_THRESHOLD_MINUTES = 9 * 60;
+    private const OVERTIME_THRESHOLD_MINUTES = 8 * 60;
     private const EARLY_PUNCH_OUT_REVIEW_MINUTES = 4 * 60;
 
     private function tz(): string
@@ -494,10 +494,11 @@ class AttendanceController extends Controller
             'data' => [
                 'userName' => $user->name,
                 'team' => $profile?->team ?: ($profile?->designation ?: ''),
+                'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
                 'nowLabel' => $now->format('h:i A').', '.$now->format('d M Y'),
                 'productionHoursSoFar' => $hoursSoFar,
                 'productionProgressPercent' => $progress,
-                'productionBadge' => 'Production :  '.$hoursSoFar.' hrs',
+                'productionBadge' => $hoursSoFar.' hrs',
                 'punchState' => $punchState,
                 'punchInAtFormatted' => $this->formatTime($checkIn),
                 'punchOutAtFormatted' => $this->formatTime($checkOut),
@@ -517,7 +518,7 @@ class AttendanceController extends Controller
                 'greeting' => $this->greetingPrefix().', '.$user->name,
                 'summaryTotalWorking' => $this->formatMinutesAsHm($grossMinutes),
                 'summaryProductive' => $this->formatMinutesAsHm($net),
-                'summaryBreak' => $breakMin > 0 ? $breakMin.'m' : '—',
+                'summaryBreak' => $this->formatMinutesAsHm($breakMin),
                 'summaryOvertime' => $otSummaryLabel,
                 'checkInLatitude' => $rec?->check_in_latitude !== null ? (float) $rec->check_in_latitude : null,
                 'checkInLongitude' => $rec?->check_in_longitude !== null ? (float) $rec->check_in_longitude : null,
@@ -525,6 +526,17 @@ class AttendanceController extends Controller
                 'checkOutLongitude' => $rec?->check_out_longitude !== null ? (float) $rec->check_out_longitude : null,
             ],
         ]);
+    }
+
+    private function profilePhotoUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', $path), '/');
+
+        return '/storage/'.$normalized;
     }
 
     private function greetingPrefix(): string
@@ -552,6 +564,26 @@ class AttendanceController extends Controller
         }
 
         return $min.'m';
+    }
+
+    private function weekdayCountInRange(Carbon $start, Carbon $end): int
+    {
+        $from = $start->copy()->startOfDay();
+        $to = $end->copy()->startOfDay();
+        if ($from->gt($to)) {
+            return 0;
+        }
+
+        $count = 0;
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            if ($cursor->isWeekday()) {
+                $count++;
+            }
+            $cursor->addDay();
+        }
+
+        return $count;
     }
 
     public function meHistory(Request $request): JsonResponse
@@ -648,16 +680,19 @@ class AttendanceController extends Controller
         $todayHours = $todayNet !== null ? round($todayNet / 60, 2) : 0.0;
 
         $monthOt = $this->sumOvertimeMinutes($user->id, $monthStart, $now, $activeCompanyId);
+        $targetDailyHours = (int) (self::TARGET_DAILY_MINUTES / 60);
+        $weekTargetHours = $this->weekdayCountInRange($weekStart->copy(), $weekStart->copy()->endOfWeek()) * $targetDailyHours;
+        $monthTargetHours = $this->weekdayCountInRange($monthStart->copy(), $monthStart->copy()->endOfMonth()) * $targetDailyHours;
 
         return response()->json([
             'success' => true,
             'data' => [
                 'todayHours' => $todayHours,
-                'todayTarget' => 9,
+                'todayTarget' => $targetDailyHours,
                 'weekHours' => $weekHours,
-                'weekTarget' => 40,
+                'weekTarget' => $weekTargetHours,
                 'monthHours' => $monthHours,
-                'monthTarget' => 98,
+                'monthTarget' => $monthTargetHours,
                 'monthOvertimeHours' => round($monthOt / 60, 2),
                 'monthOvertimeTarget' => 28,
             ],

@@ -322,9 +322,15 @@
     if (!trainingTrainerSelect) return;
     const active = trainers.filter((t) => t.isActive);
     const opts = ['<option value="">—</option>']
-      .concat(active.map((t) => `<option value="${esc(t.name)}">${esc(t.name)}</option>`))
+      .concat(active.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`))
       .concat(['<option value="__other__">Other...</option>']);
     trainingTrainerSelect.innerHTML = opts.join('');
+  }
+
+  function findTrainerById(id) {
+    const target = Number(id || 0);
+    if (!Number.isFinite(target) || target <= 0) return null;
+    return trainers.find((t) => Number(t.id) === target) || null;
   }
 
   function syncTrainerOtherVisibility() {
@@ -602,8 +608,15 @@
 
       // Trainer dropdown: choose existing name if in options; otherwise fallback to Other.
       if (trainingTrainerSelect) {
-        const has = Array.from(trainingTrainerSelect.options).some((o) => o.value === (row.trainerName || ''));
-        trainingTrainerSelect.value = has ? (row.trainerName || '') : (row.trainerName ? '__other__' : '');
+        const hasTrainerId = Array.from(trainingTrainerSelect.options).some((o) => o.value === String(row.trainerId || ''));
+        const fallbackTrainer = trainers.find((t) => String(t.name || '') === String(row.trainerName || ''));
+        if (hasTrainerId) {
+          trainingTrainerSelect.value = String(row.trainerId || '');
+        } else if (fallbackTrainer) {
+          trainingTrainerSelect.value = String(fallbackTrainer.id);
+        } else {
+          trainingTrainerSelect.value = row.trainerName ? '__other__' : '';
+        }
         syncTrainerOtherVisibility();
         if (trainingTrainerOther && trainingTrainerSelect.value === '__other__') {
           trainingTrainerOther.value = row.trainerName || '';
@@ -641,12 +654,15 @@
     const fd = new FormData(e.currentTarget);
     const id = (trainingIdEl?.value || '').trim();
     const selectedTrainer = trainingTrainerSelect?.value || '';
+    const selectedTrainerObj = selectedTrainer && selectedTrainer !== '__other__' ? findTrainerById(selectedTrainer) : null;
     const trainerNameValue =
       selectedTrainer === '__other__'
         ? (trainingTrainerOther?.value || '').toString()
-        : selectedTrainer;
+        : (selectedTrainerObj?.name || '');
+    const trainerIdValue = selectedTrainerObj?.id ? Number(selectedTrainerObj.id) : null;
     const payload = {
       trainingTypeId: fd.get('trainingTypeId') ? Number(fd.get('trainingTypeId')) : null,
+      trainerId: trainerIdValue,
       trainerName: trainerNameValue ? trainerNameValue : null,
       participantUserIds: Array.from(selectedParticipantIds.values()),
       startDate: (fd.get('startDate') || '').toString() || null,
@@ -731,7 +747,8 @@
         // keep hidden input in sync for "normal" selection
         if (trainingTrainerSelect.value !== '__other__' && trainingTrainerOther) {
           const name = trainingForm?.querySelector('[name="trainerName"]');
-          if (name) name.value = trainingTrainerSelect.value || '';
+          const selected = findTrainerById(trainingTrainerSelect.value);
+          if (name) name.value = selected?.name || '';
         }
       });
     }

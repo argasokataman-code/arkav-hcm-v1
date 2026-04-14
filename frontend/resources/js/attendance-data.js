@@ -13,6 +13,7 @@
     var correctionModalState = { open: false };
     var reportChart = null;
     var reportActiveDate = "";
+    var reportSourceMode = "live";
     var breakTicker = null;
     var meRefreshTimer = null;
     var punchMapElId = "arcav-attendance-punch-map";
@@ -1262,6 +1263,41 @@
         if (!d) {
             return;
         }
+
+        function applyProfileAvatar(photoUrl, userName) {
+            var wrap = document.querySelector("[data-attendance-me-avatar]");
+            var img = document.querySelector("[data-attendance-me-avatar-image]");
+            var initialNode = document.querySelector("[data-attendance-me-avatar-initial]");
+            var initialText = userName ? String(userName).charAt(0).toUpperCase() : "?";
+
+            if (initialNode) {
+                initialNode.textContent = initialText;
+            }
+
+            if (!wrap || !img) {
+                return;
+            }
+
+            var hasPhoto = !!(photoUrl && String(photoUrl).trim());
+            if (!hasPhoto) {
+                wrap.classList.remove("has-image");
+                img.removeAttribute("src");
+                img.setAttribute("aria-hidden", "true");
+                return;
+            }
+
+            img.onload = function () {
+                wrap.classList.add("has-image");
+                img.removeAttribute("aria-hidden");
+            };
+            img.onerror = function () {
+                wrap.classList.remove("has-image");
+                img.removeAttribute("src");
+                img.setAttribute("aria-hidden", "true");
+            };
+            img.src = String(photoUrl);
+        }
+
         var g = document.querySelector("[data-attendance-me-greeting]");
         if (g) {
             var greet = String(d.greeting || "")
@@ -1274,11 +1310,23 @@
         if (nowEl) {
             nowEl.textContent = d.nowLabel || "";
         }
+        var userNameEl = document.querySelector("[data-attendance-me-user-name]");
+        if (userNameEl) {
+            userNameEl.textContent = d.userName || "Employee";
+        }
+        var teamEl = document.querySelector("[data-attendance-me-team]");
+        if (teamEl) {
+            teamEl.textContent = d.team || "—";
+        }
         var badge = document.querySelector("[data-attendance-me-production-badge]");
         if (badge) {
-            var pb = d.productionBadge || "";
-            pb = String(pb).replace(/^Production\s*:\s*/i, "Produktivitas: ");
-            badge.textContent = pb.trim() || "Produktivitas: —";
+            var hoursSoFar = d.productionHoursSoFar != null ? String(d.productionHoursSoFar).trim() : "";
+            if (hoursSoFar) {
+                badge.textContent = "Produktivitas: " + hoursSoFar + " jam";
+            } else {
+                var fallbackBadge = String(d.productionBadge || "").replace(/^Production\s*:\s*/i, "").trim();
+                badge.textContent = fallbackBadge ? "Produktivitas: " + fallbackBadge : "Produktivitas: —";
+            }
         }
         var punchLine = document.querySelector("[data-attendance-me-punch-line]");
         if (punchLine) {
@@ -1349,10 +1397,7 @@
                 correctionBtn.disabled = true;
             }
         }
-        var initial = document.querySelector("[data-attendance-me-avatar-initial]");
-        if (initial && d.userName) {
-            initial.textContent = String(d.userName).charAt(0).toUpperCase();
-        }
+        applyProfileAvatar(d.profilePhotoUrl, d.userName);
         syncAttendanceCircle(d.productionProgressPercent || 0);
 
         function setText(sel, val) {
@@ -1571,6 +1616,72 @@
         return todayIsoLocal();
     }
 
+    function getReportSourceMode() {
+        var sel = document.querySelector("[data-attendance-report-source]");
+        var mode = sel ? String(sel.value || "live").toLowerCase() : "live";
+        return mode === "archive" ? "archive" : "live";
+    }
+
+    function getSelectedSnapshotId() {
+        var input = document.querySelector("[data-attendance-report-snapshot-id]");
+        if (!input) {
+            return 0;
+        }
+        var id = parseInt(String(input.value || "0"), 10);
+        return Number.isFinite(id) && id > 0 ? id : 0;
+    }
+
+    function setReportSourceBadge(mode, snapshotId) {
+        var badge = document.querySelector("[data-attendance-report-source-badge]");
+        if (!badge) {
+            return;
+        }
+        if (mode === "archive") {
+            var suffix = snapshotId > 0 ? (" #" + String(snapshotId)) : "";
+            badge.textContent = "Source: Archive" + suffix;
+            return;
+        }
+        badge.textContent = "Source: Live";
+    }
+
+    function setupReportSourceMode() {
+        var sourceSel = document.querySelector("[data-attendance-report-source]");
+        var wrap = document.querySelector("[data-attendance-report-snapshot-wrap]");
+        var loadBtn = document.querySelector("[data-attendance-report-load]");
+        if (!sourceSel) {
+            return;
+        }
+
+        function syncUi() {
+            var mode = getReportSourceMode();
+            reportSourceMode = mode;
+            if (wrap) {
+                wrap.classList.toggle("d-none", mode !== "archive");
+            }
+            setReportSourceBadge(mode, getSelectedSnapshotId());
+        }
+
+        sourceSel.addEventListener("change", function () {
+            syncUi();
+            loadReportAttendance();
+        });
+
+        if (loadBtn) {
+            loadBtn.addEventListener("click", function () {
+                loadReportAttendance();
+            });
+        }
+
+        var snapshotInput = document.querySelector("[data-attendance-report-snapshot-id]");
+        if (snapshotInput) {
+            snapshotInput.addEventListener("change", function () {
+                setReportSourceBadge(getReportSourceMode(), getSelectedSnapshotId());
+            });
+        }
+
+        syncUi();
+    }
+
     function setupReportDateFilter() {
         var input = document.querySelector("[data-attendance-report-date]");
         if (!input) {
@@ -1595,8 +1706,63 @@
             } catch (e) {
                 /* ignore */
             }
-            loadReportAttendance();
+            if (getReportSourceMode() === "live") {
+                loadReportAttendance();
+            }
         });
+    }
+
+    function normalizeArchiveAttendanceRows(snapshotPayload, dateYmd) {
+        var moduleData = snapshotPayload && snapshotPayload.dataByModule ? snapshotPayload.dataByModule.attendance : null;
+        if (!moduleData || typeof moduleData !== "object") {
+            return [];
+        }
+        var keys = Object.keys(moduleData);
+        var out = [];
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            if (key.indexOf("user_") !== 0) {
+                continue;
+            }
+            var item = moduleData[key] || {};
+            var presentCount = Number(item.present || 0);
+            var absentCount = Number(item.absent || 0);
+            var statusKey = presentCount >= absentCount ? "present" : "absent";
+            out.push({
+                initial: String(item.user_name || "?").trim().charAt(0).toUpperCase() || "?",
+                employeeName: item.user_name || "Unknown",
+                team: "Archive",
+                checkIn: "-",
+                checkOut: "-",
+                checkInTime24: "00:00",
+                break: "-",
+                late: String(item.total_late_minutes || 0) + " min",
+                overtime: "-",
+                productionLabel: "-",
+                productionBadgeClass: "danger",
+                statusKey: statusKey,
+                statusLabel: statusKey === "present" ? "Present" : "Absent",
+                workDate: dateYmd,
+            });
+        }
+        return out;
+    }
+
+    function normalizeArchiveAttendanceSummary(snapshotPayload) {
+        var moduleData = snapshotPayload && snapshotPayload.dataByModule ? snapshotPayload.dataByModule.attendance : null;
+        var summary = moduleData && moduleData.summary ? moduleData.summary : {};
+        var byStatus = moduleData && moduleData.by_status ? moduleData.by_status : {};
+        var present = Number(byStatus.present || 0);
+        var absent = Number(byStatus.absent || 0);
+        var total = Number(summary.total_records || (present + absent));
+        return {
+            totalEmployees: total,
+            present: present,
+            absent: absent,
+            lateLogin: 0,
+            permission: 0,
+            uninformed: 0,
+        };
     }
 
     function renderReportRows(rows, dateYmd) {
@@ -1910,6 +2076,44 @@
         }
 
         var dateParam = getSelectedReportDate();
+        var mode = getReportSourceMode();
+        var snapshotId = getSelectedSnapshotId();
+        setReportSourceBadge(mode, snapshotId);
+
+        if (mode === "archive") {
+            if (!snapshotId) {
+                renderReportMessage("Snapshot ID wajib diisi untuk mode Archive.");
+                return;
+            }
+
+            apiGet("/v1/hcm/reports/snapshots/" + encodeURIComponent(String(snapshotId)))
+                .then(function (payload) {
+                    if (!payload || payload.success !== true || !payload.data) {
+                        renderReportMessage("Snapshot tidak ditemukan atau tidak bisa diakses.");
+                        return;
+                    }
+                    var snapshot = payload.data;
+                    var effectiveDate = snapshot.periodEnd || dateParam;
+                    reportActiveDate = effectiveDate;
+                    var rows = normalizeArchiveAttendanceRows(snapshot, effectiveDate);
+                    reportRowsCache = rows;
+                    fillReportDepartmentFilter(reportRowsCache);
+                    applyReportSummary(normalizeArchiveAttendanceSummary(snapshot), effectiveDate);
+                    var filteredArchive = filterAndSortReportRows(reportRowsCache);
+                    renderReportRows(filteredArchive, effectiveDate);
+                    renderReportChart(filteredArchive, effectiveDate);
+                })
+                .catch(function (err) {
+                    var statusA = err && err.response ? err.response.status : err && err.status ? err.status : 0;
+                    var dataA = err && err.response ? err.response.data : err && err.data ? err.data : null;
+                    if (window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(statusA, dataA)) {
+                        return;
+                    }
+                    renderReportMessage(formatApiError(dataA, statusA) || "Gagal memuat snapshot archive.");
+                });
+            return;
+        }
+
         var url = "/v1/hcm/attendance/admin?date=" + encodeURIComponent(dateParam);
         apiGet(url)
             .then(function (payload) {
@@ -2715,6 +2919,7 @@
         setupAdminFilters();
         setupAdminPaginationControls();
         setupReportDateFilter();
+        setupReportSourceMode();
         setupReportFilters();
         setupTimesheetFilters();
         setupTimesheetPaginationControls();

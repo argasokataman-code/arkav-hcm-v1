@@ -23,6 +23,7 @@ Detail kontrak endpoint **wajib** merujuk dokumen per fitur di `docs/api/` (agar
 - Payroll (master komponen gaji): `docs/api/hcm-salary-components-api.md`
 - Payroll (periode & run, draft/finalize, slip self, THR: kalkulator + pengaturan tahunan): `docs/api/hcm-payroll-api.md`
 - Payroll items (halaman `/payroll`, CRUD katalog): `docs/api/hcm-payroll-items-api.md`
+- User management (live API role-permission): `docs/api/user-management-api.md`
 
 ## 1) Global conventions
 

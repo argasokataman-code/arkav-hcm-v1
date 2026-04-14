@@ -31,18 +31,18 @@
                             </a>
                             <ul class="dropdown-menu  dropdown-menu-end p-3">
                                 <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1 disabled"><i
                                             class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                                    <a href="javascript:void(0);" id="btn_um_export_csv" class="dropdown-item rounded-1"><i
+                                            class="ti ti-file-type-csv me-1"></i>Export as CSV </a>
                                 </li>
                             </ul>
                         </div>
                     </div>
                     <div class="mb-2">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_users"
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#um_user_modal"
                             class="btn btn-primary d-flex align-items-center"><i class="ti ti-circle-plus me-2"></i>Add
                             User</a>
                     </div>
@@ -63,72 +63,33 @@
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                         <div class="me-3">
                             <div class="input-icon-end position-relative">
-                                <input type="text" class="form-control date-range bookingrange"
-                                    placeholder="dd/mm/yyyy - dd/mm/yyyy">
+                                <input id="um_search" type="text" class="form-control" placeholder="Search name/email">
                                 <span class="input-icon-addon">
-                                    <i class="ti ti-chevron-down"></i>
+                                    <i class="ti ti-search"></i>
                                 </span>
                             </div>
                         </div>
-                        <div class="dropdown me-3">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                Role
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Employee</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Client</a>
-                                </li>
-                            </ul>
+                        <div class="me-3">
+                            <select id="um_role_filter" class="form-select">
+                                <option value="">All Roles</option>
+                            </select>
                         </div>
-                        <div class="dropdown me-3">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                Status
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Active</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Inactive</a>
-                                </li>
-                            </ul>
+                        <div class="me-3">
+                            <select id="um_status_filter" class="form-select">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="all">All</option>
+                            </select>
                         </div>
-                        <div class="dropdown">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                Sort By : Last 7 Days
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Recently Added</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Ascending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Desending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last Month</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last 7 Days</a>
-                                </li>
-                            </ul>
+                        <div>
+                            <button id="um_reset_filters" type="button" class="btn btn-white">Reset</button>
                         </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
+                    <div id="um_alert" class="alert d-none m-3" role="alert"></div>
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
+                        <table class="table">
                             <thead class="thead-light">
                                 <tr>
                                     <th class="no-sort">
@@ -144,390 +105,15 @@
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-32.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Anthony Lewis</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>anthony@example.com</td>
-                                    <td>
-                                        12 Sep 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-pink-transparent">Employee</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-09.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Brian Villalobos</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>brian@example.com</td>
-                                    <td>
-                                        24 Oct 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-pink-transparent">Employee</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-19.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Sophie Headrick</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>sophie@example.com</td>
-                                    <td>
-                                        18 Feb 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-soft-purple">Client</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-33.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Stephan Peralt</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>peral@example.com</td>
-                                    <td>
-                                        17 Oct 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-pink-transparent">Employee</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-08.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Thomas Bordelon</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>thomas@example.com</td>
-                                    <td>
-                                        20 Jul 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-soft-purple">Client</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-34.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Doglas Martini</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>martniwr@example.com</td>
-                                    <td>
-                                        10 Apr 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-pink-transparent">Employee</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-03.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Cameron Drake</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>cameron@example.com</td>
-                                    <td>
-                                        29 Aug 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-soft-purple">Client</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Harvey Smith</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>harvey@example.com</td>
-                                    <td>
-                                        22 Feb 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-pink-transparent">Employee</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-danger d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Inactive
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-16.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Michael Walker</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>michael@example.com</td>
-                                    <td>
-                                        03 Nov 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-soft-purple">Client</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox">
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center file-name-icon">
-                                            <a href="#" class="avatar avatar-md avatar-rounded">
-                                                <img src="{{ URL::asset('build/img/users/user-35.jpg') }}" class="img-fluid" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fw-medium"><a href="#">Doris Crowley</a></h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>doris@example.com</td>
-                                    <td>
-                                        17 Dec 2024
-                                    </td>
-                                    <td>
-                                        <span class=" badge badge-md p-2 fs-10 badge-soft-purple">Client</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                            <i class="ti ti-point-filled me-1"></i>Active
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="action-icon d-inline-flex">
-                                            <a href="#" class="me-2"><i class="ti ti-shield"></i></a>
-                                            <a href="#" class="me-2" data-bs-toggle="modal"
-                                                data-bs-target="#edit_user"><i class="ti ti-edit"></i></a>
-                                            <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i
-                                                    class="ti ti-trash"></i></a>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                            </tbody>
+                            <tbody id="um_users_tbody"></tbody>
                         </table>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between p-3 border-top">
+                        <div id="um_pagination_meta" class="text-muted small"></div>
+                        <div class="btn-group" role="group" aria-label="Pagination">
+                            <button id="um_prev_page" type="button" class="btn btn-light btn-sm">Prev</button>
+                            <button id="um_next_page" type="button" class="btn btn-light btn-sm">Next</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -535,7 +121,82 @@
 
         </div>
 
-       
+        <div class="modal fade" id="um_user_modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 id="um_user_modal_title" class="modal-title">Add User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="um_user_form" class="needs-validation" novalidate>
+                        <div class="modal-body">
+                            <input id="um_user_id" type="hidden">
+                            <div class="mb-3">
+                                <label class="form-label" for="um_name">Name</label>
+                                <input id="um_name" type="text" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="um_email">Email</label>
+                                <input id="um_email" type="email" class="form-control" required>
+                            </div>
+                            <div id="um_password_wrap" class="mb-3">
+                                <label class="form-label" for="um_password">Password</label>
+                                <input id="um_password" type="password" class="form-control" minlength="8">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="um_status">Status</label>
+                                <select id="um_status" class="form-select">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div id="um_roles_wrap" class="mb-0">
+                                <label class="form-label" for="um_role_codes">Roles</label>
+                                <select id="um_role_codes" class="form-select" multiple></select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                            <button id="um_save_btn" type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="um_role_modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Manage Role Assignment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input id="um_role_user_id" type="hidden">
+                        <div class="mb-3">
+                            <div id="um_role_user_name" class="fw-semibold"></div>
+                            <div class="text-muted small">Assign or revoke roles for this user in active company.</div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-8">
+                                <select id="um_assign_role_code" class="form-select">
+                                    <option value="">Select role</option>
+                                </select>
+                            </div>
+                            <div class="col-4 d-grid">
+                                <button id="um_assign_role_btn" type="button" class="btn btn-primary">Assign</button>
+                            </div>
+                        </div>
+                        <div id="um_role_loading" class="text-muted small mb-2 d-none">Loading role assignments...</div>
+                        <div id="um_role_empty" class="text-muted small mb-2 d-none">No role assignment found.</div>
+                        <div id="um_role_assignment_list" class="list-group list-group-flush border rounded"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
     <!-- /Page Wrapper -->

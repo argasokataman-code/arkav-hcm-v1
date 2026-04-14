@@ -33,9 +33,9 @@ class WebHcmRouteGuardTest extends TestCase
 
     /**
      * Setiap route GET dengan middleware grup `web` (termasuk guard halaman):
-     * tanpa auth hanya boleh 200/3xx jika path whitelist config; selain itu 404 tamu.
+     * tanpa auth hanya boleh 200/3xx jika path whitelist config; selain itu redirect lock-screen.
      */
-    public function test_all_web_guarded_get_routes_public_or_guest_404(): void
+    public function test_all_web_guarded_get_routes_public_or_guest_redirect_lock_screen(): void
     {
         /** @var Router $router */
         $router = $this->app->make('router');
@@ -85,12 +85,7 @@ class WebHcmRouteGuardTest extends TestCase
                     "Route publik error server: GET {$samplePath}"
                 );
             } else {
-                $this->assertSame(
-                    404,
-                    $response->status(),
-                    "Tamu harus 404: GET {$samplePath}"
-                );
-                $response->assertDontSee('MAIN MENU', false);
+                $response->assertRedirect(url('lock-screen'));
                 $cacheControl = (string) $response->headers->get('Cache-Control');
                 $this->assertStringContainsString('no-store', $cacheControl, "Cache-Control no-store: {$samplePath}");
             }
@@ -124,9 +119,9 @@ class WebHcmRouteGuardTest extends TestCase
         return false;
     }
 
-    public function test_head_on_protected_path_returns_404_without_auth(): void
+    public function test_head_on_protected_path_redirects_lock_screen_without_auth(): void
     {
-        $this->call('HEAD', '/employees')->assertStatus(404);
+        $this->call('HEAD', '/employees')->assertRedirect(url('lock-screen'));
     }
 
     public function test_head_on_public_root_succeeds(): void
@@ -302,6 +297,7 @@ class WebHcmRouteGuardTest extends TestCase
             '/employees-grid',
             '/employee-details',
             '/departments',
+            '/saas/subscriptions',
             '/holidays',
             '/leaves',
             '/attendance-admin',

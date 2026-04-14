@@ -380,6 +380,10 @@ class HcmDashboardController extends Controller
                     'summaryProductive' => $this->formatMinutesAsHm($todayProductiveMinutes),
                     'summaryBreak' => $breakMinutes > 0 ? $breakMinutes.'m' : '-',
                     'summaryOvertime' => $this->formatMinutesAsHm(max(0, (int) ($todayProductiveMinutes ?? 0) - self::EMPLOYEE_TARGET_DAILY_MINUTES)),
+                    'checkInLatitude' => $todayRecord?->check_in_latitude !== null ? (float) $todayRecord->check_in_latitude : null,
+                    'checkInLongitude' => $todayRecord?->check_in_longitude !== null ? (float) $todayRecord->check_in_longitude : null,
+                    'checkOutLatitude' => $todayRecord?->check_out_latitude !== null ? (float) $todayRecord->check_out_latitude : null,
+                    'checkOutLongitude' => $todayRecord?->check_out_longitude !== null ? (float) $todayRecord->check_out_longitude : null,
                 ],
                 'attendanceStats' => [
                     'todayHours' => round(($todayProductiveMinutes ?? 0) / 60, 2),

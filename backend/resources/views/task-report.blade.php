@@ -59,7 +59,7 @@
                                 <div class="row align-items-center">
                                     <div class="col-8">
                                         <div>
-                                            <span class="fs-14 fw-normal text-truncate mb-1">Total Tasks</span>
+                                            <span class="fs-14 fw-normal text-truncate mb-1">Completed Tasks</span>
                                             <h5>800</h5>
                                         </div>
                                     </div>
@@ -78,7 +78,7 @@
                                 <div class="row align-items-center">
                                     <div class="col-8">
                                         <div>
-                                            <span class="fs-14 fw-normal text-truncate mb-1">Total Tasks</span>
+                                            <span class="fs-14 fw-normal text-truncate mb-1">In Progress Tasks</span>
                                             <h5>800</h5>
                                         </div>
                                     </div>
@@ -97,7 +97,7 @@
                                 <div class="row align-items-center">
                                     <div class="col-8">
                                         <div>
-                                            <span class="fs-14 fw-normal text-truncate mb-1">Total Tasks</span>
+                                            <span class="fs-14 fw-normal text-truncate mb-1">Pending Tasks</span>
                                             <h5>800</h5>
                                         </div>
                                     </div>
@@ -272,7 +272,7 @@
             </div>
             <div class="card-body p-0">
                 <div class="custom-datatable-filter table-responsive">
-                    <table class="table datatable">
+                    <table class="table datatable" data-api-report-table="1">
                         <thead class="thead-light">
                             <tr>
                                 <th class="no-sort">
@@ -289,296 +289,6 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Patient Appointment Booking</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Hospital Administration
-                                </td>
-                                <td>
-                                    14 Jan 2024
-                                </td>
-                                <td>
-                                    15 Jan 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-success-transparent"><i class="ti ti-point-filled me-1"></i>Low</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Completed
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Payment Gateway</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Educational Platform
-                                </td>
-                                <td>
-                                    21 Jan 2024
-                                </td>
-                                <td>
-                                    25 Jan 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-warning-transparent"><i class="ti ti-point-filled me-1"></i>Medium</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-purple d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Inprogress
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Doctor available module</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Clinic Management
-                                </td>
-                                <td>
-                                    20 Feb 2024
-                                </td>
-                                <td>
-                                    22 Feb 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-danger-transparent"><i class="ti ti-point-filled me-1"></i>High</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Completed
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Video Conferencing Module</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Chat & Call Mobile App
-                                </td>
-                                <td>
-                                    15 Mar 2024
-                                </td>
-                                <td>
-                                    17 Mar 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-success-transparent"><i class="ti ti-point-filled me-1"></i>Low</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-warning d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>On Hold
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Private Chat Module</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Travel Planning Website
-                                </td>
-                                <td>
-                                    12 Apr 2024
-                                </td>
-                                <td>
-                                    16 Apr 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-danger-transparent"><i class="ti ti-point-filled me-1"></i>High</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Completed
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Services List & Grid View</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Service Booking Software
-                                </td>
-                                <td>
-                                    20 May 2024
-                                </td>
-                                <td>
-                                    21 May 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-success-transparent"><i class="ti ti-point-filled me-1"></i>Low</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-skyblue d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Pending
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Car Detail Moodule</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Car & Bike Rental Software
-                                </td>
-                                <td>
-                                    06 Jul 2024
-                                </td>
-                                <td>
-                                    06 Jul 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-warning-transparent"><i class="ti ti-point-filled me-1"></i>Medium</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-purple d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Inprogress
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Location Module</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Food Order App
-                                </td>
-                                <td>
-                                    02 Sep 2024
-                                </td>
-                                <td>
-                                    04 Sep 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-success-transparent"><i class="ti ti-point-filled me-1"></i>Low</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Completed
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Hotel List & Grid View</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    Hotel Booking App
-                                </td>
-                                <td>
-                                    15 Nov 2024
-                                </td>
-                                <td>
-                                    15 Nov 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-warning-transparent"><i class="ti ti-point-filled me-1"></i>Medium</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Completed
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center file-name-icon">
-                                        <h6 class="fw-medium"><a href="#">Warehouse Module</a></h6>
-                                    </div>
-                                </td>
-                                <td>
-                                    POS Admin Software
-                                </td>
-                                <td>
-                                    10 Dec 2024
-                                </td>
-                                <td>
-                                    11 Dec 2024
-                                </td>
-                                <td>
-                                    <span class="badge badge-success-transparent"><i class="ti ti-point-filled me-1"></i>Low</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-skyblue d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Pending
-                                    </span>
-                                </td>
-                            </tr>
                         </tbody>
                     </table>
                 </div>

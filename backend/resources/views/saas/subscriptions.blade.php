@@ -23,13 +23,17 @@
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
                 <div class="mb-2">
-                    <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#subscriptionModal" id="btn_add_subscription">
+                    <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#subscriptionModal" id="btn_add_subscription" data-subscription-add-button>
                         <i class="ti ti-circle-plus me-2"></i>Add Subscription
                     </button>
                 </div>
             </div>
         </div>
         <!-- /Breadcrumb -->
+
+        <div class="alert alert-warning d-none" role="alert" id="subscription_readonly_notice" data-subscription-readonly-notice>
+            Read-only mode. Subscription changes require HCM admin access.
+        </div>
 
         <!-- Filter Card -->
         <div class="card">
@@ -42,7 +46,9 @@
                         <select class="form-select" id="filter_status" data-subscription-filter-status>
                             <option value="">All Status</option>
                             <option value="active">Active</option>
-                            <option value="paused">Paused</option>
+                            <option value="trial">Trial</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="expired">Expired</option>
                             <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
@@ -163,7 +169,7 @@
     </div>
 </div>
 
-<script src="{{ asset('resources/js/subscriptions-management.js') }}"></script>
+<script src="{{ asset('build/js/subscriptions-management.js') }}?v={{ filemtime(public_path('build/js/subscriptions-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.SubscriptionsManager?.init?.();

@@ -11,7 +11,7 @@ Status legend:
 
 ## Status Saat Ini
 
-- Current phase: M5-M6 (runtime gate selesai, regression test backend + UI warning/error handling aktif; lanjut export CTA/indicator + QA manual)
+- Current phase: M6-M7 (export UI + indicator selesai dan build, gate aktif; fokus payment flow testing)
 - Last update: 2026-04-15
 - Owner aktif: Product + Backend + Frontend
 - Blocker aktif: belum ada
@@ -23,10 +23,10 @@ Status legend:
 - [ ] Final policy TTL evidence export belum diputuskan (default berjalan, keputusan final belum dikunci).
 - [ ] Keputusan strict checksum mode (ON/OFF per endpoint) belum diputuskan.
 
-### Prioritas 2 - Frontend (masih tersisa)
+### Prioritas 2 - Frontend (SELESAI)
 
-- [ ] Tombol export reconciliation belum tersedia end-to-end di halaman prioritas (payroll-run, payroll-thr, PKWT).
-- [ ] Indicator evidence valid/invalid per scope belum tampil konsisten di panel action.
+- [x] Tombol export reconciliation tersedia di payroll-run, payroll-thr, PKWT (build 2026-04-15).
+- [x] Indicator evidence valid/invalid + timestamp tampil di panel action setiap flow.
 
 ### Prioritas 3 - QA & Evidence
 
@@ -50,13 +50,13 @@ Item dianggap DONE jika memenuhi semua syarat berikut:
 
 Jika salah satu belum terpenuhi, status tetap `IN_PROGRESS` atau `TODO`.
 
-## Next Action Order (eksekusi realistis)
+## Next Action Order (fokus payment flow testing)
 
-1. Lock keputusan Product: TTL + strict checksum mode.
-2. Selesaikan UI admin: export CTA + evidence indicator pada payroll-run/THR/PKWT.
-3. Jalankan manual UI E2E per role + kumpulkan evidence.
-4. Tutup FE-BE contract test normalisasi filter.
-5. Finalisasi release note internal.
+1. Payment flow UI E2E: Admin trigger export + payment disburse/pay/verify pada payroll/THR/PKWT.
+2. Non-admin guard test: Verify blocked at auth before gate runs.
+3. FE-BE contract validation: Normalize filterPayload serialization.
+4. Lock keputusan Product: TTL + strict checksum mode.
+5. Finalisasi release note + deployment procedure.
 
 ## Board Eksekusi Harian (Working Plan)
 
@@ -67,7 +67,8 @@ Jika salah satu belum terpenuhi, status tetap `IN_PROGRESS` atau `TODO`.
 | 2026-04-17 | Migration evidence + model + repository layer | Backend | Skema `export_reconciliation_evidences` + unit test gate baseline | DONE |
 | 2026-04-18 | Endpoint export MVP payroll run + invoice/payment | Backend | Endpoint export working (CSV) + auth/tenant scope | DONE |
 | 2026-04-19 | Integrasi gate ke action controller prioritas | Backend | Gate aktif pada finalize/disburse/mark-paid/verify + THR/PKWT post flow | DONE |
-| 2026-04-20 | Wiring UI indicator + warning + non-native confirm | Frontend | Mapping error `EXPORT_RECON_*` + persistent warning banner payroll/THR/PKWT (export CTA + badge evidence masih lanjut) | IN_PROGRESS |
+| 2026-04-20 | Wiring UI indicator + warning + export CTA + build aset | Frontend | Mapping error `EXPORT_RECON_*` + persistent warning banner + export CTA + evidence indicator + npm build done | DONE |
+| 2026-04-21 | Payment flow UI E2E: admin export + disburse/pay | QA | Test payroll disburse + THR pay + PKWT pay after export reconciliation, log pass/fail di E2E-TESTING.md | IN_PROGRESS |
 | 2026-04-21 | Feature tests backend + kontrak FE-BE | Backend + QA | Regression auth-before-gate (payroll/invoice/payment + THR/PKWT) sudah masuk; kontrak FE-BE tersisa + bukti run wajib di `docs/features/export-reconciliation/TEST-LOG.md` | IN_PROGRESS |
 | 2026-04-22 | Manual UI E2E per role + tenant boundary | QA | Laporan E2E admin vs non-admin + evidence screenshot + checklist pass/fail di `docs/features/export-reconciliation/E2E-TESTING.md` | TODO |
 | 2026-04-23 | OpenAPI/docs/security sync + release note internal | Backend + QA | OpenAPI + security inventory + role matrix sudah sinkron; release note final wajib di `docs/features/export-reconciliation/RELEASE-NOTES.md` | IN_PROGRESS |
@@ -78,12 +79,12 @@ Jika salah satu belum terpenuhi, status tetap `IN_PROGRESS` atau `TODO`.
 |---|---|---|---|---|---|
 | EX-01 | Lock policy TTL evidence export | Product + Backend | TODO | Keputusan final TTL ditulis di `docs/features/export-reconciliation/IMPLEMENTATION.md` bagian policy + ringkasan di change log | 2026-04-16 |
 | EX-02 | Lock strict checksum mode per endpoint | Product + Backend | TODO | Matriks ON/OFF strict mode per endpoint di `docs/features/export-reconciliation/IMPLEMENTATION.md` + update `docs/api/openapi.yaml` jika behavior/error berubah | 2026-04-16 |
-| EX-03 | Tambah export CTA pada payroll-run | Frontend | TODO | Screenshot UI + diff kode + bukti build aset | 2026-04-20 |
-| EX-04 | Tambah export CTA pada payroll-thr | Frontend | TODO | Screenshot UI + diff kode + bukti build aset | 2026-04-20 |
-| EX-05 | Tambah export CTA pada PKWT compensation | Frontend | TODO | Screenshot UI + diff kode + bukti build aset | 2026-04-20 |
-| EX-06 | Indicator evidence valid/invalid pada payroll-run | Frontend | TODO | Screenshot state valid/invalid + mapping API response pada source | 2026-04-20 |
-| EX-07 | Indicator evidence valid/invalid pada THR | Frontend | TODO | Screenshot state valid/invalid + mapping API response pada source | 2026-04-20 |
-| EX-08 | Indicator evidence valid/invalid pada PKWT | Frontend | TODO | Screenshot state valid/invalid + mapping API response pada source | 2026-04-20 |
+| EX-03 | Tambah export CTA pada payroll-run | Frontend | DONE | Commit: feat(export-reconciliation), payroll-run.blade.php line 76, build ✓ | 2026-04-15 |
+| EX-04 | Tambah export CTA pada payroll-thr | Frontend | DONE | Commit: feat(export-reconciliation), payroll-thr.blade.php line 137, build ✓ | 2026-04-15 |
+| EX-05 | Tambah export CTA pada PKWT compensation | Frontend | DONE | Commit: feat(export-reconciliation), payroll-pkwt-compensation.blade.php line 69, build ✓ | 2026-04-15 |
+| EX-06 | Indicator evidence pada payroll-run | Frontend | DONE | payroll-run.ts showEvidenceIndicator(), public/build/js/payroll-run.js ✓ | 2026-04-15 |
+| EX-07 | Indicator evidence pada THR | Frontend | DONE | thr-payroll-batch.ts showThrEvidenceIndicator(), public/build/js/thr-payroll-batch.js ✓ | 2026-04-15 |
+| EX-08 | Indicator evidence pada PKWT | Frontend | DONE | pkwt-compensation-data.js showPkwtEvidenceIndicator(), public/build/js/pkwt-compensation-data.js ✓ | 2026-04-15 |
 | EX-09 | Tutup FE-BE contract test normalisasi filter | Backend + QA | TODO | Hasil test dan daftar kasus uji di `docs/features/export-reconciliation/TEST-LOG.md` | 2026-04-21 |
 | EX-10 | Manual UI E2E role gate (admin vs non-admin) | QA | TODO | Log pass/fail per skenario di `docs/features/export-reconciliation/E2E-TESTING.md` + screenshot | 2026-04-22 |
 | EX-11 | Manual UI E2E tenant boundary | QA | TODO | Log pass/fail tenant isolation di `docs/features/export-reconciliation/E2E-TESTING.md` + screenshot/error payload | 2026-04-22 |
@@ -102,10 +103,10 @@ Catatan eksekusi:
 | M2 - Desain data model evidence + migration | 2026-04-17 | DONE | Backend | Migration + model + gate/export service skeleton sudah masuk |
 | M3 - Endpoint export MVP (payroll + billing) | 2026-04-19 | DONE | Backend | Endpoint `POST/GET/download` evidence aktif |
 | M4 - Gate validation di action controller | 2026-04-20 | DONE | Backend | Gate aktif via feature flag per endpoint prioritas + THR/PKWT |
-| M5 - UI indicator + warning sebelum action | 2026-04-21 | IN_PROGRESS | Frontend | Error mapping + persistent warning untuk payroll/THR/PKWT sudah aktif; tombol export + badge evidence belum full |
-| M6 - Feature test + regression test | 2026-04-22 | IN_PROGRESS | QA + Backend | Regression backend (happy path + forbidden/auth-order + stale/mismatch) sudah bertambah; FE-BE contract + evidencing QA lanjut |
-| M7 - Manual UI E2E per role | 2026-04-23 | TODO | QA | Admin vs non-admin guard |
-| M8 - OpenAPI + docs sync + rollout notes | 2026-04-24 | IN_PROGRESS | Backend + QA | OpenAPI + security/docs + role matrix sinkron; rollout notes final belum |
+| M5 - UI indicator + warning sebelum action | 2026-04-21 | DONE | Frontend | Error mapping + persistent warning + export CTA + evidence indicator + npm build selesai (2026-04-15) |
+| M6 - Feature test + regression test | 2026-04-22 | IN_PROGRESS | QA + Backend | Regression backend sudah bertambah; payment flow testing lanjut, FE-BE contract + rollout notes |
+| M7 - Manual UI E2E per role + payment flow | 2026-04-23 | IN_PROGRESS | QA | Admin payment (payroll disburse + THR pay + PKWT pay) + non-admin guard + tenant boundary |
+| M8 - OpenAPI + docs sync + rollout notes | 2026-04-24 | IN_PROGRESS | Backend + QA | OpenAPI + security/docs + role matrix sinkron; payment flow evidence + rollout notes final |
 
 ## Breakdown Teknis Per Endpoint Prioritas
 

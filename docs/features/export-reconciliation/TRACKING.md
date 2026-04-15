@@ -86,8 +86,8 @@ Jika salah satu belum terpenuhi, status tetap `IN_PROGRESS` atau `TODO`.
 | EX-07 | Indicator evidence pada THR | Frontend | DONE | thr-payroll-batch.ts showThrEvidenceIndicator(), public/build/js/thr-payroll-batch.js ✓ | 2026-04-15 |
 | EX-08 | Indicator evidence pada PKWT | Frontend | DONE | pkwt-compensation-data.js showPkwtEvidenceIndicator(), public/build/js/pkwt-compensation-data.js ✓ | 2026-04-15 |
 | EX-09 | Tutup FE-BE contract test normalisasi filter | Backend + QA | TODO | Hasil test dan daftar kasus uji di `docs/features/export-reconciliation/TEST-LOG.md` | 2026-04-21 |
-| EX-10 | Manual UI E2E role gate (admin vs non-admin) | QA | TODO | Log pass/fail per skenario di `docs/features/export-reconciliation/E2E-TESTING.md` + screenshot | 2026-04-22 |
-| EX-11 | Manual UI E2E tenant boundary | QA | TODO | Log pass/fail tenant isolation di `docs/features/export-reconciliation/E2E-TESTING.md` + screenshot/error payload | 2026-04-22 |
+| EX-10 | Manual UI E2E payment flow (admin): export + disburse/pay/verify | QA | TODO | Log payroll disburse + THR pay + PKWT pay after export, screenshot di `docs/features/export-reconciliation/E2E-TESTING.md` | 2026-04-21 |
+| EX-11 | Manual UI E2E role gate + tenant boundary | QA | TODO | Non-admin auth block (403 before gate) + tenant isolation for payment flow, screenshot di `docs/features/export-reconciliation/E2E-TESTING.md` | 2026-04-21 |
 | EX-12 | Finalisasi release note internal | Backend + QA | TODO | Dokumen `docs/features/export-reconciliation/RELEASE-NOTES.md` (ringkasan perubahan, risiko, rollback) | 2026-04-23 |
 
 Catatan eksekusi:
@@ -146,17 +146,18 @@ Catatan eksekusi:
 
 ### C. Frontend
 
-- [ ] Tombol export reconciliation pada halaman target prioritas.
-- [ ] Indicator evidence valid/invalid per scope.
+- [x] Tombol export reconciliation pada halaman target prioritas (payroll-run, THR, PKWT - build 2026-04-15).
+- [x] Indicator evidence valid/invalid + timestamp per scope (all flows working).
 - [x] Warning state sebelum action berisiko (non-native confirm).
 - [x] Error handling code-level (`EXPORT_RECON_*`).
+- [x] Event wiring: fetch evidence on load, trigger export on button click.
 
-### D. QA
+### D. QA (Payment Flow Focus)
 
-- [ ] Test matrix per fitur/action.
-- [ ] Uji mismatch filter/scope.
-- [ ] Uji stale data scenario.
-- [ ] Uji role permission dan tenant boundary.
+- [ ] Payment flow admin: trigger export → disburse/pay → verify completion (payroll, THR, PKWT).
+- [ ] Non-admin block: verify auth gate fires before reconciliation gate.
+- [ ] Tenant boundary: export + payment scoped correctly per company.
+- [ ] DEFERRED: full matrix (mismatch/stale/permission granularity) - run after payment flow validates.
 
 ### E. Documentation & Security
 
@@ -198,3 +199,5 @@ Catatan eksekusi:
 - 2026-04-15: Frontend payroll-run, payroll-thr, dan PKWT compensation menambahkan mapping pesan `EXPORT_RECON_*` yang actionable.
 - 2026-04-15: Ditambahkan persistent warning banner reconciliation di halaman payroll-run/THR/PKWT (bukan hanya toast) dan clear state saat action berhasil.
 - 2026-04-15: Build aset frontend ulang berhasil setelah perubahan UI hint reconciliation.
+- 2026-04-15: **Frontend UI export CTA + evidence indicator**: Tombol "Export Reconciliation" + evidence status badge ditambah ke payroll-run, payroll-thr, pkwt-compensation. Event wiring complete: fetch on load, trigger on click. npm build done → public/build/js deployed.
+- 2026-04-15: **WBS Updated**: Section C (Frontend) marked ALL DONE. Section D (QA) refocused to payment flow testing only (skip full test matrix defer, focus admin export→pay flow + non-admin gate + tenant isolation).

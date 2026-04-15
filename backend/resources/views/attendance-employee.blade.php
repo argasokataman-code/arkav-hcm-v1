@@ -626,15 +626,34 @@
                 }
 
                 try {
-                    // TODO: Send to API endpoint with encryption
-                    // For now, just show success message
-                    console.log('Selfie data ready for submission:', capturedImageData.substring(0, 50) + '...');
-                    
-                    // Store in sessionStorage temporarily
-                    sessionStorage.setItem('attendance_selfie_data', capturedImageData);
+                    // Disable submit button during upload
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="ti ti-loader-2 spin me-1"></i>Mengirim...';
+
+                    // Send to API endpoint with encryption (happens server-side)
+                    const response = await fetch('/api/v1/attendance/me/selfie', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            selfie_base64: capturedImageData, // Base64 image data
+                            timestamp: Math.floor(Date.now() / 1000),
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to upload selfie');
+                    }
+
+                    const result = await response.json();
+                    console.log('Selfie upload success:', result);
                     
                     // Show success toast
-                    showToast('Selfie berhasil diambil dan akan dienkripsi saat pengiriman', 'success');
+                    showToast('Selfie berhasil disimpan dan dienkripsi', 'success');
                     
                     // Close modal
                     const modal = bootstrap.Modal.getInstance(selfieModal);
@@ -642,9 +661,18 @@
                     
                     // Reset camera
                     resetCamera();
+                    
+                    // Refresh attendance data to show selfie status
+                    if (window.loadAttendanceData) {
+                        window.loadAttendanceData();
+                    }
                 } catch (error) {
                     console.error('Error submitting selfie:', error);
-                    alert('Gagal menyimpan selfie');
+                    showToast('Gagal menyimpan selfie: ' + error.message, 'error');
+                } finally {
+                    // Re-enable button
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="ti ti-check me-1"></i>Simpan Selfie';
                 }
             });
         }
@@ -669,8 +697,9 @@
 
         // Toast helper (using existing notification system)
         function showToast(message, type = 'info') {
+            const bgColor = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
             const toastHtml = `
-                <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast align-items-center text-white bg-${bgColor} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">
                             ${message}
@@ -679,7 +708,7 @@
                     </div>
                 </div>
             `;
-            const container = document.querySelector('.toast-container') | document.body;
+            const container = document.querySelector('.toast-container') || document.body;
             const el = document.createElement('div');
             el.innerHTML = toastHtml;
             container.appendChild(el.firstChild);

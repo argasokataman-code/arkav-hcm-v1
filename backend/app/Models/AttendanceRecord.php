@@ -32,6 +32,8 @@ class AttendanceRecord extends Model
         'correction_requested_at',
         'corrected_by_user_id',
         'corrected_at',
+        'selfie_path',
+        'selfie_encrypted_hash',
     ];
 
     protected function casts(): array

@@ -193,6 +193,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/attendance/me/punch', [AttendanceController::class, 'punch']);
     Route::post('/attendance/me/break', [AttendanceController::class, 'toggleBreak']);
     Route::post('/attendance/me/correction-request', [AttendanceController::class, 'requestCorrection']);
+    Route::post('/attendance/me/selfie', [AttendanceController::class, 'meSelfie']);
+    Route::get('/attendance/me/selfie/status', [AttendanceController::class, 'meSelfieStatus']);
 
     Route::get('/holidays', [HcmHolidayController::class, 'index']);
     Route::post('/holidays', [HcmHolidayController::class, 'store']);

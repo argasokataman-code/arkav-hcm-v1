@@ -1374,4 +1374,125 @@ class AttendanceController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Upload selfie for today's attendance record (employee endpoint)
+     */
+    public function meSelfie(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'selfie_base64' => 'required|string', // base64 image data
+            'timestamp' => 'nullable|integer',
+        ]);
+
+        try {
+            $user = auth()->user();
+            $companyId = $request->attributes->get('activeCompanyId');
+            $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
+
+            // Find or create attendance record for today
+            $attendance = AttendanceRecord::query()
+                ->where('user_id', $user->id)
+                ->where('company_id', $companyId)
+                ->where('work_date', $workDate)
+                ->first();
+
+            if (! $attendance) {
+                return response()->json([
+                    'error' => 'No attendance record found for today',
+                    'message' => 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie',
+                ], 422);
+            }
+
+            // Decode base64 image
+            $base64Data = preg_replace('/^data:image\/\w+;base64,/', '', $validated['selfie_base64']);
+            $imageBinary = base64_decode($base64Data, true);
+
+            if (! $imageBinary) {
+                return response()->json([
+                    'error' => 'Invalid base64 image data',
+                    'message' => 'Data selfie tidak valid',
+                ], 422);
+            }
+
+            // Store image (will be encrypted at storage layer)
+            $filename = sprintf(
+                'selfie/%d/%s_%s.jpg',
+                $companyId,
+                $user->id,
+                $workDate . '_' . now('UTC')->timestamp
+            );
+
+            // Store in storage (encrypted at storage layer via config)
+            $path = \Storage::disk('private')->put($filename, $imageBinary);
+
+            // Calculate hash for integrity check
+            $hash = hash('sha256', $imageBinary);
+
+            // Update attendance record with selfie path + hash
+            $attendance->update([
+                'selfie_path' => $path,
+                'selfie_encrypted_hash' => $hash,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Selfie berhasil disimpan dan dienkripsi',
+                'data' => [
+                    'attendance_id' => $attendance->id,
+                    'selfie_path' => $path,
+                    'uploaded_at' => $attendance->updated_at,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Selfie upload error', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to upload selfie',
+                'message' => 'Gagal menyimpan selfie, coba lagi nanti',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get latest selfie for today (check status)
+     */
+    public function meSelfieStatus(Request $request): JsonResponse
+    {
+        try {
+            $user = auth()->user();
+            $companyId = $request->attributes->get('activeCompanyId');
+            $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
+
+            $attendance = AttendanceRecord::query()
+                ->where('user_id', $user->id)
+                ->where('company_id', $companyId)
+                ->where('work_date', $workDate)
+                ->first();
+
+            if (! $attendance) {
+                return response()->json([
+                    'has_selfie' => false,
+                    'selfie' => null,
+                ]);
+            }
+
+            return response()->json([
+                'has_selfie' => $attendance->selfie_path ? true : false,
+                'selfie' => $attendance->selfie_path ? [
+                    'path' => $attendance->selfie_path,
+                    'uploaded_at' => $attendance->updated_at,
+                    'is_encrypted' => true,
+                ] : null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch selfie status',
+            ], 500);
+        }
+    }
 }
+

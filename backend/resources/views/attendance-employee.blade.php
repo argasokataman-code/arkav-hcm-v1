@@ -139,6 +139,57 @@
             background: #fcfcfc;
             padding: 0.75rem;
         }
+        /* Selfie camera modal styles */
+        .arcav-selfie-camera-modal .modal-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e8eef7;
+        }
+        .arcav-selfie-camera-video {
+            width: 100%;
+            border-radius: 0.5rem;
+            background: #000;
+            display: block;
+            margin-bottom: 1rem;
+        }
+        .arcav-selfie-preview {
+            width: 100%;
+            max-height: 300px;
+            border-radius: 0.5rem;
+            object-fit: cover;
+            margin-bottom: 1rem;
+            display: none;
+            border: 1px solid #e8eef7;
+        }
+        .arcav-selfie-preview.show {
+            display: block;
+        }
+        .arcav-selfie-control-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        .arcav-selfie-encrypt-badge {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .arcav-selfie-encrypt-badge i {
+            font-size: 1rem;
+        }
+        [data-selfie-camera-video]:not([data-recording="1"]) {
+            display: block;
+        }
+        [data-selfie-preview]:not([data-show="1"]) {
+            display: none;
+        }
     </style>
 
     <!-- Page Wrapper -->
@@ -264,6 +315,9 @@
                                 </div>
                                 <button type="button" class="btn btn-outline-warning d-none" data-attendance-me-request-correction>
                                     Ajukan koreksi
+                                </button>
+                                <button type="button" class="btn btn-outline-success" data-attendance-me-selfie-btn>
+                                    <i class="ti ti-camera me-1"></i> Ambil Selfie
                                 </button>
                                 <button type="button" class="btn btn-outline-primary" data-attendance-me-break-btn disabled>Mulai istirahat</button>
                                 <button type="button" class="btn btn-dark" data-attendance-me-punch-btn>Punch In</button>
@@ -423,6 +477,54 @@
     @component('components.modal-popup')
     @endcomponent
 
+    <!-- Selfie Camera Modal -->
+    <div class="modal fade arcav-selfie-camera-modal" id="arcav_attendance_selfie_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="ti ti-camera me-2"></i>Ambil Selfie Absensi
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info small" role="alert">
+                        <i class="ti ti-info-circle me-1"></i>
+                        Pastikan wajah Anda terlihat jelas dalam frame kamera.
+                    </div>
+                    
+                    <!-- Camera stream -->
+                    <video data-selfie-camera-video class="arcav-selfie-camera-video" playsinline></video>
+                    
+                    <!-- Preview after capture -->
+                    <canvas data-selfie-preview class="arcav-selfie-preview" width="400" height="300"></canvas>
+                    
+                    <!-- Controls -->
+                    <div class="arcav-selfie-control-group">
+                        <button type="button" class="btn btn-primary flex-grow-1" data-selfie-capture-btn>
+                            <i class="ti ti-circle me-1"></i>Ambil Foto
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary flex-grow-1 d-none" data-selfie-retake-btn>
+                            <i class="ti ti-refresh me-1"></i>Ulangi
+                        </button>
+                    </div>
+                    
+                    <!-- Encryption indicator -->
+                    <div class="arcav-selfie-encrypt-badge">
+                        <i class="ti ti-lock"></i>
+                        <span>Foto akan dienkripsi sebelum dikirim</span>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-success d-none" data-selfie-submit-btn>
+                        <i class="ti ti-check me-1"></i>Simpan Selfie
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="arcav_attendance_correction_modal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -442,5 +544,149 @@
             </div>
         </div>
     </div>
+
+    <script>
+    // Attendance Selfie Camera Handler
+    document.addEventListener('DOMContentLoaded', function() {
+        const selfieModal = document.getElementById('arcav_attendance_selfie_modal');
+        const videoEl = document.querySelector('[data-selfie-camera-video]');
+        const canvasEl = document.querySelector('[data-selfie-preview]');
+        const captureBtn = document.querySelector('[data-selfie-capture-btn]');
+        const retakeBtn = document.querySelector('[data-selfie-retake-btn]');
+        const submitBtn = document.querySelector('[data-selfie-submit-btn]');
+        const openSelfieBtn = document.querySelector('[data-attendance-me-selfie-btn]');
+        let mediaStream = null;
+        let capturedImageData = null;
+
+        // Open modal and start camera
+        if (openSelfieBtn && selfieModal) {
+            openSelfieBtn.addEventListener('click', function() {
+                const modal = new bootstrap.Modal(selfieModal);
+                modal.show();
+                startCamera();
+            });
+        }
+
+        // Start camera stream
+        async function startCamera() {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 400 },
+                        height: { ideal: 300 }
+                    },
+                    audio: false
+                });
+                videoEl.srcObject = mediaStream;
+                videoEl.play();
+                console.log('Camera started successfully');
+            } catch (error) {
+                console.error('Camera access denied:', error);
+                alert('Akses kamera ditolak. Periksa permissions browser Anda.');
+            }
+        }
+
+        // Capture photo from video stream
+        if (captureBtn) {
+            captureBtn.addEventListener('click', function() {
+                const ctx = canvasEl.getContext('2d');
+                ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+                capturedImageData = canvasEl.toDataURL('image/jpeg', 0.9);
+                
+                // Show preview, hide camera
+                videoEl.classList.add('d-none');
+                canvasEl.classList.add('show');
+                captureBtn.classList.add('d-none');
+                retakeBtn.classList.remove('d-none');
+                submitBtn.classList.remove('d-none');
+                console.log('Photo captured');
+            });
+        }
+
+        // Retake photo
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', function() {
+                videoEl.classList.remove('d-none');
+                canvasEl.classList.remove('show');
+                captureBtn.classList.remove('d-none');
+                retakeBtn.classList.add('d-none');
+                submitBtn.classList.add('d-none');
+                capturedImageData = null;
+                console.log('Retaking photo');
+            });
+        }
+
+        // Submit selfie (placeholder - will integrate with API later)
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async function() {
+                if (!capturedImageData) {
+                    alert('Tidak ada foto untuk disimpan');
+                    return;
+                }
+
+                try {
+                    // TODO: Send to API endpoint with encryption
+                    // For now, just show success message
+                    console.log('Selfie data ready for submission:', capturedImageData.substring(0, 50) + '...');
+                    
+                    // Store in sessionStorage temporarily
+                    sessionStorage.setItem('attendance_selfie_data', capturedImageData);
+                    
+                    // Show success toast
+                    showToast('Selfie berhasil diambil dan akan dienkripsi saat pengiriman', 'success');
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(selfieModal);
+                    if (modal) modal.hide();
+                    
+                    // Reset camera
+                    resetCamera();
+                } catch (error) {
+                    console.error('Error submitting selfie:', error);
+                    alert('Gagal menyimpan selfie');
+                }
+            });
+        }
+
+        // Reset camera when modal closes
+        selfieModal?.addEventListener('hidden.bs.modal', function() {
+            resetCamera();
+        });
+
+        function resetCamera() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            videoEl.classList.remove('d-none');
+            canvasEl.classList.remove('show');
+            captureBtn?.classList.remove('d-none');
+            retakeBtn?.classList.add('d-none');
+            submitBtn?.classList.add('d-none');
+            capturedImageData = null;
+        }
+
+        // Toast helper (using existing notification system)
+        function showToast(message, type = 'info') {
+            const toastHtml = `
+                <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            const container = document.querySelector('.toast-container') | document.body;
+            const el = document.createElement('div');
+            el.innerHTML = toastHtml;
+            container.appendChild(el.firstChild);
+            const toast = new bootstrap.Toast(el.firstChild);
+            toast.show();
+        }
+    });
+    </script>
 
 @endsection

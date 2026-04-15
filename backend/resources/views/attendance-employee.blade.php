@@ -558,18 +558,49 @@
         let mediaStream = null;
         let capturedImageData = null;
 
+        // Verify elements exist
+        console.log('Selfie Elements:', {
+            modal: !!selfieModal,
+            video: !!videoEl,
+            canvas: !!canvasEl,
+            captureBtn: !!captureBtn,
+            retakeBtn: !!retakeBtn,
+            submitBtn: !!submitBtn,
+            openBtn: !!openSelfieBtn,
+        });
+
         // Open modal and start camera
         if (openSelfieBtn && selfieModal) {
             openSelfieBtn.addEventListener('click', function() {
+                console.log('Ambil Selfie clicked');
                 const modal = new bootstrap.Modal(selfieModal);
                 modal.show();
-                startCamera();
+                // Wait for modal animation (300ms default)
+                setTimeout(startCamera, 350);
+            });
+        }
+
+        // Listen for modal shown event (alternative trigger)
+        if (selfieModal) {
+            selfieModal.addEventListener('shown.bs.modal', function() {
+                console.log('Modal shown event fired');
+                if (!mediaStream) {
+                    startCamera();
+                }
             });
         }
 
         // Start camera stream
         async function startCamera() {
             try {
+                console.log('Starting camera...');
+                
+                // Check if browser supports getUserMedia
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert('Browser Anda tidak mendukung akses kamera. Gunakan Chrome, Firefox, atau Safari terbaru.');
+                    return;
+                }
+
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'user',
@@ -578,142 +609,153 @@
                     },
                     audio: false
                 });
-                videoEl.srcObject = mediaStream;
-                videoEl.play();
-                console.log('Camera started successfully');
+                
+                if (videoEl) {
+                    videoEl.srcObject = mediaStream;
+                    videoEl.onloadedmetadata = function() {
+                        videoEl.play().catch(e => console.error('Play failed:', e));
+                        console.log('Camera started successfully');
+                    };
+                } else {
+                    console.error('Video element not found');
+                }
             } catch (error) {
                 console.error('Camera access denied:', error);
-                alert('Akses kamera ditolak. Periksa permissions browser Anda.');
+                alert('Akses kamera ditolak:\n' + error.message + '\n\nPastikan Anda mengizinkan akses kamera di browser.');
             }
         }
 
         // Capture photo from video stream
         if (captureBtn) {
             captureBtn.addEventListener('click', function() {
-                const ctx = canvasEl.getContext('2d');
-                ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-                capturedImageData = canvasEl.toDataURL('image/jpeg', 0.9);
-                
-                // Show preview, hide camera
-                videoEl.classList.add('d-none');
-                canvasEl.classList.add('show');
-                captureBtn.classList.add('d-none');
-                retakeBtn.classList.remove('d-none');
-                submitBtn.classList.remove('d-none');
-                console.log('Photo captured');
+                try {
+                    console.log('Capturing photo...');
+                    if (!videoEl) {
+                        alert('Video element tidak ditemukan');
+                        return;
+                    }
+                    
+                    const ctx = canvasEl.getContext('2d');
+                    if (!ctx) {
+                        alert('Canvas context tidak tersedia');
+                        return;
+                    }
+                    
+                    // Mirror the video on canvas (optional)
+                    ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+                    capturedImageData = canvasEl.toDataURL('image/jpeg', 0.9);
+                    console.log('Photo captured, data length:', capturedImageData.length);
+                    
+                    // Show preview, hide camera
+                    videoEl.classList.add('d-none');
+                    canvasEl.classList.add('show');
+                    captureBtn.classList.add('d-none');
+                    retakeBtn.classList.remove('d-none');
+                    submitBtn.classList.remove('d-none');
+                } catch (error) {
+                    console.error('Capture error:', error);
+                    alert('Gagal mengambil foto: ' + error.message);
+                }
             });
         }
 
         // Retake photo
         if (retakeBtn) {
             retakeBtn.addEventListener('click', function() {
+                console.log('Retaking photo...');
                 videoEl.classList.remove('d-none');
                 canvasEl.classList.remove('show');
                 captureBtn.classList.remove('d-none');
                 retakeBtn.classList.add('d-none');
                 submitBtn.classList.add('d-none');
                 capturedImageData = null;
-                console.log('Retaking photo');
             });
         }
 
-        // Submit selfie (placeholder - will integrate with API later)
+        // Submit selfie to API
         if (submitBtn) {
             submitBtn.addEventListener('click', async function() {
-                if (!capturedImageData) {
-                    alert('Tidak ada foto untuk disimpan');
-                    return;
-                }
-
                 try {
-                    // Disable submit button during upload
+                    console.log('Submitting selfie...');
+                    
+                    if (!capturedImageData) {
+                        alert('Tidak ada foto untuk dikirim');
+                        return;
+                    }
+                    
                     submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="ti ti-loader-2 spin me-1"></i>Mengirim...';
-
-                    // Send to API endpoint with encryption (happens server-side)
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim...';
+                    
                     const response = await fetch('/api/v1/attendance/me/selfie', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                            'Accept': 'application/json',
+                            'Authorization': 'Bearer ' + (document.querySelector('[data-auth-token]')?.dataset.authToken || ''),
+                            'X-Company-Id': document.querySelector('[data-company-id]')?.dataset.companyId || '',
                         },
                         body: JSON.stringify({
-                            selfie_base64: capturedImageData, // Base64 image data
-                            timestamp: Math.floor(Date.now() / 1000),
-                        }),
+                            selfie_base64: capturedImageData
+                        })
                     });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.message || 'Failed to upload selfie');
-                    }
-
+                    
+                    console.log('Response status:', response.status);
                     const result = await response.json();
-                    console.log('Selfie upload success:', result);
+                    console.log('Response data:', result);
                     
-                    // Show success toast
-                    showToast('Selfie berhasil disimpan dan dienkripsi', 'success');
-                    
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(selfieModal);
-                    if (modal) modal.hide();
-                    
-                    // Reset camera
-                    resetCamera();
-                    
-                    // Refresh attendance data to show selfie status
-                    if (window.loadAttendanceData) {
-                        window.loadAttendanceData();
+                    if (response.ok) {
+                        // Close modal
+                        bootstrap.Modal.getInstance(selfieModal)?.hide();
+                        
+                        // Show success
+                        showToast('success', 'Selfie Tersimpan', 'Foto Anda telah dienkripsi dan disimpan.');
+                        capturedImageData = null;
+                        
+                        // Reset UI
+                        if (mediaStream) {
+                            mediaStream.getTracks().forEach(track => track.stop());
+                            mediaStream = null;
+                        }
+                    } else {
+                        alert('Gagal menyimpan selfie:\n' + (result.message || result.error || 'Unknown error'));
                     }
                 } catch (error) {
-                    console.error('Error submitting selfie:', error);
-                    showToast('Gagal menyimpan selfie: ' + error.message, 'error');
+                    console.error('Submit error:', error);
+                    alert('Error mengupload selfie: ' + error.message);
                 } finally {
-                    // Re-enable button
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="ti ti-check me-1"></i>Simpan Selfie';
+                    submitBtn.innerHTML = 'Simpan Selfie';
                 }
             });
         }
 
-        // Reset camera when modal closes
-        selfieModal?.addEventListener('hidden.bs.modal', function() {
-            resetCamera();
-        });
-
-        function resetCamera() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-            videoEl.classList.remove('d-none');
-            canvasEl.classList.remove('show');
-            captureBtn?.classList.remove('d-none');
-            retakeBtn?.classList.add('d-none');
-            submitBtn?.classList.add('d-none');
-            capturedImageData = null;
+        // Stop camera when modal closes
+        if (selfieModal) {
+            selfieModal.addEventListener('hidden.bs.modal', function() {
+                console.log('Modal hidden, stopping camera');
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+                if (videoEl) {
+                    videoEl.srcObject = null;
+                }
+                capturedImageData = null;
+            });
         }
 
-        // Toast helper (using existing notification system)
-        function showToast(message, type = 'info') {
-            const bgColor = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info';
+        // Toast notification helper
+        function showToast(type, title, message) {
             const toastHtml = `
-                <div class="toast align-items-center text-white bg-${bgColor} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <strong>${title}</strong> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             `;
-            const container = document.querySelector('.toast-container') || document.body;
-            const el = document.createElement('div');
-            el.innerHTML = toastHtml;
-            container.appendChild(el.firstChild);
-            const toast = new bootstrap.Toast(el.firstChild);
-            toast.show();
+            const container = document.querySelector('[data-toast-container]') || document.body;
+            const toast = document.createElement('div');
+            toast.innerHTML = toastHtml;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
         }
     });
     </script>

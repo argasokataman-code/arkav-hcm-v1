@@ -686,7 +686,7 @@
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim...';
                     
-                    const response = await fetch('/api/v1/attendance/me/selfie', {
+                    const response = await fetch('/api/v1/hcm/attendance/me/selfie', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

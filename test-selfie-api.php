@@ -40,7 +40,7 @@ if (empty($testToken)) {
 echo "\n[3] Checking current attendance status...\n";
 $ch = curl_init();
 curl_setopt_array($ch, [
-    CURLOPT_URL => "{$apiUrl}/attendance/me/today",
+    CURLOPT_URL => "{$apiUrl}/hcm/attendance/me/today",
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_HTTPHEADER => [
         'Content-Type: application/json',
@@ -63,10 +63,10 @@ if ($httpCode == 200) {
 }
 
 // Step 4: Test selfie upload
-echo "\n[4] Testing POST /api/v1/attendance/me/selfie...\n";
+echo "\n[4] Testing POST /api/v1/hcm/attendance/me/selfie...\n";
 $ch = curl_init();
 curl_setopt_array($ch, [
-    CURLOPT_URL => "{$apiUrl}/attendance/me/selfie",
+    CURLOPT_URL => "{$apiUrl}/hcm/attendance/me/selfie",
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
     CURLOPT_HTTPHEADER => [

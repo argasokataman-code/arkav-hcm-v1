@@ -159,6 +159,22 @@ Update readiness terakhir:
 - [ ] Correlation ID / `X-Trace-Id` propagation - `NOT_STARTED`
 - [ ] Regression test menyeluruh (auth + HCM + attendance + shifts + overtime types) - `IN_PROGRESS` (ada subset feature tests)
 
+## Milestone 7 - Export Reconciliation Control (High)
+
+- [x] Definisi problem statement + scope action berisiko (payroll, THR, PKWT, invoice, payment) - `DONE` (`docs/features/export-reconciliation/README.md`)
+- [x] Draft arsitektur teknis + data model evidence + rollout plan - `DONE` (`docs/features/export-reconciliation/IMPLEMENTATION.md`)
+- [x] Draft kontrak API export/gate/list/download - `DONE` (`docs/features/export-reconciliation/API-CONTRACT.md`)
+- [x] Tracking implementasi harian + endpoint breakdown - `DONE` (`docs/features/export-reconciliation/TRACKING.md`)
+- [ ] Implement migration + model evidence export - `TODO`
+- [ ] Implement service export + gate validation - `TODO`
+- [ ] Integrasi gate ke endpoint prioritas:
+  - [ ] `POST /v1/hcm/payroll-runs/{id}/finalize`
+  - [ ] `POST /v1/hcm/payroll-runs/{id}/disburse`
+  - [ ] `PUT /v1/saas/invoices/{invoice}/mark-paid`
+  - [ ] `PUT /v1/saas/payments/{payment}/verify`
+- [ ] Wiring frontend indicator/warning + error mapping `EXPORT_RECON_*` - `TODO`
+- [ ] Feature tests + manual E2E + OpenAPI sync - `TODO`
+
 ## Dokumentasi role & template aktif (lintas fitur)
 
 - [x] Indeks halaman HCM aktif + target role/API: `planning/active-hcm-templates-and-permissions.md` - `DONE`
@@ -173,3 +189,4 @@ Update readiness terakhir:
 4. Perluas automated tests untuk leave-requests flow dan attendance edge cases.
 5. [x] Penautan overtime ↔ master komponen gaji (FK `hcm_salary_component_id`, field di list + `POST .../calculate`) — `DONE` (April 2026).
 6. [x] Fondasi payroll periode: `hcm_payroll_periods` / `hcm_payroll_runs` / `hcm_payroll_lines` + `calculate-draft` + `finalize` + `GET /payroll/my-slip-lines` — `DONE` (April 2026). **Next:** agregasi lembur disetujui per periode ke baris slip; potongan % dari master komponen; wire UI `/payslip` + PDF.
+7. Jalankan Milestone 7 Export Reconciliation dimulai dari migration + service gate untuk endpoint payroll run dan billing.

@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Services\Hcm\PkwtCompensationService;
+use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
+use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -60,6 +62,10 @@ class HcmPayrollPkwtCompensationController extends Controller
             'periodYear' => ['required', 'integer', 'min:2000', 'max:2100'],
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
+
+        if ($error = $this->guardPkwtReconciliation($request, (int) $validated['periodYear'], (int) $validated['periodMonth'])) {
+            return $error;
+        }
 
         try {
             $result = $this->pkwtCompensationService->createOrReplaceDraftRun(
@@ -199,5 +205,43 @@ class HcmPayrollPkwtCompensationController extends Controller
         $value = $request->attributes->get('activeCompanyId');
 
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function guardPkwtReconciliation(Request $request, int $periodYear, int $periodMonth): ?JsonResponse
+    {
+        if (! (bool) config('hcm.export_reconciliation.enabled', true)) {
+            return null;
+        }
+
+        if (! (bool) config('hcm.export_reconciliation.enforce.pkwt_compensation.post_payroll', false)) {
+            return null;
+        }
+
+        $reconciliation = $request->input('reconciliation', []);
+        $filterPayload = is_array($reconciliation['filterPayload'] ?? null) ? $reconciliation['filterPayload'] : [];
+        $datasetChecksum = isset($reconciliation['datasetChecksum']) ? (string) $reconciliation['datasetChecksum'] : null;
+        $strictChecksum = (bool) ($reconciliation['strictChecksum'] ?? config('hcm.export_reconciliation.strict_checksum', false));
+
+        try {
+            app(ReconciliationGateService::class)->assertCanProceed(
+                $this->activeCompanyId($request),
+                'pkwt_compensation',
+                'post_payroll',
+                sprintf('%d-%02d', $periodYear, $periodMonth),
+                $filterPayload,
+                $datasetChecksum,
+                $strictChecksum,
+            );
+        } catch (ExportReconciliationException $exception) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], $exception->status());
+        }
+
+        return null;
     }
 }

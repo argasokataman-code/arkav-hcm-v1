@@ -132,8 +132,14 @@
                         Jika <strong>pengaturan periode THR</strong> untuk tahun ini sudah disimpan dan <strong>cut-off</strong> terisi, daftar karyawan akan <strong>dibuat otomatis</strong> (kecuali sudah ada draft/run). Tanpa cut-off, generate otomatis tidak jalan — tetap bisa pakai tombol Generate.
                     </p>
                     <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-thr-batch-error></div>
+                    <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-thr-reconciliation-hint></div>
+                    <div class="d-none mb-3" role="status" data-thr-evidence-indicator>
+                        <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
+                        <small class="d-block mt-1 text-muted" data-evidence-timestamp></small>
+                    </div>
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <button type="button" class="btn btn-primary" data-thr-batch-generate>Generate list</button>
+                        <button type="button" class="btn btn-outline-secondary" data-thr-batch-export-evidence title="Export data reconciliation untuk bukti audit sebelum pay/posting">Export Reconciliation</button>
                         <button type="button" class="btn btn-success" data-thr-batch-disburse disabled>Pay THR</button>
                         <button type="button" class="btn btn-outline-secondary" data-thr-batch-send-slip disabled>Kirim slip</button>
                     </div>

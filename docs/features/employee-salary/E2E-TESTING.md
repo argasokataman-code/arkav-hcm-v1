@@ -29,7 +29,10 @@ Memastikan flow UI Employee Salary tervalidasi untuk role admin dan non-admin se
 4. Admin open edit modal and submit compensation update
 5. Admin verify updated value persisted by reopening modal
 6. Admin rollback edited value to initial baseline (test-data safe rerun)
-7. Non-admin (company mode login) redirected to `/employee-dashboard`
+7. Admin menambah assignment payroll item custom pada karyawan (nominal > 0)
+8. Admin mengubah nominal assignment custom dan toggle aktif/nonaktif
+9. Admin menghapus assignment custom karyawan
+10. Non-admin (company mode login) redirected to `/employee-dashboard`
 
 ## Latest Execution Snapshot
 

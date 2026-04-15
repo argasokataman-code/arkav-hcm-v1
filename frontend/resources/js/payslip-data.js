@@ -56,6 +56,20 @@
     return payload?.data?.period || null;
   }
 
+  async function ensureSelfPayslipAudience() {
+    try {
+      const payload = await apiGet('/v1/identity/auth/me');
+      if (payload?.success && payload?.data?.hcmAdmin) {
+        window.location.assign('/payslip-report');
+        return false;
+      }
+    } catch (_error) {
+      // Ignore me-check failure and let API authorization handle page data access.
+    }
+
+    return true;
+  }
+
   async function loadPayslip(options = {}) {
     const allowLatestFallback = options.allowLatestFallback === true;
     const yearInput = document.querySelector('[data-payslip-year]');
@@ -144,8 +158,15 @@
   window.payslipLoad = loadPayslip;
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => loadPayslip({ allowLatestFallback: true }));
+    document.addEventListener('DOMContentLoaded', async () => {
+      const isSelfAudience = await ensureSelfPayslipAudience();
+      if (!isSelfAudience) return;
+      loadPayslip({ allowLatestFallback: true });
+    });
   } else {
-    loadPayslip({ allowLatestFallback: true });
+    ensureSelfPayslipAudience().then((isSelfAudience) => {
+      if (!isSelfAudience) return;
+      loadPayslip({ allowLatestFallback: true });
+    });
   }
 })();

@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ReportSnapshotController;
+use App\Http\Controllers\Api\ReconciliationExportController;
 use App\Http\Controllers\Api\BulkPaymentImportController;
 use App\Http\Controllers\Api\SuperAdminDashboardController;
 use App\Http\Controllers\Api\HcmEmployeeController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Api\HcmLeaveSettingController;
 use App\Http\Controllers\Api\HcmOvertimeRequestController;
 use App\Http\Controllers\Api\HcmOvertimeTypeController;
 use App\Http\Controllers\Api\HcmPayrollItemController;
+use App\Http\Controllers\Api\HcmPayrollItemAssignmentController;
 use App\Http\Controllers\Api\HcmPayrollPeriodController;
 use App\Http\Controllers\Api\HcmPayrollRunController;
 use App\Http\Controllers\Api\HcmPayrollPkwtCompensationController;
@@ -176,6 +178,10 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/payroll-items', [HcmPayrollItemController::class, 'store']);
     Route::put('/payroll-items/{id}', [HcmPayrollItemController::class, 'update'])->whereNumber('id');
     Route::delete('/payroll-items/{id}', [HcmPayrollItemController::class, 'destroy'])->whereNumber('id');
+    Route::get('/payroll-item-assignments', [HcmPayrollItemAssignmentController::class, 'index']);
+    Route::post('/payroll-item-assignments', [HcmPayrollItemAssignmentController::class, 'store']);
+    Route::put('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'update'])->whereNumber('id');
+    Route::delete('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'destroy'])->whereNumber('id');
 
     Route::get('/overtime-types', [HcmOvertimeTypeController::class, 'index']);
     Route::post('/overtime-types', [HcmOvertimeTypeController::class, 'store']);
@@ -374,6 +380,12 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
             Route::post('/{id}/export', [ReportSnapshotController::class, 'export'])->whereNumber('id');
         });
     });
+});
+
+Route::prefix('v1/reconciliation')->middleware(['api.token', 'tenant.context'])->group(function () {
+    Route::post('/exports', [ReconciliationExportController::class, 'store']);
+    Route::get('/exports', [ReconciliationExportController::class, 'index']);
+    Route::get('/exports/{id}/download', [ReconciliationExportController::class, 'download'])->whereNumber('id');
 });
 
 // SaaS Packages Routes

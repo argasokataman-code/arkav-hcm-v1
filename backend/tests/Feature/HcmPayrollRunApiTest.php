@@ -506,4 +506,96 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'PAYROLL_DISBURSE_NO_EMPLOYEES');
     }
+
+    public function test_payroll_run_show_returns_thr_and_compensation_recipients_for_same_period(): void
+    {
+        $this->employeeToken('thr-recipient@example.com', 4_500_000);
+        $this->employeeToken('comp-recipient@example.com', 4_500_000);
+        $this->employeeToken('neutral-employee@example.com', 4_500_000);
+
+        $thrUserId = (int) User::query()->where('email', 'thr-recipient@example.com')->value('id');
+        $compUserId = (int) User::query()->where('email', 'comp-recipient@example.com')->value('id');
+        $neutralUserId = (int) User::query()->where('email', 'neutral-employee@example.com')->value('id');
+
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 9);
+
+        $thrRun = HcmPayrollRun::query()->create([
+            'hcm_payroll_period_id' => $data['periodId'],
+            'purpose' => HcmPayrollRun::PURPOSE_THR,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'calculated_at' => now(),
+            'finalized_at' => now(),
+        ]);
+
+        HcmPayrollLine::query()->create([
+            'hcm_payroll_run_id' => $thrRun->id,
+            'user_id' => $thrUserId,
+            'component_code' => 'thr_bonus',
+            'component_name' => 'THR',
+            'kind' => 'addition',
+            'category' => 'bonus',
+            'amount' => 1_000_000,
+            'sort_order' => 1,
+            'meta' => ['affectsNetPay' => true],
+        ]);
+
+        $pkwtRun = HcmPayrollRun::query()->create([
+            'hcm_payroll_period_id' => $data['periodId'],
+            'purpose' => HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'calculated_at' => now(),
+            'finalized_at' => now(),
+        ]);
+
+        HcmPayrollLine::query()->create([
+            'hcm_payroll_run_id' => $pkwtRun->id,
+            'user_id' => $compUserId,
+            'component_code' => 'kompensasi_pkwt',
+            'component_name' => 'Kompensasi PKWT',
+            'kind' => 'addition',
+            'category' => 'allowance',
+            'amount' => 750_000,
+            'sort_order' => 1,
+            'meta' => ['affectsNetPay' => true],
+        ]);
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll-runs/'.$data['runId'])
+            ->assertOk();
+
+        $this->assertContains($thrUserId, (array) $response->json('data.specialRecipients.thrUserIds'));
+        $this->assertContains($compUserId, (array) $response->json('data.specialRecipients.compensationUserIds'));
+        $this->assertNotContains($neutralUserId, (array) $response->json('data.specialRecipients.thrUserIds'));
+        $this->assertNotContains($neutralUserId, (array) $response->json('data.specialRecipients.compensationUserIds'));
+    }
+
+    public function test_admin_disburse_apply_all_skips_ineligible_net_zero_employees(): void
+    {
+        $paidEmployeeToken = $this->employeeToken('payable-employee@example.com', 4_000_000);
+        $zeroNetEmployeeToken = $this->employeeToken('zero-net-employee@example.com', 0);
+        $this->assertNotEmpty($paidEmployeeToken);
+        $this->assertNotEmpty($zeroNetEmployeeToken);
+
+        $payableUserId = (int) User::query()->where('email', 'payable-employee@example.com')->value('id');
+        $zeroNetUserId = (int) User::query()->where('email', 'zero-net-employee@example.com')->value('id');
+
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
+            ->assertOk();
+
+        $this->assertSame(1, (int) $response->json('data.payment.paidEmployeeCount'));
+        $this->assertContains($payableUserId, (array) $response->json('data.selectedUserIds'));
+        $this->assertNotContains($zeroNetUserId, (array) $response->json('data.selectedUserIds'));
+        $this->assertContains($zeroNetUserId, (array) $response->json('data.ineligibleUserIds'));
+    }
 }

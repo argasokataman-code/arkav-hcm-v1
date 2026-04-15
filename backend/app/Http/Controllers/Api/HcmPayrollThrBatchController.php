@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
 use App\Services\Hcm\ThrBatchService;
+use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
+use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -132,6 +134,10 @@ class HcmPayrollThrBatchController extends Controller
             'userIds.*' => ['integer', 'exists:users,id'],
         ]);
 
+        if ($error = $this->guardThrBatchReconciliation($request, (int) $validated['batchId'], 'disburse')) {
+            return $error;
+        }
+
         try {
             $out = $this->thrBatchService->disburseSelectedLines(
                 (int) $validated['batchId'],
@@ -178,6 +184,10 @@ class HcmPayrollThrBatchController extends Controller
         $validated = $request->validate([
             'batchId' => ['required', 'integer', 'exists:hcm_thr_batches,id'],
         ]);
+
+        if ($error = $this->guardThrBatchReconciliation($request, (int) $validated['batchId'], 'post_payroll')) {
+            return $error;
+        }
 
         try {
             $out = $this->thrBatchService->postPaidLinesToPayroll(
@@ -420,5 +430,43 @@ class HcmPayrollThrBatchController extends Controller
         $value = $request->attributes->get('activeCompanyId');
 
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function guardThrBatchReconciliation(Request $request, int $batchId, string $action): ?JsonResponse
+    {
+        if (! (bool) config('hcm.export_reconciliation.enabled', true)) {
+            return null;
+        }
+
+        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.thr_batch.%s', $action), false)) {
+            return null;
+        }
+
+        $reconciliation = $request->input('reconciliation', []);
+        $filterPayload = is_array($reconciliation['filterPayload'] ?? null) ? $reconciliation['filterPayload'] : [];
+        $datasetChecksum = isset($reconciliation['datasetChecksum']) ? (string) $reconciliation['datasetChecksum'] : null;
+        $strictChecksum = (bool) ($reconciliation['strictChecksum'] ?? config('hcm.export_reconciliation.strict_checksum', false));
+
+        try {
+            app(ReconciliationGateService::class)->assertCanProceed(
+                $this->activeCompanyId($request),
+                'thr_batch',
+                $action,
+                (string) $batchId,
+                $filterPayload,
+                $datasetChecksum,
+                $strictChecksum,
+            );
+        } catch (ExportReconciliationException $exception) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], $exception->status());
+        }
+
+        return null;
     }
 }

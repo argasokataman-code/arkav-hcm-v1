@@ -39,6 +39,31 @@ return [
         explode(',', (string) env('HCM_THR_DISBURSEMENT_FAIL_USER_IDS', ''))
     ))),
 
+    'export_reconciliation' => [
+        'enabled' => env('HCM_EXPORT_RECON_ENABLED', true),
+        'ttl_minutes' => (int) env('HCM_EXPORT_RECON_TTL_MINUTES', 30),
+        'strict_checksum' => env('HCM_EXPORT_RECON_STRICT_CHECKSUM', false),
+        'enforce' => [
+            'payroll_run' => [
+                'finalize' => env('HCM_EXPORT_RECON_ENFORCE_PAYROLL_FINALIZE', false),
+                'disburse' => env('HCM_EXPORT_RECON_ENFORCE_PAYROLL_DISBURSE', false),
+            ],
+            'invoice' => [
+                'mark_paid' => env('HCM_EXPORT_RECON_ENFORCE_INVOICE_MARK_PAID', false),
+            ],
+            'payment' => [
+                'verify' => env('HCM_EXPORT_RECON_ENFORCE_PAYMENT_VERIFY', false),
+            ],
+            'thr_batch' => [
+                'disburse' => env('HCM_EXPORT_RECON_ENFORCE_THR_DISBURSE', false),
+                'post_payroll' => env('HCM_EXPORT_RECON_ENFORCE_THR_POST_PAYROLL', false),
+            ],
+            'pkwt_compensation' => [
+                'post_payroll' => env('HCM_EXPORT_RECON_ENFORCE_PKWT_POST_PAYROLL', false),
+            ],
+        ],
+    ],
+
     'employment_statuses' => ['probation', 'active', 'resigned', 'terminated', 'inactive'],
 
     'contract_types' => ['contract', 'permanent'],

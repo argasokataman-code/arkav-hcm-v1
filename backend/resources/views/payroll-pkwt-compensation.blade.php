@@ -44,6 +44,11 @@
                         </div>
                         <div class="card-body">
                             <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-pkwt-list-error></div>
+                            <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-pkwt-reconciliation-hint></div>
+                            <div class="d-none mb-3" role="status" data-pkwt-evidence-indicator>
+                                <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
+                                <small class="d-block mt-1 text-muted" data-evidence-timestamp></small>
+                            </div>
                             <form class="row g-2" data-pkwt-list-form>
                                 <div class="col-md-6">
                                     <label class="form-label">Tahun</label>
@@ -59,6 +64,7 @@
                                 </div>
                                 <div class="col-12 mt-2 d-flex flex-wrap gap-2">
                                     <button type="submit" class="btn btn-primary">Load list</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-pkwt-export-evidence title="Export data reconciliation untuk bukti audit sebelum pay">Export Reconciliation</button>
                                     <button type="button" class="btn btn-outline-primary" data-pkwt-post-payroll>Generate draft payroll</button>
                                     <button type="button" class="btn btn-success" data-pkwt-pay-run disabled>Pay compensation</button>
                                     <a href="{{ url('employee-salary') }}" class="btn btn-outline-secondary">Edit kontrak karyawan</a>

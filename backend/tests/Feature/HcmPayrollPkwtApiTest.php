@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\CompanyUser;
+use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -193,7 +195,9 @@ class HcmPayrollPkwtApiTest extends TestCase
         $this->assertSame(1, $run->lines()->count());
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse')
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', [
+                'applyAll' => true,
+            ])
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.run.purpose', 'pkwt_compensation')
@@ -206,5 +210,88 @@ class HcmPayrollPkwtApiTest extends TestCase
             ->assertJsonPath('data.runs.0.purpose', 'pkwt_compensation')
             ->assertJsonPath('data.lines.0.componentCode', 'kompensasi_pkwt')
             ->assertJsonPath('data.lines.0.paymentStatus', 'paid');
+    }
+
+    public function test_pkwt_post_payroll_requires_reconciliation_when_enforced(): void
+    {
+        config()->set('hcm.export_reconciliation.enabled', true);
+        config()->set('hcm.export_reconciliation.enforce.pkwt_compensation.post_payroll', true);
+
+        $admin = $this->adminToken();
+        $adminUser = User::query()->where('email', 'pkwt-admin@example.com')->firstOrFail();
+        $adminId = $adminUser->id;
+        $companyId = (int) CompanyUser::query()
+            ->where('user_id', $adminId)
+            ->orderByDesc('id')
+            ->value('company_id');
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'PKWT Eligible Enforced',
+            'email' => 'pkwt-eligible-enforced@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $eligibleUser = User::query()->where('email', 'pkwt-eligible-enforced@example.com')->firstOrFail();
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $eligibleUser->id],
+            [
+                'employment_status' => 'active',
+                'designation' => 'Engineer',
+                'base_salary' => 6_000_000,
+                'fixed_allowance' => 500_000,
+                'contract_type' => 'contract',
+                'contract_start_date' => '2025-04-01',
+                'contract_end_date' => '2026-04-20',
+            ],
+        );
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/pkwt-compensations/post-payroll', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
+
+        ExportReconciliationEvidence::query()->create([
+            'company_id' => $companyId,
+            'feature_key' => 'pkwt_compensation',
+            'action_key' => 'post_payroll',
+            'scope_ref' => '2026-04',
+            'exported_by_user_id' => $adminId,
+            'exported_at' => now(),
+            'file_format' => 'csv',
+            'file_path' => 'reconciliation/pkwt-2026-04.csv',
+            'row_count' => 1,
+            'filter_payload' => [],
+            'dataset_checksum' => hash('sha256', 'pkwt-2026-04'),
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/pkwt-compensations/post-payroll', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.run.purpose', 'pkwt_compensation');
+    }
+
+    public function test_non_admin_pkwt_post_payroll_is_blocked_before_reconciliation_gate(): void
+    {
+        config()->set('hcm.export_reconciliation.enabled', true);
+        config()->set('hcm.export_reconciliation.enforce.pkwt_compensation.post_payroll', true);
+
+        $worker = $this->workerToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$worker])
+            ->postJson('/v1/hcm/payroll/pkwt-compensations/post-payroll', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 }

@@ -6,6 +6,7 @@ Halaman `/employee-salary` dipakai HCM Admin untuk mengelola kompensasi bulanan 
 
 - `baseSalary`
 - `fixedAllowance`
+- assignment payroll item custom per karyawan (`hcm_employee_payroll_item_assignments`)
 
 Data disimpan pada profil karyawan (`employee_profiles`) dan dipakai lintas modul payroll.
 
@@ -26,6 +27,16 @@ Data disimpan pada profil karyawan (`employee_profiles`) dan dipakai lintas modu
 3. `PUT /v1/hcm/employees/{id}`
    - Payload mutasi kompensasi dari modal.
    - Field yang dipakai UI ini: `baseSalary`, `fixedAllowance`.
+4. `GET /v1/hcm/payroll-items`
+   - Sumber dropdown payroll item aktif untuk assignment per karyawan.
+5. `GET /v1/hcm/payroll-item-assignments?userId=...`
+   - Memuat daftar assignment custom milik karyawan yang sedang diedit.
+6. `POST /v1/hcm/payroll-item-assignments`
+   - Menambah assignment custom baru untuk karyawan.
+7. `PUT /v1/hcm/payroll-item-assignments/{id}`
+   - Mengubah nominal assignment dan/atau status aktif.
+8. `DELETE /v1/hcm/payroll-item-assignments/{id}`
+   - Menghapus assignment dari karyawan.
 
 ## Role & Permission
 
@@ -40,8 +51,9 @@ Data disimpan pada profil karyawan (`employee_profiles`) dan dipakai lintas modu
 3. Jika admin, lanjut `GET /v1/hcm/employees` untuk render tabel.
 4. User bisa search/filter.
 5. Klik edit pada baris membuka modal kompensasi.
-6. Submit modal kirim `PUT /v1/hcm/employees/{id}`.
-7. Toast sukses tampil, modal tutup, daftar direfresh.
+6. Admin dapat mengelola assignment payroll item custom pada section tabel assignment di modal.
+7. Submit modal kirim `PUT /v1/hcm/employees/{id}` untuk base/fixed allowance.
+8. Toast sukses tampil, modal tutup, daftar direfresh.
 
 ## Integration Impact
 
@@ -49,6 +61,7 @@ Data disimpan pada profil karyawan (`employee_profiles`) dan dipakai lintas modu
   - payroll basis bulanan,
   - kalkulasi lembur yang memakai basis kompensasi,
   - preview kompensasi kontrak (PKWT) terkait data profil.
+- Assignment payroll item custom aktif juga ikut membentuk payroll line saat draft bulanan dihitung, selama memenuhi window tanggal efektif.
 
 ## QA Baseline
 

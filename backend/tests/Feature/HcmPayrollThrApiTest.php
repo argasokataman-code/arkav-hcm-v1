@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmResignation;
 use App\Models\HcmTermination;
+use App\Models\HcmThrBatch;
 use App\Models\HcmThrYearlySetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -507,6 +509,127 @@ class HcmPayrollThrApiTest extends TestCase
         
         $this->assertTrue($hasUser,
             'Employee with pending resignation should still appear in THR batch');
+    }
+
+    public function test_thr_disburse_and_post_payroll_require_reconciliation_when_enforced(): void
+    {
+        config()->set('hcm.export_reconciliation.enabled', true);
+        config()->set('hcm.export_reconciliation.enforce.thr_batch.disburse', true);
+        config()->set('hcm.export_reconciliation.enforce.thr_batch.post_payroll', true);
+
+        $admin = $this->adminToken();
+        $worker = $this->workerToken();
+        $workerUser = User::query()->where('email', 'thr-worker@example.com')->firstOrFail();
+        $adminId = User::query()->where('email', 'thr-admin@example.com')->firstOrFail()->id;
+        unset($worker);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/thr-settings/2028', [
+                'eidDate' => '2028-04-10',
+                'paymentDate' => '2028-04-05',
+                'calculationCutoffDate' => '2028-04-09',
+            ])
+            ->assertOk();
+
+        $gen = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/generate', ['calendarYear' => 2028])
+            ->assertOk();
+
+        $batchId = (int) $gen->json('data.batch.id');
+        $batch = HcmThrBatch::query()->findOrFail($batchId);
+        $eligibleUserIds = collect($gen->json('data.lines'))
+            ->filter(fn (array $line): bool => (bool) ($line['eligible'] ?? false))
+            ->pluck('userId')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $this->assertNotEmpty($eligibleUserIds);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/disburse', [
+                'batchId' => $batchId,
+                'userIds' => [$workerUser->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
+
+        ExportReconciliationEvidence::query()->create([
+            'company_id' => $batch->company_id,
+            'feature_key' => 'thr_batch',
+            'action_key' => 'disburse',
+            'scope_ref' => (string) $batchId,
+            'exported_by_user_id' => $adminId,
+            'exported_at' => now(),
+            'file_format' => 'csv',
+            'file_path' => 'reconciliation/thr-batch-'.$batchId.'-disburse.csv',
+            'row_count' => 1,
+            'filter_payload' => [],
+            'dataset_checksum' => hash('sha256', 'thr-disburse-'.$batchId),
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/disburse', [
+                'batchId' => $batchId,
+                'userIds' => $eligibleUserIds,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/post-payroll', [
+                'batchId' => $batchId,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
+
+        ExportReconciliationEvidence::query()->create([
+            'company_id' => $batch->company_id,
+            'feature_key' => 'thr_batch',
+            'action_key' => 'post_payroll',
+            'scope_ref' => (string) $batchId,
+            'exported_by_user_id' => $adminId,
+            'exported_at' => now(),
+            'file_format' => 'csv',
+            'file_path' => 'reconciliation/thr-batch-'.$batchId.'-post-payroll.csv',
+            'row_count' => 1,
+            'filter_payload' => [],
+            'dataset_checksum' => hash('sha256', 'thr-post-payroll-'.$batchId),
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $postPayrollAfterEvidence = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/post-payroll', [
+                'batchId' => $batchId,
+            ]);
+
+        $this->assertNotSame('EXPORT_RECON_REQUIRED', $postPayrollAfterEvidence->json('error.code'));
+    }
+
+    public function test_non_admin_thr_actions_are_blocked_before_reconciliation_gate(): void
+    {
+        config()->set('hcm.export_reconciliation.enabled', true);
+        config()->set('hcm.export_reconciliation.enforce.thr_batch.disburse', true);
+        config()->set('hcm.export_reconciliation.enforce.thr_batch.post_payroll', true);
+
+        $workerToken = $this->workerToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$workerToken])
+            ->postJson('/v1/hcm/payroll/thr-batch/disburse', [
+                'batchId' => 99999,
+                'userIds' => [1],
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$workerToken])
+            ->postJson('/v1/hcm/payroll/thr-batch/post-payroll', [
+                'batchId' => 99999,
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
     /**

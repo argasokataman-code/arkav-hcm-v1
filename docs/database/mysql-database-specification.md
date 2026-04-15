@@ -49,6 +49,31 @@ Update tenant foundation (April 2026):
   - `hcm_thr_yearly_settings` (unique key diperlebar menjadi `(company_id, calendar_year)`)
   - `hcm_thr_batches`
 
+Tambahan schema compliance (April 2026):
+- Tabel baru `export_reconciliation_evidences` untuk menyimpan bukti export sebelum action berisiko (finalize/disburse/mark-paid/verify).
+- Scope evidence bersifat tenant-aware via `company_id` + pasangan `feature_key/action_key/scope_ref`.
+
+### `export_reconciliation_evidences`
+- `id BIGINT UNSIGNED PK`
+- `company_id BIGINT UNSIGNED NULL` (tenant scope)
+- `feature_key VARCHAR(80) NOT NULL` (contoh: `payroll_run`, `invoice`, `payment`)
+- `action_key VARCHAR(80) NOT NULL` (contoh: `finalize`, `disburse`, `mark_paid`, `verify`)
+- `scope_ref VARCHAR(120) NOT NULL` (contoh: `run:24`, `invoice:81`)
+- `exported_by_user_id BIGINT UNSIGNED NULL` (user pemicu export)
+- `exported_at DATETIME NULL`
+- `file_format VARCHAR(10) NOT NULL` (`csv|xlsx`)
+- `file_path VARCHAR(500) NOT NULL`
+- `row_count INT UNSIGNED NOT NULL DEFAULT 0`
+- `filter_payload JSON NULL`
+- `dataset_checksum CHAR(64) NULL` (sha256)
+- `expires_at DATETIME NULL`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY exp_recon_scope_exported_idx (company_id, feature_key, action_key, scope_ref, exported_at)`
+- `KEY exp_recon_user_exported_idx (exported_by_user_id, exported_at)`
+- `KEY exp_recon_company_expires_idx (company_id, expires_at)`
+
 Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 
 ## 3) Identity service schema (`arcav_identity_db`)

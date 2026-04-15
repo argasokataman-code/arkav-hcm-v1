@@ -60,6 +60,16 @@
     }
 
     function formatApiError(data, status) {
+        var reconciliationMessages = {
+            EXPORT_RECON_REQUIRED: "Sebelum lanjut, lakukan export reconciliation PKWT untuk periode yang sama.",
+            EXPORT_RECON_EXPIRED: "Evidence reconciliation PKWT sudah kedaluwarsa. Silakan export ulang.",
+            EXPORT_RECON_SCOPE_MISMATCH: "Evidence reconciliation tidak cocok dengan periode PKWT yang diproses.",
+            EXPORT_RECON_STALE_DATA: "Data PKWT sudah berubah sejak export terakhir. Silakan export ulang.",
+        };
+        var code = data && data.error ? data.error.code : null;
+        if (code && reconciliationMessages[code]) {
+            return reconciliationMessages[code];
+        }
         if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
             return window.ApiErrorHelper.format(data, status);
         }
@@ -100,6 +110,121 @@
         window.setTimeout(function () {
             t.remove();
         }, 2600);
+    }
+
+    function getApiErrorCode(data) {
+        return data && data.error && typeof data.error.code === "string" ? data.error.code : null;
+    }
+
+    function setPkwtReconciliationHint(message) {
+        var el = document.querySelector("[data-pkwt-reconciliation-hint]");
+        if (!el) {
+            return;
+        }
+        if (!message) {
+            el.textContent = "";
+            el.classList.add("d-none");
+            return;
+        }
+        el.textContent = String(message);
+        el.classList.remove("d-none");
+    }
+
+    function showPkwtEvidenceIndicator(evidence) {
+        var indicatorEl = document.querySelector("[data-pkwt-evidence-indicator]");
+        if (!indicatorEl) return;
+
+        var statusBadge = indicatorEl.querySelector("[data-evidence-status]");
+        var timestampEl = indicatorEl.querySelector("[data-evidence-timestamp]");
+
+        if (!evidence) {
+            indicatorEl.classList.add("d-none");
+            return;
+        }
+
+        var now = new Date().getTime();
+        var expiresAt = new Date(evidence.expires_at || 0).getTime();
+        var status = "valid";
+        var statusClass = "bg-success";
+
+        if (now > expiresAt) {
+            status = "expired";
+            statusClass = "bg-danger";
+        } else if (evidence.is_stale) {
+            status = "stale";
+            statusClass = "bg-warning";
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = status.toUpperCase();
+            statusBadge.className = "badge " + statusClass;
+        }
+
+        if (timestampEl && evidence.exported_at) {
+            var date = new Date(evidence.exported_at).toLocaleString("id-ID");
+            var user = evidence.exported_by_name || evidence.exported_by_user_id || "—";
+            timestampEl.textContent = "Exported: " + date + " oleh " + user;
+        }
+
+        indicatorEl.classList.remove("d-none");
+    }
+
+    function fetchPkwtLatestEvidence(yearMonth) {
+        if (!yearMonth) return Promise.resolve();
+        return apiRequest("GET", "/v1/reconciliation/exports", {
+            featureKey: "pkwt_compensation",
+            actionKey: "post_payroll",
+            scopeRef: String(yearMonth),
+        })
+            .then(function (res) {
+                if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+                    showPkwtEvidenceIndicator(res.data[0]);
+                } else {
+                    showPkwtEvidenceIndicator(null);
+                }
+            })
+            .catch(function (error) {
+                console.warn("Failed to fetch PKWT evidence status:", error);
+                showPkwtEvidenceIndicator(null);
+            });
+    }
+
+    function triggerPkwtExportReconciliation(yearMonth, lines) {
+        if (!yearMonth) {
+            notify("No PKWT period selected", true);
+            return Promise.resolve();
+        }
+
+        var filterPayload = {
+            lineIds: (lines || []).filter(function (l) { return l && l.eligible; }).map(function (l) { return l.id; }),
+        };
+
+        return apiRequest("POST", "/v1/reconciliation/exports", {
+            featureKey: "pkwt_compensation",
+            actionKey: "post_payroll",
+            scopeRef: String(yearMonth),
+            filterPayload: filterPayload,
+            format: "csv",
+        })
+            .then(function (res) {
+                if (res && res.data && res.data.id) {
+                    notify("Export reconciliation PKWT berhasil dibuat", false);
+                    return fetchPkwtLatestEvidence(yearMonth);
+                } else {
+                    notify("Gagal membuat export reconciliation PKWT", true);
+                }
+            })
+            .catch(function (error) {
+                var errorCode = getApiErrorCode(error && error.data ? error.data : {});
+                if (errorCode && errorCode.indexOf("EXPORT_RECON_") === 0) {
+                    var msg = formatApiError(error && error.data ? error.data : {}, 400);
+                    if (msg) {
+                        setPkwtReconciliationHint(msg);
+                        return;
+                    }
+                }
+                notify("Error: " + (error && error.data && error.data.error && error.data.error.message ? error.data.error.message : "Unknown error"), true);
+            });
     }
 
     function validatePeriodInputs(yearValue, monthValue) {
@@ -239,12 +364,14 @@
             return;
         }
         body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Memuat data…</td></tr>';
+        var yearMonth = String(year.value) + "-" + String(month.value).padStart(2, "0");
         apiRequest("get", "/v1/hcm/payroll/pkwt-compensations?periodYear=" + encodeURIComponent(year.value) + "&periodMonth=" + encodeURIComponent(month.value), null)
             .then(function (resp) {
                 if (!resp || resp.success !== true) {
                     throw { status: 0, data: resp };
                 }
                 renderList((resp.data && resp.data.preview) || {}, resp.data && resp.data.run ? resp.data.run : null);
+                return fetchPkwtLatestEvidence(yearMonth);
             })
             .catch(function (errObj) {
                 body.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">Gagal memuat data.</td></tr>';
@@ -257,6 +384,7 @@
 
     function initList() {
         var form = document.querySelector("[data-pkwt-list-form]");
+        var exportBtn = document.querySelector("[data-pkwt-export-evidence]");
         var postBtn = document.querySelector("[data-pkwt-post-payroll]");
         var payBtn = document.querySelector("[data-pkwt-pay-run]");
         if (!form) {
@@ -266,6 +394,32 @@
             e.preventDefault();
             loadList();
         });
+
+        if (exportBtn) {
+            exportBtn.addEventListener("click", function () {
+                var year = document.querySelector("[data-pkwt-period-year]");
+                var month = document.querySelector("[data-pkwt-period-month]");
+                var body = document.querySelector("[data-pkwt-list-body]");
+                if (!year || !month) {
+                    notify("Pilih periode terlebih dahulu", true);
+                    return;
+                }
+                var yearMonth = String(year.value) + "-" + String(month.value).padStart(2, "0");
+                var rows = body ? body.querySelectorAll("tr") : [];
+                var lines = [];
+                rows.forEach(function (row) {
+                    var idEl = row.querySelector("[data-line-id]");
+                    var eligibleEl = row.querySelector("[data-eligible]");
+                    if (idEl && eligibleEl) {
+                        lines.push({
+                            id: parseInt(idEl.getAttribute("data-line-id"), 10),
+                            eligible: eligibleEl.getAttribute("data-eligible") === "1"
+                        });
+                    }
+                });
+                void triggerPkwtExportReconciliation(yearMonth, lines);
+            });
+        }
 
         if (postBtn) {
             postBtn.addEventListener("click", function () {
@@ -283,11 +437,20 @@
                     periodMonth: parseInt(month.value, 10)
                 }).then(function (resp) {
                     if (!resp || resp.success !== true) {
+                        var code = getApiErrorCode(resp);
+                        if (code && code.indexOf("EXPORT_RECON_") === 0) {
+                            setPkwtReconciliationHint(formatApiError(resp, 422));
+                        }
                         throw { status: 0, data: resp };
                     }
+                    setPkwtReconciliationHint("");
                     notify("Draft payroll kompensasi PKWT berhasil dibuat.", false);
                     loadList();
                 }).catch(function (errObj) {
+                    var code = getApiErrorCode(errObj && errObj.data);
+                    if (code && code.indexOf("EXPORT_RECON_") === 0) {
+                        setPkwtReconciliationHint(formatApiError(errObj && errObj.data, errObj && errObj.status));
+                    }
                     notify(formatApiError(errObj && errObj.data, errObj && errObj.status), true);
                 }).finally(function () {
                     setButtonBusy(postBtn, false);
@@ -318,11 +481,16 @@
                 var modal = getPayConfirmModal();
                 setButtonBusy(confirmBtn, true, "Processing…");
                 setButtonBusy(payBtn, true, "Paying…");
-                apiRequest("post", "/v1/hcm/payroll-runs/" + encodeURIComponent(pendingPayRunId) + "/disburse", {})
+                apiRequest("post", "/v1/hcm/payroll-runs/" + encodeURIComponent(pendingPayRunId) + "/disburse", { applyAll: true })
                     .then(function (resp) {
                         if (!resp || resp.success !== true) {
+                            var code = getApiErrorCode(resp);
+                            if (code && code.indexOf("EXPORT_RECON_") === 0) {
+                                setPkwtReconciliationHint(formatApiError(resp, 422));
+                            }
                             throw { status: 0, data: resp };
                         }
+                        setPkwtReconciliationHint("");
                         if (modal) {
                             modal.hide();
                         }
@@ -330,6 +498,10 @@
                         loadList();
                     })
                     .catch(function (errObj) {
+                        var code = getApiErrorCode(errObj && errObj.data);
+                        if (code && code.indexOf("EXPORT_RECON_") === 0) {
+                            setPkwtReconciliationHint(formatApiError(errObj && errObj.data, errObj && errObj.status));
+                        }
                         notify(formatApiError(errObj && errObj.data, errObj && errObj.status), true);
                     })
                     .finally(function () {

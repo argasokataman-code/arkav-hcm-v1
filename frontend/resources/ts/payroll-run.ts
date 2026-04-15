@@ -21,12 +21,19 @@ type PayrollRun = {
     paymentStatus?: string;
     period?: { periodYear: number; periodMonth: number; status: string };
 };
+type SpecialRecipients = {
+    thrUserIds?: number[];
+    compensationUserIds?: number[];
+};
 type EmployeeRow = {
     userId: number;
     name: string;
     gross: number;
     deductions: number;
     net: number;
+    receivesThr: boolean;
+    receivesCompensation: boolean;
+    isEligible: boolean;
     lineCount: number;
     paymentStatus: string;
     paidAt: string | null;
@@ -101,6 +108,16 @@ function apiRequest(method: string, url: string, data?: unknown): Promise<unknow
 
 function formatApiError(res: unknown, fallbackStatus: number): string {
     const r = res as { error?: { message?: string; code?: string }; message?: string };
+    const reconciliationMessages: Record<string, string> = {
+        EXPORT_RECON_REQUIRED: "Sebelum lanjut pembayaran, lakukan export reconciliation terbaru untuk payroll run ini.",
+        EXPORT_RECON_EXPIRED: "Evidence reconciliation sudah kedaluwarsa. Silakan export ulang data terbaru.",
+        EXPORT_RECON_SCOPE_MISMATCH: "Evidence reconciliation tidak sesuai scope run saat ini. Gunakan evidence yang cocok.",
+        EXPORT_RECON_STALE_DATA: "Data payroll berubah sejak export terakhir. Silakan export ulang lalu lanjutkan.",
+    };
+    const code = r?.error?.code;
+    if (code && reconciliationMessages[code]) {
+        return reconciliationMessages[code];
+    }
     if (r?.error?.message) {
         return r.error.message;
     }
@@ -140,6 +157,124 @@ function showErr(msg: string): void {
     }
 }
 
+function getApiErrorCode(res: unknown): string | null {
+    const r = res as { error?: { code?: string } };
+    return typeof r?.error?.code === "string" ? r.error.code : null;
+}
+
+function setPayrollReconciliationHint(message: string): void {
+    const root = _getRoot();
+    if (!root) return;
+    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-reconciliation-hint]");
+    if (!hintEl) return;
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
+}
+
+function showEvidenceIndicator(evidence: any): void {
+    const root = _getRoot();
+    if (!root) return;
+    const indicatorEl = root.querySelector<HTMLElement>("[data-payroll-run-evidence-indicator]");
+    if (!indicatorEl) return;
+
+    const statusBadge = indicatorEl.querySelector<HTMLElement>("[data-evidence-status]");
+    const timestampEl = indicatorEl.querySelector<HTMLElement>("[data-evidence-timestamp]");
+
+    if (!evidence) {
+        indicatorEl.classList.add("d-none");
+        return;
+    }
+
+    const now = new Date().getTime();
+    const expiresAt = new Date(evidence.expires_at || 0).getTime();
+    let status = "valid";
+    let statusClass = "bg-success";
+
+    if (now > expiresAt) {
+        status = "expired";
+        statusClass = "bg-danger";
+    } else if (evidence.is_stale) {
+        status = "stale";
+        statusClass = "bg-warning";
+    }
+
+    if (statusBadge) {
+        statusBadge.textContent = status.toUpperCase();
+        statusBadge.className = `badge ${statusClass}`;
+    }
+
+    if (timestampEl && evidence.exported_at) {
+        const date = new Date(evidence.exported_at).toLocaleString("id-ID");
+        const user = evidence.exported_by_name || evidence.exported_by_user_id || "—";
+        timestampEl.textContent = `Exported: ${date} oleh ${user}`;
+    }
+
+    indicatorEl.classList.remove("d-none");
+}
+
+async function fetchLatestEvidence(): Promise<void> {
+    if (!_state.currentRunId) return;
+    try {
+        const res = (await apiRequest("GET", "/v1/reconciliation/exports", {
+            featureKey: "payroll_run",
+            actionKey: "finalize",
+            scopeRef: String(_state.currentRunId),
+        })) as any;
+
+        if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+            showEvidenceIndicator(res.data[0]);
+        } else {
+            showEvidenceIndicator(null);
+        }
+    } catch (error) {
+        console.warn("Failed to fetch evidence status:", error);
+        showEvidenceIndicator(null);
+    }
+}
+
+async function triggerExportReconciliation(): Promise<void> {
+    if (!_state.currentRunId) {
+        toast("No payroll run selected", true);
+        return;
+    }
+
+    try {
+        const filterPayload = {
+            periods: _state.currentRows.filter((r) => r.lineCount > 0).map((r) => ({ userId: r.userId })),
+        };
+
+        const res = (await apiRequest("POST", "/v1/reconciliation/exports", {
+            featureKey: "payroll_run",
+            actionKey: "finalize",
+            scopeRef: String(_state.currentRunId),
+            filterPayload: filterPayload,
+            format: "csv",
+        })) as any;
+
+        if (res && res.data && res.data.id) {
+            toast("Export reconciliation berhasil dibuat", false);
+            await fetchLatestEvidence();
+        } else {
+            toast("Gagal membuat export reconciliation", true);
+        }
+    } catch (error: any) {
+        const errorCode = getApiErrorCode(error);
+        if (errorCode && errorCode.startsWith("EXPORT_RECON_")) {
+            const msg = reconciliationMessages[errorCode as keyof typeof reconciliationMessages];
+            if (msg) {
+                setPayrollReconciliationHint(msg);
+                return;
+            }
+        }
+        toast(`Error: ${error?.message || "Unknown error"}`, true);
+    }
+}
+
 function periodLabel(year: number, month: number): string {
     const date = new Date(year, month - 1, 1);
     return new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(date);
@@ -154,6 +289,9 @@ function aggregateRows(lines: PayrollLine[]): EmployeeRow[] {
             gross: 0,
             deductions: 0,
             net: 0,
+            receivesThr: false,
+            receivesCompensation: false,
+            isEligible: false,
             lineCount: 0,
             paymentStatus: "unpaid",
             paidAt: null,
@@ -178,6 +316,7 @@ function aggregateRows(lines: PayrollLine[]): EmployeeRow[] {
             current.gatewayReference = line.gatewayReference || current.gatewayReference;
         }
         current.net = current.gross - current.deductions;
+        current.isEligible = current.net > 0;
         map.set(line.userId, current);
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "id"));
@@ -209,7 +348,7 @@ function refreshSelectionSummary(): void {
     }
 }
 
-function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = null): void {
+function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = null, specialRecipients: SpecialRecipients | null = null): void {
     const root = _getRoot();
     if (!root) return;
 
@@ -227,6 +366,23 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
 
     if (Array.isArray(lines)) {
         _state.currentRows = aggregateRows(lines);
+
+        const thrSet = new Set(
+            (Array.isArray(specialRecipients?.thrUserIds) ? specialRecipients.thrUserIds : [])
+                .map((value) => Number(value))
+                .filter((value) => Number.isFinite(value) && value > 0),
+        );
+        const compensationSet = new Set(
+            (Array.isArray(specialRecipients?.compensationUserIds) ? specialRecipients.compensationUserIds : [])
+                .map((value) => Number(value))
+                .filter((value) => Number.isFinite(value) && value > 0),
+        );
+
+        _state.currentRows = _state.currentRows.map((row) => ({
+            ...row,
+            receivesThr: thrSet.has(row.userId),
+            receivesCompensation: compensationSet.has(row.userId),
+        }));
     }
     if (empCountEl) empCountEl.textContent = String(_state.currentRows.length);
     if (selectedCountEl) selectedCountEl.textContent = "0";
@@ -263,16 +419,25 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     gridEl.classList.remove("d-none");
     tbody.innerHTML = _state.currentRows.map((row) => {
         const isPaid = row.paymentStatus === "paid";
+        const isEligible = row.isEligible;
         const paymentBadgeClass = row.paymentStatus === "paid" ? "bg-success" : "bg-light text-dark";
         const paymentLabel = row.paymentStatus === "paid" ? "Paid" : "Pending";
-        const rowAction = isPaid
+        const payAction = isPaid
             ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Telah Dibayar</span>'
-            : `<button type="button" class="btn btn-sm btn-outline-success" data-payroll-run-pay-one="${row.userId}">Pay</button>`;
+            : (!isEligible
+                ? '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Tidak eligible (THP <= 0)</span>'
+                : `<button type="button" class="btn btn-sm btn-outline-success" data-payroll-run-pay-one="${row.userId}">Pay</button>`);
+        const rowAction = `
+            <div class="d-inline-flex align-items-center justify-content-end gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-primary" data-payroll-run-view-one="${row.userId}">Detail</button>
+                ${payAction}
+            </div>
+        `;
         return `
             <tr>
                 <td>
                     <div class="form-check form-check-md">
-                        <input class="form-check-input" type="checkbox" value="${row.userId}" data-payroll-run-row-check ${isPaid ? "disabled" : "checked"}>
+                        <input class="form-check-input" type="checkbox" value="${row.userId}" data-payroll-run-row-check ${(isPaid || !isEligible) ? "disabled" : "checked"}>
                     </div>
                 </td>
                 <td>
@@ -282,6 +447,8 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
                 <td class="text-end">${formatIdr(row.gross)}</td>
                 <td class="text-end">${formatIdr(row.deductions)}</td>
                 <td class="text-end fw-bold">${formatIdr(row.net)}</td>
+                <td class="text-center">${row.receivesThr ? '<span class="badge bg-info-subtle text-info border border-info-subtle">Ya</span>' : '<span class="text-muted">-</span>'}</td>
+                <td class="text-center">${row.receivesCompensation ? '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Ya</span>' : '<span class="text-muted">-</span>'}</td>
                 <td class="text-center">${row.lineCount}</td>
                 <td>
                     <span class="badge ${paymentBadgeClass}">${paymentLabel}</span>
@@ -295,21 +462,101 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     }).join("");
 
     if (selectAll) {
-        const unpaidRows = _state.currentRows.filter((row) => row.paymentStatus !== "paid");
+        const unpaidRows = _state.currentRows.filter((row) => row.paymentStatus !== "paid" && row.isEligible);
         selectAll.checked = unpaidRows.length > 0;
         selectAll.disabled = unpaidRows.length === 0;
     }
     refreshSelectionSummary();
 }
 
+function openEmployeeDetailModal(userId: number): void {
+    const row = _state.currentRows.find((item) => item.userId === userId);
+    const modal = document.getElementById("payroll_detail_modal");
+    if (!row || !modal || !(window as any).bootstrap?.Modal) {
+        return;
+    }
+
+    const root = _getRoot();
+    const year = Number(root?.querySelector<HTMLInputElement>("[data-payroll-run-year]")?.value || 0);
+    const month = Number(root?.querySelector<HTMLSelectElement>("[data-payroll-run-month]")?.value || 0);
+    const periodText = year > 0 && month > 0 ? periodLabel(year, month) : "—";
+
+    const setText = (selector: string, value: string) => {
+        const el = modal.querySelector<HTMLElement>(selector);
+        if (el) el.textContent = value;
+    };
+    const setHtml = (selector: string, value: string) => {
+        const el = modal.querySelector<HTMLElement>(selector);
+        if (el) el.innerHTML = value;
+    };
+
+    setText("[data-payroll-detail-name]", row.name);
+    setText("[data-payroll-detail-meta]", `UID: ${row.userId}`);
+    setText("[data-payroll-detail-period]", periodText);
+    setHtml("[data-payroll-detail-payment-status]", `Payment: <strong>${row.paymentStatus === "paid" ? "PAID" : "PENDING"}</strong>`);
+    setHtml("[data-payroll-detail-eligibility]", `Status: <strong>${row.isEligible ? "Eligible" : "Tidak eligible (THP <= 0)"}</strong>`);
+    setHtml("[data-payroll-detail-thr]", `THR: <strong>${row.receivesThr ? "Ya" : "-"}</strong>`);
+    setHtml("[data-payroll-detail-compensation]", `Compensation: <strong>${row.receivesCompensation ? "Ya" : "-"}</strong>`);
+
+    setText("[data-payroll-detail-gross]", formatIdr(row.gross));
+    setText("[data-payroll-detail-deductions]", formatIdr(row.deductions));
+    setText("[data-payroll-detail-net]", formatIdr(row.net));
+    setText("[data-payroll-detail-line-count]", String(row.lineCount));
+
+    const linesTbody = modal.querySelector<HTMLElement>("[data-payroll-detail-lines]");
+    if (linesTbody) {
+        const sorted = [...row.lines].sort((a, b) => {
+            if ((a.sortOrder ?? 999) !== (b.sortOrder ?? 999)) {
+                return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+            }
+            if (a.kind !== b.kind) {
+                return a.kind === "addition" ? -1 : 1;
+            }
+            return (a.componentName || a.componentCode || "").localeCompare((b.componentName || b.componentCode || ""), "id");
+        });
+
+        linesTbody.innerHTML = sorted.length === 0
+            ? '<tr><td colspan="7" class="text-center text-muted py-3">Belum ada data komponen.</td></tr>'
+            : sorted.map((line, index) => {
+                const label = line.componentName || line.componentCode || "Komponen";
+                const kindLabel = line.kind === "addition" ? "Addition" : "Deduction";
+                const kindClass = line.kind === "addition" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle";
+                const affectsNetPay = line.affectsNetPay !== false;
+                const payLabel = (line.paymentStatus || "unpaid") === "paid" ? "PAID" : "UNPAID";
+                const payClass = payLabel === "PAID" ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-dark border border-secondary-subtle";
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>
+                            <div class="fw-semibold">${label}</div>
+                            <div class="text-muted small">${line.componentCode || "-"}</div>
+                        </td>
+                        <td><span class="badge ${kindClass}">${kindLabel}</span></td>
+                        <td>${line.category || "-"}</td>
+                        <td class="text-end fw-semibold">${formatIdr(line.amount || 0)}</td>
+                        <td class="text-center">${affectsNetPay ? '<span class="badge bg-info-subtle text-info border border-info-subtle">Ya</span>' : '<span class="badge bg-light text-dark border">Tidak</span>'}</td>
+                        <td class="text-center"><span class="badge ${payClass}">${payLabel}</span></td>
+                    </tr>
+                `;
+            }).join("");
+    }
+
+    (window as any).bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
 async function loadRunDetails(runId: number): Promise<void> {
     try {
-        const resp = await apiRequest("get", `/v1/hcm/payroll-runs/${runId}`) as ApiResponse<{ run: PayrollRun; lines: PayrollLine[] }>;
+        const resp = await apiRequest("get", `/v1/hcm/payroll-runs/${runId}`) as ApiResponse<{ run: PayrollRun; lines: PayrollLine[]; specialRecipients?: SpecialRecipients }>;
         if (!resp.success) {
             showErr(formatApiError(resp, 400));
             return;
         }
-        updateRunUI(resp.data.run, Array.isArray(resp.data.lines) ? resp.data.lines : []);
+        updateRunUI(
+            resp.data.run,
+            Array.isArray(resp.data.lines) ? resp.data.lines : [],
+            (resp.data?.specialRecipients || null) as SpecialRecipients | null,
+        );
+        void fetchLatestEvidence();
     } catch (e: any) {
         showErr(formatApiError(e.response?.data || {}, 500));
     }
@@ -412,7 +659,7 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     const modal = document.getElementById("payroll_gateway_modal");
     if (!modal) return [];
 
-    const rows = _state.currentRows.filter((row) => userIds.includes(row.userId));
+    const rows = _state.currentRows.filter((row) => userIds.includes(row.userId) && row.isEligible);
     const totalGross = rows.reduce((sum, row) => sum + row.gross, 0);
     const totalDeductions = rows.reduce((sum, row) => sum + row.deductions, 0);
     const totalNet = rows.reduce((sum, row) => sum + row.net, 0);
@@ -522,14 +769,21 @@ async function disburseSelected(): Promise<void> {
     try {
         const resp = await apiRequest("post", `/v1/hcm/payroll-runs/${_state.currentRunId}/disburse`, { userIds: ids }) as ApiResponse<any>;
         if (!resp.success) {
+            const code = getApiErrorCode(resp);
+            if (code && code.startsWith("EXPORT_RECON_")) {
+                setPayrollReconciliationHint(formatApiError(resp, 400));
+            }
             toast(formatApiError(resp, 400), true);
             return;
         }
+
+        setPayrollReconciliationHint("");
 
         const selectedUserIds = Array.isArray(resp.data?.selectedUserIds)
             ? resp.data.selectedUserIds.map((value: unknown) => Number(value)).filter((value: number) => Number.isFinite(value) && value > 0)
             : ids;
         const paidSet = new Set<number>(selectedUserIds);
+        const ineligibleCount = Array.isArray(resp.data?.ineligibleUserIds) ? resp.data.ineligibleUserIds.length : 0;
         const gatewayReference = String(resp.data?.gatewayReference || "");
         const paidAtIso = new Date().toISOString();
 
@@ -547,11 +801,15 @@ async function disburseSelected(): Promise<void> {
         });
 
         updateRunUI((resp.data?.run || null) as PayrollRun | null, null);
-        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"}).`, false);
+        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"})${ineligibleCount > 0 ? `, ${ineligibleCount} user tidak eligible dilewati.` : ""}.`, false);
         if ((window as any).bootstrap?.Modal) {
             (window as any).bootstrap.Modal.getOrCreateInstance(modal).hide();
         }
     } catch (e: any) {
+        const code = getApiErrorCode(e.response?.data || {});
+        if (code && code.startsWith("EXPORT_RECON_")) {
+            setPayrollReconciliationHint(formatApiError(e.response?.data || {}, 500));
+        }
         toast(formatApiError(e.response?.data || {}, 500), true);
     } finally {
         if (payBtn) {
@@ -627,7 +885,12 @@ function bindEvents(): void {
             void calculateDraft(false);
             return;
         }
-
+        const exportBtn = (event.target as HTMLElement).closest("[data-payroll-run-export-evidence]") as HTMLElement | null;
+        if (exportBtn) {
+            event.preventDefault();
+            void triggerExportReconciliation();
+            return;
+        }
         const disburseBtn = (event.target as HTMLElement).closest("[data-payroll-run-disburse]");
         if (disburseBtn) {
             event.preventDefault();
@@ -652,6 +915,16 @@ function bindEvents(): void {
                 });
                 refreshSelectionSummary();
                 openDisburseModal([userId]);
+            }
+            return;
+        }
+
+        const detailBtn = (event.target as HTMLElement).closest("[data-payroll-run-view-one]") as HTMLElement | null;
+        if (detailBtn) {
+            event.preventDefault();
+            const userId = Number(detailBtn.getAttribute("data-payroll-run-view-one") || 0);
+            if (userId > 0) {
+                openEmployeeDetailModal(userId);
             }
             return;
         }

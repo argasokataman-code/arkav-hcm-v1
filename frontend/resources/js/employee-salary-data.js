@@ -7,6 +7,8 @@
     var statusFilter = "";
     var searchTimer = null;
     var rowById = {};
+    var payrollItemOptionCache = null;
+    var currentAssignmentUserId = null;
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -163,6 +165,166 @@
     function employeeDetailsUrl(id) {
         var ret = encodeURIComponent(window.location.pathname + window.location.search);
         return "/employee-details?id=" + encodeURIComponent(String(id)) + "&returnTo=" + ret;
+    }
+
+    function assignmentKindBadge(kind) {
+        var k = String(kind || "").toLowerCase();
+        if (k === "deduction") {
+            return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Potongan</span>';
+        }
+        return '<span class="badge bg-success-subtle text-success border border-success-subtle">Tunjangan</span>';
+    }
+
+    function assignmentStatusBadge(active) {
+        return active
+            ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Aktif</span>'
+            : '<span class="badge bg-secondary-subtle text-dark border border-secondary-subtle">Nonaktif</span>';
+    }
+
+    function renderAssignmentItemOptions(items) {
+        var select = document.querySelector("[data-hcm-assignment-item]");
+        if (!select) {
+            return;
+        }
+        var current = select.value;
+        select.innerHTML = '<option value="">Pilih payroll item aktif</option>' +
+            (items || []).map(function (item) {
+                var label = (item.name || "Payroll item") + " [" + String(item.kind || "-").toUpperCase() + "]";
+                var code = item.code ? " — " + item.code : "";
+                return '<option value="' + esc(String(item.id)) + '">' + esc(label + code) + '</option>';
+            }).join("");
+        if (current) {
+            select.value = current;
+        }
+    }
+
+    function loadPayrollItemOptions() {
+        if (Array.isArray(payrollItemOptionCache)) {
+            renderAssignmentItemOptions(payrollItemOptionCache);
+            return Promise.resolve(payrollItemOptionCache);
+        }
+
+        return apiRequest("get", "/v1/hcm/payroll-items", null).then(function (resp) {
+            if (!resp || resp.success !== true) {
+                payrollItemOptionCache = [];
+                renderAssignmentItemOptions([]);
+                return [];
+            }
+
+            var items = Array.isArray(resp.data && resp.data.payrollItems) ? resp.data.payrollItems : [];
+            payrollItemOptionCache = items.filter(function (item) {
+                return !!item && item.isActive === true;
+            });
+            renderAssignmentItemOptions(payrollItemOptionCache);
+            return payrollItemOptionCache;
+        }).catch(function () {
+            payrollItemOptionCache = [];
+            renderAssignmentItemOptions([]);
+            return [];
+        });
+    }
+
+    function renderAssignments(rows) {
+        var body = document.querySelector("[data-hcm-assignment-body]");
+        if (!body) {
+            return;
+        }
+
+        if (!rows || !rows.length) {
+            body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Belum ada custom item untuk karyawan ini.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = rows.map(function (row) {
+            var item = row.payrollItem || {};
+            return "" +
+                "<tr data-hcm-assignment-row=\"" + esc(String(row.id)) + "\">" +
+                "<td>" +
+                    '<div class="fw-medium">' + esc(item.name || "Payroll item") + "</div>" +
+                    '<div class="small text-muted">' + esc((item.code || "-") + " • " + (item.category || "-")) + "</div>" +
+                "</td>" +
+                "<td>" + assignmentKindBadge(item.kind) + "</td>" +
+                "<td class=\"text-end\"><input type=\"number\" min=\"0.01\" step=\"0.01\" class=\"form-control form-control-sm text-end\" data-hcm-assignment-edit-amount value=\"" + esc(String(Number(row.amount || 0))) + "\"></td>" +
+                "<td>" + assignmentStatusBadge(row.isActive === true) + "</td>" +
+                "<td>" +
+                    '<div class="d-inline-flex align-items-center gap-1">' +
+                        '<button type="button" class="btn btn-sm btn-outline-primary" data-hcm-assignment-save="' + esc(String(row.id)) + '">Simpan</button>' +
+                        '<button type="button" class="btn btn-sm btn-outline-' + (row.isActive === true ? 'secondary' : 'success') + '" data-hcm-assignment-toggle="' + esc(String(row.id)) + '" data-hcm-next-active="' + (row.isActive === true ? '0' : '1') + '">' + (row.isActive === true ? 'Nonaktifkan' : 'Aktifkan') + '</button>' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger" data-hcm-assignment-delete="' + esc(String(row.id)) + '">Hapus</button>' +
+                    '</div>' +
+                "</td>" +
+                "</tr>";
+        }).join("");
+    }
+
+    function loadAssignments(userId) {
+        var body = document.querySelector("[data-hcm-assignment-body]");
+        if (body) {
+            body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Memuat assignment custom…</td></tr>';
+        }
+        return apiRequest("get", "/v1/hcm/payroll-item-assignments?userId=" + encodeURIComponent(String(userId)), null)
+            .then(function (resp) {
+                if (!resp || resp.success !== true) {
+                    renderAssignments([]);
+                    return [];
+                }
+                var rows = Array.isArray(resp.data && resp.data.assignments) ? resp.data.assignments : [];
+                renderAssignments(rows);
+                return rows;
+            })
+            .catch(function () {
+                renderAssignments([]);
+                return [];
+            });
+    }
+
+    function addAssignment() {
+        if (!currentAssignmentUserId) {
+            notify("Pilih karyawan terlebih dahulu.", true);
+            return;
+        }
+
+        var itemSelect = document.querySelector("[data-hcm-assignment-item]");
+        var amountInput = document.querySelector("[data-hcm-assignment-amount]");
+        var addBtn = document.querySelector("[data-hcm-assignment-add]");
+        var payrollItemId = itemSelect ? String(itemSelect.value || "").trim() : "";
+        var amount = amountInput ? parseFloat(amountInput.value || "") : NaN;
+
+        if (!payrollItemId) {
+            notify("Pilih payroll item custom terlebih dahulu.", true);
+            return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+            notify("Nominal assignment harus lebih besar dari 0.", true);
+            return;
+        }
+
+        if (addBtn) {
+            addBtn.disabled = true;
+        }
+
+        apiRequest("post", "/v1/hcm/payroll-item-assignments", {
+            userId: Number(currentAssignmentUserId),
+            payrollItemId: Number(payrollItemId),
+            amount: amount,
+            isActive: true,
+        }).then(function (resp) {
+            if (!resp || resp.success !== true) {
+                notify(formatApiError(resp, 0) || "Gagal menambah assignment.", true);
+                return;
+            }
+            if (amountInput) {
+                amountInput.value = "";
+            }
+            notify("Custom item berhasil di-assign.", false);
+            return loadAssignments(currentAssignmentUserId);
+        }).catch(function (err) {
+            notify(formatApiError(err && err.data, err && err.status) || "Gagal menambah assignment.", true);
+        }).finally(function () {
+            if (addBtn) {
+                addBtn.disabled = false;
+            }
+        });
     }
 
     function renderPagination(meta) {
@@ -328,6 +490,11 @@
         if (m) {
             m.show();
         }
+
+        currentAssignmentUserId = String(r.id);
+        loadPayrollItemOptions().then(function () {
+            return loadAssignments(currentAssignmentUserId);
+        });
     }
 
     function bindForm() {
@@ -381,6 +548,108 @@
                     }
                     notify(formatApiError(err && err.data, err && err.status) || "Gagal menyimpan.", true);
                 });
+        });
+
+        var addBtn = form.querySelector("[data-hcm-assignment-add]");
+        if (addBtn) {
+            addBtn.addEventListener("click", function () {
+                addAssignment();
+            });
+        }
+
+        form.addEventListener("click", function (e) {
+            var saveBtn = e.target.closest("[data-hcm-assignment-save]");
+            if (saveBtn) {
+                e.preventDefault();
+                var id = Number(saveBtn.getAttribute("data-hcm-assignment-save") || 0);
+                if (!id) {
+                    return;
+                }
+                var row = form.querySelector('[data-hcm-assignment-row="' + id + '"]');
+                var amountInput = row ? row.querySelector("[data-hcm-assignment-edit-amount]") : null;
+                var amount = amountInput ? parseFloat(amountInput.value || "") : NaN;
+                if (isNaN(amount) || amount <= 0) {
+                    notify("Nominal assignment harus lebih besar dari 0.", true);
+                    return;
+                }
+                saveBtn.disabled = true;
+                apiRequest("put", "/v1/hcm/payroll-item-assignments/" + encodeURIComponent(String(id)), {
+                    amount: amount,
+                }).then(function (resp) {
+                    if (!resp || resp.success !== true) {
+                        notify(formatApiError(resp, 0) || "Gagal memperbarui assignment.", true);
+                        return;
+                    }
+                    notify("Nominal assignment diperbarui.", false);
+                    return loadAssignments(currentAssignmentUserId);
+                }).catch(function (err) {
+                    notify(formatApiError(err && err.data, err && err.status) || "Gagal memperbarui assignment.", true);
+                }).finally(function () {
+                    saveBtn.disabled = false;
+                });
+                return;
+            }
+
+            var toggleBtn = e.target.closest("[data-hcm-assignment-toggle]");
+            if (toggleBtn) {
+                e.preventDefault();
+                var toggleId = Number(toggleBtn.getAttribute("data-hcm-assignment-toggle") || 0);
+                var next = String(toggleBtn.getAttribute("data-hcm-next-active") || "0") === "1";
+                if (!toggleId) {
+                    return;
+                }
+                toggleBtn.disabled = true;
+                apiRequest("put", "/v1/hcm/payroll-item-assignments/" + encodeURIComponent(String(toggleId)), {
+                    isActive: next,
+                }).then(function (resp) {
+                    if (!resp || resp.success !== true) {
+                        notify(formatApiError(resp, 0) || "Gagal mengubah status assignment.", true);
+                        return;
+                    }
+                    notify("Status assignment diperbarui.", false);
+                    return loadAssignments(currentAssignmentUserId);
+                }).catch(function (err) {
+                    notify(formatApiError(err && err.data, err && err.status) || "Gagal mengubah status assignment.", true);
+                }).finally(function () {
+                    toggleBtn.disabled = false;
+                });
+                return;
+            }
+
+            var delBtn = e.target.closest("[data-hcm-assignment-delete]");
+            if (delBtn) {
+                e.preventDefault();
+                var delId = Number(delBtn.getAttribute("data-hcm-assignment-delete") || 0);
+                if (!delId) {
+                    return;
+                }
+                if (!window.ArcavUi || typeof window.ArcavUi.confirmDelete !== "function") {
+                    notify("Komponen konfirmasi tidak tersedia. Muat ulang halaman lalu coba lagi.", true);
+                    return;
+                }
+                window.ArcavUi.confirmDelete("Hapus assignment custom ini dari karyawan?", "Hapus assignment")
+                    .then(function (ok) {
+                        if (!ok) {
+                            return;
+                        }
+                        delBtn.disabled = true;
+                        return apiRequest("delete", "/v1/hcm/payroll-item-assignments/" + encodeURIComponent(String(delId)), null)
+                            .then(function (resp) {
+                                if (!resp || resp.success !== true) {
+                                    notify(formatApiError(resp, 0) || "Gagal menghapus assignment.", true);
+                                    return;
+                                }
+                                notify("Assignment custom dihapus.", false);
+                                return loadAssignments(currentAssignmentUserId);
+                            })
+                            .catch(function (err) {
+                                notify(formatApiError(err && err.data, err && err.status) || "Gagal menghapus assignment.", true);
+                            })
+                            .finally(function () {
+                                delBtn.disabled = false;
+                            });
+                    });
+            }
         });
     }
 

@@ -7,6 +7,8 @@ use App\Models\Invoice;
 use App\Models\PurchaseTransaction;
 use App\Services\InvoiceService;
 use App\Services\NotificationService;
+use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
+use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -159,6 +161,10 @@ class InvoiceController extends Controller
             ], 403);
         }
 
+        if ($error = $this->guardInvoiceReconciliation($request, $invoice)) {
+            return $error;
+        }
+
         $invoice->markAsPaid();
 
         return response()->json([
@@ -297,5 +303,43 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
         return $user && $user->isHcmAdmin();
+    }
+
+    private function guardInvoiceReconciliation(Request $request, Invoice $invoice): ?JsonResponse
+    {
+        if (! (bool) config('hcm.export_reconciliation.enabled', true)) {
+            return null;
+        }
+
+        if (! (bool) config('hcm.export_reconciliation.enforce.invoice.mark_paid', false)) {
+            return null;
+        }
+
+        $reconciliation = $request->input('reconciliation', []);
+        $filterPayload = is_array($reconciliation['filterPayload'] ?? null) ? $reconciliation['filterPayload'] : [];
+        $datasetChecksum = isset($reconciliation['datasetChecksum']) ? (string) $reconciliation['datasetChecksum'] : null;
+        $strictChecksum = (bool) ($reconciliation['strictChecksum'] ?? config('hcm.export_reconciliation.strict_checksum', false));
+
+        try {
+            app(ReconciliationGateService::class)->assertCanProceed(
+                $invoice->company_id,
+                'invoice',
+                'mark_paid',
+                (string) $invoice->id,
+                $filterPayload,
+                $datasetChecksum,
+                $strictChecksum,
+            );
+        } catch (ExportReconciliationException $exception) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], $exception->status());
+        }
+
+        return null;
     }
 }

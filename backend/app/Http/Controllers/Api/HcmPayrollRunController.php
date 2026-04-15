@@ -10,6 +10,8 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
+use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
+use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +48,7 @@ class HcmPayrollRunController extends Controller
             'data' => [
                 'run' => $this->serializeRun($run),
                 'lines' => $lines,
+                'specialRecipients' => $this->specialRecipientsForRunPeriod($run, $companyId),
                 'auditTrail' => $this->auditTrailForRun($run),
                 'summary' => $this->buildRunDetailSummary($run),
             ],
@@ -126,6 +129,11 @@ class HcmPayrollRunController extends Controller
         $runQuery = HcmPayrollRun::query();
         $this->applyTenantScope($runQuery, $companyId);
         $run = $runQuery->where('id', $id)->firstOrFail();
+
+        if ($error = $this->guardPayrollReconciliation($request, $run, 'finalize')) {
+            return $error;
+        }
+
         if ($run->status !== HcmPayrollRun::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
@@ -206,6 +214,16 @@ class HcmPayrollRunController extends Controller
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
 
+            if ($error = $this->guardPayrollReconciliation($request, $run, 'disburse')) {
+                return [
+                    'error' => $error->getData(true)['error'] ?? [
+                        'code' => 'EXPORT_RECON_REQUIRED',
+                        'message' => 'Export reconciliation evidence is required before this action.',
+                    ],
+                    'status' => $error->getStatusCode(),
+                ];
+            }
+
             $period = HcmPayrollPeriod::query()
                 ->whereKey($run->hcm_payroll_period_id)
                 ->where(function (Builder $inner) use ($companyId): void {
@@ -266,16 +284,49 @@ class HcmPayrollRunController extends Controller
                 }
             }
 
-            $availableUserIds = $lines->pluck('user_id')->filter()->unique()->map(fn ($userId) => (int) $userId)->values();
+            $netByUser = [];
+            foreach ($lines->groupBy('user_id') as $userId => $items) {
+                $net = 0.0;
+                foreach ($items as $line) {
+                    $meta = is_array($line->meta) ? $line->meta : [];
+                    $affectsNetPay = array_key_exists('affectsNetPay', $meta)
+                        ? (bool) $meta['affectsNetPay']
+                        : ((string) $line->category !== 'employer_cost_display');
+
+                    if (! $affectsNetPay) {
+                        continue;
+                    }
+
+                    $amount = (float) $line->amount;
+                    if ((string) $line->kind === 'addition') {
+                        $net += $amount;
+                    } elseif ((string) $line->kind === 'deduction') {
+                        $net -= $amount;
+                    }
+                }
+
+                $netByUser[(int) $userId] = round($net, 2);
+            }
+
+            $availableUserIds = collect(array_keys($netByUser))->values();
+            $eligibleUserIds = collect($netByUser)
+                ->filter(fn ($net) => (float) $net > 0)
+                ->keys()
+                ->map(fn ($userId) => (int) $userId)
+                ->values();
+            $ineligibleUserIds = $availableUserIds
+                ->diff($eligibleUserIds)
+                ->values();
+
             $effectiveSelectedUserIds = $selectedUserIds->isNotEmpty()
-                ? $selectedUserIds->intersect($availableUserIds)->values()
-                : ($applyAll ? $availableUserIds : collect());
+                ? $selectedUserIds->intersect($eligibleUserIds)->values()
+                : ($applyAll ? $eligibleUserIds : collect());
 
             if ($effectiveSelectedUserIds->isEmpty()) {
                 return [
                     'error' => [
                         'code' => 'PAYROLL_DISBURSE_NO_EMPLOYEES',
-                        'message' => 'Pilih minimal satu karyawan atau kirim applyAll=true untuk membayar semua.',
+                        'message' => 'Tidak ada karyawan eligible untuk dibayar. Hanya user dengan net pay positif yang bisa diproses.',
                     ],
                     'status' => 422,
                 ];
@@ -356,6 +407,7 @@ class HcmPayrollRunController extends Controller
             return [
                 'run' => $freshRun,
                 'selectedUserIds' => $effectiveSelectedUserIds->values()->all(),
+                'ineligibleUserIds' => $ineligibleUserIds->all(),
                 'skippedAlreadyPaidUserIds' => array_values(array_unique($alreadyPaidUserIds)),
                 'gatewayReference' => $gatewayReference,
             ];
@@ -376,6 +428,7 @@ class HcmPayrollRunController extends Controller
             'data' => [
                 'run' => $this->serializeRun($run),
                 'selectedUserIds' => $result['selectedUserIds'],
+                'ineligibleUserIds' => $result['ineligibleUserIds'] ?? [],
                 'skippedAlreadyPaidUserIds' => $result['skippedAlreadyPaidUserIds'],
                 'gatewayReference' => $result['gatewayReference'],
                 'payment' => $this->paymentSummary($run),
@@ -1201,6 +1254,85 @@ class HcmPayrollRunController extends Controller
     }
 
     /**
+     * @return array{thrUserIds: list<int>, compensationUserIds: list<int>}
+     */
+    private function specialRecipientsForRunPeriod(HcmPayrollRun $run, ?int $companyId): array
+    {
+        $runsQuery = HcmPayrollRun::query()
+            ->where('hcm_payroll_period_id', $run->hcm_payroll_period_id)
+            ->whereIn('purpose', [
+                HcmPayrollRun::PURPOSE_THR,
+                HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+                'pkwt_comp',
+            ])
+            ->whereIn('status', [
+                HcmPayrollRun::STATUS_DRAFT,
+                HcmPayrollRun::STATUS_FINALIZED,
+            ]);
+        $this->applyTenantScope($runsQuery, $companyId);
+
+        $specialRuns = $runsQuery->get(['id', 'purpose']);
+        if ($specialRuns->isEmpty()) {
+            return [
+                'thrUserIds' => [],
+                'compensationUserIds' => [],
+            ];
+        }
+
+        $runPurposeById = $specialRuns
+            ->mapWithKeys(fn (HcmPayrollRun $item): array => [(int) $item->id => (string) $item->purpose]);
+
+        $lines = HcmPayrollLine::query()
+            ->whereIn('hcm_payroll_run_id', $specialRuns->pluck('id')->all())
+            ->get();
+
+        $thrUserIds = [];
+        $compensationUserIds = [];
+
+        foreach ($lines->groupBy('hcm_payroll_run_id') as $runId => $items) {
+            $purpose = (string) ($runPurposeById[(int) $runId] ?? '');
+            if ($purpose === '') {
+                continue;
+            }
+
+            $eligibleUserIds = [];
+            foreach ($items->groupBy('user_id') as $userId => $userItems) {
+                $net = 0.0;
+                foreach ($userItems as $line) {
+                    if (! $this->lineAffectsNetPay($line)) {
+                        continue;
+                    }
+
+                    $amount = (float) $line->amount;
+                    if ((string) $line->kind === 'addition') {
+                        $net += $amount;
+                    } elseif ((string) $line->kind === 'deduction') {
+                        $net -= $amount;
+                    }
+                }
+
+                if (round($net, 2) > 0) {
+                    $eligibleUserIds[] = (int) $userId;
+                }
+            }
+
+            if ($purpose === HcmPayrollRun::PURPOSE_THR) {
+                $thrUserIds = array_merge($thrUserIds, $eligibleUserIds);
+                continue;
+            }
+
+            if ($purpose === HcmPayrollRun::PURPOSE_PKWT_COMPENSATION || $purpose === 'pkwt_comp') {
+                $compensationUserIds = array_merge($compensationUserIds, $eligibleUserIds);
+            }
+        }
+
+        return [
+            'thrUserIds' => array_values(array_unique($thrUserIds)),
+            'compensationUserIds' => array_values(array_unique($compensationUserIds)),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function runTotals(HcmPayrollRun $run): array
@@ -1316,5 +1448,43 @@ class HcmPayrollRunController extends Controller
         return $query->where(function ($q) use ($companyId): void {
             $q->where('company_id', $companyId)->orWhereNull('company_id');
         });
+    }
+
+    private function guardPayrollReconciliation(Request $request, HcmPayrollRun $run, string $action): ?JsonResponse
+    {
+        if (! (bool) config('hcm.export_reconciliation.enabled', true)) {
+            return null;
+        }
+
+        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.payroll_run.%s', $action), false)) {
+            return null;
+        }
+
+        $reconciliation = $request->input('reconciliation', []);
+        $filterPayload = is_array($reconciliation['filterPayload'] ?? null) ? $reconciliation['filterPayload'] : [];
+        $datasetChecksum = isset($reconciliation['datasetChecksum']) ? (string) $reconciliation['datasetChecksum'] : null;
+        $strictChecksum = (bool) ($reconciliation['strictChecksum'] ?? config('hcm.export_reconciliation.strict_checksum', false));
+
+        try {
+            app(ReconciliationGateService::class)->assertCanProceed(
+                $this->activeCompanyId($request),
+                'payroll_run',
+                $action,
+                (string) $run->id,
+                $filterPayload,
+                $datasetChecksum,
+                $strictChecksum,
+            );
+        } catch (ExportReconciliationException $exception) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                ],
+            ], $exception->status());
+        }
+
+        return null;
     }
 }

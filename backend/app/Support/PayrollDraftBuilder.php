@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\HcmPayrollLine;
+use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmResignation;
@@ -271,6 +272,23 @@ final class PayrollDraftBuilder
                 })
                 ->values();
 
+            $assignmentQuery = HcmEmployeePayrollItemAssignment::query()
+                ->with(['payrollItem.salaryComponent'])
+                ->where('is_active', true)
+                ->whereIn('user_id', $users->pluck('id')->all())
+                ->where(function ($q) use ($asOf): void {
+                    $q->whereNull('effective_start_date')
+                        ->orWhereDate('effective_start_date', '<=', $asOf->toDateString());
+                })
+                ->where(function ($q) use ($asOf): void {
+                    $q->whereNull('effective_end_date')
+                        ->orWhereDate('effective_end_date', '>=', $asOf->toDateString());
+                });
+            self::applyTenantScope($assignmentQuery, $companyId);
+            $assignmentsByUser = $assignmentQuery
+                ->get()
+                ->groupBy('user_id');
+
             foreach ($users as $user) {
                 $profile = $user->employeeProfile;
                 if ($profile === null) {
@@ -327,6 +345,55 @@ final class PayrollDraftBuilder
 
                     if ((bool) ($fixedAllowanceComponent?->include_pph21_ter_gross ?? true)) {
                         $taxableGross += $fixed;
+                    }
+                }
+
+                $customAssignments = collect($assignmentsByUser->get($user->id, []))
+                    ->filter(function (HcmEmployeePayrollItemAssignment $assignment): bool {
+                        return $assignment->payrollItem !== null
+                            && (bool) $assignment->payrollItem->is_active
+                            && (float) $assignment->amount > 0;
+                    })
+                    ->sortBy(fn (HcmEmployeePayrollItemAssignment $assignment) => [
+                        (int) ($assignment->payrollItem?->sort_order ?? 0),
+                        (int) $assignment->id,
+                    ])
+                    ->values();
+
+                foreach ($customAssignments as $assignment) {
+                    $item = $assignment->payrollItem;
+                    if ($item === null) {
+                        continue;
+                    }
+
+                    $master = $item->salaryComponent;
+                    $amount = round((float) $assignment->amount, 2);
+                    if ($amount <= 0) {
+                        continue;
+                    }
+
+                    HcmPayrollLine::query()->create([
+                        'company_id' => $companyId,
+                        'hcm_payroll_run_id' => $run->id,
+                        'user_id' => $user->id,
+                        'hcm_salary_component_id' => $item->hcm_salary_component_id,
+                        'component_code' => $item->code,
+                        'component_name' => $item->name,
+                        'kind' => $item->kind,
+                        'category' => $item->category,
+                        'amount' => $amount,
+                        'sort_order' => $sortOrder++,
+                        'meta' => [
+                            'source' => 'employee_payroll_item_assignments',
+                            'assignmentId' => (int) $assignment->id,
+                            'payrollItemId' => (int) $item->id,
+                            'userName' => $user->name,
+                            'affectsNetPay' => (bool) ($master?->affects_net_pay ?? true),
+                        ],
+                    ]);
+
+                    if ((string) $item->kind === 'addition' && (bool) ($master?->include_pph21_ter_gross ?? false)) {
+                        $taxableGross += $amount;
                     }
                 }
 

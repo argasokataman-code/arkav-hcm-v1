@@ -1895,7 +1895,7 @@ paths:
                             example: 1
                           purpose:
                             type: string
-                            enum: [monthly, thr]
+                            enum: [monthly, thr, pkwt_compensation]
                             example: monthly
                           status:
                             type: string
@@ -2095,6 +2095,15 @@ paths:
                             meta:
                               type: object
                               nullable: true
+                      specialRecipients:
+                        type: object
+                        properties:
+                          thrUserIds:
+                            type: array
+                            items: { type: integer }
+                          compensationUserIds:
+                            type: array
+                            items: { type: integer }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -2123,6 +2132,8 @@ paths:
       description: |
         Menandai run `finalized` dan periode `posted`. `422` dengan `PAYROLL_RUN_EMPTY` jika tidak ada baris;
         `PAYROLL_RUN_NOT_DRAFT` / `PAYROLL_FINALIZED_EXISTS` (hanya jika sudah ada final dengan `purpose` yang sama).
+        Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
+        `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
         - bearerAuth: []
       parameters:
@@ -2182,7 +2193,7 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422':
-          description: Validation error - PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY
+          description: Validation/domain error termasuk PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
           content:
             application/json:
               schema:
@@ -2196,7 +2207,7 @@ paths:
                     properties:
                       code:
                         type: string
-                        enum: [PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY]
+                        enum: [PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA]
                       message:
                         type: string
   /v1/hcm/payroll-runs/{id}/disburse:
@@ -2207,6 +2218,9 @@ paths:
         Menjalankan pembayaran gateway untuk subset `userIds` yang dipilih. Jika run masih `draft`, API akan
         otomatis memfinalkan run dan menandai periodenya sebagai `posted` sebelum menulis status pembayaran per karyawan.
         Pemanggilan berulang aman/idempotent: user yang sudah `paid` akan dilewati.
+        Hanya user dengan total net pay `> 0` yang eligible untuk didisburse.
+        Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
+        `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
         - bearerAuth: []
       parameters:
@@ -2225,7 +2239,7 @@ paths:
                   description: Optional subset of employee user IDs to disburse. Required when applyAll is not true.
                 applyAll:
                   type: boolean
-                  description: Set true to disburse all employees in the run explicitly.
+                  description: Set true to disburse all eligible employees in the run explicitly.
       responses:
         '200':
           description: Gateway disbursement processed
@@ -2243,6 +2257,9 @@ paths:
                       run:
                         type: object
                       selectedUserIds:
+                        type: array
+                        items: { type: integer }
+                      ineligibleUserIds:
                         type: array
                         items: { type: integer }
                       skippedAlreadyPaidUserIds:
@@ -2272,7 +2289,7 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422':
-          description: Validation error - PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS
+          description: Validation/domain error termasuk PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
           content:
             application/json:
               schema:
@@ -2844,6 +2861,8 @@ paths:
       description: |
         Membuat atau membangun ulang payroll run draft dengan `purpose=pkwt_compensation` untuk periode terpilih.
         Setelah draft terbentuk, pembayaran dilakukan melalui endpoint generic `POST /payroll-runs/{id}/disburse`.
+        Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
+        `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
         - bearerAuth: []
       requestBody:
@@ -2930,7 +2949,7 @@ paths:
                     properties:
                       code:
                         type: string
-                        enum: [PKWT_COMPENSATION_EMPTY, PKWT_COMPENSATION_COMPONENT_MISSING, PKWT_COMPENSATION_FINALIZED_EXISTS]
+                        enum: [PKWT_COMPENSATION_EMPTY, PKWT_COMPENSATION_COMPONENT_MISSING, PKWT_COMPENSATION_FINALIZED_EXISTS, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA]
                       message:
                         type: string
   /v1/hcm/payroll/pkwt-calculate:
@@ -3071,6 +3090,8 @@ paths:
       description: |
         Batch harus `draft`. Memanggil driver disbursement (`hcm.thr_disbursement_driver`, default stub).
         Baris `paid` dilewati. Sukses → `paymentStatus=paid`, generate slip PDF; gagal → `failed` + alasan (retry dari UI).
+        Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
+        `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
         - bearerAuth: []
       requestBody:
@@ -3098,6 +3119,8 @@ paths:
       description: |
         Membutuhkan semua baris eligible THR>0 sudah `paid`. `paymentDate` di thr-settings. Run `purpose=thr` final; batch jadi `assigned`.
         `422` THR_POST_UNPAID_PAYABLE_LINES jika masih ada eligible belum paid.
+        Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
+        `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
         - bearerAuth: []
       requestBody:
@@ -3162,6 +3185,77 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: THR_SLIP_NOT_FOUND / THR_SLIP_FILE_MISSING }
+  /v1/reconciliation/exports:
+    post:
+      tags: [Reporting]
+      summary: Create export reconciliation evidence (HCM admin)
+      description: |
+        Menyimpan evidence export untuk gate aksi berisiko. Endpoint ini membutuhkan tenant context aktif.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [featureKey, actionKey, scopeRef, fileFormat, filePath, rowCount]
+              properties:
+                featureKey:
+                  type: string
+                  enum: [payroll_run, thr_batch, pkwt_compensation, invoice, payment]
+                actionKey:
+                  type: string
+                  enum: [finalize, disburse, post_payroll, mark_paid, verify]
+                scopeRef: { type: string }
+                fileFormat: { type: string, enum: [csv, xlsx, pdf] }
+                filePath: { type: string }
+                rowCount: { type: integer, minimum: 0 }
+                filterPayload:
+                  type: object
+                  additionalProperties: true
+                datasetChecksum: { type: string, nullable: true }
+                expiresInMinutes: { type: integer, minimum: 1, maximum: 43200, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [Reporting]
+      summary: List export reconciliation evidence (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: featureKey, in: query, required: false, schema: { type: string, enum: [payroll_run, thr_batch, pkwt_compensation, invoice, payment] } }
+        - { name: actionKey, in: query, required: false, schema: { type: string, enum: [finalize, disburse, post_payroll, mark_paid, verify] } }
+        - { name: scopeRef, in: query, required: false, schema: { type: string } }
+        - { name: includeExpired, in: query, required: false, schema: { type: boolean } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/reconciliation/exports/{id}/download:
+    get:
+      tags: [Reporting]
+      summary: Download reconciliation export file by evidence id (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Binary export file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/payroll-items:
     get:
       tags: [Payroll]
@@ -3220,6 +3314,86 @@ paths:
     delete:
       tags: [Payroll]
       summary: Delete payroll item
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/payroll-item-assignments:
+    get:
+      tags: [Payroll]
+      summary: List payroll item assignments per employee (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: userId, in: query, required: true, schema: { type: integer } }
+        - { name: kind, in: query, required: false, schema: { type: string, enum: [addition, deduction] } }
+        - { name: isActive, in: query, required: false, schema: { type: boolean } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Payroll]
+      summary: Assign payroll item to employee (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, payrollItemId, amount]
+              properties:
+                userId: { type: integer }
+                payrollItemId: { type: integer }
+                amount: { type: number, minimum: 0.01 }
+                isActive: { type: boolean, default: true }
+                effectiveStartDate: { type: string, format: date, nullable: true }
+                effectiveEndDate: { type: string, format: date, nullable: true }
+                notes: { type: string, nullable: true, maxLength: 5000 }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/payroll-item-assignments/{id}:
+    put:
+      tags: [Payroll]
+      summary: Update payroll item assignment (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number, minimum: 0.01 }
+                isActive: { type: boolean }
+                effectiveStartDate: { type: string, format: date, nullable: true }
+                effectiveEndDate: { type: string, format: date, nullable: true }
+                notes: { type: string, nullable: true, maxLength: 5000 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Payroll]
+      summary: Delete payroll item assignment (HCM admin)
       security:
         - bearerAuth: []
       parameters:

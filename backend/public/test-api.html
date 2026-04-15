@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Attendance Location API</title>
+</head>
+<body>
+    <h1>Attendance Location API Test</h1>
+    <div id="output" style="font-family: monospace; white-space: pre-wrap; border: 1px solid black; padding: 10px; height: 600px; overflow-y: auto;"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg) {
+            output.textContent += msg + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Test the admin endpoint
+        fetch('/v1/hcm/attendance/admin?date=2026-04-14', {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            log('Admin API Response:');
+            log('===================');
+            if (data.success && data.data && data.data.length > 0) {
+                log(`Total records: ${data.data.length}\n`);
+                data.data.slice(0, 5).forEach((row, idx) => {
+                    log(`[${idx}] ${row.employeeName}`);
+                    log(`  checkInLocation: ${row.checkInLocation || 'NULL'}`);
+                    log(`  checkOutLocation: ${row.checkOutLocation || 'NULL'}`);
+                    log(`  checkIn: ${row.checkIn}`);
+                    log(`  checkOut: ${row.checkOut}`);
+                    log('');
+                });
+            } else {
+                log('No data or error');
+                log(JSON.stringify(data, null, 2));
+            }
+        })
+        .catch(err => {
+            log('Error: ' + err.message);
+        });
+    </script>
+</body>
+</html>

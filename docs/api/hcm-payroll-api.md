@@ -22,6 +22,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**.
 - UI `/payslip` dapat menemukan periode slip terbaru milik user lewat **`GET /payroll/my-slip-latest-period`** untuk fallback awal jika bulan berjalan belum memiliki run final.
 - Preview **kompensasi PKWT** bulanan untuk admin tersedia via **`GET /payroll/pkwt-compensations`**, dapat diposting menjadi draft payroll via **`POST /payroll/pkwt-compensations/post-payroll`**, lalu dibayar lewat endpoint generic **`POST /payroll-runs/{id}/disburse`** seperti flow off-cycle lain.
+- Admin payroll kini dapat membuat **assignment payroll item per karyawan** via endpoint `payroll-item-assignments`; assignment aktif otomatis dimasukkan ke draft payroll bulanan sesuai tanggal efektif.
 - Nominal negatif dari DB diperlakukan sebagai **0**.
 - Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** pembayaran gateway, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
 
@@ -44,6 +45,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 | `POST /payroll/thr-calculate` | **HCM Admin** saja — estimasi THR bruto (Permenaker 6/2016, pro rata); **bukan** slip final dan **tanpa** PPh 21 TER |
 | `GET /payroll/thr-settings`, `PUT /payroll/thr-settings/{calendarYear}` | **HCM Admin** saja — pengaturan per tahun: tanggal Lebaran (referensi), tanggal pembayaran THR, cut-off perhitungan pro rata, catatan |
 | `GET /payroll/thr-batch`, `POST /payroll/thr-batch/generate`, `POST /payroll/thr-batch/disburse`, `POST /payroll/thr-batch/post-payroll`, `POST /payroll/thr-batch/send-slip` | **HCM Admin** saja — batch THR: gateway disburse → slip PDF → posting run `purpose=thr` |
+| `GET/POST /payroll-item-assignments`, `PUT/DELETE /payroll-item-assignments/{id}` | **HCM Admin** saja — assignment payroll item custom per karyawan |
 
 ## Endpoints
 
@@ -115,6 +117,10 @@ Query opsional:
 
 **200** `data`: `run` (detail + `period` jika termuat), `lines[]` semua karyawan — urut `userId`, `sortOrder`.
 
+Tambahan konteks UI payroll run:
+- `specialRecipients.thrUserIds[]` — user dalam periode yang sama yang punya run `purpose=thr` dengan net pay positif.
+- `specialRecipients.compensationUserIds[]` — user dalam periode yang sama yang punya run `purpose=pkwt_compensation` dengan net pay positif.
+
 Elemen `lines[]`: `id`, `userId`, `userName`, `salaryComponentId`, `componentCode`, `componentName`, `kind`, `category`, `amount`, `sortOrder`, `paymentStatus`, `paidAt`, `gatewayReference`, `meta`.
 
 ### `POST /payroll-runs/{id}/finalize`
@@ -131,6 +137,8 @@ Menyetel run menjadi `finalized`, `finalized_at`, `finalized_by_user_id` = user 
 
 Eksekusi gateway pembayaran payroll bulanan untuk subset **`userIds[]`** yang dicentang pada halaman run. Jika run masih `draft`, endpoint ini akan **otomatis finalize + post period** lebih dulu, lalu menandai karyawan terpilih sebagai **`paid`** secara idempotent.
 
+Karyawan hanya dianggap **eligible** jika total net pay periodenya **`> 0`** (hanya komponen yang memengaruhi net pay). User dengan THP `<= 0` otomatis dikeluarkan dari target pembayaran.
+
 Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan di `skippedAlreadyPaidUserIds`. Jika semua karyawan terpilih sudah paid, endpoint tetap mengembalikan **200** dengan `gatewayReference` yang sudah ada (no-op idempotent). Perlindungan race condition ditangani oleh `lockForUpdate()` pada transaksi DB.
 
 **Body JSON**
@@ -138,17 +146,18 @@ Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan d
 | Field | Wajib | Aturan |
 |-------|--------|--------|
 | `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
-| `applyAll` | kondisional | boolean; kirim `true` untuk disburse seluruh karyawan eligible di run |
+| `applyAll` | kondisional | boolean; kirim `true` untuk disburse seluruh karyawan **eligible** di run |
 
 **200** `data`:
 - `run` — ringkasan run dengan `paymentStatus`, `paidEmployeeCount`, `employeeCount`, `paidAt`, `gatewayReference`
 - `selectedUserIds[]`
+- `ineligibleUserIds[]` — user yang ada di run tapi THP `<= 0`, sehingga tidak diproses pembayaran
 - `skippedAlreadyPaidUserIds[]`
 - `gatewayReference`
 - `payment { status, employeeCount, paidEmployeeCount, paidUserIds, paidAt }`
 
 **422**
-- `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada karyawan valid yang dipilih
+- `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada karyawan eligible yang bisa diproses
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
 
@@ -253,6 +262,69 @@ Query opsional: `calendarYear` (2000–2100) — memilih slip tahun tersebut; ta
 - `history`: `{ lineId, calendarYear }[]` untuk semua slip yang pernah dihasilkan (urut tahun menurun di UI).
 
 Tidak ada halaman web khusus slip THR; klien memakai respons JSON ini (mis. aplikasi mobile) atau mengunduh PDF lewat **`GET /payroll/thr-batch/lines/{line}/slip`** untuk baris milik user.
+
+### `GET /payroll-item-assignments?userId=&kind=&isActive=`
+
+List assignment payroll item per karyawan.
+
+Query:
+
+- `userId` (wajib, `users.id`)
+- `kind` (opsional: `addition|deduction`)
+- `isActive` (opsional boolean)
+
+**200** `data.assignments[]`:
+
+- `id`, `userId`, `payrollItemId`, `amount`, `isActive`
+- `effectiveStartDate`, `effectiveEndDate`, `notes`
+- `payrollItem { id, code, name, kind, category, linkedToMaster, salaryComponentId, masterDefaultPercent, masterPercentBasis }`
+
+### `POST /payroll-item-assignments`
+
+Membuat assignment payroll item untuk satu karyawan.
+
+**Body JSON**
+
+| Field | Wajib | Aturan |
+|-------|--------|--------|
+| `userId` | ya | integer `users.id` |
+| `payrollItemId` | ya | integer `hcm_payroll_items.id` (harus aktif dan berada pada tenant yang sama) |
+| `amount` | ya | numeric `0.01`–`999999999999.99` |
+| `isActive` | tidak | boolean, default `true` |
+| `effectiveStartDate` | tidak | `date` |
+| `effectiveEndDate` | tidak | `date`, `>= effectiveStartDate` |
+| `notes` | tidak | string max 5000 |
+
+**201** `data`: objek assignment.
+
+**422**:
+
+- `PAYROLL_ITEM_NOT_FOUND` jika payroll item tidak aktif / di luar tenant aktif.
+- `PAYROLL_ITEM_ASSIGNMENT_EXISTS` jika kombinasi karyawan + payroll item sudah pernah di-assign.
+
+### `PUT /payroll-item-assignments/{id}`
+
+Update parsial assignment (`amount`, `isActive`, periode efektif, `notes`).
+
+**Body JSON**: kirim field yang diubah saja.
+
+**200** `data`: objek assignment terbaru.
+
+### `DELETE /payroll-item-assignments/{id}`
+
+Hapus assignment payroll item karyawan.
+
+**200** `data`: `{ id }`.
+
+### Dampak ke draft payroll bulanan
+
+`POST /payroll-periods/{id}/calculate-draft` akan menyertakan assignment dengan syarat:
+
+- assignment `is_active = true`
+- payroll item terkait `is_active = true`
+- tanggal efektif cocok dengan akhir bulan periode (`effective_start_date <= asOf` dan `effective_end_date >= asOf`, jika terisi)
+
+Setiap assignment menghasilkan baris tambahan payroll line (`source = employee_payroll_item_assignments`) dengan `component_code` dan `kind/category` dari payroll item.
 
 ### `POST /payroll/thr-batch/send-slip`
 

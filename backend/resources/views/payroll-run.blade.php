@@ -68,9 +68,15 @@
                     </div>
 
                     <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-run-error></div>
+                    <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-payroll-run-reconciliation-hint></div>
+                    <div class="d-none mb-3" role="status" data-payroll-run-evidence-indicator>
+                        <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
+                        <small class="d-block mt-1 text-muted" data-evidence-timestamp></small>
+                    </div>
 
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled>Calculate Draft</button>
+                        <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence title="Export data reconciliation untuk bukti audit sebelum finalize/pay">Export Reconciliation</button>
                         <button type="button" class="btn btn-success" data-payroll-run-disburse disabled>Pay via Gateway</button>
                         @if (app()->environment(['local', 'development', 'testing']))
                             <button type="button" class="btn btn-outline-danger" data-payroll-run-reset-payments>Reset Pembayaran (DEV)</button>
@@ -102,6 +108,8 @@
                                     <th class="text-end">Bruto</th>
                                     <th class="text-end">Potongan</th>
                                     <th class="text-end">Netto</th>
+                                    <th class="text-center">THR</th>
+                                    <th class="text-center">Compensation</th>
                                     <th class="text-center">Komponen</th>
                                     <th>Status Pembayaran</th>
                                     <th class="text-end">Aksi</th>
@@ -109,7 +117,7 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Payroll akan muncul otomatis setelah draft tersedia.</td>
+                                    <td colspan="10" class="text-center text-muted py-4">Payroll akan muncul otomatis setelah draft tersedia.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -143,6 +151,90 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                             <button type="button" class="btn btn-success" data-payroll-gateway-pay>Pay now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="payroll_detail_modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detail Payroll Karyawan</h5>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="border rounded p-3 bg-light mb-3">
+                                <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <div class="fw-semibold" data-payroll-detail-name>—</div>
+                                        <div class="text-muted small" data-payroll-detail-meta>UID: —</div>
+                                    </div>
+                                    <div class="text-md-end">
+                                        <div class="small text-muted">Periode</div>
+                                        <div class="fw-semibold" data-payroll-detail-period>—</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <span class="badge bg-light text-dark border" data-payroll-detail-payment-status>Payment: —</span>
+                                    <span class="badge bg-light text-dark border" data-payroll-detail-eligibility>Status: —</span>
+                                    <span class="badge bg-light text-dark border" data-payroll-detail-thr>THR: —</span>
+                                    <span class="badge bg-light text-dark border" data-payroll-detail-compensation>Compensation: —</span>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-3">
+                                    <div class="border rounded p-2 h-100">
+                                        <div class="text-muted small">Total Bruto</div>
+                                        <div class="fw-semibold text-success" data-payroll-detail-gross>Rp0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-2 h-100">
+                                        <div class="text-muted small">Total Potongan</div>
+                                        <div class="fw-semibold text-danger" data-payroll-detail-deductions>Rp0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-2 h-100">
+                                        <div class="text-muted small">Take Home Pay</div>
+                                        <div class="fw-semibold" data-payroll-detail-net>Rp0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="border rounded p-2 h-100">
+                                        <div class="text-muted small">Total Komponen</div>
+                                        <div class="fw-semibold" data-payroll-detail-line-count>0</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive border rounded">
+                                <table class="table table-nowrap mb-0 align-middle">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>No</th>
+                                            <th>Komponen</th>
+                                            <th>Jenis</th>
+                                            <th>Kategori</th>
+                                            <th class="text-end">Nominal</th>
+                                            <th class="text-center">Affects THP</th>
+                                            <th class="text-center">Payment Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-payroll-detail-lines>
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-3">Belum ada data komponen.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                         </div>
                     </div>
                 </div>

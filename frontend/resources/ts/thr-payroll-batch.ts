@@ -101,6 +101,18 @@ function apiRequest(method: string, url: string, body?: object): Promise<unknown
  * Pesan untuk user: utamakan `error.message` dari API (envelope Arcav), baru fallback helper / generik.
  */
 function formatApiError(data: unknown, status: number): string {
+    const reconciliationMessages: Record<string, string> = {
+        EXPORT_RECON_REQUIRED: "Sebelum lanjut proses THR, lakukan export reconciliation batch terbaru.",
+        EXPORT_RECON_EXPIRED: "Evidence reconciliation THR sudah kedaluwarsa. Silakan export ulang.",
+        EXPORT_RECON_SCOPE_MISMATCH: "Evidence reconciliation tidak sesuai dengan batch THR yang diproses.",
+        EXPORT_RECON_STALE_DATA: "Data THR berubah sejak export terakhir. Silakan export ulang.",
+    };
+    if (data && typeof data === "object") {
+        const code = (data as { error?: { code?: string } }).error?.code;
+        if (code && reconciliationMessages[code]) {
+            return reconciliationMessages[code];
+        }
+    }
     if (data && typeof data === "object") {
         const msg = (data as { error?: { message?: string } }).error?.message;
         if (msg !== undefined && String(msg).trim() !== "") {
@@ -156,6 +168,117 @@ function maybeNavigateThrSettingsFromBatchError(data: unknown): void {
         goToThrSettingsField("cutoff");
     } else if (code === "THR_PAYMENT_DATE_REQUIRED") {
         goToThrSettingsField("payment");
+    }
+}
+
+function setThrReconciliationHint(message: string): void {
+    const hintEl = document.querySelector<HTMLElement>("[data-thr-reconciliation-hint]");
+    if (!hintEl) {
+        return;
+    }
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
+}
+
+function showThrEvidenceIndicator(evidence: any): void {
+    const indicatorEl = document.querySelector<HTMLElement>("[data-thr-evidence-indicator]");
+    if (!indicatorEl) return;
+
+    const statusBadge = indicatorEl.querySelector<HTMLElement>("[data-evidence-status]");
+    const timestampEl = indicatorEl.querySelector<HTMLElement>("[data-evidence-timestamp]");
+
+    if (!evidence) {
+        indicatorEl.classList.add("d-none");
+        return;
+    }
+
+    const now = new Date().getTime();
+    const expiresAt = new Date(evidence.expires_at || 0).getTime();
+    let status = "valid";
+    let statusClass = "bg-success";
+
+    if (now > expiresAt) {
+        status = "expired";
+        statusClass = "bg-danger";
+    } else if (evidence.is_stale) {
+        status = "stale";
+        statusClass = "bg-warning";
+    }
+
+    if (statusBadge) {
+        statusBadge.textContent = status.toUpperCase();
+        statusBadge.className = `badge ${statusClass}`;
+    }
+
+    if (timestampEl && evidence.exported_at) {
+        const date = new Date(evidence.exported_at).toLocaleString("id-ID");
+        const user = evidence.exported_by_name || evidence.exported_by_user_id || "—";
+        timestampEl.textContent = `Exported: ${date} oleh ${user}`;
+    }
+
+    indicatorEl.classList.remove("d-none");
+}
+
+async function fetchThrLatestEvidence(batchId: number): Promise<void> {
+    if (!batchId) return;
+    try {
+        const res = (await apiRequest("GET", "/v1/reconciliation/exports", {
+            featureKey: "thr_batch",
+            actionKey: "disburse",
+            scopeRef: String(batchId),
+        })) as any;
+
+        if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+            showThrEvidenceIndicator(res.data[0]);
+        } else {
+            showThrEvidenceIndicator(null);
+        }
+    } catch (error) {
+        console.warn("Failed to fetch THR evidence status:", error);
+        showThrEvidenceIndicator(null);
+    }
+}
+
+async function triggerThrExportReconciliation(batchId: number, lines: BatchLine[]): Promise<void> {
+    if (!batchId) {
+        toast("No THR batch selected", true);
+        return;
+    }
+
+    try {
+        const filterPayload = {
+            lineIds: lines.filter((l) => l.eligible).map((l) => l.id),
+        };
+
+        const res = (await apiRequest("POST", "/v1/reconciliation/exports", {
+            featureKey: "thr_batch",
+            actionKey: "disburse",
+            scopeRef: String(batchId),
+            filterPayload: filterPayload,
+            format: "csv",
+        })) as any;
+
+        if (res && res.data && res.data.id) {
+            toast("Export reconciliation THR berhasil dibuat", false);
+            await fetchThrLatestEvidence(batchId);
+        } else {
+            toast("Gagal membuat export reconciliation THR", true);
+        }
+    } catch (error: any) {
+        const errorCode = getThrBatchErrorCode(error?.data || {});
+        if (errorCode && errorCode.startsWith("EXPORT_RECON_")) {
+            const msg = formatApiError(error?.data || {}, 400);
+            if (msg) {
+                setThrReconciliationHint(msg);
+                return;
+            }
+        }
+        toast(`Error: ${error?.data?.error?.message || "Unknown error"}`, true);
     }
 }
 
@@ -348,6 +471,7 @@ function boot(): void {
     const emptyEl = root.querySelector("[data-thr-batch-empty]");
     const errEl = root.querySelector("[data-thr-batch-error]");
     const genBtn = root.querySelector<HTMLButtonElement>("[data-thr-batch-generate]");
+    const exportBtn = root.querySelector<HTMLButtonElement>("[data-thr-batch-export-evidence]");
     const disburseBtn = root.querySelector<HTMLButtonElement>("[data-thr-batch-disburse]");
     const sendSlipBtn = root.querySelector<HTMLButtonElement>("[data-thr-batch-send-slip]");
     const grandEl = root.querySelector("[data-thr-batch-grand]");
@@ -729,6 +853,9 @@ function boot(): void {
             batch = resp.data.batch;
             lines = resp.data.lines || [];
             render();
+            if (batch?.id) {
+                void fetchThrLatestEvidence(batch.id);
+            }
         } catch {
             /* ignore */
         }
@@ -839,6 +966,18 @@ function boot(): void {
         }
     });
 
+    exportBtn?.addEventListener("click", async () => {
+        if (!batch?.id) {
+            toast("Belum ada batch THR", true);
+            return;
+        }
+        try {
+            void await triggerThrExportReconciliation(batch.id, lines);
+        } catch (e) {
+            toast(`Error export: ${String(e)}`, true);
+        }
+    });
+
     function getCheckedUserIds(): number[] {
         const ids: number[] = [];
         bodyEl?.querySelectorAll<HTMLInputElement>("input[data-thr-line-check]:checked:not(:disabled)").forEach((ch) => {
@@ -935,9 +1074,14 @@ function boot(): void {
             };
             if (!resp || resp.success !== true || !resp.data) {
                 maybeNavigateThrSettingsFromBatchError(resp ?? null);
+                const code = getThrBatchErrorCode(resp ?? null);
+                if (code && code.startsWith("EXPORT_RECON_")) {
+                    setThrReconciliationHint(formatApiError(resp ?? null, 422));
+                }
                 toast(formatApiError(resp ?? null, 422), true);
                 return;
             }
+            setThrReconciliationHint("");
             lines = resp.data.lines || lines;
             batch = resp.data.batch || batch;
             const skipped = resp.data.skippedAlreadyPaidUserIds?.length ?? 0;
@@ -949,6 +1093,10 @@ function boot(): void {
         } catch (e: unknown) {
             const err = e as { status?: number; data?: unknown };
             maybeNavigateThrSettingsFromBatchError(err.data ?? null);
+            const code = getThrBatchErrorCode(err.data ?? null);
+            if (code && code.startsWith("EXPORT_RECON_")) {
+                setThrReconciliationHint(formatApiError(err.data, err.status ?? 0));
+            }
             toast(formatApiError(err.data, err.status ?? 0), true);
         } finally {
             disburseConfirmBtn.disabled = false;

@@ -26,6 +26,13 @@ class Kernel extends ConsoleKernel
                 ->monthlyOn((int) ($wilayahSync['dayOfMonth'] ?? 1), (string) ($wilayahSync['time'] ?? '01:00'))
                 ->timezone((string) ($wilayahSync['timezone'] ?? 'Asia/Jakarta'));
         }
+
+        // Process subscription renewals and billing daily at 6 AM
+        $schedule->job(\App\Jobs\ProcessRecurringSubscriptionBilling::class)
+            ->dailyAt('06:00')
+            ->timezone('Asia/Jakarta')
+            ->name('subscription-renewal-billing')
+            ->withoutOverlapping(60);
     }
 
     /**

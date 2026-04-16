@@ -1,3 +1,11 @@
+    protected static function booted()
+    {
+        static::addGlobalScope('company', function ($query) {
+            if (auth()->check() && auth()->user()->employeeProfile) {
+                $query->where('company_id', auth()->user()->employeeProfile->company_id);
+            }
+        });
+    }
 <?php
 
 namespace App\Models;
@@ -10,6 +18,7 @@ class HcmPromotion extends Model
     protected $table = 'hcm_promotions';
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'department',
         'designation_from',
@@ -21,6 +30,11 @@ class HcmPromotion extends Model
     protected $casts = [
         'promotion_date' => 'date',
     ];
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 
     public function user(): BelongsTo
     {

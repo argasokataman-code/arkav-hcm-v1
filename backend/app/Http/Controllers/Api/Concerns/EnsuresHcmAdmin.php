@@ -12,6 +12,13 @@ trait EnsuresHcmAdmin
      */
     protected function ensureHcmAdmin(Request $request): ?JsonResponse
     {
+        // If the request already has an active tenant context, treat this as a tenant-aware admin check.
+        // This makes "company owner trial" behave as admin for their own tenant while keeping cross-tenant isolation.
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId > 0) {
+            return $this->ensureHcmAdminForCompany($request, $activeCompanyId);
+        }
+
         $user = $request->user();
         if ($user && $user->isHcmAdmin()) {
             return null;

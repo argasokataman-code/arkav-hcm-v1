@@ -118,10 +118,43 @@ class CompanyController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
+        $companyRows = collect($companies->items())->map(function (Company $company) {
+            $latest = $company->subscriptions
+                ->sortByDesc(function ($s) {
+                    return $s->starts_at ?: $s->created_at;
+                })
+                ->first();
+
+            return [
+                'id' => $company->id,
+                'code' => $company->code,
+                'name' => $company->name,
+                'legal_name' => $company->legal_name,
+                'status' => $company->status,
+                'timezone' => $company->timezone,
+                'currency' => $company->currency,
+                'country_code' => $company->country_code,
+                'created_at' => $company->created_at?->toIso8601String(),
+                'owner' => $company->owner ? [
+                    'id' => $company->owner->id,
+                    'name' => $company->owner->name,
+                    'email' => $company->owner->email,
+                ] : null,
+                'subscription' => $latest ? [
+                    'id' => $latest->id,
+                    'status' => $latest->status,
+                    'planCode' => $latest->plan_code,
+                    'startsAt' => $latest->starts_at?->toIso8601String(),
+                    'endsAt' => $latest->ends_at?->toIso8601String(),
+                    'trialEndsAt' => $latest->trial_ends_at?->toIso8601String(),
+                ] : null,
+            ];
+        })->values();
+
         return response()->json([
             'success' => true,
             'data' => [
-                'companies' => $companies->items(),
+                'companies' => $companyRows,
                 'pagination' => [
                     'total' => $companies->total(),
                     'per_page' => $companies->perPage(),

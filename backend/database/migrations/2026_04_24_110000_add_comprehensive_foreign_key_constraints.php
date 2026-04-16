@@ -32,15 +32,8 @@ return new class extends Migration
             // ============================================================================
 
             // 1. Designations -> Departments
-            if (!$this->constraintExists('designations', 'designations_department_id_foreign')) {
-                Schema::table('designations', function (Blueprint $table) {
-                    $table->foreign('department_id')
-                        ->references('id')
-                        ->on('departments')
-                        ->nullOnDelete()
-                        ->change();
-                });
-            }
+            // NOTE: This FK already exists from table creation (foreignId()->constrained())
+            // Skip to avoid duplicate constraint error
 
             // 2. Domains -> Company (if company_id column exists)
             if (Schema::hasColumn('domains', 'company_id') && 

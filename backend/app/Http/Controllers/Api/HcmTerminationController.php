@@ -33,6 +33,17 @@ class HcmTerminationController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
             'dateFrom' => ['nullable', 'date'],
@@ -41,6 +52,7 @@ class HcmTerminationController extends Controller
         ]);
 
         $query = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->orderByDesc('termination_date')
             ->orderByDesc('id');
@@ -78,7 +90,21 @@ class HcmTerminationController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $t = HcmTermination::query()->with(['user:id,name,email'])->find($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $t = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->with(['user:id,name,email'])
+            ->find($id);
         if (! $t) {
             return response()->json([
                 'success' => false,
@@ -102,6 +128,17 @@ class HcmTerminationController extends Controller
 
     public function terminationsForUser(Request $request, int $userId): JsonResponse
     {
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $auth = $request->user();
         if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
             return $this->terminationForbidden();
@@ -114,6 +151,7 @@ class HcmTerminationController extends Controller
         ]);
 
         $rows = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->where('user_id', $userId)
             ->orderByDesc('termination_date')
@@ -138,6 +176,17 @@ class HcmTerminationController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'userId' => ['required', 'integer', 'exists:users,id'],
             'department' => ['nullable', 'string', 'max:150'],
@@ -152,6 +201,7 @@ class HcmTerminationController extends Controller
         User::query()->findOrFail((int) $v['userId']);
 
         $t = HcmTermination::query()->create([
+            'company_id' => $activeCompanyId,
             'user_id' => (int) $v['userId'],
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'termination_type' => trim((string) $v['terminationType']),
@@ -171,7 +221,20 @@ class HcmTerminationController extends Controller
             return $forbidden;
         }
 
-        $t = HcmTermination::query()->findOrFail($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $t = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
 
         $v = $request->validate([
             'userId' => ['sometimes', 'required', 'integer', 'exists:users,id'],
@@ -255,7 +318,21 @@ class HcmTerminationController extends Controller
             return $forbidden;
         }
 
-        HcmTermination::query()->whereKey($id)->delete();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->whereKey($id)
+            ->delete();
 
         return response()->json(['success' => true]);
     }

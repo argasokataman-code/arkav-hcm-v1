@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\MockPaymentController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ReportSnapshotController;
 use App\Http\Controllers\Api\ReconciliationExportController;
@@ -45,6 +46,7 @@ use App\Http\Controllers\Api\HcmTrainingController;
 use App\Http\Controllers\Api\HcmUserManagementController;
 use App\Http\Controllers\Api\WilayahLookupController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\SaasCompanyBillingOverviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/identity')->group(function () {
@@ -59,6 +61,12 @@ Route::prefix('v1/identity')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
     });
+});
+
+Route::prefix('v1/public')->group(function () {
+    // Onboarding: create company + owner + subscription/invoice (public, guest)
+    Route::post('/onboarding', [\App\Http\Controllers\Api\PublicOnboardingController::class, 'store'])
+        ->middleware(['throttle:10,1']);
 });
 
 Route::prefix('v1/company')->middleware(['api.token'])->group(function () {
@@ -195,6 +203,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/attendance/me/correction-request', [AttendanceController::class, 'requestCorrection']);
     Route::post('/attendance/me/selfie', [AttendanceController::class, 'meSelfie']);
     Route::get('/attendance/me/selfie/status', [AttendanceController::class, 'meSelfieStatus']);
+    Route::get('/attendance/admin/records/{id}/selfie/download', [AttendanceController::class, 'adminSelfieDownload'])
+        ->whereNumber('id');
 
     Route::get('/holidays', [HcmHolidayController::class, 'index']);
     Route::post('/holidays', [HcmHolidayController::class, 'store']);
@@ -245,6 +255,16 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/tickets/{id}/attachments/{attachmentId}/download', [HcmTicketController::class, 'downloadAttachment'])
         ->whereNumber('id')
         ->whereNumber('attachmentId');
+
+    // Tenant billing checkout (owner / tenant admin)
+    Route::post('/billing/checkout', [\App\Http\Controllers\Api\HcmSubscriptionCheckoutController::class, 'checkout']);
+
+    // Tenant invoices (my billing)
+    Route::get('/billing/invoices', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'index']);
+    Route::get('/billing/invoices/{id}', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'show'])->whereNumber('id');
+    Route::get('/billing/invoices/{id}/download', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'download'])->whereNumber('id');
+    // Dev-only mock payment flow (keeps UX testable before gateway is integrated)
+    Route::post('/billing/invoices/{id}/mock-pay', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'mockPay'])->whereNumber('id');
 
     // Performance (Phase 1)
     Route::prefix('performance')->group(function () {
@@ -473,7 +493,20 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::get('/dashboard/revenue/by-plan', [SuperAdminDashboardController::class, 'getRevenueByPlan']);
     Route::get('/dashboard/subscriptions/status', [SuperAdminDashboardController::class, 'getSubscriptionStatus']);
     Route::get('/dashboard/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
+
+    // Billing overview (companies)
+    Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);
 });
+
+// Mock Payments (Development only - for testing without Stripe/Xendit subscription)
+if (app()->isLocal() || config('app.mock_payments_enabled')) {
+    Route::prefix('v1/mock')->middleware(['api.token', 'tenant.context'])->group(function () {
+        Route::post('/payments/create', [MockPaymentController::class, 'createPayment']);
+        Route::post('/invoices/create-and-pay', [MockPaymentController::class, 'createInvoiceAndPay']);
+        Route::get('/test-cards', [MockPaymentController::class, 'getTestCards']);
+        Route::post('/webhook/charge-succeeded', [MockPaymentController::class, 'simulateChargeSucceeded']);
+    });
+}
 
 Route::get('/health', function () {
     return response()->json([
@@ -484,3 +517,7 @@ Route::get('/health', function () {
         ],
     ]);
 });
+
+// Webhooks (outside auth middleware, signature-validated instead)
+Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handleStripe']);
+Route::post('/webhooks/xendit', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handleXendit']);

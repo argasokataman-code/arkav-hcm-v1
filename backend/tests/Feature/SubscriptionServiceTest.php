@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -125,6 +126,49 @@ class SubscriptionServiceTest extends TestCase
         $this->assertCount(1, $response->json('data'));
     }
 
+    public function test_list_subscriptions_respects_per_page(): void
+    {
+        for ($i = 0; $i < 3; $i++) {
+            Subscription::create([
+                'company_id' => $this->company->id,
+                'package_id' => $this->basicPackage->id,
+                'plan_code' => 'basic',
+                'status' => 'active',
+                'starts_at' => now(),
+                'ends_at' => now()->addMonths(1),
+                'billing_cycle' => 'monthly',
+                'amount' => 99000,
+            ]);
+        }
+
+        $response = $this->request()->getJson('/v1/saas/subscriptions?per_page=2&status=active');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+        $this->assertEquals(2, $response->json('pagination.per_page'));
+    }
+
+    public function test_list_subscriptions_filter_suspended(): void
+    {
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'suspended',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->getJson('/v1/saas/subscriptions?status=suspended');
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+        $this->assertGreaterThanOrEqual(1, count($response->json('data') ?? []));
+        $this->assertContains('suspended', array_column($response->json('data'), 'status'));
+    }
+
     public function test_non_admin_can_list_and_view_subscription_read_only()
     {
         $subscription = Subscription::create([
@@ -174,6 +218,127 @@ class SubscriptionServiceTest extends TestCase
             'id' => $subscription->id,
             'status' => 'inactive',
         ]);
+    }
+
+    public function test_update_subscription_to_suspended(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonths(1),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+            'status' => 'suspended',
+        ]);
+
+        $response->assertOk();
+        $this->assertEquals('suspended', $response->json('data.status'));
+    }
+
+    public function test_create_trial_subscription_success(): void
+    {
+        $starts = now()->toDateString();
+        $ends = now()->addMonths(1)->toDateString();
+        $trialEnds = now()->addDays(10)->toDateString();
+
+        $response = $this->request()->postJson('/v1/saas/subscriptions', [
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'status' => 'trial',
+            'starts_at' => $starts,
+            'ends_at' => $ends,
+            'trial_ends_at' => $trialEnds,
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonPath('data.status', 'trial');
+        $this->assertNotNull($response->json('data.trialEndsAt'));
+    }
+
+    public function test_create_trial_missing_trial_ends_at_returns_422(): void
+    {
+        $response = $this->request()->postJson('/v1/saas/subscriptions', [
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'status' => 'trial',
+            'starts_at' => now()->toDateString(),
+            'ends_at' => now()->addMonths(1)->toDateString(),
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_create_trial_trial_end_after_subscription_end_returns_422(): void
+    {
+        $starts = now()->toDateString();
+        $ends = now()->addMonths(1)->toDateString();
+        $trialEnds = now()->addMonths(2)->toDateString();
+
+        $response = $this->request()->postJson('/v1/saas/subscriptions', [
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'status' => 'trial',
+            'starts_at' => $starts,
+            'ends_at' => $ends,
+            'trial_ends_at' => $trialEnds,
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_update_subscription_to_trial_requires_trial_ends_at(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonths(1),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+            'status' => 'trial',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_update_subscription_to_trial_with_dates_succeeds(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonths(1),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $trialEnds = now()->addDays(7)->toDateString();
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+            'status' => 'trial',
+            'trial_ends_at' => $trialEnds,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'trial');
     }
 
     public function test_delete_subscription()
@@ -226,6 +391,30 @@ class SubscriptionServiceTest extends TestCase
         ]);
     }
 
+    public function test_renew_inactive_subscription_after_get_by_id(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'inactive',
+            'starts_at' => now()->subMonths(1),
+            'ends_at' => now()->subDays(1),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $this->request()->getJson("/v1/saas/subscriptions/{$subscription->id}")->assertOk()->assertJsonPath('data.status', 'inactive');
+
+        $futureDate = now()->addMonths(1)->toDateString();
+        $renew = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->id}/renew", [
+            'ends_at' => $futureDate,
+        ]);
+
+        $renew->assertOk();
+        $renew->assertJsonPath('data.status', 'active');
+    }
+
     public function test_non_admin_cannot_create_subscription()
     {
         $response = $this->nonAdminRequest()->postJson('/v1/saas/subscriptions', [
@@ -269,5 +458,88 @@ class SubscriptionServiceTest extends TestCase
         ]);
         $renewResponse->assertStatus(403);
         $renewResponse->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+    }
+
+    public function test_update_subscription_changes_package_recalculates_amount(): void
+    {
+        $pkg2 = Package::create([
+            'code' => 'premium',
+            'name' => 'Premium Plan',
+            'monthly_price' => 500000,
+            'yearly_price' => 5000000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonths(1),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+            'package_id' => $pkg2->id,
+        ]);
+
+        $response->assertOk();
+        $this->assertEquals(500000, (int) $response->json('data.amount'));
+        $this->assertSame('premium', $response->json('data.planCode'));
+    }
+
+    public function test_create_subscription_rejects_non_active_package(): void
+    {
+        $inactive = Package::create([
+            'code' => 'legacy_pkg',
+            'name' => 'Legacy',
+            'monthly_price' => 1,
+            'yearly_price' => 10,
+            'billing_unit' => 'company',
+            'status' => 'archived',
+        ]);
+
+        $response = $this->request()->postJson('/v1/saas/subscriptions', [
+            'company_id' => $this->company->id,
+            'package_id' => $inactive->id,
+            'status' => 'active',
+            'starts_at' => now()->toDateString(),
+            'ends_at' => now()->addMonth()->toDateString(),
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'PACKAGE_NOT_ACTIVE');
+    }
+
+    public function test_invoice_mark_paid_activates_pending_payment_subscription(): void
+    {
+        $sub = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_id' => $this->basicPackage->id,
+            'plan_code' => 'basic',
+            'status' => 'pending_payment',
+            'starts_at' => now(),
+            'ends_at' => now()->addWeek(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $invoice = Invoice::create([
+            'company_id' => $this->company->id,
+            'subscription_id' => $sub->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addWeek()->toDateString(),
+            'amount_due' => 99000,
+        ]);
+
+        $invoice->markAsPaid();
+
+        $sub->refresh();
+        $this->assertSame('active', $sub->status);
+        $this->assertTrue($sub->ends_at->isFuture());
     }
 }

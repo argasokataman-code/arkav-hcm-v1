@@ -22,6 +22,11 @@
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
+                <div class="mb-2 me-2">
+                    <button type="button" class="btn btn-outline-primary d-none d-flex align-items-center" id="btn_open_renew_by_id" data-subscription-renew-by-id-button>
+                        <i class="ti ti-refresh me-2"></i>Renew by ID
+                    </button>
+                </div>
                 <div class="mb-2">
                     <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#subscriptionModal" id="btn_add_subscription" data-subscription-add-button>
                         <i class="ti ti-circle-plus me-2"></i>Add Subscription
@@ -32,7 +37,7 @@
         <!-- /Breadcrumb -->
 
         <div class="alert alert-warning d-none" role="alert" id="subscription_readonly_notice" data-subscription-readonly-notice>
-            Read-only mode. Subscription changes require HCM admin access.
+            <strong>Read-only / Hanya baca</strong> — subscription changes require HCM admin access. Perubahan subscription memerlukan akses HCM admin.
         </div>
 
         <!-- Filter Card -->
@@ -50,6 +55,8 @@
                             <option value="inactive">Inactive</option>
                             <option value="expired">Expired</option>
                             <option value="cancelled">Cancelled</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="pending_payment">Pending payment</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -111,6 +118,33 @@
                             </select>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date *</label>
+                            <input type="date" class="form-control" id="input_subscription_end" required>
+                            <small class="text-muted">Diisi otomatis dari start + cycle; bisa disesuaikan.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Subscription status *</label>
+                            <select class="form-select" id="input_subscription_status" required>
+                                <option value="active">Active</option>
+                                <option value="trial">Trial</option>
+                                <option value="pending_payment">Pending payment (aktif setelah invoice dibayar)</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="expired">Expired</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="suspended">Suspended</option>
+                            </select>
+                            <small class="text-muted">Trial requires trial end date (on or before end date). <strong>Pending payment</strong>: hubungkan invoice ke subscription ini lalu tandai bayar — status jadi Active dan periode dihitung dari tanggal bayar.</small>
+                        </div>
+                    </div>
+                    <div class="row d-none" id="subscription_trial_row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Trial end date *</label>
+                            <input type="date" class="form-control" id="input_subscription_trial_end">
+                            <small class="text-muted">Last day of trial (after start date, not after subscription end date).</small>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Special Instructions</label>
                         <textarea class="form-control" id="input_subscription_instructions" rows="3"></textarea>
@@ -125,45 +159,52 @@
     </div>
 </div>
 
-<!-- Subscription Actions Modal -->
-<div class="modal fade" id="actionsModal" tabindex="-1" role="dialog">
+<!-- Renew subscription (new ends_at) -->
+<div class="modal fade" id="subscriptionRenewModal" tabindex="-1" role="dialog" data-bs-backdrop="static">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Subscription Actions</h5>
+                <h5 class="modal-title">Renew subscription</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="d-grid gap-2 mb-3">
-                    <button class="btn btn-outline-warning" id="btn_pause_subscription">
-                        <i class="ti ti-pause"></i> Pause
-                    </button>
-                    <button class="btn btn-outline-info" id="btn_resume_subscription">
-                        <i class="ti ti-play"></i> Resume
-                    </button>
-                    <button class="btn btn-outline-danger" id="btn_cancel_subscription">
-                        <i class="ti ti-x"></i> Cancel
-                    </button>
-                </div>
+                <p class="text-muted small mb-3">Status becomes <strong>active</strong>; start date is set to today on the server.</p>
+                <label class="form-label">New end date *</label>
+                <input type="date" class="form-control" id="input_renew_ends_at" required>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn_confirm_renew_subscription">Renew</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+<!-- Renew by subscription ID (when row is not on current list page) -->
+<div class="modal fade" id="subscriptionRenewByIdModal" tabindex="-1" role="dialog" data-bs-backdrop="static">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Confirm Delete</h5>
+                <h5 class="modal-title">Renew by subscription ID</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete this subscription? This action cannot be undone.</p>
+                <p class="text-muted small mb-2">Gunakan jika langganan tidak terlihat di tabel (filter/halaman lain). Muat dulu dari server, lalu set tanggal akhir baru.</p>
+                <label class="form-label">Subscription ID *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" id="input_renew_lookup_id" min="1" step="1" placeholder="e.g. 42">
+                    <button type="button" class="btn btn-outline-secondary" id="btn_renew_lookup_load">Load</button>
+                </div>
+                <div id="renew_by_id_summary" class="alert alert-light border mt-3 mb-0 d-none small" role="status"></div>
+                <div id="renew_by_id_step2" class="mt-3 d-none">
+                    <p class="text-muted small mb-2">Status becomes <strong>active</strong>; start date is set to today on the server.</p>
+                    <label class="form-label">New end date *</label>
+                    <input type="date" class="form-control" id="input_renew_by_id_ends_at" required>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="btn_confirm_delete">Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary d-none" id="btn_confirm_renew_by_id">Renew</button>
             </div>
         </div>
     </div>

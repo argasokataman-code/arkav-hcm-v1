@@ -106,7 +106,7 @@ return new class extends Migration
         $isSqlite = DB::getDriverName() === 'sqlite';
 
         if (Schema::hasTable('hcm_leave_custom_policies')) {
-            Schema::table('hcm_leave_custom_policies', function (Blueprint $table): void {
+            Schema::table('hcm_leave_custom_policies', function (Blueprint $table) use ($isSqlite): void {
                 if (Schema::hasColumn('hcm_leave_custom_policies', 'leave_policy_id')) {
                     if (! $isSqlite) {
                         $table->dropForeign('hcm_leave_custom_policies_leave_policy_id_fk');

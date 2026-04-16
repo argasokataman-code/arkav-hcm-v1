@@ -1,3 +1,11 @@
+    protected static function booted()
+    {
+        static::addGlobalScope('company', function ($query) {
+            if (auth()->check() && auth()->user()->employeeProfile) {
+                $query->where('company_id', auth()->user()->employeeProfile->company_id);
+            }
+        });
+    }
 <?php
 
 namespace App\Models;
@@ -14,6 +22,7 @@ class HcmTermination extends Model
     protected $table = 'hcm_terminations';
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'department',
         'termination_type',
@@ -33,6 +42,11 @@ class HcmTermination extends Model
      * Valid termination statuses
      */
     public const VALID_STATUSES = ['pending', 'approved', 'finalized', 'cancelled'];
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 
     public function user(): BelongsTo
     {

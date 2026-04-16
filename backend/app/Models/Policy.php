@@ -11,6 +11,7 @@ class Policy extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'department_id',
         'name',
         'description',

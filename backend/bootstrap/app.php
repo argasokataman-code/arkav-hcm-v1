@@ -39,5 +39,32 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
+            if (! $request->is('v1/*')) {
+                return null;
+            }
+
+            $traceId = (string) ($request->attributes->get('traceId') ?? '');
+
+            $details = [];
+            foreach ($e->errors() as $field => $messages) {
+                foreach ((array) $messages as $message) {
+                    $details[] = [
+                        'field' => (string) $field,
+                        'rule' => 'validation',
+                        'message' => (string) $message,
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => 'Validation failed',
+                    'details' => $details,
+                    'traceId' => $traceId !== '' ? $traceId : (string) \Illuminate\Support\Str::uuid(),
+                ],
+            ], 422);
+        });
     })->create();

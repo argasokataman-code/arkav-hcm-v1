@@ -169,6 +169,7 @@ class AuthController extends Controller
         $user = $request->user();
         $activeCompany = $request->attributes->get('activeCompany');
         $activeCompanyRole = $request->attributes->get('activeCompanyRole');
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         if (! $user) {
             return $this->errorResponse('AUTH_UNAUTHORIZED', 'Unauthorized.', 401, $request);
@@ -177,6 +178,11 @@ class AuthController extends Controller
         $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
         $profile = $user->employeeProfile;
         [$firstName, $lastName] = $this->splitName((string) ($user->name ?? ''));
+
+        // `hcmAdmin` is used widely by HCM web modules to decide whether to allow "admin pages".
+        // For self-serve trial: the company owner should be treated as tenant-admin for their own company.
+        $isGlobalHcmAdmin = $user->isHcmAdmin();
+        $isTenantHcmAdmin = $activeCompanyId > 0 ? $user->isHcmAdminForCompany($activeCompanyId) : $isGlobalHcmAdmin;
 
         return response()->json([
             'success' => true,
@@ -195,7 +201,8 @@ class AuthController extends Controller
                     'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
                 ],
                 'roles' => ['employee'],
-                'hcmAdmin' => $user->isHcmAdmin(),
+                'hcmAdmin' => $isTenantHcmAdmin,
+                'hcmGlobalAdmin' => $isGlobalHcmAdmin,
                 'activeCompany' => $activeCompany ? [
                     'id' => $activeCompany->id,
                     'code' => $activeCompany->code,

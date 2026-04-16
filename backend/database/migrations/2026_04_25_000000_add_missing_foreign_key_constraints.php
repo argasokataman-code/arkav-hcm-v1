@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -605,11 +606,9 @@ return new class extends Migration
             ['sessions', 'sessions_user_id_foreign'],
         ];
 
-        foreach ($constraints as [$table, $constraint]) {
-            if (Schema::hasTable($table) && $this->constraintExists($table, $constraint)) {
-                Schema::table($table, function (Blueprint $table) use ($constraint) {
-                    $table->dropForeign([$constraint]);
-                });
+        foreach ($constraints as [$table, $constraintName]) {
+            if (Schema::hasTable($table) && $this->constraintExists($table, $constraintName)) {
+                DB::statement("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$constraintName}`");
             }
         }
 

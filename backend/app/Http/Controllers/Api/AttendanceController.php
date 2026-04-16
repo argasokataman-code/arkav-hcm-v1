@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
 {
@@ -43,9 +45,9 @@ class AttendanceController extends Controller
             return $query;
         }
 
-        return $query->where(function (Builder $inner) use ($companyId): void {
-            $inner->where('company_id', $companyId)->orWhereNull('company_id');
-        });
+        // Strict tenant isolation: do not include legacy/global rows (company_id NULL)
+        // because they leak data across tenant (trial/customer).
+        return $query->where('company_id', $companyId);
     }
 
     private function expectedCheckIn(string $dateYmd): Carbon
@@ -121,9 +123,19 @@ class AttendanceController extends Controller
     {
         $q = User::query()
             ->leftJoin('employee_profiles as ep', 'ep.user_id', '=', 'users.id')
-            ->leftJoin('attendance_records as ar', function ($join) use ($dateYmd) {
+            ->leftJoin('attendance_records as ar', function ($join) use ($dateYmd, $companyId) {
                 $join->on('ar.user_id', '=', 'users.id')
-                    ->where('ar.work_date', '=', $dateYmd);
+                    ->whereDate('ar.work_date', '=', $dateYmd);
+
+                // Attendance records are expected to be company-scoped in HCM pages.
+                // When a company context is active, join that company or a global (NULL company_id) row.
+                // This keeps admin list stable even if legacy data was stored with NULL company_id,
+                // while still preventing leakage from other companies.
+                if ($companyId) {
+                    $join->where(function ($inner) use ($companyId): void {
+                        $inner->where('ar.company_id', '=', $companyId)->orWhereNull('ar.company_id');
+                    });
+                }
             });
 
         if ($companyId) {
@@ -223,7 +235,7 @@ class AttendanceController extends Controller
         $this->applyTenantScope($recordsQuery, $activeCompanyId);
         $records = $recordsQuery
             ->whereIn('user_id', $userIds)
-            ->where('work_date', $dateYmd)
+            ->whereDate('work_date', $dateYmd)
             ->get()
             ->keyBy('user_id');
 
@@ -282,6 +294,7 @@ class AttendanceController extends Controller
                 'statusKey' => $statusKey,
                 'statusLabel' => $statusLabel,
                 'statusBadgeClass' => $statusBadgeClass,
+                'hasSelfie' => (bool) $rec?->selfie_path,
                 'checkIn' => $this->formatTime($checkIn),
                 'checkOut' => $this->formatTime($checkOut),
                 'checkInTime24' => $checkIn ? $checkIn->copy()->timezone($this->tz())->format('H:i') : '',
@@ -811,6 +824,15 @@ class AttendanceController extends Controller
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $now = Carbon::now($this->tz());
         $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
 
         // Use whereDate + create instead of firstOrCreate: date column matching is unreliable
         // across drivers when the lookup attributes are normalized differently than stored values.
@@ -1386,21 +1408,37 @@ class AttendanceController extends Controller
         ]);
 
         try {
-            $user = auth()->user();
-            $companyId = $request->attributes->get('activeCompanyId');
+            // Important: API authentication sets the user resolver on the Request,
+            // so prefer $request->user() over auth()->user() (which may use a different guard).
+            $user = $request->user();
+            $activeCompanyId = $this->activeCompanyId($request);
             $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
 
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'AUTH_UNAUTHORIZED',
+                        'message' => 'Missing authentication token.',
+                    ],
+                ], 401);
+            }
+
             // Find or create attendance record for today
-            $attendance = AttendanceRecord::query()
+            $attendanceQuery = AttendanceRecord::query();
+            $this->applyTenantScope($attendanceQuery, $activeCompanyId);
+            $attendance = $attendanceQuery
                 ->where('user_id', $user->id)
-                ->where('company_id', $companyId)
-                ->where('work_date', $workDate)
+                ->whereDate('work_date', $workDate)
                 ->first();
 
             if (! $attendance) {
                 return response()->json([
-                    'error' => 'No attendance record found for today',
-                    'message' => 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie',
+                    'success' => false,
+                    'error' => [
+                        'code' => 'ATTENDANCE_NOT_STARTED',
+                        'message' => 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie.',
+                    ],
                 ], 422);
             }
 
@@ -1410,21 +1448,26 @@ class AttendanceController extends Controller
 
             if (! $imageBinary) {
                 return response()->json([
-                    'error' => 'Invalid base64 image data',
-                    'message' => 'Data selfie tidak valid',
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'Data selfie tidak valid.',
+                    ],
                 ], 422);
             }
 
             // Store image (will be encrypted at storage layer)
             $filename = sprintf(
                 'selfie/%d/%s_%s.jpg',
-                $companyId,
+                (int) ($activeCompanyId ?? 0),
                 $user->id,
                 $workDate . '_' . now('UTC')->timestamp
             );
 
             // Store in storage (encrypted at storage layer via config)
-            $path = \Storage::disk('private')->put($filename, $imageBinary);
+            // Storage::put returns boolean; the stored path is the provided filename.
+            \Storage::disk('private')->put($filename, $imageBinary);
+            $path = $filename;
 
             // Calculate hash for integrity check
             $hash = hash('sha256', $imageBinary);
@@ -1437,7 +1480,6 @@ class AttendanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Selfie berhasil disimpan dan dienkripsi',
                 'data' => [
                     'attendance_id' => $attendance->id,
                     'selfie_path' => $path,
@@ -1446,13 +1488,16 @@ class AttendanceController extends Controller
             ]);
         } catch (\Exception $e) {
             \Log::error('Selfie upload error', [
-                'user_id' => auth()->id(),
+                'user_id' => $request->user()?->id,
                 'error' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'error' => 'Failed to upload selfie',
-                'message' => 'Gagal menyimpan selfie, coba lagi nanti',
+                'success' => false,
+                'error' => [
+                    'code' => 'INTERNAL_ERROR',
+                    'message' => 'Gagal menyimpan selfie, coba lagi nanti.',
+                ],
             ], 500);
         }
     }
@@ -1463,36 +1508,118 @@ class AttendanceController extends Controller
     public function meSelfieStatus(Request $request): JsonResponse
     {
         try {
-            $user = auth()->user();
-            $companyId = $request->attributes->get('activeCompanyId');
+            $user = $request->user();
+            $activeCompanyId = $this->activeCompanyId($request);
             $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
 
-            $attendance = AttendanceRecord::query()
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'AUTH_UNAUTHORIZED',
+                        'message' => 'Missing authentication token.',
+                    ],
+                ], 401);
+            }
+
+            $attendanceQuery = AttendanceRecord::query();
+            $this->applyTenantScope($attendanceQuery, $activeCompanyId);
+            $attendance = $attendanceQuery
                 ->where('user_id', $user->id)
-                ->where('company_id', $companyId)
-                ->where('work_date', $workDate)
+                ->whereDate('work_date', $workDate)
                 ->first();
 
             if (! $attendance) {
                 return response()->json([
-                    'has_selfie' => false,
-                    'selfie' => null,
+                    'success' => true,
+                    'data' => [
+                        'has_selfie' => false,
+                        'selfie' => null,
+                    ],
                 ]);
             }
 
             return response()->json([
-                'has_selfie' => $attendance->selfie_path ? true : false,
-                'selfie' => $attendance->selfie_path ? [
-                    'path' => $attendance->selfie_path,
-                    'uploaded_at' => $attendance->updated_at,
-                    'is_encrypted' => true,
-                ] : null,
+                'success' => true,
+                'data' => [
+                    'has_selfie' => (bool) $attendance->selfie_path,
+                    'selfie' => $attendance->selfie_path ? [
+                        'path' => $attendance->selfie_path,
+                        'uploaded_at' => $attendance->updated_at,
+                        'is_encrypted' => true,
+                    ] : null,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to fetch selfie status',
+                'success' => false,
+                'error' => [
+                    'code' => 'INTERNAL_ERROR',
+                    'message' => 'Failed to fetch selfie status.',
+                ],
             ], 500);
         }
+    }
+
+    /**
+     * Download employee selfie file for a specific attendance record (admin-only).
+     */
+    public function adminSelfieDownload(Request $request, int $attendanceId): BinaryFileResponse|JsonResponse
+    {
+        $forbidden = $this->ensureHcmAdmin($request);
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $query = AttendanceRecord::query();
+        $this->applyTenantScope($query, $companyId);
+        $rec = $query->whereKey($attendanceId)->first();
+        if (! $rec) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ATTENDANCE_NOT_FOUND',
+                    'message' => 'Attendance record not found.',
+                ],
+            ], 404);
+        }
+
+        $path = ltrim((string) $rec->selfie_path, '/');
+        if ($path === '') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SELFIE_NOT_FOUND',
+                    'message' => 'Selfie not found for this attendance record.',
+                ],
+            ], 404);
+        }
+
+        if (! Storage::disk('private')->exists($path)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SELFIE_FILE_MISSING',
+                    'message' => 'Selfie file missing on storage.',
+                ],
+            ], 404);
+        }
+
+        $fullPath = Storage::disk('private')->path($path);
+        $downloadName = basename($path);
+
+        return response()->download($fullPath, $downloadName);
     }
 }
 

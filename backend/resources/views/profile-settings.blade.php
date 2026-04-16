@@ -9,16 +9,16 @@
         <!-- Breadcrumb -->
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Settings</h2>
+                <h2 class="mb-1">My Account</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
                             <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                         </li>
                         <li class="breadcrumb-item">
-                            Administration
+                            Account
                         </li>
-                        <li class="breadcrumb-item active" aria-current="page">Settings</li>
+                        <li class="breadcrumb-item active" aria-current="page">Profile Settings</li>
                     </ol>
                 </nav>
             </div>
@@ -67,7 +67,44 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="border-bottom mb-3 pb-3">
-                            <h4>Profile Settings</h4>
+                            <h4 class="mb-1">Profile Settings</h4>
+                            <div class="text-muted fs-12">
+                                Kelola data akun kamu. Kalau kamu login sebagai company, kode perusahaan akan tampil di sini.
+                            </div>
+                        </div>
+
+                        <div class="border rounded-3 p-3 mb-3 bg-light" data-company-context-card>
+                            <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                                <div>
+                                    <div class="fw-semibold mb-1">Company Context</div>
+                                    <div class="text-muted fs-12">Mode ini dipakai untuk akses workspace perusahaan (tenant).</div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-info-subtle text-info" data-company-context-mode>—</span>
+                                </div>
+                            </div>
+                            <div class="row mt-3 g-2">
+                                <div class="col-md-6">
+                                    <div class="small text-muted">Company Name</div>
+                                    <div class="fw-medium" data-company-name>—</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="small text-muted">Company ID</div>
+                                    <div class="fw-medium" data-company-id>—</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="small text-muted">Company Code</div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="fw-medium" data-company-code>—</div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 d-none" data-copy-company-code>
+                                            <i class="ti ti-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-muted fs-12">
+                                Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login as Company</em>.
+                            </div>
                         </div>
                         <div class="alert d-none" data-profile-settings-feedback></div>
                         <form action="javascript:void(0);" data-profile-settings-form>

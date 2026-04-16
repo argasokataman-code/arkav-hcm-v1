@@ -29,4 +29,14 @@ class HcmManualActivity extends Model
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
     }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 }

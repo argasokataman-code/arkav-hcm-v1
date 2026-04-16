@@ -33,6 +33,17 @@ class HcmResignationController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
             'dateFrom' => ['nullable', 'date'],
@@ -41,6 +52,7 @@ class HcmResignationController extends Controller
         ]);
 
         $query = HcmResignation::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->orderByDesc('resignation_date')
             ->orderByDesc('id');
@@ -77,7 +89,21 @@ class HcmResignationController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $r = HcmResignation::query()->with(['user:id,name,email'])->find($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $r = HcmResignation::query()
+            ->where('company_id', $activeCompanyId)
+            ->with(['user:id,name,email'])
+            ->find($id);
         if (! $r) {
             return response()->json([
                 'success' => false,
@@ -101,6 +127,17 @@ class HcmResignationController extends Controller
 
     public function resignationsForUser(Request $request, int $userId): JsonResponse
     {
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $auth = $request->user();
         if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
             return $this->resignationForbidden();
@@ -113,6 +150,7 @@ class HcmResignationController extends Controller
         ]);
 
         $rows = HcmResignation::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->where('user_id', $userId)
             ->orderByDesc('resignation_date')
@@ -137,6 +175,17 @@ class HcmResignationController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'userId' => ['required', 'integer', 'exists:users,id'],
             'department' => ['nullable', 'string', 'max:150'],
@@ -150,6 +199,7 @@ class HcmResignationController extends Controller
         User::query()->findOrFail((int) $v['userId']);
 
         $r = HcmResignation::query()->create([
+            'company_id' => $activeCompanyId,
             'user_id' => (int) $v['userId'],
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'reason' => trim((string) $v['reason']),
@@ -168,7 +218,20 @@ class HcmResignationController extends Controller
             return $forbidden;
         }
 
-        $r = HcmResignation::query()->findOrFail($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $r = HcmResignation::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
 
         $v = $request->validate([
             'userId' => ['sometimes', 'required', 'integer', 'exists:users,id'],
@@ -248,7 +311,21 @@ class HcmResignationController extends Controller
             return $forbidden;
         }
 
-        HcmResignation::query()->whereKey($id)->delete();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        HcmResignation::query()
+            ->where('company_id', $activeCompanyId)
+            ->whereKey($id)
+            ->delete();
 
         return response()->json(['success' => true]);
     }

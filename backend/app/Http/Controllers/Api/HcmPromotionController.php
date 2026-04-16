@@ -30,6 +30,17 @@ class HcmPromotionController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'q' => ['nullable', 'string', 'max:200'],
             'dateFrom' => ['nullable', 'date'],
@@ -38,6 +49,7 @@ class HcmPromotionController extends Controller
         ]);
 
         $query = HcmPromotion::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->orderByDesc('promotion_date')
             ->orderByDesc('id');
@@ -77,7 +89,21 @@ class HcmPromotionController extends Controller
      */
     public function show(Request $request, int $id): JsonResponse
     {
-        $p = HcmPromotion::query()->with(['user:id,name,email'])->find($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $p = HcmPromotion::query()
+            ->where('company_id', $activeCompanyId)
+            ->with(['user:id,name,email'])
+            ->find($id);
         if (! $p) {
             return response()->json([
                 'success' => false,
@@ -104,6 +130,17 @@ class HcmPromotionController extends Controller
      */
     public function promotionsForUser(Request $request, int $userId): JsonResponse
     {
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $auth = $request->user();
         if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
             return $this->promotionForbidden();
@@ -116,6 +153,7 @@ class HcmPromotionController extends Controller
         ]);
 
         $rows = HcmPromotion::query()
+            ->where('company_id', $activeCompanyId)
             ->with(['user:id,name,email'])
             ->where('user_id', $userId)
             ->orderByDesc('promotion_date')
@@ -140,6 +178,17 @@ class HcmPromotionController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $v = $request->validate([
             'userId' => ['required', 'integer', 'exists:users,id'],
             'department' => ['nullable', 'string', 'max:150'],
@@ -152,6 +201,7 @@ class HcmPromotionController extends Controller
         User::query()->findOrFail((int) $v['userId']);
 
         $p = HcmPromotion::query()->create([
+            'company_id' => $activeCompanyId,
             'user_id' => (int) $v['userId'],
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'designation_from' => isset($v['designationFrom']) ? trim((string) $v['designationFrom']) : null,
@@ -169,7 +219,20 @@ class HcmPromotionController extends Controller
             return $forbidden;
         }
 
-        $p = HcmPromotion::query()->findOrFail($id);
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $p = HcmPromotion::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
 
         $v = $request->validate([
             'userId' => ['sometimes', 'required', 'integer', 'exists:users,id'],
@@ -213,7 +276,21 @@ class HcmPromotionController extends Controller
             return $forbidden;
         }
 
-        HcmPromotion::query()->whereKey($id)->delete();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        HcmPromotion::query()
+            ->where('company_id', $activeCompanyId)
+            ->whereKey($id)
+            ->delete();
         return response()->json(['success' => true]);
     }
 

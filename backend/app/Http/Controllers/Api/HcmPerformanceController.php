@@ -119,12 +119,28 @@ class HcmPerformanceController extends Controller
         ]);
 
         $user = $request->user();
-        $isAdmin = (bool) $user?->isHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $isAdmin = (bool) ($user?->isHcmAdminForCompany($activeCompanyId) ?? false);
         $scope = (string) ($v['scope'] ?? 'me');
 
         $query = PerformanceGoal::query()
             ->with(['goalType:id,name', 'user:id,name,email', 'manager:id,name,email'])
             ->orderByDesc('id');
+
+        // Tenant isolation: goals are scoped by the goal owner's active company.
+        $query->whereHas('user.employeeProfile', function ($p) use ($activeCompanyId): void {
+            $p->where('company_id', $activeCompanyId);
+        });
 
         if ($scope === 'all') {
             if (! $isAdmin) {

@@ -7,6 +7,7 @@
     $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
     $isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
     $showTemplateCatalogMenus = $isPrimarySuperAdmin;
+    $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
     $activeCompany = request()->attributes->get('activeCompany');
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription()
@@ -145,19 +146,19 @@
                                         <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>
 @endif                                    </ul>
                                 </li>
-@if ($showTemplateCatalogMenus)
+@if ($isHcmAdmin)
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction') ? 'active subdrop' : '' }}">
+                                    <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Super Admin</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                         <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                        <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription') ? 'active' : '' }}">Subscriptions</a></li>
-                        <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid') ? 'active' : '' }}">Packages</a></li>
-                        <li><a href="{{url('domain')}}" class="{{ Request::is('domain') ? 'active' : '' }}">Domain</a></li>
-                        <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction') ? 'active' : '' }}">Purchase Transaction</a></li>
+                        <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                        <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
+                        <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
+                        <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
                                     </ul>
                                 </li>
 @endif
@@ -396,7 +397,7 @@
                                 </li>
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
-                                    'assets','asset-categories','knowledgebase','activity', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
+                                    'assets','asset-categories','knowledgebase','knowledgebase/*','activity', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                                     'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                                      'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Administration</span>
@@ -464,11 +465,11 @@
                                         </li>
 @endif
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
+                                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
-                                                <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
+                                                <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
                                                  <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
 
                                             </ul>
@@ -598,7 +599,7 @@
                                             <li class="submenu">
                                             <a href="#" class="{{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}"><span>Content</span> <span class="menu-arrow"></span></a>
                                             <ul>
-                                                @if ($showTemplateCatalogMenus)
+                                                @if ($isHcmAdmin)
                                                 <li class="{{ Request::is('pages') ? 'active' : '' }}"><a href="{{url('pages')}}">Pages</a></li>
                                                 @endif
                                                 <li class="submenu">
@@ -1312,6 +1313,22 @@
                         </div>
                     </div>
                     <div class="dropdown profile-dropdown">
+                        @php
+                            $trialEndsAt = $activeCompanySubscription?->trial_ends_at;
+                            $trialDaysLeft = null;
+                            if ($activeCompanySubscription && $activeCompanySubscription->status === 'trial' && $trialEndsAt) {
+                                // Use ceiling for friendly UX: if remaining hours > 0, show at least 1 day.
+                                $secondsLeft = now()->diffInSeconds($trialEndsAt, false);
+                                $trialDaysLeft = $secondsLeft > 0 ? (int) ceil($secondsLeft / 86400) : 0;
+                            }
+                        @endphp
+                        @if (is_int($trialDaysLeft) && $trialDaysLeft > 0)
+                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-warning me-2 d-none d-md-inline-flex align-items-center gap-1">
+                                <i class="ti ti-sparkles"></i>
+                                <span class="fw-semibold">Trial</span>
+                                <span class="badge bg-warning text-dark">{{ $trialDaysLeft }} hari lagi</span>
+                            </a>
+                        @endif
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <span class="avatar avatar-sm online">

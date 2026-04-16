@@ -17,29 +17,39 @@ class InvoiceService
      */
     public function sendInvoice(Invoice $invoice, ?string $email = null): bool
     {
+        return $this->sendInvoiceWithResult($invoice, $email)['ok'] === true;
+    }
+
+    /**
+     * Send invoice and return structured result for logging.
+     *
+     * @return array{ok: bool, toEmail: string|null, error: string|null}
+     */
+    public function sendInvoiceWithResult(Invoice $invoice, ?string $email = null): array
+    {
+        // NOTE: Company model in this repo does not have a canonical email column.
+        // Prefer explicit email param; fallback to owner email if present.
+        $invoice->loadMissing('company.owner');
+
+        $toEmail = $email
+            ?: ($invoice->company?->owner?->email ?? null);
+
+        if (! $toEmail) {
+            return ['ok' => false, 'toEmail' => null, 'error' => 'Missing recipient email.'];
+        }
+
         try {
-            // Get company contact email
-            $toEmail = $email ?? $invoice->company->email;
+            Mail::to($toEmail)->send(new InvoiceMailable($invoice));
 
-            if (!$toEmail) {
-                return false;
-            }
+            $invoice->update(['status' => 'sent']);
 
-            // Send email with invoice
-            Mail::to($toEmail)
-                ->send(new InvoiceMailable($invoice));
-
-            // Mark as sent in database
-            $invoice->update([
-                'status' => 'sent',
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            \Log::error('Failed to send invoice ' . $invoice->id, [
+            return ['ok' => true, 'toEmail' => $toEmail, 'error' => null];
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send invoice '.$invoice->id, [
                 'error' => $e->getMessage(),
             ]);
-            return false;
+
+            return ['ok' => false, 'toEmail' => $toEmail, 'error' => $e->getMessage()];
         }
     }
 

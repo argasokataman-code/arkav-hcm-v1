@@ -75,9 +75,9 @@
                     </div>
 
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled>Calculate Draft</button>
-                        <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence title="Export data reconciliation untuk bukti audit sebelum finalize/pay">Export Reconciliation</button>
-                        <button type="button" class="btn btn-success" data-payroll-run-disburse disabled>Pay via Gateway</button>
+                        <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled title="Hitung / refresh draft selama run masih status draft.">Calculate Draft</button>
+                        <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh CSV → Pay via Gateway.">Export Reconciliation</button>
+                        <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Pay via Gateway</button>
                         @if (app()->environment(['local', 'development', 'testing']))
                             <button type="button" class="btn btn-outline-danger" data-payroll-run-reset-payments>Reset Pembayaran (DEV)</button>
                         @endif

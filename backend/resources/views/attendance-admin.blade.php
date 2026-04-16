@@ -196,12 +196,14 @@
                                     <th>Break</th>
                                     <th>Late</th>
                                     <th>Production Hours</th>
+                                    <th>Selfie</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody data-attendance-admin-body>
                                 <tr>
                                     <td class="text-center text-muted py-4">Loading attendance...</td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>

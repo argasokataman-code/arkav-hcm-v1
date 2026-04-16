@@ -156,6 +156,8 @@
 	data-primary-super-admin="{{ $isPrimarySuperAdmin ? '1' : '0' }}"
 	data-template-layouts-enabled="{{ $canUseTemplateLayouts ? '1' : '0' }}"
 	data-company-code="{{ $companyCode }}"
+	data-subscription-status="{{ $activeCompanySubscription?->status ?? '' }}"
+	data-subscription-plan="{{ $activeCompanySubscription?->plan_code ?? '' }}"
 	data-feature-payroll="{{ $hasPayrollFeature ? '1' : '0' }}"
 	data-feature-performance="{{ $hasPerformanceFeature ? '1' : '0' }}"
 	data-feature-asset-management="{{ $hasAssetManagementFeature ? '1' : '0' }}"
@@ -165,6 +167,7 @@
         @include('layout.partials.header')
         @include('layout.partials.sidebar')
         @include('hcm.partials.hcm-confirm-delete-modal')
+		@include('layout.partials.upgrade-required-modal')
 		@endif
 
     @yield('content')

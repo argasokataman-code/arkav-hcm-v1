@@ -317,7 +317,7 @@
 
 <script>
 $(document).ready(function() {
-    const apiBaseUrl = '/api/v1/hcm';
+    const apiBaseUrl = '/v1/hcm';
 
     function getAuthToken() {
         return localStorage.getItem('token') ||

@@ -24,6 +24,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Packages for public landing page (marketing + onboarding).
+        $this->call(LandingPackagesSeeder::class);
+
         $this->call(DevelopmentSuperUserSeeder::class);
 
         $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Models\Company;
 use App\Models\Department;
 use App\Services\Media\AvatarStorageService;
 use App\Services\Media\Exceptions\InvalidMediaException;
@@ -18,6 +19,7 @@ use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
+use App\Services\EmployeeCountValidator;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Support\WebsiteSettings;
@@ -222,6 +224,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to list employees.',
+                ],
+            ], 422);
+        }
+
         $perPage = (int) ($validated['perPage'] ?? 20);
         $search = $validated['search'] ?? null;
         $statusFilter = $validated['status'] ?? null;
@@ -234,6 +247,7 @@ class HcmEmployeeController extends Controller
                     $q->select(
                         'id',
                         'user_id',
+                        'company_id',
                         'team',
                         'designation',
                         'employment_status',
@@ -252,6 +266,7 @@ class HcmEmployeeController extends Controller
                     ]);
                 },
             ])
+            ->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId))
             ->select(['id', 'name', 'email', 'created_at']);
 
         if ($search) {
@@ -259,7 +274,7 @@ class HcmEmployeeController extends Controller
             $useFulltext = strlen($term) >= 3
                 && DB::connection()->getDriverName() === 'mysql';
 
-            $query->where(function ($outer) use ($term, $useFulltext): void {
+            $query->where(function ($outer) use ($term, $useFulltext, $activeCompanyId): void {
                 if ($useFulltext) {
                     $outer->whereRaw('MATCH(users.name, users.email) AGAINST(? IN NATURAL LANGUAGE MODE)', [$term]);
                 } else {
@@ -267,34 +282,34 @@ class HcmEmployeeController extends Controller
                         ->orWhere('email', 'like', '%'.$term.'%');
                 }
 
-                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term): void {
-                    $profileQuery->where('phone', 'like', '%'.$term.'%')
+                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term, $activeCompanyId): void {
+                    $profileQuery->where('company_id', $activeCompanyId)
+                        ->where(function ($p) use ($term): void {
+                            $p->where('phone', 'like', '%'.$term.'%')
                         ->orWhere('nik', 'like', '%'.$term.'%');
+                        });
                 });
             });
         }
 
         if ($statusFilter === 'active') {
-            $query->where(function ($q) {
-                $q->whereDoesntHave('employeeProfile')
-                    ->orWhereHas('employeeProfile', fn ($p) => $p->where('employment_status', 'active'));
-            });
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'active'));
         } elseif ($statusFilter === 'inactive') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('employment_status', 'inactive'));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'inactive'));
         } elseif ($statusFilter === 'probation') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('employment_status', 'probation'));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'probation'));
         } elseif ($statusFilter === 'resigned') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('employment_status', 'resigned'));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'resigned'));
         } elseif ($statusFilter === 'terminated') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('employment_status', 'terminated'));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'terminated'));
         }
 
         if ($departmentId) {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('department_id', (int) $departmentId));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('department_id', (int) $departmentId));
         }
 
         if ($designationId) {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('designation_id', (int) $designationId));
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('designation_id', (int) $designationId));
         }
 
         $paginator = $query->orderByDesc('id')->paginate($perPage);
@@ -354,6 +369,21 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to create employees.',
+                ],
+            ], 422);
+        }
+
+        /** @var Company $company */
+        $company = Company::query()->findOrFail($activeCompanyId);
+        app(EmployeeCountValidator::class)->validateCanAddEmployees($company, 1);
+
         $this->normalizeEmployeeWritePayload($request);
         $validated = $request->validate($this->employeeWriteRules($request, true));
 
@@ -373,7 +403,7 @@ class HcmEmployeeController extends Controller
         $user = null;
         $profile = null;
 
-        DB::transaction(function () use (&$user, &$profile, $validated, $org): void {
+        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId): void {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -381,6 +411,7 @@ class HcmEmployeeController extends Controller
             ]);
 
             $profile = EmployeeProfile::query()->create([
+                'company_id' => $activeCompanyId,
                 'user_id' => $user->id,
                 'hire_date' => $validated['hireDate'] ?? ($validated['startDate'] ?? null),
                 'team' => $validated['team'] ?? null,
@@ -1104,6 +1135,23 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to bulk upload employees.',
+                ],
+            ], 422);
+        }
+
+        /** @var Company $company */
+        $company = Company::query()->findOrFail($activeCompanyId);
+        $employeeValidator = app(EmployeeCountValidator::class);
+        $planLimit = $employeeValidator->getPlanEmployeeLimit($company);
+        $currentEmployeeCount = $employeeValidator->getActiveEmployeeCount($company->id);
+
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:10240', 'mimes:xlsx,xls,csv,txt'],
         ]);
@@ -1125,7 +1173,15 @@ class HcmEmployeeController extends Controller
         $errors = [];
 
         try {
-            DB::transaction(function () use ($rows, &$created, &$updated, &$errors): void {
+            DB::transaction(function () use (
+                $rows,
+                &$created,
+                &$updated,
+                &$errors,
+                $activeCompanyId,
+                $planLimit,
+                $currentEmployeeCount,
+            ): void {
                 foreach ($rows as $index => $row) {
                     $lineNo = $index + 2;
                     $employeeNo = strtoupper(trim((string) ($row['employee_no'] ?? '')));
@@ -1208,6 +1264,13 @@ class HcmEmployeeController extends Controller
             $user = $userByEmployeeNo ?: $userByEmail;
 
             if (! $user) {
+                if ($planLimit !== null && ($currentEmployeeCount + $created + 1) > (int) $planLimit) {
+                    throw new \App\Exceptions\SubscriptionValidationException(
+                        'EMPLOYEE_COUNT_EXCEEDED',
+                        "Cannot add more employees. Current: {$currentEmployeeCount}, trying to add: ".($created + 1).", plan limit: {$planLimit}",
+                        422
+                    );
+                }
                 if ($name === '' || $email === '') {
                     $errors[] = "Row {$lineNo}: untuk create baru, name dan email wajib diisi.";
                     continue;
@@ -1260,8 +1323,13 @@ class HcmEmployeeController extends Controller
 
             $profile = EmployeeProfile::query()->firstOrCreate(
                 ['user_id' => $user->id],
-                ['employment_status' => 'active', 'contract_type' => 'permanent'],
+                [
+                    'company_id' => $activeCompanyId,
+                    'employment_status' => 'active',
+                    'contract_type' => 'permanent',
+                ],
             );
+            $profile->company_id = $activeCompanyId;
             $bulkDeptId = isset($row['department_id']) && is_numeric($row['department_id']) ? (int) $row['department_id'] : null;
             $bulkDesigId = isset($row['designation_id']) && is_numeric($row['designation_id']) ? (int) $row['designation_id'] : null;
             $resolvedTeam = null;
@@ -1933,6 +2001,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to list policies.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'page' => ['nullable', 'integer', 'min:1'],
             'perPage' => ['nullable', 'integer', 'min:1', 'max:200'],
@@ -1945,6 +2024,7 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
 
         $paginator = Policy::query()
+            ->where('company_id', $activeCompanyId)
             ->with('department:id,name')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%')
@@ -1988,6 +2068,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to create policies.',
+                ],
+            ], 422);
+        }
+
         $this->mergePolicyMultipartFields($request);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -1998,6 +2089,7 @@ class HcmEmployeeController extends Controller
         ]);
 
         $policy = Policy::query()->create([
+            'company_id' => $activeCompanyId,
             'name' => $validated['name'],
             'description' => $validated['description'],
             'department_id' => $validated['departmentId'] ?? null,
@@ -2067,7 +2159,21 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $policy = Policy::query()->findOrFail($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to update policies.',
+                ],
+            ], 422);
+        }
+
+        $policy = Policy::query()
+            ->whereKey($id)
+            ->where('company_id', $activeCompanyId)
+            ->firstOrFail();
         $this->mergePolicyMultipartFields($request);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
@@ -2159,7 +2265,21 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
-        $policy = Policy::query()->findOrFail($id);
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to delete policies.',
+                ],
+            ], 422);
+        }
+
+        $policy = Policy::query()
+            ->whereKey($id)
+            ->where('company_id', $activeCompanyId)
+            ->firstOrFail();
         $this->mediaFileDeleter->delete($policy->attachment_path);
         $policy->delete();
 

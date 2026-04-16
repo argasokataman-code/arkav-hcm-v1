@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Services\SubscriptionActivationFromInvoiceService;
 use App\Support\WebsiteSettings;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Invoice extends Model
 {
@@ -16,6 +18,7 @@ class Invoice extends Model
         'invoice_number',
         'company_id',
         'purchase_transaction_id',
+        'subscription_id',
         'issue_date',
         'due_date',
         'amount_due',
@@ -53,9 +56,24 @@ class Invoice extends Model
         return $this->belongsTo(PurchaseTransaction::class);
     }
 
+    public function subscription(): BelongsTo
+    {
+        return $this->belongsTo(Subscription::class);
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(InvoiceEmailLog::class);
+    }
+
+    public function latestEmailLog(): HasOne
+    {
+        return $this->hasOne(InvoiceEmailLog::class)->latestOfMany();
     }
 
     /**
@@ -76,6 +94,9 @@ class Invoice extends Model
             'paid_date' => now(),
             'status' => 'paid',
         ]);
+
+        app(SubscriptionActivationFromInvoiceService::class)
+            ->activateIfEligible($this->fresh());
     }
 
     /**

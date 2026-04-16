@@ -1,3 +1,11 @@
+    protected static function booted()
+    {
+        static::addGlobalScope('company', function ($query) {
+            if (auth()->check() && auth()->user()->employeeProfile) {
+                $query->where('company_id', auth()->user()->employeeProfile->company_id);
+            }
+        });
+    }
 <?php
 
 namespace App\Models;
@@ -14,6 +22,7 @@ class HcmResignation extends Model
     protected $table = 'hcm_resignations';
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'department',
         'reason',
@@ -32,6 +41,11 @@ class HcmResignation extends Model
      * Valid resignation statuses
      */
     public const VALID_STATUSES = ['pending', 'approved', 'cancelled'];
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 
     public function user(): BelongsTo
     {

@@ -28,6 +28,9 @@ return new class extends Migration
     {
         if (Schema::hasTable('subscriptions') && Schema::hasColumn('subscriptions', 'amount')) {
             Schema::table('subscriptions', function (Blueprint $table) {
+                // Drop the foreign key constraint first
+                $table->dropForeign(['package_id']);
+                // Then drop the columns
                 $table->dropColumn(['package_id', 'billing_cycle', 'amount']);
             });
         }

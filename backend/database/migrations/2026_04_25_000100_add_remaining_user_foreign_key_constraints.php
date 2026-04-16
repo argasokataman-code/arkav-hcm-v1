@@ -73,11 +73,9 @@ return new class extends Migration
             ['asset_attachments', 'asset_attachments_uploaded_by_foreign'],
         ];
 
-        foreach ($constraints as [$table, $constraint]) {
-            if (Schema::hasTable($table) && $this->constraintExists($table, $constraint)) {
-                Schema::table($table, function (Blueprint $table) use ($constraint) {
-                    $table->dropForeign([$constraint]);
-                });
+        foreach ($constraints as [$table, $constraintName]) {
+            if (Schema::hasTable($table) && $this->constraintExists($table, $constraintName)) {
+                DB::statement("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$constraintName}`");
             }
         }
 

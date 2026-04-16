@@ -117,6 +117,40 @@ class ReconciliationExportApiTest extends TestCase
             ->assertOk();
     }
 
+    public function test_admin_can_create_csv_evidence_using_format_alias_and_auto_file_path(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->adminToken();
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/reconciliation/exports', [
+                'featureKey' => 'payroll_run',
+                'actionKey' => 'finalize',
+                'scopeRef' => '10',
+                'format' => 'csv',
+                'filterPayload' => [
+                    'periods' => [
+                        ['userId' => 1],
+                        ['userId' => 2],
+                    ],
+                ],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $relativePath = (string) $create->json('data.filePath');
+        $this->assertStringStartsWith('reconciliation/generated/', $relativePath);
+        Storage::disk('local')->assertExists($relativePath);
+
+        $evidenceId = (int) $create->json('data.id');
+        $this->assertSame(2, (int) $create->json('data.rowCount'));
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->get('/v1/reconciliation/exports/'.$evidenceId.'/download')
+            ->assertOk();
+    }
+
     public function test_finalize_requires_reconciliation_when_enforced(): void
     {
         config()->set('hcm.export_reconciliation.enabled', true);
@@ -277,5 +311,50 @@ class ReconciliationExportApiTest extends TestCase
             ->putJson('/v1/saas/payments/'.$payment->id.'/verify')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+    }
+
+    public function test_payroll_run_export_generates_csv_with_actual_data(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->adminToken();
+
+        // Create period and payroll run for current year/month
+        $now = now();
+        $runId = $this->createDraftRun($admin, (int) $now->year, (int) $now->month);
+
+        // Export payroll run with filter
+        $export = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/reconciliation/exports', [
+                'featureKey' => 'payroll_run',
+                'actionKey' => 'disburse',
+                'scopeRef' => (string) $runId,
+                'fileFormat' => 'csv',
+                'filterPayload' => [
+                    'periods' => [
+                        ['userId' => 1],
+                        ['userId' => 2],
+                    ],
+                ],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $filePath = (string) $export->json('data.filePath');
+        $csvContent = Storage::disk('local')->get($filePath);
+
+        // Verify CSV contains payroll line data headers
+        $this->assertStringContainsString('run_id', $csvContent);
+        $this->assertStringContainsString('user_id', $csvContent);
+        $this->assertStringContainsString('component_code', $csvContent);
+        $this->assertStringContainsString('amount', $csvContent);
+
+        // Verify it's not just metadata
+        $this->assertStringNotContainsString('feature_key,action_key', $csvContent);
+
+        echo "\n✅ Payroll export CSV content:\n";
+        echo "---\n";
+        echo substr($csvContent, 0, 500); // Print first 500 chars
+        echo "\n---\n";
     }
 }

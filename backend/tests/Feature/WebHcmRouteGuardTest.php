@@ -297,18 +297,14 @@ class WebHcmRouteGuardTest extends TestCase
         $cookieHeader = $this->cookieName().'='.$token;
 
         $paths = [
-            '/employees',
-            '/employees-grid',
-            '/employee-details',
-            '/departments',
-            '/saas/subscriptions',
-            '/holidays',
-            '/leaves',
-            '/attendance-admin',
-            '/tickets-admin',
+            // Authenticated (non-admin) pages should render (web guard requires auth, but RBAC can still redirect).
+            '/employee-dashboard',
+            '/attendance-employee',
+            '/tickets-employee',
             '/performance-review',
-            '/training',
-            '/clients',
+            '/goal-tracking',
+            '/payslip',
+            // Template showcase pages are still behind auth (not public) and can render for authenticated users.
             '/ui-buttons',
         ];
 

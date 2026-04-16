@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\InvoiceEmailLog;
 use App\Models\PurchaseTransaction;
 use App\Services\InvoiceService;
 use App\Services\NotificationService;
@@ -12,6 +13,7 @@ use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
@@ -21,14 +23,30 @@ class InvoiceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
         $query = Invoice::with(['company', 'purchaseTransaction']);
+
+        // Security: If not admin, only show invoices for active company
+        if (!$isAdmin && $activeCompanyId > 0) {
+            $query->where('company_id', $activeCompanyId);
+        }
 
         // Filters
         if ($request->has('status')) {
             $query->where('status', $request->get('status'));
         }
         if ($request->has('company_id')) {
-            $query->where('company_id', $request->get('company_id'));
+            // Allow filtering by company_id only if user is admin or it's their own company
+            $filteredCompanyId = (int) $request->get('company_id');
+            if (!$isAdmin && $filteredCompanyId !== $activeCompanyId) {
+                return response()->json([
+                    'success' => false,
+                    'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view invoices for other companies.'],
+                ], 403);
+            }
+            $query->where('company_id', $filteredCompanyId);
         }
         if ($request->has('is_paid')) {
             $query->where('is_paid', (bool) $request->get('is_paid'));
@@ -58,8 +76,19 @@ class InvoiceController extends Controller
      * GET /v1/saas/invoices/{id}
      * Get invoice details
      */
-    public function show(Invoice $invoice): JsonResponse
+    public function show(Request $request, Invoice $invoice): JsonResponse
     {
+        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
+        // Security: If not admin, ensure invoice belongs to their company
+        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view this invoice.'],
+            ], 403);
+        }
+
         $invoice->load('company', 'purchaseTransaction', 'payments');
 
         return response()->json([
@@ -84,6 +113,13 @@ class InvoiceController extends Controller
         $validated = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'purchase_transaction_id' => 'nullable|integer|exists:purchase_transactions,id',
+            'subscription_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('subscriptions', 'id')->where(
+                    fn ($q) => $q->where('company_id', (int) $request->input('company_id'))
+                ),
+            ],
             'issue_date' => 'required|date',
             'due_date' => 'required|date|after:issue_date',
             'amount_due' => 'required|numeric|min:0',
@@ -116,6 +152,13 @@ class InvoiceController extends Controller
             'due_date' => 'sometimes|date|after:'.$invoice->issue_date->toDateString(),
             'amount_due' => 'sometimes|numeric|min:0',
             'notes' => 'nullable|string',
+            'subscription_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('subscriptions', 'id')->where(
+                    fn ($q) => $q->where('company_id', $invoice->company_id)
+                ),
+            ],
         ]);
 
         $invoice->update($validated);
@@ -202,10 +245,14 @@ class InvoiceController extends Controller
      */
     public function downloadPdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
+        // Security: Allow download if admin or if invoice belongs to their company
+        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot download this invoice.'],
             ], 403);
         }
 
@@ -252,21 +299,38 @@ class InvoiceController extends Controller
         $invoiceService = new InvoiceService();
         $notificationService = new NotificationService();
 
-        $email = $request->get('email') ?? $invoice->company->email;
+        $validated = $request->validate([
+            'email' => ['nullable', 'string', 'email:rfc', 'max:255'],
+        ]);
 
-        if ($invoiceService->sendInvoice($invoice, $email)) {
+        $email = $validated['email'] ?? null;
+
+        $result = $invoiceService->sendInvoiceWithResult($invoice, $email);
+
+        InvoiceEmailLog::query()->create([
+            'invoice_id' => $invoice->id,
+            'to_email' => (string) ($result['toEmail'] ?? ''),
+            'status' => $result['ok'] ? 'sent' : 'failed',
+            'provider_message_id' => null,
+            'error_message' => $result['error'],
+        ]);
+
+        if ($result['ok']) {
             $notificationService->notifyInvoiceSent($invoice);
 
             return response()->json([
                 'success' => true,
-                'message' => "Invoice sent to {$email}",
+                'message' => "Invoice sent to {$result['toEmail']}",
                 'data' => $this->formatInvoice($invoice),
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'error' => 'Failed to send invoice',
+            'error' => [
+                'code' => 'VALIDATION_ERROR',
+                'message' => $result['error'] ?: 'Failed to send invoice',
+            ],
         ], 422);
     }
 
@@ -281,6 +345,7 @@ class InvoiceController extends Controller
             'companyId' => $invoice->company_id,
             'companyName' => $invoice->company?->name,
             'purchaseTransactionId' => $invoice->purchase_transaction_id,
+            'subscriptionId' => $invoice->subscription_id,
             'issueDate' => $invoice->issue_date->toDateString(),
             'dueDate' => $invoice->due_date->toDateString(),
             'amountDue' => (float) $invoice->amount_due,

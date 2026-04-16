@@ -16,6 +16,8 @@ return [
     'public_paths' => [
         '',
         'up',
+        'landing',
+        'trial',
         'login',
         'forgot-password',
         'forgot-password-2',

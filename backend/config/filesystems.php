@@ -38,6 +38,16 @@ return [
             'report' => false,
         ],
 
+        // Private disk alias used by HCM endpoints (selfie uploads, etc).
+        // Keep root under storage/app/private (not web-accessible).
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

@@ -20,6 +20,17 @@ class HcmTicketController extends Controller
     {
         $user = $request->user();
         $isAdmin = (bool) ($user?->isHcmAdmin());
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'status' => ['nullable', 'in:open,in_progress,resolved,closed'],
             'priority' => ['nullable', 'in:low,medium,high,urgent'],
@@ -30,6 +41,11 @@ class HcmTicketController extends Controller
         $query = Ticket::query()
             ->with(['reporter:id,name,email', 'assignee:id,name,email'])
             ->withCount(['comments', 'attachments']);
+
+        // Tenant isolation: tickets are scoped by the reporter's active company membership.
+        $query->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
+            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        });
 
         if (! $isAdmin) {
             $query->where('user_id', $user?->id);
@@ -59,7 +75,7 @@ class HcmTicketController extends Controller
                 'lastPage' => $rows->lastPage(),
                 'perPage' => $rows->perPage(),
                 'total' => $rows->total(),
-                'summary' => $this->summary($isAdmin ? null : (int) $user->id),
+                'summary' => $this->summary($activeCompanyId, $isAdmin ? null : (int) $user->id),
             ],
         ]);
     }
@@ -80,6 +96,22 @@ class HcmTicketController extends Controller
 
         if (! $isAdmin && ! empty($validated['assigneeUserId'])) {
             return $this->forbidden();
+        }
+
+        // SECURITY: Check subscription includes 'tickets' feature
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId > 0) {
+            $subscription = \App\Models\Subscription::activeForCompany($activeCompanyId);
+            
+            if (!$subscription || !$subscription->package?->hasFeature('tickets')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SUBSCRIPTION_REQUIRED',
+                        'message' => 'Ticket feature requires an active subscription. Please upgrade your plan.',
+                    ],
+                ], 403);
+            }
         }
 
         $resolvedCategory = $this->resolveCategoryInput($validated);
@@ -451,9 +483,12 @@ class HcmTicketController extends Controller
         ]);
     }
 
-    private function summary(?int $ownerUserId): array
+    private function summary(int $activeCompanyId, ?int $ownerUserId): array
     {
         $base = Ticket::query();
+        $base->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
+            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        });
         if ($ownerUserId !== null) {
             $base->where('user_id', $ownerUserId);
         }
@@ -469,7 +504,16 @@ class HcmTicketController extends Controller
 
     private function authorizedTicket(Request $request, int $id): ?Ticket
     {
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return null;
+        }
+
         $query = Ticket::query()->whereKey($id);
+        $query->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
+            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        });
+
         if (! $request->user()?->isHcmAdmin()) {
             $query->where('user_id', $request->user()?->id);
         }
@@ -521,5 +565,12 @@ class HcmTicketController extends Controller
             'success' => false,
             'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
         ], 403);
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 }

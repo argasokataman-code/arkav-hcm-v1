@@ -202,7 +202,6 @@
     </div>
 </div>
 
-@push('scripts')
 <style>
     .spin {
         animation: spin 1s linear infinite;
@@ -212,7 +211,6 @@
         to { transform: rotate(360deg); }
     }
 </style>
-<script src="{{ asset('js/company-invoices.js') }}?v={{ time() }}"></script>
-@endpush
+<script src="{{ asset('build/js/company-invoices.js') }}?v={{ file_exists(public_path('build/js/company-invoices.js')) ? filemtime(public_path('build/js/company-invoices.js')) : time() }}"></script>
 
 @endsection

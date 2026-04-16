@@ -111,6 +111,49 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
 
+    public function test_trial_owner_is_treated_as_tenant_admin_on_me(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Trial Owner',
+            'email' => 'trial.owner@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', 'trial.owner@example.com')->first();
+        $this->assertNotNull($user);
+
+        $defaultCompany = Company::query()->where('code', 'default_company')->first();
+        $this->assertNotNull($defaultCompany);
+
+        $membership = CompanyUser::query()
+            ->where('company_id', $defaultCompany->id)
+            ->where('user_id', $user->id)
+            ->first();
+        $this->assertNotNull($membership);
+
+        $membership->update(['role' => 'owner']);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'trial.owner@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk()->assertCookie($this->cookieName());
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $this->assertNotEmpty($token);
+
+        $meResponse = $this->withHeader('Cookie', $this->cookieName().'='.$token)
+            ->getJson('/v1/identity/auth/me');
+
+        $meResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.email', 'trial.owner@example.com')
+            ->assertJsonPath('data.activeCompany.code', 'default_company')
+            ->assertJsonPath('data.activeCompany.role', 'owner')
+            ->assertJsonPath('data.hcmAdmin', true);
+    }
+
     public function test_remember_me_login_has_longer_expiry_than_regular_login(): void
     {
         $this->postJson('/v1/identity/auth/register', [

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Payment Gateway Tester</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 30px;
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px 10px 0 0;
+            padding: 20px;
+        }
+        .card-body {
+            padding: 30px;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .btn-success {
+            background: #10b981;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .btn-danger {
+            background: #ef4444;
+            border: none;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .result-box {
+            background: #f3f4f6;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        .result-box.success {
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+        .result-box.error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+        }
+        .spinner-border {
+            color: #667eea;
+            width: 30px;
+            height: 30px;
+        }
+        .badge-info {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .tab-content {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">💳 Mock Payment Gateway Tester</h3>
+                <small class="text-white-50">Development only - untuk testing payment flow tanpa Stripe/Xendit</small>
+            </div>
+            <div class="card-body">
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#tab-quick" role="tab">Quick Pay</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tab-invoice" role="tab">Pay Invoice</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tab-test-cards" role="tab">Test Cards</a>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- TAB 1: Quick Pay -->
+                    <div id="tab-quick" class="tab-pane fade show active" role="tabpanel">
+                        <div class="badge-info mb-3">
+                            ⚡ Create invoice & pay in satu langkah (paling cepat)
+                        </div>
+
+                        <form id="quickPayForm">
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">Jumlah (IDR)</label>
+                                <input type="number" class="form-control" id="amount" value="500000" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Deskripsi</label>
+                                <input type="text" class="form-control" id="description" value="Test Invoice" placeholder="Invoice description">
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="simulateFailure">
+                                    <label class="form-check-label" for="simulateFailure">
+                                        Simulasi Payment Failure
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100">
+                                <span id="btn-text">💰 Create & Pay</span>
+                                <span id="btn-loading" class="loading">
+                                    <span class="spinner-border spinner-border-sm me-2"></span> Processing...
+                                </span>
+                            </button>
+                        </form>
+
+                        <div id="quickResult" class="result-box"></div>
+                    </div>
+
+                    <!-- TAB 2: Pay Invoice -->
+                    <div id="tab-invoice" class="tab-pane fade" role="tabpanel">
+                        <div class="badge-info mb-3">
+                            🧾 Bayar invoice yang sudah ada (kalo sudah punya invoice ID)
+                        </div>
+
+                        <form id="payInvoiceForm">
+                            <div class="mb-3">
+                                <label for="invoiceId" class="form-label">Invoice ID</label>
+                                <input type="number" class="form-control" id="invoiceId" placeholder="e.g., 123" required>
+                                <small class="text-muted">Cari ID di halaman invoices</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="payAmount" class="form-label">Jumlah (IDR)</label>
+                                <input type="number" class="form-control" id="payAmount" value="500000" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="paymentFailure">
+                                    <label class="form-check-label" for="paymentFailure">
+                                        Simulasi Payment Failure
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100">
+                                <span>✅ Process Payment</span>
+                            </button>
+                        </form>
+
+                        <div id="invoiceResult" class="result-box"></div>
+                    </div>
+
+                    <!-- TAB 3: Test Cards -->
+                    <div id="tab-test-cards" class="tab-pane fade" role="tabpanel">
+                        <div class="badge-info mb-3">
+                            🎴 Contoh card numbers untuk testing
+                        </div>
+                        
+                        <button class="btn btn-info w-100 mb-3" id="loadTestCards">Load Test Cards</button>
+                        <div id="testCardsResult"></div>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="mt-4 pt-3 border-top">
+                    <small class="text-muted">
+                        <strong>📝 Note:</strong> Semua transaksi disimpan di database seperti real payment. 
+                        Bisa didelete kalo mau testing lagi. Mock mode hanya aktif di development (APP_ENV=local).
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get CSRF token and auth token from localStorage/session
+        const getAuthToken = () => {
+            // Try to get from localStorage
+            const stored = localStorage.getItem('auth_token');
+            if (stored) return stored;
+
+            // Fallback: prompt user
+            const token = prompt('Masukkan Bearer Token (dari login response):');
+            if (token) {
+                localStorage.setItem('auth_token', token);
+                return token;
+            }
+            return null;
+        };
+
+        const API_BASE = window.location.origin + '/v1';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        };
+
+        const getHeaders = () => {
+            const token = getAuthToken();
+            return {
+                ...headers,
+                'Authorization': `Bearer ${token}`
+            };
+        };
+
+        // Helper to display results
+        const showResult = (elementId, success, data) => {
+            const el = document.getElementById(elementId);
+            el.className = `result-box ${success ? 'success' : 'error'}`;
+            el.style.display = 'block';
+            el.innerHTML = `
+                <strong>${success ? '✅ Success' : '❌ Error'}</strong>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            el.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        // Tab 1: Quick Pay
+        document.getElementById('quickPayForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value;
+            const simulateFailure = document.getElementById('simulateFailure').checked;
+
+            const btn = document.querySelector('#quickPayForm button[type="submit"]');
+            btn.disabled = true;
+            document.getElementById('btn-text').style.display = 'none';
+            document.getElementById('btn-loading').style.display = 'inline';
+
+            try {
+                const response = await fetch(`${API_BASE}/mock/invoices/create-and-pay`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        amount,
+                        description,
+                        currency: 'IDR',
+                        simulate_failure: simulateFailure
+                    })
+                });
+
+                const data = await response.json();
+                showResult('quickResult', response.ok, data);
+
+                if (response.ok) {
+                    document.getElementById('quickPayForm').reset();
+                }
+            } catch (error) {
+                showResult('quickResult', false, { error: error.message });
+            } finally {
+                btn.disabled = false;
+                document.getElementById('btn-text').style.display = 'inline';
+                document.getElementById('btn-loading').style.display = 'none';
+            }
+        });
+
+        // Tab 2: Pay Invoice
+        document.getElementById('payInvoiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const invoiceId = parseInt(document.getElementById('invoiceId').value);
+            const amount = parseFloat(document.getElementById('payAmount').value);
+            const simulateFailure = document.getElementById('paymentFailure').checked;
+
+            const btn = document.querySelector('#payInvoiceForm button[type="submit"]');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/mock/payments/create`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        invoice_id: invoiceId,
+                        amount,
+                        payment_method: 'mock_card',
+                        simulate_failure: simulateFailure
+                    })
+                });
+
+                const data = await response.json();
+                showResult('invoiceResult', response.ok, data);
+
+                if (response.ok) {
+                    document.getElementById('payInvoiceForm').reset();
+                }
+            } catch (error) {
+                showResult('invoiceResult', false, { error: error.message });
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // Tab 3: Test Cards
+        document.getElementById('loadTestCards').addEventListener('click', async () => {
+            const btn = document.getElementById('loadTestCards');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/mock/test-cards`, {
+                    headers: getHeaders()
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.data) {
+                    const cards = data.data;
+                    const html = cards.map(card => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>${card.name}</strong><br>
+                                        <code>${card.number}</code><br>
+                                        <small class="text-muted">${card.description}</small>
+                                    </div>
+                                    <div class="col-md-6 text-end">
+                                        <span class="badge ${card.result === 'success' ? 'bg-success' : 'bg-danger'}">
+                                            ${card.result.toUpperCase()}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('testCardsResult').innerHTML = html;
+                } else {
+                    document.getElementById('testCardsResult').innerHTML = `
+                        <div class="alert alert-warning">Failed to load test cards: ${data.error?.message || 'Unknown error'}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('testCardsResult').innerHTML = `
+                    <div class="alert alert-danger">Error: ${error.message}</div>
+                `;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        // Check if token is available on page load
+        window.addEventListener('load', () => {
+            if (!localStorage.getItem('auth_token')) {
+                const token = prompt('🔑 Paste Bearer Token dari login response:\n\n(Biasanya ada di response setelah login)');
+                if (token) {
+                    localStorage.setItem('auth_token', token);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

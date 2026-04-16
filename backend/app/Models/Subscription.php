@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Subscription extends Model
 {
@@ -22,6 +23,10 @@ class Subscription extends Model
         'auto_renew',
         'billing_cycle',
         'amount',
+        'terminated_at',
+        'termination_reason',
+        'suspended_at',
+        'suspension_reason',
         'metadata',
     ];
 
@@ -29,6 +34,8 @@ class Subscription extends Model
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'trial_ends_at' => 'datetime',
+        'terminated_at' => 'datetime',
+        'suspended_at' => 'datetime',
         'auto_renew' => 'boolean',
         'amount' => 'decimal:2',
         'metadata' => 'array',
@@ -49,6 +56,16 @@ class Subscription extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function latestInvoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class)->latestOfMany('issue_date');
+    }
+
     /**
      * Get active subscription for a company
      */
@@ -56,6 +73,10 @@ class Subscription extends Model
     {
         return static::where('company_id', $companyId)
             ->whereIn('status', ['active', 'trial'])
+            ->where(function ($q): void {
+                $q->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
             ->latest('starts_at')
             ->first();
     }

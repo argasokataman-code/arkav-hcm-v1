@@ -57,11 +57,22 @@ class HcmDashboardController extends Controller
         $today = Carbon::today('Asia/Jakarta');
         $monthStart = $today->copy()->startOfMonth();
         $monthEnd = $today->copy()->endOfMonth();
+        $companyId = $this->activeCompanyId($request);
 
-        $activeProfiles = EmployeeProfile::query()
-            ->whereIn('employment_status', ['active', 'probation'])
+
+        // --- Patch: Add totalEmployees and inactiveEmployees ---
+        $allProfiles = EmployeeProfile::query()
+            ->where('company_id', $companyId)
             ->get(['id', 'user_id', 'employment_status', 'contract_type', 'contract_end_date', 'hire_date']);
 
+        $totalEmployeeCount = $allProfiles->count();
+        $inactiveEmployeeCount = $allProfiles->filter(function (EmployeeProfile $profile): bool {
+            return strtolower((string) $profile->employment_status) === 'inactive';
+        })->count();
+
+        $activeProfiles = $allProfiles->filter(function (EmployeeProfile $profile): bool {
+            return in_array(strtolower((string) $profile->employment_status), ['active', 'probation'], true);
+        });
         $activeEmployeeCount = $activeProfiles->count();
         $activeUserIds = $activeProfiles->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->values();
 
@@ -82,6 +93,7 @@ class HcmDashboardController extends Controller
         })->count();
 
         $attendanceToday = AttendanceRecord::query()
+            ->where('company_id', $companyId)
             ->whereDate('work_date', $today->toDateString())
             ->when($activeUserIds->isNotEmpty(), fn ($q) => $q->whereIn('user_id', $activeUserIds->all()))
             ->get(['user_id', 'check_in_at', 'late_minutes']);
@@ -90,13 +102,14 @@ class HcmDashboardController extends Controller
         $lateToday = $attendanceToday->filter(fn (AttendanceRecord $rec): bool => (int) ($rec->late_minutes ?? 0) > 0 && $rec->check_in_at !== null)->count();
         $noCheckInToday = max(0, $activeEmployeeCount - $presentToday);
 
-        $pendingLeave = LeaveRequest::query()->where('status', 'pending')->count();
-        $pendingOvertime = OvertimeRequest::query()->where('status', 'pending')->count();
-        $pendingResignationOrTermination = HcmResignation::query()->where('status', 'pending')->count()
-            + HcmTermination::query()->where('status', 'pending')->count();
-        $pendingPromotionReview = PerformanceReview::query()->whereIn('status', ['submitted', 'manager_reviewed'])->count();
+        $pendingLeave = LeaveRequest::query()->where('company_id', $companyId)->where('status', 'pending')->count();
+        $pendingOvertime = OvertimeRequest::query()->where('company_id', $companyId)->where('status', 'pending')->count();
+        $pendingResignationOrTermination = HcmResignation::query()->where('company_id', $companyId)->where('status', 'pending')->count()
+            + HcmTermination::query()->where('company_id', $companyId)->where('status', 'pending')->count();
+        $pendingPromotionReview = PerformanceReview::query()->where('company_id', $companyId)->whereIn('status', ['submitted', 'manager_reviewed'])->count();
 
         $activePeriod = HcmPayrollPeriod::query()
+            ->where('company_id', $companyId)
             ->where('status', HcmPayrollPeriod::STATUS_OPEN)
             ->where(function ($q) use ($today): void {
                 $q->where('period_year', '<', $today->year)
@@ -110,7 +123,7 @@ class HcmDashboardController extends Controller
             ->first();
 
         if (! $activePeriod) {
-            $activePeriod = HcmPayrollPeriod::query()->orderByDesc('period_year')->orderByDesc('period_month')->first();
+            $activePeriod = HcmPayrollPeriod::query()->where('company_id', $companyId)->orderByDesc('period_year')->orderByDesc('period_month')->first();
         }
 
         $latestRun = null;
@@ -166,29 +179,35 @@ class HcmDashboardController extends Controller
         }
 
         $joinerThisMonth = EmployeeProfile::query()
+            ->where('company_id', $companyId)
             ->whereBetween('hire_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->count();
 
         $resignationThisMonth = HcmResignation::query()
+            ->where('company_id', $companyId)
             ->whereBetween('resignation_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->count();
 
         $promotionThisMonth = HcmPromotion::query()
+            ->where('company_id', $companyId)
             ->whereBetween('promotion_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->count();
 
         $overtimeMinutesThisMonth = (int) OvertimeRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'approved')
             ->whereBetween('work_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
             ->sum('minutes');
 
         $attendanceAnomalyMissingCheckIn = AttendanceRecord::query()
+            ->where('company_id', $companyId)
             ->whereDate('work_date', $today->toDateString())
             ->when($activeUserIds->isNotEmpty(), fn ($q) => $q->whereIn('user_id', $activeUserIds->all()))
             ->whereNull('check_in_at')
             ->count();
 
         $attendanceAnomalyDoubleShift = OvertimeRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'approved')
             ->whereDate('work_date', $today->toDateString())
             ->where('minutes', '>=', 480)
@@ -202,6 +221,8 @@ class HcmDashboardController extends Controller
                     'activeEmployees' => $activeEmployeeCount,
                     'probationEmployees' => $probationCount,
                     'pkwtDueIn30Days' => $pkwtDue30,
+                    'totalEmployees' => $totalEmployeeCount,
+                    'inactiveEmployees' => $inactiveEmployeeCount,
                     'attendanceToday' => [
                         'present' => $presentToday,
                         'late' => $lateToday,

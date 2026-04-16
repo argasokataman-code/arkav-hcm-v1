@@ -115,6 +115,17 @@ class User extends Authenticatable
             return true;
         }
 
+        // Company owner is treated as tenant-admin for their own company.
+        $isOwner = CompanyUser::query()
+            ->where('user_id', $this->id)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('role', 'owner')
+            ->exists();
+        if ($isOwner) {
+            return true;
+        }
+
         // Check if user has an active admin-level role in this specific company
         return HcmUserRole::query()
             ->where('user_id', $this->id)

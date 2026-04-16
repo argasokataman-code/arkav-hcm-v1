@@ -3,19 +3,26 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomAuthController;
+use App\Http\Controllers\KnowledgebaseController;
+use App\Support\HcmKnowledgebase;
 use App\Http\Controllers\CronjobController;
 use App\Http\Controllers\WilayahLocationController;
 use Illuminate\Http\Request;
 use App\Models\HcmLeaveTypeSetting;
+use App\Http\Controllers\PublicLandingController;
 
 Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
 Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 
 Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout');
 
 
-Route::get('/', function () {
-    return redirect()->route('login');
-})->name('root');
+Route::get('/', [PublicLandingController::class, 'index'])->name('root');
+
+// Public marketing landing page (explicit path)
+Route::get('/landing', [PublicLandingController::class, 'index'])->name('landing');
+
+// Public onboarding (trial) - dedicated form page
+Route::get('/trial', [PublicLandingController::class, 'trial'])->name('trial');
 
 Route::get('/api-docs', function () {
     return view('api-docs.swagger');
@@ -159,7 +166,11 @@ Route::get('/saas/packages', function () {
 
 Route::get('/saas/subscriptions', function () {
     return view('saas.subscriptions');
-})->name('saas.subscriptions');
+})->middleware('hcm.web.admin')->name('saas.subscriptions');
+
+Route::get('/saas/billing-overview', function () {
+    return view('saas.billing-overview');
+})->middleware('hcm.web.admin')->name('saas.billing-overview');
 
 Route::get('/saas/domains', function () {
     return view('saas.domains');
@@ -199,8 +210,8 @@ Route::get('/companies', function () {
 })->name('companies');
 
 Route::get('/subscription', function () {
-    return view('saas.subscriptions');
-})->name('subscription');
+    return view('saas.subscription-checkout');
+})->middleware('hcm.web.admin')->name('subscription');
 
 Route::get('/packages', function () {
     return view('saas.packages');
@@ -372,11 +383,11 @@ Route::get('/activity', function () {
 
 Route::get('/employees', function () {
     return view(view: 'employees');
-})->name('employees');
+})->middleware('hcm.web.admin')->name('employees');
 
 Route::get('/employees-grid', function () {
     return view(view: 'employees-grid');
-})->name('employees-grid');
+})->middleware('hcm.web.admin')->name('employees-grid');
 
 Route::get('/employee-details', function () {
     return view(view: 'employee-details');
@@ -384,15 +395,15 @@ Route::get('/employee-details', function () {
 
 Route::get('/departments', function () {
     return view(view: 'departments');
-})->name('departments');
+})->middleware('hcm.web.admin')->name('departments');
 
 Route::get('/designations', function () {
     return view(view: 'designations');
-})->name('designations');
+})->middleware('hcm.web.admin')->name('designations');
 
 Route::get('/policy', function () {
     return view(view: 'policy');
-})->name('policy');
+})->middleware('hcm.web.admin')->name('policy');
 
 Route::get('/tickets', function () {
     return redirect('/tickets-admin');
@@ -403,7 +414,7 @@ Route::get('/tickets-admin', function () {
         'ticketMode' => 'admin',
         'ticketTitle' => 'Tickets (Admin)',
     ]);
-})->name('tickets-admin');
+})->middleware('hcm.web.admin')->name('tickets-admin');
 
 Route::get('/tickets-employee', function () {
     return view(view: 'tickets', data: [
@@ -414,7 +425,7 @@ Route::get('/tickets-employee', function () {
 
 Route::get('/ticket-master', function () {
     return view(view: 'ticket-master');
-})->name('ticket-master');
+})->middleware('hcm.web.admin')->name('ticket-master');
 
 Route::get('/tickets-grid', function () {
     return view(view: 'tickets-grid');
@@ -430,11 +441,11 @@ Route::get('/ticket-details/{id}', function (int $id) {
 
 Route::get('/holidays', function () {
     return view(view: 'holidays');
-})->name('holidays');
+})->middleware('hcm.web.admin')->name('holidays');
 
 Route::get('/leaves', function () {
     return view(view: 'leaves');
-})->name('leaves');
+})->middleware('hcm.web.admin')->name('leaves');
 
 Route::get('/leaves-employee', function () {
     return view(view: 'leaves-employee');
@@ -442,11 +453,11 @@ Route::get('/leaves-employee', function () {
 
 Route::get('/leave-settings', function () {
     return view(view: 'leave-settings');
-})->name('leave-settings');
+})->middleware('hcm.web.admin')->name('leave-settings');
 
 Route::get('/attendance-admin', function () {
     return view(view: 'attendance-admin');
-})->name('attendance-admin');
+})->middleware('hcm.web.admin')->name('attendance-admin');
 
 Route::get('/attendance-employee', function () {
     return view(view: 'attendance-employee');
@@ -454,19 +465,19 @@ Route::get('/attendance-employee', function () {
 
 Route::get('/timesheets', function () {
     return view(view: 'timesheets');
-})->name('timesheets');
+})->middleware('hcm.web.admin')->name('timesheets');
 
 Route::get('/schedule-timing', function () {
     return view(view: 'schedule-timing');
-})->name('schedule-timing');
+})->middleware('hcm.web.admin')->name('schedule-timing');
 
 Route::get('/shift-master', function () {
     return view(view: 'shift-master');
-})->name('shift-master');
+})->middleware('hcm.web.admin')->name('shift-master');
 
 Route::get('/overtime', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => false]);
-})->name('overtime');
+})->middleware('hcm.web.admin')->name('overtime');
 
 Route::get('/overtime-employee', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => true]);
@@ -474,11 +485,11 @@ Route::get('/overtime-employee', function () {
 
 Route::get('/overtime-master', function () {
     return view(view: 'overtime-master');
-})->name('overtime-master');
+})->middleware('hcm.web.admin')->name('overtime-master');
 
 Route::get('/performance-indicator', function () {
     return view(view: 'performance-indicator');
-})->name('performance-indicator');
+})->middleware('hcm.web.admin')->name('performance-indicator');
 
 Route::get('/performance-review', function () {
     return view(view: 'performance-review');
@@ -486,7 +497,7 @@ Route::get('/performance-review', function () {
 
 Route::get('/performance-appraisal', function () {
     return view(view: 'performance-appraisal');
-})->name('performance-appraisal');
+})->middleware('hcm.web.admin')->name('performance-appraisal');
 
 Route::get('/goal-tracking', function () {
     return view(view: 'goal-tracking');
@@ -494,19 +505,19 @@ Route::get('/goal-tracking', function () {
 
 Route::get('/goal-type', function () {
     return view(view: 'goal-type');
-})->name('goal-type');
+})->middleware('hcm.web.admin')->name('goal-type');
 
 Route::get('/training', function () {
     return view(view: 'training');
-})->name('training');
+})->middleware('hcm.web.admin')->name('training');
 
 Route::get('/trainers', function () {
     return view(view: 'trainers');
-})->name('trainers');
+})->middleware('hcm.web.admin')->name('trainers');
 
 Route::get('/training-type', function () {
     return view(view: 'training-type');
-})->name('training-type');
+})->middleware('hcm.web.admin')->name('training-type');
 
 Route::middleware('hcm.web.admin')->group(function (): void {
     Route::get('/promotion', function () {
@@ -1099,16 +1110,26 @@ Route::get('permission', function() {
     return view('permission');
 })->name('permission');
 
-Route::get('knowledgebase', function() {
-    return view('knowledgebase');
-})->name('knowledgebase');
+Route::get('knowledgebase', [KnowledgebaseController::class, 'index'])->name('knowledgebase');
+Route::get('knowledgebase/category/{slug}', [KnowledgebaseController::class, 'category'])->name('knowledgebase.category');
+Route::get('knowledgebase/article/{slug}', [KnowledgebaseController::class, 'article'])->name('knowledgebase.article');
 
-Route::get('knowledgebase-view', function() {
-    return view('knowledgebase-view');
+Route::get('knowledgebase-view', function (Request $request) {
+    $category = $request->query('category');
+    if (is_string($category) && $category !== '' && HcmKnowledgebase::categoryBySlug($category)) {
+        return redirect()->route('knowledgebase.category', ['slug' => $category]);
+    }
+
+    return redirect()->route('knowledgebase');
 })->name('knowledgebase-view');
 
-Route::get('knowledgebase-details', function() {
-    return view('knowledgebase-details');
+Route::get('knowledgebase-details', function (Request $request) {
+    $article = $request->query('article');
+    if (is_string($article) && $article !== '' && HcmKnowledgebase::resolveArticle($article)) {
+        return redirect()->route('knowledgebase.article', ['slug' => $article]);
+    }
+
+    return redirect()->route('knowledgebase');
 })->name('knowledgebase-details');
 
 Route::get('users', function() {

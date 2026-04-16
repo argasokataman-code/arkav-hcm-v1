@@ -196,6 +196,8 @@
     <div class="page-wrapper arcav-attendance-page">
         <div class="content">
 
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 1080;" data-toast-container></div>
+
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                 <div class="my-auto mb-2">
@@ -316,7 +318,7 @@
                                 <button type="button" class="btn btn-outline-warning d-none" data-attendance-me-request-correction>
                                     Ajukan koreksi
                                 </button>
-                                <button type="button" class="btn btn-outline-success" data-attendance-me-selfie-btn>
+                                <button type="button" class="btn btn-outline-success" data-attendance-me-selfie-btn data-arcav-selfie-allowed="0" title="Memuat status absensi…">
                                     <i class="ti ti-camera me-1"></i> Ambil Selfie
                                 </button>
                                 <button type="button" class="btn btn-outline-primary" data-attendance-me-break-btn disabled>Mulai istirahat</button>
@@ -477,6 +479,30 @@
     @component('components.modal-popup')
     @endcomponent
 
+    <!-- Selfie: punch in required (app modal) -->
+    <div class="modal fade" id="arcav_attendance_selfie_prereq_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <i class="ti ti-alert-circle text-warning"></i>
+                        Punch masuk diperlukan
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="mb-3 text-gray-700" data-arcav-selfie-prereq-message>
+                        Harap lakukan punch in terlebih dahulu sebelum mengambil selfie. Setelah absensi hari ini tercatat, Anda dapat membuka kamera selfie dari tombol yang sama.
+                    </p>
+                    <p class="small text-muted mb-0">Jika Anda sudah punch masuk namun pesan ini masih muncul, muat ulang halaman lalu coba lagi.</p>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Mengerti</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Selfie Camera Modal -->
     <div class="modal fade arcav-selfie-camera-modal" id="arcav_attendance_selfie_modal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -555,27 +581,38 @@
         const retakeBtn = document.querySelector('[data-selfie-retake-btn]');
         const submitBtn = document.querySelector('[data-selfie-submit-btn]');
         const openSelfieBtn = document.querySelector('[data-attendance-me-selfie-btn]');
+        const prereqModalEl = document.getElementById('arcav_attendance_selfie_prereq_modal');
         let mediaStream = null;
         let capturedImageData = null;
 
-        // Verify elements exist
-        console.log('Selfie Elements:', {
-            modal: !!selfieModal,
-            video: !!videoEl,
-            canvas: !!canvasEl,
-            captureBtn: !!captureBtn,
-            retakeBtn: !!retakeBtn,
-            submitBtn: !!submitBtn,
-            openBtn: !!openSelfieBtn,
-        });
+        var selfiePrereqDefaultMsg = 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie. Setelah absensi hari ini tercatat, Anda dapat membuka kamera selfie dari tombol yang sama.';
+
+        function showSelfiePrereqModal(message) {
+            if (!prereqModalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                showToast('warning', 'Punch masuk diperlukan', message || selfiePrereqDefaultMsg);
+                return;
+            }
+            const msgEl = prereqModalEl.querySelector('[data-arcav-selfie-prereq-message]');
+            if (msgEl) {
+                msgEl.textContent = (message && String(message).trim()) ? String(message).trim() : selfiePrereqDefaultMsg;
+            }
+            var inst = bootstrap.Modal.getInstance(prereqModalEl);
+            if (!inst) {
+                inst = new bootstrap.Modal(prereqModalEl);
+            }
+            inst.show();
+        }
 
         // Open modal and start camera
         if (openSelfieBtn && selfieModal) {
             openSelfieBtn.addEventListener('click', function() {
-                console.log('Ambil Selfie clicked');
+                const allowed = openSelfieBtn.getAttribute('data-arcav-selfie-allowed') !== '0';
+                if (!allowed) {
+                    showSelfiePrereqModal('Harap lakukan punch in terlebih dahulu sebelum mengambil selfie.');
+                    return;
+                }
                 const modal = new bootstrap.Modal(selfieModal);
                 modal.show();
-                // Wait for modal animation (300ms default)
                 setTimeout(startCamera, 350);
             });
         }
@@ -654,7 +691,7 @@
                     submitBtn.classList.remove('d-none');
                 } catch (error) {
                     console.error('Capture error:', error);
-                    alert('Gagal mengambil foto: ' + error.message);
+                    showToast('danger', 'Gagal mengambil foto', error.message || 'Unknown error');
                 }
             });
         }
@@ -679,14 +716,14 @@
                     console.log('Submitting selfie...');
                     
                     if (!capturedImageData) {
-                        alert('Tidak ada foto untuk dikirim');
+                        showToast('warning', 'Selfie belum ada', 'Tidak ada foto untuk dikirim.');
                         return;
                     }
                     
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim...';
                     
-                    const response = await fetch('/api/v1/hcm/attendance/me/selfie', {
+                    const response = await fetch('/v1/hcm/attendance/me/selfie', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -716,11 +753,18 @@
                             mediaStream = null;
                         }
                     } else {
-                        alert('Gagal menyimpan selfie:\n' + (result.message || result.error || 'Unknown error'));
+                        const apiMsg = result?.error?.message || result?.message || 'Unknown error';
+                        const errCode = result?.error?.code || '';
+                        if (errCode === 'ATTENDANCE_NOT_STARTED') {
+                            bootstrap.Modal.getInstance(selfieModal)?.hide();
+                            showSelfiePrereqModal(apiMsg);
+                        } else {
+                            showToast('danger', 'Gagal menyimpan selfie', apiMsg);
+                        }
                     }
                 } catch (error) {
                     console.error('Submit error:', error);
-                    alert('Error mengupload selfie: ' + error.message);
+                    showToast('danger', 'Error upload selfie', error.message || 'Unknown error');
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = 'Simpan Selfie';
@@ -752,10 +796,14 @@
                 </div>
             `;
             const container = document.querySelector('[data-toast-container]') || document.body;
-            const toast = document.createElement('div');
-            toast.innerHTML = toastHtml;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 5000);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = toastHtml;
+            const node = wrapper.firstElementChild;
+            if (!node) {
+                return;
+            }
+            container.appendChild(node);
+            setTimeout(() => node.remove(), 5000);
         }
     });
     </script>

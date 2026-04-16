@@ -23,6 +23,14 @@ class EnsureHcmWebAdminPage
             return redirect()->to(url('login'));
         }
 
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId > 0) {
+            if (! $user->isHcmAdminForCompany($activeCompanyId)) {
+                return redirect()->to(url('employee-dashboard'));
+            }
+            return $next($request);
+        }
+
         if (! $user->isHcmAdmin()) {
             return redirect()->to(url('employee-dashboard'));
         }

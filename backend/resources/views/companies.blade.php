@@ -202,14 +202,14 @@
                                     <th>Company Name</th>
                                     <th>Email</th>
                                     <th>Legal Name</th>
-                                    <th>Plan</th>
+									<th>Subscription</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="companies_table_body">
-                                <tr><td colspan="8" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>
+								<tr><td colspan="8" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>

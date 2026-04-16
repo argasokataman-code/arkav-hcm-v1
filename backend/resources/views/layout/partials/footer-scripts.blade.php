@@ -5,6 +5,18 @@
 <!-- Bootstrap Core JS -->
 <script src="{{ URL::asset('build/js/bootstrap.bundle.min.js') }}"></script>
 
+<!-- Authorization/Permissions Utility (MUST BE LOADED EARLY) -->
+<script>
+	// Inject auth user context from blade template
+	window.AuthUser = {
+		id: {{ auth()->id() ?? 'null' }},
+		email: '{{ auth()->user()?->email ?? '' }}',
+		isHcmAdmin: {{ auth()->user()?->isHcmAdmin ? 'true' : 'false' }},
+		name: '{{ auth()->user()?->name ?? '' }}',
+	};
+</script>
+<script src="{{ URL::asset('build/js/auth-permissions-utils.js') }}"></script>
+
 <!-- Feather Icon JS -->
 <script src="{{ URL::asset('build/js/feather.min.js') }}"></script>
 
@@ -261,6 +273,9 @@
 <script src="{{ URL::asset('build/js/employees-view-toggle.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees-data.js')) ? filemtime(public_path('build/js/employees-data.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm-pages-data.js')) : time() }}"></script>
+@if (Route::is(['pages']))
+    <script src="{{ URL::asset('build/js/pages-hcm-hub.js') }}?v={{ file_exists(public_path('build/js/pages-hcm-hub.js')) ? filemtime(public_path('build/js/pages-hcm-hub.js')) : time() }}"></script>
+@endif
 @if (Route::is(['index']))
     <script src="{{ URL::asset('build/js/index-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/index-dashboard-data.js')) ? filemtime(public_path('build/js/index-dashboard-data.js')) : time() }}"></script>
 @endif
@@ -271,7 +286,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 @endif
-<script src="{{ URL::asset('build/js/attendance-data.js?v=20260409-gpsfix-2') }}"></script>
+<script src="{{ URL::asset('build/js/attendance-data.js?v=20260416-selfie-prereq') }}"></script>
 
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
     <script src="{{ URL::asset('build/js/hcm-extras-data.js') }}"></script>
@@ -336,10 +351,10 @@
     <script src="{{ URL::asset('build/js/salary-component-master-data.js') }}"></script>
 @endif
 @if (Route::is(['payroll-run']))
-    <script src="{{ URL::asset('build/js/payroll-run.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll-run.js') }}?v={{ file_exists(public_path('build/js/payroll-run.js')) ? filemtime(public_path('build/js/payroll-run.js')) : time() }}"></script>
 @else
     @if (request()->path() === 'payroll-run')
-        <script src="{{ URL::asset('build/js/payroll-run.js') }}"></script>
+        <script src="{{ URL::asset('build/js/payroll-run.js') }}?v={{ file_exists(public_path('build/js/payroll-run.js')) ? filemtime(public_path('build/js/payroll-run.js')) : time() }}"></script>
     @endif
 @endif
 @if (Route::is(['payroll-run-history']))
@@ -372,6 +387,10 @@
 
 @if (Route::is(['leave-settings']))
     <script src="{{ URL::asset('build/js/leave-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['saas.billing-overview']))
+    <script src="{{ URL::asset('build/js/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas-billing-overview.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['promotion', 'employee-details']))

@@ -1,290 +1,108 @@
 <?php $page = 'pages'; ?>
 @extends('layout.mainlayout')
 @section('content')
+@php
+    $hub = config('hcm_portal_hub', []);
+    $pageTitle = $hub['page_title'] ?? 'Peta halaman HCM';
+    $pageSubtitle = $hub['page_subtitle'] ?? '';
+    $sections = $hub['sections'] ?? [];
+@endphp
 <!-- Page Wrapper -->
 <div class="page-wrapper">
-    <div class="content">
+    <div class="content" data-hcm-portal-hub>
 
-        <!-- Breadcrumb -->
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Pages</h2>
+                <h2 class="mb-1">{{ $pageTitle }}</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
                             <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                         </li>
-                        <li class="breadcrumb-item">
-                            Content
-                        </li>
+                        <li class="breadcrumb-item">Content</li>
                         <li class="breadcrumb-item active" aria-current="page">Pages</li>
                     </ol>
                 </nav>
             </div>
-            <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
-                <div class="mb-2">
-                    <a href="#" data-bs-toggle="modal" data-bs-target="#add_page" class="btn btn-primary d-flex align-items-center"><i class="ti ti-circle-plus me-2"></i>Add Page</a>
+            <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
+                <div class="mb-2" style="min-width: 220px;">
+                    <label class="visually-hidden" for="hcm_portal_hub_search">Cari halaman</label>
+                    <input type="search" id="hcm_portal_hub_search" class="form-control" placeholder="Cari modul atau jalur…" autocomplete="off" data-hcm-portal-hub-search>
                 </div>
-                <div class="head-icons ms-2">
+                <div class="head-icons ms-1 mb-2">
                     <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
                         <i class="ti ti-chevrons-up"></i>
                     </a>
                 </div>
             </div>
         </div>
-        <!-- /Breadcrumb -->
 
-        <div class="card">
-            <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                <h5>Pages List</h5>
+        @if($pageSubtitle !== '')
+            <div class="alert alert-light border shadow-none mb-4" role="note">
+                <p class="mb-0 text-muted">{{ $pageSubtitle }}</p>
             </div>
-            <div class="card-body p-0">
-                <div class="custom-datatable-filter table-responsive">
-                    <table class="table datatable">
-                        <thead class="thead-light">
-                            <tr>
-                                <th class="no-sort">
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox" id="select-all">
+        @endif
+
+        <div class="card border-0 shadow-none mb-3 d-none" data-hcm-portal-hub-empty>
+            <div class="card-body text-center text-muted py-5">
+                <i class="ti ti-search-off fs-1 d-block mb-2 opacity-50"></i>
+                Tidak ada halaman yang cocok dengan pencarian. Kosongkan kotak pencarian atau ubah kata kunci.
+            </div>
+        </div>
+
+        <div class="row g-3">
+            @foreach ($sections as $section)
+                @php
+                    $secTitle = $section['title'] ?? '—';
+                    $secIcon = $section['icon'] ?? 'ti-layout-grid';
+                    $items = $section['items'] ?? [];
+                @endphp
+                <div class="col-12 col-lg-6 col-xxl-4" data-hub-section>
+                    <div class="card h-100 border">
+                        <div class="card-header d-flex align-items-center gap-2 py-3">
+                            <span class="avatar avatar-sm bg-primary-transparent rounded-circle">
+                                <i class="ti {{ $secIcon }} text-primary"></i>
+                            </span>
+                            <h5 class="card-title mb-0 fw-semibold">{{ $secTitle }}</h5>
+                        </div>
+                        <div class="list-group list-group-flush rounded-0">
+                            @forelse ($items as $item)
+                                @php
+                                    $label = $item['label'] ?? '—';
+                                    $routeName = $item['route'] ?? null;
+                                    $desc = $item['description'] ?? '';
+                                    $href = $routeName && \Illuminate\Support\Facades\Route::has($routeName) ? route($routeName) : url('index');
+                                    $path = $routeName && \Illuminate\Support\Facades\Route::has($routeName) ? parse_url(route($routeName), PHP_URL_PATH) : '/';
+                                    $searchBlob = strtolower($label.' '.$desc.' '.$path);
+                                @endphp
+                                <a href="{{ $href }}" class="list-group-item list-group-item-action py-3" data-hub-item data-hub-search="{{ e($searchBlob) }}">
+                                    <div class="d-flex w-100 justify-content-between align-items-start gap-2">
+                                        <span class="fw-medium text-body">{{ $label }}</span>
+                                        <code class="fs-12 text-muted flex-shrink-0">{{ $path }}</code>
                                     </div>
-                                </th>
-                                <th>Page</th>
-                                <th>Page Slug</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Employee</a></h6>
-                                </td>
-                                <td>employee</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Clients</a></h6>
-                                </td>
-                                <td>clients</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Projects</a></h6>
-                                </td>
-                                <td>projects</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Tickets</a></h6>
-                                </td>
-                                <td>tickets</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Contacts</a></h6>
-                                </td>
-                                <td>contacts</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Companies</a></h6>
-                                </td>
-                                <td>companies</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Deals</a></h6>
-                                </td>
-                                <td>deals</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Leads</a></h6>
-                                </td>
-                                <td>leads</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Pipeline</a></h6>
-                                </td>
-                                <td>pipeline</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="form-check form-check-md">
-                                        <input class="form-check-input" type="checkbox">
-                                    </div>
-                                </td>
-                                <td>
-                                    <h6 class="fw-medium"><a href="#">Activities</a></h6>
-                                </td>
-                                <td>activities</td>
-                                <td>
-                                    <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                        <i class="ti ti-point-filled me-1"></i>Active
-                                    </span>
-                                </td>								
-                                <td>
-                                    <div class="action-icon d-inline-flex">
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#edit_page" class="me-2"><i class="ti ti-edit"></i></a>
-                                        <a href="#" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    @if($desc !== '')
+                                        <small class="text-muted d-block mt-1">{{ $desc }}</small>
+                                    @endif
+                                </a>
+                            @empty
+                                <div class="list-group-item text-muted py-3">Tidak ada entri.</div>
+                            @endforelse
+                        </div>
+                    </div>
                 </div>
+            @endforeach
+        </div>
+
+        <div class="card mt-4 border-dashed">
+            <div class="card-body d-md-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <h6 class="mb-1">Dokumentasi & izin</h6>
+                    <p class="text-muted small mb-0">Detail per modul (API, role, skenario) ada di <code>docs/planning/active-hcm-templates-and-permissions.md</code> dan <code>docs/features/*/README.md</code>. Halaman ini tidak menyimpan konten CMS.</p>
+                </div>
+                <a href="{{ url('api-docs') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0">API docs</a>
             </div>
         </div>
 
     </div>
-
-   
-
 </div>
-<!-- /Page Wrapper -->
 @endsection

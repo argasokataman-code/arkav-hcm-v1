@@ -20,6 +20,17 @@ class HcmOvertimeRequestController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'scope' => ['nullable', 'string', 'in:me'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -37,6 +48,11 @@ class HcmOvertimeRequestController extends Controller
             ->with(['user:id,name,email', 'overtimeType:id,code,name', 'salaryComponent:id,code,name'])
             ->orderByDesc('id');
 
+        // Tenant isolation: overtime requests are scoped by the requester's active company.
+        $query->whereHas('user.employeeProfile', function ($p) use ($activeCompanyId): void {
+            $p->where('company_id', $activeCompanyId);
+        });
+
         $user = $request->user();
         if (! $user->isHcmAdmin()) {
             $query->where('user_id', $user->id);
@@ -49,6 +65,9 @@ class HcmOvertimeRequestController extends Controller
         $meta = [];
         if ($user->isHcmAdmin() && $scope !== 'me') {
             $summaryQuery = OvertimeRequest::query();
+            $summaryQuery->whereHas('user.employeeProfile', function ($p) use ($activeCompanyId): void {
+                $p->where('company_id', $activeCompanyId);
+            });
             $this->applyOvertimeRequestListFilters($summaryQuery, $validated);
             $summaryRow = $summaryQuery
                 ->selectRaw(
@@ -98,6 +117,13 @@ class HcmOvertimeRequestController extends Controller
         ];
 
         return response()->json(['success' => true, 'data' => $paginator->items(), 'meta' => $meta]);
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
     }
 
     public function store(Request $request): JsonResponse

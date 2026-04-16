@@ -33,6 +33,59 @@ tags:
   - name: SaaS
   - name: User Management
   - name: Reporting
+  # --- PATCH: Add missing endpoints for governance compliance ---
+  /v1/reconciliation/exports:
+    get:
+      tags: [Reporting]
+      summary: List reconciliation exports (HCM Admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Reporting]
+      summary: Create reconciliation export (HCM Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string }
+                filters: { type: object }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/reconciliation/exports/{id}/download:
+    get:
+      tags: [Reporting]
+      summary: Download reconciliation export file (HCM Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  # --- PATCH END ---
 paths:
   /v1/identity/auth/register:
     post:
@@ -138,6 +191,148 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '422':
           $ref: '#/components/responses/ValidationError'
+
+  /v1/public/onboarding:
+    post:
+      tags: [SaaS]
+      summary: Public onboarding (guest) — create company + owner + subscription (+ optional invoice)
+      description: |
+        Guest endpoint for self-serve onboarding. Creates:
+        - User (owner)
+        - Company (tenant) + CompanyUser owner mapping
+        - Subscription (trial by default; or pending_payment + invoice draft)
+        Rate limited by throttle middleware.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [package_id, billing_cycle, company, owner]
+              properties:
+                package_id: { type: integer, minimum: 1 }
+                billing_cycle: { type: string, enum: [monthly, yearly] }
+                start_mode: { type: string, enum: [trial, pending_payment], nullable: true }
+                billingEmail: { type: string, format: email, nullable: true, maxLength: 255 }
+                turnstile_token:
+                  type: string
+                  maxLength: 2048
+                  nullable: true
+                  description: Required when Turnstile is enabled on the server.
+                website:
+                  type: string
+                  maxLength: 200
+                  nullable: true
+                  description: Honeypot field for bots. Must be empty.
+                company:
+                  type: object
+                  required: [name, timezone, currency, country_code, address, city]
+                  properties:
+                    code:
+                      type: string
+                      maxLength: 100
+                      pattern: '^[A-Za-z0-9_-]+$'
+                      nullable: true
+                      description: Optional. If omitted, server auto-generates a unique code.
+                    name: { type: string, maxLength: 255 }
+                    legal_name: { type: string, maxLength: 255, nullable: true }
+                    timezone: { type: string, maxLength: 100 }
+                    currency: { type: string, maxLength: 10 }
+                    country_code: { type: string, maxLength: 10 }
+                    contact_phone:
+                      type: string
+                      maxLength: 30
+                      nullable: true
+                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      description: Optional. Company contact phone for billing/support.
+                    contact_person_name:
+                      type: string
+                      maxLength: 120
+                      nullable: true
+                      description: Optional. Sales follow-up contact person name.
+                    contact_person_role:
+                      type: string
+                      maxLength: 120
+                      nullable: true
+                      description: Optional. Sales follow-up contact person role/title.
+                    address:
+                      type: string
+                      maxLength: 500
+                      description: Company address.
+                    city:
+                      type: string
+                      maxLength: 120
+                      description: Company city.
+                    postal_code:
+                      type: string
+                      maxLength: 12
+                      nullable: true
+                      pattern: '^[0-9]{3,12}$'
+                      description: Optional. Postal code.
+                owner:
+                  type: object
+                  required: [name, email, password, confirmPassword]
+                  properties:
+                    name: { type: string, minLength: 2, maxLength: 150, pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,149}$" }
+                    email: { type: string, format: email, maxLength: 255 }
+                    phone:
+                      type: string
+                      maxLength: 30
+                      nullable: true
+                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      description: Optional. Owner phone.
+                    password: { type: string, minLength: 8, maxLength: 64, pattern: '^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)[A-Za-z\\d@$!%*?&._-]{8,64}$' }
+                    confirmPassword: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      company:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          code: { type: string }
+                          name: { type: string }
+                      owner:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                          email: { type: string }
+                      subscription:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          status: { type: string, enum: [trial, pending_payment] }
+                          startsAt: { type: string, format: date-time }
+                          endsAt: { type: string, format: date-time }
+                          trialEndsAt: { type: string, format: date-time, nullable: true }
+                          billingCycle: { type: string, enum: [monthly, yearly] }
+                          amount: { type: number }
+                          packageId: { type: integer }
+                          packageCode: { type: string }
+                          packageName: { type: string }
+                      invoice:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer }
+                          invoiceNumber: { type: string, nullable: true }
+                          issueDate: { type: string, format: date }
+                          dueDate: { type: string, format: date }
+                          amountDue: { type: number }
+                          isPaid: { type: boolean }
+                          status: { type: string }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequestsError' }
 
   /v1/hcm/settings:
     get:
@@ -578,6 +773,19 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '422':
+          description: Validation error, or tenant context missing (TENANT_CONTEXT_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                tenantContextRequired:
+                  value:
+                    success: false
+                    error:
+                      code: TENANT_CONTEXT_REQUIRED
+                      message: Active company context is required to list employees.
     post:
       tags: [HCM]
       summary: Create employee
@@ -601,7 +809,18 @@ paths:
         '409':
           $ref: '#/components/responses/ConflictError'
         '422':
-          $ref: '#/components/responses/ValidationError'
+          description: Validation error, or subscription plan limit exceeded (EMPLOYEE_COUNT_EXCEEDED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                employeeCountExceeded:
+                  value:
+                    success: false
+                    error:
+                      code: EMPLOYEE_COUNT_EXCEEDED
+                      message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
   /v1/hcm/employees/{id}:
     get:
       tags: [HCM]
@@ -716,6 +935,95 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                employeeCountExceeded:
+                  value:
+                    success: false
+                    error:
+                      code: EMPLOYEE_COUNT_EXCEEDED
+                      message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
+
+  /v1/hcm/billing/checkout:
+    post:
+      tags: [SaaS, HCM]
+      summary: Tenant subscription checkout (create invoice)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [package_id, billing_cycle]
+              properties:
+                package_id:
+                  type: integer
+                  minimum: 1
+                billing_cycle:
+                  type: string
+                  enum: [monthly, yearly]
+                billingEmail:
+                  type: string
+                  format: email
+                  nullable: true
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      subscription:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          status: { type: string }
+                          billingCycle: { type: string }
+                          amount: { type: number }
+                          packageId: { type: integer }
+                          packageCode: { type: string }
+                          packageName: { type: string }
+                      invoice:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          invoiceNumber: { type: string, nullable: true }
+                          issueDate: { type: string, nullable: true }
+                          dueDate: { type: string, nullable: true }
+                          amountDue: { type: number }
+                          isPaid: { type: boolean }
+                          status: { type: string }
+                      reused: { type: boolean }
+        '200':
+          description: Reused existing pending invoice
+          content:
+            application/json:
+              schema:
+                $ref: '#/paths/~1v1~1hcm~1billing~1checkout/post/responses/201/content/application~1json/schema'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          description: Validation error or tenant context missing (TENANT_CONTEXT_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                tenantContextRequired:
+                  value:
+                    success: false
+                    error:
+                      code: TENANT_CONTEXT_REQUIRED
+                      message: Active company context is required.
 
   # -------------------------
   # User Management (implemented under /v1/hcm/user-management)
@@ -3191,6 +3499,12 @@ paths:
       summary: Create export reconciliation evidence (HCM admin)
       description: |
         Menyimpan evidence export untuk gate aksi berisiko. Endpoint ini membutuhkan tenant context aktif.
+
+        **Kompatibilitas UI:** klien payroll/THR/PKWT mengirim `format` (alias `fileFormat`) dan `filterPayload`.
+        Jika `filePath` tidak dikirim dan `fileFormat`/`format` adalah **`csv`**, server akan **menulis file CSV evidence**
+        ke disk `local` pada path `reconciliation/generated/...` lalu menyimpan evidence.
+
+        Untuk `xlsx` / `pdf`, `filePath` tetap **wajib** (server tidak auto-generate).
       security:
         - bearerAuth: []
       requestBody:
@@ -3199,7 +3513,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [featureKey, actionKey, scopeRef, fileFormat, filePath, rowCount]
+              required: [featureKey, actionKey, scopeRef]
               properties:
                 featureKey:
                   type: string
@@ -3209,9 +3523,22 @@ paths:
                   enum: [finalize, disburse, post_payroll, mark_paid, verify]
                 scopeRef: { type: string }
                 fileFormat: { type: string, enum: [csv, xlsx, pdf] }
-                filePath: { type: string }
-                rowCount: { type: integer, minimum: 0 }
+                format:
+                  description: Alias untuk `fileFormat` (kompatibilitas klien).
+                  type: string
+                  enum: [csv, xlsx, pdf]
+                filePath:
+                  description: Path relatif di disk `local`. Wajib untuk `xlsx|pdf`; opsional untuk `csv` (auto-generate bila kosong).
+                  type: string
+                rowCount:
+                  description: Opsional; jika tidak dikirim akan diinfer dari `filterPayload` (mis. `lineIds` / `periods`) atau 0.
+                  type: integer
+                  minimum: 0
                 filterPayload:
+                  type: object
+                  additionalProperties: true
+                filters:
+                  description: Alias untuk `filterPayload` (kompatibilitas kontrak awal).
                   type: object
                   additionalProperties: true
                 datasetChecksum: { type: string, nullable: true }
@@ -3256,6 +3583,29 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/attendance/admin/records/{id}/selfie/download:
+    get:
+      tags: [Attendance]
+      summary: Download employee selfie by attendance record id (HCM admin)
+      description: |
+        Download file selfie yang disimpan di storage private untuk satu attendance record.
+        **HCM Admin only** dan tenant-scoped.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Binary image file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/payroll-items:
     get:
       tags: [Payroll]
@@ -3436,7 +3786,7 @@ paths:
         - { name: scope, in: query, required: false, schema: { type: string, enum: [me] } }
         - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
         - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
-        - { name: workDate, in: query, required: false, schema: { type: string, format: date }, description: Filter single work_date; if set, dateFrom/dateTo ignored }
+        - { name: workDate, in: query, required: false, schema: { type: string, format: date }, description: "Filter single work_date; if set, dateFrom/dateTo ignored" }
         - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
         - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
         - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
@@ -4129,6 +4479,349 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
 
+  /v1/saas/subscriptions:
+    get:
+      tags: [SaaS]
+      summary: List subscriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 15 }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
+        - name: billing_cycle
+          in: query
+          schema: { type: string, enum: [monthly, yearly] }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SaasSubscription' }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [SaaS]
+      summary: Create subscription (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, package_id, status, starts_at, billing_cycle]
+              properties:
+                company_id: { type: integer, minimum: 1 }
+                package_id: { type: integer, minimum: 1 }
+                status:
+                  type: string
+                  enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
+                starts_at: { type: string, format: date }
+                ends_at:
+                  type: string
+                  format: date
+                  nullable: true
+                  description: Required when status is active, trial, or pending_payment (payment / provisioning window end)
+                trial_ends_at:
+                  type: string
+                  format: date
+                  nullable: true
+                  description: Required when status is trial; must be after starts_at and on or before ends_at
+                auto_renew: { type: boolean }
+                billing_cycle: { type: string, enum: [monthly, yearly] }
+                amount: { type: number, minimum: 0, nullable: true }
+      responses:
+        '201':
+          description: Created
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/subscriptions/{subscription}:
+    parameters:
+      - name: subscription
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [SaaS]
+      summary: Get subscription by id
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/SaasSubscription' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [SaaS]
+      summary: Update subscription (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                package_id: { type: integer, minimum: 1 }
+                status:
+                  type: string
+                  enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
+                starts_at: { type: string, format: date }
+                ends_at: { type: string, format: date, nullable: true }
+                trial_ends_at:
+                  type: string
+                  format: date
+                  nullable: true
+                  description: Required when resulting status is trial; send null to clear when leaving trial
+                auto_renew: { type: boolean }
+                billing_cycle: { type: string, enum: [monthly, yearly] }
+                amount: { type: number, minimum: 0, nullable: true }
+      responses:
+        '200':
+          description: OK
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [SaaS]
+      summary: Delete subscription (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/subscriptions/{subscription}/renew:
+    parameters:
+      - name: subscription
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      tags: [SaaS]
+      summary: Renew subscription — sets active, starts_at now, ends_at from body (HCM admin)
+      description: |
+        Typical prior statuses: expired, cancelled, suspended, inactive. Not valid for `pending_payment` (422).
+        Web UI `/saas/subscriptions` may resolve `{subscription}` via **Renew by ID** (`GET /v1/saas/subscriptions/{subscription}` first).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ends_at]
+              properties:
+                ends_at: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/invoices:
+    post:
+      tags: [SaaS]
+      summary: Create invoice (HCM admin)
+      description: |
+        Optional `subscription_id` must reference a subscription for the same `company_id`.
+        When the invoice is later marked paid, a linked subscription in `pending_payment` becomes `active`
+        (paid period starts from payment date; see `SubscriptionActivationFromInvoiceService`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, issue_date, due_date, amount_due]
+              properties:
+                company_id: { type: integer, minimum: 1 }
+                purchase_transaction_id: { type: integer, nullable: true }
+                subscription_id:
+                  type: integer
+                  nullable: true
+                  description: Same-company subscription; used to auto-activate pending_payment on mark paid
+                issue_date: { type: string, format: date }
+                due_date: { type: string, format: date }
+                amount_due: { type: number, minimum: 0 }
+                notes: { type: string, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/companies/billing-overview:
+    get:
+      tags: [SaaS]
+      summary: Billing overview dashboard (HCM admin) — trial vs subscribed companies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          required: true
+          schema: { type: string, enum: [trial, subscribed] }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, maxLength: 200 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        company:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            code: { type: string }
+                            name: { type: string }
+                        subscription:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            status: { type: string }
+                            billingCycle: { type: string }
+                            startsAt: { type: string, format: date-time }
+                            endsAt: { type: string, format: date-time }
+                            trialEndsAt: { type: string, format: date-time, nullable: true }
+                            planCode: { type: string }
+                            packageId: { type: integer, nullable: true }
+                            packageName: { type: string }
+                            amount: { type: number, nullable: true }
+                        latestInvoice:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            invoiceNumber: { type: string, nullable: true }
+                            issueDate: { type: string, format: date, nullable: true }
+                            dueDate: { type: string, format: date, nullable: true }
+                            amountDue: { type: number }
+                            isPaid: { type: boolean }
+                            status: { type: string }
+                        email:
+                          type: object
+                          properties:
+                            status: { type: string }
+                            sentAt: { type: string, format: date-time, nullable: true }
+                            lastError: { type: string, nullable: true }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/invoices/{id}/send-email:
+    post:
+      tags: [SaaS]
+      summary: Send invoice email (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email, nullable: true, maxLength: 255 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      invoiceNumber: { type: string, nullable: true }
+                      companyId: { type: integer }
+                      subscriptionId: { type: integer, nullable: true }
+                      issueDate: { type: string, format: date }
+                      dueDate: { type: string, format: date }
+                      amountDue: { type: number }
+                      isPaid: { type: boolean }
+                      status: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -4213,7 +4906,39 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    TooManyRequestsError:
+      description: Too Many Requests (Rate Limit Exceeded)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    SaasSubscription:
+      type: object
+      description: Subscription row as returned by Laravel formatter (camelCase keys).
+      properties:
+        id: { type: integer }
+        companyId: { type: integer }
+        companyName: { type: string }
+        packageId: { type: integer }
+        packageName: { type: string }
+        planCode: { type: string }
+        status:
+          type: string
+          enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
+        startsAt: { type: string, format: date-time, nullable: true }
+        endsAt: { type: string, format: date-time, nullable: true }
+        startDate: { type: string, format: date, nullable: true }
+        endDate: { type: string, format: date, nullable: true }
+        trialEndsAt: { type: string, format: date-time, nullable: true }
+        autoRenew: { type: boolean }
+        billingCycle: { type: string, enum: [monthly, yearly] }
+        amount: { type: number }
+        isActive: { type: boolean }
+        isInTrial: { type: boolean }
+        isExpired: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     RegisterRequest:
       type: object
       required: [name, email, password, confirmPassword]

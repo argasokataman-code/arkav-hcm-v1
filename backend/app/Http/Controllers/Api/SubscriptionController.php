@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Models\Subscription;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,6 +17,13 @@ class SubscriptionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        if (!$this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
         $query = Subscription::with(['company', 'package']);
 
         $status = trim((string) $request->get('status', ''));
@@ -57,7 +65,10 @@ class SubscriptionController extends Controller
             });
         }
 
-        $subscriptions = $query->latest('created_at')->paginate(15);
+        $perPage = (int) $request->query('per_page', 15);
+        $perPage = max(1, min($perPage, 100));
+
+        $subscriptions = $query->latest('created_at')->paginate($perPage);
 
         $items = collect($subscriptions->items())
             ->map(fn (Subscription $subscription) => $this->formatSubscription($subscription))
@@ -91,17 +102,33 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'package_id' => 'required|integer|exists:packages,id',
-            'status' => 'required|in:active,trial,inactive,expired,cancelled',
+            'status' => 'required|in:active,trial,pending_payment,inactive,expired,cancelled,suspended',
             'starts_at' => 'required|date',
-            'ends_at' => 'nullable|date|after:starts_at',
-            'trial_ends_at' => 'nullable|date',
+            'ends_at' => 'required_if:status,active,trial,pending_payment|nullable|date|after:starts_at',
+            'trial_ends_at' => 'nullable|date|required_if:status,trial|after:starts_at',
             'auto_renew' => 'boolean',
             'billing_cycle' => 'required|in:monthly,yearly',
             'amount' => 'nullable|numeric|min:0',
         ]);
 
+        if ($validated['status'] !== 'trial') {
+            $validated['trial_ends_at'] = null;
+        } else {
+            $trialErr = $this->validateTrialEndsWithinSubscription(
+                $validated['starts_at'],
+                $validated['ends_at'],
+                $validated['trial_ends_at']
+            );
+            if ($trialErr !== null) {
+                return $trialErr;
+            }
+        }
+
         // Get package to denormalize plan_code and calculate amount
         $package = Package::findOrFail($validated['package_id']);
+        if ($gate = $this->ensurePackageAssignableForStatuses($package, $validated['status'])) {
+            return $gate;
+        }
         $validated['plan_code'] = $package->code;
 
         // Calculate amount if not provided
@@ -126,8 +153,15 @@ class SubscriptionController extends Controller
      * GET /v1/saas/subscriptions/{id}
      * Get subscription details
      */
-    public function show(Subscription $subscription): JsonResponse
+    public function show(Request $request, Subscription $subscription): JsonResponse
     {
+        if (!$this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
         $subscription->load('company', 'package');
 
         return response()->json([
@@ -151,7 +185,7 @@ class SubscriptionController extends Controller
 
         $validated = $request->validate([
             'package_id' => 'sometimes|integer|exists:packages,id',
-            'status' => 'sometimes|in:active,trial,inactive,expired,cancelled',
+            'status' => 'sometimes|in:active,trial,pending_payment,inactive,expired,cancelled,suspended',
             'starts_at' => 'sometimes|date',
             'ends_at' => 'nullable|date',
             'trial_ends_at' => 'nullable|date',
@@ -160,10 +194,66 @@ class SubscriptionController extends Controller
             'amount' => 'nullable|numeric|min:0',
         ]);
 
-        // If package changed, update plan_code and possibly amount
+        $mergedStatus = $validated['status'] ?? $subscription->status;
+        $mergedStarts = $validated['starts_at'] ?? $subscription->starts_at?->toDateString();
+        $mergedEnds = array_key_exists('ends_at', $validated)
+            ? $validated['ends_at']
+            : $subscription->ends_at?->toDateString();
+        $mergedTrial = array_key_exists('trial_ends_at', $validated)
+            ? $validated['trial_ends_at']
+            : $subscription->trial_ends_at?->toDateString();
+
+        if ($mergedStatus === 'pending_payment') {
+            $validated['trial_ends_at'] = null;
+            $mergedTrial = null;
+        }
+
+        if ($mergedStatus === 'trial') {
+            if ($mergedTrial === null || $mergedTrial === '') {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'trial_ends_at is required when status is trial.',
+                    ],
+                ], 422);
+            }
+            $trialErr = $this->validateTrialEndsWithinSubscription($mergedStarts, $mergedEnds, $mergedTrial);
+            if ($trialErr !== null) {
+                return $trialErr;
+            }
+        }
+
+        if (in_array($mergedStatus, ['active', 'trial', 'pending_payment'], true)) {
+            $effectiveEndsAt = array_key_exists('ends_at', $validated)
+                ? $validated['ends_at']
+                : $subscription->ends_at;
+
+            if ($effectiveEndsAt === null) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'ends_at is required when status is active, trial, or pending_payment.',
+                    ],
+                ], 422);
+            }
+        }
+
+        $effectivePackageId = (int) ($validated['package_id'] ?? $subscription->package_id);
+        $effectivePackage = Package::findOrFail($effectivePackageId);
+        if ($gate = $this->ensurePackageAssignableForStatuses($effectivePackage, $mergedStatus)) {
+            return $gate;
+        }
+
+        // If package changed, update plan_code and sync amount to catalog prices
         if (isset($validated['package_id'])) {
             $package = Package::findOrFail($validated['package_id']);
             $validated['plan_code'] = $package->code;
+            $billing = $validated['billing_cycle'] ?? $subscription->billing_cycle;
+            $validated['amount'] = $billing === 'yearly'
+                ? $package->yearly_price
+                : $package->monthly_price;
         }
 
         $subscription->update($validated);
@@ -209,6 +299,16 @@ class SubscriptionController extends Controller
             ], 403);
         }
 
+        if ($subscription->status === 'pending_payment') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SUBSCRIPTION_INVALID_STATE',
+                    'message' => 'Cannot renew a subscription that is still awaiting payment. Activate it via paid invoice or update status.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'ends_at' => 'required|date|after:now',
         ]);
@@ -226,6 +326,68 @@ class SubscriptionController extends Controller
             'success' => true,
             'data' => $this->formatSubscription($subscription),
         ]);
+    }
+
+    /**
+     * Active catalog packages only for entitlements that depend on a sellable package.
+     */
+    private function ensurePackageAssignableForStatuses(Package $package, string $status): ?JsonResponse
+    {
+        if (! in_array($status, ['active', 'trial', 'pending_payment'], true)) {
+            return null;
+        }
+
+        if ($package->status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PACKAGE_NOT_ACTIVE',
+                    'message' => 'Only packages with status "active" can be used for active, trial, or pending_payment subscriptions.',
+                ],
+            ], 422);
+        }
+
+        return null;
+    }
+
+    /**
+     * Ensure trial_ends_at is strictly after starts_at and not after subscription ends_at (when provided).
+     */
+    private function validateTrialEndsWithinSubscription(?string $startsAt, ?string $endsAt, ?string $trialEndsAt): ?JsonResponse
+    {
+        if ($trialEndsAt === null || $trialEndsAt === '') {
+            return null;
+        }
+
+        $trial = Carbon::parse($trialEndsAt)->startOfDay();
+
+        if ($startsAt) {
+            $start = Carbon::parse($startsAt)->startOfDay();
+            if ($trial <= $start) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'trial_ends_at must be after starts_at.',
+                    ],
+                ], 422);
+            }
+        }
+
+        if ($endsAt) {
+            $end = Carbon::parse($endsAt)->startOfDay();
+            if ($trial > $end) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'trial_ends_at must be on or before ends_at.',
+                    ],
+                ], 422);
+            }
+        }
+
+        return null;
     }
 
     /**

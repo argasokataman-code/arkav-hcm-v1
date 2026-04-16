@@ -52,6 +52,10 @@ class Company extends Model
         return $this->subscriptions()
             ->with(['package.features'])
             ->whereIn('status', ['active', 'trial'])
+            ->where(function ($q): void {
+                $q->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
             ->latest('starts_at')
             ->first();
     }

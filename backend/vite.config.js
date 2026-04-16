@@ -86,6 +86,18 @@ export default defineConfig({
                     src: '../frontend/resources/plugins',
                     dest: ''
                 },
+                {
+                    src: 'node_modules/swiper/swiper-bundle.min.css',
+                    dest: 'vendor'
+                },
+                {
+                    src: 'node_modules/swiper/swiper-bundle.min.js',
+                    dest: 'vendor'
+                },
+                {
+                    src: 'node_modules/countup.js/dist/countUp.umd.js',
+                    dest: 'vendor'
+                },
                
             ]
         }),

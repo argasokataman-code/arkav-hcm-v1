@@ -1,25 +1,4 @@
-        protected static function booted()
-        {
-            static::addGlobalScope('company', function ($query) {
-                if (auth()->check() && auth()->user()->employeeProfile) {
-                    $query->where('company_id', auth()->user()->employeeProfile->company_id);
-                }
-            });
-        }
-    protected static function booted()
-    {
-        // Only apply global scope in web/api context, not in console/test
-        if (app()->runningInConsole()) {
-            return;
-        }
-        static::addGlobalScope('company', function ($query) {
-            if (auth()->check() && auth()->user()->employeeProfile) {
-                $query->where('company_id', auth()->user()->employeeProfile->company_id);
-            }
-        });
-    }
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;

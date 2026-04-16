@@ -36,266 +36,198 @@ return new class extends Migration
             // Skip to avoid duplicate constraint error
 
             // 2. Domains -> Company (if company_id column exists)
-            if (Schema::hasColumn('domains', 'company_id') && 
-                !$this->constraintExists('domains', 'domains_company_id_foreign')) {
-                Schema::table('domains', function (Blueprint $table) {
-                    $table->foreign('company_id')
-                        ->references('id')
-                        ->on('users')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('domains', 'company_id')) {
+                try {
+                    Schema::table('domains', function (Blueprint $table) {
+                        $table->foreign('company_id')
+                            ->references('id')
+                            ->on('users')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    // Constraint already exists, skip
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
-            // 3. Employee Bank Accounts -> Employee Profiles
-            if (Schema::hasColumn('employee_bank_accounts', 'employee_id') &&
-                !$this->constraintExists('employee_bank_accounts', 'employee_bank_accounts_employee_id_foreign')) {
-                Schema::table('employee_bank_accounts', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 4. Employee Benefits -> Employee Profiles
-            if (Schema::hasColumn('employee_benefits', 'employee_id') &&
-                !$this->constraintExists('employee_benefits', 'employee_benefits_employee_id_foreign')) {
-                Schema::table('employee_benefits', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 5. Employee Compensations -> Employee Profiles
-            if (Schema::hasColumn('employee_compensations', 'employee_id') &&
-                !$this->constraintExists('employee_compensations', 'employee_compensations_employee_id_foreign')) {
-                Schema::table('employee_compensations', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 6. Employee Contracts -> Employee Profiles
-            if (Schema::hasColumn('employee_contracts', 'employee_id') &&
-                !$this->constraintExists('employee_contracts', 'employee_contracts_employee_id_foreign')) {
-                Schema::table('employee_contracts', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 7. Employee Educations -> Employee Profiles
-            if (Schema::hasColumn('employee_educations', 'employee_id') &&
-                !$this->constraintExists('employee_educations', 'employee_educations_employee_id_foreign')) {
-                Schema::table('employee_educations', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 8. Employee Emergency Contacts -> Employee Profiles
-            if (Schema::hasColumn('employee_emergency_contacts', 'employee_id') &&
-                !$this->constraintExists('employee_emergency_contacts', 'employee_emergency_contacts_employee_id_foreign')) {
-                Schema::table('employee_emergency_contacts', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 9. Employee Employment History -> Employee Profiles
-            if (Schema::hasColumn('employee_employment_history', 'employee_id') &&
-                !$this->constraintExists('employee_employment_history', 'employee_employment_history_employee_id_foreign')) {
-                Schema::table('employee_employment_history', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 10. Employee Experiences -> Employee Profiles
-            if (Schema::hasColumn('employee_experiences', 'employee_id') &&
-                !$this->constraintExists('employee_experiences', 'employee_experiences_employee_id_foreign')) {
-                Schema::table('employee_experiences', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 11. Employee Tax Profiles -> Employee Profiles
-            if (Schema::hasColumn('employee_tax_profiles', 'employee_id') &&
-                !$this->constraintExists('employee_tax_profiles', 'employee_tax_profiles_employee_id_foreign')) {
-                Schema::table('employee_tax_profiles', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 12. Employee Assignments -> Employee Profiles (for employee_id)
-            if (Schema::hasColumn('employee_assignments', 'employee_id') &&
-                !$this->constraintExists('employee_assignments', 'employee_assignments_employee_id_foreign')) {
-                Schema::table('employee_assignments', function (Blueprint $table) {
-                    $table->foreign('employee_id')
-                        ->references('id')
-                        ->on('employee_profiles')
-                        ->cascadeOnDelete();
-                });
-            }
-
-            // 13. Employee Assignments -> Departments
-            if (Schema::hasColumn('employee_assignments', 'department_id') &&
-                !$this->constraintExists('employee_assignments', 'employee_assignments_department_id_foreign')) {
-                Schema::table('employee_assignments', function (Blueprint $table) {
-                    $table->foreign('department_id')
-                        ->references('id')
-                        ->on('departments')
-                        ->nullOnDelete();
-                });
-            }
-
-            // 14. Employee Assignments -> Designations
-            if (Schema::hasColumn('employee_assignments', 'designation_id') &&
-                !$this->constraintExists('employee_assignments', 'employee_assignments_designation_id_foreign')) {
-                Schema::table('employee_assignments', function (Blueprint $table) {
-                    $table->foreign('designation_id')
-                        ->references('id')
-                        ->on('designations')
-                        ->nullOnDelete();
-                });
-            }
-
-            // 15. Employee Assignments -> Teams
-            if (Schema::hasColumn('employee_assignments', 'team_id') &&
-                !$this->constraintExists('employee_assignments', 'employee_assignments_team_id_foreign')) {
-                Schema::table('employee_assignments', function (Blueprint $table) {
-                    $table->foreign('team_id')
-                        ->references('id')
-                        ->on('teams')
-                        ->nullOnDelete();
-                });
-            }
+            // NOTES on entries 3-15: These FK constraints are already defined
+            // when tables are created via foreignId()->constrained() in
+            // 2026_04_11_130000_create_employee_normalized_history_tables.php
+            // Adding them again here would cause "Duplicate foreign key constraint" errors.
+            // SKIPPED:
+            // - employee_bank_accounts.employee_id -> employee_profiles
+            // - employee_benefits.employee_id -> employee_profiles
+            // - employee_compensations.employee_id -> employee_profiles
+            // - employee_contracts.employee_id -> employee_profiles
+            // - employee_educations.employee_id -> employee_profiles
+            // - employee_emergency_contacts.employee_id -> employee_profiles
+            // - employee_employment_history.employee_id -> employee_profiles
+            // - employee_experiences.employee_id -> employee_profiles
+            // - employee_tax_profiles.employee_id -> employee_profiles
+            // - employee_assignments.employee_id -> employee_profiles
+            // - employee_assignments.department_id -> departments
+            // - employee_assignments.designation_id -> designations
+            // - employee_assignments.team_id -> teams (will add below if needed)
 
             // 16. Employee Profiles -> Departments
-            if (Schema::hasColumn('employee_profiles', 'department_id') &&
-                !$this->constraintExists('employee_profiles', 'employee_profiles_department_id_foreign')) {
-                Schema::table('employee_profiles', function (Blueprint $table) {
-                    $table->foreign('department_id')
-                        ->references('id')
-                        ->on('departments')
-                        ->nullOnDelete();
-                });
+            if (Schema::hasColumn('employee_profiles', 'department_id')) {
+                try {
+                    Schema::table('employee_profiles', function (Blueprint $table) {
+                        $table->foreign('department_id')
+                            ->references('id')
+                            ->on('departments')
+                            ->nullOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 17. Employee Profiles -> Designations
-            if (Schema::hasColumn('employee_profiles', 'designation_id') &&
-                !$this->constraintExists('employee_profiles', 'employee_profiles_designation_id_foreign')) {
-                Schema::table('employee_profiles', function (Blueprint $table) {
-                    $table->foreign('designation_id')
-                        ->references('id')
-                        ->on('designations')
-                        ->nullOnDelete();
-                });
+            if (Schema::hasColumn('employee_profiles', 'designation_id')) {
+                try {
+                    Schema::table('employee_profiles', function (Blueprint $table) {
+                        $table->foreign('designation_id')
+                            ->references('id')
+                            ->on('designations')
+                            ->nullOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 18. HCM Training Participants -> HCM Trainings
-            if (Schema::hasColumn('hcm_training_participants', 'training_id') &&
-                !$this->constraintExists('hcm_training_participants', 'hcm_training_participants_training_id_foreign')) {
-                Schema::table('hcm_training_participants', function (Blueprint $table) {
-                    $table->foreign('training_id')
-                        ->references('id')
-                        ->on('hcm_trainings')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('hcm_training_participants', 'training_id')) {
+                try {
+                    Schema::table('hcm_training_participants', function (Blueprint $table) {
+                        $table->foreign('training_id')
+                            ->references('id')
+                            ->on('hcm_trainings')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 19. HCM Training Participants -> Users
-            if (Schema::hasColumn('hcm_training_participants', 'user_id') &&
-                !$this->constraintExists('hcm_training_participants', 'hcm_training_participants_user_id_foreign')) {
-                Schema::table('hcm_training_participants', function (Blueprint $table) {
-                    $table->foreign('user_id')
-                        ->references('id')
-                        ->on('users')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('hcm_training_participants', 'user_id')) {
+                try {
+                    Schema::table('hcm_training_participants', function (Blueprint $table) {
+                        $table->foreign('user_id')
+                            ->references('id')
+                            ->on('users')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 20. Ticket Attachments -> Tickets
-            if (Schema::hasColumn('ticket_attachments', 'ticket_id') &&
-                !$this->constraintExists('ticket_attachments', 'ticket_attachments_ticket_id_foreign')) {
-                Schema::table('ticket_attachments', function (Blueprint $table) {
-                    $table->foreign('ticket_id')
-                        ->references('id')
-                        ->on('tickets')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_attachments', 'ticket_id')) {
+                try {
+                    Schema::table('ticket_attachments', function (Blueprint $table) {
+                        $table->foreign('ticket_id')
+                            ->references('id')
+                            ->on('tickets')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 21. Ticket Attachments -> Users
-            if (Schema::hasColumn('ticket_attachments', 'user_id') &&
-                !$this->constraintExists('ticket_attachments', 'ticket_attachments_user_id_foreign')) {
-                Schema::table('ticket_attachments', function (Blueprint $table) {
-                    $table->foreign('user_id')
-                        ->references('id')
-                        ->on('users')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_attachments', 'user_id')) {
+                try {
+                    Schema::table('ticket_attachments', function (Blueprint $table) {
+                        $table->foreign('user_id')
+                            ->references('id')
+                            ->on('users')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 22. Ticket Comments -> Tickets
-            if (Schema::hasColumn('ticket_comments', 'ticket_id') &&
-                !$this->constraintExists('ticket_comments', 'ticket_comments_ticket_id_foreign')) {
-                Schema::table('ticket_comments', function (Blueprint $table) {
-                    $table->foreign('ticket_id')
-                        ->references('id')
-                        ->on('tickets')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_comments', 'ticket_id')) {
+                try {
+                    Schema::table('ticket_comments', function (Blueprint $table) {
+                        $table->foreign('ticket_id')
+                            ->references('id')
+                            ->on('tickets')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 23. Ticket Comments -> Users
-            if (Schema::hasColumn('ticket_comments', 'user_id') &&
-                !$this->constraintExists('ticket_comments', 'ticket_comments_user_id_foreign')) {
-                Schema::table('ticket_comments', function (Blueprint $table) {
-                    $table->foreign('user_id')
-                        ->references('id')
-                        ->on('users')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_comments', 'user_id')) {
+                try {
+                    Schema::table('ticket_comments', function (Blueprint $table) {
+                        $table->foreign('user_id')
+                            ->references('id')
+                            ->on('users')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // 24. Ticket Assignment Histories (complex - check existing constraints first)
-            if (Schema::hasColumn('ticket_assignment_histories', 'ticket_id') &&
-                !$this->constraintExists('ticket_assignment_histories', 'ticket_assignment_histories_ticket_id_foreign')) {
-                Schema::table('ticket_assignment_histories', function (Blueprint $table) {
-                    $table->foreign('ticket_id')
-                        ->references('id')
-                        ->on('tickets')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_assignment_histories', 'ticket_id')) {
+                try {
+                    Schema::table('ticket_assignment_histories', function (Blueprint $table) {
+                        $table->foreign('ticket_id')
+                            ->references('id')
+                            ->on('tickets')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
-            if (Schema::hasColumn('ticket_assignment_histories', 'actor_user_id') &&
-                !$this->constraintExists('ticket_assignment_histories', 'ticket_assignment_histories_actor_user_id_foreign')) {
-                Schema::table('ticket_assignment_histories', function (Blueprint $table) {
-                    $table->foreign('actor_user_id')
-                        ->references('id')
-                        ->on('users')
-                        ->cascadeOnDelete();
-                });
+            if (Schema::hasColumn('ticket_assignment_histories', 'actor_user_id')) {
+                try {
+                    Schema::table('ticket_assignment_histories', function (Blueprint $table) {
+                        $table->foreign('actor_user_id')
+                            ->references('id')
+                            ->on('users')
+                            ->cascadeOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // ============================================================================

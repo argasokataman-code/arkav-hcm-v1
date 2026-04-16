@@ -20,35 +20,50 @@ return new class extends Migration
 
         try {
             // Report Snapshots -> Users (for generated_by_user_id)
-            if (Schema::hasColumn('report_snapshots', 'generated_by_user_id') &&
-                !$this->constraintExists('report_snapshots', 'report_snapshots_generated_by_user_id_foreign')) {
-                Schema::table('report_snapshots', function (Blueprint $table) {
-                    $table->foreign('generated_by_user_id')
-                        ->references('id')
-                        ->on('users')
-                        ->nullOnDelete();
-                });
+            if (Schema::hasColumn('report_snapshots', 'generated_by_user_id')) {
+                try {
+                    Schema::table('report_snapshots', function (Blueprint $table) {
+                        $table->foreign('generated_by_user_id')
+                            ->references('id')
+                            ->on('users')
+                            ->nullOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             // Performed by & uploaded by relationships in asset tables
-            if (Schema::hasColumn('asset_logs', 'performed_by') &&
-                !$this->constraintExists('asset_logs', 'asset_logs_performed_by_foreign')) {
-                Schema::table('asset_logs', function (Blueprint $table) {
-                    $table->foreign('performed_by')
-                        ->references('id')
-                        ->on('users')
-                        ->nullOnDelete();
-                });
+            if (Schema::hasColumn('asset_logs', 'performed_by')) {
+                try {
+                    Schema::table('asset_logs', function (Blueprint $table) {
+                        $table->foreign('performed_by')
+                            ->references('id')
+                            ->on('users')
+                            ->nullOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
-            if (Schema::hasColumn('asset_attachments', 'uploaded_by') &&
-                !$this->constraintExists('asset_attachments', 'asset_attachments_uploaded_by_foreign')) {
-                Schema::table('asset_attachments', function (Blueprint $table) {
-                    $table->foreign('uploaded_by')
-                        ->references('id')
-                        ->on('users')
-                        ->nullOnDelete();
-                });
+            if (Schema::hasColumn('asset_attachments', 'uploaded_by')) {
+                try {
+                    Schema::table('asset_attachments', function (Blueprint $table) {
+                        $table->foreign('uploaded_by')
+                            ->references('id')
+                            ->on('users')
+                            ->nullOnDelete();
+                    });
+                } catch (\Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') === false) {
+                        throw $e;
+                    }
+                }
             }
 
         } finally {

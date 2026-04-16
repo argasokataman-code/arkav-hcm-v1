@@ -363,29 +363,42 @@
           <p><strong>Is Overdue:</strong> ${invoice.isOverdue ? "Yes" : "No"}</p>
         </div>
       `;
-
-      alert(detailsHtml.replace(/<[^>]*>/g, ''));
+      const text = detailsHtml.replace(/<[^>]*>/g, '');
+      if (window.ArcavUi && typeof window.ArcavUi.showInfo === "function") {
+        window.ArcavUi.showInfo("Invoice Details", text);
+        return;
+      }
+      this.showToast(text, "info");
     },
 
     /**
      * Delete invoice
      */
     deleteInvoice: function (id) {
-      if (!confirm("Are you sure you want to delete this invoice?")) return;
-
       const self = this;
-      apiRequest("DELETE", API_BASE + "/" + id, null)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Invoice deleted successfully");
-            self.loadInvoices();
-          } else {
-            self.showError("Failed to delete invoice");
-          }
-        })
-        .catch(function (err) {
-          self.showError("Error deleting invoice");
-        });
+      const confirmPromise =
+        window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
+          ? window.ArcavUi.confirmDelete("Hapus invoice ini? Tindakan tidak dapat dibatalkan.", "Delete Invoice")
+          : window.ArcavUi && typeof window.ArcavUi.confirm === "function"
+            ? window.ArcavUi.confirm("Are you sure you want to delete this invoice?", "Delete Invoice")
+            : Promise.resolve(false);
+
+      confirmPromise.then(function (confirmed) {
+        if (!confirmed) return;
+
+        apiRequest("DELETE", API_BASE + "/" + id, null)
+          .then(function (response) {
+            if (response.success) {
+              self.showSuccess("Invoice deleted successfully");
+              self.loadInvoices();
+            } else {
+              self.showError("Failed to delete invoice");
+            }
+          })
+          .catch(function (err) {
+            self.showError("Error deleting invoice");
+          });
+      });
     },
 
     /**

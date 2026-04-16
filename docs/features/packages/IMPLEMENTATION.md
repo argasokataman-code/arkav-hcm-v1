@@ -104,6 +104,7 @@ Main flow:
    - sinkronisasi feature via `syncPackageFeatures()`
 5. Delete action wajib pakai `window.ArcavUi.confirmDelete`.
 6. Add-on section memakai pola yang sama melalui `loadAddons()`, `renderAddons()`, `handleSaveAddon()`, `editAddon()`, dan `deleteAddon()`.
+7. Paket **`status=active`**: tombol **Subscribe** mengarah ke `/subscription?packageId={id}&status=pending_payment` — form langganan terbuka dengan paket + status *pending payment* (alur bayar dulu; lihat `docs/features/subscriptions/IMPLEMENTATION.md` §2b).
 
 Notable implementation details:
 - Search input sudah debounced 250ms untuk kurangi request noise.

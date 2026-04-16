@@ -13,10 +13,78 @@
     var currentPasswordField = document.querySelector('[data-profile-settings-current-password]');
     var newPasswordField = document.querySelector('[data-profile-settings-new-password]');
     var confirmPasswordField = document.querySelector('[data-profile-settings-confirm-password]');
+    var companyModeNode = document.querySelector('[data-company-context-mode]');
+    var companyNameNode = document.querySelector('[data-company-name]');
+    var companyIdNode = document.querySelector('[data-company-id]');
+    var companyCodeNode = document.querySelector('[data-company-code]');
+    var copyCompanyCodeBtn = document.querySelector('[data-copy-company-code]');
     var snapshot = {};
 
     function normalize(value) {
         return (value || '').toString().trim();
+    }
+
+    function getTenantContext() {
+        try {
+            if (window.AuthApi && typeof window.AuthApi.getTenantContext === 'function') {
+                return window.AuthApi.getTenantContext() || {};
+            }
+        } catch (_e) {}
+        return {};
+    }
+
+    function buildHeaders(extra) {
+        var headers = {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+        var tenant = getTenantContext();
+        if (tenant && tenant.companyCode) {
+            headers['X-Company-Code'] = String(tenant.companyCode);
+        }
+        if (tenant && tenant.companyId) {
+            headers['X-Company-Id'] = String(tenant.companyId);
+        }
+        if (extra) {
+            Object.keys(extra).forEach(function (k) { headers[k] = extra[k]; });
+        }
+        return headers;
+    }
+
+    function renderCompanyContext(mePayload) {
+        if (!mePayload || !mePayload.success || !mePayload.data) {
+            return;
+        }
+        var activeCompany = mePayload.data.activeCompany || null;
+        var tenant = getTenantContext();
+        var mode = tenant && tenant.companyCode ? 'Login as Company' : 'Regular Login';
+        if (companyModeNode) {
+            companyModeNode.textContent = mode;
+            companyModeNode.classList.toggle('bg-warning-subtle', mode === 'Regular Login');
+            companyModeNode.classList.toggle('text-warning', mode === 'Regular Login');
+        }
+        if (companyNameNode) {
+            companyNameNode.textContent = activeCompany && activeCompany.name ? String(activeCompany.name) : '—';
+        }
+        if (companyIdNode) {
+            companyIdNode.textContent = activeCompany && activeCompany.id ? String(activeCompany.id) : '—';
+        }
+        if (companyCodeNode) {
+            companyCodeNode.textContent = activeCompany && activeCompany.code ? String(activeCompany.code) : (tenant && tenant.companyCode ? String(tenant.companyCode) : '—');
+        }
+        if (copyCompanyCodeBtn) {
+            var code = activeCompany && activeCompany.code ? String(activeCompany.code) : (tenant && tenant.companyCode ? String(tenant.companyCode) : '');
+            copyCompanyCodeBtn.classList.toggle('d-none', !code);
+            copyCompanyCodeBtn.onclick = function () {
+                if (!code) return;
+                try {
+                    navigator.clipboard.writeText(code);
+                    showFeedback('success', 'Company code berhasil disalin.');
+                } catch (_e) {
+                    showFeedback('warning', 'Gagal menyalin otomatis. Salin manual company code di atas.');
+                }
+            };
+        }
     }
 
     function showFeedback(type, message) {
@@ -217,10 +285,7 @@
 
         var settingsResponse = await fetch('/v1/hcm/settings?group=general', {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: buildHeaders(),
             credentials: 'same-origin'
         });
 
@@ -231,16 +296,14 @@
 
         var meResponse = await fetch('/v1/identity/auth/me', {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: buildHeaders(),
             credentials: 'same-origin'
         });
         var mePayload = await meResponse.json().catch(function () { return null; });
 
         var merged = settingsPayload.data || {};
         if (meResponse.ok && mePayload && mePayload.success && mePayload.data) {
+            renderCompanyContext(mePayload);
             merged.identityEmail = normalize(mePayload.data.email || '');
             if (!merged.general_name && mePayload.data.name) {
                 merged.general_name = mePayload.data.name;
@@ -283,11 +346,9 @@
 
             var response = await fetch('/v1/hcm/settings', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
+                headers: buildHeaders({
+                    'Content-Type': 'application/json'
+                }),
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     group: 'general',

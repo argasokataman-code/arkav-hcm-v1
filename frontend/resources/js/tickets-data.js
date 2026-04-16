@@ -40,6 +40,9 @@
                 if (window.AuthApi && window.AuthApi.handleUnauthorizedFromApi && window.AuthApi.handleUnauthorizedFromApi(st, d)) {
                     return null;
                 }
+                if (window.AuthApi && window.AuthApi.handleForbiddenFromApi && window.AuthApi.handleForbiddenFromApi(st, d)) {
+                    return null;
+                }
                 return Promise.reject({ status: st, data: d });
             });
         }
@@ -53,6 +56,9 @@
             }).then(function (data) {
                 if (!res.ok) {
                     if (window.AuthApi && window.AuthApi.handleUnauthorizedFromApi && window.AuthApi.handleUnauthorizedFromApi(res.status, data)) {
+                        return null;
+                    }
+                    if (window.AuthApi && window.AuthApi.handleForbiddenFromApi && window.AuthApi.handleForbiddenFromApi(res.status, data)) {
                         return null;
                     }
                     return Promise.reject({ status: res.status, data: data });

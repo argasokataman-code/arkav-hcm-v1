@@ -97,6 +97,26 @@ function apiRequest(method: string, url: string, body?: object): Promise<unknown
     );
 }
 
+function reconciliationExportFileName(filePath: string | undefined | null, evidenceId: number): string {
+    if (filePath && typeof filePath === "string") {
+        const parts = filePath.split("/").filter(Boolean);
+        const last = parts[parts.length - 1];
+        if (last) {
+            return last;
+        }
+    }
+    return `reconciliation-thr-${evidenceId}.csv`;
+}
+
+async function downloadReconciliationEvidenceFile(evidenceId: number, filePath?: string | null): Promise<void> {
+    const AuthApi = (window as unknown as { AuthApi?: { downloadV1Binary?: (path: string, filename?: string) => Promise<void> } }).AuthApi;
+    if (!AuthApi || typeof AuthApi.downloadV1Binary !== "function") {
+        throw new Error("AuthApi.downloadV1Binary tidak tersedia");
+    }
+    const name = reconciliationExportFileName(filePath ?? undefined, evidenceId);
+    await AuthApi.downloadV1Binary(`/reconciliation/exports/${evidenceId}/download`, name);
+}
+
 /**
  * Pesan untuk user: utamakan `error.message` dari API (envelope Arcav), baru fallback helper / generik.
  */
@@ -265,6 +285,12 @@ async function triggerThrExportReconciliation(batchId: number, lines: BatchLine[
 
         if (res && res.data && res.data.id) {
             toast("Export reconciliation THR berhasil dibuat", false);
+            try {
+                await downloadReconciliationEvidenceFile(Number(res.data.id), res.data.filePath);
+            } catch (dlErr) {
+                console.warn("THR reconciliation file download failed:", dlErr);
+                toast("Evidence tersimpan, tetapi unduh file gagal. Silakan coba lagi dari daftar evidence.", true);
+            }
             await fetchThrLatestEvidence(batchId);
         } else {
             toast("Gagal membuat export reconciliation THR", true);

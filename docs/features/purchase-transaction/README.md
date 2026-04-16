@@ -112,6 +112,7 @@ Module **Purchase Transactions** bertanggung jawab untuk:
 - `invoice_number` — formatted invoice number (INV-2024-001)
 - `company_id` — which company
 - `purchase_transaction_id` — linked transaction
+- `subscription_id` — (opsional) langganan company yang sama; bila invoice **mark paid** dan subscription berstatus `pending_payment`, subscription diaktifkan (lihat `docs/features/subscriptions/IMPLEMENTATION.md` §2b)
 - `issue_date` — kapan invoice dibuat
 - `due_date` — payment deadline
 - `amount_due` — still owing

@@ -108,6 +108,8 @@ Catatan:
   - Purchase transactions (invoices, payments, revenue): `docs/api/purchase-transaction-api.md`
   - Domain management (custom domains, DNS, SSL): `docs/api/domain-management-api.md`
   - Super admin dashboard (analytics, KPIs): `docs/api/super-admin-dashboard-api.md`
+  - Public onboarding (guest create company + owner + subscription): `docs/api/public-onboarding-api.md`
+  - Billing overview dashboard (admin trial/subscribed list): `docs/api/saas-billing-overview-api.md`
 - Companies: `docs/api/company-api.md`
 
 ## 1) Global conventions

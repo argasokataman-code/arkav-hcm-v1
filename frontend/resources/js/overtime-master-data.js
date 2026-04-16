@@ -24,6 +24,9 @@
                     if (onAuthFailure(st, d)) {
                         return null;
                     }
+                    if (window.AuthApi && typeof window.AuthApi.handleForbiddenFromApi === "function" && window.AuthApi.handleForbiddenFromApi(st, d)) {
+                        return null;
+                    }
                     return Promise.reject({ status: st, data: d });
                 });
         }
@@ -37,6 +40,9 @@
             }).then(function (data) {
                 if (!res.ok) {
                     if (onAuthFailure(res.status, data)) {
+                        return null;
+                    }
+                    if (window.AuthApi && typeof window.AuthApi.handleForbiddenFromApi === "function" && window.AuthApi.handleForbiddenFromApi(res.status, data)) {
                         return null;
                     }
                     return Promise.reject({ status: res.status, data: data });

@@ -354,31 +354,46 @@
             return;
         }
 
-        if (!window.confirm('Delete this manual activity?')) {
-            return;
-        }
+        var confirmPromise = window.ArcavUi && typeof window.ArcavUi.confirmDelete === 'function'
+            ? window.ArcavUi.confirmDelete('Hapus manual activity ini? Tindakan tidak dapat dibatalkan.', 'Delete Manual Activity')
+            : window.ArcavUi && typeof window.ArcavUi.confirm === 'function'
+                ? window.ArcavUi.confirm('Delete this manual activity?', 'Konfirmasi')
+                : Promise.resolve(false);
 
-        fetch('/v1/hcm/activity-manual/' + encodeURIComponent(normalizedId), {
-            method: 'DELETE',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-        })
-            .then(function (res) {
-                return res.json().catch(function () { return null; }).then(function (body) {
-                    if (!res.ok || !body || body.success !== true) {
-                        throw new Error(parseApiError(body, 'Failed to delete manual activity.'));
+        confirmPromise.then(function (confirmed) {
+            if (!confirmed) {
+                return;
+            }
+
+            fetch('/v1/hcm/activity-manual/' + encodeURIComponent(normalizedId), {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            })
+                .then(function (res) {
+                    return res.json().catch(function () { return null; }).then(function (body) {
+                        if (!res.ok || !body || body.success !== true) {
+                            throw new Error(parseApiError(body, 'Failed to delete manual activity.'));
+                        }
+                    });
+                })
+                .then(function () {
+                    loadActivities();
+                    if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                        window.ArcavUi.showToast('Manual activity deleted.', 'success');
                     }
+                })
+                .catch(function (error) {
+                    if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                        window.ArcavUi.showToast(error.message || 'Failed to delete manual activity.', 'danger');
+                        return;
+                    }
+                    console.error(error);
                 });
-            })
-            .then(function () {
-                loadActivities();
-            })
-            .catch(function (error) {
-                window.alert(error.message || 'Failed to delete manual activity.');
-            });
+        });
     }
 
     var searchTimer = null;

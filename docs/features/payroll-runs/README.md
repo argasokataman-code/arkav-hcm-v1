@@ -23,6 +23,7 @@ Tambahan endpoint aktif saat ini:
 - Halaman template **`/payslip`** belum di-wire ke API (backlog).
 - Slip THR karyawan tidak punya halaman web terpisah; gunakan API **`GET /payroll/my-thr-slip`** dan unduhan PDF **`GET /payroll/thr-batch/lines/{line}/slip`** (self).
 - Halaman **`/payroll-run`** sekarang dikunci ke **periode aktif** (tahun readonly, bulan disabled) agar eksekusi bulanan tidak mengambil periode historis.
+- **`/payroll-run` — urutan operasi:** **Calculate Draft** dulu (tidak auto-hitung saat buka halaman). Jika sudah ada draft di DB, tombol **Calculate** tetap aktif (refresh / `reusedExistingDraft` dari API) selama status run **`draft`**; **Export** hanya aktif pada status **`draft`**. Lalu **Export Reconciliation** (`payroll_run` / action **`disburse`**, CSV) dan **unduh file** sampai selesai. **Pay via Gateway** (dan **Pay now** di modal) baru aktif setelah unduhan sukses; setelah pembayaran (atau reset pembayaran DEV), wajib export + unduh lagi sebelum batch bayar berikutnya. Evidence di server memakai action yang sama dengan gate `POST /payroll-runs/{id}/disburse` bila `HCM_EXPORT_RECON_ENFORCE_PAYROLL_DISBURSE` diaktifkan.
 - Halaman historis dipisah di **`/payroll-run-history`** untuk melihat run lama dan detail audit trail.
 
 ## Aturan bisnis (Phase 1)

@@ -316,9 +316,16 @@
      */
     verifyPayment: function (id) {
       const self = this;
-      if (!confirm("Mark this payment as verified?")) return;
+      const confirmMessage = "Mark this payment as verified?";
+      const confirmPromise =
+        window.ArcavUi && typeof window.ArcavUi.confirm === "function"
+          ? window.ArcavUi.confirm(confirmMessage, "Verify Payment")
+          : Promise.resolve(false);
 
-      apiRequest("PUT", API_BASE + "/" + id + "/verify", {})
+      confirmPromise.then(function (confirmed) {
+        if (!confirmed) return;
+
+        apiRequest("PUT", API_BASE + "/" + id + "/verify", {})
         .then(function (response) {
           if (response.success) {
             self.showSuccess("Payment verified successfully");
@@ -330,6 +337,7 @@
         .catch(function (err) {
           self.showError("Error verifying payment");
         });
+      });
     },
 
     /**
@@ -352,29 +360,43 @@
           <p><strong>Notes:</strong> ${payment.notes || "-"}</p>
         </div>
       `;
-
-      alert(detailsHtml.replace(/<[^>]*>/g, ''));
+      const text = detailsHtml.replace(/<[^>]*>/g, '');
+      if (window.ArcavUi && typeof window.ArcavUi.showInfo === "function") {
+        window.ArcavUi.showInfo("Payment Details", text);
+        return;
+      }
+      this.showToast(text, "info");
     },
 
     /**
      * Delete payment
      */
     deletePayment: function (id) {
-      if (!confirm("Are you sure you want to delete this payment?")) return;
-
       const self = this;
-      apiRequest("DELETE", API_BASE + "/" + id, null)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Payment deleted successfully");
-            self.loadPayments();
-          } else {
-            self.showError("Failed to delete payment");
-          }
-        })
-        .catch(function (err) {
-          self.showError("Error deleting payment");
-        });
+      const confirmMessage = "Are you sure you want to delete this payment?";
+      const confirmPromise =
+        window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
+          ? window.ArcavUi.confirmDelete("Hapus payment ini? Tindakan tidak dapat dibatalkan.", "Delete Payment")
+          : window.ArcavUi && typeof window.ArcavUi.confirm === "function"
+            ? window.ArcavUi.confirm(confirmMessage, "Delete Payment")
+            : Promise.resolve(false);
+
+      confirmPromise.then(function (confirmed) {
+        if (!confirmed) return;
+
+        apiRequest("DELETE", API_BASE + "/" + id, null)
+          .then(function (response) {
+            if (response.success) {
+              self.showSuccess("Payment deleted successfully");
+              self.loadPayments();
+            } else {
+              self.showError("Failed to delete payment");
+            }
+          })
+          .catch(function (err) {
+            self.showError("Error deleting payment");
+          });
+      });
     },
 
     /**

@@ -456,16 +456,73 @@
       const container = document.querySelector("[data-packages-list-container]");
       if (!container) return;
 
+      function isIncludedFeature(f) {
+        if (!f) return false;
+        if (typeof f === "string") return true;
+        const limit = f.limit;
+        // 0 = not included (per seeder convention)
+        if (limit === 0 || limit === "0") return false;
+        return true;
+      }
+
       let html = '';
       if (this.packages.length === 0) {
         html = '<div class="card"><div class="card-body text-center text-muted py-4">No packages found</div></div>';
       } else {
+        function statusBadge(status) {
+          const s = String(status || "").toLowerCase();
+          const tone = s === "active" ? "success" : s === "inactive" ? "warning" : "danger";
+          return `
+            <span class="badge badge-${tone} d-inline-flex align-items-center badge-xs">
+              <i class="ti ti-point-filled me-1"></i>${esc(s || "-")}
+            </span>
+          `;
+        }
+
+        function priceCell(pkg) {
+          const monthly = formatCurrency(pkg.monthlyPrice);
+          const yearly = formatCurrency(pkg.yearlyPrice);
+          return `
+            <div class="d-flex flex-column">
+              <span class="fw-medium">${monthly}</span>
+              <span class="fs-12 text-muted">Yearly: ${yearly}</span>
+            </div>
+          `;
+        }
+
+        function featuresCell(pkg) {
+          const included = (pkg.features || []).filter(isIncludedFeature);
+          if (!included.length) {
+            return '<span class="text-muted fs-12">No features</span>';
+          }
+          const preview = included.slice(0, 4);
+          const rest = Math.max(0, included.length - preview.length);
+          return `
+            <div class="d-flex flex-column gap-1">
+              <div class="fs-12 text-muted">Included: <strong>${included.length}</strong></div>
+              <div class="d-flex flex-wrap gap-1">
+                ${preview.map((f) => `
+                  <span class="badge bg-light text-dark small">
+                    ${esc(f.name || f.code || f)}
+                  </span>
+                `).join('')}
+                ${rest ? `<span class="badge bg-secondary small">+${rest}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }
+
         html = `
           <div class="card">
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead class="table-light">
+            <div class="custom-datatable-filter table-responsive">
+              <table class="table">
+                <thead class="thead-light">
                   <tr>
+                    <th class="no-sort">
+                      <div class="form-check form-check-md">
+                        <input class="form-check-input" type="checkbox" id="select-all-packages">
+                      </div>
+                    </th>
                     <th>Package Name</th>
                     <th>Price</th>
                     <th>Billing Unit</th>
@@ -478,39 +535,36 @@
                   ${this.packages.map(pkg => `
                     <tr>
                       <td>
-                        <h6 class="fw-medium mb-0">${esc(pkg.name)}</h6>
-                        <span class="fs-12 text-muted">${esc(pkg.code || "-")}</span>
-                      </td>
-                      <td>
-                        <span class="d-block">${formatCurrency(pkg.monthlyPrice)}</span>
-                        <small class="text-muted">Yearly: ${formatCurrency(pkg.yearlyPrice)}</small>
-                      </td>
-                      <td>${esc(pkg.billingUnit || "-")}</td>
-                      <td>
-                        <span class="badge ${pkg.status === "active" ? "badge-success" : pkg.status === "inactive" ? "badge-warning" : "badge-danger"} d-inline-flex align-items-center badge-xs">
-                          <i class="ti ti-point-filled me-1"></i>${esc(pkg.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div class="d-flex flex-wrap gap-1">
-                          ${(pkg.features || [])
-                            .map((f) => `
-                              <span class="badge bg-light text-dark small">
-                                ${esc(f.name || f.code || f)}
-                              </span>
-                            `)
-                            .join('') || '<span class="text-muted fs-12">No features</span>'}
+                        <div class="form-check form-check-md">
+                          <input class="form-check-input" type="checkbox">
                         </div>
                       </td>
                       <td>
-                        <div class="action-icon d-inline-flex">
-                          <button class="btn btn-icon btn-sm me-2" data-edit-package="${pkg.id}" title="Edit">
+                        <div class="d-flex align-items-center file-name-icon">
+                          <div class="ms-2">
+                            <h6 class="fw-medium mb-0">${esc(pkg.name)}</h6>
+                            <p class="fs-12 fw-normal text-muted mb-0">${esc(pkg.code || "-")}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>${priceCell(pkg)}</td>
+                      <td>${esc(pkg.billingUnit || "-")}</td>
+                      <td>${statusBadge(pkg.status)}</td>
+                      <td>${featuresCell(pkg)}</td>
+                      <td>
+                        <div class="action-icon d-inline-flex align-items-center">
+                          ${pkg.status === "active" ? `
+                            <a href="/subscription?packageId=${pkg.id}&status=pending_payment" class="me-2 text-primary fw-semibold" title="Buat langganan menunggu pembayaran untuk paket ini">
+                              Subscribe
+                            </a>
+                          ` : ""}
+                          <button class="btn btn-sm btn-white me-2" data-edit-package="${pkg.id}" title="Edit">
                             <i class="ti ti-edit"></i>
                           </button>
-                          <button class="btn btn-icon btn-sm me-2" data-view-features="${pkg.id}" title="View Features">
+                          <button class="btn btn-sm btn-white me-2" data-view-features="${pkg.id}" title="View Features">
                             <i class="ti ti-list-details"></i>
                           </button>
-                          <button class="btn btn-icon btn-sm" data-delete-package="${pkg.id}" title="Delete">
+                          <button class="btn btn-sm btn-white" data-delete-package="${pkg.id}" title="Delete">
                             <i class="ti ti-trash"></i>
                           </button>
                         </div>
@@ -1298,10 +1352,21 @@
 
       const body = document.getElementById("features_container");
       if (!body) return;
+
+      function isIncludedFeature(f) {
+        if (!f) return false;
+        if (typeof f === "string") return true;
+        const limit = f.limit;
+        if (limit === 0 || limit === "0") return false;
+        return true;
+      }
+
+      const included = (pkg.features || []).filter(isIncludedFeature);
       body.innerHTML =
         '<h6 class="mb-3">' + esc(pkg.name) + '</h6>' +
+        '<div class="text-muted small mb-2">Included: <strong>' + String(included.length) + '</strong></div>' +
         '<div class="d-flex flex-wrap gap-2">' +
-        ((pkg.features || []).map(function (f) {
+        (included.map(function (f) {
           return '<span class="badge bg-light text-dark">' + esc(f.name || f.code || "Feature") + '</span>';
         }).join("") || '<span class="text-muted">No features yet</span>') +
         '</div>';

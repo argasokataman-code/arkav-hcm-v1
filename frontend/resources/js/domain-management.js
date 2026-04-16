@@ -496,7 +496,9 @@
           "Delete Domain"
         );
       } else {
-        confirmed = window.confirm("Are you sure you want to delete this domain?");
+        confirmed = window.ArcavUi && typeof window.ArcavUi.confirm === "function"
+          ? await window.ArcavUi.confirm("Are you sure you want to delete this domain?", "Delete Domain")
+          : false;
       }
 
       if (!confirmed) return;

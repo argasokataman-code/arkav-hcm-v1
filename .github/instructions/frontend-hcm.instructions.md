@@ -1,13 +1,26 @@
 ---
-applyTo: "frontend/resources/js/**/*.js,backend/resources/views/**/*.blade.php"
+applyTo: "frontend/resources/js/**/*.js,frontend/resources/ts/**/*.ts,backend/resources/views/**/*.blade.php"
 ---
 
-Sebelum menulis code yang melibatkan Vite/Bootstrap/library JS apapun, fetch docs via Context7:
-`mcp_context7_resolve-library-id` → `mcp_context7_query-docs`. Jangan andalkan training data.
+## Kanonik Cursor (detail)
 
-Gunakan pola frontend HCM yang sudah ada:
-- Reuse Bootstrap/modal/toast yang ada; hindari pattern UI baru tanpa kebutuhan kuat.
-- Gunakan `window.ArcavUi.confirmDelete`, jangan pakai dialog native browser.
-- Jangan hardcode dummy data untuk halaman aktif.
-- Untuk perubahan yang memengaruhi role/action, pastikan backend tetap enforce permission.
-- Setelah ubah JS frontend, pastikan proses build asset dijalankan agar sinkron ke `backend/public/build/js`.
+Aturan lengkap: **[`.cursor/rules/`](../../.cursor/rules/)** — utamakan `backend-template-lock.mdc`, `no-hardcoded-dummy-template-data.mdc`, `documentation-sync-after-development.mdc`, `role-permissions-with-features.mdc`. Navigasi: **[`AGENTS.md`](../../AGENTS.md)**.
+
+Integrasi dua arah GitHub ↔ Cursor: **[`.github/instructions/README.md`](./README.md)**.
+
+Sebelum menulis code yang melibatkan Vite/Bootstrap/library JS/TS, fetch docs via Context7:
+`mcp_context7_resolve-library-id` → `mcp_context7_query-docs` (rule `context7-usage`). Jangan andalkan training data.
+
+Jika Context7 tidak tersedia di environment (mis. agen GitHub tertentu tidak punya MCP), tulis catatan eksplisit:
+- “Context7 tidak tersedia; referensi berbasis pengetahuan internal repo + dokumentasi resmi publik.”
+- Tetap patuhi kontrak UI↔API yang sudah terdokumentasi (`docs/api/*`, `docs/api/openapi.yaml`) dan pola template (`backend-template-lock`).
+
+## Pola frontend HCM (ringkas)
+
+- **Template:** reuse Bootstrap/modal/toast; hindari pola UI baru tanpa kebutuhan kuat (`backend-template-lock`).
+- **Konfirmasi hapus:** `window.ArcavUi.confirmDelete` — bukan `alert` / `confirm` native.
+- **Data:** jangan dummy bisnis hardcode di halaman aktif yang sudah ter-wire API (`no-hardcoded-dummy-template-data`).
+- **Role:** UI boleh menyembunyikan aksi; **otorisasi tetap di backend** — selaraskan dengan matriks HCM (`role-permissions-with-features` + `docs/planning/active-hcm-templates-and-permissions.md`).
+- **Build:** setelah ubah sumber di `frontend/resources/js` atau TS yang di-bundle ke halaman Blade, jalankan build Vite di `backend/` agar aset di `backend/public/build/js` terbaru (lihat `backend-template-lock`).
+
+**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-16 (Context7 fallback note).

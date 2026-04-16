@@ -711,12 +711,32 @@
         bindLegacyTemplate(data || {});
         bindYearAndDateUi(data || {});
 
+        // --- Patch: Update Employee Summary Widgets ---
+        // Defensive: handle missing keys gracefully
+        var exec = (data && data.executive) || {};
+        var workforce = (data && data.workforceAndAlerts) || {};
+        // Total employee = active + inactive (assume inactive = total - active)
+        var total = (exec.activeEmployees || 0) + (exec.inactiveEmployees || 0);
+        var active = exec.activeEmployees || 0;
+        var inactive = exec.inactiveEmployees || 0;
+        // If inactive not provided, try to infer from total
+        if (!inactive && typeof exec.totalEmployees === 'number') {
+            inactive = exec.totalEmployees - active;
+        }
+        // New joiners this month
+        var joiners = workforce.joinerThisMonth || 0;
+
+        setText('[data-employees-total]', total, '0');
+        setText('[data-employees-active]', active, '0');
+        setText('[data-employees-inactive]', inactive, '0');
+        setText('[data-employees-new-joiners]', joiners, '0');
+
         var ui = (data && data.ui) || {};
         bindPunchAction(ui.referenceDate || "");
     }
 
     function loadDashboardSummary(dateIso) {
-        var url = "/v1/hcm/employee-dashboard-summary";
+        var url = "/v1/hcm/dashboard-summary";
         if (dateIso) {
             url += "?date=" + encodeURIComponent(dateIso);
         }

@@ -196,9 +196,21 @@ const ReportsHub = {
     },
 
     async exportSnapshot(id) {
-        const fileType = prompt('Select export format:\n1. csv\n2. excel\n3. pdf', 'csv');
-
-        if (!fileType) return;
+        let fileType = null;
+        if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
+            fileType = await window.ArcavUi.selectOption({
+                title: 'Export Snapshot',
+                message: 'Pilih format file untuk export.',
+                options: [
+                    { value: 'csv', label: 'CSV' },
+                    { value: 'excel', label: 'Excel' },
+                    { value: 'pdf', label: 'PDF' },
+                ],
+            });
+        }
+        if (!fileType) {
+            return;
+        }
 
         try {
             const result = await this.apiRequest('post', `/v1/hcm/reports/snapshots/${id}/export`, { fileType });

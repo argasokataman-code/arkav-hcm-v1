@@ -921,6 +921,11 @@
                     : "";
                 var checkInLoc = row.checkInLocation || "-";
                 var checkOutLoc = row.checkOutLocation || "-";
+                var selfieCell = row.hasSelfie
+                    ? '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="/v1/hcm/attendance/admin/records/' +
+                      encodeURIComponent(String(row.recordId || "")) +
+                      '/selfie/download">View</a>'
+                    : '<span class="text-muted fs-12">—</span>';
                 return (
                     "<tr data-attendance-user-id=\"" +
                     esc(row.userId) +
@@ -964,6 +969,9 @@
                     ' d-inline-flex align-items-center"><i class="ti ti-clock-hour-11 me-1"></i>' +
                     esc(row.productionLabel) +
                     "</span></td>" +
+                    "<td>" +
+                    selfieCell +
+                    "</td>" +
                     '<td><div class="action-icon d-inline-flex">' +
                     correctionAction +
                     '<a href="#" class="me-2" data-attendance-admin-open-edit data-user-id="' +
@@ -1134,7 +1142,7 @@
         tbody.innerHTML =
             '<tr><td class="text-center text-muted py-4">' +
             esc(msg) +
-            '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+            '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
         tbody.setAttribute("data-hydrated", "1");
     }
 
@@ -1404,6 +1412,15 @@
                 correctionBtn.classList.add("d-none");
                 correctionBtn.disabled = true;
             }
+        }
+        var selfieBtn = document.querySelector("[data-attendance-me-selfie-btn]");
+        if (selfieBtn) {
+            var canSelfie = d.punchState === "in" || d.punchState === "done";
+            selfieBtn.setAttribute("data-arcav-selfie-allowed", canSelfie ? "1" : "0");
+            selfieBtn.setAttribute(
+                "title",
+                canSelfie ? "" : "Lakukan punch masuk terlebih dahulu untuk mengambil selfie."
+            );
         }
         applyProfileAvatar(d.profilePhotoUrl, d.userName);
         syncAttendanceCircle(d.productionProgressPercent || 0);

@@ -13,17 +13,25 @@ Request body:
 - `featureKey` (string, required)
 - `actionKey` (string, required)
 - `scopeRef` (string, required)
-- `format` (`csv|xlsx`, required)
-- `filters` (object, required)
+- `fileFormat` (`csv|xlsx|pdf`, required) — **alias:** `format` (kompatibilitas klien payroll/THR/PKWT)
+- `filterPayload` (object, optional) — **alias:** `filters`
+- `filePath` (string, optional untuk `csv`, required untuk `xlsx|pdf`)
+  - Jika `csv` dan `filePath` kosong: server menulis file ke `reconciliation/generated/...` pada disk `local`.
+- `rowCount` (integer, optional)
+  - Jika kosong: diinfer dari `filterPayload` (mis. panjang `lineIds` / `periods`) atau `0`.
+- `datasetChecksum` (string, optional)
+  - Jika kosong pada mode auto-`csv`: dihitung deterministik dari payload inti + `filterPayload`.
 
 Response 201:
 
 - `success: true`
-- `data.evidenceId`
-- `data.downloadUrl`
-- `data.datasetChecksum`
-- `data.rowCount`
-- `data.exportedAt`
+- `data` (object evidence), minimal:
+  - `id`
+  - `filePath`
+  - `fileFormat`
+  - `rowCount`
+  - `datasetChecksum`
+  - `exportedAt`
 
 Error:
 

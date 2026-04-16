@@ -45,6 +45,9 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 28 | Recovery Vault | 🚧 Proposed | [→](recovery-vault/) | [📘 Implementation](recovery-vault/IMPLEMENTATION.md) | [🧪 E2E Testing](recovery-vault/E2E-TESTING.md) |
 | 29 | Cronjob Scheduler | ✅ Complete | [→](cronjob/) | [📘 Implementation](cronjob/IMPLEMENTATION.md) | [🧪 E2E Testing](cronjob/E2E-TESTING.md) |
 | 30 | Export Reconciliation | 🚧 Planning | [→](export-reconciliation/) | [📘 Implementation](export-reconciliation/IMPLEMENTATION.md) | [🧪 E2E Testing](export-reconciliation/E2E-TESTING.md) |
+| 31 | Knowledge Base (help) | ✅ Complete | [→](knowledgebase/) | [📘 Implementation](knowledgebase/IMPLEMENTATION.md) | Config-driven `/knowledgebase` |
+| 32 | Landing Pages (Marketing) | 🚧 Planning | [→](landing-pages/) | [📘 Implementation](landing-pages/IMPLEMENTATION.md) | [🧪 E2E Testing](landing-pages/E2E-TESTING.md) |
+| 33 | Trial & Billing Dashboard | 🚧 Planning | [→](trial-billing-dashboard/) | [📘 Implementation](trial-billing-dashboard/IMPLEMENTATION.md) | [🧪 E2E Testing](trial-billing-dashboard/E2E-TESTING.md) |
 
 ---
 
@@ -91,6 +94,8 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `export-reconciliation/API-CONTRACT.md` - Draft endpoint export/gate validation/list/download evidence untuk sinkronisasi BE-FE.
 - `export-reconciliation/TRACKING.md` - Tracking milestone, WBS task, risiko, mitigasi, dan status progres implementasi.
 - `export-reconciliation/E2E-TESTING.md` - Skenario manual validasi gate wajib export sebelum action finansial dijalankan.
+- `knowledgebase/README.md` - **Knowledge Base:** bantuan dalam aplikasi dari `config/hcm_knowledgebase.php` (`/knowledgebase`, kategori, artikel).
+- `knowledgebase/IMPLEMENTATION.md` - Route, controller, partial sidebar, redirect legacy, dan tes `KnowledgebaseWebTest`.
 - `recovery-vault/README.md` - **Recovery Vault:** audit trail CRUD immutable + snapshot/restore pipeline untuk recovery bencana, hanya service internal dan super admin.
 - `recovery-vault/IMPLEMENTATION.md` - Arsitektur service, database terpisah, model event, retention 90 hari, dan hardening keamanan.
 - `recovery-vault/API-CONTRACT.md` - Draft kontrak endpoint internal/admin, payload, idempotency, dan error code.

@@ -25,6 +25,19 @@ Skenario manual untuk validasi gate export sebelum finalize/payment.
 
 ---
 
+## Catatan API (implementasi)
+
+Endpoint `POST /v1/reconciliation/exports` mendukung payload UI yang sudah terpasang di payroll/THR/PKWT:
+
+- `format` diperlakukan sebagai alias `fileFormat`
+- `filters` diperlakukan sebagai alias `filterPayload`
+- untuk `csv`, `filePath` boleh kosong: server akan menulis file evidence ke `reconciliation/generated/...` (disk `local`)
+- setelah evidence berhasil dibuat dari UI payroll/THR/PKWT, browser memicu unduhan file via `AuthApi.downloadV1Binary` (GET evidence download dengan header token/tenant yang sama seperti API JSON).
+
+Detail kontrak: [API-CONTRACT.md](API-CONTRACT.md) + `docs/api/openapi.yaml`.
+
+---
+
 ## Kenapa Fitur Ini Dibutuhkan
 
 Masalah operasional yang sering terjadi di area payroll dan billing:

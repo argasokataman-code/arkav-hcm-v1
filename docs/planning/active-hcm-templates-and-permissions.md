@@ -29,7 +29,7 @@ Dokumen ini menjadi **peta tunggal** untuk tim: halaman Blade mana yang dianggap
 | **Karyawan** | `Authenticated` dan **bukan** `hcmAdmin` (lihat `GET /v1/identity/auth/me` → `hcmAdmin`). |
 | **HCM Admin** | `hcmAdmin === true` (saat ini heuristik di `User::isHcmAdmin()`; bisa diganti role DB nanti tanpa mengubah struktur tabel dokumen ini). |
 
-**Catatan seed admin:** akun QA utama memakai `hcm.admin_email` dan tetap melihat katalog demo/template internal. Akun super admin kedua memakai `hcm.secondary_admin_email` dan diperlakukan sebagai **active-only admin**: menu yang tidak termasuk halaman HCM aktif/terintegrasi tidak ditampilkan di sidebar.
+**Catatan seed admin:** akun QA utama memakai `hcm.admin_email` dan tetap melihat **katalog demo/template internal** (blok sidebar “PAGES” tema, Authentication UI showcase, dll. — flag `showTemplateCatalogMenus`). Akun super admin kedua memakai `hcm.secondary_admin_email` dan diperlakukan sebagai **active-only admin** untuk **katalog demo itu saja** (bukan untuk hub SaaS). **Submenu Super Admin tenant** (Companies, Subscriptions, Packages, Domain, Purchase Transaction — `/packages` setara `/saas/packages`) memakai **`$isHcmAdmin`**, sehingga **semua HCM admin** melihatnya di sidebar vertikal/header; layout horizontal/two-col/stacked ikut dirender untuk `$isHcmAdmin` agar tab Super Admin tidak hilang. **Menu CONTENT website** (termasuk `/pages`, Blogs, Locations, Testimonials, FAQ) memakai `$isHcmAdmin` sehingga **semua HCM admin** (termasuk secondary) melihat tautan tersebut di `sidebar.blade.php` / header. **`/pages`** saat ini berisi **peta halaman HCM** (indeks navigasi ke route produk; sumber data `config/hcm_portal_hub.php` + `pages-hcm-hub.js` untuk filter), bukan daftar CMS berisi nama bisnis palsu.
 
 **Prinsip keamanan:** izin **wajib** dicek di **backend**; UI hanya menyembunyikan tombol (UX), bukan sumber kebenaran.
 
@@ -99,6 +99,7 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/countries` | Locations - Provinces | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; tidak ada mutasi web |
 | `/states` | Locations - Regencies | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; tidak ada mutasi web |
 | `/cities` | Locations - Districts | - | local wilayah cache | Authenticated | Read-only local DB | Data lokal dari `wilayah.id`; data villages disimpan di backend |
+| `/knowledgebase` | Knowledge Base (bantuan) | — (`config/hcm_knowledgebase.php`) | N/A | Authenticated | Tidak ada API | Subpath `knowledgebase/category/{slug}`, `knowledgebase/article/{slug}`; redirect legacy `knowledgebase-view` / `knowledgebase-details` bila query slug valid |
 
 **Halaman di menu yang bukan inti HCM bisnis** (Super Admin, CRM, Applications, Layout): tidak wajib diisi di matriks ini sampai diputuskan jadi produk; jika disentuh untuk data nyata, tambahkan baris baru di tabel.
 

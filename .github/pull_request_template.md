@@ -31,6 +31,9 @@
 - [ ] `docs/planning/implementation-status.md` updated (if substantive)
 - [ ] `docs/planning/active-hcm-templates-and-permissions.md` updated (if role/menu/permission changed)
 
+## Agent rules (Cursor + GitHub Copilot)
+- [ ] Jika PR mengubah **kebijakan proses / guardrail agen** (isi `.cursor/rules/*.mdc` atau navigasi `AGENTS.md`): ringkasan di [`.github/instructions/`](.github/instructions/) dan indeks [`.github/instructions/README.md`](.github/instructions/README.md) ikut diperbarui agar tidak divergen dari Cursor.
+
 ## Security Checklist
 - [ ] AuthN/AuthZ checks enforced on server side
 - [ ] Sensitive endpoints covered with forbidden/unauthorized tests

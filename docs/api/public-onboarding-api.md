@@ -1,0 +1,109 @@
+# Public Onboarding API
+
+Endpoint publik untuk self-serve onboarding: buat **Company + Owner user + Subscription**, dan opsional langsung buat **Invoice** (mode `pending_payment`).
+
+## Base Path
+
+```
+/v1/public
+```
+
+## Authentication
+
+Tidak memerlukan token (guest). Endpoint ini **wajib** rate-limited (lihat OpenAPI: `429`).
+
+## POST /v1/public/onboarding
+
+Membuat tenant/company baru beserta owner, lalu memulai subscription:
+- `start_mode=trial` (default): buat subscription `trial`
+- `start_mode=pending_payment`: buat subscription `pending_payment` + buat invoice `draft` dan kirim email invoice async (best-effort)
+
+### Anti-bruteforce (captcha)
+
+Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
+
+- Kirim `turnstile_token` dari form field Turnstile `cf-turnstile-response`
+- Field honeypot `website` harus kosong
+
+### Request Body
+
+```json
+{
+  "package_id": 1,
+  "billing_cycle": "monthly",
+  "start_mode": "trial",
+  "turnstile_token": "<token>",
+  "website": "",
+  "company": {
+    "name": "ACME Corp",
+    "legal_name": "PT ACME Corp",
+    "timezone": "Asia/Jakarta",
+    "currency": "IDR",
+    "country_code": "ID",
+    "contact_phone": "+62 812-3456-7890",
+    "contact_person_name": "Siti (HR Admin)",
+    "contact_person_role": "HR Admin",
+    "address": "Jl. Sudirman Kav. 52-53",
+    "city": "Jakarta Selatan",
+    "postal_code": "12190"
+  },
+  "owner": {
+    "name": "Jane Doe",
+    "email": "owner@acme.test",
+    "phone": "+62 812-3456-7890",
+    "password": "StrongPass1",
+    "confirmPassword": "StrongPass1"
+  },
+  "billingEmail": "billing@acme.test"
+}
+```
+
+### Validation (ringkas)
+
+- `package_id`: harus ada, status package `active`
+- `billing_cycle`: `monthly|yearly`
+- `start_mode`: `trial|pending_payment` (default `trial`)
+- `turnstile_token`: optional, **required jika Turnstile enabled**
+- `website`: optional (honeypot), harus kosong
+- `company.code`: **optional**. Jika dikirim, harus unik dan regex `^[A-Za-z0-9_-]+$`. Jika tidak dikirim, server auto-generate code unik.
+- `company.contact_phone`: optional, regex `^[0-9+\-\s().]{6,30}$`
+- `company.contact_person_name`: optional (max 120)
+- `company.contact_person_role`: optional (max 120)
+- `company.address`: wajib (max 500)
+- `company.city`: wajib (max 120)
+- `company.postal_code`: optional, regex `^[0-9]{3,12}$`
+- `owner.name`: regex `^[A-Za-z][A-Za-z\s'.-]{1,149}$`
+- `owner.phone`: optional, regex `^[0-9+\-\s().]{6,30}$`
+- `owner.password`: regex `^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$`
+- `billingEmail`: optional, email
+
+### Response (201 Created)
+
+```json
+{
+  "success": true,
+  "data": {
+    "company": { "id": 1, "code": "acme", "name": "ACME Corp" },
+    "owner": { "id": 10, "name": "Jane Doe", "email": "owner@acme.test" },
+    "subscription": {
+      "id": 5,
+      "status": "trial",
+      "startsAt": "2026-04-16T00:00:00.000000Z",
+      "endsAt": "2026-05-16T00:00:00.000000Z",
+      "trialEndsAt": "2026-05-16T00:00:00.000000Z",
+      "billingCycle": "monthly",
+      "amount": 199000,
+      "packageId": 1,
+      "packageCode": "pro",
+      "packageName": "Pro Plan"
+    },
+    "invoice": null
+  }
+}
+```
+
+### Errors
+
+- `422 VALIDATION_ERROR`: payload tidak valid / duplikat `company.code` / duplikat `owner.email`
+- `429 TOO_MANY_REQUESTS`: rate limit tercapai
+

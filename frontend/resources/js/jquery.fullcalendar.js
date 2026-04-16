@@ -98,7 +98,9 @@
                     $this.$modal.modal('hide');
                 }
                 else{
-                    alert('You have to give a title to your event');
+                    if (window.ArcavUi && typeof window.ArcavUi.showToast === "function") {
+                        window.ArcavUi.showToast("Event title wajib diisi.", "warning");
+                    }
                 }
                 return false;
                 

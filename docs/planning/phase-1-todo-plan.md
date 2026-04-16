@@ -159,6 +159,23 @@ Update readiness terakhir:
 - [ ] Correlation ID / `X-Trace-Id` propagation - `NOT_STARTED`
 - [ ] Regression test menyeluruh (auth + HCM + attendance + shifts + overtime types) - `IN_PROGRESS` (ada subset feature tests)
 
+## Milestone 8 - SaaS Self-Serve Onboarding + Billing Overview (High)
+
+- [x] Public onboarding endpoint (guest): `POST /v1/public/onboarding` - `DONE`
+  - create Company + Owner user + CompanyUser (owner) + Subscription
+  - `start_mode=trial|pending_payment` (pending_payment membuat invoice draft dan kirim email invoice async)
+  - rate limit via throttle; error envelope validation selaras spec
+  - Docs: `docs/api/public-onboarding-api.md` + OpenAPI `docs/api/openapi.yaml`
+  - Tests: `PublicOnboardingApiTest`
+- [x] Admin billing overview API: `GET /v1/saas/companies/billing-overview` - `DONE`
+  - tab `trial|subscribed`, search, pagination, include latest invoice + latest email status
+  - Docs: `docs/api/saas-billing-overview-api.md` + OpenAPI `docs/api/openapi.yaml`
+  - Tests: `SaasCompanyBillingOverviewApiTest`
+- [x] Invoice email logging: `invoice_email_logs` + log on send-email + job send invoice - `DONE`
+  - Tests: `InvoiceEmailLoggingTest`
+- [ ] Landing pages UI + onboarding form wiring ke endpoint public - `NOT_STARTED` (lihat `docs/features/landing-pages/`)
+- [ ] Trial & Billing Dashboard UI (admin-only page) wiring ke billing-overview API - `NOT_STARTED` (lihat `docs/features/trial-billing-dashboard/`)
+
 ## Milestone 7 - Export Reconciliation Control (High)
 
 - [x] Definisi problem statement + scope action berisiko (payroll, THR, PKWT, invoice, payment) - `DONE` (`docs/features/export-reconciliation/README.md`)

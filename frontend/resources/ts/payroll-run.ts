@@ -17,10 +17,31 @@ type PayrollLine = {
 };
 type PayrollRun = {
     id: number;
-    status: string;
+    status?: string;
     paymentStatus?: string;
+    finalizedAt?: string | null;
     period?: { periodYear: number; periodMonth: number; status: string };
 };
+
+/** Normalisasi status run dari payload API (varian key / null) + infer aman bila `status` kosong. */
+function deriveRunLifecycleStatus(run: unknown): string {
+    if (!run || typeof run !== "object") {
+        return "";
+    }
+    const r = run as Record<string, unknown>;
+    const raw = r.status ?? r.runStatus ?? r.run_status;
+    if (raw !== null && raw !== undefined) {
+        const s = String(raw).trim().toLowerCase();
+        if (s) {
+            return s;
+        }
+    }
+    const fin = r.finalizedAt ?? r.finalized_at;
+    if (fin) {
+        return "finalized";
+    }
+    return "draft";
+}
 type SpecialRecipients = {
     thrUserIds?: number[];
     compensationUserIds?: number[];
@@ -64,7 +85,10 @@ function toast(msg: string, danger: boolean): void {
     }
 
     if (danger) {
-        window.alert(msg);
+        // Avoid native browser alert; keep UX consistent with template.
+        // If no toast helper and no inline alert container, fallback to console only.
+        // (UI should provide either ArcavUi.showToast or [data-payroll-run-error].)
+        console.warn(msg);
     }
 }
 
@@ -106,6 +130,26 @@ function apiRequest(method: string, url: string, data?: unknown): Promise<unknow
     }));
 }
 
+function reconciliationExportFileName(filePath: string | undefined | null, evidenceId: number): string {
+    if (filePath && typeof filePath === "string") {
+        const parts = filePath.split("/").filter(Boolean);
+        const last = parts[parts.length - 1];
+        if (last) {
+            return last;
+        }
+    }
+    return `reconciliation-export-${evidenceId}.csv`;
+}
+
+async function downloadReconciliationEvidenceFile(evidenceId: number, filePath?: string | null): Promise<void> {
+    const AuthApi = (window as unknown as { AuthApi?: { downloadV1Binary?: (path: string, filename?: string) => Promise<void> } }).AuthApi;
+    if (!AuthApi || typeof AuthApi.downloadV1Binary !== "function") {
+        throw new Error("AuthApi.downloadV1Binary tidak tersedia");
+    }
+    const name = reconciliationExportFileName(filePath ?? undefined, evidenceId);
+    await AuthApi.downloadV1Binary(`/reconciliation/exports/${evidenceId}/download`, name);
+}
+
 function formatApiError(res: unknown, fallbackStatus: number): string {
     const r = res as { error?: { message?: string; code?: string }; message?: string };
     const reconciliationMessages: Record<string, string> = {
@@ -130,14 +174,38 @@ function formatApiError(res: unknown, fallbackStatus: number): string {
 const _state: {
     currentPeriodId: number | null;
     currentRunId: number | null;
+    /** Run status from API (`draft` | `finalized` | …); dipakai untuk tombol Calculate vs Export. */
+    currentRunStatus: string | null;
     currentRows: EmployeeRow[];
     loading: boolean;
+    /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
+    reconciliationDownloadedForRunId: number | null;
 } = {
     currentPeriodId: null,
     currentRunId: null,
+    currentRunStatus: null,
     currentRows: [],
     loading: false,
+    reconciliationDownloadedForRunId: null,
 };
+
+function hasDownloadedReconciliationForCurrentRun(): boolean {
+    return (
+        _state.currentRunId !== null &&
+        _state.reconciliationDownloadedForRunId !== null &&
+        _state.reconciliationDownloadedForRunId === _state.currentRunId
+    );
+}
+
+function clearReconciliationDownloaded(): void {
+    _state.reconciliationDownloadedForRunId = null;
+}
+
+function markReconciliationDownloadedForCurrentRun(): void {
+    if (_state.currentRunId) {
+        _state.reconciliationDownloadedForRunId = _state.currentRunId;
+    }
+}
 
 function _getRoot(): HTMLElement | null {
     return document.querySelector<HTMLElement>("[data-payroll-run-panel]");
@@ -222,7 +290,7 @@ async function fetchLatestEvidence(): Promise<void> {
     try {
         const res = (await apiRequest("GET", "/v1/reconciliation/exports", {
             featureKey: "payroll_run",
-            actionKey: "finalize",
+            actionKey: "disburse",
             scopeRef: String(_state.currentRunId),
         })) as any;
 
@@ -242,6 +310,14 @@ async function triggerExportReconciliation(): Promise<void> {
         toast("No payroll run selected", true);
         return;
     }
+    if (_state.currentRows.length === 0) {
+        toast("Belum ada baris payroll. Lakukan Calculate Draft terlebih dahulu.", true);
+        return;
+    }
+    if (String(_state.currentRunStatus || "").toLowerCase() !== "draft") {
+        toast("Export reconciliation hanya untuk payroll run berstatus draft.", true);
+        return;
+    }
 
     try {
         const filterPayload = {
@@ -250,15 +326,26 @@ async function triggerExportReconciliation(): Promise<void> {
 
         const res = (await apiRequest("POST", "/v1/reconciliation/exports", {
             featureKey: "payroll_run",
-            actionKey: "finalize",
+            actionKey: "disburse",
             scopeRef: String(_state.currentRunId),
             filterPayload: filterPayload,
-            format: "csv",
+            fileFormat: "csv",
         })) as any;
 
         if (res && res.data && res.data.id) {
             toast("Export reconciliation berhasil dibuat", false);
+            try {
+                await downloadReconciliationEvidenceFile(Number(res.data.id), res.data.filePath);
+                markReconciliationDownloadedForCurrentRun();
+                setPayrollReconciliationHint("");
+            } catch (dlErr) {
+                console.warn("Reconciliation file download failed:", dlErr);
+                clearReconciliationDownloaded();
+                toast("Evidence tersimpan, tetapi unduh file gagal. Pay via Gateway tetap terkunci sampai unduhan berhasil.", true);
+            }
             await fetchLatestEvidence();
+            refreshSelectionSummary();
+            syncExportReconciliationButton();
         } else {
             toast("Gagal membuat export reconciliation", true);
         }
@@ -341,19 +428,52 @@ function refreshSelectionSummary(): void {
         selectedCountEl.textContent = String(selectedIds.length);
     }
     if (disburseBtn) {
-        disburseBtn.disabled = !_state.currentRunId || _state.currentRows.length === 0 || selectedIds.length === 0;
+        const canDisburse = !_state.currentRunId ||
+            _state.currentRows.length === 0 ||
+            selectedIds.length === 0 ||
+            !hasDownloadedReconciliationForCurrentRun();
+        console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), disabled: canDisburse });
+        disburseBtn.disabled = canDisburse;
     }
     if (resetBtn) {
         resetBtn.disabled = !_state.currentRunId;
     }
 }
 
+function syncExportReconciliationButton(): void {
+    const root = _getRoot();
+    if (!root) return;
+    const exportBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-export-evidence]");
+    if (exportBtn) {
+        const st = String(_state.currentRunStatus || "").toLowerCase();
+        const exportAllowed = !!_state.currentRunId && _state.currentRows.length > 0 && st === "draft";
+        console.log("[syncExportReconciliationButton]", { runId: _state.currentRunId, rows: _state.currentRows.length, status: st, exportAllowed });
+        exportBtn.disabled = !exportAllowed;
+    }
+}
+
+function syncCalculateDraftButton(): void {
+    const root = _getRoot();
+    if (!root) return;
+    const calculateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-calculate]");
+    if (!calculateBtn) return;
+    const st = String(_state.currentRunStatus || "").toLowerCase();
+    /** Backend mengizinkan hitung ulang / reuse draft (`reusedExistingDraft`) selama status `draft`. */
+    const canCalculate = !!_state.currentPeriodId && (!_state.currentRunId || st === "draft");
+    console.log("[syncCalculateDraftButton]", { periodId: _state.currentPeriodId, runId: _state.currentRunId, status: st, canCalculate });
+    calculateBtn.disabled = !canCalculate;
+}
+
 function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = null, specialRecipients: SpecialRecipients | null = null): void {
     const root = _getRoot();
     if (!root) return;
 
-    const calculateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-calculate]");
-    const disburseBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-disburse]");
+    if (runData) {
+        _state.currentRunStatus = deriveRunLifecycleStatus(runData);
+    } else if (!_state.currentRunId) {
+        _state.currentRunStatus = null;
+    }
+
     const empCountEl = root.querySelector<HTMLElement>("[data-payroll-run-emp-count]");
     const selectedCountEl = root.querySelector<HTMLElement>("[data-payroll-run-selected-count]");
     const lineCountEl = root.querySelector<HTMLElement>("[data-payroll-run-line-count]");
@@ -397,19 +517,16 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
         paymentStatusEl.innerHTML = `<span class="badge bg-${badgeClass}">${String(paymentStatus).toUpperCase()}</span>`;
     }
 
-    if (calculateBtn) {
-        calculateBtn.disabled = !_state.currentPeriodId || !!_state.currentRunId;
-    }
-    if (disburseBtn) {
-        disburseBtn.disabled = !_state.currentRunId || _state.currentRows.length === 0;
-    }
+    syncCalculateDraftButton();
+    syncExportReconciliationButton();
 
     if (emptyEl && (!runData || _state.currentRows.length === 0)) {
         emptyEl.textContent = runData
             ? "Belum ada karyawan payroll untuk periode ini. Gunakan Calculate Draft untuk refresh data aktif."
-            : "Payroll dimuat otomatis. Jika draft belum ada, sistem akan menghitungnya untuk periode yang dipilih.";
+            : "Klik Calculate Draft untuk membuat draft payroll. Setelah itu lakukan Export Reconciliation dan unduh file CSV; Pay via Gateway aktif hanya setelah unduhan selesai.";
         emptyEl.classList.remove("d-none");
         if (gridEl) gridEl.classList.add("d-none");
+        refreshSelectionSummary();
         return;
     }
 
@@ -572,6 +689,7 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
 
     _state.loading = true;
     showErr("");
+    console.log("[loadPeriod] Starting to load period...");
 
     try {
         const activeResp = await apiRequest("get", "/v1/hcm/payroll-periods/active") as ApiResponse<any>;
@@ -581,6 +699,7 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
         }
 
         const period = activeResp.data;
+        console.log("[loadPeriod] Got period:", period);
         if (period && period.periodYear) {
             yearInput.value = String(period.periodYear);
         }
@@ -591,6 +710,7 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
         yearInput.readOnly = true;
 
         _state.currentPeriodId = Number(period.id || 0) || null;
+        console.log("[loadPeriod] Set currentPeriodId to:", _state.currentPeriodId);
         if (!_state.currentPeriodId) {
             showErr("Periode payroll tidak valid.");
             return;
@@ -609,13 +729,19 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
         }
 
         if (detailedPeriod.latestRun && detailedPeriod.latestRun.id) {
+            clearReconciliationDownloaded();
             _state.currentRunId = Number(detailedPeriod.latestRun.id);
+            _state.currentRunStatus = deriveRunLifecycleStatus(detailedPeriod.latestRun);
+            console.log("[loadPeriod] Found latestRun:", { runId: _state.currentRunId, status: _state.currentRunStatus });
             await loadRunDetails(_state.currentRunId);
             return;
         }
 
         _state.currentRunId = null;
+        _state.currentRunStatus = null;
+        clearReconciliationDownloaded();
         updateRunUI(null, []);
+        console.log("[loadPeriod] No latestRun, cleared runId/status");
         if (autoCalculateMissing) {
             await calculateDraft(true);
         }
@@ -623,6 +749,11 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
         showErr(formatApiError(e.response?.data || {}, 500));
     } finally {
         _state.loading = false;
+        console.log("[loadPeriod] Finally block - syncing buttons...");
+        syncCalculateDraftButton();
+        syncExportReconciliationButton();
+        refreshSelectionSummary();
+        console.log("[loadPeriod] Done");
     }
 }
 
@@ -634,12 +765,16 @@ async function calculateDraft(silent = false): Promise<void> {
     if (calculateBtn) calculateBtn.disabled = true;
 
     try {
+        clearReconciliationDownloaded();
         const resp = await apiRequest("post", `/v1/hcm/payroll-periods/${_state.currentPeriodId}/calculate-draft`) as ApiResponse<any>;
         if (!resp.success) {
             toast(formatApiError(resp, 400), true);
             return;
         }
         _state.currentRunId = Number(resp.data?.run?.id || 0) || null;
+        if (resp.data?.run) {
+            _state.currentRunStatus = deriveRunLifecycleStatus(resp.data.run);
+        }
         if (!silent) {
             toast("Draft payroll berhasil direfresh.", false);
         }
@@ -649,9 +784,9 @@ async function calculateDraft(silent = false): Promise<void> {
     } catch (e: any) {
         toast(formatApiError(e.response?.data || {}, 500), true);
     } finally {
-        if (calculateBtn) {
-            calculateBtn.disabled = !_state.currentPeriodId || !!_state.currentRunId;
-        }
+        syncCalculateDraftButton();
+        syncExportReconciliationButton();
+        refreshSelectionSummary();
     }
 }
 
@@ -726,7 +861,7 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     const payBtn = modal.querySelector<HTMLButtonElement>("[data-payroll-gateway-pay]");
     if (payBtn) {
         payBtn.dataset.userIds = userIds.join(",");
-        payBtn.disabled = rows.length === 0 || !_state.currentRunId;
+        payBtn.disabled = rows.length === 0 || !_state.currentRunId || !hasDownloadedReconciliationForCurrentRun();
     }
 
     return rows;
@@ -736,6 +871,13 @@ function openDisburseModal(userIds?: number[]): void {
     const selectedIds = Array.isArray(userIds) && userIds.length ? userIds : getSelectedUserIds();
     if (!_state.currentRunId || selectedIds.length === 0) {
         toast("Pilih minimal satu karyawan untuk dibayar melalui gateway.", true);
+        return;
+    }
+    if (!hasDownloadedReconciliationForCurrentRun()) {
+        setPayrollReconciliationHint(
+            "Urutan wajib: Calculate Draft → Export Reconciliation → unduh file CSV → Pay via Gateway.",
+        );
+        toast("Selesaikan Export Reconciliation dan unduh file CSV terlebih dahulu.", true);
         return;
     }
     const modal = document.getElementById("payroll_gateway_modal");
@@ -778,6 +920,7 @@ async function disburseSelected(): Promise<void> {
         }
 
         setPayrollReconciliationHint("");
+        clearReconciliationDownloaded();
 
         const selectedUserIds = Array.isArray(resp.data?.selectedUserIds)
             ? resp.data.selectedUserIds.map((value: unknown) => Number(value)).filter((value: number) => Number.isFinite(value) && value > 0)
@@ -813,7 +956,8 @@ async function disburseSelected(): Promise<void> {
         toast(formatApiError(e.response?.data || {}, 500), true);
     } finally {
         if (payBtn) {
-            payBtn.disabled = false;
+            const canPay = !!_state.currentRunId && ids.length > 0 && hasDownloadedReconciliationForCurrentRun();
+            payBtn.disabled = !canPay;
             payBtn.textContent = "Pay now";
         }
     }
@@ -823,7 +967,12 @@ async function resetPayments(): Promise<void> {
     const root = _getRoot();
     if (!root || !_state.currentRunId) return;
 
-    const confirmed = window.confirm("Reset seluruh metadata pembayaran payroll run ini? Aksi ini khusus helper development.");
+    const confirmed = (window as any).ArcavUi?.confirm
+        ? await (window as any).ArcavUi.confirm(
+            "Reset seluruh metadata pembayaran payroll run ini? Aksi ini khusus helper development.",
+            "Reset Payments"
+        )
+        : false;
     if (!confirmed) {
         return;
     }
@@ -848,7 +997,9 @@ async function resetPayments(): Promise<void> {
             gatewayReference: null,
         }));
 
+        clearReconciliationDownloaded();
         updateRunUI((resp.data?.run || null) as PayrollRun | null, null);
+        syncExportReconciliationButton();
         toast(`Reset pembayaran selesai (${String(resp.data?.resetLineCount || 0)} line direset).`, false);
     } catch (e: any) {
         toast(formatApiError(e.response?.data || {}, 500), true);
@@ -956,10 +1107,10 @@ function bindEvents(): void {
     const modal = document.getElementById("payroll_gateway_modal");
     modal?.querySelector<HTMLButtonElement>("[data-payroll-gateway-pay]")?.addEventListener("click", () => void disburseSelected());
 
-    void loadPeriod(true);
+    void loadPeriod(false);
 }
 
-(window as any).payrollRunLoadPeriod = () => loadPeriod(true);
+(window as any).payrollRunLoadPeriod = () => loadPeriod(false);
 (window as any).payrollRunCalculateDraft = () => calculateDraft(false);
 (window as any).payrollRunDisburse = () => openDisburseModal();
 

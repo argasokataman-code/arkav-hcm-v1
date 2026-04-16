@@ -112,6 +112,24 @@
 
   // Main CompaniesManager object
   const CompaniesManager = {
+    toast: function (message, tone) {
+      if (window.ArcavUi && typeof window.ArcavUi.showToast === "function") {
+        window.ArcavUi.showToast(String(message || ""), tone || "info");
+        return;
+      }
+      // Fallback: simple Bootstrap alert toast (existing pattern in this file)
+      const alertDiv = document.createElement("div");
+      const type = tone === "danger" ? "danger" : tone === "success" ? "success" : tone === "warning" ? "warning" : "info";
+      alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+      alertDiv.style.zIndex = 9999;
+      alertDiv.innerHTML = `
+        ${String(message || "")}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 5000);
+    },
+
     currentPage: 1,
     currentStatus: null,
     companies: [],
@@ -257,11 +275,23 @@
       let html = "";
       companies.forEach(function (company) {
         const owner = company.owner || {};
-        const subscription = company.subscriptions?.[0] || {};
+        const subscription = company.subscription || {};
         const statusBadge =
           company.status === "active"
             ? '<span class="badge badge-success d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Active</span>'
             : '<span class="badge badge-danger d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Inactive</span>';
+
+        const subStatus = subscription.status || "";
+        const subTone =
+          subStatus === "active"
+            ? "success"
+            : subStatus === "trial"
+              ? "warning"
+              : subStatus === "pending_payment"
+                ? "info"
+                : "secondary";
+        const subLabel = subStatus ? subStatus.replace(/_/g, " ") : "none";
+        const subBadge = `<span class="badge bg-${subTone} badge-xs text-uppercase">${esc(subLabel)}</span>`;
 
         html += `
           <tr>
@@ -281,7 +311,10 @@
             <td>${esc(owner.email || "-")}</td>
             <td>${esc(company.legal_name || "-")}</td>
             <td>
-              <p class="mb-0">${esc(subscription.plan_code || "No Plan")}</p>
+              <div class="d-flex flex-column gap-1">
+                <div class="fw-medium">${esc(subscription.planCode || "-")}</div>
+                <div>${subBadge}</div>
+              </div>
             </td>
             <td>${formatDate(company.created_at)}</td>
             <td>${statusBadge}</td>
@@ -361,7 +394,7 @@
       apiRequest("POST", API_BASE, body)
         .then(function (response) {
           if (response.success) {
-            alert("Company created successfully");
+            self.toast("Company created successfully", "success");
             form.reset();
             const modal = bootstrap.Modal.getInstance(
               document.getElementById("add_company")
@@ -370,14 +403,14 @@
             self.currentPage = 1;
             self.loadCompanies();
           } else {
-            alert("Error: " + (response.error?.message || "unknown error"));
+            self.toast("Error: " + (response.error?.message || "unknown error"), "danger");
           }
         })
         .catch(function (err) {
           console.error("Failed to create company:", err);
-          alert(
-            "Error creating company: " +
-              (err.data?.error?.message || err.message)
+          self.toast(
+            "Error creating company: " + (err.data?.error?.message || err.message),
+            "danger"
           );
         });
     },
@@ -388,7 +421,7 @@
     loadCompanyForEdit: function (id) {
       const company = this.companies.find((c) => c.id === parseInt(id, 10));
       if (!company) {
-        alert("Company not found");
+        this.toast("Company not found", "warning");
         return;
       }
 
@@ -425,21 +458,21 @@
       apiRequest("PUT", API_BASE + "/" + id, body)
         .then(function (response) {
           if (response.success) {
-            alert("Company updated successfully");
+            self.toast("Company updated successfully", "success");
             const modal = bootstrap.Modal.getInstance(
               document.getElementById("edit_company")
             );
             if (modal) modal.hide();
             self.loadCompanies();
           } else {
-            alert("Error: " + (response.error?.message || "unknown error"));
+            self.toast("Error: " + (response.error?.message || "unknown error"), "danger");
           }
         })
         .catch(function (err) {
           console.error("Failed to update company:", err);
-          alert(
-            "Error updating company: " +
-              (err.data?.error?.message || err.message)
+          self.toast(
+            "Error updating company: " + (err.data?.error?.message || err.message),
+            "danger"
           );
         });
     },
@@ -451,7 +484,7 @@
       const self = this;
       const company = this.companies.find((c) => c.id === parseInt(id, 10));
       if (!company) {
-        alert("Company not found");
+        this.toast("Company not found", "warning");
         return;
       }
 
@@ -473,21 +506,21 @@
       apiRequest("DELETE", API_BASE + "/" + id, null)
         .then(function (response) {
           if (response.success) {
-            alert("Company deleted successfully");
+            self.toast("Company deleted successfully", "success");
             const modal = bootstrap.Modal.getInstance(
               document.getElementById("delete_modal")
             );
             if (modal) modal.hide();
             self.loadCompanies();
           } else {
-            alert("Error: " + (response.error?.message || "unknown error"));
+            self.toast("Error: " + (response.error?.message || "unknown error"), "danger");
           }
         })
         .catch(function (err) {
           console.error("Failed to delete company:", err);
-          alert(
-            "Error deleting company: " +
-              (err.data?.error?.message || err.message)
+          self.toast(
+            "Error deleting company: " + (err.data?.error?.message || err.message),
+            "danger"
           );
         });
     },

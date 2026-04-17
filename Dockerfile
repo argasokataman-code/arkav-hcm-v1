@@ -16,6 +16,7 @@ COPY . .
 RUN cd /app/backend && mv env.txt .env \
     && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
     && npm install \
+    && php artisan key:generate \
     && npm run build
 
 RUN chown -R www-data:www-data /app \

@@ -20,7 +20,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 
@@ -95,7 +95,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 
@@ -158,7 +158,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 
@@ -179,7 +179,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 
@@ -274,7 +274,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 
@@ -295,7 +295,7 @@ class SubscriptionController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
             ], 403);
         }
 

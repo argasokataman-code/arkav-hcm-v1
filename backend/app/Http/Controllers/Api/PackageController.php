@@ -206,7 +206,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -250,7 +250,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -295,7 +295,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -337,7 +337,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -371,7 +371,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -404,7 +404,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -425,7 +425,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -455,7 +455,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -485,7 +485,7 @@ class PackageController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
             ], 403);
         }
 

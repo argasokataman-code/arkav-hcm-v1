@@ -70,6 +70,6 @@ Hanya **HCM Admin**.
 ### Errors
 
 - `401 UNAUTHORIZED`: token tidak ada/invalid
-- `403 ADMIN_REQUIRED`: non-admin mencoba akses
+- `403 AUTH_FORBIDDEN`: non-admin mencoba akses (error code standardized 2026-04-17)
 - `422 VALIDATION_ERROR`: query param invalid (mis. `tab` bukan enum)
 

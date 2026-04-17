@@ -293,3 +293,35 @@ $sub->getPrice();
 // Get duration in days
 $sub->getDurationDays();
 ```
+
+## Error Responses
+
+### 403 Forbidden
+
+All admin-only endpoints return `AUTH_FORBIDDEN` when user lacks permissions:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_FORBIDDEN",
+    "message": "Forbidden."
+  }
+}
+```
+
+**Note:** Error code standardized (2026-04-17) to `AUTH_FORBIDDEN` for consistency with HCM controllers and OpenAPI schema.
+
+### 401 Unauthorized
+
+Missing or invalid authentication token:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "Unauthorized."
+  }
+}
+```

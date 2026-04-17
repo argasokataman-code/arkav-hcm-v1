@@ -22,7 +22,7 @@ RUN cd /app/backend && mv env.txt .env \
     && php artisan route:cache \
     && php artisan view:cache
 
-# RUN cd /app/backend && php artisan migrate
+RUN cd /app/backend && php artisan migrate --force || true
 
 RUN chown -R www-data:www-data /app \
     && chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache

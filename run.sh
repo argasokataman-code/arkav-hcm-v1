@@ -36,6 +36,11 @@ if [[ ! -f "$FRONTEND_DIR/server.js" ]]; then
   exit 1
 fi
 
+# Run pending migrations (safe - idempotent)
+echo "[run.sh] Running pending migrations..."
+cd "$BACKEND_DIR"
+php artisan migrate --force || echo "[run.sh] Migrations already applied or errored"
+
 pids=()
 
 is_port_in_use() {

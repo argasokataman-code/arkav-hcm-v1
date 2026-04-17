@@ -16,13 +16,7 @@ COPY . .
 RUN cd /app/backend && mv env.txt .env \
     && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
     && npm install \
-    && php artisan key:generate \
-    && npm run build \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
-
-RUN cd /app/backend && php artisan migrate --force || true
+    && npm run build
 
 RUN chown -R www-data:www-data /app \
     && chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache

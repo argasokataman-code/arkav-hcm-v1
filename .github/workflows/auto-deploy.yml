@@ -42,5 +42,6 @@ jobs:
             docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
             docker rm -f arkav-hcm || true
             docker run -d --name arkav-hcm --restart always -p 8007:8007 -p 5179:5179 -v /data/code/.env:/app/backend/.env ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+            docker exec arkav-hcm bash -c "cd /app/backend && php artisan key:generate && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate"
             docker rmi $(docker images -q) || true
           EOF

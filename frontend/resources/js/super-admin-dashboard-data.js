@@ -144,10 +144,210 @@
     },
 
     /**
+     * Load subscription status breakdown
+     */
+    loadSubscriptionStatus: function () {
+      const self = this;
+      const url = API_BASE + "/subscriptions/status";
+
+      return apiRequest("GET", url, null)
+        .then(function (response) {
+          if (response.success && response.data) {
+            self.renderSubscriptionStatus(response.data);
+          }
+        })
+        .catch(function (err) {
+          console.error("Error loading subscription status:", err);
+        });
+    },
+
+    /**
+     * Render subscription status breakdown
+     */
+    renderSubscriptionStatus: function (data) {
+      const container = document.getElementById("subscription_status");
+      if (!container) return;
+
+      let html = '<div class="table-responsive"><table class="table table-sm"><tbody>';
+      for (const [status, info] of Object.entries(data)) {
+        html += `
+          <tr>
+            <td><span class="badge bg-info">${esc(status.charAt(0).toUpperCase() + status.slice(1))}</span></td>
+            <td class="text-end"><strong>${info.count || 0}</strong> subscriptions</td>
+            <td class="text-end">${formatCurrency(info.revenue || 0)}</td>
+          </tr>
+        `;
+      }
+      html += "</tbody></table></div>";
+      container.innerHTML = html;
+    },
+
+    /**
+     * Load revenue by plan breakdown
+     */
+    loadRevenueByPlan: function () {
+      const self = this;
+      const url = API_BASE + "/revenue/by-plan";
+
+      return apiRequest("GET", url, null)
+        .then(function (response) {
+          if (response.success && response.data) {
+            self.renderRevenueByPlan(response.data);
+          }
+        })
+        .catch(function (err) {
+          console.error("Error loading revenue by plan:", err);
+        });
+    },
+
+    /**
+     * Render revenue by plan
+     */
+    renderRevenueByPlan: function (data) {
+      const container = document.getElementById("revenue_by_plan");
+      if (!container) return;
+
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p class="text-muted">No plan data available</p>';
+        return;
+      }
+
+      let html = '<div class="table-responsive"><table class="table table-sm"><tbody>';
+      data.forEach((plan) => {
+        html += `
+          <tr>
+            <td><strong>${esc(plan.packageName)}</strong></td>
+            <td class="text-end">${plan.subscriptionCount || 0} subscriptions</td>
+            <td class="text-end">${formatCurrency(plan.revenue || 0)}</td>
+          </tr>
+        `;
+      });
+      html += "</tbody></table></div>";
+      container.innerHTML = html;
+    },
+
+    /**
+     * Load top performing companies
+     */
+    loadTopCompanies: function () {
+      const self = this;
+      const url = API_BASE + "/companies/top-performers";
+
+      return apiRequest("GET", url, null)
+        .then(function (response) {
+          if (response.success && response.data) {
+            self.topCompanies = response.data;
+            self.renderTopCompanies();
+          }
+        })
+        .catch(function (err) {
+          console.error("Error loading top companies:", err);
+        });
+    },
+
+    /**
+     * Render top companies widget
+     */
+    renderTopCompanies: function () {
+      const kpiContainer = document.getElementById("kpi_container");
+      if (!kpiContainer || !this.topCompanies || this.topCompanies.length === 0) return;
+
+      // Find and update or create top companies card
+      let topCompaniesCard = document.getElementById("top_companies_kpi");
+      if (!topCompaniesCard) {
+        topCompaniesCard = document.createElement("div");
+        topCompaniesCard.id = "top_companies_kpi";
+        topCompaniesCard.className = "col-lg-3 col-md-6 d-flex";
+        kpiContainer.appendChild(topCompaniesCard);
+      }
+
+      const topCompany = this.topCompanies[0];
+      topCompaniesCard.innerHTML = `
+        <div class="card flex-fill">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <p class="fs-12 fw-medium mb-1">Top Company</p>
+                <h6 class="mb-0">${esc(topCompany.name)}</h6>
+                <small class="text-muted">${formatCurrency(topCompany.totalRevenue)}</small>
+              </div>
+              <span class="avatar avatar-lg bg-primary flex-shrink-0">
+                <i class="ti ti-star fs-16"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+      `;
+    },
+
+    /**
+     * Load user statistics
+     */
+    loadUserStats: function () {
+      const self = this;
+      const url = API_BASE + "/users";
+
+      return apiRequest("GET", url, null)
+        .then(function (response) {
+          if (response.success && response.data) {
+            self.userStats = response.data;
+            self.renderUserStats();
+          }
+        })
+        .catch(function (err) {
+          console.error("Error loading user stats:", err);
+        });
+    },
+
+    /**
+     * Render user statistics
+     */
+    renderUserStats: function () {
+      const kpiContainer = document.getElementById("kpi_container");
+      if (!kpiContainer || !this.userStats) return;
+
+      let userStatsCard = document.getElementById("user_stats_kpi");
+      if (!userStatsCard) {
+        userStatsCard = document.createElement("div");
+        userStatsCard.id = "user_stats_kpi";
+        userStatsCard.className = "col-lg-3 col-md-6 d-flex";
+        kpiContainer.appendChild(userStatsCard);
+      }
+
+      userStatsCard.innerHTML = `
+        <div class="card flex-fill">
+          <div class="card-body">
+            <p class="fs-12 fw-medium mb-2">User Verification Rate</p>
+            <div class="progress mb-2" style="height: 6px;">
+              <div class="progress-bar bg-success" style="width: ${this.userStats.verificationRate || 0}%"></div>
+            </div>
+            <small class="text-muted">
+              ${this.userStats.verifiedUsers || 0} verified / ${this.userStats.totalUsers || 0} total
+              (${formatPercentage(this.userStats.verificationRate || 0)})
+            </small>
+            <p class="mt-2 mb-0 fs-12">
+              <span class="badge bg-light text-dark">${this.userStats.newUsersThisMonth || 0} new this month</span>
+            </p>
+          </div>
+        </div>
+      `;
+    },
+
+    /**
      * Bind event listeners
      */
     bindEvents: function () {
       const self = this;
+
+      // Audit filter dropdown change
+      const auditFilterSelect = document.getElementById("audit_filter_select");
+      if (auditFilterSelect) {
+        auditFilterSelect.addEventListener("change", function () {
+          self.currentFilter = this.value;
+          self.currentPage = 1;
+          self.loadAuditLogs();
+        });
+      }
 
       // Tab switching
       document.addEventListener("click", function (e) {
@@ -180,6 +380,13 @@
           const metric = e.target.getAttribute("data-metric-trend");
           self.showMetricTrend(metric);
         }
+
+        // View company details
+        if (e.target.matches("[data-view-company]")) {
+          e.preventDefault();
+          const companyId = e.target.getAttribute("data-view-company");
+          self.showCompanyDetails(companyId);
+        }
       });
     },
 
@@ -194,6 +401,10 @@
         this.loadCompanies(),
         this.loadAuditLogs(),
         this.loadRevenueData(),
+        this.loadSubscriptionStatus(),
+        this.loadRevenueByPlan(),
+        this.loadTopCompanies(),
+        this.loadUserStats(),
       ])
         .then(() => {
           self.renderDashboard();
@@ -588,6 +799,104 @@
           console.error(err);
           self.showError("Error loading metric trend");
         });
+    },
+
+    /**
+     * Show company details modal
+     */
+    showCompanyDetails: function (companyId) {
+      const self = this;
+      const url = API_BASE + "/companies/" + companyId + "/details";
+
+      apiRequest("GET", url, null)
+        .then(function (response) {
+          if (response.success && response.data) {
+            self.renderCompanyDetailsModal(response.data);
+          } else {
+            self.showError("Failed to load company details");
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          self.showError("Error loading company details");
+        });
+    },
+
+    /**
+     * Render company details modal
+     */
+    renderCompanyDetailsModal: function (company) {
+      // Create or find modal
+      let modal = document.getElementById("company_details_modal");
+      if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "company_details_modal";
+        modal.className = "modal fade";
+        modal.setAttribute("tabindex", "-1");
+        document.body.appendChild(modal);
+      }
+
+      let html = `
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Company Details: ${esc(company.name)}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <p><strong>Company Code:</strong> ${esc(company.code)}</p>
+                  <p><strong>Email:</strong> ${esc(company.email)}</p>
+                  <p><strong>Country:</strong> ${esc(company.country || "-")}</p>
+                  <p><strong>Industry:</strong> ${esc(company.industry || "-")}</p>
+                </div>
+                <div class="col-md-6">
+                  <p><strong>Users:</strong> ${company.userCount || 0}</p>
+                  <p><strong>Active Subscriptions:</strong> ${company.activeSubscriptions || 0}</p>
+                  <p><strong>Total Revenue:</strong> ${formatCurrency(company.totalRevenue || 0)}</p>
+                  <p><strong>Created:</strong> ${formatDate(company.createdAt)}</p>
+                </div>
+              </div>
+
+              <h6>Subscription Status Breakdown:</h6>
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th class="text-end">Count</th>
+                      <th class="text-end">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+      `;
+
+      for (const [status, info] of Object.entries(company.subscriptionsByStatus || {})) {
+        html += `
+          <tr>
+            <td><span class="badge bg-info">${esc(status.charAt(0).toUpperCase() + status.slice(1))}</span></td>
+            <td class="text-end">${info.count || 0}</td>
+            <td class="text-end">${formatCurrency(info.revenue || 0)}</td>
+          </tr>
+        `;
+      }
+
+      html += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      modal.innerHTML = html;
+      const bsModal = new bootstrap.Modal(modal);
+      bsModal.show();
     },
 
     /**

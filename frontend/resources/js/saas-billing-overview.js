@@ -88,11 +88,11 @@
         };
 
         function request(method, path, payload) {
-            if (!window.ApiClient || typeof window.ApiClient.request !== "function") {
-                var err = new Error("ApiClient missing");
+            if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
+                var err = new Error("AuthApi missing");
                 return Promise.reject(err);
             }
-            return window.ApiClient.request(method, path, payload).then(function (res) {
+            return window.AuthApi.request(method, path, payload).then(function (res) {
                 return res && res.data ? res.data : {};
             });
         }
@@ -289,7 +289,29 @@
             });
         }
 
-        load();
+        // Wait for auth token to be available before loading data
+        function loadWithAuthCheck() {
+            if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
+                // AuthApi not ready, wait a bit more
+                window.setTimeout(loadWithAuthCheck, 100);
+                return;
+            }
+            var token = null;
+            try {
+                token = window.localStorage.getItem(window.AuthApi.tokenKey || "arcav_access_token");
+            } catch (_e) {}
+            
+            if (!token) {
+                // No token, show error and wait
+                show(errorBox);
+                setText(errorBox, "Authentication required. Please log in.");
+                window.setTimeout(loadWithAuthCheck, 500);
+                return;
+            }
+            // Token is available, load the data
+            load();
+        }
+        loadWithAuthCheck();
     }
 
     if (document.readyState === "loading") {

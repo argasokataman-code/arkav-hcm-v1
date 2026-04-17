@@ -1,11 +1,3 @@
-    protected static function booted()
-    {
-        static::addGlobalScope('company', function ($query) {
-            if (auth()->check() && auth()->user()->employeeProfile) {
-                $query->where('company_id', auth()->user()->employeeProfile->company_id);
-            }
-        });
-    }
 <?php
 
 namespace App\Models;

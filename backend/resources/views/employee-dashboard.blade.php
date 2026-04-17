@@ -279,7 +279,12 @@
                                 </h6>
                                 <div class="rounded border mb-3" data-employee-legacy-attendance-map style="height: 180px;"></div>
                                 <p class="small text-muted mb-3" data-employee-legacy-map-hint>Map attendance belum tersedia.</p>
-                                <a href="{{ url('attendance-employee') }}" class="btn btn-primary w-100" data-employee-legacy-punch-button>Punch Out</a>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-success" data-attendance-me-selfie-btn data-arcav-selfie-allowed="0" title="Memuat status absensi…">
+                                        <i class="ti ti-camera me-1"></i> Ambil Selfie
+                                    </button>
+                                    <a href="{{ url('attendance-employee') }}" class="btn btn-primary" data-employee-legacy-punch-button>Punch Out</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1251,5 +1256,135 @@
 
     @component('components.modal-popup')
     @endcomponent
+
+    <style>
+        /* Selfie camera modal styles */
+        .arcav-selfie-camera-modal .modal-header {
+            border-bottom: 1px solid #e8e9f0;
+        }
+
+        .arcav-selfie-camera-video {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: #000;
+        }
+
+        .arcav-selfie-preview {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            max-width: 400px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .arcav-selfie-preview.show {
+            display: block;
+        }
+
+        .arcav-selfie-control-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .arcav-selfie-encrypt-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #6c757d;
+            padding: 0.5rem 0;
+            border-top: 1px solid #e8e9f0;
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+
+        .arcav-selfie-encrypt-badge i {
+            font-size: 1rem;
+        }
+
+        [data-selfie-camera-video]:not([data-recording="1"]) {
+            display: block;
+        }
+
+        [data-selfie-preview]:not([data-show="1"]) {
+            display: none;
+        }
+    </style>
+
+    <!-- Selfie: punch in required (app modal) -->
+    <div class="modal fade" id="arcav_attendance_selfie_prereq_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <i class="ti ti-alert-circle text-warning"></i>
+                        Punch masuk diperlukan
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="mb-3 text-gray-700" data-arcav-selfie-prereq-message>
+                        Harap lakukan punch in terlebih dahulu sebelum mengambil selfie. Setelah absensi hari ini tercatat, Anda dapat membuka kamera selfie dari tombol yang sama.
+                    </p>
+                    <p class="small text-muted mb-0">Jika Anda sudah punch masuk namun pesan ini masih muncul, muat ulang halaman lalu coba lagi.</p>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Mengerti</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selfie Camera Modal -->
+    <div class="modal fade arcav-selfie-camera-modal" id="arcav_attendance_selfie_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="ti ti-camera me-2"></i>Ambil Selfie Absensi
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info small" role="alert">
+                        <i class="ti ti-info-circle me-1"></i>
+                        Pastikan wajah Anda terlihat jelas dalam frame kamera.
+                    </div>
+                    
+                    <!-- Camera stream -->
+                    <video data-selfie-camera-video class="arcav-selfie-camera-video" playsinline></video>
+                    
+                    <!-- Preview after capture -->
+                    <canvas data-selfie-preview class="arcav-selfie-preview" width="400" height="300"></canvas>
+                    
+                    <!-- Controls -->
+                    <div class="arcav-selfie-control-group">
+                        <button type="button" class="btn btn-primary flex-grow-1" data-selfie-capture-btn>
+                            <i class="ti ti-circle me-1"></i>Ambil Foto
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary flex-grow-1 d-none" data-selfie-retake-btn>
+                            <i class="ti ti-refresh me-1"></i>Ulangi
+                        </button>
+                    </div>
+                    
+                    <!-- Encryption indicator -->
+                    <div class="arcav-selfie-encrypt-badge">
+                        <i class="ti ti-lock"></i>
+                        <span>Foto akan dienkripsi sebelum dikirim</span>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-success d-none" data-selfie-submit-btn>
+                        <i class="ti ti-check me-1"></i>Simpan Selfie
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @endsection

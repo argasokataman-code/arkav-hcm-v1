@@ -438,6 +438,17 @@
             }
         }
 
+        // Handle selfie button state
+        var selfieBtn = document.querySelector("[data-attendance-me-selfie-btn]");
+        if (selfieBtn) {
+            var canSelfie = attendanceToday.punchState === "in" || attendanceToday.punchState === "done";
+            selfieBtn.setAttribute("data-arcav-selfie-allowed", canSelfie ? "1" : "0");
+            selfieBtn.setAttribute(
+                "title",
+                canSelfie ? "" : "Lakukan punch masuk terlebih dahulu untuk mengambil selfie."
+            );
+        }
+
         updateRingProgress(document.querySelector("[data-employee-legacy-attendance-progress]"), attendanceToday.progressPercent || 0);
 
         setText("[data-employee-legacy-stat-today-hours]", formatHours(attendanceStats.todayHours), "0.0");

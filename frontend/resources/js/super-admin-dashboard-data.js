@@ -19,12 +19,14 @@
     const token = localStorage.getItem("saas_api_token");
     if (token) {
       headers["Authorization"] = "Bearer " + token;
+    } else {
+      console.warn("No API token available for request to " + url);
     }
 
     const opts = {
       method: method,
       headers: headers,
-      credentials: "same-origin",
+      credentials: "include",
     };
 
     if (body && method !== "GET") {
@@ -36,12 +38,15 @@
         return res
           .json()
           .catch(function () {
-            return {};
+            return { success: false, error: { message: "Invalid JSON response" } };
           })
           .then(function (data) {
             if (!res.ok) {
+              const errorMsg = data?.error?.message || data?.message || res.statusText;
+              console.error("API error (" + res.status + "):", errorMsg, data);
               return Promise.reject({
                 status: res.status,
+                message: errorMsg,
                 data: data,
               });
             }
@@ -49,7 +54,7 @@
           });
       })
       .catch(function (err) {
-        console.error("API request failed:", err);
+        console.error("API request failed:", method, url, err);
         throw err;
       });
   }
@@ -62,17 +67,22 @@
         headers: {
           Accept: "application/json",
         },
-        credentials: "same-origin",
+        credentials: "include", // Changed from "same-origin" to "include"
       })
         .then(function (res) {
+          // Handle redirects (302, etc.) - means not authenticated
+          if (res.status === 302 || res.status === 401) {
+            reject(new Error("Not authenticated. Please login first."));
+            return;
+          }
           return res.json();
         })
         .then(function (data) {
-          if (data.success && data.data.token) {
+          if (data && data.success && data.data && data.data.token) {
             localStorage.setItem("saas_api_token", data.data.token);
             resolve(data.data.token);
           } else {
-            reject(new Error("Failed to get API token"));
+            reject(new Error("Failed to get API token: " + JSON.stringify(data)));
           }
         })
         .catch(function (err) {
@@ -138,8 +148,14 @@
           self.loadDashboard();
         })
         .catch(function (err) {
-          console.error("Failed to initialize dashboard:", err);
-          self.showError("Failed to initialize dashboard - authentication error");
+          const errorMsg = err?.message || "Failed to initialize dashboard";
+          console.error("Dashboard init error:", err);
+          self.showError(errorMsg);
+          
+          // Show loading placeholders as error indicators
+          document.querySelectorAll("#subscription_status, #revenue_by_plan").forEach(function(el) {
+            el.innerHTML = '<p class="text-danger"><strong>Error:</strong> ' + esc(errorMsg) + '</p>';
+          });
         });
     },
 
@@ -156,13 +172,16 @@
             self.renderSubscriptionStatus(response.data);
           } else {
             const container = document.getElementById("subscription_status");
-            if (container) container.innerHTML = '<p class="text-danger">Failed to load subscription status</p>';
+            if (container) container.innerHTML = '<p class="text-danger">No subscription data or error in response</p>';
           }
         })
         .catch(function (err) {
           console.error("Error loading subscription status:", err);
           const container = document.getElementById("subscription_status");
-          if (container) container.innerHTML = '<p class="text-danger">Error: ' + (err?.message || 'Unknown error') + '</p>';
+          if (container) {
+            const errorMsg = err?.message || JSON.stringify(err);
+            container.innerHTML = '<p class="text-danger">Error: ' + esc(errorMsg) + '</p>';
+          }
         });
     },
 
@@ -206,13 +225,16 @@
             self.renderRevenueByPlan(response.data);
           } else {
             const container = document.getElementById("revenue_by_plan");
-            if (container) container.innerHTML = '<p class="text-danger">Failed to load revenue by plan</p>';
+            if (container) container.innerHTML = '<p class="text-danger">No plan data or error in response</p>';
           }
         })
         .catch(function (err) {
           console.error("Error loading revenue by plan:", err);
           const container = document.getElementById("revenue_by_plan");
-          if (container) container.innerHTML = '<p class="text-danger">Error: ' + (err?.message || 'Unknown error') + '</p>';
+          if (container) {
+            const errorMsg = err?.message || JSON.stringify(err);
+            container.innerHTML = '<p class="text-danger">Error: ' + esc(errorMsg) + '</p>';
+          }
         });
     },
 

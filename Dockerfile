@@ -13,7 +13,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
+RUN cd /app/backend && mv env.txt .env \
+    && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
     && npm install \
     && php artisan key:generate \
     && npm run build \

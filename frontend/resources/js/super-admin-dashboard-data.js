@@ -154,10 +154,15 @@
         .then(function (response) {
           if (response.success && response.data) {
             self.renderSubscriptionStatus(response.data);
+          } else {
+            const container = document.getElementById("subscription_status");
+            if (container) container.innerHTML = '<p class="text-danger">Failed to load subscription status</p>';
           }
         })
         .catch(function (err) {
           console.error("Error loading subscription status:", err);
+          const container = document.getElementById("subscription_status");
+          if (container) container.innerHTML = '<p class="text-danger">Error: ' + (err?.message || 'Unknown error') + '</p>';
         });
     },
 
@@ -168,11 +173,17 @@
       const container = document.getElementById("subscription_status");
       if (!container) return;
 
+      if (!data || Object.keys(data).length === 0) {
+        container.innerHTML = '<p class="text-muted">No subscription data available</p>';
+        return;
+      }
+
       let html = '<div class="table-responsive"><table class="table table-sm"><tbody>';
       for (const [status, info] of Object.entries(data)) {
+        const badgeColor = status === 'active' ? 'success' : status === 'cancelled' ? 'danger' : 'warning';
         html += `
           <tr>
-            <td><span class="badge bg-info">${esc(status.charAt(0).toUpperCase() + status.slice(1))}</span></td>
+            <td><span class="badge bg-${badgeColor}">${esc(status.charAt(0).toUpperCase() + status.slice(1))}</span></td>
             <td class="text-end"><strong>${info.count || 0}</strong> subscriptions</td>
             <td class="text-end">${formatCurrency(info.revenue || 0)}</td>
           </tr>
@@ -193,10 +204,15 @@
         .then(function (response) {
           if (response.success && response.data) {
             self.renderRevenueByPlan(response.data);
+          } else {
+            const container = document.getElementById("revenue_by_plan");
+            if (container) container.innerHTML = '<p class="text-danger">Failed to load revenue by plan</p>';
           }
         })
         .catch(function (err) {
           console.error("Error loading revenue by plan:", err);
+          const container = document.getElementById("revenue_by_plan");
+          if (container) container.innerHTML = '<p class="text-danger">Error: ' + (err?.message || 'Unknown error') + '</p>';
         });
     },
 
@@ -207,17 +223,17 @@
       const container = document.getElementById("revenue_by_plan");
       if (!container) return;
 
-      if (!data || data.length === 0) {
+      if (!data || !Array.isArray(data) || data.length === 0) {
         container.innerHTML = '<p class="text-muted">No plan data available</p>';
         return;
       }
 
-      let html = '<div class="table-responsive"><table class="table table-sm"><tbody>';
+      let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Plan</th><th class="text-end">Subscriptions</th><th class="text-end">Revenue</th></tr></thead><tbody>';
       data.forEach((plan) => {
         html += `
           <tr>
-            <td><strong>${esc(plan.packageName)}</strong></td>
-            <td class="text-end">${plan.subscriptionCount || 0} subscriptions</td>
+            <td><strong>${esc(plan.packageName || 'Unknown')}</strong></td>
+            <td class="text-end">${plan.subscriptionCount || 0}</td>
             <td class="text-end">${formatCurrency(plan.revenue || 0)}</td>
           </tr>
         `;
@@ -235,7 +251,7 @@
 
       return apiRequest("GET", url, null)
         .then(function (response) {
-          if (response.success && response.data) {
+          if (response.success && response.data && response.data.length > 0) {
             self.topCompanies = response.data;
             self.renderTopCompanies();
           }

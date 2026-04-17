@@ -42,8 +42,8 @@ const server = http.createServer((req, res) => {
   req.pipe(proxyReq, { end: true });
 });
 
-server.listen(FRONTEND_PORT, "127.0.0.1", () => {
+server.listen(FRONTEND_PORT, "0.0.0.0", () => {
   console.log(
-    `[frontend-node] proxy listening on http://127.0.0.1:${FRONTEND_PORT} -> http://${BACKEND_HOST}:${BACKEND_PORT}`,
+    `[frontend-node] proxy listening on http://0.0.0.0:${FRONTEND_PORT} -> http://${BACKEND_HOST}:${BACKEND_PORT}`,
   );
 });

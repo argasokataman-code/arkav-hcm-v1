@@ -9,6 +9,7 @@ class OvertimeRequest extends Model
 {
     protected $fillable = [
         'user_id',
+        'company_id',
         'hcm_overtime_type_id',
         'hcm_salary_component_id',
         'request_type',
@@ -33,6 +34,11 @@ class OvertimeRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function overtimeType(): BelongsTo

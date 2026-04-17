@@ -1,28 +1,31 @@
-FROM node:20-alpine AS buildnpm
+FROM php:8.3-cli
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git unzip libpng-dev libjpeg-dev libfreetype6-dev libcurl4-openssl-dev pkg-config \
+    libonig-dev libxml2-dev libzip-dev nodejs npm \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip curl fileinfo \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY . /app/
-RUN npm install && npm run build
 
+COPY . .
 
-FROM php:8.2-apache
+RUN cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
+    && npm install \
+    && php artisan key:generate \
+    && npm run build \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-COPY --from=buildnpm /app /var/www/html
-COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
+RUN cd /app/backend && php artisan migrate
 
-RUN a2enmod rewrite ssl && \
-    apt update && \
-    apt install -y nano net-tools libpq-dev libzip-dev unzip libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev libpq-dev && \
-    docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath zip gd && \
-    rm -rf /var/www/html/fileconfig && \
-    composer install
+RUN chown -R www-data:www-data /app \
+    && chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache
 
-COPY fileconfig/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
-COPY fileconfig/php.ini /usr/local/etc/php/php.ini
-COPY fileconfig/default.conf /etc/apache2/sites-available/000-default.conf
-COPY fileconfig/cert.pem /etc/apache2/ssl/
-COPY fileconfig/key.pem /etc/apache2/ssl/
+EXPOSE 8007
 
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+CMD ["bash", "run.sh"]

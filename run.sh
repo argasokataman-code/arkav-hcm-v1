@@ -103,7 +103,7 @@ if is_port_in_use "$FRONTEND_PORT"; then
 fi
 
 (
-  php -d error_reporting=8191 artisan serve --host=127.0.0.1 --port="$BACKEND_PORT" 2>&1 | sed -u 's/^/[backend] /'
+  php -d error_reporting=8191 artisan serve --host=0.0.0.0 --port="$BACKEND_PORT" 2>&1 | sed -u 's/^/[backend] /'
 ) &
 pids+=("$!")
 
@@ -113,10 +113,11 @@ pids+=("$!")
 ) &
 pids+=("$!")
 
-echo "[run.sh] backend: http://127.0.0.1:$BACKEND_PORT"
-echo "[run.sh] frontend: http://127.0.0.1:$FRONTEND_PORT"
-echo "[run.sh] app url: http://127.0.0.1:$FRONTEND_PORT (Node frontend proxy)"
-echo "[run.sh] backend url: http://127.0.0.1:$BACKEND_PORT"
+echo "[run.sh] backend: http://0.0.0.0:$BACKEND_PORT"
+echo "[run.sh] frontend: http://0.0.0.0:$FRONTEND_PORT"
+echo "[run.sh] app url: http://0.0.0.0:$FRONTEND_PORT (Node frontend proxy)"
+echo "[run.sh] backend url: http://0.0.0.0:$BACKEND_PORT"
+
 if wait_for_health "http://127.0.0.1:$BACKEND_PORT/health"; then
   echo "[run.sh] backend health check: OK"
 else

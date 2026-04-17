@@ -47,18 +47,42 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('*', function ($view): void {
-            $view->with('runtimeLocalizationSettings', [
-                'language' => WebsiteSettings::localizationLanguage(),
-                'timezone' => WebsiteSettings::localizationTimezone(),
-                'dateFormat' => WebsiteSettings::localizationDateFormat(),
-                'timeFormat' => WebsiteSettings::localizationTimeFormat(),
-            ]);
+            // Wrap database access in try-catch to handle connection failures gracefully
+            // This prevents error pages from crashing when database is down
+            try {
+                $localizationSettings = [
+                    'language' => WebsiteSettings::localizationLanguage(),
+                    'timezone' => WebsiteSettings::localizationTimezone(),
+                    'dateFormat' => WebsiteSettings::localizationDateFormat(),
+                    'timeFormat' => WebsiteSettings::localizationTimeFormat(),
+                ];
+            } catch (\Throwable $e) {
+                // Fallback to defaults if database is unavailable
+                $localizationSettings = [
+                    'language' => 'en',
+                    'timezone' => 'UTC',
+                    'dateFormat' => 'Y-m-d',
+                    'timeFormat' => 'H:i:s',
+                ];
+            }
 
-            $view->with('runtimeBusinessSettings', [
-                'companyName' => WebsiteSettings::businessCompanyName(),
-                'email' => WebsiteSettings::businessEmail(),
-                'phone' => WebsiteSettings::businessPhone(),
-            ]);
+            try {
+                $businessSettings = [
+                    'companyName' => WebsiteSettings::businessCompanyName(),
+                    'email' => WebsiteSettings::businessEmail(),
+                    'phone' => WebsiteSettings::businessPhone(),
+                ];
+            } catch (\Throwable $e) {
+                // Fallback to defaults if database is unavailable
+                $businessSettings = [
+                    'companyName' => 'Arcav',
+                    'email' => 'support@arcav.local',
+                    'phone' => '+1-000-0000',
+                ];
+            }
+
+            $view->with('runtimeLocalizationSettings', $localizationSettings);
+            $view->with('runtimeBusinessSettings', $businessSettings);
         });
     }
 }

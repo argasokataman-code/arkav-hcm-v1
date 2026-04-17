@@ -27,20 +27,28 @@ class Setting extends Model
 
     /**
      * Get a setting by key with optional group filtering
+     * Returns default if database is unavailable
      */
     public static function get($key, $default = null)
     {
-        $setting = Cache::remember(self::cacheKey((string) $key), self::CACHE_TTL_SECONDS, function () use ($key) {
-            return self::where('key', $key)->first();
-        });
+        try {
+            $setting = Cache::remember(self::cacheKey((string) $key), self::CACHE_TTL_SECONDS, function () use ($key) {
+                return self::where('key', $key)->first();
+            });
 
-        if (!$setting) {
+            if (!$setting) {
+                return $default;
+            }
+            
+            // Try to decode as JSON
+            $value = json_decode($setting->value, true);
+            return $value !== null ? $value : $setting->value;
+        } catch (\Throwable $e) {
+            // If database is unavailable, return default value gracefully
+            // Log the error for debugging but don't crash
+            \Log::warning('Setting::get() failed for key: '.$key, ['error' => $e->getMessage()]);
             return $default;
         }
-        
-        // Try to decode as JSON
-        $value = json_decode($setting->value, true);
-        return $value !== null ? $value : $setting->value;
     }
 
     /**

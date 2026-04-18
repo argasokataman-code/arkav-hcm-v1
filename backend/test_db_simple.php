@@ -14,11 +14,11 @@ $options = [
 
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
-    echo "Koneksi database berhasil!\n";
+    echo "✅ Koneksi database LOKAL berhasil!\n";
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM hcm_payroll_periods");
     $result = $stmt->fetch();
-    echo "Jumlah record di hcm_payroll_periods: " . $result['count'] . "\n";
+    echo "📊 Jumlah record di hcm_payroll_periods: " . $result['count'] . "\n";
 } catch (\PDOException $e) {
-    echo "Koneksi database gagal: " . $e->getMessage() . "\n";
+    echo "❌ Koneksi database LOKAL gagal: " . $e->getMessage() . "\n";
 }
 ?>

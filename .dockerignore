@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Development files
+.vscode/
+.windsurf/
+.venv/
+.phpunit.result.cache
+
+# Test files
+backend/test-results/
+backend/playwright-report/
+backend/coverage/
+
+# Logs
+backend/storage/logs/
+*.log
+
+# Cache
+backend/bootstrap/cache/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+
+# Node modules (will be installed in container)
+backend/node_modules/
+frontend/node_modules/
+
+# Local database files
+*.sql
+backend/full_backup.sql
+backend/schema.sql
+backend/schema_for_dbeaver.sql
+
+# Repomix files
+repomix-*.xml
+repomix.*.json
+
+# Temporary files
+.DS_Store
+Thumbs.db

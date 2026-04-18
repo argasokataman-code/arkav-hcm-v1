@@ -1,4 +1,22 @@
-FROM tyomboreinz/php-npm
+# Use official PHP image with Node.js
+FROM php:8.2-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    nodejs \
+    npm \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 

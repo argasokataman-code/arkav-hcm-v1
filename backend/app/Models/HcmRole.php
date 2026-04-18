@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class HcmRole extends Model
 {
@@ -22,6 +24,19 @@ class HcmRole extends Model
         'company_id' => 'integer',
         'is_system' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (! Schema::hasColumn($record->getTable(), 'uuid')) {
+                return;
+            }
+
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     public function company(): BelongsTo
     {

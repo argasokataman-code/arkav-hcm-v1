@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class HcmPermission extends Model
 {
@@ -20,6 +22,19 @@ class HcmPermission extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (! Schema::hasColumn($record->getTable(), 'uuid')) {
+                return;
+            }
+
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     public function roles(): BelongsToMany
     {

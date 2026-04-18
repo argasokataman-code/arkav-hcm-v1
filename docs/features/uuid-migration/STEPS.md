@@ -2,10 +2,10 @@
 
 ## Status singkat
 
-Migrasi masih transisi.
+Cutover UUID core tables sudah selesai di database lokal.
 
 - Selesai mayoritas: penambahan/backfill kolom UUID dan relasi UUID tambahan.
-- Belum selesai: switch PK utama integer ke UUID di tabel inti.
+- Selesai final: switch PK utama integer ke UUID di tabel inti.
 
 Referensi bukti: [backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php](../../../backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php).
 
@@ -15,8 +15,8 @@ Referensi bukti: [backend/database/migrations/2026_04_18_130000_switch_pk_to_uui
 |------|--------|------------|
 | UUID column rollout | Done (majority) | Batch lintas domain sudah tersedia |
 | UUID FK rollout tambahan | Done (majority) | Hardening/catch-up sudah ditambahkan |
-| PK integer -> UUID cutover | Not done | Migration switch PK masih no-op |
-| Full UUID migration complete | Not done | Menunggu final cutover + verifikasi |
+| PK integer -> UUID cutover | Done | Migration final sudah dijalankan di database lokal |
+| Full UUID migration complete | In progress | Menunggu regression test / audit aplikasi bila diperlukan |
 
 ## Langkah eksekusi
 
@@ -41,7 +41,9 @@ Referensi bukti: [backend/database/migrations/2026_04_18_130000_switch_pk_to_uui
 3. Rebind FK child ke parent UUID.
 4. Rebuild index utama yang terdampak performa query.
 
-Catatan: migration [backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php](../../../backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php) belum menjalankan langkah ini dan masih checkpoint no-op.
+Catatan: migration final yang mengeksekusi fase ini sudah tersedia dan sudah dijalankan:
+- [backend/database/migrations/2026_04_26_170000_finalize_uuid_full_cutover_core_tables.php](../../../backend/database/migrations/2026_04_26_170000_finalize_uuid_full_cutover_core_tables.php)
+- [backend/database/migrations/2026_04_26_180000_add_uuid_primary_keys_to_company_users_and_hcm_user_roles.php](../../../backend/database/migrations/2026_04_26_180000_add_uuid_primary_keys_to_company_users_and_hcm_user_roles.php)
 
 ### Fase 3 - Sinkronisasi aplikasi
 

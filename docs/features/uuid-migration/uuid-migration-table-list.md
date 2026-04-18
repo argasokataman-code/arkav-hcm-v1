@@ -4,11 +4,11 @@ Tanggal pembaruan: 18 April 2026
 
 ## Ringkasan
 
-Status global: In progress (transitional).
+Status global: Core PK/FK cutover complete in local database.
 
 - Rollout kolom UUID: mayoritas selesai.
 - Rollout FK UUID tambahan: mayoritas selesai.
-- Final cutover PK integer ke UUID: belum dieksekusi.
+- Final cutover PK integer ke UUID: sudah dieksekusi untuk core tables target.
 
 ## Legend status
 
@@ -48,14 +48,16 @@ Status global: In progress (transitional).
 | 2026_04_18_130000_switch_pk_to_uuid_core_tables.php | Final PK cutover | Not done | Masih no-op/checkpoint, belum switch PK/FK |
 | 2026_04_24_000000_finalize_uuid_relations_for_billing_core_tables.php | Billing relation recovery | Done | Menutup gap relasi billing akibat urutan migrasi |
 | 2026_04_26_130000_fix_missing_uuid_relations_for_billing_parents.php | Billing relation recovery | Done | Fix relasi uuid parent billing yang tertinggal |
-| 2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php | Final core PK cutover | In progress | Implementasi switch PK ke uuid untuk core tables sudah tersedia, menunggu eksekusi migration + validasi lintas modul |
+| 2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php | Final core PK cutover | Done | PK cutover core tables pertama dijalankan sebagai checkpoint awal |
+| 2026_04_26_170000_finalize_uuid_full_cutover_core_tables.php | Final core PK/FK cutover | Done | Rebind inbound FK ke uuid dan swap PK core tables |
+| 2026_04_26_180000_add_uuid_primary_keys_to_company_users_and_hcm_user_roles.php | Final core PK tail cleanup | Done | Menyelesaikan sisa core tables yang belum punya uuid PK |
 
 ## Remaining work checklist
 
 | Item | Status | Notes |
 |---|---|---|
-| Final desain cutover PK/FK core tables | In progress | Perlu urutan drop/rebind FK yang aman |
-| Implement migration cutover non-no-op | In progress | Migration final core sudah ditambahkan, masih perlu run + verifikasi |
+| Final desain cutover PK/FK core tables | Done | Urutan drop/rebind FK sudah tervalidasi di database lokal |
+| Implement migration cutover non-no-op | Done | Migration final core sudah dijalankan |
 | Regression test pasca cutover | Not done | Wajib sebelum rollout produksi |
 | Audit model/service/query raw | In progress | Pastikan integer PK bukan identifier utama |
 | Sign-off dokumen closure | In progress | Sinkronkan README + STEPS + tracker ini |

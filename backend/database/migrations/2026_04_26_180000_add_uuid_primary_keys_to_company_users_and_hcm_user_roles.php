@@ -1,101 +1,58 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 return new class extends Migration
 {
-    /**
-     * Core tables selected for PK cutover.
-     *
-     * Notes:
-     * - We keep legacy integer id indexed for backward compatibility.
-     * - Existing legacy FKs to id can continue to work during transition.
-     */
-    private array $coreTables = [
-        'users',
-        'companies',
-        'employee_profiles',
-        'hcm_user_roles',
+    private array $tables = [
         'company_users',
+        'hcm_user_roles',
     ];
 
     public function up(): void
     {
-        if (! $this->supportsPrimaryKeyCutover()) {
+        if (! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
             return;
         }
 
-        foreach ($this->coreTables as $table) {
-            $this->switchPrimaryKeyToUuid($table);
+        foreach ($this->tables as $table) {
+            $this->ensureUuidColumn($table);
+            $this->backfillMissingUuids($table);
+            $this->assertNoNullUuids($table);
+            $this->assertNoDuplicateUuids($table);
+            $this->ensureIndex($table, 'id', $this->legacyIdIndexName($table));
+            $this->ensureUniqueIndex($table, 'uuid', $this->uuidUniqueIndexName($table));
+            $this->swapPrimaryKeyToUuid($table);
         }
     }
 
     public function down(): void
     {
-        if (! $this->supportsPrimaryKeyCutover()) {
+        // Forward-only migration.
+    }
+
+    private function ensureUuidColumn(string $table): void
+    {
+        if (Schema::hasColumn($table, 'uuid')) {
             return;
         }
 
-        foreach ($this->coreTables as $table) {
-            $this->switchPrimaryKeyBackToId($table);
-        }
+        Schema::table($table, function (Blueprint $blueprint): void {
+            $blueprint->uuid('uuid')->nullable()->after('id');
+        });
     }
 
-    private function supportsPrimaryKeyCutover(): bool
+    private function swapPrimaryKeyToUuid(string $table): void
     {
-        $driver = DB::getDriverName();
-
-        return in_array($driver, ['mysql', 'mariadb'], true);
-    }
-
-    private function switchPrimaryKeyToUuid(string $table): void
-    {
-        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'id') || ! Schema::hasColumn($table, 'uuid')) {
-            return;
-        }
-
         if ($this->getPrimaryKeyColumn($table) === 'uuid') {
             return;
         }
 
-        if ($this->hasInboundForeignKeyReferences($table, 'id')) {
-            return;
-        }
-
-        $this->backfillMissingUuids($table);
-        $this->assertNoNullUuids($table);
-        $this->assertNoDuplicateUuids($table);
-
-        // Ensure lookup/index for legacy integer id stays available after PK swap.
-        $this->ensureIndex($table, 'id', $this->legacyIdIndexName($table));
-
-        // UUID must be uniquely indexed before becoming PK.
-        $this->ensureUniqueIndex($table, 'uuid', $this->uuidUniqueIndexName($table));
-
         DB::statement("ALTER TABLE `{$table}` DROP PRIMARY KEY, ADD PRIMARY KEY (`uuid`)");
-    }
-
-    private function switchPrimaryKeyBackToId(string $table): void
-    {
-        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'id') || ! Schema::hasColumn($table, 'uuid')) {
-            return;
-        }
-
-        if ($this->getPrimaryKeyColumn($table) === 'id') {
-            return;
-        }
-
-        if ($this->hasInboundForeignKeyReferences($table, 'uuid')) {
-            return;
-        }
-
-        // Ensure id has key support before becoming PK again.
-        $this->ensureIndex($table, 'id', $this->legacyIdIndexName($table));
-
-        DB::statement("ALTER TABLE `{$table}` DROP PRIMARY KEY, ADD PRIMARY KEY (`id`)");
     }
 
     private function backfillMissingUuids(string $table): void
@@ -175,18 +132,6 @@ return new class extends Migration
         );
 
         return $row ? (string) $row->column_name : null;
-    }
-
-    private function hasInboundForeignKeyReferences(string $table, string $column): bool
-    {
-        $schemaName = DB::getDatabaseName();
-
-        $result = DB::selectOne(
-            'SELECT COUNT(*) AS total FROM information_schema.key_column_usage WHERE referenced_table_schema = ? AND referenced_table_name = ? AND referenced_column_name = ?',
-            [$schemaName, $table, $column]
-        );
-
-        return ((int) ($result->total ?? 0)) > 0;
     }
 
     private function uuidUniqueIndexName(string $table): string

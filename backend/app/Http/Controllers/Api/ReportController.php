@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
@@ -11,17 +12,16 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
+    use ChecksPermissions;
+
     /**
      * GET /v1/saas/reports/revenue
      * Get revenue report (monthly/yearly) - Admin only
      */
     public function revenue(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
-            return response()->json([
-                'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
-            ], 403);
+        if ($forbidden = $this->ensurePermission($request, 'report.view')) {
+            return $forbidden;
         }
 
         $period = $request->get('period', 'monthly'); // monthly, yearly
@@ -88,11 +88,8 @@ class ReportController extends Controller
      */
     public function aging(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
-            return response()->json([
-                'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
-            ], 403);
+        if ($forbidden = $this->ensurePermission($request, 'report.view')) {
+            return $forbidden;
         }
 
         $company_id = $request->get('company_id');
@@ -145,11 +142,8 @@ class ReportController extends Controller
      */
     public function churn(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
-            return response()->json([
-                'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
-            ], 403);
+        if ($forbidden = $this->ensurePermission($request, 'report.view')) {
+            return $forbidden;
         }
 
         $period = $request->get('period', 'monthly'); // monthly, yearly
@@ -224,12 +218,4 @@ class ReportController extends Controller
         };
     }
 
-    /**
-     * Check if user is HCM admin
-     */
-    private function isHcmAdmin(Request $request): bool
-    {
-        $user = $request->user();
-        return $user && $user->isHcmAdmin();
-    }
 }

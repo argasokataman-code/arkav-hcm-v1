@@ -20,9 +20,18 @@
       if (!document.getElementById("um_users_tbody")) {
         return;
       }
+      // Granular permission check
+      this.canManageUsers = window.AuthPermissions && window.AuthPermissions.hasPermission
+        ? window.AuthPermissions.hasPermission('users.manage')
+        : false;
       this.bindEvents();
       this.loadRoles();
       this.loadUsers();
+      // Hide create button if not allowed
+      var openCreateBtn = document.querySelector("[data-bs-target='#um_user_modal']");
+      if (openCreateBtn && !this.canManageUsers) {
+        openCreateBtn.classList.add('d-none');
+      }
     },
 
     bindEvents: function () {
@@ -97,22 +106,34 @@
 
       var form = document.getElementById("um_user_form");
       if (form) {
-        form.addEventListener("submit", function (e) {
-          e.preventDefault();
-          self.submitUserForm();
-        });
+        if (!self.canManageUsers) {
+          form.querySelectorAll('input,select,button').forEach(function(el){el.disabled=true;});
+        } else {
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            self.submitUserForm();
+          });
+        }
       }
 
       var assignRoleBtn = document.getElementById("um_assign_role_btn");
       if (assignRoleBtn) {
-        assignRoleBtn.addEventListener("click", function () {
-          self.assignRole();
-        });
+        if (!self.canManageUsers) {
+          assignRoleBtn.disabled = true;
+        } else {
+          assignRoleBtn.addEventListener("click", function () {
+            self.assignRole();
+          });
+        }
       }
 
       document.addEventListener("click", function (e) {
         var editBtn = e.target.closest("[data-um-edit]");
         if (editBtn) {
+          if (!self.canManageUsers) {
+            self.showAlert("You don't have permission to edit users.", "danger");
+            return;
+          }
           var id = Number(editBtn.getAttribute("data-um-edit"));
           self.openEditModal(id);
           return;
@@ -120,6 +141,10 @@
 
         var deactivateBtn = e.target.closest("[data-um-deactivate]");
         if (deactivateBtn) {
+          if (!self.canManageUsers) {
+            self.showAlert("You don't have permission to deactivate users.", "danger");
+            return;
+          }
           var uid = Number(deactivateBtn.getAttribute("data-um-deactivate"));
           self.deactivateUser(uid);
           return;
@@ -136,6 +161,10 @@
         var deleteBtn = e.target.closest("[data-um-delete]");
         if (deleteBtn) {
           e.preventDefault();
+          if (!self.canManageUsers) {
+            self.showAlert("You don't have permission to delete users.", "danger");
+            return;
+          }
           var deleteUid = Number(deleteBtn.getAttribute("data-um-delete"));
           self.deleteUser(deleteUid);
           return;
@@ -177,6 +206,9 @@
       }
       if (tenant.companyId) {
         headers["X-Company-Id"] = String(tenant.companyId);
+      }
+      if (tenant.companyUuid) {
+        headers["X-Company-UUID"] = String(tenant.companyUuid);
       }
 
       if (extraHeaders) {
@@ -645,6 +677,9 @@
       }
       if (tenant.companyId) {
         headers["X-Company-Id"] = String(tenant.companyId);
+      }
+      if (tenant.companyUuid) {
+        headers["X-Company-UUID"] = String(tenant.companyUuid);
       }
 
       fetch("/v1/hcm/user-management/users/export?" + params.toString(), {

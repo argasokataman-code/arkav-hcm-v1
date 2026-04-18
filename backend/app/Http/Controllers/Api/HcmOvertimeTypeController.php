@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmOvertimeType;
 use Illuminate\Http\JsonResponse;
@@ -11,12 +11,13 @@ use Illuminate\Support\Str;
 
 class HcmOvertimeTypeController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function index(Request $request): JsonResponse
     {
         $query = HcmOvertimeType::query()->orderBy('sort_order')->orderBy('name');
-        if (! $request->user()->isHcmAdmin()) {
+        $canManage = $this->hasPermission($request, 'attendance.manage');
+        if (! $canManage) {
             $query->where('is_active', true);
         }
 
@@ -27,7 +28,7 @@ class HcmOvertimeTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -67,7 +68,7 @@ class HcmOvertimeTypeController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -108,7 +109,7 @@ class HcmOvertimeTypeController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.manage');
         if ($forbidden) {
             return $forbidden;
         }

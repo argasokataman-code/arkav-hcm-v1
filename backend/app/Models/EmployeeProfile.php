@@ -7,19 +7,44 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 
 class EmployeeProfile extends Model
 {
     use AssignsUuid;
+
+    protected static function booted(): void
+    {
+        static::creating(function (EmployeeProfile $profile): void {
+            if (! $profile->company_id) {
+                $profile->company_id = $profile->resolveCompanyIdFromMembership();
+            }
+
+            $profile->syncUuidColumnsFromLegacyIds();
+        });
+
+        static::updating(function (EmployeeProfile $profile): void {
+            if (! $profile->company_id) {
+                $profile->company_id = $profile->resolveCompanyIdFromMembership();
+            }
+
+            $profile->syncUuidColumnsFromLegacyIds();
+        });
+    }
+
     protected $fillable = [
+        'uuid',
         'company_id',
+        'company_uuid',
         'user_id',
+        'user_uuid',
         'nik',
         'hire_date',
         'department_id',
         'designation_id',
         'manager_user_id',
+        'manager_user_uuid',
         'employment_status',
         'team',
         'designation',
@@ -53,7 +78,10 @@ class EmployeeProfile extends Model
     ];
 
     protected $casts = [
+        'uuid' => 'string',
         'company_id' => 'integer',
+        'company_uuid' => 'string',
+        'user_uuid' => 'string',
         'hire_date' => 'date',
         'date_of_birth' => 'date',
         'emergency_contacts' => 'array',
@@ -64,11 +92,55 @@ class EmployeeProfile extends Model
         'contract_start_date' => 'date',
         'contract_end_date' => 'date',
         'manager_user_id' => 'integer',
+        'manager_user_uuid' => 'string',
         'province_id' => 'integer',
         'regency_id' => 'integer',
         'district_id' => 'integer',
         'village_id' => 'integer',
     ];
+
+    private function syncUuidColumnsFromLegacyIds(): void
+    {
+        if (Schema::hasColumn($this->getTable(), 'user_uuid') && ! $this->user_uuid && $this->user_id) {
+            $this->user_uuid = (string) (User::query()->where('id', $this->user_id)->value('uuid') ?? '');
+        }
+
+        if (Schema::hasColumn($this->getTable(), 'company_uuid') && ! $this->company_uuid && $this->company_id) {
+            $this->company_uuid = (string) (Company::query()->where('id', $this->company_id)->value('uuid') ?? '');
+        }
+
+        if (Schema::hasColumn($this->getTable(), 'manager_user_uuid') && ! $this->manager_user_uuid && $this->manager_user_id) {
+            $this->manager_user_uuid = (string) (User::query()->where('id', $this->manager_user_id)->value('uuid') ?? '');
+        }
+    }
+
+    private function resolveCompanyIdFromMembership(): ?int
+    {
+        if (! $this->user_id) {
+            return $this->resolveDefaultCompanyId();
+        }
+
+        $companyId = CompanyUser::query()
+            ->where('user_id', $this->user_id)
+            ->where('status', 'active')
+            ->orderBy('company_id')
+            ->value('company_id');
+
+        if ($companyId) {
+            return (int) $companyId;
+        }
+
+        return $this->resolveDefaultCompanyId();
+    }
+
+    private function resolveDefaultCompanyId(): ?int
+    {
+        $companyId = Company::query()
+            ->where('code', 'default_company')
+            ->value('id');
+
+        return $companyId ? (int) $companyId : null;
+    }
 
     public function user(): BelongsTo
     {

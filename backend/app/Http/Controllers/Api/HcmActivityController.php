@@ -12,9 +12,41 @@ use Illuminate\Http\Request;
 
 class HcmActivityController extends Controller
 {
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function canViewActivity(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('dashboard.view', $companyId)
+            || $user->hasPermissionForCompany('report.view', $companyId)
+            || $user->hasPermissionForCompany('attendance.admin', $companyId);
+    }
+
+    private function canManageManualActivity(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('settings.manage', $companyId)
+            || $user->hasPermissionForCompany('attendance.admin', $companyId);
+    }
+
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canViewActivity($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -273,7 +305,7 @@ class HcmActivityController extends Controller
 
     public function storeManual(Request $request): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageManualActivity($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -322,7 +354,7 @@ class HcmActivityController extends Controller
 
     public function updateManual(Request $request, int $id): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageManualActivity($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -370,7 +402,7 @@ class HcmActivityController extends Controller
 
     public function destroyManual(Request $request, int $id): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageManualActivity($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [

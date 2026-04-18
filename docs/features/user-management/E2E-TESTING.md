@@ -60,13 +60,31 @@ Memastikan fitur user-role-permission berjalan aman dan sesuai role boundary.
 - API check:
 	- `GET /v1/hcm/user-management/users/export?format=csv` → `200`
 
-## Scenario 5 - Permission Boundary Non-admin
+## Scenario 5 - Permission Boundary Non-admin (POST Users)
 
-1. Login non-admin
-2. Akses endpoint mutasi role/permission
+1. Login non-admin user (role: `employee`, no `user.manage` permission)
+2. Buka dev console atau Postman
+3. Execute: `POST /v1/hcm/user-management/users` dengan body minimal
+4. Expected:
+- Response status: **403**
+- Response body: `{ "success": false, "error": { "code": "PERMISSION_DENIED", ... } }`
+- UI tidak menampilkan tombol "Create User"
+
+## Scenario 5b - Permission Boundary Non-admin (DELETE Role)
+
+1. Non-admin user tetap login
+2. Execute: `DELETE /v1/hcm/user-management/roles/{id}`
 3. Expected:
-- response `403`
-- UI tidak menampilkan tombol mutasi
+- Response status: **403**
+- Response body: `{ "success": false, "error": { "code": "PERMISSION_DENIED", ... } }`
+
+## Scenario 5c - Permission Boundary Non-admin (Assign/Revoke Role)
+
+1. Non-admin user tetap login
+2. Execute: `POST /v1/hcm/user-management/users/{id}/roles` dengan body `{ "roleId": ... }`
+3. Expected:
+- Response status: **403**
+- Response body: `{ "success": false, "error": { "code": "PERMISSION_DENIED", ... } }`
 
 ## Scenario 6 - Tenant Isolation
 
@@ -74,8 +92,30 @@ Memastikan fitur user-role-permission berjalan aman dan sesuai role boundary.
 2. Expected:
 - `403 TENANT_FORBIDDEN`
 
+## Scenario 8 - SaaS Admin Operations (Global Admin Only)
+
+1. Login non-global-admin user (company admin role)
+2. Execute: `POST /v1/saas/domains` dengan body domain baru
+3. Expected:
+- Response status: **403**
+- Response body: `{ "success": false, "error": { "code": "ADMIN_REQUIRED", ... } }`
+
+## Scenario 9 - Backend Authorization Trait Validation
+
+**Objective:** Verify `ChecksPermissions` trait methods return correct 403 for unprivileged users
+
+1. Login non-admin (no `performance.manage`)
+2. Execute API calls touching permission-gated endpoints:
+   - `POST /v1/hcm/performance-cycles` (requires `performance.manage`)
+   - `POST /v1/hcm/performance-reviews` (requires `performance.manage`)
+3. Expected:
+- All requests return **403 PERMISSION_DENIED**
+- Audit logs show deny attempts (if audit enabled)
+
 ## Exit Criteria
 
-- Semua skenario pass
-- Tidak ada privilege escalation
-- Audit minimal untuk assign/revoke tercatat
+- ✓ Semua skenario pass
+- ✓ Tidak ada privilege escalation
+- ✓ Audit minimal untuk assign/revoke tercatat
+- ✓ Permission boundary enforced at API level (403 responses validated)
+- ✓ Backend trait (ChecksPermissions) working correctly per controller

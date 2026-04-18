@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\EmployeeProfile;
@@ -26,7 +26,7 @@ use Illuminate\Http\Request;
 
 class HcmDashboardController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const EMPLOYEE_TARGET_DAILY_MINUTES = 8 * 60;
 
@@ -50,7 +50,7 @@ class HcmDashboardController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'dashboard.view')) {
             return $forbidden;
         }
 

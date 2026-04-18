@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Setting;
 use App\Support\WebsiteSettings;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,8 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
+    use ChecksPermissions;
+
     private function apiSuccess(array $data = [], ?string $message = null, int $status = 200): JsonResponse
     {
         $payload = ['success' => true, 'data' => $data];
@@ -34,28 +37,13 @@ class SettingsController extends Controller
         ], $status);
     }
 
-    private function ensureHcmAdmin(Request $request): ?JsonResponse
-    {
-        $user = $request->user();
-
-        if (! $user) {
-            return $this->apiError('AUTH_UNAUTHORIZED', 'Authentication required.', 401);
-        }
-
-        if (! $user->isHcmAdmin()) {
-            return $this->apiError('AUTH_FORBIDDEN', 'Only HCM admin can manage settings.', 403);
-        }
-
-        return null;
-    }
-
     /**
      * Get all settings by group
      * GET /api/settings?group=prefix
      */
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 
@@ -70,10 +58,7 @@ class SettingsController extends Controller
             default => Setting::getByGroup($group),
         };
         
-        return $this->apiSuccess([
-            'group' => $group,
-            'settings' => $settings,
-        ]);
+        return $this->apiSuccess($settings);
     }
 
     /**
@@ -83,7 +68,7 @@ class SettingsController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 
@@ -101,11 +86,18 @@ class SettingsController extends Controller
             $saved[$key] = $value;
         }
 
+        $responseSettings = match ($group) {
+            'prefix' => WebsiteSettings::allPrefixSettings(),
+            'localization' => WebsiteSettings::allLocalizationSettings(),
+            'business' => array_merge(
+                WebsiteSettings::allBusinessSettings(),
+                WebsiteSettings::allBusinessBrandingPaths(),
+            ),
+            default => $saved,
+        };
+
         return $this->apiSuccess(
-            [
-                'group' => $group,
-                'settings' => $saved,
-            ],
+            $responseSettings,
             "Settings for group '{$group}' saved successfully"
         );
     }
@@ -116,7 +108,7 @@ class SettingsController extends Controller
      */
     public function show(Request $request, string $key): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 
@@ -138,7 +130,7 @@ class SettingsController extends Controller
      */
     public function update(Request $request, string $key): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 
@@ -165,7 +157,7 @@ class SettingsController extends Controller
      */
     public function destroy(Request $request, string $key): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 
@@ -186,7 +178,7 @@ class SettingsController extends Controller
      */
     public function upload(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
             return $forbidden;
         }
 

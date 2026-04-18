@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class HcmEmployeePayrollItemAssignment extends Model
@@ -11,6 +12,10 @@ class HcmEmployeePayrollItemAssignment extends Model
     protected static function booted(): void
     {
         static::creating(function (self $model): void {
+            if (! Schema::hasColumn($model->getTable(), 'uuid')) {
+                return;
+            }
+
             if (empty($model->uuid)) {
                 $model->uuid = (string) Str::uuid();
             }

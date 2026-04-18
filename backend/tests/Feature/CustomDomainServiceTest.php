@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\CustomDomain;
+use App\Models\Domain;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -71,15 +71,17 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_can_list_domains_with_pagination()
     {
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app1.example.com',
+            'domain_name' => 'app1.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app2.example.com',
+            'domain_name' => 'app2.example.com',
+            'verification_type' => 'dns',
             'status' => 'pending',
         ]);
 
@@ -92,31 +94,32 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_can_show_domain_details()
     {
-        $domain = CustomDomain::create([
+        $domain = Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
         $response = $this->adminRequest()->getJson("/v1/saas/domains/{$domain->id}");
 
         $response->assertStatus(200);
-        $this->assertEquals('app.example.com', $response->json('data.domain'));
+        $this->assertEquals('app.example.com', $response->json('data.domainName'));
     }
 
     public function test_admin_can_create_domain()
     {
         $response = $this->adminRequest()->postJson('/v1/saas/domains', [
             'company_id' => $this->company->id,
-            'domain' => 'newapp.example.com',
-            'verification_method' => 'dns',
+            'domain_name' => 'newapp.example.com',
+            'verification_type' => 'dns',
             'notes' => 'Production domain',
         ]);
 
         $response->assertStatus(201);
         $this->assertTrue($response->json('success'));
-        $this->assertDatabaseHas('custom_domains', [
-            'domain' => 'newapp.example.com',
+        $this->assertDatabaseHas('domains', [
+            'domain_name' => 'newapp.example.com',
         ]);
     }
 
@@ -124,8 +127,8 @@ class CustomDomainServiceTest extends TestCase
     {
         $response = $this->userRequest()->postJson('/v1/saas/domains', [
             'company_id' => $this->company->id,
-            'domain' => 'newapp.example.com',
-            'verification_method' => 'dns',
+            'domain_name' => 'newapp.example.com',
+            'verification_type' => 'dns',
         ]);
 
         $response->assertStatus(403);
@@ -134,11 +137,11 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_admin_can_update_domain()
     {
-        $domain = CustomDomain::create([
+        $domain = Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
             'status' => 'pending',
-            'verification_method' => 'dns',
+            'verification_type' => 'dns',
             'notes' => 'Old note',
         ]);
 
@@ -153,42 +156,44 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_admin_can_delete_domain()
     {
-        $domain = CustomDomain::create([
+        $domain = Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
         $response = $this->adminRequest()->deleteJson("/v1/saas/domains/{$domain->id}");
 
         $response->assertStatus(200);
-        $this->assertSoftDeleted('custom_domains', ['id' => $domain->id]);
+        $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
     }
 
     public function test_verify_domain_endpoint()
     {
-        $domain = CustomDomain::create([
+        $domain = Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
             'status' => 'pending',
-            'verification_method' => 'dns',
+            'verification_type' => 'dns',
         ]);
 
         $response = $this->adminRequest()->postJson("/v1/saas/domains/{$domain->id}/verify");
 
         $response->assertStatus(200);
-        $this->assertDatabaseHas('domain_verification_logs', [
-            'domain_id' => $domain->id,
+        $this->assertDatabaseHas('domains', [
+            'id' => $domain->id,
+            'status' => 'verified',
         ]);
     }
 
     public function test_non_admin_cannot_verify_domain()
     {
-        $domain = CustomDomain::create([
+        $domain = Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
             'status' => 'pending',
-            'verification_method' => 'dns',
+            'verification_type' => 'dns',
         ]);
 
         $response = $this->userRequest()->postJson("/v1/saas/domains/{$domain->id}/verify");
@@ -199,16 +204,17 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_cannot_create_duplicate_domain()
     {
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
+            'domain_name' => 'app.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
         $response = $this->adminRequest()->postJson('/v1/saas/domains', [
             'company_id' => $this->company->id,
-            'domain' => 'app.example.com',
-            'verification_method' => 'dns',
+            'domain_name' => 'app.example.com',
+            'verification_type' => 'dns',
         ]);
 
         $response->assertStatus(422);
@@ -216,15 +222,17 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_can_filter_domains_by_status()
     {
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app1.example.com',
+            'domain_name' => 'app1.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'app2.example.com',
+            'domain_name' => 'app2.example.com',
+            'verification_type' => 'dns',
             'status' => 'pending',
         ]);
 
@@ -237,22 +245,24 @@ class CustomDomainServiceTest extends TestCase
 
     public function test_can_search_domains_by_name()
     {
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'staging.example.com',
+            'domain_name' => 'staging.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
-        CustomDomain::create([
+        Domain::create([
             'company_id' => $this->company->id,
-            'domain' => 'prod-app.example.com',
+            'domain_name' => 'prod-app.example.com',
+            'verification_type' => 'dns',
             'status' => 'verified',
         ]);
 
-        $response = $this->adminRequest()->getJson('/v1/saas/domains?domain=staging');
+        $response = $this->adminRequest()->getJson('/v1/saas/domains?search=staging');
 
         $response->assertStatus(200);
         $this->assertCount(1, $response->json('data'));
-        $this->assertStringContainsString('staging', $response->json('data.0.domain'));
+        $this->assertStringContainsString('staging', $response->json('data.0.domainName'));
     }
 }

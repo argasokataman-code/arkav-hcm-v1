@@ -1998,7 +1998,7 @@
 
         requestAuthMe()
             .then(function (me) {
-                if (!me || !me.success || !me.data || !me.data.hcmAdmin) {
+                if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['employee.view']) {
                     window.location.replace("/employee-dashboard");
                     return null;
                 }
@@ -2059,7 +2059,7 @@
         }
         requestAuthMe()
             .then(function (me) {
-                if (!me || !me.success || !me.data || !me.data.hcmAdmin) {
+                if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['employee.view']) {
                     window.location.replace("/employee-dashboard");
                     return null;
                 }

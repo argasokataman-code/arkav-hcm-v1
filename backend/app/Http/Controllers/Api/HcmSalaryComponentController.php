@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
@@ -13,11 +13,11 @@ use Illuminate\Validation\Rule;
 
 class HcmSalaryComponentController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function index(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -47,7 +47,7 @@ class HcmSalaryComponentController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -62,7 +62,7 @@ class HcmSalaryComponentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -161,7 +161,7 @@ class HcmSalaryComponentController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -298,7 +298,7 @@ class HcmSalaryComponentController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
         if ($forbidden) {
             return $forbidden;
         }

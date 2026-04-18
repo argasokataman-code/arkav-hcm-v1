@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Hcm;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -17,14 +20,68 @@ class DashboardSummaryTenantScopeTest extends TestCase
      */
     public function test_dashboard_summary_is_company_scoped()
     {
-        // Arrange: Find or create user
-        $user = User::where('email', 'wismilak@mail.com')->first();
-        $this->assertNotNull($user, 'User wismilak@mail.com not found');
-        $companyId = $user->employeeProfile->company_id ?? null;
-        $this->assertNotNull($companyId, 'User has no company_id');
+        $companyA = Company::factory()->create();
+        $companyB = Company::factory()->create();
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Scoped Admin',
+            'email' => 'dashboard-scope-admin@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $adminUser = User::query()->where('email', 'dashboard-scope-admin@example.com')->firstOrFail();
+        CompanyUser::query()->create([
+            'company_id' => $companyA->id,
+            'user_id' => $adminUser->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $adminUser->id],
+            [
+                'company_id' => $companyA->id,
+                'designation' => 'HR Admin',
+                'employment_status' => 'active',
+            ]
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'dashboard-scope-admin@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+        $token = (string) $login->json('data.accessToken');
+
+        $companyAUser1 = User::factory()->create();
+        EmployeeProfile::query()->create([
+            'user_id' => $companyAUser1->id,
+            'company_id' => $companyA->id,
+            'designation' => 'Staff',
+            'employment_status' => 'active',
+        ]);
+
+        $companyAUser2 = User::factory()->create();
+        EmployeeProfile::query()->create([
+            'user_id' => $companyAUser2->id,
+            'company_id' => $companyA->id,
+            'designation' => 'Staff',
+            'employment_status' => 'inactive',
+        ]);
+
+        $companyBUser = User::factory()->create();
+        EmployeeProfile::query()->create([
+            'user_id' => $companyBUser->id,
+            'company_id' => $companyB->id,
+            'designation' => 'Staff',
+            'employment_status' => 'active',
+        ]);
 
         // Act: Hit dashboard summary endpoint as this user
-        $response = $this->actingAs($user)->getJson('/v1/hcm/dashboard-summary');
+        $response = $this->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+                'X-Company-Id' => (string) $companyA->id,
+            ])
+            ->getJson('/v1/hcm/dashboard-summary');
         $response->assertStatus(200);
         $data = $response->json('data.executive');
 
@@ -36,10 +93,10 @@ class DashboardSummaryTenantScopeTest extends TestCase
         $this->assertArrayHasKey('inactiveEmployees', $data);
 
         // Optionally: Check that the numbers match the DB for this company
-        $dbTotal = \App\Models\EmployeeProfile::where('company_id', $companyId)->count();
-        $dbActive = \App\Models\EmployeeProfile::where('company_id', $companyId)
+        $dbTotal = EmployeeProfile::where('company_id', $companyA->id)->count();
+        $dbActive = EmployeeProfile::where('company_id', $companyA->id)
             ->whereIn('employment_status', ['active', 'probation'])->count();
-        $dbInactive = \App\Models\EmployeeProfile::where('company_id', $companyId)
+        $dbInactive = EmployeeProfile::where('company_id', $companyA->id)
             ->where('employment_status', 'inactive')->count();
 
         $this->assertEquals($dbTotal, $data['totalEmployees'], 'Total employee mismatch');

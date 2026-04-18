@@ -201,9 +201,7 @@ Route::get('/company/invoices', function () {
     return view('company.invoices');
 })->name('company.invoices');
 
-Route::middleware('api.token')->group(function () {
-    Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
-});
+Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
 
 Route::get('/companies', function () {
     return view('companies');

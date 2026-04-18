@@ -900,7 +900,7 @@
 
         if (pathMatches(path, "/departments")) {
             return apiGet("/v1/identity/auth/me").then(function (me) {
-                if (!(me && me.success && me.data && me.data.hcmAdmin)) {
+                if (!(me && me.success && me.data && me.data.permissions && me.data.permissions['department.manage'])) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -910,7 +910,7 @@
         }
         if (pathMatches(path, "/designations")) {
             return apiGet("/v1/identity/auth/me").then(function (me) {
-                if (!(me && me.success && me.data && me.data.hcmAdmin)) {
+                if (!(me && me.success && me.data && me.data.permissions && me.data.permissions['designation.manage'])) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -930,7 +930,7 @@
         }
         if (pathMatches(path, "/policy")) {
             return apiGet("/v1/identity/auth/me").then(function (me) {
-                if (!(me && me.success && me.data && me.data.hcmAdmin)) {
+                if (!(me && me.success && me.data && me.data.permissions && me.data.permissions['policy.manage'])) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }

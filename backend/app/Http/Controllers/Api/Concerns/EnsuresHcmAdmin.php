@@ -27,8 +27,8 @@ trait EnsuresHcmAdmin
         return response()->json([
             'success' => false,
             'error' => [
-                'code' => 'AUTH_FORBIDDEN',
-                'message' => 'Forbidden.',
+                'code' => 'ADMIN_REQUIRED',
+                'message' => 'Admin access required.',
             ],
         ], 403);
     }

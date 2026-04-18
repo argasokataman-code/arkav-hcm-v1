@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmTermination;
 use App\Models\User;
@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class HcmTerminationController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const STATUSES = ['pending', 'approved', 'cancelled'];
 
@@ -29,7 +29,7 @@ class HcmTerminationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'termination.view')) {
             return $forbidden;
         }
 
@@ -116,7 +116,7 @@ class HcmTerminationController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $t->user_id) {
+        if (! $this->canManageTermination($request) && (int) $auth->id !== (int) $t->user_id) {
             return $this->terminationForbidden();
         }
 
@@ -140,7 +140,7 @@ class HcmTerminationController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
+        if (! $this->canManageTermination($request) && (int) $auth->id !== (int) $userId) {
             return $this->terminationForbidden();
         }
 
@@ -172,7 +172,7 @@ class HcmTerminationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
             return $forbidden;
         }
 
@@ -217,7 +217,7 @@ class HcmTerminationController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
             return $forbidden;
         }
 
@@ -314,7 +314,7 @@ class HcmTerminationController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
             return $forbidden;
         }
 
@@ -351,5 +351,10 @@ class HcmTerminationController extends Controller
             'notes' => $t->notes ?? '',
             'createdAt' => $t->created_at?->toIso8601String(),
         ];
+    }
+
+    private function canManageTermination(Request $request): bool
+    {
+        return $this->hasAnyPermission($request, ['termination.manage', 'termination.view']);
     }
 }

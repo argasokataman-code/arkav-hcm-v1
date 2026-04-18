@@ -19,7 +19,13 @@ class BulkPaymentImportController extends Controller
     {
         // Validate admin access
         if (!$this->isHcmAdmin($request)) {
-            return response()->json(['success' => false, 'error' => 'Unauthorized'], 403);
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADMIN_REQUIRED',
+                    'message' => 'Admin access required.',
+                ],
+            ], 403);
         }
 
         $request->validate([
@@ -134,6 +140,6 @@ class BulkPaymentImportController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        return $user && $user->isHcmAdmin();
+        return $user && $user->isGlobalHcmAdmin();
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollLine;
@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReconciliationExportController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly ReconciliationExportService $exportService,
@@ -29,7 +29,7 @@ class ReconciliationExportController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'payroll.view')) {
             return $response;
         }
 
@@ -308,7 +308,7 @@ class ReconciliationExportController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'payroll.view')) {
             return $response;
         }
 
@@ -372,7 +372,7 @@ class ReconciliationExportController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'payroll.view')) {
             return $response;
         }
 

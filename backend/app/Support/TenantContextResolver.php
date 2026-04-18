@@ -12,6 +12,7 @@ final class TenantContextResolver
     public function resolve(Request $request, User $user): array
     {
         $requestedCompanyId = $this->requestedCompanyId($request);
+        $requestedCompanyUuid = $this->requestedCompanyUuid($request);
         $requestedCompanyCode = $this->requestedCompanyCode($request);
 
         $membershipQuery = CompanyUser::query()
@@ -29,6 +30,23 @@ final class TenantContextResolver
             }
 
             return ['membership' => $membership, 'company' => $membership->company];
+        }
+
+        if ($requestedCompanyUuid !== null) {
+            $company = Company::query()->where('uuid', $requestedCompanyUuid)->first();
+            if (! $company) {
+                return ['error' => 'TENANT_FORBIDDEN'];
+            }
+
+            $membership = (clone $membershipQuery)
+                ->where('company_id', $company->id)
+                ->first();
+
+            if (! $membership) {
+                return ['error' => 'TENANT_FORBIDDEN'];
+            }
+
+            return ['membership' => $membership, 'company' => $company];
         }
 
         if ($requestedCompanyCode !== null) {
@@ -72,6 +90,13 @@ final class TenantContextResolver
     private function requestedCompanyCode(Request $request): ?string
     {
         $raw = trim((string) $request->header('X-Company-Code', ''));
+
+        return $raw !== '' ? $raw : null;
+    }
+
+    private function requestedCompanyUuid(Request $request): ?string
+    {
+        $raw = trim((string) $request->header('X-Company-UUID', ''));
 
         return $raw !== '' ? $raw : null;
     }

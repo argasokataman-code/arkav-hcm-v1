@@ -6,6 +6,83 @@
 
 ---
 
+
+## Progress: Files Sudah Terkonfigurasi ke Backend-Configurable Permission
+
+**Per 18 April 2026, file berikut sudah dipindahkan dari flag admin statis ke permission granular dari backend:**
+
+- `subscriptions-management.js` → `subscription.manage`
+- `users-management.js` → `users.manage`
+- `roles-permissions.js` → `roles.manage`
+- `payslip-admin-data.js` → `payroll.view`
+- `payslip-data.js` → `payroll.view`
+- `resignation-data.js` → `resignation.view`
+- `employee-dashboard-data.js` → tanpa `hcmAdmin` hardcode; akses data tetap lewat API auth
+- `employees-data.js` → `employee.view`
+- `payroll-items-data.js` → `payroll.view` + `handleForbiddenFromApi`
+- `hcm-pages-data.js` → `department.manage`, `designation.manage`, `policy.manage`
+- `profile-settings-data.js` → auth + penanganan 401/403 pada settings
+- `tickets-data.js` → `tickets.manage`/`ticket.admin` + handler 403
+- `auth-permissions-utils.js` → tidak lagi mengekspor `isHcmAdmin`
+- `utils/authorization.js` → tidak lagi mengekspose `isHcmAdmin`
+- `training-data.js` → `training.manage`
+- `employee-salary-data.js` → `payroll.view`
+- `hcm-extras-data.js` → `holiday.view`, `leave.view`, `overtime.view`
+- `/v1/identity/auth/me` now returns `permissions` and `permissionCodes` for the current company context
+
+**Catatan:**
+- `performance-data.js`, `goal-data.js`, dan `activity-data.js` tetap menjadi contoh pola yang baik untuk permission/flag server-computed.
+- Sisa validasi yang paling penting sekarang adalah test backend 403/401, bukan lagi pembersihan flag admin di frontend.
+
+### Backend verification evidence
+
+- `HcmSubscriptionCheckoutController` memakai `subscription.manage`
+- `HcmEmployeeController` memakai `employee.manage`
+- `HcmPayrollRunController`, `HcmPayrollItemController`, `HcmPayrollPeriodController`, `HcmPayrollThrController`, `HcmPayrollThrBatchController`, `HcmPayrollItemAssignmentController`, `HcmPayrollPkwtCompensationController`, `HcmSalaryComponentController`, `ReconciliationExportController` memakai `payroll.view` / `payroll.manage` / `payroll.finalize` / `payroll.disburse`
+- `HcmResignationController` memakai `resignation.view` dan `resignation.manage`
+- `HcmHolidayController` memakai `holiday.view`, `holiday.create`, `holiday.update`, `holiday.sync`
+- `HcmHolidayController::destroy(...)` sudah pakai `holiday.update` (tidak lagi `ensureHcmAdmin`)
+- `HcmDashboardController` memakai `dashboard.view`
+- `SettingsController` memakai `settings.manage`
+- `ReportController` memakai `report.view`
+- `HcmUserManagementController` sudah kompatibel dengan kode granular (`user.*`, `role.*`) via guard `ensureAnyPermission(...)` agar tidak mismatch dengan seeder
+- `HcmPerformanceController` syntax fix selesai dan mutating endpoints memakai `performance.manage`
+- `HcmLeaveRequestController` tidak lagi mengandalkan `isHcmAdmin()` langsung untuk alur admin-scope; kini memakai helper permission-based `canManageLeaveForCompany(...)`
+- `HcmTicketController` tidak lagi mengandalkan `isHcmAdmin()` langsung; kini memakai helper permission-based `canManageTickets(...)`
+- `AttendanceController` sudah dipindahkan ke `ChecksPermissions` dan endpoint admin sekarang memakai kode granular: `attendance.admin`, `attendance.update`, `timesheet.view`, `schedule.view`, `schedule.manage`
+- `HcmOvertimeRequestController` tidak lagi mengandalkan `isHcmAdmin()` langsung; kini memakai helper permission-based `canViewTeamOvertime(...)` dan `canManageOvertime(...)`
+- `HcmActivityController` tidak lagi mengandalkan `isHcmAdmin()` langsung; kini memakai helper permission-based `canViewActivity(...)` dan `canManageManualActivity(...)`
+- `HcmShiftController` tidak lagi memakai `ensureHcmAdmin(...)`; kini memakai `ensurePermission('schedule.view')` untuk list dan `ensurePermission('schedule.manage')` untuk mutasi
+- `HcmOvertimeTypeController` visibilitas data aktif/nonaktif kini berbasis `attendance.manage` (bukan `isHcmAdmin()` langsung)
+- `HcmEmailSettingsController`, `SaasCompanyBillingOverviewController`, `PurchaseTransactionController`, dan `CustomDomainController` sudah memakai sinyal global admin eksplisit (`isGlobalHcmAdmin`)
+- `SubscriptionController` mutasi subscription (`store/update/destroy/renew`) kini konsisten lewat helper `isHcmAdmin(...)` yang memakai `isGlobalHcmAdmin()`
+- `TransactionController` helper `isHcmAdmin(...)` kini memakai `isGlobalHcmAdmin()` (menghapus ketergantungan `is_super_admin` flag langsung)
+- `CompanyController` direct check `user->isHcmAdmin()` sudah dipusatkan ke helper `isHcmAdmin(...)` berbasis `isGlobalHcmAdmin()`
+- `HcmEmployeeController` direct branch `auth->isHcmAdmin()` untuk alur update/show/upload-photo sudah diganti ke helper permission-based `canManageEmployee(...)`
+- `HcmTrainingController` direct admin check pada `types/trainings/trainers/trainingsForUser` sudah diganti ke helper permission-based `canManageTraining(...)`
+- `HcmPromotionController` akses lintas-user (`show`, `promotionsForUser`) tidak lagi langsung cek `isHcmAdmin()`, kini memakai helper permission-based `canManagePromotion(...)`
+- `HcmTerminationController` akses lintas-user (`show`, `terminationsForUser`) tidak lagi langsung cek `isHcmAdmin()`, kini memakai helper permission-based `canManageTermination(...)`
+- `InvoiceController`, `PaymentController`, `DomainController` memakai sinyal global admin eksplisit (`isGlobalHcmAdmin`) untuk endpoint SaaS global
+- `HcmPerformanceController` stage-7 (18 April 2026): 5 direct `isHcmAdmin()` call sites diganti dengan permission-based helper:
+  - Added `canManagePerformance()` helper untuk simple `performance.manage` check
+  - Added `canAccessReview()` helper untuk nuanced review access (admin OR owner OR manager)
+  - Patched `storeGoal()`: Replace direct `$auth?->isHcmAdmin()` → `$this->canManagePerformance()`
+  - Patched `updateGoal()`: Replace direct `$auth?->isHcmAdmin()` → `$this->canManagePerformance()` 
+  - Patched `destroyGoal()`: Replace direct `$auth?->isHcmAdmin()` → `$this->canManagePerformance()`
+  - Patched `reviews()`: Replace direct `$user?->isHcmAdmin()` → `$this->canManagePerformance()` for scope='all' validation
+  - Patched `showReview()`: Replace complex 3-way check (`$isAdmin && $isOwner && $isManager`) → `$this->canAccessReview($request, $review)`
+  - Validation: PHP lint all 4 files (Performance/Invoice/Payment/Domain) → **No syntax errors detected**
+  - Validation: Diagnostics all 4 files → **No errors found**
+  - Validation: Pattern residual `isHcmAdmin(` in HcmPerformanceController → **Zero matches** ✓
+- `HcmUserManagementSeeder.php` menegaskan permission codes granular untuk `training.manage`, `resignation.manage`, `ticket.view`, `payroll.view`, `employee.manage`, `department.manage`, `designation.manage`, `policy.manage`
+
+### Still admin-only by backend design
+
+- `PackageController` tetap global admin-only untuk operasi SaaS package management (bukan tenant-role endpoint), kini pakai respon `ADMIN_REQUIRED` konsisten.
+- `BulkPaymentImportController` tetap global admin-only untuk impor pembayaran massal SaaS, dan kini pakai respon `ADMIN_REQUIRED` konsisten.
+- `InvoiceController`, `PaymentController`, `DomainController` tetap global admin-only untuk mutasi SaaS billing/domain, namun sudah memakai global-admin signal eksplisit agar tidak tercampur tenant-admin.
+
+---
 ## Executive Summary
 
 The frontend uses **UI-level role checks** (showing/hiding buttons based on `hcmAdmin`, `isOwner`, `isManager`, `isAdmin`) across multiple files. **The backend is expected to be the source of truth** for authorization (per [governance rules](docs/planning/active-hcm-templates-and-permissions.md)), but several issues suggest inconsistent patterns and potential gaps:

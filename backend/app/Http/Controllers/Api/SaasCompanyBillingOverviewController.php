@@ -119,7 +119,7 @@ class SaasCompanyBillingOverviewController extends Controller
     {
         $user = $request->user();
 
-        return $user ? $user->isHcmAdmin() : false;
+        return $user ? $user->isGlobalHcmAdmin() : false;
     }
 }
 

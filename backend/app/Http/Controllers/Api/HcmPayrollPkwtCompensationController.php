@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 
 class HcmPayrollPkwtCompensationController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly PkwtCompensationService $pkwtCompensationService,
@@ -22,7 +22,7 @@ class HcmPayrollPkwtCompensationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -54,7 +54,7 @@ class HcmPayrollPkwtCompensationController extends Controller
 
     public function postPayroll(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -106,7 +106,7 @@ class HcmPayrollPkwtCompensationController extends Controller
 
     public function calculate(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 

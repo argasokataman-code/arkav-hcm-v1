@@ -59,7 +59,7 @@
   async function ensureSelfPayslipAudience() {
     try {
       const payload = await apiGet('/v1/identity/auth/me');
-      if (payload?.success && payload?.data?.hcmAdmin) {
+      if (payload?.success && payload?.data?.permissions?.['payroll.view']) {
         window.location.assign('/payslip-report');
         return false;
       }

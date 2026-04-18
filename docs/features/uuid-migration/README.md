@@ -1,89 +1,63 @@
 # UUID Migration Summary & Integration Report
 
-**Tanggal:** 18 April 2026
+Tanggal pembaruan: 18 April 2026
 
-## 1. Scope & Objective
-Migrasi seluruh primary key dan foreign key utama di database dari integer (auto-increment) ke UUID (Universally Unique Identifier) dengan auto-generation dan validasi anti-collision. Semua relasi antar tabel (FK) harus ikut diubah ke UUID agar integritas data tetap terjaga.
+## Status saat ini
 
-## 2. Checklist Tabel & Status
+Migrasi UUID belum final complete.
 
-| Table | Status | Foreign Keys | Catatan |
-|-------|--------|--------------|---------|
-| users | Done | sessions.user_id, employee_profiles.user_id, hcm_user_roles.user_id | Kolom `uuid` aktif dan dibackfill |
-| companies | Done | company_users.company_id, hcm_user_roles.company_id | Kolom `uuid` aktif dan dibackfill |
-| employee_profiles | Done | user_id, company_id, manager_user_id | FK UUID aktif dan dibackfill |
-| hcm_user_roles | Done | user_id, company_id, assigned_by_user_id | FK UUID aktif dan dibackfill |
-| sessions | Done | user_id | `user_uuid` aktif dan dibackfill |
-| company_users | Done | user_id, company_id, invited_by_user_id | UUID row + FK UUID aktif |
-| Batch 2-21 | Done (incremental) | Lihat tracker batch | UUID row + FK UUID sudah dimigrasikan per batch |
-| Tabel tersisa | In progress | Lihat tracker batch terbaru | Lanjut batch bertahap sesuai dependency |
+- Selesai mayoritas: rollout kolom `uuid` dan banyak relasi `*_uuid` sudah dibuat dan dibackfill bertahap.
+- Belum selesai: cutover primary key utama dari integer `id` ke UUID belum dieksekusi.
+- Bukti utama: migration [backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php](../../../backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php) masih no-op (hanya warning, tidak mengubah PK/FK).
 
-- **Status**: Not started = belum migrasi, In progress = sedang migrasi, Done = sudah migrasi & terintegrasi.
-- **Foreign Keys**: Daftar FK yang harus ikut diubah ke UUID.
-- **Catatan**: Integrasi, risiko, atau notes khusus per tabel.
+## Cakupan target
 
-## 3. Langkah Migrasi Teknis (Best Practice Laravel)
+Target akhir adalah seluruh entitas inti memakai UUID sebagai primary key dan seluruh relasi utama memakai foreign key UUID.
 
-1. **Siapkan branch khusus migrasi UUID.**
-2. **Update migration:**
-   - Ubah `$table->id()` menjadi `$table->uuid('id')->primary()`.
-   - Untuk FK: `$table->uuid('user_id')->index()` lalu tambahkan constraint FK ke UUID.
-   - Fase transisi: gunakan kolom `uuid` terpisah dulu + trait auto-generator kolom `uuid` (bukan mengubah PK langsung).
-   - Fase final: setelah semua FK pindah ke UUID, baru ubah PK utama ke UUID.
-3. **Generate UUID untuk data existing:**
-   - Tambahkan kolom UUID baru (nullable), isi UUID untuk semua row, update FK child.
-   - Setelah semua FK update, jadikan kolom UUID sebagai PK, hapus kolom integer lama.
-4. **Pastikan semua seeder, factory, dan relasi model sudah pakai UUID.**
-5. **Update semua query, controller, dan logic yang akses ID/FK.**
-6. **Testing:**
-   - Jalankan migration di staging/dev, pastikan tidak ada data orphan, FK error, atau collision.
-   - Lakukan smoketest pada seluruh fitur utama (CRUD, relasi, login, dsb).
-7. **Dokumentasi:**
-   - Update file `docs/features/uuid-migration/README.md` dan checklist integrasi.
+Kondisi aktual per tanggal dokumen:
 
-## 4. Validasi & Integrasi
-- Semua FK di tabel child harus ikut diubah ke UUID.
-- Cek constraint di migration khusus (misal: add_comprehensive_foreign_key_constraints.php).
-- Lakukan audit pada Eloquent model, seeder, dan factory.
-- Pastikan tidak ada query raw SQL yang masih pakai integer ID.
+- Sistem berada pada fase transisi aman (dual key: integer tetap aktif, uuid dipakai untuk adopsi bertahap).
+- Belum masuk fase final cutover PK/FK global.
 
-## 5. Catatan Risiko
-- **Downtime:** Proses migrasi bisa butuh downtime jika tabel besar.
-- **Data Integrity:** Wajib backup sebelum migrasi.
-- **Rollback:** Siapkan skenario rollback jika ada error.
+## Ringkasan progres
 
-## 6. Progress Agent
-- Kloter migrasi sudah berjalan sampai Batch 21 dengan pola 5 tabel per batch.
-- Tracking utama ada di session list batch dan migration files `backend/database/migrations/2026_04_18_*.php`.
-- Fokus berikutnya adalah menutup tabel tersisa dan menjaga sinkronisasi model, FK UUID, serta dokumentasi.
+- Batch UUID rollout sudah berjalan luas lintas domain (core, payroll, leave, asset, performance, reporting, billing support, RBAC).
+- Hardening khusus billing telah ditambahkan melalui migration lanjutan untuk menutup mismatch urutan migrasi historis.
+- Tracking detail per batch dan status final cutover dipisah ke file tracker: [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md).
 
-## 7. Known Non-Blocking Anomalies
-- Ada migration historis yang overlap scope (contoh: `add_uuid_to_packages_table` muncul di dua file timestamp berbeda).
-- Ada kloter reporting yang menyentuh tabel serupa pada batch berbeda.
-- Kondisi ini saat ini non-blocking karena migration menggunakan guard `Schema::hasColumn(...)` dan helper aman untuk index/FK duplikat.
-- Untuk menjaga konsistensi environment yang sudah berjalan, jangan menghapus migration historis yang sudah tercatat di tabel `migrations`; lakukan cleanup hanya lewat migration follow-up yang idempotent.
-- Ditemukan mismatch urutan timestamp pada domain billing: migration UUID (`2026_04_17_*`) berjalan lebih awal daripada migration create table billing (`2026_04_21_*` sampai `2026_04_23_*`).
-- Recovery sudah ditambahkan via migration forward-only:
-   - `2026_04_24_000000_finalize_uuid_relations_for_billing_core_tables.php`
-   - `2026_04_26_130000_fix_missing_uuid_relations_for_billing_parents.php`
-- Hasil verifikasi runtime: FK UUID billing aktif kembali pada `subscriptions`, `purchase_transactions`, `invoices`, dan `payments`.
+## Gap yang masih kurang
 
-## 8. FK Relation Closure (2026-04-18)
-- Ditambahkan migration hardening relasi lanjutan: `2026_04_26_140000_finalize_remaining_foreign_key_relations.php`.
-- Target relasi yang ditutup mencakup domain: asset, leave, reporting, payroll, domain management, performance, dan transaksi legacy.
-- Strategi migrasi:
-   - Guard `hasTable` / `hasColumn` sebelum menambah FK.
-   - Nullify orphan values untuk kolom nullable sebelum apply FK agar tidak gagal di data historis.
-   - Penamaan FK aman terhadap batas panjang identifier MySQL.
-- Hasil audit ulang information_schema setelah migration:
-   - Gap kolom `*_uuid` tanpa FK tersisa: **1** kolom (`sessions.user_uuid`) — intentional non-FK.
-   - Gap kolom `*_id` tanpa FK tersisa: **5** kolom, semuanya intentional/non-relational:
-      - `asset_logs.reference_id`
-      - `audit_logs.target_id`
-      - `leave_ledger.reference_id`
-      - `sessions.user_id`
-      - `transactions.transaction_id`
+1. Menjalankan migration final switch PK integer ke UUID untuk tabel inti di environment target.
+2. Penyesuaian menyeluruh model, service, dan query raw yang masih asumsikan integer PK/FK sebagai sumber utama.
+3. Regression test dan smoke test end-to-end pasca cutover.
+4. Verifikasi ulang API contract jika ada perubahan identifier pada payload/route binding.
 
----
+Catatan implementasi terbaru:
 
-**Next:** Lanjutkan ke implementasi migration, update model, dan testing sesuai checklist di atas. Jika butuh template migration UUID atau contoh HasUuids, bisa request langsung.
+- Migration final sudah ditambahkan di [backend/database/migrations/2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php](../../../backend/database/migrations/2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php).
+- Migration tersebut melakukan PK cutover ke `uuid` untuk tabel inti (`users`, `companies`, `employee_profiles`, `hcm_user_roles`, `company_users`) dengan guard idempotent, backfill UUID, dan menjaga indeks legacy `id` untuk kompatibilitas transisi.
+
+## Risks & safeguards
+
+- Risiko downtime tetap ada pada tahap cutover PK/FK.
+- Backup wajib sebelum eksekusi migration final.
+- Gunakan pendekatan forward-only dan idempotent guard untuk menghindari drift antar environment.
+- Jangan menghapus migration historis yang sudah berpotensi tercatat pada tabel `migrations` di environment lain.
+
+## Definition of done
+
+UUID migration dianggap selesai jika seluruh kondisi ini terpenuhi:
+
+1. PK utama tabel inti sudah UUID (bukan integer auto-increment).
+2. FK utama child table sudah mereferensikan kolom UUID parent.
+3. Tidak ada query critical path yang mengandalkan integer PK sebagai identifier bisnis.
+4. Test migration, integrity check, dan smoke test modul utama lulus.
+5. Dokumentasi dan tracker status sinkron.
+
+## Dokumen terkait
+
+- Detail langkah eksekusi: [docs/features/uuid-migration/STEPS.md](STEPS.md)
+- Tracker batch dan status per migration: [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md)
+- Runbook production: [docs/features/uuid-migration/PRODUCTION-RUNBOOK.md](PRODUCTION-RUNBOOK.md)
+- SQL integrity checks: [docs/sql/uuid-cutover-integrity-check.sql](../../sql/uuid-cutover-integrity-check.sql)
+- Script pre-check: `bash scripts/uuid-pre-migration-check.sh`

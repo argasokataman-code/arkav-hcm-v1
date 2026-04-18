@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Services\Hcm\ThrProRataCalculator;
 use Illuminate\Http\JsonResponse;
@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class HcmPayrollThrController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly ThrProRataCalculator $calculator
@@ -21,7 +21,7 @@ class HcmPayrollThrController extends Controller
      */
     public function calculate(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }

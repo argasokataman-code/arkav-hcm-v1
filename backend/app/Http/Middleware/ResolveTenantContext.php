@@ -45,6 +45,7 @@ class ResolveTenantContext
 
         $request->attributes->set('activeCompany', $company);
         $request->attributes->set('activeCompanyId', $company->id);
+        $request->attributes->set('activeCompanyUuid', $company->uuid);
         $request->attributes->set('activeCompanyCode', $company->code);
         $request->attributes->set('activeCompanyRole', $membership->role);
 

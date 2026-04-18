@@ -16,9 +16,18 @@
       if (!document.getElementById("rp_roles_tbody")) {
         return;
       }
+      // Granular permission check
+      this.canManageRoles = window.AuthPermissions && window.AuthPermissions.hasPermission
+        ? window.AuthPermissions.hasPermission('roles.manage')
+        : false;
       this.bindEvents();
       this.loadPermissions();
       this.loadRoles();
+      // Hide create button if not allowed
+      var openCreate = document.getElementById("rp_open_create_modal");
+      if (openCreate && !this.canManageRoles) {
+        openCreate.classList.add('d-none');
+      }
     },
 
     bindEvents: function () {
@@ -69,17 +78,25 @@
 
       var roleForm = document.getElementById("rp_role_form");
       if (roleForm) {
-        roleForm.addEventListener("submit", function (e) {
-          e.preventDefault();
-          self.submitRoleForm();
-        });
+        if (!self.canManageRoles) {
+          roleForm.querySelectorAll('input,select,button').forEach(function(el){el.disabled=true;});
+        } else {
+          roleForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            self.submitRoleForm();
+          });
+        }
       }
 
       var savePermissionsBtn = document.getElementById("rp_save_permissions");
       if (savePermissionsBtn) {
-        savePermissionsBtn.addEventListener("click", function () {
-          self.syncRolePermissions();
-        });
+        if (!self.canManageRoles) {
+          savePermissionsBtn.disabled = true;
+        } else {
+          savePermissionsBtn.addEventListener("click", function () {
+            self.syncRolePermissions();
+          });
+        }
       }
 
       var exportBtn = document.getElementById("rp_export_roles_csv");
@@ -94,6 +111,10 @@
         var editBtn = e.target.closest("[data-rp-edit]");
         if (editBtn) {
           e.preventDefault();
+          if (!self.canManageRoles) {
+            self.showAlert("You don't have permission to edit roles.", "danger");
+            return;
+          }
           self.openEditModal(Number(editBtn.getAttribute("data-rp-edit")));
           return;
         }
@@ -101,6 +122,10 @@
         var deleteBtn = e.target.closest("[data-rp-delete]");
         if (deleteBtn) {
           e.preventDefault();
+          if (!self.canManageRoles) {
+            self.showAlert("You don't have permission to delete roles.", "danger");
+            return;
+          }
           self.deleteRole(Number(deleteBtn.getAttribute("data-rp-delete")));
           return;
         }
@@ -128,6 +153,9 @@
       }
       if (tenant.companyId) {
         headers["X-Company-Id"] = String(tenant.companyId);
+      }
+      if (tenant.companyUuid) {
+        headers["X-Company-UUID"] = String(tenant.companyUuid);
       }
 
       var options = {

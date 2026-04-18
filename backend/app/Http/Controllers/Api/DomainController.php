@@ -296,7 +296,7 @@ class DomainController extends Controller
         if (!$user) {
             return false;
         }
-        // Adjust logic based on your auth model
-        return $user->isHcmAdmin() || ($user->is_super_admin ?? false);
+
+        return $user->isGlobalHcmAdmin();
     }
 }

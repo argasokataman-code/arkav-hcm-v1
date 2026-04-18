@@ -112,7 +112,7 @@
         window.URL.revokeObjectURL(url);
     }
 
-    var state = { rows: [], summary: null, meAdmin: false, assignables: [], categoryOptions: [] };
+    var state = { rows: [], summary: null, canManageTickets: false, assignables: [], categoryOptions: [] };
 
     function currentMode() {
         var pageEl = document.querySelector("[data-tickets-page]");
@@ -122,12 +122,13 @@
     function loadMe() {
         return apiRequest("get", "/v1/identity/auth/me").then(function (p) {
             if (!p || p.success !== true) return;
-            state.meAdmin = !!(p.data && p.data.hcmAdmin);
+            // Gunakan granular permission: tickets.manage
+            state.canManageTickets = !!(p.data && p.data.permissions && (p.data.permissions['tickets.manage'] || p.data.permissions['tickets.admin']));
             document.querySelectorAll("[data-ticket-admin-only]").forEach(function (el) {
-                el.style.display = state.meAdmin ? "" : "none";
+                el.style.display = state.canManageTickets ? "" : "none";
             });
             var mode = currentMode();
-            if (mode === "admin" && !state.meAdmin) {
+            if (mode === "admin" && !state.canManageTickets) {
                 window.location.replace("/tickets-employee");
                 return;
             }
@@ -150,7 +151,7 @@
     }
 
     function loadAssignableUsers() {
-        if (!state.meAdmin) return Promise.resolve();
+        if (!state.canManageTickets) return Promise.resolve();
         return apiRequest("get", "/v1/hcm/tickets/assignable-users").then(function (p) {
             if (!p || p.success !== true) return;
             state.assignables = Array.isArray(p.data) ? p.data : [];
@@ -197,14 +198,14 @@
         }
         c.innerHTML = rows.map(function (t) {
             var quickAction = "";
-            if (state.meAdmin) {
+            if (state.canManageTickets) {
                 if (t.status === "closed") {
                     quickAction = '<button type="button" class="btn btn-sm btn-outline-success" data-ticket-quick-status="' + esc(t.id) + '" data-next-status="open">Reopen</button>';
                 } else {
                     quickAction = '<button type="button" class="btn btn-sm btn-outline-danger" data-ticket-quick-status="' + esc(t.id) + '" data-next-status="closed">Close</button>';
                 }
             }
-            return '<div class="card"><div class="card-body"><div class="d-flex justify-content-between align-items-start gap-2"><div class="flex-grow-1"><div class="mb-1"><span class="badge badge-soft-dark me-2">' + esc(t.code) + "</span>" + statusBadge(t.status) + '</div><h5 class="mb-1"><a href="/ticket-details/' + esc(t.id) + '">' + esc(t.subject) + '</a></h5><p class="text-muted mb-2">' + esc(t.description || "") + '</p><p class="mb-2 fs-12 text-muted">Reporter: ' + esc(t.reporter ? t.reporter.name : "-") + " | Assignee: " + esc(t.assignee ? t.assignee.name : "Unassigned") + " | Updated: " + esc(fmtDate(t.updatedAt)) + '</p><div class="d-flex gap-2 flex-wrap"><a href="/ticket-details/' + esc(t.id) + '" class="btn btn-sm btn-primary">Lihat detail</a><a href="/ticket-details/' + esc(t.id) + '#komentar" class="btn btn-sm btn-outline-secondary">Komentar</a>' + quickAction + '</div></div><div class="text-end">' + prioBadge(t.priority) + '<div class="mt-2 fs-12 text-muted">' + esc(t.commentsCount) + " komentar</div></div></div></div></div>";
+            return '<div class="card"><div class="card-body"><div class="d-flex justify-content-between align-items-start gap-2"><div class="flex-grow-1"><div class="mb-1"><span class="badge badge-soft-dark me-2">' + esc(t.code) + "</span>" + statusBadge(t.status) + '</div><h5 class="mb-1"><a href="/ticket-details/' + esc(t.id) + '">' + esc(t.subject) + '</a></h5><p class="text-muted mb-2">' + esc(t.description || "") + '</p><p class="mb-2 fs-12 text-muted">Reporter: ' + esc(t.reporter ? t.reporter.name : "-") + " | Assignee: " + esc(t.assignee ? t.assignee.name : "Unassigned") + " | Updated: " + esc(fmtDate(t.updatedAt)) + '</p><div class="d-flex gap-2 flex-wrap"><a href="/ticket-details/' + esc(t.id) + '" class="btn btn-sm btn-primary">Lihat detail</a><a href="/ticket-details/' + esc(t.id) + '#komentar" class="btn btn-sm btn-outline-secondary">Komentar</a>' + quickAction + '</div></div><div class="text-end">' + prioBadge(t.priority) + '<div class="mt-2 fs-12 text-muted">' + esc(t.commentsCount) + " komentar</div></div></div></div></div>';
         }).join("");
     }
 
@@ -217,7 +218,7 @@
         }
         c.innerHTML = rows.map(function (t) {
             var quickAction = "";
-            if (state.meAdmin) {
+            if (state.canManageTickets) {
                 if (t.status === "closed") {
                     quickAction = '<button type="button" class="btn btn-sm btn-outline-success" data-ticket-quick-status="' + esc(t.id) + '" data-next-status="open">Reopen</button>';
                 } else {
@@ -229,7 +230,7 @@
     }
 
     function adminActionsHtml(ticket) {
-        if (!state.meAdmin) return "";
+        if (!state.canManageTickets) return "";
         var users = state.assignables || [];
         var opts = '<option value="">Unassigned</option>';
         users.forEach(function (u) {
@@ -279,7 +280,7 @@
                 description: String(fd.get("description") || "").trim(),
                 slaDueAt: String(fd.get("slaDueAt") || "").trim() || null,
             };
-            if (state.meAdmin) {
+            if (state.canManageTickets) {
                 var v = String(fd.get("assigneeUserId") || "").trim();
                 body.assigneeUserId = v ? Number(v) : null;
             }

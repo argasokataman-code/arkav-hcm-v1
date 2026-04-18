@@ -469,7 +469,7 @@
 
     if (tbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
-            if (!me || !me.success || !me.data || !me.data.hcmAdmin) {
+            if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['resignation.view']) {
                 window.location.replace("/employee-dashboard");
                 return;
             }

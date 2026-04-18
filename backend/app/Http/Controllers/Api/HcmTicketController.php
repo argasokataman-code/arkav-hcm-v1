@@ -16,10 +16,25 @@ use Illuminate\Support\Str;
 
 class HcmTicketController extends Controller
 {
+    private function canManageTickets(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('ticket.assign', $companyId)
+            || $user->hasPermissionForCompany('ticket.update', $companyId)
+            || $user->hasPermissionForCompany('ticket.category.manage', $companyId)
+            || $user->hasPermissionForCompany('tickets.manage', $companyId)
+            || $user->hasPermissionForCompany('ticket.admin', $companyId);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $isAdmin = (bool) ($user?->isHcmAdmin());
+        $isAdmin = $this->canManageTickets($request);
         $activeCompanyId = $this->activeCompanyId($request);
         if (! $activeCompanyId) {
             return response()->json([
@@ -83,7 +98,7 @@ class HcmTicketController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $isAdmin = (bool) $user?->isHcmAdmin();
+        $isAdmin = $this->canManageTickets($request);
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
@@ -103,7 +118,7 @@ class HcmTicketController extends Controller
         if ($activeCompanyId > 0) {
             $subscription = \App\Models\Subscription::activeForCompany($activeCompanyId);
             
-            if (!$subscription || !$subscription->package?->hasFeature('tickets')) {
+            if ($subscription && ! $subscription->package?->hasFeature('tickets')) {
                 return response()->json([
                     'success' => false,
                     'error' => [
@@ -161,7 +176,7 @@ class HcmTicketController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->ticketDetail($ticket, (bool) $request->user()?->isHcmAdmin()),
+            'data' => $this->ticketDetail($ticket, $this->canManageTickets($request)),
         ]);
     }
 
@@ -173,7 +188,7 @@ class HcmTicketController extends Controller
         }
 
         $user = $request->user();
-        $isAdmin = (bool) $user?->isHcmAdmin();
+        $isAdmin = $this->canManageTickets($request);
         $validated = $request->validate([
             'subject' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'required', 'string', 'max:10000'],
@@ -256,7 +271,7 @@ class HcmTicketController extends Controller
         if (! $ticket) {
             return $this->forbidden();
         }
-        if (! $request->user()?->isHcmAdmin() && $ticket->status === 'closed') {
+        if (! $this->canManageTickets($request) && $ticket->status === 'closed') {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'TICKET_CLOSED_LOCKED', 'message' => 'Closed ticket cannot be deleted by employee.'],
@@ -337,7 +352,7 @@ class HcmTicketController extends Controller
 
     public function assignableUsers(Request $request): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
         $rows = User::query()->orderBy('name')->limit(200)->get(['id', 'name', 'email']);
@@ -349,7 +364,7 @@ class HcmTicketController extends Controller
 
     public function categories(Request $request): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
         $rows = TicketCategory::query()->orderBy('sort_order')->orderBy('name')->get();
@@ -379,7 +394,7 @@ class HcmTicketController extends Controller
 
     public function storeCategory(Request $request): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
         $validated = $request->validate([
@@ -397,7 +412,7 @@ class HcmTicketController extends Controller
 
     public function updateCategory(Request $request, int $id): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
         $row = TicketCategory::query()->findOrFail($id);
@@ -416,7 +431,7 @@ class HcmTicketController extends Controller
 
     public function destroyCategory(Request $request, int $id): JsonResponse
     {
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
         TicketCategory::query()->whereKey($id)->delete();
@@ -514,7 +529,7 @@ class HcmTicketController extends Controller
             $m->where('company_id', $activeCompanyId)->where('status', 'active');
         });
 
-        if (! $request->user()?->isHcmAdmin()) {
+        if (! $this->canManageTickets($request)) {
             $query->where('user_id', $request->user()?->id);
         }
         return $query->first();

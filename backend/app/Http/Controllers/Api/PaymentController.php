@@ -18,14 +18,36 @@ class PaymentController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
         $query = Payment::with(['company', 'purchaseTransaction', 'invoice']);
+
+        if (! $isAdmin) {
+            if ($activeCompanyId <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.'],
+                ], 422);
+            }
+
+            $query->where('company_id', $activeCompanyId);
+        }
 
         // Filters
         if ($request->has('status')) {
             $query->where('status', $request->get('status'));
         }
         if ($request->has('company_id')) {
-            $query->where('company_id', $request->get('company_id'));
+            $requestedCompanyId = (int) $request->get('company_id');
+            if (! $isAdmin && $requestedCompanyId !== $activeCompanyId) {
+                return response()->json([
+                    'success' => false,
+                    'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view payments for other companies.'],
+                ], 403);
+            }
+
+            $query->where('company_id', $requestedCompanyId);
         }
         if ($request->has('payment_method')) {
             $query->where('payment_method', $request->get('payment_method'));
@@ -55,8 +77,18 @@ class PaymentController extends Controller
      * GET /v1/saas/payments/{id}
      * Get payment details
      */
-    public function show(Payment $payment): JsonResponse
+    public function show(Request $request, Payment $payment): JsonResponse
     {
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
+        if (! $isAdmin && $activeCompanyId > 0 && (int) $payment->company_id !== $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view this payment.'],
+            ], 403);
+        }
+
         $payment->load('company', 'purchaseTransaction', 'invoice');
 
         return response()->json([
@@ -193,7 +225,7 @@ class PaymentController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        return $user && $user->isHcmAdmin();
+        return $user && $user->isGlobalHcmAdmin();
     }
 
     private function guardPaymentReconciliation(Request $request, Payment $payment): ?JsonResponse

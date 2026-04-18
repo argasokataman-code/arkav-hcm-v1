@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
@@ -14,11 +14,11 @@ use Throwable;
 
 class HcmHolidayController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function index(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'holiday.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -44,7 +44,7 @@ class HcmHolidayController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'holiday.create');
         if ($forbidden) {
             return $forbidden;
         }
@@ -71,7 +71,7 @@ class HcmHolidayController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'holiday.update');
         if ($forbidden) {
             return $forbidden;
         }
@@ -108,7 +108,7 @@ class HcmHolidayController extends Controller
 
     public function syncIndonesia(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'holiday.sync');
         if ($forbidden) {
             return $forbidden;
         }
@@ -291,7 +291,7 @@ class HcmHolidayController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'holiday.update');
         if ($forbidden) {
             return $forbidden;
         }

@@ -41,7 +41,7 @@ return new class extends Migration
                     Schema::table('domains', function (Blueprint $table) {
                         $table->foreign('company_id')
                             ->references('id')
-                            ->on('users')
+                            ->on('companies')
                             ->cascadeOnDelete();
                     });
                 } catch (\Exception $e) {

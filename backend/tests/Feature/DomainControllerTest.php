@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Domain;
 use App\Models\Company;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,14 +11,32 @@ class DomainControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private User $admin;
+    private string $adminToken;
     private Company $company;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = User::factory()->create(['email' => 'qa.login@example.com']);
         $this->company = Company::factory()->create();
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Admin User',
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $adminLogin = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $this->adminToken = (string) $adminLogin->json('data.accessToken');
+    }
+
+    private function adminRequest()
+    {
+        return $this->withHeader('Authorization', 'Bearer '.$this->adminToken);
     }
 
     public function test_list_domains_requires_admin()
@@ -32,8 +49,7 @@ class DomainControllerTest extends TestCase
     {
         Domain::factory()->count(3)->for($this->company)->create();
 
-        $response = $this->actingAs($this->admin)
-            ->getJson('/v1/saas/domains');
+        $response = $this->adminRequest()->getJson('/v1/saas/domains');
 
         $response->assertOk()
             ->assertJsonStructure([
@@ -56,8 +72,7 @@ class DomainControllerTest extends TestCase
 
     public function test_create_domain_as_admin()
     {
-        $response = $this->actingAs($this->admin)
-            ->postJson('/v1/saas/domains', [
+        $response = $this->adminRequest()->postJson('/v1/saas/domains', [
                 'domain_name' => 'example.com',
                 'company_id' => $this->company->id,
                 'verification_type' => 'dns',
@@ -75,8 +90,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['status' => 'pending']);
 
-        $response = $this->actingAs($this->admin)
-            ->putJson('/v1/saas/domains/' . $domain->id, [
+        $response = $this->adminRequest()->putJson('/v1/saas/domains/' . $domain->id, [
                 'status' => 'verified',
                 'notes' => 'Updated notes',
             ]);
@@ -92,8 +106,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create();
 
-        $response = $this->actingAs($this->admin)
-            ->deleteJson('/v1/saas/domains/' . $domain->id);
+        $response = $this->adminRequest()->deleteJson('/v1/saas/domains/' . $domain->id);
 
         $response->assertOk();
         $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
@@ -103,8 +116,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['status' => 'pending']);
 
-        $response = $this->actingAs($this->admin)
-            ->postJson('/v1/saas/domains/' . $domain->id . '/verify');
+        $response = $this->adminRequest()->postJson('/v1/saas/domains/' . $domain->id . '/verify');
 
         $response->assertOk()
             ->assertJsonFragment(['status' => 'verified']);
@@ -118,8 +130,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['verification_type' => 'dns']);
 
-        $response = $this->actingAs($this->admin)
-            ->getJson('/v1/saas/domains/' . $domain->id . '/verification-details');
+        $response = $this->adminRequest()->getJson('/v1/saas/domains/' . $domain->id . '/verification-details');
 
         $response->assertOk()
             ->assertJsonStructure(['success', 'data' => ['domainName', 'verificationType', 'instructions', 'token']])

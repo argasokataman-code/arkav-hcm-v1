@@ -1026,7 +1026,7 @@
   // Init
   loadMe().then((m) => {
     me = m;
-    meAdmin = !!m?.hcmAdmin;
+    meAdmin = !!(m?.permissions && m.permissions['training.manage']);
 
     // Admin-only create buttons: hide for non-admin
     const btnType = document.querySelector('[data-bs-target="#arcav_training_type_modal"]');

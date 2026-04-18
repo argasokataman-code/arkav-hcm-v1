@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmPayrollItem;
@@ -13,11 +13,11 @@ use Illuminate\Validation\Rule;
 
 class HcmPayrollItemAssignmentController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -55,7 +55,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -119,7 +119,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -167,7 +167,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 

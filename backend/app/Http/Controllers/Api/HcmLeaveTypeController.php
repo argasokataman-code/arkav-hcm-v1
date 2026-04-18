@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmLeaveTypeSetting;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class HcmLeaveTypeController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private function payload(HcmLeaveTypeSetting $type): array
     {
@@ -30,7 +30,7 @@ class HcmLeaveTypeController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'leave.view')) {
             return $forbidden;
         }
 
@@ -47,7 +47,7 @@ class HcmLeaveTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'leave.view')) {
             return $forbidden;
         }
 
@@ -81,7 +81,7 @@ class HcmLeaveTypeController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'leave.view')) {
             return $forbidden;
         }
 
@@ -116,7 +116,7 @@ class HcmLeaveTypeController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'leave.view')) {
             return $forbidden;
         }
 

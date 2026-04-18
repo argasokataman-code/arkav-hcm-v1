@@ -555,7 +555,7 @@
 
         if (window.AuthApi && window.AuthApi.request) {
             window.AuthApi.request("get", "/identity/auth/me").then(function (me) {
-                if (!me || !me.success || !me.data || !me.data.hcmAdmin) {
+                if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['payroll.view']) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }

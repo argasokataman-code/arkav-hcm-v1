@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmLeaveCustomPolicy;
 use App\Models\HcmLeaveTypeSetting;
@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 class HcmLeaveSettingController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const SIMPLE_CODES = ['sick_leave', 'hospitalisation', 'maternity', 'paternity', 'lop'];
 
@@ -32,7 +32,7 @@ class HcmLeaveSettingController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'leave.settings');
         if ($forbidden) {
             return $forbidden;
         }
@@ -63,7 +63,7 @@ class HcmLeaveSettingController extends Controller
 
     public function updateType(Request $request, string $code): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'leave.settings');
         if ($forbidden) {
             return $forbidden;
         }
@@ -117,7 +117,7 @@ class HcmLeaveSettingController extends Controller
     }
     public function storeCustomPolicy(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'leave.settings');
         if ($forbidden) {
             return $forbidden;
         }
@@ -195,7 +195,7 @@ class HcmLeaveSettingController extends Controller
 
     public function updateCustomPolicy(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'leave.settings');
         if ($forbidden) {
             return $forbidden;
         }
@@ -235,7 +235,7 @@ class HcmLeaveSettingController extends Controller
 
     public function destroyCustomPolicy(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'leave.settings');
         if ($forbidden) {
             return $forbidden;
         }

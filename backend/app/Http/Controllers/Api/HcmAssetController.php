@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\AssetAttachment;
@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 
 class HcmAssetController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(private readonly AssetService $assetService)
     {
@@ -22,7 +22,7 @@ class HcmAssetController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -83,7 +83,7 @@ class HcmAssetController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -104,7 +104,7 @@ class HcmAssetController extends Controller
 
     public function show(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -117,7 +117,7 @@ class HcmAssetController extends Controller
 
     public function update(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -133,7 +133,7 @@ class HcmAssetController extends Controller
 
     public function destroy(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -148,7 +148,7 @@ class HcmAssetController extends Controller
 
     public function assign(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -175,7 +175,7 @@ class HcmAssetController extends Controller
 
     public function returnAsset(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -196,7 +196,7 @@ class HcmAssetController extends Controller
 
     public function reportIssue(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -217,7 +217,7 @@ class HcmAssetController extends Controller
 
     public function attach(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 

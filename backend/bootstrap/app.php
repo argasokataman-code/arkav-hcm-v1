@@ -59,6 +59,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'success' => false,
+                // Backward-compatible map for tests/helpers that expect default Laravel validation shape.
+                'errors' => $e->errors(),
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
                     'message' => 'Validation failed',

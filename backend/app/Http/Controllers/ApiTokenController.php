@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuthToken;
+use App\Support\ArcavAccessTokenResolver;
 use Illuminate\Http\Request;
 
 class ApiTokenController extends Controller
@@ -12,14 +13,18 @@ class ApiTokenController extends Controller
      */
     public function getToken(Request $request)
     {
-        $token = $request->attributes->get('authToken');
+        $token = $request->attributes->get('authToken') ?: ArcavAccessTokenResolver::validTokenFromRequest($request);
         $user = $request->user() ?: ($token?->user);
 
         if (!$user) {
+            if (! $request->expectsJson()) {
+                return redirect()->guest(url('lock-screen'));
+            }
+
             return response()->json([
                 'success' => false,
                 'error' => 'Unauthenticated',
-            ], 401);
+            ], 404);
         }
 
         // Raw token values are not persisted in DB, so always mint a new one.

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\HcmPermission;
@@ -20,7 +20,30 @@ use Illuminate\Validation\Rule;
 
 class HcmUserManagementController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
+
+    private function ensureUserManagementViewPermission(Request $request): ?JsonResponse
+    {
+        return $this->ensureAnyPermission($request, [
+            'user.view',
+            'role.view',
+            'user_management.view',
+        ]);
+    }
+
+    private function ensureUserManagementManagePermission(Request $request): ?JsonResponse
+    {
+        return $this->ensureAnyPermission($request, [
+            'user.create',
+            'user.update',
+            'user.assign_role',
+            'role.create',
+            'role.update',
+            'role.delete',
+            'role.sync_permission',
+            'user_management.manage',
+        ]);
+    }
 
     public function users(Request $request): JsonResponse
     {
@@ -29,7 +52,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -123,7 +146,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -209,7 +232,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -285,7 +308,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -367,7 +390,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -423,7 +446,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -482,7 +505,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -536,7 +559,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -578,7 +601,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -628,7 +651,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -677,7 +700,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -725,7 +748,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -775,7 +798,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementViewPermission($request)) {
             return $response;
         }
 
@@ -816,7 +839,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 
@@ -886,7 +909,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensureUserManagementManagePermission($request)) {
             return $response;
         }
 

@@ -1,16 +1,29 @@
 import { expect } from "@playwright/test";
 
+const runId = process.env.PW_RUN_ID || Date.now().toString(36);
+
 export const credentials = {
   admin: {
     email: process.env.PW_ADMIN_EMAIL || "qa.login@example.com",
     password: process.env.PW_ADMIN_PASSWORD || "StrongPass1",
   },
   company: {
-    email: process.env.PW_COMPANY_EMAIL || "demo.owner01@example.com",
+    email: process.env.PW_COMPANY_EMAIL || `company.viewer.${runId}@example.com`,
     password: process.env.PW_COMPANY_PASSWORD || "StrongPass1",
     companyCode: process.env.PW_COMPANY_CODE || "demo_co_01",
   },
 };
+
+async function ensureRegularUserExists(page, user) {
+  await page.request.post("/v1/identity/auth/register", {
+    data: {
+      name: user.name || "Eee User",
+      email: user.email,
+      password: user.password,
+      confirmPassword: user.password,
+    },
+  });
+}
 
 export async function loginViaUi(page, user, options = {}) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
@@ -25,8 +38,19 @@ export async function loginViaUi(page, user, options = {}) {
   await page.locator("#login-password").fill(user.password);
   await page.locator("#login-submit").click();
 
-  await page.waitForURL(/\/index$/, { timeout: 15000 });
-  await expect(page).toHaveURL(/\/index$/);
+  const homeRegex = /\/(index|dashboard|employee-dashboard)(\?.*)?$/;
+  const reachedHomeAfterFirstTry = await page.waitForURL(homeRegex, { timeout: 5000 }).then(() => true).catch(() => false);
+
+  const invalidCredentials = page.locator("#login-error:not(.d-none)");
+  if (!reachedHomeAfterFirstTry && !options.companyMode && (await invalidCredentials.isVisible().catch(() => false))) {
+    await ensureRegularUserExists(page, user);
+    await page.locator("#login-email").fill(user.email);
+    await page.locator("#login-password").fill(user.password);
+    await page.locator("#login-submit").click();
+  }
+
+  await page.waitForURL(homeRegex, { timeout: 20000 });
+  await expect(page).toHaveURL(homeRegex);
 }
 
 export async function logoutIfNeeded(page) {

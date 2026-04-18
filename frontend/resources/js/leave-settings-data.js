@@ -727,7 +727,7 @@
         }
 
         apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-            if (m && m.success && m.data && !m.data.hcmAdmin) {
+            if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.settings'])) {
                 window.location.replace("/employee-dashboard");
                 return;
             }

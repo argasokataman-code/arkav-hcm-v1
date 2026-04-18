@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Jobs\Reporting\GenerateReportSnapshot;
 use App\Models\ReportSnapshot;
@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
 
 class ReportSnapshotController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         protected ReportSnapshotService $snapshotService,
@@ -35,7 +35,7 @@ class ReportSnapshotController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'reports.view')) {
             return $response;
         }
 
@@ -96,7 +96,7 @@ class ReportSnapshotController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'reports.view')) {
             return $response;
         }
 
@@ -167,7 +167,7 @@ class ReportSnapshotController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'reports.view')) {
             return $response;
         }
 
@@ -231,7 +231,7 @@ class ReportSnapshotController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+        if ($response = $this->ensurePermission($request, 'reports.view')) {
             return $response;
         }
 

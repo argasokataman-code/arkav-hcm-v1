@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 
 class HcmSubscriptionCheckoutController
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     /**
      * POST /v1/hcm/billing/checkout
@@ -24,7 +24,7 @@ class HcmSubscriptionCheckoutController
      */
     public function checkout(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'subscription.manage')) {
             return $forbidden;
         }
 

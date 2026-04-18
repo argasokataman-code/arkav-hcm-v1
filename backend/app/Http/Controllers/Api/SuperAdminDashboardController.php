@@ -19,7 +19,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getKpi(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -49,7 +50,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getMetricTrend(string $metricKey): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -79,7 +81,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getCompanies(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -116,7 +119,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getTopCompanies(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -153,7 +157,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getCompanyDetails(Company $company): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -198,7 +203,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getUserStats(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -231,7 +237,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getMonthlytRevenue(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -264,7 +271,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getRevenueByPlan(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -295,7 +303,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getSubscriptionStatus(): JsonResponse
     {
-        if (!$this->isHcmAdmin(request())) {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -324,7 +333,8 @@ class SuperAdminDashboardController extends Controller
      */
     public function getAuditLogs(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],

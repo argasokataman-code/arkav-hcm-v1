@@ -14,24 +14,28 @@ class PublicLandingController extends Controller
             return redirect()->route('index');
         }
 
-        $packages = Package::query()
-            ->with(['features' => function ($q) {
-                $q->orderBy('feature_name');
-            }])
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->orderBy('monthly_price')
-            ->get([
-                'id',
-                'code',
-                'name',
-                'description',
-                'monthly_price',
-                'yearly_price',
-                'billing_unit',
-                'color',
-                'sort_order',
-            ]);
+        try {
+            $packages = Package::query()
+                ->with(['features' => function ($q) {
+                    $q->orderBy('feature_name');
+                }])
+                ->where('status', 'active')
+                ->orderBy('sort_order')
+                ->orderBy('monthly_price')
+                ->get([
+                    'id',
+                    'code',
+                    'name',
+                    'description',
+                    'monthly_price',
+                    'yearly_price',
+                    'billing_unit',
+                    'color',
+                    'sort_order',
+                ]);
+        } catch (\Throwable $e) {
+            $packages = collect();
+        }
 
         return view('public.landing', [
             'packages' => $packages,
@@ -44,19 +48,27 @@ class PublicLandingController extends Controller
             return redirect()->route('index');
         }
 
-        $packages = Package::query()
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->orderBy('monthly_price')
-            ->get(['id', 'code', 'name', 'monthly_price', 'yearly_price']);
+        try {
+            $packages = Package::query()
+                ->where('status', 'active')
+                ->orderBy('sort_order')
+                ->orderBy('monthly_price')
+                ->get(['id', 'code', 'name', 'monthly_price', 'yearly_price']);
+        } catch (\Throwable $e) {
+            $packages = collect();
+        }
 
         $selectedPackageId = $request->query('packageId');
         $selectedPackageId = is_numeric($selectedPackageId) ? (int) $selectedPackageId : null;
         if (! $selectedPackageId) {
-            $selectedPackageId = (int) (Package::query()
-                ->where('status', 'active')
-                ->where('code', 'trial')
-                ->value('id') ?? 0);
+            try {
+                $selectedPackageId = (int) (Package::query()
+                    ->where('status', 'active')
+                    ->where('code', 'trial')
+                    ->value('id') ?? 0);
+            } catch (\Throwable $e) {
+                $selectedPackageId = 0;
+            }
             $selectedPackageId = $selectedPackageId > 0 ? $selectedPackageId : null;
         }
 

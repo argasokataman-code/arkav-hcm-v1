@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmTraining;
 use App\Models\HcmTrainer;
@@ -14,7 +14,7 @@ use Illuminate\Validation\Rule;
 
 class HcmTrainingController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private function forbidden(): JsonResponse
     {
@@ -33,7 +33,7 @@ class HcmTrainingController extends Controller
     public function types(Request $request): JsonResponse
     {
         $query = HcmTrainingType::query()->orderBy('name');
-        if (! $request->user()->isHcmAdmin()) {
+        if (! $this->canManageTraining($request)) {
             $query->where('is_active', true);
         }
 
@@ -49,7 +49,7 @@ class HcmTrainingController extends Controller
 
     public function storeType(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -80,7 +80,7 @@ class HcmTrainingController extends Controller
 
     public function updateType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -113,7 +113,7 @@ class HcmTrainingController extends Controller
 
     public function destroyType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -127,7 +127,7 @@ class HcmTrainingController extends Controller
     // -------------------------
     public function trainings(Request $request): JsonResponse
     {
-        if (! $request->user()->isHcmAdmin()) {
+        if (! $this->canManageTraining($request)) {
             return $this->forbidden();
         }
 
@@ -199,7 +199,7 @@ class HcmTrainingController extends Controller
 
     public function storeTraining(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -238,7 +238,7 @@ class HcmTrainingController extends Controller
 
     public function updateTraining(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -297,7 +297,7 @@ class HcmTrainingController extends Controller
 
     public function destroyTraining(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -310,7 +310,7 @@ class HcmTrainingController extends Controller
     public function trainingsForUser(Request $request, int $userId): JsonResponse
     {
         $auth = $request->user();
-        $isAdmin = (bool) $auth?->isHcmAdmin();
+        $isAdmin = $this->canManageTraining($request);
         if (! $isAdmin && (int) $auth->id !== (int) $userId) {
             return $this->forbidden();
         }
@@ -359,7 +359,7 @@ class HcmTrainingController extends Controller
     // -------------------------
     public function trainers(Request $request): JsonResponse
     {
-        if (! $request->user()->isHcmAdmin()) {
+        if (! $this->canManageTraining($request)) {
             return $this->forbidden();
         }
 
@@ -408,7 +408,7 @@ class HcmTrainingController extends Controller
 
     public function storeTrainer(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -433,7 +433,7 @@ class HcmTrainingController extends Controller
 
     public function updateTrainer(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -459,7 +459,7 @@ class HcmTrainingController extends Controller
 
     public function destroyTrainer(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
             return $forbidden;
         }
 
@@ -506,6 +506,11 @@ class HcmTrainingController extends Controller
         }
 
         return ['trainer_id' => null, 'trainer_name' => null];
+    }
+
+    private function canManageTraining(Request $request): bool
+    {
+        return $this->hasAnyPermission($request, ['training.manage', 'training.view']);
     }
 }
 

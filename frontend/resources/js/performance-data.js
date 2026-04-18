@@ -590,19 +590,20 @@
   let cycles = [];
   let selectedReviewId = null;
   let me = null;
-  let meAdmin = false;
+  let canManagePerformance = false;
 
   async function loadMe() {
     try {
       const res = await apiRequest('GET', '/v1/identity/auth/me');
       me = res?.data || null;
-      meAdmin = !!me?.hcmAdmin;
+      // Gunakan granular permission: performance.manage atau performance.admin
+      canManagePerformance = !!(me && me.permissions && (me.permissions['performance.manage'] || me.permissions['performance.admin']));
     } catch (_) {
       me = null;
-      meAdmin = false;
+      canManagePerformance = false;
     }
 
-    if (reviewScope && !meAdmin) {
+    if (reviewScope && !canManagePerformance) {
       const optAll = reviewScope.querySelector('option[value="all"]');
       if (optAll) optAll.remove();
       if (reviewScope.value === 'all') reviewScope.value = 'me';
@@ -611,14 +612,14 @@
     // Hide admin-only entry points in UI (backend still enforces).
     const cycleModalBtn = document.querySelector('[data-bs-target="#arcav_perf_cycle_modal"]');
     const createReviewBtn = document.querySelector('[data-bs-target="#arcav_perf_review_create_modal"]');
-    if (cycleModalBtn) cycleModalBtn.style.display = meAdmin ? '' : 'none';
-    if (createReviewBtn) createReviewBtn.style.display = meAdmin ? '' : 'none';
+    if (cycleModalBtn) cycleModalBtn.style.display = canManagePerformance ? '' : 'none';
+    if (createReviewBtn) createReviewBtn.style.display = canManagePerformance ? '' : 'none';
 
     // Guard admin-only pages to avoid confusing "Gagal memuat..." states.
-    // Performance Indicator & Appraisal are HCM Admin-only in Phase 1.
+    // Performance Indicator & Appraisal are admin-only.
     const isIndicatorPage = !!templatesTbody;
     const isAppraisalPage = !!cyclesTbody;
-    if ((isIndicatorPage || isAppraisalPage) && !meAdmin) {
+    if ((isIndicatorPage || isAppraisalPage) && !canManagePerformance) {
       window.location.href = '/performance-review';
     }
   }
@@ -1160,9 +1161,9 @@
   // init only if elements exist
   loadMe().finally(() => {
     // Indicator templates: admin-only
-    if (templatesTbody && meAdmin) loadTemplates();
+    if (templatesTbody && canManagePerformance) loadTemplates();
     // Cycles: admin-only
-    if (cyclesTbody && meAdmin) loadCycles();
+    if (cyclesTbody && canManagePerformance) loadCycles();
     // Reviews list/detail: allowed for all authenticated users (scope filtered by API + UI)
     if (reviewsTbody) loadReviews();
   });

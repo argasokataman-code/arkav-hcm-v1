@@ -152,7 +152,7 @@
   const goalTypeIdEl = document.querySelector('[data-arcav-goal-type-id]');
 
   let me = null;
-  let meAdmin = false;
+  let canManageGoals = false;
   let goalTypes = [];
 
   function renderGoalTypes() {
@@ -306,13 +306,13 @@
     const meId = Number(me?.id || 0);
     const ownerId = Number(g?.employee?.id || 0);
     const mgrId = Number(g?.manager?.id || 0);
-    return !!meAdmin || (meId && ownerId && meId === ownerId) || (meId && mgrId && meId === mgrId);
+    return canManageGoals || (meId && ownerId && meId === ownerId) || (meId && mgrId && meId === mgrId);
   }
 
   function canDeleteGoal(g) {
     const meId = Number(me?.id || 0);
     const ownerId = Number(g?.employee?.id || 0);
-    return !!meAdmin || (meId && ownerId && meId === ownerId);
+    return canManageGoals || (meId && ownerId && meId === ownerId);
   }
 
   function fillGoalTypeOptions() {
@@ -566,11 +566,11 @@
   // Init
   loadMe().then((m) => {
     me = m;
-    meAdmin = !!m?.hcmAdmin;
+    canManageGoals = !!m?.permissions && (m.permissions['goal.manage'] || m.permissions['goal.admin']);
 
     // Scope filter: remove all for non-admin
     const scopeSel = document.querySelector('[data-arcav-goal-scope]');
-    if (scopeSel && !meAdmin) {
+    if (scopeSel && !canManageGoals) {
       const optAll = scopeSel.querySelector('option[value="all"]');
       if (optAll) optAll.remove();
       if (scopeSel.value === 'all') scopeSel.value = 'me';
@@ -578,7 +578,7 @@
 
     // Goal Type modal button admin-only
     const goalTypeBtn = document.querySelector('[data-bs-target="#arcav_goal_type_modal"]');
-    if (goalTypeBtn) goalTypeBtn.style.display = meAdmin ? '' : 'none';
+    if (goalTypeBtn) goalTypeBtn.style.display = canManageGoals ? '' : 'none';
 
     bindGoalTypesPage();
 

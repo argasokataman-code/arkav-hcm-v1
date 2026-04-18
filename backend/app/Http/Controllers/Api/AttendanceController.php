@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\EmployeeProfile;
@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const TARGET_DAILY_MINUTES = 8 * 60;
 
@@ -37,6 +37,51 @@ class AttendanceController extends Controller
         $value = $request->attributes->get('activeCompanyId');
 
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function todayRecord(Request $request, User $user): ?AttendanceRecord
+    {
+        $todayYmd = Carbon::now($this->tz())->toDateString();
+        $companyId = $this->activeCompanyId($request);
+
+        $query = AttendanceRecord::query();
+        $this->applyTenantScope($query, $companyId);
+        $record = $query
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $todayYmd)
+            ->first();
+
+        if ($record || ! $companyId) {
+            return $record;
+        }
+
+        return AttendanceRecord::query()
+            ->whereNull('company_id')
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $todayYmd)
+            ->first();
+    }
+
+    private function recordForDate(Request $request, User $user, string $workDate): ?AttendanceRecord
+    {
+        $companyId = $this->activeCompanyId($request);
+
+        $query = AttendanceRecord::query();
+        $this->applyTenantScope($query, $companyId);
+        $record = $query
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $workDate)
+            ->first();
+
+        if ($record || ! $companyId) {
+            return $record;
+        }
+
+        return AttendanceRecord::query()
+            ->whereNull('company_id')
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $workDate)
+            ->first();
     }
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
@@ -177,7 +222,7 @@ class AttendanceController extends Controller
 
     public function adminIndex(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.admin');
         if ($forbidden) {
             return $forbidden;
         }
@@ -195,15 +240,14 @@ class AttendanceController extends Controller
             'sort' => ['nullable', 'string', 'in:name_asc,name_desc,checkin_asc,checkin_desc,production_desc,production_asc'],
         ]);
 
-        $dateYmd = $validated['date'] ?? Carbon::now($this->tz())->toDateString();
-        $search = $validated['search'] ?? null;
-        $department = $validated['department'] ?? null;
-        $statusFilter = $validated['status'] ?? null;
-        $sort = $validated['sort'] ?? 'name_asc';
-        $perPage = min(100, (int) ($validated['perPage'] ?? 50));
-        $activeCompanyId = $this->activeCompanyId($request);
-        $todayYmd = Carbon::now($this->tz())->toDateString();
-        $isToday = $dateYmd === $todayYmd;
+            $dateYmd = $validated['date'] ?? Carbon::now($this->tz())->toDateString();
+            $search = $validated['search'] ?? null;
+            $department = $validated['department'] ?? null;
+            $statusFilter = $validated['status'] ?? null;
+            $sort = $validated['sort'] ?? 'name_asc';
+            $perPage = min(100, (int) ($validated['perPage'] ?? 50));
+            $activeCompanyId = $this->activeCompanyId($request);
+            $isToday = $dateYmd === Carbon::now($this->tz())->toDateString();
 
         $base = $this->adminAttendanceFilteredQuery($dateYmd, $search, $department, $statusFilter, $activeCompanyId);
 
@@ -350,7 +394,7 @@ class AttendanceController extends Controller
 
     public function adminUpsertRecord(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.update');
         if ($forbidden) {
             return $forbidden;
         }
@@ -475,12 +519,7 @@ class AttendanceController extends Controller
         $todayYmd = Carbon::now($this->tz())->toDateString();
 
         $profile = $user->employeeProfile;
-        $recordsQuery = AttendanceRecord::query();
-        $this->applyTenantScope($recordsQuery, $this->activeCompanyId($request));
-        $rec = $recordsQuery
-            ->where('user_id', $user->id)
-            ->whereDate('work_date', $todayYmd)
-            ->first();
+        $rec = $this->todayRecord($request, $user);
 
         $checkIn = $rec?->check_in_at;
         $checkOut = $rec?->check_out_at;
@@ -720,12 +759,7 @@ class AttendanceController extends Controller
 
         $weekHours = round($weekMinutes / 60, 2);
         $monthHours = round($monthMinutes / 60, 2);
-        $todayQuery = AttendanceRecord::query();
-        $this->applyTenantScope($todayQuery, $activeCompanyId);
-        $todayRec = $todayQuery
-            ->where('user_id', $user->id)
-            ->whereDate('work_date', $now->toDateString())
-            ->first();
+        $todayRec = $this->todayRecord($request, $user);
         $todayNet = $this->netProductionMinutes(
             $todayRec?->check_in_at,
             $todayRec?->check_out_at,
@@ -836,12 +870,7 @@ class AttendanceController extends Controller
 
         // Use whereDate + create instead of firstOrCreate: date column matching is unreliable
         // across drivers when the lookup attributes are normalized differently than stored values.
-        $recQuery = AttendanceRecord::query();
-        $this->applyTenantScope($recQuery, $activeCompanyId);
-        $rec = $recQuery
-            ->where('user_id', $user->id)
-            ->whereDate('work_date', $todayYmd)
-            ->first();
+        $rec = $this->todayRecord($request, $user);
 
         if (! $rec) {
             $rec = AttendanceRecord::query()->create([
@@ -859,6 +888,9 @@ class AttendanceController extends Controller
             $rec->check_in_at = $now;
             $rec->check_in_latitude = $lat;
             $rec->check_in_longitude = $lng;
+            if (! $rec->company_id && $activeCompanyId) {
+                $rec->company_id = $activeCompanyId;
+            }
             
             // Reverse geocode location
             $locationData = LocationService::reverseGeocode($lat, $lng);
@@ -898,6 +930,9 @@ class AttendanceController extends Controller
             $rec->check_out_at = $now;
             $rec->check_out_latitude = $lat;
             $rec->check_out_longitude = $lng;
+            if (! $rec->company_id && $activeCompanyId) {
+                $rec->company_id = $activeCompanyId;
+            }
             
             // Reverse geocode location
             $locationData = LocationService::reverseGeocode($lat, $lng);
@@ -1012,12 +1047,7 @@ class AttendanceController extends Controller
         $user = $request->user();
         $tz = $this->tz();
         $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
-        $recQuery = AttendanceRecord::query();
-        $this->applyTenantScope($recQuery, $this->activeCompanyId($request));
-        $rec = $recQuery
-            ->where('user_id', $user->id)
-            ->whereDate('work_date', $workDate)
-            ->first();
+        $rec = $this->recordForDate($request, $user, $workDate);
 
         if (! $rec) {
             return response()->json([
@@ -1077,7 +1107,7 @@ class AttendanceController extends Controller
 
     public function timesheetsIndex(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'timesheet.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -1186,7 +1216,7 @@ class AttendanceController extends Controller
 
     public function scheduleTimingIndex(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'schedule.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -1312,7 +1342,7 @@ class AttendanceController extends Controller
 
     public function scheduleTimingUpsert(Request $request, int $userId): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'schedule.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -1334,6 +1364,9 @@ class AttendanceController extends Controller
             $shiftQuery = HcmShift::query()->whereKey($shiftId)->where('is_active', true);
             $this->applyTenantScope($shiftQuery, $activeCompanyId);
             $shift = $shiftQuery->first();
+            if (! $shift && $activeCompanyId) {
+                $shift = HcmShift::query()->whereKey($shiftId)->where('is_active', true)->first();
+            }
             if (! $shift) {
                 return response()->json([
                     'success' => false,
@@ -1384,7 +1417,7 @@ class AttendanceController extends Controller
 
     public function scheduleTimingDestroy(Request $request, int $userId): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'schedule.manage');
         if ($forbidden) {
             return $forbidden;
         }
@@ -1566,7 +1599,7 @@ class AttendanceController extends Controller
      */
     public function adminSelfieDownload(Request $request, int $attendanceId): BinaryFileResponse|JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'attendance.admin');
         if ($forbidden) {
             return $forbidden;
         }

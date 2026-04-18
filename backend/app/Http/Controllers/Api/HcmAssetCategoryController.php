@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\AssetCategory;
 use App\Services\AssetService;
@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 class HcmAssetCategoryController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(private readonly AssetService $assetService)
     {
@@ -20,7 +20,7 @@ class HcmAssetCategoryController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.view')) {
             return $response;
         }
 
@@ -45,7 +45,7 @@ class HcmAssetCategoryController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -78,7 +78,7 @@ class HcmAssetCategoryController extends Controller
 
     public function update(Request $request, AssetCategory $category): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -118,7 +118,7 @@ class HcmAssetCategoryController extends Controller
 
     public function destroy(Request $request, AssetCategory $category): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 

@@ -73,7 +73,12 @@
                 }
 
                 if (companyModeActive) {
-                    window.AuthApi.setTenantContext({ companyCode: companyCode });
+                    var activeCompany = response && response.data ? response.data.activeCompany : null;
+                    window.AuthApi.setTenantContext({
+                        companyCode: companyCode,
+                        companyId: activeCompany && activeCompany.id ? activeCompany.id : undefined,
+                        companyUuid: activeCompany && activeCompany.uuid ? activeCompany.uuid : undefined,
+                    });
                 } else {
                     window.AuthApi.clearTenantContext();
                 }

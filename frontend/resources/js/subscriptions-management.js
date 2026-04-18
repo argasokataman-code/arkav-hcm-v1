@@ -140,7 +140,7 @@
   const SubscriptionsManager = {
     isInitialized: false,
     currentUser: null,
-    isAdminUser: false,
+    canManageSubscriptions: false,
     currentPage: 1,
     totalPages: 1,
     subscriptions: [],
@@ -159,6 +159,7 @@
     init: function () {
       if (this.isInitialized) return;
       this.isInitialized = true;
+      const self = this;
 
       const subModalEl = document.getElementById("subscriptionModal");
       this.subscriptionModalInstance =
@@ -185,7 +186,7 @@
           this.applyRoleUi();
 
           const tasks = [this.loadSubscriptions()];
-          if (this.isAdminUser) {
+          if (this.canManageSubscriptions) {
             tasks.unshift(this.loadPackages());
             tasks.unshift(this.loadCompanies());
           }
@@ -205,7 +206,7 @@
      * Open create modal from Packages deep link: /subscription?packageId=&companyId=&status=
      */
     applyQueryStringDefaults: function () {
-      if (!this.isAdminUser) return;
+      if (!this.canManageSubscriptions) return;
       const q = new URLSearchParams(window.location.search);
       const packageId = q.get("packageId") || q.get("package_id");
       const companyId = q.get("companyId") || q.get("company_id");
@@ -241,7 +242,7 @@
       return apiRequest("GET", "/v1/identity/auth/me", null)
         .then(function (response) {
           self.currentUser = response?.data || null;
-          self.isAdminUser = !!response?.data?.hcmAdmin;
+          self.canManageSubscriptions = !!(response?.data?.permissions && response.data.permissions['subscription.manage']);
           return response;
         });
     },
@@ -251,16 +252,16 @@
       const readOnlyNotice = document.querySelector("[data-subscription-readonly-notice]");
 
       if (addButton) {
-        addButton.classList.toggle("d-none", !this.isAdminUser);
+        addButton.classList.toggle("d-none", !this.canManageSubscriptions);
       }
 
       if (readOnlyNotice) {
-        readOnlyNotice.classList.toggle("d-none", this.isAdminUser);
+        readOnlyNotice.classList.toggle("d-none", this.canManageSubscriptions);
       }
 
       const renewByIdBtn = document.getElementById("btn_open_renew_by_id");
       if (renewByIdBtn) {
-        renewByIdBtn.classList.toggle("d-none", !this.isAdminUser);
+        renewByIdBtn.classList.toggle("d-none", !this.canManageSubscriptions);
       }
     },
 
@@ -485,7 +486,7 @@
 
     loadCompanies: function () {
       const self = this;
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         self.companies = [];
         self.renderCompanyOptions();
         return Promise.resolve([]);
@@ -507,7 +508,7 @@
 
     loadPackages: function () {
       const self = this;
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         self.packages = [];
         self.renderPackageOptions();
         return Promise.resolve([]);
@@ -663,7 +664,7 @@
                             <button class="btn btn-icon btn-sm me-2" data-view-subscription="${sub.id}" title="View Details">
                               <i class="ti ti-eye"></i>
                             </button>
-                            ${this.isAdminUser ? `
+                            ${this.canManageSubscriptions ? `
                               <button class="btn btn-icon btn-sm me-2" data-edit-subscription="${sub.id}" title="Edit">
                                 <i class="ti ti-edit"></i>
                               </button>
@@ -734,7 +735,7 @@
     },
 
     openCreateModal: function (opts) {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -791,7 +792,7 @@
     },
 
     handleSaveSubscription: function () {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -885,7 +886,7 @@
      * Edit subscription
      */
     editSubscription: function (id) {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -937,7 +938,7 @@
     },
 
     cancelSubscription: async function (id) {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -975,7 +976,7 @@
     },
 
     deleteSubscription: async function (id) {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -1050,7 +1051,7 @@
     },
 
     openRenewModal: function (id) {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -1100,7 +1101,7 @@
     },
 
     openRenewByIdModal: function () {
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }
@@ -1112,7 +1113,7 @@
 
     loadSubscriptionForRenewById: function () {
       const self = this;
-      if (!this.isAdminUser) {
+      if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
       }

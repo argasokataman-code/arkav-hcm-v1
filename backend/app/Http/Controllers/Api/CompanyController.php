@@ -48,6 +48,7 @@ class CompanyController extends Controller
             'success' => true,
             'data' => [
                 'id' => $activeCompany->id,
+                'uuid' => $activeCompany->uuid,
                 'code' => $activeCompany->code,
                 'name' => $activeCompany->name,
                 'legalName' => $activeCompany->legal_name,
@@ -93,7 +94,7 @@ class CompanyController extends Controller
         // Build query: admin can see all, others only their joined companies
         $baseQuery = Company::query();
 
-        if (!$user->isHcmAdmin()) {
+        if (! $this->isHcmAdmin($request)) {
             // Non-admin users see only companies they're members of
             $baseQuery->whereHas('users', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
@@ -127,6 +128,7 @@ class CompanyController extends Controller
 
             return [
                 'id' => $company->id,
+                'uuid' => $company->uuid,
                 'code' => $company->code,
                 'name' => $company->name,
                 'legal_name' => $company->legal_name,
@@ -180,7 +182,7 @@ class CompanyController extends Controller
         $user = $request->user();
 
         // Only admins can create companies
-        if (!$user->isHcmAdmin()) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -231,7 +233,7 @@ class CompanyController extends Controller
         }
 
         // Only admin or owner can edit
-        if (!$user->isHcmAdmin() && $company->owner_user_id !== $user->id) {
+        if (! $this->isHcmAdmin($request) && $company->owner_user_id !== $user->id) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -280,7 +282,7 @@ class CompanyController extends Controller
         }
 
         // Only admin can delete
-        if (!$user->isHcmAdmin()) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -296,5 +298,12 @@ class CompanyController extends Controller
             'success' => true,
             'message' => 'Company deleted successfully.',
         ]);
+    }
+
+    private function isHcmAdmin(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user ? $user->isGlobalHcmAdmin() : false;
     }
 }

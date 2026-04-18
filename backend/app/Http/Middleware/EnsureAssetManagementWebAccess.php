@@ -46,6 +46,7 @@ class EnsureAssetManagementWebAccess
 
             $request->attributes->set('activeCompany', $resolvedCompany);
             $request->attributes->set('activeCompanyId', $resolvedCompany->id);
+            $request->attributes->set('activeCompanyUuid', $resolvedCompany->uuid);
             $request->attributes->set('activeCompanyCode', $resolvedCompany->code);
             $request->attributes->set('activeCompanyRole', $membership->role);
             $companyId = (int) $resolvedCompany->id;

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
 use App\Services\MailtrapAccountApiService;
 use Illuminate\Http\JsonResponse;
@@ -11,12 +10,28 @@ use RuntimeException;
 
 class HcmEmailSettingsController extends Controller
 {
-    use EnsuresHcmAdmin;
-
     public function mailtrapStatus(Request $request, MailtrapAccountApiService $service): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
-            return $forbidden;
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADMIN_REQUIRED',
+                    'message' => 'Admin access required.',
+                ],
+            ], 403);
+        }
+
+        if (! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADMIN_REQUIRED',
+                    'message' => 'Admin access required.',
+                ],
+            ], 403);
         }
 
         $apiToken = trim((string) config('services.mailtrap.api_token', ''));

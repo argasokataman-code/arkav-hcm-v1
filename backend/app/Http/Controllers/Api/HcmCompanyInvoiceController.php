@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Invoice;
 use App\Services\InvoiceService;
 use App\Services\SubscriptionActivationFromInvoiceService;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
 
 class HcmCompanyInvoiceController
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly InvoiceService $invoiceService,
@@ -22,7 +22,7 @@ class HcmCompanyInvoiceController
     public function index(Request $request): JsonResponse
     {
         // Tenant owner is treated as tenant-admin for their company; keep same gate as checkout.
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
             return $forbidden;
         }
 
@@ -78,7 +78,7 @@ class HcmCompanyInvoiceController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
             return $forbidden;
         }
 
@@ -100,7 +100,7 @@ class HcmCompanyInvoiceController
 
     public function download(Request $request, int $id)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
             return $forbidden;
         }
 
@@ -132,7 +132,7 @@ class HcmCompanyInvoiceController
 
     public function mockPay(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
             return $forbidden;
         }
 

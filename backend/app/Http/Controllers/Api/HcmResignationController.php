@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmResignation;
 use App\Models\User;
@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class HcmResignationController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const STATUSES = ['pending', 'approved', 'cancelled'];
 
@@ -29,7 +29,7 @@ class HcmResignationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'resignation.view')) {
             return $forbidden;
         }
 
@@ -115,7 +115,7 @@ class HcmResignationController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $r->user_id) {
+        if (! $auth->hasPermissionForCompany('resignation.view', $activeCompanyId) && (int) $auth->id !== (int) $r->user_id) {
             return $this->resignationForbidden();
         }
 
@@ -139,7 +139,7 @@ class HcmResignationController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
+        if (! $auth->hasPermissionForCompany('resignation.view', $activeCompanyId) && (int) $auth->id !== (int) $userId) {
             return $this->resignationForbidden();
         }
 
@@ -171,7 +171,7 @@ class HcmResignationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'resignation.manage')) {
             return $forbidden;
         }
 
@@ -214,7 +214,7 @@ class HcmResignationController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'resignation.manage')) {
             return $forbidden;
         }
 
@@ -307,7 +307,7 @@ class HcmResignationController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'resignation.manage')) {
             return $forbidden;
         }
 

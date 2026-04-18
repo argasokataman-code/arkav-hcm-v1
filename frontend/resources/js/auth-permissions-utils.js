@@ -37,10 +37,8 @@
     /**
      * Check if user is HCM Admin (global super-admin role)
      */
-    function isHcmAdmin() {
-        const user = getUserContext();
-        return !!(user && user.isHcmAdmin === true);
-    }
+
+    // Use permission array from backend only.
 
     /**
      * Check if user is authenticated
@@ -81,9 +79,7 @@
      * @param {object} contextData - Additional context (from API, component state)
      */
     function hasPermission(permission, contextData = {}) {
-        if (isHcmAdmin()) {
-            return true; // Admins have all permissions
-        }
+
 
         const user = getUserContext();
         if (!user) return false;
@@ -126,8 +122,7 @@
         const user = getUserContext();
         if (!user) return false;
 
-        // Admins can edit anything
-        if (isHcmAdmin()) return true;
+
 
         // Owner can edit their own resource
         if (resourceData.userId && isOwner(resourceData.userId)) {
@@ -151,8 +146,8 @@
             return resourceData.canDelete === true;
         }
 
-        // Only admins can delete
-        return isHcmAdmin();
+        // Only allow if permission present
+        return hasPermission('subscriptions.delete', resourceData);
     }
 
     /**
@@ -167,8 +162,7 @@
         const user = getUserContext();
         if (!user) return false;
 
-        // Admins can view everything
-        if (isHcmAdmin()) return true;
+
 
         // Owner can view their resource
         if (resourceData.userId && isOwner(resourceData.userId)) {
@@ -189,10 +183,6 @@
      * @param {object} subscriptionData - Subscription info from API
      */
     function hasFeatureAccess(featureName, subscriptionData = {}) {
-        if (isHcmAdmin()) {
-            return true; // Admins have all features
-        }
-
         if (!subscriptionData) return false;
 
         // Check if subscription is active and has feature
@@ -232,7 +222,6 @@
 
     // Export to window
     window.AuthPermissions = {
-        isHcmAdmin,
         isAuthenticated,
         isOwner,
         isManagerOf,
@@ -246,7 +235,6 @@
     };
 
     // Also make available as global functions for convenience
-    window.isHcmAdmin = isHcmAdmin;
     window.canEditResource = canEditResource;
     window.canDeleteResource = canDeleteResource;
     window.canViewResource = canViewResource;

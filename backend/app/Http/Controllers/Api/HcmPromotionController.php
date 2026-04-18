@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmPromotion;
 use App\Models\User;
@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 
 class HcmPromotionController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private function promotionForbidden(): JsonResponse
     {
@@ -26,7 +26,7 @@ class HcmPromotionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'promotion.view')) {
             return $forbidden;
         }
 
@@ -115,7 +115,7 @@ class HcmPromotionController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $p->user_id) {
+        if (! $this->canManagePromotion($request) && (int) $auth->id !== (int) $p->user_id) {
             return $this->promotionForbidden();
         }
 
@@ -142,7 +142,7 @@ class HcmPromotionController extends Controller
         }
 
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && (int) $auth->id !== (int) $userId) {
+        if (! $this->canManagePromotion($request) && (int) $auth->id !== (int) $userId) {
             return $this->promotionForbidden();
         }
 
@@ -174,7 +174,7 @@ class HcmPromotionController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'promotion.manage')) {
             return $forbidden;
         }
 
@@ -215,7 +215,7 @@ class HcmPromotionController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'promotion.manage')) {
             return $forbidden;
         }
 
@@ -272,7 +272,7 @@ class HcmPromotionController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'promotion.manage')) {
             return $forbidden;
         }
 
@@ -306,6 +306,11 @@ class HcmPromotionController extends Controller
             'notes' => $p->notes ?? '',
             'createdAt' => $p->created_at?->toIso8601String(),
         ];
+    }
+
+    private function canManagePromotion(Request $request): bool
+    {
+        return $this->hasAnyPermission($request, ['promotion.manage', 'promotion.view']);
     }
 }
 

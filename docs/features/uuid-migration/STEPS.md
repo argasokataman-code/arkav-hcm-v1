@@ -1,64 +1,75 @@
 # UUID Migration Steps & Integration Notes
 
-## 1. Migration Steps (Laravel)
+## Status singkat
 
-Status pengerjaan saat ini:
-- Batch 1-21: Done (incremental per 5 tabel/batch, termasuk leave workflow + company settings cluster)
-- Tabel tersisa: In progress, lanjut bertahap sesuai dependency parent-child UUID
+Migrasi masih transisi.
 
-1. **Branching:**
-   - Buat branch baru khusus migrasi UUID.
-2. **Update Migration:**
-   - Ganti semua `$table->id()` → `$table->uuid('id')->primary()`.
-   - Untuk FK: `$table->uuid('xxx_id')->index()` dan constraint ke UUID.
-   - Tambahkan kolom UUID baru (nullable) jika data existing.
-3. **Data Migration:**
-   - Isi UUID untuk semua row existing (gunakan `Str::uuid()`).
-   - Update semua FK child ke UUID baru.
-   - Setelah semua FK update, jadikan UUID sebagai PK, hapus kolom integer lama.
-4. **Model Update:**
-   - Fase transisi: pakai trait auto-generator untuk kolom `uuid` (jangan ubah PK integer secara paksa sebelum semua FK siap).
-   - Fase final: baru aktifkan UUID sebagai PK utama saat semua FK sudah pindah.
-   - Update relasi Eloquent agar pakai UUID.
-5. **Seeder & Factory:**
-   - Pastikan semua seeder/factory generate UUID, bukan integer.
-6. **Codebase Update:**
-   - Update semua controller, service, dan query yang akses ID/FK.
-   - Audit raw SQL, pastikan tidak ada yang pakai integer ID.
-7. **Testing:**
-   - Jalankan migration di staging/dev.
-   - Smoketest seluruh fitur utama (CRUD, relasi, login, dsb).
-   - Audit data orphan, FK error, collision.
-8. **Documentation:**
-   - Update progress di `uuid-migration-table-list.md` dan `docs/features/uuid-migration/README.md`.
+- Selesai mayoritas: penambahan/backfill kolom UUID dan relasi UUID tambahan.
+- Belum selesai: switch PK utama integer ke UUID di tabel inti.
 
-## 2. Integration Notes
-- Semua FK di child table harus ikut diubah ke UUID.
-- Cek migration constraint tambahan (misal: comprehensive FK constraints).
-- Audit Eloquent model, seeder, factory, dan raw SQL.
-- Siapkan backup dan rollback plan.
-- Tandai status per tabel setiap selesai kloter: `Not started`, `In progress`, `Done`.
-- Jika menemukan migration overlap historis, perlakukan sebagai non-blocking selama idempotent guard aktif; hindari menghapus file migration lama yang sudah mungkin tereksekusi di environment lain.
-- Cleanup overlap dilakukan via migration lanjutan yang aman (forward-only), bukan rewrite histori migration.
-- Jika migration UUID berjalan sebelum migration `Schema::create(...)` parent/child table, gunakan pola 2 tahap:
-   - Tahap 1: harden migration lama agar tidak fail (`hasTable`, `hasColumn`, fallback tanpa `after(...)`).
-   - Tahap 2: tambahkan migration catch-up setelah table create migration untuk backfill UUID + pasang index/FK UUID yang sempat terlewati.
-- Jangan mengandalkan guard saja untuk jangka panjang; guard mencegah crash, tapi catch-up migration memastikan relasi benar-benar terbentuk.
+Referensi bukti: [backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php](../../../backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php).
 
-## 4. API Standard Sync (pasca relasi)
-- Saat menyesuaikan endpoint setelah perubahan relasi, pertahankan envelope API standar backend:
+## Checklist status aktual
+
+| Area | Status | Keterangan |
+|------|--------|------------|
+| UUID column rollout | Done (majority) | Batch lintas domain sudah tersedia |
+| UUID FK rollout tambahan | Done (majority) | Hardening/catch-up sudah ditambahkan |
+| PK integer -> UUID cutover | Not done | Migration switch PK masih no-op |
+| Full UUID migration complete | Not done | Menunggu final cutover + verifikasi |
+
+## Langkah eksekusi
+
+### Fase 0 - Persiapan
+
+1. Pastikan backup database terbaru siap restore.
+2. Freeze deployment perubahan schema lain selama window cutover.
+3. Tetapkan daftar tabel inti parent-child yang akan dipotong pada satu gelombang.
+4. Jalankan pre-check lokal: `bash scripts/uuid-pre-migration-check.sh`.
+5. Ikuti runbook production terstruktur: [docs/features/uuid-migration/PRODUCTION-RUNBOOK.md](PRODUCTION-RUNBOOK.md).
+
+### Fase 1 - Validasi transisi yang sudah ada
+
+1. Pastikan semua tabel target memiliki kolom `uuid` yang terisi.
+2. Pastikan kolom `*_uuid` yang sudah ditambahkan memiliki data hasil backfill.
+3. Tandai temuan di tracker: [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md).
+
+### Fase 2 - Final PK/FK cutover
+
+1. Lepas FK lama berbasis integer secara terkontrol.
+2. Ubah PK utama tabel inti ke UUID.
+3. Rebind FK child ke parent UUID.
+4. Rebuild index utama yang terdampak performa query.
+
+Catatan: migration [backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php](../../../backend/database/migrations/2026_04_18_130000_switch_pk_to_uuid_core_tables.php) belum menjalankan langkah ini dan masih checkpoint no-op.
+
+### Fase 3 - Sinkronisasi aplikasi
+
+1. Update model agar key type dan relasi konsisten dengan UUID.
+2. Audit service/controller/query raw agar tidak mengunci integer PK sebagai identifier utama.
+3. Pastikan seeder/factory menggunakan UUID.
+
+### Fase 4 - Testing dan verifikasi
+
+1. Jalankan migration pada staging clone data terbaru.
+2. Cek integritas dengan query: [docs/sql/uuid-cutover-integrity-check.sql](../../sql/uuid-cutover-integrity-check.sql).
+3. Smoke test modul utama (auth, employee, leave, payroll, billing, reporting).
+4. Verifikasi respon API tetap memakai envelope standar:
    - sukses: `{ success: true, data: ... }`
    - gagal: `{ success: false, error: { code, message } }`
-- Pada audit 2026-04-18, endpoint settings telah dinormalisasi ke envelope ini untuk konsistensi lintas modul.
 
-## 3. References
-- Laravel Docs: [UUIDs & HasUuids](https://laravel.com/docs/10.x/eloquent#uuid-and-ulid-keys)
-- Context7: [Laravel UUID Migration Best Practice]
+### Fase 5 - Dokumentasi penutupan
 
----
+1. Sinkronkan status di [docs/features/uuid-migration/README.md](README.md).
+2. Sinkronkan tracker batch di [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md).
+3. Tambahkan catatan anomali jika ada overlap migration historis atau catch-up baru.
 
-**Checklist detail dan status per tabel ada di:**
-- `docs/features/uuid-migration/README.md`
-- `uuid-migration-table-list.md`
+## Catatan integrasi
 
-Jika butuh template migration atau contoh implementasi, silakan request.
+- Pertahankan pendekatan forward-only dan idempotent guard untuk stabilitas lintas environment.
+- Jangan rewrite histori migration lama yang mungkin sudah dieksekusi di environment lain.
+- Jika ada migration UUID yang dieksekusi lebih awal dari migration create-table domain terkait, tutup gap dengan migration catch-up terpisah.
+
+## Referensi
+
+- Laravel UUID key docs: https://laravel.com/docs/10.x/eloquent#uuid-and-ulid-keys

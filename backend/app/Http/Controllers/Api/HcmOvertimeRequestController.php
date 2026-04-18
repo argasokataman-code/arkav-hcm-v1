@@ -54,7 +54,7 @@ class HcmOvertimeRequestController extends Controller
         });
 
         $user = $request->user();
-        if (! $user->isHcmAdmin()) {
+        if (! $this->canViewTeamOvertime($request)) {
             $query->where('user_id', $user->id);
         } elseif ($scope === 'me') {
             $query->where('user_id', $user->id);
@@ -63,7 +63,7 @@ class HcmOvertimeRequestController extends Controller
         $this->applyOvertimeRequestListFilters($query, $validated);
 
         $meta = [];
-        if ($user->isHcmAdmin() && $scope !== 'me') {
+        if ($this->canViewTeamOvertime($request) && $scope !== 'me') {
             $summaryQuery = OvertimeRequest::query();
             $summaryQuery->whereHas('user.employeeProfile', function ($p) use ($activeCompanyId): void {
                 $p->where('company_id', $activeCompanyId);
@@ -126,11 +126,36 @@ class HcmOvertimeRequestController extends Controller
         return is_numeric($value) ? (int) $value : null;
     }
 
+    private function canViewTeamOvertime(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('overtime.view', $companyId)
+            || $user->hasPermissionForCompany('overtime.approve', $companyId)
+            || $user->hasPermissionForCompany('attendance.admin', $companyId);
+    }
+
+    private function canManageOvertime(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('overtime.approve', $companyId)
+            || $user->hasPermissionForCompany('attendance.admin', $companyId);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $actor = $request->user();
         $typeExists = Rule::exists('hcm_overtime_types', 'id');
-        if (! $actor->isHcmAdmin()) {
+        if (! $this->canManageOvertime($request)) {
             $typeExists = Rule::exists('hcm_overtime_types', 'id')->where('is_active', true);
         }
 
@@ -148,20 +173,20 @@ class HcmOvertimeRequestController extends Controller
 
         $userId = isset($validated['userId']) ? (int) $validated['userId'] : $actor->id;
         $requestType = $validated['requestType'] ?? 'employee_request';
-        if ($userId !== $actor->id && ! $actor->isHcmAdmin()) {
+        if ($userId !== $actor->id && ! $this->canManageOvertime($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Cannot create overtime for another user.'],
             ], 403);
         }
-        if (! $actor->isHcmAdmin() && $requestType !== 'employee_request') {
+        if (! $this->canManageOvertime($request) && $requestType !== 'employee_request') {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Only admin can submit company/correction overtime.'],
             ], 403);
         }
         User::query()->findOrFail($userId);
-        $status = $actor->isHcmAdmin() ? ($validated['status'] ?? 'pending') : 'pending';
+        $status = $this->canManageOvertime($request) ? ($validated['status'] ?? 'pending') : 'pending';
 
         $otComp = HcmSalaryComponent::resolveForOvertimePay();
 
@@ -189,7 +214,7 @@ class HcmOvertimeRequestController extends Controller
 
         $actor = $request->user();
         if ($r->user_id !== $actor->id) {
-            if (! $actor->isHcmAdmin()) {
+            if (! $this->canManageOvertime($request)) {
                 return response()->json([
                     'success' => false,
                     'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
@@ -210,7 +235,7 @@ class HcmOvertimeRequestController extends Controller
         }
 
         $typeExists = Rule::exists('hcm_overtime_types', 'id');
-        if (! $actor->isHcmAdmin()) {
+        if (! $this->canManageOvertime($request)) {
             $typeExists = Rule::exists('hcm_overtime_types', 'id')->where('is_active', true);
         }
 
@@ -236,7 +261,7 @@ class HcmOvertimeRequestController extends Controller
             $payload['hcm_overtime_type_id'] = $validated['overtimeTypeId'];
         }
         if (array_key_exists('requestType', $validated)) {
-            if (! $actor->isHcmAdmin() && $validated['requestType'] !== 'employee_request') {
+            if (! $this->canManageOvertime($request) && $validated['requestType'] !== 'employee_request') {
                 return response()->json([
                     'success' => false,
                     'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Only admin can set company/correction overtime.'],

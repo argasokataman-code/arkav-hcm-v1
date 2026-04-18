@@ -23,7 +23,7 @@ class InvoiceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         $query = Invoice::with(['company', 'purchaseTransaction']);
@@ -78,7 +78,7 @@ class InvoiceController extends Controller
      */
     public function show(Request $request, Invoice $invoice): JsonResponse
     {
-        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         // Security: If not admin, ensure invoice belongs to their company
@@ -106,7 +106,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -144,7 +144,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -178,7 +178,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -200,7 +200,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -226,7 +226,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -245,7 +245,7 @@ class InvoiceController extends Controller
      */
     public function downloadPdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
     {
-        $isAdmin = (bool) $request->user()?->isHcmAdmin();
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         // Security: Allow download if admin or if invoice belongs to their company
@@ -292,7 +292,7 @@ class InvoiceController extends Controller
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Admin access required.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -367,7 +367,7 @@ class InvoiceController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        return $user && $user->isHcmAdmin();
+        return $user && $user->isGlobalHcmAdmin();
     }
 
     private function guardInvoiceReconciliation(Request $request, Invoice $invoice): ?JsonResponse

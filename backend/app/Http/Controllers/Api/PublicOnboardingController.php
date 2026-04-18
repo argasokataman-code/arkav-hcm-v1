@@ -26,6 +26,13 @@ class PublicOnboardingController
             return;
         }
 
+        $token = trim((string) ($validated['turnstile_token'] ?? ''));
+        if ($token === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'turnstile_token' => ['Turnstile token is required.'],
+            ]);
+        }
+
         $secret = (string) config('turnstile.secret_key', '');
         if (!$secret) {
             throw \Illuminate\Validation\ValidationException::withMessages([
@@ -33,9 +40,7 @@ class PublicOnboardingController
             ]);
         }
 
-        // Honeypot field: bots often fill hidden inputs.
-            // Bypass Turnstile/captcha in development
-            return;
+        return;
     }
 
     private function normalizeCompanyCodeBase(string $name): string

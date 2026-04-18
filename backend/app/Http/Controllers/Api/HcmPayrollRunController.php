@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
 use App\Models\HcmPayrollLine;
@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
 
 class HcmPayrollRunController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly MonthlyPayslipService $monthlyPayslipService
@@ -29,7 +29,7 @@ class HcmPayrollRunController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -57,7 +57,7 @@ class HcmPayrollRunController extends Controller
 
     public function history(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -120,7 +120,7 @@ class HcmPayrollRunController extends Controller
 
     public function finalize(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.finalize');
         if ($forbidden) {
             return $forbidden;
         }
@@ -195,7 +195,7 @@ class HcmPayrollRunController extends Controller
 
     public function disburse(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.disburse');
         if ($forbidden) {
             return $forbidden;
         }
@@ -438,7 +438,7 @@ class HcmPayrollRunController extends Controller
 
     public function resetPayments(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
             return $forbidden;
         }
 
@@ -616,7 +616,7 @@ class HcmPayrollRunController extends Controller
 
     public function sendMonthlySlips(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
             return $forbidden;
         }
 
@@ -805,7 +805,7 @@ class HcmPayrollRunController extends Controller
      */
     public function adminRunSlips(Request $request): JsonResponse
     {
-        $forbidden = $this->ensureHcmAdmin($request);
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
             return $forbidden;
         }
@@ -903,7 +903,7 @@ class HcmPayrollRunController extends Controller
      */
     public function adminSlips(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 

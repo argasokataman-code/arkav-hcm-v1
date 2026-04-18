@@ -102,9 +102,7 @@ class AuthorizationStore {
    * Check if user is HCM admin
    * @returns {boolean}
    */
-  isHcmAdmin() {
-    return this.hasRole('hcm_admin');
-  }
+
 
   /**
    * Check if user is system admin
@@ -209,10 +207,10 @@ const store = new AuthorizationStore();
  * 
  * export default {
  *   setup() {
- *     const { isHcmAdmin, canEdit, user, activeCompanyId } = useAuthorization();
+ *     const { canEdit, user, activeCompanyId } = useAuthorization();
  *     
  *     return {
- *       isHcmAdmin,
+ *       canEdit,
  *       canEdit,
  *       user,
  *       activeCompanyId
@@ -227,8 +225,6 @@ export function useAuthorization() {
   const activeCompanyId = computed(() => store.getActiveCompanyId());
   const isAuthenticated = computed(() => !!store.getUser());
 
-  // Role checks
-  const isHcmAdmin = computed(() => store.isHcmAdmin());
   const isSysAdmin = computed(() => store.isSysAdmin());
 
   // Methods
@@ -263,8 +259,6 @@ export function useAuthorization() {
     activeCompanyId,
     isAuthenticated,
 
-    // Role checks
-    isHcmAdmin,
     isSysAdmin,
     hasRole,
 

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeProfile;
 use App\Models\PerformanceCycle;
@@ -18,7 +18,7 @@ use Illuminate\Http\Request;
 
 class HcmPerformanceController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     private const KPI_WEIGHT_GLOBAL = 0.7;
     private const BEHAVIOR_WEIGHT_GLOBAL = 0.3;
@@ -55,7 +55,7 @@ class HcmPerformanceController extends Controller
 
     public function storeGoalType(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -76,7 +76,7 @@ class HcmPerformanceController extends Controller
 
     public function updateGoalType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -98,7 +98,7 @@ class HcmPerformanceController extends Controller
 
     public function destroyGoalType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -216,7 +216,7 @@ class HcmPerformanceController extends Controller
         ]);
 
         $auth = $request->user();
-        $isAdmin = (bool) $auth?->isHcmAdmin();
+        $isAdmin = $this->canManagePerformance($request);
 
         $userId = $auth->id;
         if (isset($v['userId'])) {
@@ -249,7 +249,7 @@ class HcmPerformanceController extends Controller
     {
         $g = PerformanceGoal::query()->findOrFail($id);
         $auth = $request->user();
-        $isAdmin = (bool) $auth?->isHcmAdmin();
+        $isAdmin = $this->canManagePerformance($request);
         $isOwner = $g->user_id === $auth->id;
         $isManager = $g->manager_user_id !== null && $g->manager_user_id === $auth->id;
         if (! $isAdmin && ! $isOwner && ! $isManager) {
@@ -304,7 +304,7 @@ class HcmPerformanceController extends Controller
     {
         $g = PerformanceGoal::query()->findOrFail($id);
         $auth = $request->user();
-        $isAdmin = (bool) $auth?->isHcmAdmin();
+        $isAdmin = $this->canManagePerformance($request);
         if (! $isAdmin && $g->user_id !== $auth->id) {
             return $this->forbidden();
         }
@@ -318,7 +318,7 @@ class HcmPerformanceController extends Controller
     // -------------------------
     public function indicatorTemplates(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.view')) {
             return $forbidden;
         }
 
@@ -338,7 +338,7 @@ class HcmPerformanceController extends Controller
 
     public function storeIndicatorTemplate(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -361,7 +361,7 @@ class HcmPerformanceController extends Controller
 
     public function updateIndicatorTemplate(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -385,7 +385,7 @@ class HcmPerformanceController extends Controller
 
     public function destroyIndicatorTemplate(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -395,7 +395,7 @@ class HcmPerformanceController extends Controller
 
     public function indicatorItems(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.view')) {
             return $forbidden;
         }
 
@@ -416,7 +416,7 @@ class HcmPerformanceController extends Controller
 
     public function storeIndicatorItem(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -448,7 +448,7 @@ class HcmPerformanceController extends Controller
 
     public function updateIndicatorItem(Request $request, int $itemId): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -479,7 +479,7 @@ class HcmPerformanceController extends Controller
 
     public function destroyIndicatorItem(Request $request, int $itemId): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         PerformanceIndicatorItem::query()->whereKey($itemId)->delete();
@@ -491,7 +491,7 @@ class HcmPerformanceController extends Controller
     // -------------------------
     public function cycles(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.view')) {
             return $forbidden;
         }
         $rows = PerformanceCycle::query()->orderByDesc('id')->get()->map(fn (PerformanceCycle $c) => [
@@ -506,7 +506,7 @@ class HcmPerformanceController extends Controller
 
     public function storeCycle(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         $v = $request->validate([
@@ -525,7 +525,7 @@ class HcmPerformanceController extends Controller
 
     public function updateCycle(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         $c = PerformanceCycle::query()->findOrFail($id);
@@ -546,7 +546,7 @@ class HcmPerformanceController extends Controller
 
     public function activateCycle(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         PerformanceCycle::query()->where('status', 'active')->update(['status' => 'closed']);
@@ -557,7 +557,7 @@ class HcmPerformanceController extends Controller
 
     public function closeCycle(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         $c = PerformanceCycle::query()->findOrFail($id);
@@ -579,7 +579,7 @@ class HcmPerformanceController extends Controller
 
         $user = $request->user();
         $scope = (string) ($validated['scope'] ?? 'me');
-        $isAdmin = (bool) $user?->isHcmAdmin();
+        $isAdmin = $this->canManagePerformance($request);
 
         $query = PerformanceReview::query()
             ->with(['employee:id,name,email', 'manager:id,name,email', 'cycle:id,name,status'])
@@ -629,7 +629,7 @@ class HcmPerformanceController extends Controller
 
     public function createReview(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
 
@@ -676,11 +676,7 @@ class HcmPerformanceController extends Controller
             ])
             ->findOrFail($id);
 
-        $user = $request->user();
-        $isAdmin = (bool) $user?->isHcmAdmin();
-        $isOwner = $review->user_id === $user->id;
-        $isManager = $review->manager_user_id !== null && $review->manager_user_id === $user->id;
-        if (! $isAdmin && ! $isOwner && ! $isManager) {
+        if (! $this->canAccessReview($request, $review)) {
             return $this->forbidden();
         }
 
@@ -900,7 +896,7 @@ class HcmPerformanceController extends Controller
 
     public function adminFinalUpdate(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         $review = PerformanceReview::query()->with('template.items')->findOrFail($id);
@@ -953,7 +949,7 @@ class HcmPerformanceController extends Controller
 
     public function finalize(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'performance.manage')) {
             return $forbidden;
         }
         $review = PerformanceReview::query()->findOrFail($id);
@@ -967,6 +963,22 @@ class HcmPerformanceController extends Controller
     // -------------------------
     // Helpers
     // -------------------------
+    private function canManagePerformance(Request $request): bool
+    {
+        return $this->hasAnyPermission($request, ['performance.manage']);
+    }
+
+    private function canAccessReview(Request $request, PerformanceReview $review): bool
+    {
+        $user = $request->user();
+        if ($this->hasAnyPermission($request, ['performance.manage'])) {
+            return true;
+        }
+        $isOwner = $review->user_id === $user->id;
+        $isManager = $review->manager_user_id !== null && $review->manager_user_id === $user->id;
+        return $isOwner || $isManager;
+    }
+
     private function computeHybridTotal(PerformanceReview $review, string $kind): float
     {
         $review->loadMissing(['template.items', 'scores']);

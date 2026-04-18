@@ -124,6 +124,7 @@ class AuthController extends Controller
                 ],
                 'activeCompany' => isset($requestedCompany['company']) ? [
                     'id' => $requestedCompany['company']->id,
+                    'uuid' => $requestedCompany['company']->uuid,
                     'code' => $requestedCompany['company']->code,
                     'name' => $requestedCompany['company']->name,
                     'role' => $requestedCompany['role'] ?? null,
@@ -183,6 +184,7 @@ class AuthController extends Controller
         // For self-serve trial: the company owner should be treated as tenant-admin for their own company.
         $isGlobalHcmAdmin = $user->isHcmAdmin();
         $isTenantHcmAdmin = $activeCompanyId > 0 ? $user->isHcmAdminForCompany($activeCompanyId) : $isGlobalHcmAdmin;
+        $permissions = $user->permissionsForContext($activeCompanyId > 0 ? $activeCompanyId : null);
 
         return response()->json([
             'success' => true,
@@ -203,8 +205,11 @@ class AuthController extends Controller
                 'roles' => ['employee'],
                 'hcmAdmin' => $isTenantHcmAdmin,
                 'hcmGlobalAdmin' => $isGlobalHcmAdmin,
+                'permissions' => $permissions,
+                'permissionCodes' => array_keys($permissions),
                 'activeCompany' => $activeCompany ? [
                     'id' => $activeCompany->id,
+                    'uuid' => $activeCompany->uuid,
                     'code' => $activeCompany->code,
                     'name' => $activeCompany->name,
                     'role' => $activeCompanyRole,
@@ -407,7 +412,7 @@ class AuthController extends Controller
                 'name' => 'Default Company',
                 'legal_name' => 'Default Company',
                 'status' => 'active',
-                'owner_user_id' => $user->id,
+                'owner_user_id' => null,
                 'timezone' => (string) config('app.timezone', 'UTC'),
                 'currency' => 'IDR',
                 'country_code' => 'ID',

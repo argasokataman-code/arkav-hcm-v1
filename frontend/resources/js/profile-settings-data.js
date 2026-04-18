@@ -45,6 +45,9 @@
         if (tenant && tenant.companyId) {
             headers['X-Company-Id'] = String(tenant.companyId);
         }
+        if (tenant && tenant.companyUuid) {
+            headers['X-Company-UUID'] = String(tenant.companyUuid);
+        }
         if (extra) {
             Object.keys(extra).forEach(function (k) { headers[k] = extra[k]; });
         }
@@ -67,7 +70,9 @@
             companyNameNode.textContent = activeCompany && activeCompany.name ? String(activeCompany.name) : '—';
         }
         if (companyIdNode) {
-            companyIdNode.textContent = activeCompany && activeCompany.id ? String(activeCompany.id) : '—';
+            companyIdNode.textContent = activeCompany && activeCompany.uuid
+                ? String(activeCompany.uuid)
+                : (activeCompany && activeCompany.id ? String(activeCompany.id) : '—');
         }
         if (companyCodeNode) {
             companyCodeNode.textContent = activeCompany && activeCompany.code ? String(activeCompany.code) : (tenant && tenant.companyCode ? String(tenant.companyCode) : '—');

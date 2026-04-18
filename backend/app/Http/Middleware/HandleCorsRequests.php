@@ -28,7 +28,7 @@ class HandleCorsRequests
             if (in_array('*', $allowedOrigins) || in_array($origin, $allowedOrigins)) {
                 $response->headers->set('Access-Control-Allow-Origin', $origin ?? '*');
                 $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-                $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Company-Code, X-Company-Id, Accept');
+                $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Company-Code, X-Company-Id, X-Company-UUID, Accept');
                 $response->headers->set('Access-Control-Allow-Credentials', 'true');
                 $response->headers->set('Access-Control-Max-Age', '3600');
             }

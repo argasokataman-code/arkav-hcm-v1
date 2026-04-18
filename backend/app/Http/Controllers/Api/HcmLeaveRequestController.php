@@ -27,6 +27,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class HcmLeaveRequestController extends Controller
 {
+    private function canManageLeaveForCompany(Request $request): bool
+    {
+        $user = $request->user();
+        $companyId = $this->activeCompanyId($request);
+        if (! $user || ! $companyId) {
+            return false;
+        }
+
+        return $user->hasPermissionForCompany('leave.approve', $companyId)
+            || $user->hasPermissionForCompany('leave.update', $companyId)
+            || $user->hasPermissionForCompany('leave.settings', $companyId);
+    }
+
     private function activeCompanyId(Request $request): ?int
     {
         $value = $request->attributes->get('activeCompanyId');
@@ -90,7 +103,7 @@ class HcmLeaveRequestController extends Controller
             'declined' => (int) ($summaryRow->declined ?? 0),
         ];
 
-        if (! $request->user()->isHcmAdmin() || $scope === 'me') {
+        if (! $this->canManageLeaveForCompany($request) || $scope === 'me') {
             $meta['balanceSummary'] = $this->buildUserBalanceSummary((int) $request->user()->id);
         }
         $meta['holidays'] = $this->buildLeaveHolidayMeta();
@@ -99,7 +112,7 @@ class HcmLeaveRequestController extends Controller
             'status' => $validated['status'] ?? null,
             'dateFrom' => $validated['dateFrom'] ?? null,
             'dateTo' => $validated['dateTo'] ?? null,
-            'userId' => $request->user()->isHcmAdmin() ? ($validated['userId'] ?? null) : null,
+            'userId' => $this->canManageLeaveForCompany($request) ? ($validated['userId'] ?? null) : null,
         ];
 
         $paginator = $query->paginate($perPage);
@@ -147,7 +160,7 @@ class HcmLeaveRequestController extends Controller
         $query = $this->applyTenantScope(LeaveRequest::query()->with('user:id,name,email')->orderByDesc('id'), $this->activeCompanyId($request));
         $this->applyIndexFilters($query, $request, $validated, $scope);
 
-        $isAdminScope = $request->user()->isHcmAdmin() && $scope !== 'me';
+        $isAdminScope = $this->canManageLeaveForCompany($request) && $scope !== 'me';
         $headers = $isAdminScope
             ? ['Employee', 'Email', 'Leave Type', 'Date From', 'Date To', 'Days', 'Status', 'Notes']
             : ['Leave Type', 'Date From', 'Date To', 'Days', 'Status', 'Notes'];
@@ -189,7 +202,7 @@ class HcmLeaveRequestController extends Controller
 
     private function applyIndexFilters($query, Request $request, array $validated, ?string $scope): void
     {
-        if ($scope === 'me' || ! $request->user()->isHcmAdmin()) {
+        if ($scope === 'me' || ! $this->canManageLeaveForCompany($request)) {
             $query->where('user_id', $request->user()->id);
         }
 
@@ -213,7 +226,7 @@ class HcmLeaveRequestController extends Controller
         if (! empty($validated['dateTo'])) {
             $query->whereDate('date_to', '<=', $validated['dateTo']);
         }
-        if ($request->user()->isHcmAdmin() && $scope !== 'me' && ! empty($validated['userId'])) {
+        if ($this->canManageLeaveForCompany($request) && $scope !== 'me' && ! empty($validated['userId'])) {
             $query->where('user_id', (int) $validated['userId']);
         }
     }
@@ -359,7 +372,7 @@ class HcmLeaveRequestController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $isAdmin = $request->user()->isHcmAdmin();
+        $isAdmin = $this->canManageLeaveForCompany($request);
         if (isset($validated['userId']) && ! $isAdmin) {
             return response()->json([
                 'success' => false,
@@ -410,7 +423,7 @@ class HcmLeaveRequestController extends Controller
         $r = $this->applyTenantScope(LeaveRequest::query(), $companyId)->whereKey($id)->firstOrFail();
 
         if ($r->user_id !== $request->user()->id) {
-            if (! $request->user()->isHcmAdmin()) {
+            if (! $this->canManageLeaveForCompany($request)) {
                 return response()->json([
                     'success' => false,
                     'error' => [

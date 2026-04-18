@@ -2254,7 +2254,7 @@
         var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
         if (path === "/holidays") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && !m.data.hcmAdmin) {
+                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['holiday.view'])) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -2265,8 +2265,8 @@
                 if (m && m.success && m.data && m.data.id) {
                     window.__arcav_me_id = m.data.id;
                 }
-                var isAdmin = !!(m && m.success && m.data && m.data.hcmAdmin);
-                if (m && m.success && m.data && !m.data.hcmAdmin) {
+                var isAdmin = !!(m && m.success && m.data && m.data.permissions && m.data.permissions['leave.view']);
+                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.view'])) {
                     window.location.replace("/leaves-employee");
                     return;
                 }
@@ -2276,7 +2276,7 @@
             bindLeaves("me", false);
         } else if (path === "/leave-report") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && !m.data.hcmAdmin) {
+                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.view'])) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -2284,7 +2284,7 @@
             });
         } else if (path === "/overtime") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && !m.data.hcmAdmin) {
+                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['overtime.view'])) {
                     window.location.replace("/overtime-employee");
                     return;
                 }

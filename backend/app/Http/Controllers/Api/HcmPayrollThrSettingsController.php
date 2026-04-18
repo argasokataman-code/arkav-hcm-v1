@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmThrYearlySetting;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,11 +11,11 @@ use Illuminate\Http\Request;
 
 class HcmPayrollThrSettingsController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -46,7 +46,7 @@ class HcmPayrollThrSettingsController extends Controller
 
     public function upsert(Request $request, int $calendarYear): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 

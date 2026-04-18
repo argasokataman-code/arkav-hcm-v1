@@ -28,6 +28,7 @@ return [
         'lock-screen',
         'register',
         'signout',
+        'api-token',
         'api-docs',
         'api-docs/openapi.yaml',
     ],

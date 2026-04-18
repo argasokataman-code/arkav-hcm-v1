@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HcmPayrollThrBatchController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly ThrBatchService $thrBatchService
@@ -24,7 +24,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -95,7 +95,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function generate(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -124,7 +124,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function disburse(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -177,7 +177,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function postPayroll(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 
@@ -364,7 +364,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function sendSlip(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
         }
 

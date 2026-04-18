@@ -151,6 +151,9 @@
         if (tenantContext.companyId) {
             headers["X-Company-Id"] = String(tenantContext.companyId);
         }
+        if (tenantContext.companyUuid) {
+            headers["X-Company-UUID"] = String(tenantContext.companyUuid);
+        }
 
         if (extraHeaders) {
             Object.keys(extraHeaders).forEach(function (key) {
@@ -186,6 +189,12 @@
         }
         if (data.companyId !== undefined && data.companyId !== null && data.companyId !== "") {
             normalized.companyId = data.companyId;
+        }
+        if (typeof data.companyUuid === "string") {
+            var uuid = data.companyUuid.trim();
+            if (uuid) {
+                normalized.companyUuid = uuid;
+            }
         }
 
         try {

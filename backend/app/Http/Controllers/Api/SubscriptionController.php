@@ -17,7 +17,7 @@ class SubscriptionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $request->user() || ! $this->hasBearerApiToken($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
@@ -92,10 +92,10 @@ class SubscriptionController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -155,7 +155,7 @@ class SubscriptionController extends Controller
      */
     public function show(Request $request, Subscription $subscription): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $request->user() || ! $this->hasBearerApiToken($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
@@ -176,10 +176,10 @@ class SubscriptionController extends Controller
      */
     public function update(Request $request, Subscription $subscription): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -271,10 +271,10 @@ class SubscriptionController extends Controller
      */
     public function destroy(Request $request, Subscription $subscription): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -292,10 +292,10 @@ class SubscriptionController extends Controller
      */
     public function renew(Request $request, Subscription $subscription): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -438,12 +438,20 @@ class SubscriptionController extends Controller
         ];
     }
 
+    private function hasBearerApiToken(Request $request): bool
+    {
+        $authorization = (string) $request->header('Authorization', '');
+
+        return str_starts_with($authorization, 'Bearer ');
+    }
+
     /**
      * Check if user is HCM admin
      */
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        return $user ? $user->isHcmAdmin() : false;
+
+        return $user ? $user->isGlobalHcmAdmin() : false;
     }
 }

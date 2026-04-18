@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Company;
 use App\Models\Department;
 use App\Services\Media\AvatarStorageService;
@@ -42,7 +42,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class HcmEmployeeController extends Controller
 {
-    use EnsuresHcmAdmin;
+    use ChecksPermissions;
 
     public function __construct(
         private readonly AvatarStorageService $avatarStorage,
@@ -231,7 +231,7 @@ class HcmEmployeeController extends Controller
             'designationId' => ['nullable', 'integer', 'exists:designations,id'],
         ]);
 
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.view')) {
             return $forbidden;
         }
 
@@ -376,7 +376,7 @@ class HcmEmployeeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -477,7 +477,7 @@ class HcmEmployeeController extends Controller
 
     public function exportEmployees(Request $request)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -586,7 +586,7 @@ class HcmEmployeeController extends Controller
         }
 
         $auth = $request->user();
-        if ($auth->isHcmAdmin()) {
+        if ($this->canManageEmployee($request)) {
             return $this->updateEmployeeAsAdmin($request, $user);
         }
 
@@ -792,7 +792,7 @@ class HcmEmployeeController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && $auth->id !== $id) {
+        if (! $this->canManageEmployee($request) && $auth->id !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -931,7 +931,7 @@ class HcmEmployeeController extends Controller
     public function uploadProfilePhoto(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        if (! $auth->isHcmAdmin() && $auth->id !== $id) {
+        if (! $this->canManageEmployee($request) && $auth->id !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -986,7 +986,7 @@ class HcmEmployeeController extends Controller
 
     public function bulkTemplate(Request $request)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1142,7 +1142,7 @@ class HcmEmployeeController extends Controller
 
     public function bulkUpload(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1638,7 +1638,7 @@ class HcmEmployeeController extends Controller
 
     public function departments(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1693,7 +1693,7 @@ class HcmEmployeeController extends Controller
 
     public function storeDepartment(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1726,7 +1726,7 @@ class HcmEmployeeController extends Controller
 
     public function exportDepartments(Request $request)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1767,7 +1767,7 @@ class HcmEmployeeController extends Controller
 
     public function updateDepartment(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1805,7 +1805,7 @@ class HcmEmployeeController extends Controller
 
     public function designations(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1867,7 +1867,7 @@ class HcmEmployeeController extends Controller
 
     public function storeDesignation(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1912,7 +1912,7 @@ class HcmEmployeeController extends Controller
 
     public function exportDesignations(Request $request)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -1958,7 +1958,7 @@ class HcmEmployeeController extends Controller
 
     public function updateDesignation(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2008,7 +2008,7 @@ class HcmEmployeeController extends Controller
 
     public function policies(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2075,7 +2075,7 @@ class HcmEmployeeController extends Controller
 
     public function storePolicy(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2128,7 +2128,7 @@ class HcmEmployeeController extends Controller
 
     public function exportPolicies(Request $request)
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2166,7 +2166,7 @@ class HcmEmployeeController extends Controller
 
     public function updatePolicy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2228,7 +2228,7 @@ class HcmEmployeeController extends Controller
 
     public function destroyDepartment(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2241,7 +2241,7 @@ class HcmEmployeeController extends Controller
 
     public function destroyDesignation(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2272,7 +2272,7 @@ class HcmEmployeeController extends Controller
 
     public function destroyPolicy(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensureHcmAdmin($request)) {
+        if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
         }
 
@@ -2295,6 +2295,11 @@ class HcmEmployeeController extends Controller
         $policy->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    private function canManageEmployee(Request $request): bool
+    {
+        return $this->hasAnyPermission($request, ['employee.manage', 'employee.admin']);
     }
 
     private function normalizeEmployeeWritePayload(Request $request): void

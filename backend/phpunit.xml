@@ -18,6 +18,7 @@
         </include>
     </source>
     <php>
+        <ini name="memory_limit" value="10G"/>
         <ini name="error_reporting" value="8191"/>
         <ini name="display_errors" value="0"/>
         <env name="APP_ENV" value="testing"/>

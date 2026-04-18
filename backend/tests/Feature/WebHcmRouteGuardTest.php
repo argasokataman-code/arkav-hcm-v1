@@ -119,6 +119,72 @@ class WebHcmRouteGuardTest extends TestCase
         return false;
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function criticalAdminWebPaths(): array
+    {
+        return [
+            '/promotion',
+            '/resignation',
+            '/termination',
+            '/leave-type',
+            '/users',
+            '/roles-permissions',
+            '/salary-component-master',
+            '/employee-salary',
+            '/payroll',
+            '/payroll-overtime',
+            '/payroll-deduction',
+            '/payroll-thr',
+            '/payroll-run',
+            '/payroll-run-history',
+            '/expenses-report',
+            '/invoice-report',
+            '/payment-report',
+            '/project-report',
+            '/task-report',
+            '/user-report',
+            '/employee-report',
+            '/payslip-report',
+            '/attendance-report',
+            '/leave-report',
+            '/daily-report',
+            '/bussiness-settings',
+            '/business-settings',
+            '/seo-settings',
+            '/localization-settings',
+            '/prefixes',
+            '/preferences',
+            '/appearance',
+            '/language',
+            '/authentication-settings',
+            '/ai-settings',
+            '/salary-settings',
+            '/approval-settings',
+            '/invoice-settings',
+            '/custom-fields',
+            '/email-settings',
+            '/email-template',
+            '/sms-settings',
+            '/sms-template',
+            '/otp-settings',
+            '/gdpr',
+            '/maintenance-mode',
+            '/payment-gateways',
+            '/tax-rates',
+            '/currencies',
+            '/custom-css',
+            '/custom-js',
+            '/cronjob',
+            '/cronjob-schedule',
+            '/storage-settings',
+            '/ban-ip-address',
+            '/backup',
+            '/clear-cache',
+        ];
+    }
+
     public function test_head_on_protected_path_redirects_lock_screen_without_auth(): void
     {
         $this->call('HEAD', '/employees')->assertRedirect(url('lock-screen'));
@@ -156,24 +222,13 @@ class WebHcmRouteGuardTest extends TestCase
 
         $cookieHeader = $this->cookieName().'='.$token;
 
-        $adminPaths = [
-            '/promotion',
-            '/resignation',
-            '/termination',
-            '/leave-type',
-            '/salary-component-master',
-            '/employee-salary',
-            '/payroll',
-            '/payroll-overtime',
-            '/payroll-deduction',
-            '/payroll-thr',
-            '/payroll-run',
-            '/payroll-run-history',
-        ];
+        $adminPaths = $this->criticalAdminWebPaths();
         foreach ($adminPaths as $path) {
-            $this->withHeader('Cookie', $cookieHeader)
-                ->get($path)
-                ->assertOk("HCM admin + cookie API harus 200: {$path}");
+            $response = $this->withHeader('Cookie', $cookieHeader)
+                ->followingRedirects()
+                ->get($path);
+
+            $response->assertOk("HCM admin + cookie API harus 200 setelah redirect normal: {$path}");
         }
     }
 
@@ -197,20 +252,7 @@ class WebHcmRouteGuardTest extends TestCase
 
         $cookieHeader = $this->cookieName().'='.$token;
 
-        $adminPaths = [
-            '/promotion',
-            '/resignation',
-            '/termination',
-            '/leave-type',
-            '/salary-component-master',
-            '/employee-salary',
-            '/payroll',
-            '/payroll-overtime',
-            '/payroll-deduction',
-            '/payroll-thr',
-            '/payroll-run',
-            '/payroll-run-history',
-        ];
+        $adminPaths = $this->criticalAdminWebPaths();
         foreach ($adminPaths as $path) {
             $this->withHeader('Cookie', $cookieHeader)
                 ->get($path)
@@ -233,22 +275,11 @@ class WebHcmRouteGuardTest extends TestCase
         ]);
 
         $this->actingAs($admin);
-        $adminPaths = [
-            '/promotion',
-            '/resignation',
-            '/termination',
-            '/leave-type',
-            '/salary-component-master',
-            '/employee-salary',
-            '/payroll',
-            '/payroll-overtime',
-            '/payroll-deduction',
-            '/payroll-thr',
-            '/payroll-run',
-            '/payroll-run-history',
-        ];
+        $adminPaths = $this->criticalAdminWebPaths();
         foreach ($adminPaths as $path) {
-            $this->get($path)->assertOk("HCM admin + sesi web harus 200: {$path}");
+            $this->followingRedirects()
+                ->get($path)
+                ->assertOk("HCM admin + sesi web harus 200 setelah redirect normal: {$path}");
         }
     }
 
@@ -260,20 +291,7 @@ class WebHcmRouteGuardTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $adminPaths = [
-            '/promotion',
-            '/resignation',
-            '/termination',
-            '/leave-type',
-            '/salary-component-master',
-            '/employee-salary',
-            '/payroll',
-            '/payroll-overtime',
-            '/payroll-deduction',
-            '/payroll-thr',
-            '/payroll-run',
-            '/payroll-run-history',
-        ];
+        $adminPaths = $this->criticalAdminWebPaths();
         foreach ($adminPaths as $path) {
             $this->get($path)->assertRedirect(url('employee-dashboard'));
         }

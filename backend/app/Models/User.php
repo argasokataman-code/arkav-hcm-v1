@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\PasswordResetLinkNotification;
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -13,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, AssignsUuid;
 
     /**
      * The attributes that are mass assignable.
@@ -78,24 +79,19 @@ class User extends Authenticatable
 
     /**
      * Mirrors {@see \App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin} for API and `/auth/me` hints.
+     * Global check now relies on RBAC assignment in at least one active company.
      */
     public function isHcmAdmin(): bool
     {
-        $email = strtolower(trim((string) ($this->email ?? '')));
-        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
-        if ($email === $adminEmail) {
-            return true;
-        }
+        $activeCompanyIds = CompanyUser::query()
+            ->where('user_id', $this->id)
+            ->where('status', 'active')
+            ->pluck('company_id')
+            ->map(static fn ($value): int => (int) $value)
+            ->all();
 
-        $this->loadMissing('employeeProfile.department', 'employeeProfile.designationRef');
-
-        $designation = strtolower((string) ($this->employeeProfile?->designationRef?->name ?: $this->employeeProfile?->designation ?? ''));
-        $team = strtolower((string) ($this->employeeProfile?->department?->name ?: $this->employeeProfile?->team ?? ''));
-
-        // NOTE: "manager" is a separate role in Phase-1 performance workflow (not HCM Admin).
-        $adminKeywords = ['admin', 'hr', 'lead', 'supervisor', 'head', 'owner'];
-        foreach ($adminKeywords as $keyword) {
-            if (str_contains($designation, $keyword) || str_contains($team, $keyword)) {
+        foreach ($activeCompanyIds as $companyId) {
+            if ($this->isHcmAdminForCompany($companyId)) {
                 return true;
             }
         }
@@ -104,37 +100,71 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is HCM admin for a specific company.
-     * Global admins have access to all companies.
-     * Company-specific admins must have an active admin role assignment.
+     * Check if user is HCM admin for a specific company via tenant membership + RBAC role assignment.
      */
     public function isHcmAdminForCompany(int $companyId): bool
     {
-        // Global super-admin
-        if ($this->isHcmAdmin()) {
+        if ($companyId <= 0) {
+            return false;
+        }
+
+        if (! $this->hasActiveMembershipForCompany($companyId)) {
+            return false;
+        }
+
+        if ($this->isOwnerForCompany($companyId)) {
             return true;
         }
 
-        // Company owner is treated as tenant-admin for their own company.
-        $isOwner = CompanyUser::query()
+        return $this->hasActiveAdminAssignmentForCompany($companyId);
+    }
+
+    private function isOwnerForCompany(int $companyId): bool
+    {
+        return CompanyUser::query()
             ->where('user_id', $this->id)
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where('role', 'owner')
             ->exists();
-        if ($isOwner) {
-            return true;
-        }
+    }
 
-        // Check if user has an active admin-level role in this specific company
+    private function hasActiveMembershipForCompany(int $companyId): bool
+    {
+        return CompanyUser::query()
+            ->where('user_id', $this->id)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function hasActiveAdminAssignmentForCompany(int $companyId): bool
+    {
+        $today = now()->toDateString();
+
         return HcmUserRole::query()
             ->where('user_id', $this->id)
             ->where('company_id', $companyId)
             ->where('status', 'active')
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('effective_from')
+                    ->orWhere('effective_from', '<=', $today);
+            })
+            ->where(function ($query) use ($today): void {
+                $query->whereNull('effective_until')
+                    ->orWhere('effective_until', '>=', $today);
+            })
             ->whereHas('role', function ($q) {
-                // Only ADMIN, HR_ADMIN, OPS_ADMIN roles grant HCM access
-                $q->whereIn('code', ['ADMIN', 'HR_ADMIN', 'OPS_ADMIN']);
+                $q->whereIn('code', $this->hcmAdminRoleCodes());
             })
             ->exists();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function hcmAdminRoleCodes(): array
+    {
+        return ['ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'HCM_ADMIN'];
     }
 }

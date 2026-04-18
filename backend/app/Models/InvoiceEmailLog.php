@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InvoiceEmailLog extends Model
 {
-    use HasFactory;
+    use HasFactory, AssignsUuid;
 
     protected $fillable = [
         'invoice_id',

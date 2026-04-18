@@ -4,10 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class EmployeeExperience extends Model
 {
     protected $table = 'employee_experiences';
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'employee_id',

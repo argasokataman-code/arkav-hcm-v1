@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class HcmPayrollRun extends Model
 {
@@ -19,6 +20,15 @@ class HcmPayrollRun extends Model
     public const PURPOSE_THR = 'thr';
 
     public const PURPOSE_PKWT_COMPENSATION = 'pkwt_compensation';
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'company_id',

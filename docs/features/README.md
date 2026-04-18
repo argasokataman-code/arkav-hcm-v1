@@ -39,7 +39,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 22 | **Subscriptions** | ✅ Complete | [→](subscriptions/) | [📘 Implementation](subscriptions/IMPLEMENTATION.md) | [🧪 E2E Testing](subscriptions/E2E-TESTING.md) |
 | 23 | **Super Admin Dashboard** | ✅ Complete | [→](super-admin-dashboard/) | [📘 Implementation](super-admin-dashboard/) | SaaS overview & KPIs |
 | 24 | Tenant Management | 🚧 Planning | [→](user\ tenant\ management/) | - | Blueprint & roadmap |
-| 25 | User Management | ✅ Implemented (Backend API) | [→](user-management/) | [📘 Implementation](user-management/IMPLEMENTATION.md) | [🧪 E2E Testing](user-management/E2E-TESTING.md) |
+| 25 | User Management | ✅ Implemented (Backend API) | [→](user-management/) | [📘 Implementation](user-management/IMPLEMENTATION.md) | [🧭 Use Cases](user-management/USE-CASES.md), [🧪 E2E Testing](user-management/E2E-TESTING.md) |
 | 26 | Reporting System | 🚧 In Progress (Phase 3) | [→](reporting/) | [📘 Implementation](reporting/IMPLEMENTATION.md) | [🧪 E2E Testing](reporting/E2E-TESTING.md) |
 | 27 | Locations / Wilayah Sync | ✅ Complete | [→](locations/) | [📘 Implementation](locations/IMPLEMENTATION.md) | [🧪 E2E Testing](locations/E2E-TESTING.md) |
 | 28 | Recovery Vault | 🚧 Proposed | [→](recovery-vault/) | [📘 Implementation](recovery-vault/IMPLEMENTATION.md) | [🧪 E2E Testing](recovery-vault/E2E-TESTING.md) |
@@ -80,6 +80,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `domain-management/README.md` - **SaaS Domain Management:** domain CRUD admin, verification details, manual verify flow, dan status monitoring baseline.
 - `subscriptions/README.md` - **SaaS Subscriptions:** lifecycle subscription company ke package, renewal, status/cycle filters, dan admin guard.
 - `user-management/README.md` - **User Management:** backend API live untuk user-role-permission (filter/pagination/CRUD/export/assignment) + baseline schema & audit.
+- `user-management/USE-CASES.md` - Use case akses dua layer: role company (tenant membership) vs role-permission aplikasi (RBAC), termasuk skenario employee menjadi admin via role assignment.
 - `reporting/README.md` - **Reporting System:** snapshot-based reporting (API `/v1/hcm/reports/snapshots`) + mode Live/Archive pada report pages.
 - `reporting/IMPLEMENTATION.md` - Arsitektur teknis reporting snapshot, export generator, dan kontrak storage.
 - `reporting/E2E-TESTING.md` - Skenario manual UI/API untuk validasi live/archive + export.

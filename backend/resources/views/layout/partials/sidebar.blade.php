@@ -540,6 +540,7 @@
                                 <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                             </ul>
                         </li>
+@if ($isHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);"class="{{ Request::is('users','roles-permissions') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>User Management</span>
@@ -550,6 +551,8 @@
                                 <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
                             </ul>
                         </li>
+@endif
+@if ($isHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);"class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Reports</span>
@@ -662,6 +665,7 @@
                                 </li>
                             </ul>
                         </li>
+@endif
                     </ul>
                 </li>
 @if ($isHcmAdmin)
@@ -1600,6 +1604,7 @@
                                 <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                             </ul>
                         </li>
+@if ($isHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('users','roles-permissions') ? 'active subdrop' : '' }}"><span>User Management</span>
                                 <span class="menu-arrow"></span>
@@ -1609,6 +1614,8 @@
                                 <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
                             </ul>
                         </li>
+@endif
+@if ($isHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                 <span class="menu-arrow"></span>
@@ -1700,6 +1707,7 @@
                                 </li>
                             </ul>
                         </li>
+@endif
                     </ul>
                 </li>
                 <li class="submenu">
@@ -2696,6 +2704,7 @@
                                     <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                                 </ul>
                             </li>
+@if ($isHcmAdmin)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('users','roles-permissions') ? 'active subdrop' : '' }}"><span>User Management</span>
                                     <span class="menu-arrow"></span>
@@ -2705,6 +2714,8 @@
                                     <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
                                 </ul>
                             </li>
+@endif
+@if ($isHcmAdmin)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                     <span class="menu-arrow"></span>
@@ -2800,6 +2811,7 @@
                                     <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                 </ul>
                             </li>
+@endif
                         </ul>
                     </div>
                     <div class="tab-pane fade {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? 'active' : '' }}" id="content">
@@ -3880,6 +3892,7 @@
                                         <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                                     </ul>
                                 </li>
+@if ($isHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('users','roles-permissions') ? 'active subdrop' : '' }}"><span>User Management</span>
                                         <span class="menu-arrow"></span>
@@ -3889,6 +3902,8 @@
                                         <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
                                     </ul>
                                 </li>
+@endif
+@if ($isHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                         <span class="menu-arrow"></span>
@@ -3982,6 +3997,7 @@
                                         <li><a href="{{url('backup')}}" class="{{ Request::is('backup') ? 'active' : '' }}">Backup</a></li>
                                         <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>                                    </ul>
                                
+@endif
                             </ul>
                         </div>
                         <div class="tab-pane fade {{ Request::is('blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" id="menu-content">

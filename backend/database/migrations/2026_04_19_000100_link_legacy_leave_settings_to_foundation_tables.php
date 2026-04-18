@@ -86,6 +86,42 @@ return new class extends Migration
                     }
                 });
 
+            if (Schema::hasColumn('hcm_leave_custom_policies', 'leave_type_uuid') && Schema::hasTable('leave_types') && Schema::hasColumn('leave_types', 'uuid')) {
+                if (DB::getDriverName() === 'mysql') {
+                    DB::statement('UPDATE hcm_leave_custom_policies p JOIN leave_types t ON p.leave_type_id = t.id SET p.leave_type_uuid = t.uuid WHERE p.leave_type_id IS NOT NULL AND p.leave_type_uuid IS NULL');
+                } else {
+                    DB::table('hcm_leave_custom_policies')
+                        ->whereNotNull('leave_type_id')
+                        ->whereNull('leave_type_uuid')
+                        ->orderBy('id')
+                        ->get(['id', 'leave_type_id'])
+                        ->each(function ($row): void {
+                            $uuid = DB::table('leave_types')->where('id', $row->leave_type_id)->value('uuid');
+                            if ($uuid) {
+                                DB::table('hcm_leave_custom_policies')->where('id', $row->id)->update(['leave_type_uuid' => $uuid]);
+                            }
+                        });
+                }
+            }
+
+            if (Schema::hasColumn('hcm_leave_custom_policies', 'leave_policy_uuid') && Schema::hasTable('leave_policies') && Schema::hasColumn('leave_policies', 'uuid')) {
+                if (DB::getDriverName() === 'mysql') {
+                    DB::statement('UPDATE hcm_leave_custom_policies p JOIN leave_policies lp ON p.leave_policy_id = lp.id SET p.leave_policy_uuid = lp.uuid WHERE p.leave_policy_id IS NOT NULL AND p.leave_policy_uuid IS NULL');
+                } else {
+                    DB::table('hcm_leave_custom_policies')
+                        ->whereNotNull('leave_policy_id')
+                        ->whereNull('leave_policy_uuid')
+                        ->orderBy('id')
+                        ->get(['id', 'leave_policy_id'])
+                        ->each(function ($row): void {
+                            $uuid = DB::table('leave_policies')->where('id', $row->leave_policy_id)->value('uuid');
+                            if ($uuid) {
+                                DB::table('hcm_leave_custom_policies')->where('id', $row->id)->update(['leave_policy_uuid' => $uuid]);
+                            }
+                        });
+                }
+            }
+
             if (! $isSqlite) {
                 Schema::table('hcm_leave_custom_policies', function (Blueprint $table): void {
                     $table->foreign('leave_type_id', 'hcm_leave_custom_policies_leave_type_id_fk')

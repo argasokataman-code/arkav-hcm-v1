@@ -19,13 +19,16 @@ Last updated: 2026-04-13
 
 ## Documentation Structure
 
-1. IMPLEMENTATION.md
+1. USE-CASES.md
+- Definisi use case per aktor, model akses dua layer (company role vs app RBAC), dan aturan employee dapat menjadi admin melalui role assignment.
+
+2. IMPLEMENTATION.md
 - Desain teknis skema DB, aturan domain, strategi migrasi kompatibel.
 
-2. E2E-TESTING.md
+3. E2E-TESTING.md
 - Skenario validasi manual per role (admin vs non-admin).
 
-3. ../../api/user-management-api.md
+4. ../../api/user-management-api.md
 - Kontrak endpoint API live untuk implementasi backend/frontend.
 
 ## Implemented API Surface

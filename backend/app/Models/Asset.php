@@ -8,10 +8,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Asset extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'company_id',

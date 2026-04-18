@@ -6,10 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Ticket extends Model
 {
     use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'user_id',

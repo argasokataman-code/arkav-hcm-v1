@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Package extends Model
 {
@@ -26,6 +27,15 @@ class Package extends Model
         'monthly_price' => 'decimal:2',
         'yearly_price' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $package): void {
+            if (empty($package->uuid)) {
+                $package->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     /**
      * Package features

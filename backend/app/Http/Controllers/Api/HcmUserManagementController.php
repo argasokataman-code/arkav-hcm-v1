@@ -204,13 +204,13 @@ class HcmUserManagementController extends Controller
 
     public function userDetail(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $membership = CompanyUser::query()
@@ -362,13 +362,13 @@ class HcmUserManagementController extends Controller
 
     public function updateUser(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $membership = CompanyUser::query()
@@ -573,13 +573,13 @@ class HcmUserManagementController extends Controller
 
     public function updateRole(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $role = HcmRole::query()
@@ -623,13 +623,13 @@ class HcmUserManagementController extends Controller
 
     public function deleteRole(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $role = HcmRole::query()
@@ -672,7 +672,12 @@ class HcmUserManagementController extends Controller
 
     public function permissions(Request $request): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
             return $response;
         }
 
@@ -715,13 +720,13 @@ class HcmUserManagementController extends Controller
 
     public function syncRolePermissions(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $role = HcmRole::query()
@@ -765,13 +770,13 @@ class HcmUserManagementController extends Controller
 
     public function userRoles(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $id)->exists()) {
@@ -806,13 +811,13 @@ class HcmUserManagementController extends Controller
 
     public function assignUserRole(Request $request, int $id): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $id)->exists()) {
@@ -837,16 +842,20 @@ class HcmUserManagementController extends Controller
         }
 
         $actorId = $request->user()?->id;
-
-        $assignment = HcmUserRole::query()->create([
-            'user_id' => $id,
-            'company_id' => $companyId,
-            'role_id' => $role->id,
-            'assigned_by_user_id' => $actorId,
-            'status' => 'active',
-            'effective_from' => $validated['effectiveFrom'] ?? null,
-            'effective_until' => $validated['effectiveUntil'] ?? null,
-        ]);
+        $assignment = HcmUserRole::query()->updateOrCreate(
+            [
+                'user_id' => $id,
+                'company_id' => $companyId,
+                'role_id' => $role->id,
+                'status' => 'active',
+            ],
+            [
+                'assigned_by_user_id' => $actorId,
+                'effective_from' => $validated['effectiveFrom'] ?? null,
+                'effective_until' => $validated['effectiveUntil'] ?? null,
+                'revoked_at' => null,
+            ]
+        );
 
         $this->auditRoleChange(
             companyId: $companyId,
@@ -872,13 +881,13 @@ class HcmUserManagementController extends Controller
 
     public function revokeUserRole(Request $request, int $id, int $assignmentId): JsonResponse
     {
-        if ($response = $this->ensureHcmAdmin($request)) {
-            return $response;
-        }
-
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        if ($response = $this->ensureHcmAdminForCompany($request, $companyId)) {
+            return $response;
         }
 
         $assignment = HcmUserRole::query()
@@ -985,13 +994,18 @@ class HcmUserManagementController extends Controller
             ->get();
 
         foreach ($roles as $role) {
-            $assignment = HcmUserRole::query()->create([
-                'user_id' => $userId,
-                'company_id' => $companyId,
-                'role_id' => $role->id,
-                'assigned_by_user_id' => $actorUserId,
-                'status' => 'active',
-            ]);
+            $assignment = HcmUserRole::query()->updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'company_id' => $companyId,
+                    'role_id' => $role->id,
+                    'status' => 'active',
+                ],
+                [
+                    'assigned_by_user_id' => $actorUserId,
+                    'revoked_at' => null,
+                ]
+            );
 
             $this->auditRoleChange(
                 companyId: $companyId,

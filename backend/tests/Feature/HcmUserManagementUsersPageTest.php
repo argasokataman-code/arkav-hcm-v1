@@ -11,10 +11,10 @@ class HcmUserManagementUsersPageTest extends TestCase
 
     public function test_guest_cannot_access_users_page(): void
     {
-        $this->get('/users')->assertStatus(404);
+        $this->get('/users')->assertRedirect(url('lock-screen'));
     }
 
-    public function test_authenticated_user_can_open_users_page_with_dynamic_controls(): void
+    public function test_non_admin_is_redirected_from_users_and_roles_permissions_pages(): void
     {
         $password = 'StrongPass1';
         $email = 'users.page.'.time().'@example.com';
@@ -34,14 +34,14 @@ class HcmUserManagementUsersPageTest extends TestCase
         $token = (string) $login->json('data.accessToken');
         $this->assertNotSame('', $token);
 
-        $response = $this->withHeaders([
+        $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
-        ])->get('/users');
+        ])->get('/users')
+            ->assertRedirect(url('employee-dashboard'));
 
-        $response->assertOk();
-        $response->assertSee('id="um_users_tbody"', false);
-        $response->assertSee('id="um_user_modal"', false);
-        $response->assertSee('id="um_role_modal"', false);
-        $response->assertSee('build/js/users-management.js', false);
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->get('/roles-permissions')
+            ->assertRedirect(url('employee-dashboard'));
     }
 }

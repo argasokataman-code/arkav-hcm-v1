@@ -7,11 +7,21 @@
 
 <!-- Authorization/Permissions Utility (MUST BE LOADED EARLY) -->
 <script>
+    @php
+        $footerAuthUser = auth()->user();
+        $footerActiveCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+        $footerIsHcmAdmin = $footerAuthUser
+            ? ($footerActiveCompanyId > 0
+                ? $footerAuthUser->isHcmAdminForCompany($footerActiveCompanyId)
+                : $footerAuthUser->isHcmAdmin())
+            : false;
+    @endphp
+
 	// Inject auth user context from blade template
 	window.AuthUser = {
 		id: {{ auth()->id() ?? 'null' }},
 		email: '{{ auth()->user()?->email ?? '' }}',
-		isHcmAdmin: {{ auth()->user()?->isHcmAdmin ? 'true' : 'false' }},
+        isHcmAdmin: {{ $footerIsHcmAdmin ? 'true' : 'false' }},
 		name: '{{ auth()->user()?->name ?? '' }}',
 	};
 </script>

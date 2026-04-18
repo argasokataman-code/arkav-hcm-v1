@@ -3,6 +3,9 @@
 Status: Live (backend implemented)
 Base path: `/v1/hcm/user-management`
 
+**Last Updated:** 2026-04-18
+**Changes:** Internal tenant-awareness refactoring for RBAC hardening (auth flow optimization, company context validation)
+
 ## 1) Users
 
 ### GET `/users`

@@ -5,10 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class HcmTraining extends Model
 {
     protected $table = 'hcm_trainings';
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'training_type_id',

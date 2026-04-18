@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -43,6 +45,8 @@ class DevelopmentSuperUserSeeder extends Seeder
             ]
         );
 
+        $companyId = $this->ensureDefaultCompanyMembership($superUser);
+
         if (! Schema::hasTable('employee_profiles')) {
             return $superUser;
         }
@@ -50,11 +54,47 @@ class DevelopmentSuperUserSeeder extends Seeder
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $superUser->id],
             [
+                'company_id' => $companyId,
                 'team' => $team,
                 'designation' => $designation,
             ]
         );
 
         return $superUser;
+    }
+
+    private function ensureDefaultCompanyMembership(User $user): ?int
+    {
+        if (! Schema::hasTable('companies') || ! Schema::hasTable('company_users')) {
+            return null;
+        }
+
+        $defaultCompany = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'legal_name' => 'Default Company',
+                'status' => 'active',
+                'owner_user_id' => $user->id,
+                'timezone' => (string) config('app.timezone', 'UTC'),
+                'currency' => 'IDR',
+                'country_code' => 'ID',
+            ]
+        );
+
+        CompanyUser::query()->firstOrCreate(
+            [
+                'company_id' => $defaultCompany->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'owner',
+                'status' => 'active',
+                'joined_at' => now(),
+                'invited_by_user_id' => null,
+            ]
+        );
+
+        return (int) $defaultCompany->id;
     }
 }

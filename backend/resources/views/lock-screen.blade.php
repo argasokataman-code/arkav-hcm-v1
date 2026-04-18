@@ -67,6 +67,17 @@
                     <p class="text-gray-6 mb-4">Your session has expired. Please login again to continue.</p>
                     <a href="{{ route('login') }}" class="btn btn-primary">Go to Login</a>
                 </div>
+                <script>
+                    (function () {
+                        var target = @json(route('login'));
+                        if (window.location.pathname !== '/login') {
+                            window.location.replace(target);
+                        }
+                    })();
+                </script>
+                <noscript>
+                    <meta http-equiv="refresh" content="0;url={{ route('login') }}">
+                </noscript>
             @endif
         </div>
     </div>

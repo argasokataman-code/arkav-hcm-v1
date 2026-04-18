@@ -12,28 +12,38 @@ use Illuminate\Support\Str;
 
 class SettingsController extends Controller
 {
+    private function apiSuccess(array $data = [], ?string $message = null, int $status = 200): JsonResponse
+    {
+        $payload = ['success' => true, 'data' => $data];
+
+        if ($message !== null && $message !== '') {
+            $payload['message'] = $message;
+        }
+
+        return response()->json($payload, $status);
+    }
+
+    private function apiError(string $code, string $message, int $status): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => $code,
+                'message' => $message,
+            ],
+        ], $status);
+    }
+
     private function ensureHcmAdmin(Request $request): ?JsonResponse
     {
         $user = $request->user();
 
         if (! $user) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'AUTH_UNAUTHORIZED',
-                    'message' => 'Authentication required.',
-                ],
-            ], 401);
+            return $this->apiError('AUTH_UNAUTHORIZED', 'Authentication required.', 401);
         }
 
         if (! $user->isHcmAdmin()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'AUTH_FORBIDDEN',
-                    'message' => 'Only HCM admin can manage settings.',
-                ],
-            ], 403);
+            return $this->apiError('AUTH_FORBIDDEN', 'Only HCM admin can manage settings.', 403);
         }
 
         return null;
@@ -43,7 +53,7 @@ class SettingsController extends Controller
      * Get all settings by group
      * GET /api/settings?group=prefix
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -60,10 +70,9 @@ class SettingsController extends Controller
             default => Setting::getByGroup($group),
         };
         
-        return response()->json([
-            'success' => true,
-            'data' => $settings,
+        return $this->apiSuccess([
             'group' => $group,
+            'settings' => $settings,
         ]);
     }
 
@@ -72,7 +81,7 @@ class SettingsController extends Controller
      * POST /api/settings
      * Body: { group: 'prefix', settings: { prefix_employee: 'Emp-', prefix_invoice: 'Inv-', ... } }
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -92,18 +101,20 @@ class SettingsController extends Controller
             $saved[$key] = $value;
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Settings for group '{$group}' saved successfully",
-            'data' => $saved,
-        ], 200);
+        return $this->apiSuccess(
+            [
+                'group' => $group,
+                'settings' => $saved,
+            ],
+            "Settings for group '{$group}' saved successfully"
+        );
     }
 
     /**
      * Get a specific setting by key
      * GET /api/settings/{key}
      */
-    public function show(Request $request, string $key)
+    public function show(Request $request, string $key): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -112,14 +123,10 @@ class SettingsController extends Controller
         $value = Setting::get($key);
         
         if ($value === null) {
-            return response()->json([
-                'success' => false,
-                'message' => "Setting '{$key}' not found",
-            ], 404);
+            return $this->apiError('SETTING_NOT_FOUND', "Setting '{$key}' not found", 404);
         }
 
-        return response()->json([
-            'success' => true,
+        return $this->apiSuccess([
             'key' => $key,
             'value' => $value,
         ]);
@@ -129,7 +136,7 @@ class SettingsController extends Controller
      * Update a specific setting
      * PUT /api/settings/{key}
      */
-    public function update(Request $request, string $key)
+    public function update(Request $request, string $key): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -143,18 +150,20 @@ class SettingsController extends Controller
         $group = $validated['group'] ?? 'general';
         Setting::set($key, $validated['value'], $group);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Setting '{$key}' updated successfully",
-            'key' => $key,
-            'value' => $validated['value'],
-        ]);
+        return $this->apiSuccess(
+            [
+                'key' => $key,
+                'value' => $validated['value'],
+                'group' => $group,
+            ],
+            "Setting '{$key}' updated successfully"
+        );
     }
 
     /**
      * Remove a specific resource from storage
      */
-    public function destroy(Request $request, string $key)
+    public function destroy(Request $request, string $key): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -162,26 +171,20 @@ class SettingsController extends Controller
 
         $setting = Setting::where('key', $key)->first();
 
-        if (!$setting) {
-            return response()->json([
-                'success' => false,
-                'message' => "Setting '{$key}' not found",
-            ], 404);
+        if (! $setting) {
+            return $this->apiError('SETTING_NOT_FOUND', "Setting '{$key}' not found", 404);
         }
 
         Setting::forget($key);
 
-        return response()->json([
-            'success' => true,
-            'message' => "Setting '{$key}' deleted successfully",
-        ]);
+        return $this->apiSuccess(['key' => $key], "Setting '{$key}' deleted successfully");
     }
 
     /**
      * Upload business branding image and persist path into settings.
      * POST /api/v1/hcm/settings/upload
      */
-    public function upload(Request $request)
+    public function upload(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
@@ -207,15 +210,14 @@ class SettingsController extends Controller
 
         Setting::set("business_{$field}_path", $storedPath, 'business');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Branding file uploaded successfully',
-            'data' => [
+        return $this->apiSuccess(
+            [
                 'field' => $field,
                 'path' => $storedPath,
                 'url' => Storage::disk('public')->url($storedPath),
             ],
-        ]);
+            'Branding file uploaded successfully'
+        );
     }
 }
 

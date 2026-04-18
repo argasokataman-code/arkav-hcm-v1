@@ -1,6 +1,8 @@
 <?php
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
+
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,7 @@ use Illuminate\Support\Carbon;
 
 class EmployeeProfile extends Model
 {
+    use AssignsUuid;
     protected $fillable = [
         'company_id',
         'user_id',

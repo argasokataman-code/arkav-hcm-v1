@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\HcmPermission;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
@@ -13,8 +14,14 @@ class HcmUserManagementSeeder extends Seeder
 {
     public function run(): void
     {
-        $companyId = Company::query()->orderBy('id')->value('id');
-        if (! $companyId) {
+        $companyIds = Company::query()
+            ->select('id')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(static fn ($value): int => (int) $value)
+            ->all();
+
+        if ($companyIds === []) {
             return;
         }
 
@@ -44,6 +51,10 @@ class HcmUserManagementSeeder extends Seeder
             );
         }
 
+        $permissionIdsByCode = HcmPermission::query()
+            ->whereIn('code', array_values(array_map(static fn (array $item): string => $item['code'], $permissions)))
+            ->pluck('id', 'code');
+
         $roles = [
             ['code' => 'ADMIN', 'name' => 'Administrator', 'isSystem' => true],
             ['code' => 'HR_ADMIN', 'name' => 'HR Administrator', 'isSystem' => true],
@@ -54,45 +65,87 @@ class HcmUserManagementSeeder extends Seeder
             ['code' => 'EMPLOYEE', 'name' => 'Employee'],
         ];
 
-        $createdRoles = [];
-        foreach ($roles as $role) {
-            $createdRole = HcmRole::query()->updateOrCreate(
-                [
-                    'company_id' => $companyId,
-                    'code' => $role['code'],
-                ],
-                [
-                    'name' => $role['name'],
-                    'description' => null,
-                    'status' => 'active',
-                    'is_system' => $role['isSystem'] ?? false,
-                ]
-            );
-            $createdRoles[$role['code']] = $createdRole->id;
-        }
-
-        // Assign ADMIN role to the default QA admin user
         $adminEmails = array_filter([
             config('hcm.admin_email', 'qa.login@example.com'),
             config('hcm.secondary_admin_email', 'qa.hcm@example.com'),
         ]);
 
-        foreach ($adminEmails as $adminEmail) {
-            $adminUser = User::query()->where('email', strtolower(trim((string) $adminEmail)))->first();
-            if (! $adminUser) {
+        $adminRoleCodes = ['ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'HCM_ADMIN', 'OWNER'];
+        $adminPermissionIds = collect($permissionIdsByCode)
+            ->filter(static fn ($id): bool => is_numeric($id))
+            ->map(static fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+
+        foreach ($companyIds as $companyId) {
+            $createdRoles = [];
+            foreach ($roles as $role) {
+                $createdRole = HcmRole::query()->updateOrCreate(
+                    [
+                        'company_id' => $companyId,
+                        'code' => $role['code'],
+                    ],
+                    [
+                        'name' => $role['name'],
+                        'description' => null,
+                        'status' => 'active',
+                        'is_system' => $role['isSystem'] ?? false,
+                    ]
+                );
+
+                $createdRoles[$role['code']] = (int) $createdRole->id;
+
+                if (in_array($role['code'], $adminRoleCodes, true)) {
+                    $createdRole->permissions()->sync($adminPermissionIds);
+                }
+            }
+
+            if (! isset($createdRoles['ADMIN'])) {
                 continue;
             }
 
-            HcmUserRole::query()->updateOrCreate(
-                [
-                    'user_id' => $adminUser->id,
-                    'company_id' => $companyId,
-                    'role_id' => $createdRoles['ADMIN'],
-                ],
-                [
-                    'status' => 'active',
-                ]
-            );
+            $adminUserIds = CompanyUser::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'active')
+                ->whereIn('role', ['owner', 'admin'])
+                ->pluck('user_id')
+                ->map(static fn ($value): int => (int) $value)
+                ->all();
+
+            foreach ($adminEmails as $adminEmail) {
+                $adminUser = User::query()->where('email', strtolower(trim((string) $adminEmail)))->first();
+                if (! $adminUser) {
+                    continue;
+                }
+
+                $isMember = CompanyUser::query()
+                    ->where('company_id', $companyId)
+                    ->where('user_id', $adminUser->id)
+                    ->where('status', 'active')
+                    ->exists();
+
+                if ($isMember) {
+                    $adminUserIds[] = (int) $adminUser->id;
+                }
+            }
+
+            $adminUserIds = array_values(array_unique($adminUserIds));
+            foreach ($adminUserIds as $adminUserId) {
+                HcmUserRole::query()->updateOrCreate(
+                    [
+                        'user_id' => $adminUserId,
+                        'company_id' => $companyId,
+                        'role_id' => $createdRoles['ADMIN'],
+                        'status' => 'active',
+                    ],
+                    [
+                        'assigned_by_user_id' => null,
+                        'effective_from' => null,
+                        'effective_until' => null,
+                        'revoked_at' => null,
+                    ]
+                );
+            }
         }
     }
 }

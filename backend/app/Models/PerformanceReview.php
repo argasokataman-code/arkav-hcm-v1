@@ -4,10 +4,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class PerformanceReview extends Model
 {
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
     protected $fillable = [
+        'company_id',
         'cycle_id',
         'user_id',
         'manager_user_id',
@@ -20,6 +31,10 @@ class PerformanceReview extends Model
         'manager_total_score',
         'final_total_score',
     ];
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 
     protected function casts(): array
     {

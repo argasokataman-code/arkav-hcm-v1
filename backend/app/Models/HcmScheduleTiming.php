@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class HcmScheduleTiming extends Model
 {
@@ -20,6 +21,15 @@ class HcmScheduleTiming extends Model
     protected $casts = [
         'company_id' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record): void {
+            if (empty($record->uuid)) {
+                $record->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {

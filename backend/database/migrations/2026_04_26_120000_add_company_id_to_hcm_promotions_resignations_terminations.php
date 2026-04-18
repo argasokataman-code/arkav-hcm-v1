@@ -3,8 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use App\Models\CompanyMembership;
-use Illuminate\Database\Eloquent\Builder;
 
 return new class extends Migration
 {
@@ -92,27 +90,7 @@ return new class extends Migration
      */
     private function backfillCompanyIdForPromotion(): void
     {
-        \DB::table('hcm_promotions as hp')
-            ->whereNull('hp.company_id')
-            ->join('users as u', 'u.id', '=', 'hp.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id')
-                    ->where('cm.status', 'active');
-            })
-            ->update([
-                'hp.company_id' => \DB::raw('cm.company_id'),
-            ]);
-
-        // For records with no active membership, use any membership
-        \DB::table('hcm_promotions as hp')
-            ->whereNull('hp.company_id')
-            ->join('users as u', 'u.id', '=', 'hp.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id');
-            })
-            ->update([
-                'hp.company_id' => \DB::raw('cm.company_id'),
-            ]);
+        $this->backfillTableCompanyId('hcm_promotions');
     }
 
     /**
@@ -120,26 +98,7 @@ return new class extends Migration
      */
     private function backfillCompanyIdForResignation(): void
     {
-        \DB::table('hcm_resignations as hr')
-            ->whereNull('hr.company_id')
-            ->join('users as u', 'u.id', '=', 'hr.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id')
-                    ->where('cm.status', 'active');
-            })
-            ->update([
-                'hr.company_id' => \DB::raw('cm.company_id'),
-            ]);
-
-        \DB::table('hcm_resignations as hr')
-            ->whereNull('hr.company_id')
-            ->join('users as u', 'u.id', '=', 'hr.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id');
-            })
-            ->update([
-                'hr.company_id' => \DB::raw('cm.company_id'),
-            ]);
+        $this->backfillTableCompanyId('hcm_resignations');
     }
 
     /**
@@ -147,25 +106,54 @@ return new class extends Migration
      */
     private function backfillCompanyIdForTermination(): void
     {
-        \DB::table('hcm_terminations as ht')
-            ->whereNull('ht.company_id')
-            ->join('users as u', 'u.id', '=', 'ht.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id')
-                    ->where('cm.status', 'active');
-            })
-            ->update([
-                'ht.company_id' => \DB::raw('cm.company_id'),
-            ]);
+        $this->backfillTableCompanyId('hcm_terminations');
+    }
 
-        \DB::table('hcm_terminations as ht')
-            ->whereNull('ht.company_id')
-            ->join('users as u', 'u.id', '=', 'ht.user_id')
-            ->join('company_users as cm', function ($join) {
-                $join->on('cm.user_id', '=', 'u.id');
-            })
-            ->update([
-                'ht.company_id' => \DB::raw('cm.company_id'),
-            ]);
+    /**
+     * Backfill company_id in a cross-database-safe way (no joined update).
+     */
+    private function backfillTableCompanyId(string $table): void
+    {
+        \DB::table($table)
+            ->select('id', 'user_id')
+            ->whereNull('company_id')
+            ->orderBy('id')
+            ->chunkById(200, function ($rows) use ($table): void {
+                foreach ($rows as $row) {
+                    $companyId = $this->resolveCompanyIdForUser((int) $row->user_id);
+                    if (! $companyId) {
+                        continue;
+                    }
+
+                    \DB::table($table)
+                        ->where('id', (int) $row->id)
+                        ->whereNull('company_id')
+                        ->update(['company_id' => $companyId]);
+                }
+            });
+    }
+
+    private function resolveCompanyIdForUser(int $userId): ?int
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $activeCompanyId = \DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->orderBy('company_id')
+            ->value('company_id');
+
+        if (is_numeric($activeCompanyId)) {
+            return (int) $activeCompanyId;
+        }
+
+        $anyCompanyId = \DB::table('company_users')
+            ->where('user_id', $userId)
+            ->orderBy('company_id')
+            ->value('company_id');
+
+        return is_numeric($anyCompanyId) ? (int) $anyCompanyId : null;
     }
 };

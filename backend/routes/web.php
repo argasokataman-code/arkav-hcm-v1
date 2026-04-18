@@ -615,7 +615,7 @@ Route::get('/blog-2', function () {
 
 Route::get('/currencies', function () {
     return view(view: 'currencies');
-})->name('currencies');
+})->middleware('hcm.web.admin')->name('currencies');
 
 Route::get('/email-reply', function ()       {
     return view(view: 'email-reply');
@@ -1026,6 +1026,8 @@ Route::get('/profile-settings', function () {
     return view('profile-settings');
 })->name('profile-settings');
 
+Route::redirect('/profile-settingsrout', '/profile-settings', 301)->name('profile-settings.alias');
+
 Route::get('/security-settings', function () {
     return view('security-settings');
 })->name('security-settings');
@@ -1040,71 +1042,73 @@ Route::get('/connected-apps', function () {
 
 Route::get('/bussiness-settings', function () {
     return view('bussiness-settings');
-})->name('bussiness-settings');
+})->middleware('hcm.web.admin')->name('bussiness-settings');
 
 Route::get('/business-settings', function () {
     return redirect()->route('bussiness-settings');
-})->name('business-settings');
+})->middleware('hcm.web.admin')->name('business-settings');
 
 Route::get('/seo-settings', function () {
     return view('seo-settings');
-})->name('seo-settings');
+})->middleware('hcm.web.admin')->name('seo-settings');
 
 Route::get('/localization-settings', function () {
     return view('localization-settings');
-})->name('localization-settings');
+})->middleware('hcm.web.admin')->name('localization-settings');
 
-Route::get('/expenses-report', function () {
-    return view('expenses-report');
-})->name('expenses-report');
+Route::middleware('hcm.web.admin')->group(function (): void {
+    Route::get('/expenses-report', function () {
+        return view('expenses-report');
+    })->name('expenses-report');
 
-Route::get('/invoice-report', function () {
-    return view('invoice-report');
-})->name('invoice-report');
+    Route::get('/invoice-report', function () {
+        return view('invoice-report');
+    })->name('invoice-report');
 
-Route::get('/payment-report', function () {
-    return view('payment-report');
-})->name('payment-report');
+    Route::get('/payment-report', function () {
+        return view('payment-report');
+    })->name('payment-report');
 
-Route::get('/project-report', function () {
-    return view('project-report');
-})->name('project-report');
+    Route::get('/project-report', function () {
+        return view('project-report');
+    })->name('project-report');
 
-Route::get('/task-report', function () {
-    return view('task-report');
-})->name('task-report');
+    Route::get('/task-report', function () {
+        return view('task-report');
+    })->name('task-report');
 
-Route::get( 'user-report', function (){
-    return view('user-report');
-})->name('user-report');
+    Route::get('user-report', function () {
+        return view('user-report');
+    })->name('user-report');
 
-Route::get( 'employee-report', function () {
-    return view( 'employee-report' );
-})->name( 'employee-report' );
+    Route::get('employee-report', function () {
+        return view('employee-report');
+    })->name('employee-report');
 
-Route::get( 'payslip-report', function () {
-    return view('payslip-report');
-})->name('payslip-report');
+    Route::get('payslip-report', function () {
+        return view('payslip-report');
+    })->name('payslip-report');
 
-Route::get( 'attendance-report', function () {
-    return view('attendance-report');
-})->name('attendance-report');
+    Route::get('attendance-report', function () {
+        return view('attendance-report');
+    })->name('attendance-report');
 
-Route::get( 'leave-report', function () {
-    return view('leave-report');
-})->name('leave-report');
+    Route::get('leave-report', function () {
+        return view('leave-report');
+    })->name('leave-report');
 
-Route::get('daily-report', function () {
-    return view('daily-report');
-})->name('daily-report');
+    Route::get('daily-report', function () {
+        return view('daily-report');
+    })->name('daily-report');
 
-Route::get('reports', function () {
-    return view('reports.hub');
-})->name('reports-hub');
+    Route::get('reports', function () {
+        return view('reports.hub');
+    })->name('reports-hub');
+});
 
 Route::get('roles-permissions', function() {
     return view('roles-permissions');
-})->name('roles-permissions');
+})->middleware('hcm.web.admin')->name('roles-permissions');
 
 Route::get('permission', function() {
     return view('permission');
@@ -1134,7 +1138,7 @@ Route::get('knowledgebase-details', function (Request $request) {
 
 Route::get('users', function() {
     return view('users');
-})->name('users');
+})->middleware('hcm.web.admin')->name('users');
 
 Route::middleware(['hcm.web.admin', 'hcm.web.asset-management'])->group(function (): void {
     Route::get('assets', function() {
@@ -1152,47 +1156,47 @@ Route::get('payslip', function() {
 
 Route::get('/prefixes', function () {
     return view('prefixes');
-})->name('prefixes');
+})->middleware('hcm.web.admin')->name('prefixes');
 
 Route::get('/preferences', function () {
     return view('preferences');
-})->name('preferences');
+})->middleware('hcm.web.admin')->name('preferences');
 
 Route::get('/appearance', function () {
     return view('appearance');
-})->name('appearance');
+})->middleware('hcm.web.admin')->name('appearance');
 
 Route::get('/language', function () {
     return view('language');
-})->name('language');
+})->middleware('hcm.web.admin')->name('language');
 
 Route::get('/language-web', function () {
     return view('language-web');
-})->name('language-web');
+})->middleware('hcm.web.admin')->name('language-web');
 
 Route::get('/add-language', function () {
     return view('add-language');
-})->name('add-language');
+})->middleware('hcm.web.admin')->name('add-language');
 
 Route::get('/authentication-settings', function () {
     return view('authentication-settings');
-})->name('authentication-settings');
+})->middleware('hcm.web.admin')->name('authentication-settings');
 
 Route::get('/ai-settings', function () {
     return view('ai-settings');
-})->name('ai-settings');
+})->middleware('hcm.web.admin')->name('ai-settings');
 
 Route::get( '/salary-settings', function () {
     return view('salary-settings');
-})->name('salary-settings');
+})->middleware('hcm.web.admin')->name('salary-settings');
 
 Route::get( '/approval-settings', function () {
     return view('approval-settings');
-})->name('approval-settings');
+})->middleware('hcm.web.admin')->name('approval-settings');
 
 Route::get( '/invoice-settings', function () {
     return view('invoice-settings');
-})->name('invoice-settings');
+})->middleware('hcm.web.admin')->name('invoice-settings');
 
 Route::get('/leave-type', function () {
     $leaveTypes = HcmLeaveTypeSetting::query()
@@ -1205,43 +1209,43 @@ Route::get('/leave-type', function () {
 
 Route::get( '/custom-fields', function () {
     return view('custom-fields');
-})->name('custom-fields');
+})->middleware('hcm.web.admin')->name('custom-fields');
 
 Route::get( '/email-settings', function () {
     return view('email-settings');
-})->name('email-settings');
+})->middleware('hcm.web.admin')->name('email-settings');
 
 Route::get( '/email-template', function () {
     return view('email-template');
-})->name('email-template');
+})->middleware('hcm.web.admin')->name('email-template');
 
 Route::get( '/sms-settings', function () {
     return view('sms-settings');
-})->name('sms-settings');
+})->middleware('hcm.web.admin')->name('sms-settings');
 
 Route::get( '/sms-template', function () {
     return view('sms-template');
-})->name('sms-template');
+})->middleware('hcm.web.admin')->name('sms-template');
 
 Route::get( '/otp-settings', function () {
     return view('otp-settings');
-})->name('otp-settings');
+})->middleware('hcm.web.admin')->name('otp-settings');
 
 Route::get( '/gdpr', function () {
     return view('gdpr');
-})->name('gdpr');
+})->middleware('hcm.web.admin')->name('gdpr');
 
 Route::get( '/maintenance-mode', function () {
     return view('maintenance-mode');
-})->name('maintenance-mode');
+})->middleware('hcm.web.admin')->name('maintenance-mode');
 
 Route::get( '/payment-gateways', function () {
     return view( 'payment-gateways');
-})->name( 'payment-gateways');
+})->middleware('hcm.web.admin')->name( 'payment-gateways');
 
 Route::get( '/tax-rates', function () {
     return view( 'tax-rates');
-})->name( 'tax-rates');
+})->middleware('hcm.web.admin')->name( 'tax-rates');
 
 Route::get( '/pages', function () {
     return view( 'pages');
@@ -1357,34 +1361,34 @@ Route::get('/starter', function () {
 
 Route::get('/custom-css', function () {
     return view('custom-css');
-})->name('custom-css');
+})->middleware('hcm.web.admin')->name('custom-css');
 
 Route::get('/custom-js', function () {
     return view('custom-js');
-})->name('custom-js');
+})->middleware('hcm.web.admin')->name('custom-js');
 
-Route::get('/cronjob', [CronjobController::class, 'index'])->name('cronjob');
+Route::get('/cronjob', [CronjobController::class, 'index'])->middleware('hcm.web.admin')->name('cronjob');
 Route::post('/cronjob', [CronjobController::class, 'update'])->name('cronjob.update');
 
 Route::get('/cronjob-schedule', function () {
     return view('cronjob-schedule');
-})->name('cronjob-schedule');
+})->middleware('hcm.web.admin')->name('cronjob-schedule');
 
 Route::get('/storage-settings', function () {
     return view('storage-settings');
-})->name('storage-settings');
+})->middleware('hcm.web.admin')->name('storage-settings');
 
 Route::get('/ban-ip-address', function () {
     return view('ban-ip-address');
-})->name('ban-ip-address');
+})->middleware('hcm.web.admin')->name('ban-ip-address');
 
 Route::get('/backup', function () {
     return view('backup');
-})->name('backup');
+})->middleware('hcm.web.admin')->name('backup');
 
 Route::get('/clear-cache', function () {
     return view('clear-cache');
-})->name('clear-cache');
+})->middleware('hcm.web.admin')->name('clear-cache');
 
 Route::get('/success', function () {
     return view('success');

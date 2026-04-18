@@ -33,6 +33,8 @@ Dokumen ini menjadi **peta tunggal** untuk tim: halaman Blade mana yang dianggap
 
 **Prinsip keamanan:** izin **wajib** dicek di **backend**; UI hanya menyembunyikan tombol (UX), bukan sumber kebenaran.
 
+Sejak 2026-04-18, route web admin kritikal untuk **Reports** dan **Administration Settings** (contoh: `/expenses-report`, `/daily-report`, `/business-settings`, `/payment-gateways`, `/cronjob`, `/clear-cache`) dikunci dengan middleware `hcm.web.admin` agar tidak hanya bergantung pada visibilitas menu.
+
 ---
 
 ## 3. Matriks halaman aktif HCM (menu & wiring utama)

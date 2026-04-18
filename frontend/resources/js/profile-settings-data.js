@@ -218,26 +218,36 @@
         };
     }
 
+    function extractSettingsObject(payloadData) {
+        if (!payloadData || typeof payloadData !== 'object') {
+            return {};
+        }
+
+        if (payloadData.settings && typeof payloadData.settings === 'object') {
+            return payloadData.settings;
+        }
+
+        return payloadData;
+    }
+
     function shouldUpdatePassword(passwordPayload) {
         return Boolean(passwordPayload.currentPassword || passwordPayload.newPassword || passwordPayload.confirmPassword);
     }
 
-    async function updateIdentityProfileForPassword(settingsPayload, passwordPayload) {
-        if (!shouldUpdatePassword(passwordPayload)) {
-            return false;
-        }
-
-        if (!passwordPayload.currentPassword) {
-            throw new Error('Current Password wajib diisi untuk mengganti password.');
-        }
-        if (!passwordPayload.newPassword) {
-            throw new Error('New Password wajib diisi.');
-        }
-        if (!passwordPayload.confirmPassword) {
-            throw new Error('Confirm Password wajib diisi.');
-        }
-        if (passwordPayload.newPassword !== passwordPayload.confirmPassword) {
-            throw new Error('Konfirmasi password tidak cocok.');
+    async function updateIdentityProfile(settingsPayload, passwordPayload) {
+        if (shouldUpdatePassword(passwordPayload)) {
+            if (!passwordPayload.currentPassword) {
+                throw new Error('Current Password wajib diisi untuk mengganti password.');
+            }
+            if (!passwordPayload.newPassword) {
+                throw new Error('New Password wajib diisi.');
+            }
+            if (!passwordPayload.confirmPassword) {
+                throw new Error('Confirm Password wajib diisi.');
+            }
+            if (passwordPayload.newPassword !== passwordPayload.confirmPassword) {
+                throw new Error('Konfirmasi password tidak cocok.');
+            }
         }
 
         var identityPayload = {
@@ -277,21 +287,33 @@
             confirmPasswordField.value = '';
         }
 
-        return true;
+        return {
+            passwordUpdated: shouldUpdatePassword(passwordPayload),
+            profile: identityBody.data || {}
+        };
     }
 
     async function loadSettings() {
         clearFeedback();
 
-        var settingsResponse = await fetch('/v1/hcm/settings?group=general', {
-            method: 'GET',
-            headers: buildHeaders(),
-            credentials: 'same-origin'
-        });
+        var merged = {};
+        var settingsAvailable = true;
 
-        var settingsPayload = await settingsResponse.json().catch(function () { return null; });
-        if (!settingsResponse.ok || !settingsPayload || settingsPayload.success !== true) {
-            throw new Error(parseError(settingsPayload));
+        try {
+            var settingsResponse = await fetch('/v1/hcm/settings?group=general', {
+                method: 'GET',
+                headers: buildHeaders(),
+                credentials: 'same-origin'
+            });
+
+            var settingsPayload = await settingsResponse.json().catch(function () { return null; });
+            if (settingsResponse.ok && settingsPayload && settingsPayload.success === true) {
+                merged = extractSettingsObject(settingsPayload.data);
+            } else {
+                settingsAvailable = false;
+            }
+        } catch (_e) {
+            settingsAvailable = false;
         }
 
         var meResponse = await fetch('/v1/identity/auth/me', {
@@ -300,8 +322,6 @@
             credentials: 'same-origin'
         });
         var mePayload = await meResponse.json().catch(function () { return null; });
-
-        var merged = settingsPayload.data || {};
         if (meResponse.ok && mePayload && mePayload.success && mePayload.data) {
             renderCompanyContext(mePayload);
             merged.identityEmail = normalize(mePayload.data.email || '');
@@ -317,9 +337,14 @@
             if (!merged.general_city && mePayload.data.profile && mePayload.data.profile.addressDetail) {
                 merged.general_city = mePayload.data.profile.addressDetail;
             }
+        } else {
+            throw new Error(parseError(mePayload));
         }
 
         applyData(merged);
+        if (!settingsAvailable) {
+            showFeedback('warning', 'Profile dimuat dari data akun. Akses settings admin dibatasi untuk role tertentu.');
+        }
     }
 
     async function saveSettings(event) {
@@ -342,29 +367,49 @@
         try {
             setLoading(true);
 
-            var passwordUpdated = await updateIdentityProfileForPassword(payload, passwordPayload);
+            var identityResult = await updateIdentityProfile(payload, passwordPayload);
 
-            var response = await fetch('/v1/hcm/settings', {
-                method: 'POST',
-                headers: buildHeaders({
-                    'Content-Type': 'application/json'
-                }),
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    group: 'general',
-                    settings: payload
-                })
-            });
+            var settingsSaved = false;
+            try {
+                var response = await fetch('/v1/hcm/settings', {
+                    method: 'POST',
+                    headers: buildHeaders({
+                        'Content-Type': 'application/json'
+                    }),
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        group: 'general',
+                        settings: payload
+                    })
+                });
 
-            var body = await response.json().catch(function () { return null; });
-            if (!response.ok || !body || body.success !== true) {
-                throw new Error(parseError(body));
+                var body = await response.json().catch(function () { return null; });
+                if (response.ok && body && body.success === true) {
+                    settingsSaved = true;
+                } else if (response.status !== 401 && response.status !== 403) {
+                    throw new Error(parseError(body));
+                }
+            } catch (settingsError) {
+                if (settingsError && settingsError.message) {
+                    throw settingsError;
+                }
             }
 
-            applyData(Object.assign({}, body.data || {}, {
+            applyData(Object.assign({}, extractSettingsObject((identityResult && identityResult.profile) || {}), {
+                general_first_name: payload.first_name,
+                general_last_name: payload.last_name,
+                general_email: payload.email,
+                general_phone: payload.phone,
+                general_address: payload.address,
+                general_city: payload.city,
                 general_name: payload.name
             }));
-            showFeedback('success', passwordUpdated ? 'Profile settings dan password berhasil disimpan.' : (body.message || 'Profile settings berhasil disimpan.'));
+
+            if (settingsSaved) {
+                showFeedback('success', identityResult.passwordUpdated ? 'Profile settings dan password berhasil disimpan.' : 'Profile settings berhasil disimpan.');
+            } else {
+                showFeedback('success', identityResult.passwordUpdated ? 'Profil dan password berhasil disimpan. Beberapa settings admin dilewati karena keterbatasan akses.' : 'Profil berhasil disimpan. Beberapa settings admin dilewati karena keterbatasan akses.');
+            }
         } catch (error) {
             showFeedback('danger', error && error.message ? error.message : 'Gagal menyimpan profile settings.');
         } finally {

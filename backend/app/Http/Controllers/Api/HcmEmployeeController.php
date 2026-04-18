@@ -58,14 +58,25 @@ class HcmEmployeeController extends Controller
      *
      * @return array{totalEmployees: int, activeEmployees: int, inactiveEmployees: int, probationEmployees: int, newJoiners: int}
      */
-    private function employeeDirectorySummary(): array
+    private function employeeDirectorySummary(?int $activeCompanyId): array
     {
+        if (! $activeCompanyId) {
+            return [
+                'totalEmployees' => 0,
+                'activeEmployees' => 0,
+                'inactiveEmployees' => 0,
+                'probationEmployees' => 0,
+                'newJoiners' => 0,
+            ];
+        }
+
         $since = now()->subDays(30);
-        $row = DB::table('users')
-            ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
+        $row = DB::table('employee_profiles')
+            ->join('users', 'users.id', '=', 'employee_profiles.user_id')
+            ->where('employee_profiles.company_id', $activeCompanyId)
             ->selectRaw(
                 'COUNT(*) as total, '.
-                'SUM(CASE WHEN employee_profiles.id IS NULL OR employee_profiles.employment_status IS NULL OR employee_profiles.employment_status = ? THEN 1 ELSE 0 END) as active_employees, '.
+                'SUM(CASE WHEN employee_profiles.employment_status IS NULL OR employee_profiles.employment_status = ? THEN 1 ELSE 0 END) as active_employees, '.
                 'SUM(CASE WHEN employee_profiles.employment_status IN (?, ?, ?) THEN 1 ELSE 0 END) as inactive_employees, '.
                 'SUM(CASE WHEN employee_profiles.employment_status = ? THEN 1 ELSE 0 END) as probation_employees, '.
                 'SUM(CASE WHEN users.created_at >= ? THEN 1 ELSE 0 END) as new_joiners',
@@ -349,7 +360,7 @@ class HcmEmployeeController extends Controller
             ];
         })->values();
 
-        $summary = $this->employeeDirectorySummary();
+        $summary = $this->employeeDirectorySummary($activeCompanyId);
 
         return response()->json([
             'success' => true,

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('feature_code'); // employee_management, payroll, attendance, etc
             $table->string('feature_name');
             $table->integer('limit')->nullable(); // null = unlimited, 0 = not included, > 0 = specific limit
+            $table->uuid()->nullable();
             $table->timestamps();
             
             $table->unique(['package_id', 'feature_code']);

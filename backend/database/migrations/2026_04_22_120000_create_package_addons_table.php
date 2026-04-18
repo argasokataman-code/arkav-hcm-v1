@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('price_per_unit', 12, 2);
             $table->string('unit_name'); // users, companies, 1M API calls, GB
             $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->uuid()->nullable();
             $table->timestamps();
             
             $table->index('status');

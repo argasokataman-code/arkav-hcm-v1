@@ -11,16 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('package_features')) {
+            return;
+        }
+
         Schema::create('package_features', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('package_id')->constrained('packages')->onDelete('cascade');
+            $table->foreignUuid('package_uuid')->constrained('packages', 'uuid')->onDelete('cascade');
+            $table->foreignId('package_id')->nullable()->constrained('packages')->nullOnDelete();
             $table->string('feature_code'); // employee_management, payroll, attendance, etc
             $table->string('feature_name');
             $table->integer('limit')->nullable(); // null = unlimited, 0 = not included, > 0 = specific limit
             $table->uuid()->nullable();
             $table->timestamps();
             
-            $table->unique(['package_id', 'feature_code']);
+            $table->unique(['package_uuid', 'feature_code']);
             $table->index('feature_code');
         });
     }

@@ -15,6 +15,35 @@ class UserHcmAdminGateTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_uuid_relation_columns_exist_for_company_user_and_hcm_user_roles(): void
+    {
+        $this->assertTrue(
+            Schema::hasColumn('company_users', 'uuid'),
+            'company_users.uuid column must exist for UUID-based identifiers.'
+        );
+        $this->assertTrue(
+            Schema::hasColumn('company_users', 'company_uuid'),
+            'company_users.company_uuid column must exist for tenant UUID scoping.'
+        );
+        $this->assertTrue(
+            Schema::hasColumn('company_users', 'user_uuid'),
+            'company_users.user_uuid column must exist for user UUID relations.'
+        );
+
+        $this->assertTrue(
+            Schema::hasColumn('hcm_user_roles', 'uuid'),
+            'hcm_user_roles.uuid column must exist for UUID-based identifiers.'
+        );
+        $this->assertTrue(
+            Schema::hasColumn('hcm_user_roles', 'company_uuid'),
+            'hcm_user_roles.company_uuid column must exist for tenant UUID scoping.'
+        );
+        $this->assertTrue(
+            Schema::hasColumn('hcm_user_roles', 'user_uuid'),
+            'hcm_user_roles.user_uuid column must exist for user UUID relations.'
+        );
+    }
+
     public function test_user_with_active_admin_role_is_treated_as_hcm_admin(): void
     {
         $company = Company::factory()->create(['status' => 'active']);

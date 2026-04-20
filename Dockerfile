@@ -2,20 +2,23 @@ FROM tyomboreinz/php-npm
 
 WORKDIR /app
 
-# Copy hanya file dependency dulu agar layer ini di-cache
+# Copy file dependency dulu untuk cache layer
 COPY backend/composer.json backend/composer.lock backend/
 COPY backend/package.json backend/package-lock.json backend/
 
-# Install dependencies (layer ini akan di-cache selama lock file tidak berubah)
+# Install tanpa scripts (artisan belum ada)
 RUN cd /app/backend \
-    && composer install --no-dev --optimize-autoloader --ignore-platform-req=php \
+    && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts \
     && npm install
 
-# Baru copy seluruh source code
+# Copy seluruh source code
 COPY . .
 
+# Sekarang jalankan scripts & build
 RUN cd /app/backend \
     && mv env.txt .env \
+    && composer dump-autoload --optimize \
+    && php artisan package:discover --ansi \
     && php artisan key:generate \
     && npm run build
 

@@ -1,30 +1,143 @@
 # Purchase Transaction API
 
-Purchase transactions track billing and payment records for subscriptions and add-on purchases.
+## Runtime Source Of Truth
+
+Path `/v1/saas/transactions` saat ini melayani **dua contract runtime** yang sama-sama aktif:
+
+1. **Legacy SaaS admin ledger contract** untuk halaman web aktif `/saas/transactions` dan alias `/purchase-transaction` melalui API-token cookie / same-origin web flow.
+2. **Purchase transaction bearer contract** untuk consumer API yang memakai header `Authorization: Bearer <token>`.
+
+Kontrak ini belum disatukan. Dokumentasi berikut memisahkan keduanya secara eksplisit agar audit tidak salah baca.
 
 ## Base Path
-```
+
+```text
 /v1/saas
 ```
 
 ## Authentication
-All endpoints require Bearer token authentication via `Authorization` header. Mutation endpoints (POST, PUT) require admin access.
 
----
+- Semua endpoint transaksi butuh autentikasi dan role admin.
+- Flow web admin aktif memakai API-token cookie / same-origin credentials.
+- Flow API terprogram memakai `Authorization: Bearer <token>`.
 
-## Endpoints
+## Surface A: Legacy SaaS Admin Ledger Contract
+
+Ini adalah contract yang dipakai oleh halaman aktif `backend/resources/views/saas/transactions.blade.php` dan JS `frontend/resources/js/purchase-transactions-data.js`.
 
 ### GET /transactions
-List transactions with filtering, sorting, and pagination.
 
-**Query Parameters:**
-- `status` (string, optional) - Filter by transaction status: `draft`, `issued`, `sent`, `paid`, `overdue`, `cancelled`
-- `company_id` (integer, optional) - Filter by company ID
-- `transaction_type` (string, optional) - Filter by type: `subscription`, `addon`, `refund`, `credit`, `manual`
-- `from_date` (date, optional) - Filter transactions created on or after this date
-- `to_date` (date, optional) - Filter transactions created on or before this date
+List ledger transaksi untuk halaman admin aktif.
 
-**Response:** 
+**Query parameters aktif:**
+
+- `invoice_number` — cari invoice number
+- `company_search` — cari nama company
+- `status` — filter status legacy `pending|completed|failed|refunded`
+- `payment_method` — filter metode bayar
+- `date_from` — filter tanggal mulai (`created_at >=`)
+- `date_to` — filter tanggal akhir (`created_at <=`)
+- `page` — pagination
+- `per_page` — pagination
+
+**Response shape:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 42,
+      "invoiceNumber": "INV-202604-0042",
+      "subscriptionId": 12,
+      "companyName": "PT Nusantara Labs",
+      "packageName": "Pro",
+      "amount": 150000,
+      "status": "completed",
+      "paymentMethod": "bank_transfer",
+      "paymentGateway": "midtrans",
+      "transactionId": "TRX-2026-0042",
+      "notes": null,
+      "createdAt": "2026-04-19T08:00:00Z",
+      "updatedAt": "2026-04-19T08:05:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 1
+  }
+}
+```
+
+### GET /transactions/{transaction}
+
+Ambil detail transaksi legacy.
+
+- Path identifier menerima UUID atau numeric legacy fallback.
+- Response memakai shape yang sama dengan list item di atas.
+
+### POST /transactions
+
+Create legacy transaction.
+
+**Request body:**
+
+```json
+{
+  "subscription_id": "550e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-TEST-001",
+  "amount": 150000,
+  "status": "completed",
+  "payment_method": "bank_transfer",
+  "payment_gateway": "midtrans",
+  "transaction_id": "TRX-2026-0042",
+  "notes": "Manual settlement"
+}
+```
+
+**Notes:**
+
+- `subscription_id` dikirim sebagai UUID eksternal.
+- Controller sekarang meresolusikan UUID subscription ke FK integer internal sebelum insert, sehingga create tidak lagi gagal FK.
+
+### PUT /transactions/{transaction}
+
+Update legacy transaction status/metode bayar.
+
+**Allowed fields:**
+
+- `status` — `pending|completed|failed|refunded`
+- `payment_method` — `credit_card|bank_transfer|e_wallet|other`
+- `payment_gateway`
+- `transaction_id`
+- `notes`
+
+### GET /transactions/export
+
+Export CSV seluruh ledger legacy. Dipakai langsung oleh tombol `Download All` pada halaman aktif.
+
+## Surface B: Purchase Transaction Bearer Contract
+
+Ini adalah contract yang dipakai bila request membawa Bearer token.
+
+### GET /transactions
+
+List purchase transactions.
+
+**Query parameters:**
+
+- `status` — `draft|issued|sent|paid|overdue|cancelled`
+- `company_id` — UUID company, dengan numeric legacy fallback tetap diterima
+- `transaction_type` — `subscription|addon|refund|credit|manual`
+- `from_date` — filter tanggal mulai (`created_at >=`)
+- `to_date` — filter tanggal akhir (`created_at <=`)
+- `page` — pagination
+- `per_page` — pagination
+
+**Response shape:**
+
 ```json
 {
   "success": true,
@@ -44,15 +157,17 @@ List transactions with filtering, sorting, and pagination.
         "planCode": "pro",
         "status": "active"
       },
+      "packageAddonId": null,
+      "packageAddon": null,
       "transactionType": "subscription",
       "description": "Monthly billing",
-      "amount": 100000.0,
-      "taxAmount": 10000.0,
-      "discountAmount": 5000.0,
-      "totalAmount": 105000.0,
-      "billingPeriodStart": "2026-04-01",
-      "billingPeriodEnd": "2026-04-30",
-      "dueDate": "2026-05-10T00:00:00Z",
+      "amount": 100000,
+      "taxAmount": 10000,
+      "discountAmount": 5000,
+      "totalAmount": 105000,
+      "billingPeriodStart": null,
+      "billingPeriodEnd": null,
+      "dueDate": null,
       "paidAt": null,
       "paymentMethod": null,
       "paymentReference": null,
@@ -60,65 +175,35 @@ List transactions with filtering, sorting, and pagination.
       "isPaid": false,
       "isOverdue": false,
       "notes": null,
-      "createdAt": "2026-04-13T02:00:00Z",
-      "updatedAt": "2026-04-13T02:00:00Z"
+      "createdAt": "2026-04-19T08:00:00Z",
+      "updatedAt": "2026-04-19T08:00:00Z"
     }
   ],
   "pagination": {
-    "total": 25,
+    "total": 1,
     "per_page": 15,
     "current_page": 1,
-    "last_page": 2
+    "last_page": 1
   }
 }
 ```
 
-**Examples:**
-
-List all paid transactions:
-```bash
-curl -X GET "http://api.example.com/v1/saas/transactions?status=paid" \
-  -H "Authorization: Bearer <token>"
-```
-
-List transactions for specific company:
-```bash
-curl -X GET "http://api.example.com/v1/saas/transactions?company_id=10" \
-  -H "Authorization: Bearer <token>"
-```
-
-List addon purchases by date range:
-```bash
-curl -X GET "http://api.example.com/v1/saas/transactions?transaction_type=addon&from_date=2026-04-01&to_date=2026-04-30" \
-  -H "Authorization: Bearer <token>"
-```
-
----
-
 ### GET /transactions/{transaction}
-Get details of a specific transaction.
 
-**Path Parameters:**
-- `transaction` (integer, required) - Transaction ID
+Ambil detail purchase transaction.
 
-**Response:** Same structure as the item in list response.
-
-**Example:**
-```bash
-curl -X GET "http://api.example.com/v1/saas/transactions/1" \
-  -H "Authorization: Bearer <token>"
-```
-
----
+- Path identifier menerima UUID atau numeric legacy fallback.
 
 ### POST /transactions
-Create a new transaction (admin only).
 
-**Request Body:**
+Create purchase transaction baru.
+
+**Request body:**
+
 ```json
 {
-  "company_id": 10,
-  "subscription_id": 5,
+  "company_id": "550e8400-e29b-41d4-a716-446655440000",
+  "subscription_id": "5f28e4f7-b45f-4f73-a5d9-92bf33e765f0",
   "transaction_type": "subscription",
   "description": "Monthly subscription charge",
   "amount": 100000,
@@ -128,191 +213,29 @@ Create a new transaction (admin only).
 }
 ```
 
-**Fields:**
-- `company_id` (integer, required) - Company ID
-- `subscription_id` (integer, optional) - Subscription ID
-- `transaction_type` (string, required) - Type: `subscription`, `addon`, `refund`, `credit`, `manual`
-- `description` (string, optional) - Transaction description
-- `amount` (number, required) - Transaction amount (min: 0)
-- `tax_amount` (number, optional, default: 0) - Tax amount
-- `discount_amount` (number, optional, default: 0) - Discount amount
-- `status` (string, required) - Status: `draft`, `issued`, `sent`, `paid`, `overdue`, `cancelled`
+**Rules yang diverifikasi:**
 
-**Response (201 Created):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "transactionCode": "TXN-2026-123456",
-    "companyId": 10,
-    "company": {...},
-    "subscriptionId": 5,
-    "subscription": {...},
-    "transactionType": "subscription",
-    "description": "Monthly subscription charge",
-    "amount": 100000.0,
-    "taxAmount": 10000.0,
-    "discountAmount": 5000.0,
-    "totalAmount": 105000.0,
-    "status": "issued",
-    "isPaid": false,
-    "isOverdue": false,
-    "createdAt": "2026-04-13T02:00:00Z",
-    "updatedAt": "2026-04-13T02:00:00Z"
-  }
-}
-```
-
-**Note:** `totalAmount` is automatically calculated as: `amount + taxAmount - discountAmount`
-
-**Example:**
-```bash
-curl -X POST "http://api.example.com/v1/saas/transactions" \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "company_id": 10,
-    "subscription_id": 5,
-    "transaction_type": "subscription",
-    "description": "Monthly billing",
-    "amount": 100000,
-    "tax_amount": 10000,
-    "discount_amount": 5000,
-    "status": "issued"
-  }'
-```
-
----
+- `company_id`, `subscription_id`, dan `package_addon_id` memakai UUID eksternal.
+- `package_addon_id` wajib bila `transaction_type=addon`.
+- `subscription_id` yang berasal dari company lain sekarang ditolak dengan `422 SUBSCRIPTION_COMPANY_MISMATCH`.
+- `totalAmount` dihitung otomatis sebagai `amount + taxAmount - discountAmount`.
 
 ### PUT /transactions/{transaction}
-Update a transaction (admin only).
 
-**Path Parameters:**
-- `transaction` (integer, required) - Transaction ID
+Update purchase transaction.
 
-**Request Body:**
-```json
-{
-  "status": "paid",
-  "paid_at": "2026-04-13T10:00:00Z",
-  "payment_method": "bank_transfer",
-  "payment_reference": "TRX-2026-123",
-  "notes": "Payment received"
-}
-```
+**Allowed fields:**
 
-**Fields (all optional):**
-- `status` (string) - New status: `draft`, `issued`, `sent`, `paid`, `overdue`, `cancelled`
-- `paid_at` (datetime, ISO 8601) - Payment date/time
-- `payment_method` (string) - Payment method: `bank_transfer`, `credit_card`, `e_wallet`, `cash`
-- `payment_reference` (string) - Payment reference number or ID
-- `notes` (string) - Additional notes
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "transactionCode": "TXN-2026-123456",
-    "status": "paid",
-    "paid_at": "2026-04-13T10:00:00Z",
-    "paymentMethod": "bank_transfer",
-    "paymentReference": "TRX-2026-123",
-    "isPaid": true,
-    "isOverdue": false,
-    ...
-  }
-}
-```
-
-**Example - Mark transaction as paid:**
-```bash
-curl -X PUT "http://api.example.com/v1/saas/transactions/1" \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "paid",
-    "paid_at": "2026-04-13T10:00:00Z",
-    "payment_method": "bank_transfer",
-    "payment_reference": "TRX-2026-123"
-  }'
-```
-
----
-
-## Status Codes
-
-| Code | Meaning |
-|------|---------|
-| 200 | OK - Request successful |
-| 201 | Created - Transaction created successfully |
-| 400 | Bad Request - Invalid request body or parameters |
-| 403 | Forbidden - User does not have admin access |
-| 404 | Not Found - Transaction not found |
-| 422 | Unprocessable Entity - Validation failed |
-| 500 | Server Error - Internal server error |
-
----
-
-## Transaction Type Reference
-
-| Type | Description |
-|------|-------------|
-| `subscription` | Regular subscription billing charge |
-| `addon` | Add-on or upsell purchase |
-| `refund` | Refund or credit reversal |
-| `credit` | Account credit or promotional credit |
-| `manual` | Manually created transaction |
-
----
-
-## Transaction Status Lifecycle
-
-| Status | Description |
-|--------|-------------|
-| `draft` | Transaction saved but not yet finalized |
-| `issued` | Transaction issued and ready for payment |
-| `sent` | Transaction sent to customer |
-| `paid` | Transaction paid in full |
-| `overdue` | Transaction past due date without payment |
-| `cancelled` | Transaction cancelled and voided |
-
----
-
-## Fields Reference
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | integer | Unique transaction ID |
-| `transactionCode` | string | Unique transaction code in format `TXN-YYYY-XXXXXX` |
-| `companyId` | integer | Associated company ID |
-| `subscriptionId` | integer (nullable) | Associated subscription ID |
-| `transactionType` | string | Type of transaction |
-| `description` | string (nullable) | Transaction description |
-| `amount` | float | Base transaction amount |
-| `taxAmount` | float | Tax amount (minimum 0) |
-| `discountAmount` | float | Discount amount (minimum 0) |
-| `totalAmount` | float | Total = amount + tax - discount |
-| `billingPeriodStart` | date (nullable) | Billing period start date |
-| `billingPeriodEnd` | date (nullable) | Billing period end date |
-| `dueDate` | datetime (nullable) | Payment due date |
-| `paidAt` | datetime (nullable) | Payment received date/time |
-| `paymentMethod` | string (nullable) | Payment method used |
-| `paymentReference` | string (nullable) | Payment reference number |
-| `status` | string | Transaction status |
-| `isPaid` | boolean (computed) | True if status is 'paid' and payment received |
-| `isOverdue` | boolean (computed) | True if status is 'overdue' and due date has passed |
-| `notes` | string (nullable) | Additional transaction notes |
-| `createdAt` | datetime | Creation timestamp (ISO 8601) |
-| `updatedAt` | datetime | Last update timestamp (ISO 8601) |
-
----
+- `status` — `draft|issued|sent|paid|overdue|cancelled`
+- `paid_at`
+- `payment_method` — `bank_transfer|credit_card|e_wallet|cash`
+- `payment_reference`
+- `notes`
 
 ## Error Responses
 
-**Admin Access Required (403):**
+### Admin Access Required (403)
+
 ```json
 {
   "success": false,
@@ -323,29 +246,37 @@ curl -X PUT "http://api.example.com/v1/saas/transactions/1" \
 }
 ```
 
-**Validation Error (422):**
+### Subscription / Company Mismatch (422)
+
 ```json
 {
-  "message": "The company id field is required. (and 2 more errors)",
-  "errors": {
-    "company_id": ["The company id field is required."],
-    "transaction_type": ["The transaction type field is required."],
-    "status": ["The status field is required."]
+  "success": false,
+  "error": {
+    "code": "SUBSCRIPTION_COMPANY_MISMATCH",
+    "message": "Selected subscription does not belong to the selected company."
   }
 }
 ```
 
----
+### Validation Error (422)
 
-## Filtering & Pagination
+```json
+{
+  "success": false,
+  "errors": {
+    "company_id": [
+      "The company id field must be a valid UUID."
+    ]
+  },
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed"
+  }
+}
+```
 
-All list endpoints support:
-- **Query parameters** for filtering (see endpoint documentation)
-- **Pagination** with 15 items per page
-- **Sorting** by creation date (newest first)
+## Identifier Notes
 
-Pagination response includes:
-- `total` - Total number of matching records
-- `per_page` - Items per page (default: 15)
-- `current_page` - Current page number
-- `last_page` - Last available page number
+- List filter `company_id` pada bearer contract: **UUID-first**, numeric legacy fallback masih diterima.
+- Path parameter `{transaction}`: **UUID + numeric fallback** untuk legacy dan bearer flow.
+- Request body create/update yang menarget subscription/company/add-on: **UUID eksternal**.

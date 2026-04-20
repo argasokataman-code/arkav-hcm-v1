@@ -13,39 +13,33 @@ Halaman ini fokus **monitoring**, bukan menggantikan CRUD packages/subscriptions
 
 Sumber kebenaran yang sudah ada di sistem:
 
-- `companies` (tenant)
-- `subscriptions` (lifecycle: `trial`, `pending_payment`, `active`, dll.)
-- `invoices` (membawa `subscription_id` dan `company_id`)
-- `payments` (verify dapat memicu invoice paid / subscription activation tergantung implementasi controller)
+- Tracker status: [STATUS-TRACKER.md](STATUS-TRACKER.md)
 
 Untuk list yang cepat, query harus memuat:
 
-- company + active subscription (atau subscription latest per company),
-- invoice terakhir per subscription (atau per company dengan filter subscription_id),
-- ringkasan email status invoice.
+- company + latest subscription per company,
+- invoice terakhir pada latest subscription,
+- ringkasan email status invoice terakhir.
 
 ## Email automation (invoice)
 
 Tujuan:
 
+Catatan implementasi sekarang: list dashboard tetap menampilkan **latest email log** untuk invoice terakhir agar ringan, tetapi halaman detail invoice admin menampilkan **history penuh** dari `invoice_email_logs`.
+
 - Saat invoice dibuat untuk `pending_payment`, sistem otomatis mengirim email ke kontak owner/company.
-- Admin bisa melihat status pengiriman: terkirim / gagal / belum terkirim.
+- `latestInvoice`: `id`, `invoiceNo` (jika ada), `amountDue`, `dueDate`, `isPaid`, `status`
 
 ### Opsi tracking email (pilih salah satu)
 
 **A) Tambah kolom di `invoices`** (paling sederhana)
 
-- `sent_at` (datetime nullable)
+Dashboard list tidak menggandakan company jika ada history subscription lama; row selalu mengikuti latest subscription.
 - `last_email_error` (text nullable)
 - `last_email_attempt_at` (datetime nullable)
 
 Kelebihan: query list mudah.
-Kekurangan: tidak ada history detail.
-
-**B) Tabel log terpisah** (lebih lengkap)
-
-`invoice_email_logs`:
-
+Kekurangan lama: tidak ada history detail di UI list.
 - `invoice_id`
 - `status` (`sent|failed`)
 - `to_email`
@@ -56,7 +50,7 @@ Kekurangan: tidak ada history detail.
 Kelebihan: ada history dan audit.
 Kekurangan: query list butuh join/aggregate.
 
-Default recommended: **B** (karena kamu minta “terintegrasi dengan email secara automated” + detail).
+Default recommended: **B** (karena kamu minta “terintegrasi dengan email secara automated” + detail). Implementasi aktif sekarang mengikuti opsi ini.
 
 ### Trigger pengiriman otomatis
 
@@ -110,6 +104,12 @@ Jika state mismatch:
 
 - invoice sudah paid tapi subscription masih `pending_payment` → badge warning `STATE_MISMATCH`
 - subscription `pending_payment` tapi invoice missing → badge warning `INVOICE_MISSING`
+
+Implementasi aktif:
+
+- Badge mismatch ditampilkan langsung pada row overview.
+- Tombol detail invoice membuka halaman terpisah admin dan tidak lagi memakai modal.
+- Halaman detail invoice menampilkan ringkasan invoice + subscription + company + latest email + tabel riwayat email penuh.
 
 ## Error codes (selaras dokumentasi API) untuk dashboard
 

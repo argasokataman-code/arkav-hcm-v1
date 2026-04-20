@@ -19,9 +19,18 @@ Jika Context7 tidak tersedia di environment (mis. agen GitHub tertentu tidak pun
 
 - API: envelope `{ success, data?, error? }`; RBAC/ownership di **server** (`EnsuresHcmAdmin`, tenant context, dll.) — jangan mengandalkan sembunyikan tombol saja.
 - Validasi: **server-side** wajib; selaraskan dengan `docs/api/*` + `docs/api/openapi.yaml` bila kontrak berubah (`openapi-collection-sync`, `api-spec-docs-sync-per-change`).
+- API contract freeze: jangan ubah kontrak endpoint aktif kecuali ada issue API nyata (bug/security/regression) atau kebutuhan fitur baru yang disetujui.
+- Jika API berubah: update **keduanya** (`docs/api/openapi.yaml` + `docs/api/<feature>-api.md`) agar Swagger-style docs dan OpenAPI tetap satu fakta.
 - **Penutupan task substantif:** security + semua `docs/` terdampak + OpenAPI jika API berubah (`development-closure-checklist`).
 - **Migrasi:** file di `backend/database/migrations/` + verifikasi; lihat `migration-discipline`.
 - **Bugfix:** akar masalah + minimal satu regression test (`bugfix-guardrails`).
 - **Web GET/HEAD:** kebijakan whitelist publik + guard; lihat `web-hcm-route-security` + `docs/security/*` bila permukaan berubah.
+
+## Wajib setelah fixing
+
+- Jalankan migrasi dulu sebelum validasi akhir:
+	- `cd backend && php artisan migrate --force`
+- Lalu test ulang minimal suite terdampak; untuk area tenant/RBAC/API kritikal, jalankan suite lintas modul terkait.
+- Bukti completion harus menyebut hasil migrate (`Nothing to migrate` atau migration applied) dan ringkasan hasil test.
 
 **Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-16 (Context7 fallback note).

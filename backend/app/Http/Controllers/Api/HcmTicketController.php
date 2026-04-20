@@ -9,10 +9,13 @@ use App\Models\TicketAttachment;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class HcmTicketController extends Controller
 {
@@ -22,6 +25,14 @@ class HcmTicketController extends Controller
         $companyId = $this->activeCompanyId($request);
         if (! $user || ! $companyId) {
             return false;
+        }
+
+        if ($user->isGlobalHcmAdmin()) {
+            return true;
+        }
+
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
         }
 
         return $user->hasPermissionForCompany('ticket.assign', $companyId)
@@ -57,9 +68,16 @@ class HcmTicketController extends Controller
             ->with(['reporter:id,name,email', 'assignee:id,name,email'])
             ->withCount(['comments', 'attachments']);
 
-        // Tenant isolation: tickets are scoped by the reporter's active company membership.
-        $query->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
-            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        // Tenant isolation: new tickets are scoped by company_id; legacy rows fall back
+        // to reporter membership until all historical records are backfilled.
+        $query->where(function ($builder) use ($activeCompanyId): void {
+            $builder->where('company_id', $activeCompanyId)
+                ->orWhere(function ($legacy) use ($activeCompanyId): void {
+                    $legacy->whereNull('company_id')
+                        ->whereHas('reporter.companyMemberships', function ($membership) use ($activeCompanyId): void {
+                            $membership->where('company_id', $activeCompanyId)->where('status', 'active');
+                        });
+                });
         });
 
         if (! $isAdmin) {
@@ -99,6 +117,17 @@ class HcmTicketController extends Controller
     {
         $user = $request->user();
         $isAdmin = $this->canManageTickets($request);
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
@@ -106,7 +135,7 @@ class HcmTicketController extends Controller
             'categoryId' => ['nullable', 'integer', 'exists:ticket_categories,id'],
             'priority' => ['required', 'in:low,medium,high,urgent'],
             'slaDueAt' => ['nullable', 'date'],
-            'assigneeUserId' => ['nullable', 'integer', 'exists:users,id'],
+            'assigneeUserId' => ['nullable'],
         ]);
 
         if (! $isAdmin && ! empty($validated['assigneeUserId'])) {
@@ -114,7 +143,6 @@ class HcmTicketController extends Controller
         }
 
         // SECURITY: Check subscription includes 'tickets' feature
-        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
         if ($activeCompanyId > 0) {
             $subscription = \App\Models\Subscription::activeForCompany($activeCompanyId);
             
@@ -130,8 +158,10 @@ class HcmTicketController extends Controller
         }
 
         $resolvedCategory = $this->resolveCategoryInput($validated);
+        $assigneeUserId = $this->resolveScopedUserIdentifierOrFail($request, $validated['assigneeUserId'] ?? null);
 
         $ticket = Ticket::query()->create([
+            'company_id' => $activeCompanyId,
             'user_id' => $user->id,
             'code' => $this->generateCode(),
             'subject' => trim((string) $validated['subject']),
@@ -141,7 +171,7 @@ class HcmTicketController extends Controller
             'priority' => $validated['priority'],
             'status' => 'open',
             'sla_due_at' => $validated['slaDueAt'] ?? null,
-            'assignee_user_id' => $validated['assigneeUserId'] ?? null,
+            'assignee_user_id' => $assigneeUserId,
         ]);
 
         if (! empty($validated['assigneeUserId'])) {
@@ -149,7 +179,7 @@ class HcmTicketController extends Controller
                 'ticket_id' => $ticket->id,
                 'actor_user_id' => $user->id,
                 'from_assignee_user_id' => null,
-                'to_assignee_user_id' => (int) $validated['assigneeUserId'],
+                'to_assignee_user_id' => $assigneeUserId,
                 'note' => 'Assigned on creation.',
             ]);
         }
@@ -157,7 +187,7 @@ class HcmTicketController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $ticket->id, 'code' => $ticket->code]], 201);
     }
 
-    public function show(Request $request, int $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
@@ -180,7 +210,7 @@ class HcmTicketController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
@@ -197,7 +227,7 @@ class HcmTicketController extends Controller
             'priority' => ['sometimes', 'required', 'in:low,medium,high,urgent'],
             'status' => ['sometimes', 'required', 'in:open,in_progress,resolved,closed'],
             'slaDueAt' => ['nullable', 'date'],
-            'assigneeUserId' => ['nullable', 'integer', 'exists:users,id'],
+            'assigneeUserId' => ['nullable'],
         ]);
 
         if (! $isAdmin) {
@@ -233,7 +263,7 @@ class HcmTicketController extends Controller
             $ticket->sla_due_at = $validated['slaDueAt'] ?? null;
         }
         if ($isAdmin && array_key_exists('assigneeUserId', $validated)) {
-            $ticket->assignee_user_id = $validated['assigneeUserId'] ?? null;
+            $ticket->assignee_user_id = $this->resolveScopedUserIdentifierOrFail($request, $validated['assigneeUserId'] ?? null);
         }
         if ($isAdmin && array_key_exists('status', $validated)) {
             $ticket->status = $validated['status'];
@@ -265,7 +295,7 @@ class HcmTicketController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
@@ -281,11 +311,17 @@ class HcmTicketController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function addComment(Request $request, int $id): JsonResponse
+    public function addComment(Request $request, string $id): JsonResponse
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
+        }
+        if (! $this->canManageTickets($request) && $ticket->status === 'closed') {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TICKET_CLOSED_LOCKED', 'message' => 'Closed ticket cannot be commented by employee.'],
+            ], 422);
         }
         $validated = $request->validate(['body' => ['required', 'string', 'max:5000']]);
         $comment = TicketComment::query()->create([
@@ -296,11 +332,17 @@ class HcmTicketController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $comment->id]], 201);
     }
 
-    public function addAttachment(Request $request, int $id): JsonResponse
+    public function addAttachment(Request $request, string $id): JsonResponse
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
+        }
+        if (! $this->canManageTickets($request) && $ticket->status === 'closed') {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TICKET_CLOSED_LOCKED', 'message' => 'Closed ticket cannot receive attachments from employee.'],
+            ], 422);
         }
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:5120', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,csv,txt'],
@@ -319,7 +361,7 @@ class HcmTicketController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $attachment->id]], 201);
     }
 
-    public function downloadAttachment(Request $request, int $id, int $attachmentId)
+    public function downloadAttachment(Request $request, string $id, int $attachmentId)
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
@@ -332,7 +374,7 @@ class HcmTicketController extends Controller
         return Storage::disk($attachment->disk)->download($attachment->path, $attachment->original_name);
     }
 
-    public function previewAttachment(Request $request, int $id, int $attachmentId)
+    public function previewAttachment(Request $request, string $id, int $attachmentId)
     {
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
@@ -355,7 +397,27 @@ class HcmTicketController extends Controller
         if (! $this->canManageTickets($request)) {
             return $this->forbidden();
         }
-        $rows = User::query()->orderBy('name')->limit(200)->get(['id', 'name', 'email']);
+
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $rows = User::query()
+            ->whereHas('companyMemberships', function ($membership) use ($activeCompanyId): void {
+                $membership->where('company_id', $activeCompanyId)
+                    ->where('status', 'active');
+            })
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'email']);
+
         return response()->json([
             'success' => true,
             'data' => $rows->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'email' => $u->email])->values(),
@@ -501,8 +563,14 @@ class HcmTicketController extends Controller
     private function summary(int $activeCompanyId, ?int $ownerUserId): array
     {
         $base = Ticket::query();
-        $base->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
-            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        $base->where(function ($query) use ($activeCompanyId): void {
+            $query->where('company_id', $activeCompanyId)
+                ->orWhere(function ($legacy) use ($activeCompanyId): void {
+                    $legacy->whereNull('company_id')
+                        ->whereHas('reporter.companyMemberships', function ($membership) use ($activeCompanyId): void {
+                            $membership->where('company_id', $activeCompanyId)->where('status', 'active');
+                        });
+                });
         });
         if ($ownerUserId !== null) {
             $base->where('user_id', $ownerUserId);
@@ -517,22 +585,96 @@ class HcmTicketController extends Controller
         ];
     }
 
-    private function authorizedTicket(Request $request, int $id): ?Ticket
+    private function authorizedTicket(Request $request, string $id): ?Ticket
     {
         $activeCompanyId = $this->activeCompanyId($request);
         if (! $activeCompanyId) {
             return null;
         }
 
-        $query = Ticket::query()->whereKey($id);
-        $query->whereHas('reporter.companyMemberships', function ($m) use ($activeCompanyId): void {
-            $m->where('company_id', $activeCompanyId)->where('status', 'active');
+        $query = Ticket::query()->where(function ($builder) use ($id): void {
+            $builder->where('uuid', $id);
+
+            if (ctype_digit($id)) {
+                $builder->orWhere('id', (int) $id);
+            }
+        });
+        $query->where(function ($builder) use ($activeCompanyId): void {
+            $builder->where('company_id', $activeCompanyId)
+                ->orWhere(function ($legacy) use ($activeCompanyId): void {
+                    $legacy->whereNull('company_id')
+                        ->whereHas('reporter.companyMemberships', function ($membership) use ($activeCompanyId): void {
+                            $membership->where('company_id', $activeCompanyId)->where('status', 'active');
+                        });
+                });
         });
 
         if (! $this->canManageTickets($request)) {
             $query->where('user_id', $request->user()?->id);
         }
         return $query->first();
+    }
+
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function resolveUserIdentifier(mixed $identifier): ?int
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $raw = trim((string) $identifier);
+        if ($raw === '') {
+            return null;
+        }
+
+        $resolved = User::query()
+            ->where(function (Builder $query) use ($raw): void {
+                if (ctype_digit($raw)) {
+                    $query->where('id', (int) $raw)
+                        ->orWhere('uuid', $raw);
+
+                    return;
+                }
+
+                $query->where('uuid', $raw);
+            })
+            ->value('id');
+
+        return $resolved !== null ? (int) $resolved : null;
+    }
+
+    private function resolveScopedUserIdentifierOrFail(Request $request, mixed $identifier): ?int
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $resolved = $this->resolveUserIdentifier($identifier);
+        if (! $resolved) {
+            throw ValidationException::withMessages([
+                'assigneeUserId' => ['The selected assignee user id is invalid.'],
+            ]);
+        }
+
+        if (! $this->userBelongsToActiveCompany($resolved, $this->activeCompanyId($request))) {
+            throw ValidationException::withMessages([
+                'assigneeUserId' => ['The selected assignee user id is invalid for the active company.'],
+            ]);
+        }
+
+        return $resolved;
     }
 
     private function generateCode(): string

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
-use App\Models\HcmPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,14 +12,24 @@ trait ChecksPermissions
      */
     protected function hasPermission(Request $request, string $permissionCode): bool
     {
-        $companyId = $this->activeCompanyId($request);
-        if (!$companyId) {
-            return false;
-        }
-
         $user = $request->user();
         if (!$user) {
             return false;
+        }
+
+        // Global admin has full capability across tenant-scoped features.
+        if ($user->isGlobalHcmAdmin()) {
+            return true;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (!$companyId) {
+            return $user->isHcmAdmin();
+        }
+
+        // Backward compatibility: tenant admins should retain access even before granular permission seeding.
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
         }
 
         return $user->hasPermissionForCompany($permissionCode, $companyId);
@@ -61,8 +70,8 @@ trait ChecksPermissions
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'PERMISSION_DENIED',
-                    'message' => 'Insufficient permissions.',
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Forbidden.',
                 ],
             ], 403);
         }
@@ -78,8 +87,8 @@ trait ChecksPermissions
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'PERMISSION_DENIED',
-                    'message' => 'Insufficient permissions.',
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Forbidden.',
                 ],
             ], 403);
         }
@@ -95,8 +104,8 @@ trait ChecksPermissions
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'PERMISSION_DENIED',
-                    'message' => 'Insufficient permissions.',
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Forbidden.',
                 ],
             ], 403);
         }

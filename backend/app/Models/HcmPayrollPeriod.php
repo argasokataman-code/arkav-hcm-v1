@@ -2,25 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class HcmPayrollPeriod extends Model
 {
+    use AssignsUuid;
     public const STATUS_OPEN = 'open';
 
     /** Set when a run for this period has been finalized (posted payslip). */
     public const STATUS_POSTED = 'posted';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $fillable = [
         'company_id',

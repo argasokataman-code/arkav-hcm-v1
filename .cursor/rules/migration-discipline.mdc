@@ -53,3 +53,11 @@ php artisan migrate --force --no-interaction
 Jika perubahan schema substantif:
 - Update `docs/database/mysql-database-specification.md` bila kontrak schema perlu dicatat (lihat rule `documentation-sync-after-development`).
 
+## UUID-first guardrail
+
+Jika domain sudah memakai UUID sebagai identifier canonical, jangan ubah source of truth kembali ke integer `id` hanya untuk memudahkan test atau migration sementara.
+
+- `id` boleh tetap ada sebagai legacy auto-increment internal atau transitional surrogate.
+- Relasi utama, API contract, dan dokumentasi harus tetap menunjuk ke UUID canonical.
+- Jika perlu kompatibilitas transisi, tambahkan kolom legacy sebagai pendamping nullable, bukan mengganti identifier utama.
+

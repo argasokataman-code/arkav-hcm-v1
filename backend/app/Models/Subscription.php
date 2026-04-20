@@ -15,7 +15,7 @@ class Subscription extends Model
 
     protected $fillable = [
         'company_id',
-        'package_id',
+        'package_uuid',
         'plan_code',
         'status',
         'starts_at',
@@ -49,7 +49,7 @@ class Subscription extends Model
 
     public function package(): BelongsTo
     {
-        return $this->belongsTo(Package::class);
+        return $this->belongsTo(Package::class, 'package_uuid', 'uuid');
     }
 
     public function payments(): HasMany

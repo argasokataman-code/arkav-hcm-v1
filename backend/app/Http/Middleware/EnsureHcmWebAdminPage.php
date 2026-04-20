@@ -18,20 +18,46 @@ class EnsureHcmWebAdminPage
     public function handle(Request $request, Closure $next): Response
     {
         $user = $this->resolveUser($request);
+        
+        \Log::debug('EnsureHcmWebAdminPage', [
+            'user_resolved' => $user ? true : false,
+            'user_email' => $user?->email ?? 'N/A',
+            'isGlobalHcmAdmin' => $user?->isGlobalHcmAdmin() ?? false,
+            'isHcmAdmin' => $user?->isHcmAdmin() ?? false,
+            'path' => $request->path(),
+        ]);
 
         if (! $user instanceof User) {
+            \Log::warning('EnsureHcmWebAdminPage: User not resolved');
             return redirect()->to(url('login'));
+        }
+
+        if ($this->requiresGlobalHcmAdmin($request) && ! $user->isGlobalHcmAdmin()) {
+            \Log::info('EnsureHcmWebAdminPage: Route requires global HCM admin', [
+                'email' => $user->email,
+                'path' => $request->path(),
+            ]);
+
+            return redirect()->to(url('employee-dashboard'));
+        }
+
+        // Global admin (super admin) bypasses all checks in developer mode
+        if ($user->isGlobalHcmAdmin()) {
+            \Log::info('EnsureHcmWebAdminPage: Global admin bypass', ['email' => $user->email]);
+            return $next($request);
         }
 
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
         if ($activeCompanyId > 0) {
             if (! $user->isHcmAdminForCompany($activeCompanyId)) {
+                \Log::info('EnsureHcmWebAdminPage: Not HCM admin for company', ['activeCompanyId' => $activeCompanyId]);
                 return redirect()->to(url('employee-dashboard'));
             }
             return $next($request);
         }
 
         if (! $user->isHcmAdmin()) {
+            \Log::info('EnsureHcmWebAdminPage: Not HCM admin', ['email' => $user->email]);
             return redirect()->to(url('employee-dashboard'));
         }
 
@@ -56,5 +82,10 @@ class EnsureHcmWebAdminPage
         }
 
         return null;
+    }
+
+    private function requiresGlobalHcmAdmin(Request $request): bool
+    {
+        return $request->routeIs('dashboard') || $request->routeIs('saas-dashboard');
     }
 }

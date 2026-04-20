@@ -101,7 +101,7 @@ class LandingPackagesSeeder extends Seeder
             foreach ($featureTemplate as $featureCode => $featureName) {
                 PackageFeature::query()->updateOrCreate(
                     [
-                        'package_id' => $package->id,
+                        'package_uuid' => $package->uuid,
                         'feature_code' => $featureCode,
                     ],
                     [

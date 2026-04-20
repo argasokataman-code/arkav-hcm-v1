@@ -69,7 +69,7 @@ class SaasSubscriptionsAdminOnlyTest extends TestCase
 
         $subscription = Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'trial',
             'starts_at' => now()->subDay(),
@@ -81,7 +81,7 @@ class SaasSubscriptionsAdminOnlyTest extends TestCase
         ]);
 
         $this->withHeader('Cookie', $cookieHeader)->getJson('/v1/saas/subscriptions')->assertStatus(403);
-        $this->withHeader('Cookie', $cookieHeader)->getJson('/v1/saas/subscriptions/'.$subscription->id)->assertStatus(403);
+        $this->withHeader('Cookie', $cookieHeader)->getJson('/v1/saas/subscriptions/'.$subscription->uuid)->assertStatus(403);
     }
 }
 

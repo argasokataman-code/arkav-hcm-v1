@@ -109,7 +109,7 @@
         var fd = new FormData(form);
 
         var payload = {
-            package_id: Number(fd.get("package_id")),
+            package_uuid: String(fd.get("package_uuid") || "").trim(),
             billing_cycle: String(fd.get("billing_cycle") || "monthly"),
             start_mode: String(fd.get("start_mode") || "trial"),
             turnstile_token: String(fd.get("cf-turnstile-response") || "").trim() || null,
@@ -271,7 +271,7 @@
             packageSelect.innerHTML = "";
             packages.forEach(function (p) {
                 var opt = document.createElement("option");
-                opt.value = String(p.id);
+                opt.value = String(p.id || p.uuid || "");
                 opt.textContent = p.name + " (" + p.code + ")";
                 packageSelect.appendChild(opt);
             });
@@ -338,7 +338,7 @@
                     return;
                 }
                 var pkgId = btn.getAttribute("data-package-id");
-                openWithPackageId(pkgId ? Number(pkgId) : null);
+                openWithPackageId(pkgId ? String(pkgId) : null);
             });
         });
 

@@ -23,7 +23,7 @@ class PublicLandingController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('monthly_price')
                 ->get([
-                    'id',
+                    'uuid',
                     'code',
                     'name',
                     'description',
@@ -53,23 +53,22 @@ class PublicLandingController extends Controller
                 ->where('status', 'active')
                 ->orderBy('sort_order')
                 ->orderBy('monthly_price')
-                ->get(['id', 'code', 'name', 'monthly_price', 'yearly_price']);
+                ->get(['uuid', 'code', 'name', 'monthly_price', 'yearly_price']);
         } catch (\Throwable $e) {
             $packages = collect();
         }
 
-        $selectedPackageId = $request->query('packageId');
-        $selectedPackageId = is_numeric($selectedPackageId) ? (int) $selectedPackageId : null;
-        if (! $selectedPackageId) {
+        $selectedPackageId = trim((string) $request->query('packageId', ''));
+        if ($selectedPackageId === '') {
             try {
-                $selectedPackageId = (int) (Package::query()
+                $selectedPackageId = (string) (Package::query()
                     ->where('status', 'active')
                     ->where('code', 'trial')
-                    ->value('id') ?? 0);
+                    ->value('uuid') ?? '');
             } catch (\Throwable $e) {
-                $selectedPackageId = 0;
+                $selectedPackageId = '';
             }
-            $selectedPackageId = $selectedPackageId > 0 ? $selectedPackageId : null;
+            $selectedPackageId = $selectedPackageId !== '' ? $selectedPackageId : null;
         }
 
         return view('public.trial', [

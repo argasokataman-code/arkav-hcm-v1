@@ -2,15 +2,30 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class AuditLog extends Model
 {
+    use AssignsUuid;
+
     protected $table = 'audit_logs';
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'super_admin_uuid') && ! $record->super_admin_uuid && $record->super_admin_id) {
+                $record->super_admin_uuid = (string) (User::query()->where('id', $record->super_admin_id)->value('uuid') ?? '');
+            }
+        });
+    }
+
     protected $fillable = [
+        'uuid',
         'super_admin_id',
+        'super_admin_uuid',
         'action',
         'target_type',
         'target_id',
@@ -20,6 +35,8 @@ class AuditLog extends Model
     ];
 
     protected $casts = [
+        'uuid' => 'string',
+        'super_admin_uuid' => 'string',
         'details' => 'json',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

@@ -1,6 +1,27 @@
 (function (window, document) {
     "use strict";
 
+    function getAuthHeaders() {
+        var headers = {};
+        var token = window.AuthApi && typeof window.AuthApi.getToken === "function" ? window.AuthApi.getToken() : "";
+        var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
+
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+        if (tenant && tenant.companyCode) {
+            headers["X-Company-Code"] = String(tenant.companyCode);
+        }
+        if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant && tenant.companyUuid) {
+            headers["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return headers;
+    }
+
     function apiGet(url) {
         function onAuthFailure(status, data) {
             if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -10,10 +31,11 @@
         }
 
         if (window.axios) {
+            var authHeaders = getAuthHeaders();
             return window.axios({
                 method: "get",
                 url: url,
-                headers: { Accept: "application/json" },
+                headers: Object.assign({ Accept: "application/json" }, authHeaders),
                 withCredentials: true,
             }).then(function (res) { return res.data; }).catch(function (err) {
                 var status = err && err.response ? err.response.status : 0;
@@ -26,7 +48,7 @@
         }
 
         return fetch(url, {
-            headers: { Accept: "application/json" },
+            headers: Object.assign({ Accept: "application/json" }, getAuthHeaders()),
             credentials: "same-origin",
         }).then(function (res) {
             return res.json().catch(function () { return {}; }).then(function (data) {
@@ -292,10 +314,11 @@
         }
         function post(url, payload, method) {
             if (window.axios) {
+                var authHeaders = getAuthHeaders();
                 return window.axios({
                     method: method || "post",
                     url: url,
-                    headers: { Accept: "application/json" },
+                    headers: Object.assign({ Accept: "application/json" }, authHeaders),
                     data: payload,
                     withCredentials: true,
                 }).then(function () {
@@ -313,7 +336,7 @@
             }
             return fetch(url, {
                 method: (method || "post").toUpperCase(),
-                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                headers: Object.assign({ "Content-Type": "application/json", Accept: "application/json" }, getAuthHeaders()),
                 credentials: "same-origin",
                 body: JSON.stringify(payload),
             }).then(function (res) {
@@ -338,7 +361,7 @@
         function postMultipart(url, formData) {
             return fetch(url, {
                 method: "POST",
-                headers: { Accept: "application/json" },
+                headers: Object.assign({ Accept: "application/json" }, getAuthHeaders()),
                 credentials: "same-origin",
                 body: formData,
             }).then(function (res) {
@@ -372,10 +395,11 @@
                 .then(function (ok) {
                     if (!ok) return null;
                     if (window.axios) {
+                        var authHeaders = getAuthHeaders();
                         return window.axios({
                             method: "delete",
                             url: url,
-                            headers: { Accept: "application/json" },
+                            headers: Object.assign({ Accept: "application/json" }, authHeaders),
                             withCredentials: true,
                         }).then(function () {
                             notify("Deleted successfully", false);
@@ -392,7 +416,7 @@
                     }
                     return fetch(url, {
                         method: "DELETE",
-                        headers: { Accept: "application/json" },
+                        headers: Object.assign({ Accept: "application/json" }, getAuthHeaders()),
                         credentials: "same-origin",
                     }).then(function (res) {
                         return res.json().catch(function () {

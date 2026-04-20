@@ -2,14 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class HcmOvertimeType extends Model
 {
+    use AssignsUuid;
+
     protected $table = 'hcm_overtime_types';
 
     protected $fillable = [
+        'uuid',
         'company_id',
         'code',
         'name',
@@ -22,6 +27,7 @@ class HcmOvertimeType extends Model
     protected function casts(): array
     {
         return [
+            'uuid' => 'string',
             'company_id' => 'integer',
             'payment_multiplier' => 'decimal:2',
             'is_active' => 'boolean',

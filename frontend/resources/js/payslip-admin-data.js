@@ -258,6 +258,26 @@
                     throw { status: 0, data: resp };
                 }
                 var snapshot = resp.data;
+                if (String(snapshot.reportType || "").toLowerCase() !== "payroll") {
+                    throw {
+                        status: 422,
+                        data: {
+                            error: {
+                                message: "Snapshot ini bukan payroll report.",
+                            },
+                        },
+                    };
+                }
+                if (String(snapshot.status || "").toLowerCase() !== "completed") {
+                    throw {
+                        status: 422,
+                        data: {
+                            error: {
+                                message: "Snapshot payroll belum siap digunakan.",
+                            },
+                        },
+                    };
+                }
                 _slips = normalizeArchivePayrollRows(snapshot);
 
                 if (runInfoEl) {

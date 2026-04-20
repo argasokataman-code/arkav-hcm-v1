@@ -9,6 +9,7 @@ use App\Models\WilayahVillage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -189,9 +190,12 @@ class WilayahSyncCommandTest extends TestCase
         });
 
         $user = User::factory()->create();
+        Cache::forget(\App\Services\Wilayah\WilayahSyncService::PROGRESS_CACHE_KEY);
+        $csrfToken = 'test-sync-token';
         $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
             ->from('/states')
-            ->post('/locations/sync');
+            ->post('/locations/sync', ['_token' => $csrfToken]);
 
         $response->assertRedirect('/states');
         $response->assertSessionHas('wilayahSyncStatus');

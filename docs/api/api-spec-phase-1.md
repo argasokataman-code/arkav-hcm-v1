@@ -1,8 +1,11 @@
 # API Specification - Phase 1 (Index + Global Conventions)
 
-Dokumen ini adalah **index** + **aturan global** (regex, envelope error/success, mapping HTTP status) untuk Phase 1.
+Dokumen ini adalah index + aturan global untuk kontrak API.
 
-Detail kontrak endpoint **wajib** merujuk dokumen per fitur di `docs/api/` (agar audit tidak punya double source of truth).
+Sumber kebenaran kontrak saat ini:
+- Runtime API: `backend/routes/api.php` + controller API terkait.
+- OpenAPI: `docs/api/openapi.yaml`.
+- Swagger-style markdown per menu di `docs/api/*.md` adalah turunan yang harus konsisten dengan dua sumber di atas.
 
 ## Feature specs (per menu/service)
 
@@ -21,10 +24,20 @@ Detail kontrak endpoint **wajib** merujuk dokumen per fitur di `docs/api/` (agar
 - Promotion: `docs/api/hcm-promotion-api.md`
 - Resignation: `docs/api/hcm-resignation-api.md`
 - Termination: `docs/api/hcm-termination-api.md`
+- Reporting: `docs/api/hcm-reporting-api.md`
 - Payroll (master komponen gaji): `docs/api/hcm-salary-components-api.md`
 - Payroll (periode & run, draft/finalize, slip self, THR: kalkulator + pengaturan tahunan): `docs/api/hcm-payroll-api.md`
 - Payroll items (halaman `/payroll`, CRUD katalog): `docs/api/hcm-payroll-items-api.md`
 - User management (live API role-permission): `docs/api/user-management-api.md`
+- Packages: `docs/api/packages-api.md`
+- Subscriptions: `docs/api/subscriptions-api.md`
+- Purchase transactions: `docs/api/purchase-transaction-api.md`
+- Custom domain: `docs/api/custom-domain-api.md`
+- Super admin dashboard: `docs/api/super-admin-dashboard-api.md`
+- Public onboarding: `docs/api/public-onboarding-api.md`
+- Billing overview: `docs/api/saas-billing-overview-api.md`
+- Invoices (admin detail + email history): `docs/api/invoice-api.md`
+- Companies: `docs/api/company-api.md`
 
 ## 1) Global conventions
 
@@ -102,15 +115,14 @@ Catatan:
 }
 ```
 
-- **SaaS Modules**
-  - Packages (subscription tiers, feature management): `docs/api/packages-api.md`
-  - Subscriptions (company subscription management): `docs/api/subscriptions-api.md`
-  - Purchase transactions (invoices, payments, revenue): `docs/api/purchase-transaction-api.md`
-  - Domain management (custom domains, DNS, SSL): `docs/api/domain-management-api.md`
-  - Super admin dashboard (analytics, KPIs): `docs/api/super-admin-dashboard-api.md`
-  - Public onboarding (guest create company + owner + subscription): `docs/api/public-onboarding-api.md`
-  - Billing overview dashboard (admin trial/subscribed list): `docs/api/saas-billing-overview-api.md`
-- Companies: `docs/api/company-api.md`
+## 5) Sync rules (mandatory)
 
-## 1) Global conventions
+- Jika API route/controller berubah, wajib update dua artefak sekaligus:
+  - `docs/api/openapi.yaml`
+  - minimal satu dokumen `docs/api/<feature>-api.md` yang terdampak
+- Jangan mengubah kontrak API tanpa isu nyata pada API atau kebutuhan fitur yang disetujui.
+- Jika masih dalam masa transisi UUID, tulis eksplisit pada path terkait apakah endpoint:
+  - UUID-only,
+  - numeric-only (legacy), atau
+  - UUID + numeric fallback.
 

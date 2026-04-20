@@ -4,6 +4,35 @@
   const API_BASE = "/v1/saas/dashboard";
   const PAGE_SIZE = 20;
 
+  function redirectTo(url) {
+    try {
+      window.__ARCAV_LAST_REDIRECT__ = url;
+    } catch (err) {
+      console.warn("Failed to record redirect target", err);
+    }
+
+    if (window.location && typeof window.location.replace === "function") {
+      window.location.replace(url);
+    }
+  }
+
+  function redirectForAccessError(err) {
+    const status = Number(err?.status || 0);
+    const errorCode = String(err?.data?.error?.code || "");
+
+    if (status === 401) {
+      redirectTo("/lock-screen");
+      return true;
+    }
+
+    if (status === 403 || errorCode === "ADMIN_REQUIRED") {
+      redirectTo("/employee-dashboard");
+      return true;
+    }
+
+    return false;
+  }
+
   // Utility: API request with auth headers
   function apiRequest(method, url, body) {
     const headers = {
@@ -43,12 +72,15 @@
           .then(function (data) {
             if (!res.ok) {
               const errorMsg = data?.error?.message || data?.message || res.statusText;
-              console.error("API error (" + res.status + "):", errorMsg, data);
-              return Promise.reject({
+              const error = {
                 status: res.status,
                 message: errorMsg,
                 data: data,
-              });
+              };
+
+              redirectForAccessError(error);
+              console.error("API error (" + res.status + "):", errorMsg, data);
+              return Promise.reject(error);
             }
             return data;
           });
@@ -72,7 +104,13 @@
         .then(function (res) {
           // Handle redirects (302, etc.) - means not authenticated
           if (res.status === 302 || res.status === 401) {
+            redirectTo("/lock-screen");
             reject(new Error("Not authenticated. Please login first."));
+            return;
+          }
+          if (res.status === 403) {
+            redirectTo("/employee-dashboard");
+            reject(new Error("Admin access required."));
             return;
           }
           return res.json();
@@ -990,7 +1028,7 @@
       alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
       alertDiv.style.zIndex = 9999;
       alertDiv.innerHTML = `
-        ${message}
+        ${esc(message)}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       `;
       document.body.appendChild(alertDiv);

@@ -29,7 +29,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 
 ```json
 {
-  "package_id": 1,
+  "package_uuid": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
   "billing_cycle": "monthly",
   "start_mode": "trial",
   "turnstile_token": "<token>",
@@ -60,7 +60,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 
 ### Validation (ringkas)
 
-- `package_id`: harus ada, status package `active`
+- `package_uuid`: harus ada, status package `active`
 - `billing_cycle`: `monthly|yearly`
 - `start_mode`: `trial|pending_payment` (default `trial`)
 - `turnstile_token`: optional, **required jika Turnstile enabled**
@@ -93,7 +93,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
       "trialEndsAt": "2026-05-16T00:00:00.000000Z",
       "billingCycle": "monthly",
       "amount": 199000,
-      "packageId": 1,
+      "packageId": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
       "packageCode": "pro",
       "packageName": "Pro Plan"
     },

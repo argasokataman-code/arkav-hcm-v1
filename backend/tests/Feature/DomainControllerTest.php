@@ -74,7 +74,7 @@ class DomainControllerTest extends TestCase
     {
         $response = $this->adminRequest()->postJson('/v1/saas/domains', [
                 'domain_name' => 'example.com',
-                'company_id' => $this->company->id,
+            'company_id' => $this->company->uuid,
                 'verification_type' => 'dns',
                 'notes' => 'Test domain',
             ]);
@@ -90,7 +90,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['status' => 'pending']);
 
-        $response = $this->adminRequest()->putJson('/v1/saas/domains/' . $domain->id, [
+        $response = $this->adminRequest()->putJson('/v1/saas/domains/' . $domain->uuid, [
                 'status' => 'verified',
                 'notes' => 'Updated notes',
             ]);
@@ -106,7 +106,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create();
 
-        $response = $this->adminRequest()->deleteJson('/v1/saas/domains/' . $domain->id);
+        $response = $this->adminRequest()->deleteJson('/v1/saas/domains/' . $domain->uuid);
 
         $response->assertOk();
         $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
@@ -116,7 +116,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['status' => 'pending']);
 
-        $response = $this->adminRequest()->postJson('/v1/saas/domains/' . $domain->id . '/verify');
+        $response = $this->adminRequest()->postJson('/v1/saas/domains/' . $domain->uuid . '/verify');
 
         $response->assertOk()
             ->assertJsonFragment(['status' => 'verified']);
@@ -130,7 +130,7 @@ class DomainControllerTest extends TestCase
     {
         $domain = Domain::factory()->for($this->company)->create(['verification_type' => 'dns']);
 
-        $response = $this->adminRequest()->getJson('/v1/saas/domains/' . $domain->id . '/verification-details');
+        $response = $this->adminRequest()->getJson('/v1/saas/domains/' . $domain->uuid . '/verification-details');
 
         $response->assertOk()
             ->assertJsonStructure(['success', 'data' => ['domainName', 'verificationType', 'instructions', 'token']])

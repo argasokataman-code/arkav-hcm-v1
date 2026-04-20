@@ -17,8 +17,12 @@ class CronjobSettingsWebTest extends TestCase
             'email' => 'qa.login@example.com',
         ]);
 
+        $csrfToken = 'cronjob-admin-token';
+
         $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
             ->post('/cronjob', [
+                '_token' => $csrfToken,
                 'jobs' => [
                     'payment_reminder' => [
                         'enabled' => '1',
@@ -54,8 +58,12 @@ class CronjobSettingsWebTest extends TestCase
             'email' => 'employee@example.com',
         ]);
 
+        $csrfToken = 'cronjob-employee-token';
+
         $this->actingAs($employee)
+            ->withSession(['_token' => $csrfToken])
             ->post('/cronjob', [
+                '_token' => $csrfToken,
                 'jobs' => [
                     'payment_reminder' => [
                         'enabled' => '1',

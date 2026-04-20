@@ -8,12 +8,60 @@
         return false;
     }
 
+    function getTenantContext() {
+        if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
+            return window.AuthApi.getTenantContext() || {};
+        }
+        return {};
+    }
+
+    function buildHeaders() {
+        var headers = { Accept: "application/json" };
+        var token = window.AuthApi && typeof window.AuthApi.getToken === "function"
+            ? window.AuthApi.getToken()
+            : null;
+
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+
+        var tenant = getTenantContext();
+        if (tenant.companyCode) {
+            headers["X-Company-Code"] = tenant.companyCode;
+        }
+        if (tenant.companyId) {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant.companyUuid) {
+            headers["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return headers;
+    }
+
+    function withCompanyIdQuery(url) {
+        var tenant = getTenantContext();
+        if (!tenant.companyId) {
+            return url;
+        }
+
+        if (String(url).indexOf("/v1/saas/reports/revenue") !== 0) {
+            return url;
+        }
+
+        var sep = String(url).indexOf("?") === -1 ? "?" : "&";
+        return url + sep + "company_id=" + encodeURIComponent(String(tenant.companyId));
+    }
+
     function apiGet(url) {
+        var requestUrl = withCompanyIdQuery(url);
+        var headers = buildHeaders();
+
         if (window.axios) {
             return window.axios({
                 method: "get",
-                url: url,
-                headers: { Accept: "application/json" },
+                url: requestUrl,
+                headers: headers,
                 withCredentials: true,
             }).then(function (res) {
                 return res.data;
@@ -27,8 +75,8 @@
             });
         }
 
-        return fetch(url, {
-            headers: { Accept: "application/json" },
+        return fetch(requestUrl, {
+            headers: headers,
             credentials: "same-origin",
         }).then(function (res) {
             return res.json().catch(function () { return {}; }).then(function (data) {

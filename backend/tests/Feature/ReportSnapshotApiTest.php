@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\ReportSnapshot;
 use App\Models\User;
@@ -158,6 +159,21 @@ class ReportSnapshotApiTest extends TestCase
             ]);
     }
 
+    public function test_hcm_admin_can_show_snapshot_detail_by_uuid(): void
+    {
+        $token = $this->adminToken();
+        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $snapshot = $this->generateSnapshot($token, $companyId, 'employee');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $companyId,
+        ])->getJson('/v1/hcm/reports/snapshots/'.$snapshot->uuid)
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $snapshot->id);
+    }
+
     public function test_hcm_admin_can_export_completed_snapshot_to_real_file_for_all_formats(): void
     {
         Storage::fake('public');
@@ -224,6 +240,57 @@ class ReportSnapshotApiTest extends TestCase
         ])
             ->assertStatus(404)
             ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'SNAPSHOT_NOT_FOUND');
+    }
+
+    public function test_snapshot_detail_and_export_do_not_leak_across_companies(): void
+    {
+        $token = $this->adminToken();
+        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $admin = User::query()->where('email', 'qa.login@example.com')->firstOrFail();
+
+        $otherCompany = Company::query()->create([
+            'code' => 'reporting_other_company',
+            'name' => 'Reporting Other Company',
+            'legal_name' => 'Reporting Other Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $admin->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $foreignSnapshot = ReportSnapshot::query()->create([
+            'company_id' => $otherCompany->id,
+            'report_type' => 'employee',
+            'period_start' => now()->subDays(30)->toDateString(),
+            'period_end' => now()->toDateString(),
+            'generated_at' => now(),
+            'generated_by_user_id' => $admin->id,
+            'status' => 'completed',
+            'meta' => ['row_count' => 0],
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $companyId,
+        ])->getJson('/v1/hcm/reports/snapshots/'.$foreignSnapshot->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'SNAPSHOT_NOT_FOUND');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/reports/snapshots/'.$foreignSnapshot->id.'/export', [
+            'fileType' => 'csv',
+        ])
+            ->assertStatus(404)
             ->assertJsonPath('error.code', 'SNAPSHOT_NOT_FOUND');
     }
 }

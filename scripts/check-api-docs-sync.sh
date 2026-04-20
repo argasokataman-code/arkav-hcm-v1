@@ -65,6 +65,14 @@ docs_changed_files="$(echo "${changed}" | awk '
   $0 ~ /^docs\/api\/.*\.(md|yaml|yml)$/ { print; next }
 ')"
 
+openapi_changed_files="$(echo "${changed}" | awk '
+  $0 ~ /^docs\/api\/openapi\.(yaml|yml)$/ { print; next }
+')"
+
+feature_docs_changed_files="$(echo "${changed}" | awk '
+  $0 ~ /^docs\/api\/.*\.md$/ { print; next }
+')"
+
 if [[ -z "${api_changed_files}" ]]; then
   echo "check-api-docs-sync: no backend API surface changes detected."
   exit 0
@@ -84,10 +92,38 @@ if [[ -z "${docs_changed_files}" ]]; then
   exit 1
 fi
 
+if [[ -z "${openapi_changed_files}" ]]; then
+  echo "ERROR: Backend API changed but OpenAPI contract was not updated."
+  echo
+  echo "API files changed (${range_desc}):"
+  echo "${api_changed_files}" | sed 's/^/  - /'
+  echo
+  echo "Required: update docs/api/openapi.yaml"
+  echo
+  exit 1
+fi
+
+if [[ -z "${feature_docs_changed_files}" ]]; then
+  echo "ERROR: Backend API changed but Swagger-style feature docs were not updated."
+  echo
+  echo "API files changed (${range_desc}):"
+  echo "${api_changed_files}" | sed 's/^/  - /'
+  echo
+  echo "Required: update at least one docs/api/<feature>-api.md"
+  echo
+  exit 1
+fi
+
 echo "check-api-docs-sync: OK"
 echo
 echo "API files changed:"
 echo "${api_changed_files}" | sed 's/^/  - /'
+echo
+echo "OpenAPI files changed:"
+echo "${openapi_changed_files}" | sed 's/^/  - /'
+echo
+echo "Feature API docs changed:"
+echo "${feature_docs_changed_files}" | sed 's/^/  - /'
 echo
 echo "Docs files changed:"
 echo "${docs_changed_files}" | sed 's/^/  - /'

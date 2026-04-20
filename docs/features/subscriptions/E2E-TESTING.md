@@ -129,31 +129,24 @@ Gunakan baseline berikut sebelum menjalankan test manual UI:
 
 ## Latest Execution Snapshot
 
-Tanggal eksekusi: 2026-04-13
+Tanggal eksekusi: 2026-04-19
 
 Automated API-role validation yang sudah dijalankan:
-- `php artisan test --filter=SubscriptionServiceTest`
-- Hasil: `8 passed (33 assertions)`
+- `php artisan test tests/Feature/SubscriptionServiceTest.php tests/Feature/SaasSubscriptionsAdminOnlyTest.php`
+- Hasil: `21 passed (68 assertions)`
 
-Automated web-role validation yang sudah dijalankan:
-- `php artisan test --filter=WebHcmRouteGuardTest`
-- Hasil: `10 passed (1091 assertions)`
-
-Playwright browser E2E validation yang sudah dijalankan:
-- `cd backend && npm run e2e:subscriptions`
-- Hasil: `2 passed`
+Automated UI contract validation yang sudah dijalankan:
+- `npm run test:ui -- tests/ui/subscriptions-api-contract.test.js`
+- Hasil: `6 passed`
 
 Cakupan validasi role:
 - Admin flow: create, list/filter, update, delete, renew.
-- Non-admin/company flow: list/show read-only diizinkan; create/update/delete/renew ditolak dengan `403 ADMIN_REQUIRED`.
-- Web access flow: halaman `/saas/subscriptions` terverifikasi bisa diakses user terautentikasi (melalui guard web), dan tamu tetap terblokir oleh guard global.
-- Browser E2E flow (Chromium):
-   - Admin scenario: open/list/filter/create/edit/view/cancel/delete `PASS`
-   - Company/non-admin scenario: UI read-only + API mutate blocked (`403 ADMIN_REQUIRED`) `PASS`
+- Non-admin/company flow: list/detail/mutasi subscriptions ditolak dengan `403 ADMIN_REQUIRED`, termasuk direct bearer-token access.
+- Web access flow: halaman `/saas/subscriptions` tetap admin-only via web guard; audit ini belum rerun browser Playwright end-to-end.
 
 ## Manual UI E2E Execution Log
 
 | Date | Role | Scenario | Result | Notes |
 |------|------|----------|--------|-------|
 | 2026-04-13 | HCM Admin | Scenario 1-7 | PASS | Dieksekusi via Playwright browser E2E (`npm run e2e:subscriptions`) |
-| 2026-04-13 | Company/Non-Admin | Scenario 7 (+ UI visibility check) | PASS | UI read-only terverifikasi + POST mutate ditolak `403 ADMIN_REQUIRED` |
+| 2026-04-19 | Company/Non-Admin | API access control audit | PASS | GET list/detail + semua mutasi subscriptions ditolak `403 ADMIN_REQUIRED` via PHPUnit bearer-token regression |

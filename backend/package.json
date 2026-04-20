@@ -4,12 +4,28 @@
     "scripts": {
         "e2e": "playwright test",
         "e2e:headed": "playwright test --headed",
+        "e2e:rbac": "./run-e2e-tests.sh",
+        "e2e:rbac:signup": "playwright test 01-landing-signup.spec.js",
+        "e2e:rbac:login": "playwright test 02-first-login-owner.spec.js",
+        "e2e:rbac:roles": "playwright test 03-role-management.spec.js",
+        "e2e:rbac:users": "playwright test 04-user-management.spec.js",
+        "e2e:rbac:permissions": "playwright test 05-permission-enforcement.spec.js",
+        "e2e:rbac:edit-role": "playwright test 06-edit-role-dynamic.spec.js",
+        "e2e:rbac:isolation": "playwright test 07-cross-tenant-isolation.spec.js",
+        "e2e:rbac:escalation": "playwright test 08-role-escalation-attempt.spec.js",
+        "e2e:rbac:subscription": "playwright test 09-subscription-limitation.spec.js",
+        "e2e:rbac:delete-role": "playwright test 10-delete-role-in-use.spec.js",
+        "e2e:rbac:audit": "playwright test 11-audit-visibility.spec.js",
         "e2e:subscriptions": "playwright test e2e/tests/subscriptions.spec.js --project=chromium",
         "e2e:subscriptions:mobile": "playwright test e2e/tests/subscriptions.spec.js --project=mobile-chromium",
-        "e2e:employee-salary": "playwright test e2e/tests/employee-salary.spec.js --project=chromium",
-        "e2e:employee-salary:mobile": "playwright test e2e/tests/employee-salary.spec.js --project=mobile-chromium",
+        "e2e:landing-packages": "playwright test e2e/scenarios/landing-packages.spec.js --project=chromium",
+        "e2e:landing-company-upgrade": "playwright test e2e/scenarios/landing-company-upgrade-payment.spec.js --project=chromium",
+        "e2e:employee-salary": "playwright test e2e/scenarios/employee-salary.spec.js --project=chromium",
+        "e2e:employee-salary:mobile": "playwright test e2e/scenarios/employee-salary.spec.js --project=mobile-chromium",
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test:ui": "vitest run --config vitest.config.js",
+        "test:ui:watch": "vitest --config vitest.config.js"
     },
     "devDependencies": {
         "@playwright/test": "^1.59.1",
@@ -20,9 +36,12 @@
         "tailwindcss": "^4.0.0",
         "typescript": "^6.0.2",
         "vite": "^6.0.11",
+        "vitest": "^2.1.8",
+        "jsdom": "^25.0.1",
         "vite-plugin-static-copy": "^2.3.0"
     },
     "dependencies": {
+        "cloudflare": "^5.2.0",
         "countup.js": "^2.10.0",
         "swiper": "^12.1.3"
     }

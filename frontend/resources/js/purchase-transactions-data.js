@@ -81,13 +81,30 @@
     return "Rp " + parseInt(amount).toLocaleString("id-ID");
   }
 
+  function extractErrorMessage(error, fallback) {
+    if (error && error.data && error.data.error && error.data.error.message) {
+      return error.data.error.message;
+    }
+
+    if (error && error.message) {
+      return error.message;
+    }
+
+    return fallback;
+  }
+
   // Main TransactionsManager object
   const TransactionsManager = {
     currentPage: 1,
     totalPages: 1,
     transactions: [],
-    currentFilter: "",
-    filterType: "all",
+    filters: {
+      invoiceNumber: "",
+      companySearch: "",
+      status: "",
+      paymentMethod: "",
+      dateFrom: "",
+    },
 
     /**
      * Initialize the transactions list page
@@ -103,36 +120,53 @@
     bindEvents: function () {
       const self = this;
 
-      // Search functionality
-      const searchInput = document.getElementById("transaction_search");
-      if (searchInput) {
-        searchInput.addEventListener("keyup", function (e) {
+      const searchInvoiceInput = document.getElementById("search_invoice_number");
+      const searchCompanyInput = document.getElementById("search_company");
+      const statusFilter = document.getElementById("filter_status");
+      const paymentMethodFilter = document.getElementById("filter_payment_method");
+      const dateFromFilter = document.getElementById("filter_date_from");
+      const resetButton = document.getElementById("btn_reset_filters");
+      const downloadAllButton = document.getElementById("btn_download_all");
+
+      if (searchInvoiceInput) {
+        searchInvoiceInput.addEventListener("keyup", function (e) {
           if (e.key === "Enter") {
             e.preventDefault();
-            self.currentFilter = this.value;
             self.currentPage = 1;
             self.loadTransactions();
           }
         });
-
-        // Search button
-        const searchBtn = document.getElementById("search_button");
-        if (searchBtn) {
-          searchBtn.addEventListener("click", function () {
-            self.currentFilter = searchInput.value;
-            self.currentPage = 1;
-            self.loadTransactions();
-          });
-        }
       }
 
-      // Filter functionality
-      const filterSelect = document.getElementById("transaction_filter");
-      if (filterSelect) {
-        filterSelect.addEventListener("change", function () {
-          self.filterType = this.value;
+      if (searchCompanyInput) {
+        searchCompanyInput.addEventListener("keyup", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            self.currentPage = 1;
+            self.loadTransactions();
+          }
+        });
+      }
+
+      [statusFilter, paymentMethodFilter, dateFromFilter].forEach(function (element) {
+        if (!element) return;
+        element.addEventListener("change", function () {
           self.currentPage = 1;
           self.loadTransactions();
+        });
+      });
+
+      if (resetButton) {
+        resetButton.addEventListener("click", function () {
+          self.resetFilters();
+          self.currentPage = 1;
+          self.loadTransactions();
+        });
+      }
+
+      if (downloadAllButton) {
+        downloadAllButton.addEventListener("click", function () {
+          self.downloadAllTransactions();
         });
       }
 
@@ -166,28 +200,33 @@
      */
     loadTransactions: function () {
       const self = this;
-      let url = API_BASE + "?page=" + this.currentPage + "&per_page=" + PAGE_SIZE;
+      const filters = this.readFilters();
+      const params = new URLSearchParams();
 
-      if (self.currentFilter) {
-        url += "&search=" + encodeURIComponent(self.currentFilter);
+      params.set("page", String(this.currentPage));
+      params.set("per_page", String(PAGE_SIZE));
+
+      if (filters.invoiceNumber) {
+        params.set("invoice_number", filters.invoiceNumber);
       }
 
-      if (self.filterType !== "all") {
-        switch (self.filterType) {
-          case "status":
-            url += "&filter_type=status";
-            break;
-          case "company":
-            url += "&filter_type=company";
-            break;
-          case "date":
-            url += "&filter_type=date";
-            break;
-          case "amount":
-            url += "&filter_type=amount";
-            break;
-        }
+      if (filters.companySearch) {
+        params.set("company_search", filters.companySearch);
       }
+
+      if (filters.status) {
+        params.set("status", filters.status);
+      }
+
+      if (filters.paymentMethod) {
+        params.set("payment_method", filters.paymentMethod);
+      }
+
+      if (filters.dateFrom) {
+        params.set("date_from", filters.dateFrom);
+      }
+
+      const url = API_BASE + "?" + params.toString();
 
       apiRequest("GET", url, null)
         .then(function (response) {
@@ -197,12 +236,12 @@
             self.renderTransactions();
             self.updateStats();
           } else {
-            self.showError("Failed to load transactions");
+            self.showError(extractErrorMessage(response, "Failed to load transactions"));
           }
         })
         .catch(function (err) {
           console.error(err);
-          self.showError("Error loading transactions");
+          self.showError(extractErrorMessage(err, "Error loading transactions"));
         });
     },
 
@@ -225,6 +264,7 @@
                   <tr>
                     <th>Invoice</th>
                     <th>Company</th>
+                    <th>Package</th>
                     <th>Amount</th>
                     <th>Payment Method</th>
                     <th>Status</th>
@@ -236,7 +276,7 @@
                 <tbody>
                   ${this.transactions.map(txn => {
                     const statusBadge = `badge bg-${
-                      txn.status === "completed"
+                      txn.status === "paid" || txn.status === "completed"
                         ? "success"
                         : txn.status === "pending"
                         ? "warning"
@@ -247,8 +287,9 @@
                     const paymentMethodBadge = `badge bg-light text-dark`;
                     return `
                       <tr>
-                        <td><strong>${esc(txn.transactionCode)}</strong></td>
-                        <td>${esc(txn.companyName || "N/A")}</td>
+                        <td><strong>${esc(txn.invoiceNumber || txn.transactionCode || "-")}</strong></td>
+                        <td>${esc(txn.companyName || txn.company?.name || "N/A")}</td>
+                        <td>${esc(txn.packageName || txn.packageAddon?.name || txn.subscription?.planCode || "-")}</td>
                         <td>${formatCurrency(txn.amount)}</td>
                         <td><span class="${paymentMethodBadge}">${esc(txn.paymentMethod)}</span></td>
                         <td><span class="${statusBadge}">${esc(txn.status)}</span></td>
@@ -281,6 +322,46 @@
       }
       container.innerHTML = html;
       this.renderPagination();
+    },
+
+    readFilters: function () {
+      const invoiceInput = document.getElementById("search_invoice_number");
+      const companyInput = document.getElementById("search_company");
+      const statusSelect = document.getElementById("filter_status");
+      const paymentMethodSelect = document.getElementById("filter_payment_method");
+      const dateFromInput = document.getElementById("filter_date_from");
+
+      this.filters = {
+        invoiceNumber: invoiceInput ? invoiceInput.value.trim() : "",
+        companySearch: companyInput ? companyInput.value.trim() : "",
+        status: statusSelect ? statusSelect.value.trim() : "",
+        paymentMethod: paymentMethodSelect ? paymentMethodSelect.value.trim() : "",
+        dateFrom: dateFromInput ? dateFromInput.value.trim() : "",
+      };
+
+      return this.filters;
+    },
+
+    resetFilters: function () {
+      const invoiceInput = document.getElementById("search_invoice_number");
+      const companyInput = document.getElementById("search_company");
+      const statusSelect = document.getElementById("filter_status");
+      const paymentMethodSelect = document.getElementById("filter_payment_method");
+      const dateFromInput = document.getElementById("filter_date_from");
+
+      if (invoiceInput) invoiceInput.value = "";
+      if (companyInput) companyInput.value = "";
+      if (statusSelect) statusSelect.value = "";
+      if (paymentMethodSelect) paymentMethodSelect.value = "";
+      if (dateFromInput) dateFromInput.value = "";
+
+      this.filters = {
+        invoiceNumber: "",
+        companySearch: "",
+        status: "",
+        paymentMethod: "",
+        dateFrom: "",
+      };
     },
 
     /**
@@ -343,8 +424,9 @@
             const html = `
               <div class="row">
                 <div class="col-md-6">
-                  <p><strong>Transaction Code:</strong> ${esc(txn.transactionCode)}</p>
+                  <p><strong>Invoice Number:</strong> ${esc(txn.invoiceNumber)}</p>
                   <p><strong>Company:</strong> ${esc(txn.companyName)}</p>
+                  <p><strong>Package:</strong> ${esc(txn.packageName || "-")}</p>
                   <p><strong>Amount:</strong> ${formatCurrency(txn.amount)}</p>
                   <p><strong>Payment Method:</strong> ${esc(txn.paymentMethod)}</p>
                 </div>
@@ -355,55 +437,38 @@
                   <p><strong>Description:</strong> ${esc(txn.description || "-")}</p>
                 </div>
               </div>
-              ${
-                txn.items && txn.items.length > 0
-                  ? `
-                <hr>
-                <h6>Items:</h6>
-                <table class="table table-sm">
-                  <tbody>
-                    ${txn.items
-                      .map(
-                        (item) => `
-                      <tr>
-                        <td>${esc(item.description)}</td>
-                        <td class="text-end">${formatCurrency(item.amount)}</td>
-                      </tr>
-                    `
-                      )
-                      .join("")}
-                  </tbody>
-                </table>
-              `
-                  : ""
-              }
             `;
-            document.getElementById("transaction_details_content").innerHTML = html;
-            const modal = new bootstrap.Modal(
-              document.getElementById("transaction_details_modal")
-            );
-            modal.show();
+            const content = document.getElementById("details_content");
+            if (content) {
+              content.innerHTML = html;
+            }
+
+            const modalEl = document.getElementById("detailsModal");
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+              const modal = window.bootstrap.Modal.getOrCreateInstance
+                ? window.bootstrap.Modal.getOrCreateInstance(modalEl)
+                : new window.bootstrap.Modal(modalEl);
+              modal.show();
+            }
           } else {
-            self.showError("Failed to load transaction details");
+            self.showError(extractErrorMessage(response, "Failed to load transaction details"));
           }
         })
         .catch(function (err) {
           console.error(err);
-          self.showError("Error loading transaction details");
+          self.showError(extractErrorMessage(err, "Error loading transaction details"));
         });
+    },
+
+    downloadAllTransactions: function () {
+      window.open(API_BASE + "/export", "_self");
     },
 
     /**
      * Download receipt
      */
     downloadReceipt: function (id) {
-      const url = API_BASE + "/" + id + "/receipt";
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "receipt-" + id + ".pdf";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      this.viewTransactionDetails(id);
     },
 
     /**

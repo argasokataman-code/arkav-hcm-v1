@@ -197,7 +197,7 @@ class SaasUiFlowSeeder extends Seeder
             foreach ($featureTemplate as $featureCode => $featureName) {
                 PackageFeature::query()->updateOrCreate(
                     [
-                        'package_id' => $package->id,
+                        'package_uuid' => $package->uuid,
                         'feature_code' => $featureCode,
                     ],
                     [
@@ -310,7 +310,7 @@ class SaasUiFlowSeeder extends Seeder
             Subscription::query()->updateOrCreate(
                 ['company_id' => $company->id],
                 [
-                    'package_id' => $package->id,
+                    'package_uuid' => $package->uuid,
                     'plan_code' => $package->code,
                     'status' => $status,
                     'starts_at' => $startsAt,

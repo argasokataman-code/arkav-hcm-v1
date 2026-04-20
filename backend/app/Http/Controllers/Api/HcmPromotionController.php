@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\HcmPromotion;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -190,7 +191,7 @@ class HcmPromotionController extends Controller
         }
 
         $v = $request->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            'userId' => ['required', 'uuid', 'exists:users,uuid'],
             'department' => ['nullable', 'string', 'max:150'],
             'designationFrom' => ['nullable', 'string', 'max:150'],
             'designationTo' => ['nullable', 'string', 'max:150'],
@@ -198,11 +199,14 @@ class HcmPromotionController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        User::query()->findOrFail((int) $v['userId']);
+        $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
+        if ($resolvedUserId === null) {
+            return $this->invalidActiveCompanyUserResponse();
+        }
 
         $p = HcmPromotion::query()->create([
             'company_id' => $activeCompanyId,
-            'user_id' => (int) $v['userId'],
+            'user_id' => $resolvedUserId,
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'designation_from' => isset($v['designationFrom']) ? trim((string) $v['designationFrom']) : null,
             'designation_to' => isset($v['designationTo']) ? trim((string) $v['designationTo']) : null,
@@ -235,7 +239,7 @@ class HcmPromotionController extends Controller
             ->findOrFail($id);
 
         $v = $request->validate([
-            'userId' => ['sometimes', 'required', 'integer', 'exists:users,id'],
+            'userId' => ['sometimes', 'required', 'uuid', 'exists:users,uuid'],
             'department' => ['sometimes', 'nullable', 'string', 'max:150'],
             'designationFrom' => ['sometimes', 'nullable', 'string', 'max:150'],
             'designationTo' => ['sometimes', 'nullable', 'string', 'max:150'],
@@ -245,7 +249,12 @@ class HcmPromotionController extends Controller
 
         $payload = [];
         if (array_key_exists('userId', $v)) {
-            $payload['user_id'] = (int) $v['userId'];
+            $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
+            if ($resolvedUserId === null) {
+                return $this->invalidActiveCompanyUserResponse();
+            }
+
+            $payload['user_id'] = $resolvedUserId;
         }
         if (array_key_exists('department', $v)) {
             $payload['department'] = $v['department'] !== null ? trim((string) $v['department']) : null;
@@ -311,6 +320,35 @@ class HcmPromotionController extends Controller
     private function canManagePromotion(Request $request): bool
     {
         return $this->hasAnyPermission($request, ['promotion.manage', 'promotion.view']);
+    }
+
+    private function resolveUserIdFromIdentifier(string $identifier, int $activeCompanyId): ?int
+    {
+        $userId = (int) User::query()
+            ->where('uuid', $identifier)
+            ->value('id');
+
+        if ($userId <= 0) {
+            return null;
+        }
+
+        $belongsToActiveCompany = CompanyUser::query()
+            ->where('company_id', $activeCompanyId)
+            ->where('user_id', $userId)
+            ->exists();
+
+        return $belongsToActiveCompany ? $userId : null;
+    }
+
+    private function invalidActiveCompanyUserResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'VALIDATION_ERROR',
+                'message' => 'The selected user id is invalid for the active company.',
+            ],
+        ], 422);
     }
 }
 

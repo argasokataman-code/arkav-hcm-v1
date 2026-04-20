@@ -2,26 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class HcmThrDisbursement extends Model
 {
+    use AssignsUuid;
     public const STATUS_PROCESSING = 'processing';
 
     public const STATUS_COMPLETED = 'completed';
 
     public const STATUS_FAILED = 'failed';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $model): void {
-            if (empty($model->uuid)) {
-                $model->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $fillable = [
         'hcm_thr_batch_id',

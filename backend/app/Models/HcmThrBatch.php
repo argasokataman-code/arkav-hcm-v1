@@ -2,25 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class HcmThrBatch extends Model
 {
+    use AssignsUuid;
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_ASSIGNED = 'assigned';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $model): void {
-            if (empty($model->uuid)) {
-                $model->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $fillable = [
         'company_id',

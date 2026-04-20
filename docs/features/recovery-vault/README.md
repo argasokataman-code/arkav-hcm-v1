@@ -1,5 +1,7 @@
 # Recovery Vault
 
+## Ringkasan
+
 Recovery Vault adalah fitur SaaS internal untuk mencatat seluruh perubahan data penting sebagai jejak audit immutable, lalu menyediakan jalur restore yang terkontrol ketika terjadi insiden besar di database utama.
 
 Tujuan fitur ini bukan menggantikan backup penuh database, tetapi memberi lapisan tambahan untuk:
@@ -8,6 +10,38 @@ Tujuan fitur ini bukan menggantikan backup penuh database, tetapi memberi lapisa
 - forensik perubahan data,
 - restore granular ketika ada data hilang atau salah update,
 - dan retention terukur supaya data lama tidak menumpuk tanpa batas.
+
+## Akses
+
+- Akses baca dan restore dibatasi untuk service account dan super admin.
+- End-user publik dan non-admin tidak boleh mengakses flow restore.
+
+## UI Aktif
+
+- Fokus fase ini masih pada capability internal/admin dan service ingest, bukan UI publik penuh.
+- Rangkuman audit/recovery idealnya dipantau dari surface admin global.
+
+## Flow Bisnis End-to-End
+
+1. Service/backend mengirim event create/update/delete penting ke Recovery Vault.
+2. Sistem menyimpan before/after payload, actor, company, dan metadata request secara immutable.
+3. Snapshot terjadwal atau restore terkontrol dapat dipakai saat terjadi insiden data besar.
+4. Super admin atau service account melakukan investigasi dan restore sesuai policy yang berlaku.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Fitur ini adalah platform capability, bukan modul tenant biasa.
+- Audit immutable dan restore granular diprioritaskan lebih dulu dibanding UI publik browsing audit.
+- Retention hot data 90 hari dipakai agar evidence tetap cukup tanpa membuat penyimpanan tidak terkendali.
+
+## Integrasi
+
+- Reporting: konsep snapshot dan evidence audit beririsan dengan reporting snapshot/archive. Lihat `docs/features/reporting/README.md`.
+- Super Admin Dashboard: ringkasan audit/recovery idealnya menjadi bagian dari monitoring platform global. Lihat `docs/features/super-admin-dashboard/README.md`.
+- User Management: actor, permission, dan audit akses restore mengikuti fondasi admin/service authorization. Lihat `docs/features/user-management/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+
+## Kontrak API
 
 ---
 
@@ -99,3 +133,8 @@ Jika fitur ini aktif:
 ## Notes
 
 Fitur ini sebaiknya diposisikan sebagai core platform capability untuk SaaS, bukan fitur per modul. Artinya implementasi awal bisa kecil, tetapi kontrak datanya harus stabil sejak awal.
+
+## Existing Vs Target
+
+- Existing: dokumentasi, scope, dan rancangan capability audit/restore sudah jelas, tetapi surface ini masih dominan sebagai desain capability internal.
+- Target: ingest event, snapshot, restore terkontrol, dan monitoring admin global berjalan konsisten sebagai capability platform.

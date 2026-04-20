@@ -170,12 +170,17 @@ RBAC:
 - HCM Admin only
 
 Body:
-- `cycleId` required exists `performance_cycles.id`
-- `userId` required exists `users.id`
-- `templateId` required exists `performance_indicator_templates.id`
+- `cycleId` required identifier untuk `performance_cycles`.
+- `userId` required identifier untuk `users`; target user wajib anggota tenant aktif.
+- `templateId` required identifier untuk `performance_indicator_templates`.
+
+Kontrak identifier aktif:
+- UI admin saat ini mengirim numeric `id` untuk ketiga field di atas.
+- UUID masih diterima sebagai fallback legacy.
 
 Behavior:
 - server akan pre-create score rows untuk semua template items.
+- review baru disimpan dengan `company_id` tenant aktif agar akses review dan metrik leave tetap tenant-scoped.
 
 ### GET `/reviews/{id}`
 

@@ -9,12 +9,13 @@
 				<div class="text-muted" data-arcav-upgrade-body>
 					Fitur ini terkunci untuk paket saat ini.
 				</div>
-				<div class="mt-3 p-3 rounded-3 bg-light">
+				<div class="mt-3 p-3 rounded-3 bg-light" data-arcav-upgrade-tip>
 					<div class="small text-muted">Tips</div>
 					<div class="fw-semibold">Yuk subscribe sekarang untuk akses fitur lebih lengkap.</div>
 				</div>
 			</div>
 			<div class="modal-footer">
+				<button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
 				<a class="btn btn-outline-secondary" href="{{ url('/landing#pricing') }}" data-arcav-upgrade-secondary>Lihat paket</a>
 				<a class="btn btn-primary" href="{{ url('/subscription') }}" data-arcav-upgrade-primary>
 					<i class="ti ti-rocket me-1"></i> Subscribe sekarang

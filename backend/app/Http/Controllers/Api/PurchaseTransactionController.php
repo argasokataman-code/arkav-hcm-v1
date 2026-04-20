@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\PackageAddon;
 use App\Models\PurchaseTransaction;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -76,9 +77,9 @@ class PurchaseTransactionController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|integer|exists:companies,id',
-            'subscription_id' => 'nullable|integer|exists:subscriptions,id',
-            'package_addon_id' => 'nullable|integer|exists:package_addons,id',
+            'company_id' => 'required|uuid|exists:companies,uuid',
+            'subscription_id' => 'nullable|uuid|exists:subscriptions,uuid',
+            'package_addon_id' => 'nullable|uuid|exists:package_addons,uuid',
             'transaction_type' => 'required|in:subscription,addon,refund,credit,manual',
             'description' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
@@ -86,6 +87,12 @@ class PurchaseTransactionController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'status' => 'required|in:draft,issued,sent,paid,overdue,cancelled',
         ]);
+
+        if (! empty($validated['package_addon_id'])) {
+            $validated['package_addon_id'] = (int) (PackageAddon::query()
+                ->where('uuid', (string) $validated['package_addon_id'])
+                ->value('id') ?? 0);
+        }
 
         if ($validated['transaction_type'] === 'addon' && empty($validated['package_addon_id'])) {
             return response()->json([

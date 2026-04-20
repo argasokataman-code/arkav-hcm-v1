@@ -55,6 +55,27 @@
         return badge("NOT_SENT", "secondary");
     }
 
+    function renderStateBadges(stateBadges) {
+        if (!Array.isArray(stateBadges) || !stateBadges.length) return "";
+
+        return (
+            '<div class="d-flex flex-wrap gap-1 mt-2">' +
+            stateBadges
+                .map(function (stateBadge) {
+                    return badge(stateBadge.label || stateBadge.code || "STATE", stateBadge.kind || "warning");
+                })
+                .join("") +
+            "</div>"
+        );
+    }
+
+    function buildInvoiceDetailUrl(invoice) {
+        if (!invoice) return "#";
+        if (invoice.detailUrl) return String(invoice.detailUrl);
+        if (invoice.uuid) return "/saas/billing-overview/invoices/" + encodeURIComponent(String(invoice.uuid));
+        return "#";
+    }
+
     function formatApiError(err) {
         try {
             if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
@@ -68,9 +89,35 @@
         return "Request failed.";
     }
 
-    function init() {
+    function request(method, path, payload) {
+        if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
+            var err = new Error("AuthApi missing");
+            return Promise.reject(err);
+        }
+        return window.AuthApi.request(method, path, payload).then(function (res) {
+            return res && res.data ? res.data : {};
+        });
+    }
+
+    function loadWithAuthCheck(callback, errorBox) {
+        if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
+            window.setTimeout(function () {
+                loadWithAuthCheck(callback, errorBox);
+            }, 100);
+            return;
+        }
+
+        var token = null;
+        try {
+            token = window.localStorage.getItem(window.AuthApi.tokenKey || "arcav_access_token");
+        } catch (_e) {}
+
+        callback();
+    }
+
+    function initOverviewPage() {
         var root = qs("[data-saas-billing-overview-page]");
-        if (!root) return;
+        if (!root) return false;
 
         var inputSearch = qs("[data-billing-search]", root);
         var selectTab = qs("[data-billing-tab]", root);
@@ -85,20 +132,12 @@
         var state = {
             page: 1,
             last_page: 1,
+            rowsByInvoiceUuid: {},
         };
-
-        function request(method, path, payload) {
-            if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
-                var err = new Error("AuthApi missing");
-                return Promise.reject(err);
-            }
-            return window.AuthApi.request(method, path, payload).then(function (res) {
-                return res && res.data ? res.data : {};
-            });
-        }
 
         function renderRows(rows) {
             if (!tbody) return;
+            state.rowsByInvoiceUuid = {};
 
             if (!rows || !rows.length) {
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No data</td></tr>';
@@ -111,6 +150,11 @@
                     var s = row.subscription || {};
                     var inv = row.latestInvoice || null;
                     var email = row.email || {};
+                    var stateBadges = row.stateBadges || [];
+
+                    if (inv && inv.uuid) {
+                        state.rowsByInvoiceUuid[String(inv.uuid)] = row;
+                    }
 
                     var companyHtml =
                         '<div class="fw-semibold">' +
@@ -124,8 +168,9 @@
                         statusBadgeSubscription(s.status) +
                         '<div class="text-muted small mt-1">' +
                         escapeHtml(s.planCode || "") +
-                        (s.billingCycle ? " • " + escapeHtml(s.billingCycle) : "") +
-                        "</div>";
+                        (s.billingCycle ? " - " + escapeHtml(s.billingCycle) : "") +
+                        "</div>" +
+                        renderStateBadges(stateBadges);
 
                     var invHtml = inv
                         ? '<div class="fw-semibold">' +
@@ -150,10 +195,15 @@
                             : "");
 
                     var actions = inv
-                        ? '<button class="btn btn-sm btn-outline-primary" data-action="resend" data-invoice-id="' +
-                          escapeHtml(inv.id) +
-                          '"><i class="ti ti-mail-forward"></i> Resend</button>'
-                        : '<span class="text-muted small">—</span>';
+                        ? '<div class="btn-group btn-group-sm">' +
+                          '<a class="btn btn-outline-secondary" href="' +
+                          escapeHtml(buildInvoiceDetailUrl(inv)) +
+                          '"><i class="ti ti-eye"></i> Detail invoice</a>' +
+                          '<button class="btn btn-outline-primary" data-action="resend" data-invoice-uuid="' +
+                          escapeHtml(inv.uuid) +
+                          '"><i class="ti ti-mail-forward"></i> Resend</button>' +
+                          '</div>'
+                        : '<span class="text-muted small">-</span>';
 
                     return (
                         "<tr>" +
@@ -205,7 +255,7 @@
                             String(p.current_page || state.page) +
                             " / " +
                             String(p.last_page || state.last_page) +
-                            " • Total " +
+                            " - Total " +
                             String(p.total || 0)
                     );
                 })
@@ -218,9 +268,9 @@
                 });
         }
 
-        function resend(invoiceId) {
+        function resend(invoiceUuid) {
             hide(errorBox);
-            return request("post", "/saas/invoices/" + String(invoiceId) + "/send-email", {})
+            return request("post", "/saas/invoices/" + String(invoiceUuid) + "/send-email", {})
                 .then(function (data) {
                     if (!data.success) {
                         throw { response: { data: data, status: 200 } };
@@ -283,41 +333,164 @@
                 if (!btn) return;
                 var action = btn.getAttribute("data-action");
                 if (action !== "resend") return;
-                var invoiceId = btn.getAttribute("data-invoice-id");
-                if (!invoiceId) return;
-                resend(invoiceId);
+                var invoiceUuid = btn.getAttribute("data-invoice-uuid");
+                if (!invoiceUuid) return;
+                resend(invoiceUuid);
             });
         }
 
-        // Wait for auth token to be available before loading data
-        function loadWithAuthCheck() {
-            if (!window.AuthApi || typeof window.AuthApi.request !== "function") {
-                // AuthApi not ready, wait a bit more
-                window.setTimeout(loadWithAuthCheck, 100);
-                return;
-            }
-            var token = null;
-            try {
-                token = window.localStorage.getItem(window.AuthApi.tokenKey || "arcav_access_token");
-            } catch (_e) {}
-            
-            if (!token) {
-                // No token, show error and wait
-                show(errorBox);
-                setText(errorBox, "Authentication required. Please log in.");
-                window.setTimeout(loadWithAuthCheck, 500);
-                return;
-            }
-            // Token is available, load the data
+        loadWithAuthCheck(function () {
             load();
-        }
-        loadWithAuthCheck();
+        }, errorBox);
+
+        return true;
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
+    function initDetailPage() {
+        var root = qs("[data-saas-billing-invoice-detail-page]");
+        if (!root) return false;
+
+        var invoiceUuid = root.getAttribute("data-invoice-uuid");
+        var errorBox = qs("[data-billing-detail-error]", root);
+        var pageTitle = qs("[data-billing-detail-title]", root);
+        var companyName = qs("[data-billing-detail-company-name]", root);
+        var companyCode = qs("[data-billing-detail-company-code]", root);
+        var subscriptionStatus = qs("[data-billing-detail-subscription-status]", root);
+        var subscriptionPlan = qs("[data-billing-detail-subscription-plan]", root);
+        var subscriptionPeriod = qs("[data-billing-detail-subscription-period]", root);
+        var invoiceStatus = qs("[data-billing-detail-invoice-status]", root);
+        var invoiceNumber = qs("[data-billing-detail-invoice-number]", root);
+        var invoiceDueDate = qs("[data-billing-detail-invoice-due-date]", root);
+        var invoiceAmount = qs("[data-billing-detail-invoice-amount]", root);
+        var latestEmailStatus = qs("[data-billing-detail-latest-email-status]", root);
+        var latestEmailTarget = qs("[data-billing-detail-latest-email-target]", root);
+        var latestEmailSentAt = qs("[data-billing-detail-latest-email-sent-at]", root);
+        var latestEmailError = qs("[data-billing-detail-latest-email-error]", root);
+        var stateBadges = qs("[data-billing-detail-state-badges]", root);
+        var historyBody = qs("[data-billing-email-history-body]", root);
+        var resendButton = qs("[data-billing-detail-resend]", root);
+
+        function renderStateSummary(data) {
+            var badges = [];
+            var subscription = data.subscription || null;
+
+            if (subscription && subscription.status === "pending_payment" && data.isPaid) {
+                badges.push({ label: "State Mismatch", kind: "warning" });
+            }
+
+            if (stateBadges) {
+                stateBadges.innerHTML = renderStateBadges(badges);
+            }
+        }
+
+        function renderHistory(emailLogs) {
+            if (!historyBody) return;
+
+            if (!Array.isArray(emailLogs) || !emailLogs.length) {
+                historyBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Belum ada riwayat email.</td></tr>';
+                return;
+            }
+
+            historyBody.innerHTML = emailLogs
+                .map(function (emailLog) {
+                    return (
+                        "<tr>" +
+                        "<td>" + escapeHtml(emailLog.toEmail || "-") + "</td>" +
+                        "<td>" + emailBadge(emailLog.status) + "</td>" +
+                        "<td>" + escapeHtml(emailLog.createdAt || "-") + "</td>" +
+                        "<td>" + escapeHtml(emailLog.errorMessage || "-") + "</td>" +
+                        "</tr>"
+                    );
+                })
+                .join("");
+        }
+
+        function renderDetail(data) {
+            var company = data.company || {};
+            var subscription = data.subscription || {};
+            var latestEmail = data.latestEmail || null;
+
+            setText(pageTitle, data.invoiceNumber || "Detail Invoice");
+            setText(companyName, company.name || data.companyName || "-");
+            setText(companyCode, company.code || "-");
+            setText(subscriptionStatus, String(subscription.status || "-").toUpperCase());
+            setText(subscriptionPlan, (subscription.planCode || "-") + (subscription.packageName ? " - " + String(subscription.packageName) : ""));
+            setText(subscriptionPeriod, "Start: " + String(subscription.startsAt || "-") + " - End: " + String(subscription.endsAt || "-"));
+            setText(invoiceStatus, String(data.status || "-").toUpperCase() + (data.isPaid ? " - PAID" : " - UNPAID"));
+            setText(invoiceNumber, data.invoiceNumber || "-");
+            setText(invoiceDueDate, data.dueDate || "-");
+            setText(invoiceAmount, String(data.amountDue != null ? data.amountDue : "-"));
+            setText(latestEmailStatus, latestEmail ? String(latestEmail.status || "-").toUpperCase() : "BELUM ADA");
+            setText(latestEmailTarget, latestEmail ? String(latestEmail.toEmail || "-") : "-");
+            setText(latestEmailSentAt, latestEmail ? String(latestEmail.createdAt || "-") : "-");
+            setText(latestEmailError, latestEmail && latestEmail.errorMessage ? String(latestEmail.errorMessage) : "-");
+
+            renderStateSummary(data);
+            renderHistory(data.emailLogs || []);
+        }
+
+        function loadDetail() {
+            hide(errorBox);
+            return request("get", "/saas/invoices/" + String(invoiceUuid))
+                .then(function (data) {
+                    if (!data.success) {
+                        throw { response: { data: data, status: 200 } };
+                    }
+                    renderDetail(data.data || {});
+                })
+                .catch(function (err) {
+                    if (errorBox) {
+                        show(errorBox);
+                        setText(errorBox, formatApiError(err));
+                    }
+                    if (historyBody) {
+                        historyBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Gagal memuat detail invoice.</td></tr>';
+                    }
+                });
+        }
+
+        if (resendButton) {
+            resendButton.addEventListener("click", function () {
+                hide(errorBox);
+                request("post", "/saas/invoices/" + String(invoiceUuid) + "/send-email", {})
+                    .then(function (data) {
+                        if (!data.success) {
+                            throw { response: { data: data, status: 200 } };
+                        }
+                        return loadDetail();
+                    })
+                    .catch(function (err) {
+                        if (errorBox) {
+                            show(errorBox);
+                            setText(errorBox, formatApiError(err));
+                        }
+                    });
+            });
+        }
+
+        loadWithAuthCheck(function () {
+            loadDetail();
+        }, errorBox);
+
+        return true;
+    }
+
+    function init() {
+        var hasOverview = initOverviewPage();
+        var hasDetail = initDetailPage();
+        return hasOverview || hasDetail;
+    }
+
+    window.SaaSBillingOverview = {
+        init: init,
+    };
+
+    if (!window.__ARCAV_DISABLE_AUTOINIT__) {
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init);
+        } else {
+            init();
+        }
     }
 })(window, document);
 

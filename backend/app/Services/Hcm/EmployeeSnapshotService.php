@@ -15,6 +15,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class EmployeeSnapshotService
 {
@@ -643,6 +644,7 @@ final class EmployeeSnapshotService
         }
 
         return (int) DB::table('teams')->insertGetId([
+            'uuid' => (string) Str::uuid(),
             'department_id' => $deptId,
             'name' => $name,
             'is_active' => true,

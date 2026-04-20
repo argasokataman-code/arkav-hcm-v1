@@ -2,24 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class HcmResignation extends Model
 {
+    use AssignsUuid;
     use SoftDeletes;
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $table = 'hcm_resignations';
 

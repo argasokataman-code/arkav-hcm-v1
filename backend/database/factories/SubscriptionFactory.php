@@ -26,7 +26,7 @@ class SubscriptionFactory extends Factory
 
         return [
             'company_id' => Company::factory(),
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => $this->faker->randomElement(['active', 'trial', 'paused', 'cancelled']),
             'starts_at' => now(),

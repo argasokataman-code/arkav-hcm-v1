@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
@@ -9,18 +10,7 @@ use Illuminate\Support\Str;
 
 class LeaveRequestBreakdown extends Model
 {
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (! Schema::hasColumn($record->getTable(), 'uuid')) {
-                return;
-            }
-
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
+    use AssignsUuid;
 
     protected $fillable = [
         'leave_request_id',

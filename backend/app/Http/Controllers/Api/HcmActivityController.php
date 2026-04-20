@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssetLog;
+use App\Models\Company;
 use App\Models\HcmManualActivity;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmUserRoleAudit;
@@ -22,11 +23,25 @@ class HcmActivityController extends Controller
     private function canViewActivity(Request $request): bool
     {
         $user = $request->user();
-        $companyId = $this->activeCompanyId($request);
-        if (! $user || ! $companyId) {
+        if (! $user) {
             return false;
         }
 
+        // Global HCM admin/super admin always has unrestricted access
+        if ($user->isGlobalHcmAdmin()) {
+            return true;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return false;
+        }
+
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
+        }
+
+        // Permission-based access for tenant members.
         return $user->hasPermissionForCompany('dashboard.view', $companyId)
             || $user->hasPermissionForCompany('report.view', $companyId)
             || $user->hasPermissionForCompany('attendance.admin', $companyId);
@@ -35,13 +50,26 @@ class HcmActivityController extends Controller
     private function canManageManualActivity(Request $request): bool
     {
         $user = $request->user();
-        $companyId = $this->activeCompanyId($request);
-        if (! $user || ! $companyId) {
+        if (! $user) {
             return false;
         }
 
-        return $user->hasPermissionForCompany('settings.manage', $companyId)
-            || $user->hasPermissionForCompany('attendance.admin', $companyId);
+        if ($user->isGlobalHcmAdmin()) {
+            return true;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return false;
+        }
+
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
+        }
+
+        return $user->hasPermissionForCompany('attendance.admin', $companyId)
+            || $user->hasPermissionForCompany('user_management.manage', $companyId)
+            || $user->hasPermissionForCompany('role.sync_permission', $companyId);
     }
 
     public function index(Request $request): JsonResponse
@@ -56,9 +84,27 @@ class HcmActivityController extends Controller
             ], 403);
         }
 
+        $validated = $request->validate([
+            'type' => ['nullable', 'string', 'in:all,asset,user_access,payroll,manual'],
+            'sourceType' => ['nullable', 'string', 'in:all,system,manual'],
+            'statusType' => ['nullable', 'string', 'max:50'],
+            'q' => ['nullable', 'string', 'max:150'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'companyId' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $user = $request->user();
+        $isGlobalAdmin = $user?->isGlobalHcmAdmin() ?? false;
         $company = $request->attributes->get('activeCompany');
-        $companyId = (int) ($company?->id ?? 0);
-        if ($companyId <= 0) {
+        $activeCompanyId = (int) ($company?->id ?? 0);
+        $requestedCompanyId = (int) ($validated['companyId'] ?? 0);
+
+        // Super admin default scope: all companies (no companyId filter).
+        $scopeAllCompanies = $isGlobalAdmin && $requestedCompanyId <= 0;
+        $effectiveCompanyId = $requestedCompanyId > 0 ? $requestedCompanyId : $activeCompanyId;
+
+        if (! $scopeAllCompanies && $effectiveCompanyId <= 0) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -68,28 +114,49 @@ class HcmActivityController extends Controller
             ], 422);
         }
 
-        $validated = $request->validate([
-            'type' => ['nullable', 'string', 'in:all,asset,user_access,payroll,manual'],
-            'sourceType' => ['nullable', 'string', 'in:all,system,manual'],
-            'statusType' => ['nullable', 'string', 'max:50'],
-            'q' => ['nullable', 'string', 'max:150'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ]);
-
         $type = (string) ($validated['type'] ?? 'all');
         $sourceType = (string) ($validated['sourceType'] ?? 'all');
         $statusType = trim(strtolower((string) ($validated['statusType'] ?? 'all')));
         $search = trim((string) ($validated['q'] ?? ''));
         $page = max(1, (int) ($validated['page'] ?? 1));
         $perPage = max(1, min(100, (int) ($validated['perPage'] ?? 20)));
+        $canManageManual = $this->canManageManualActivity($request);
+
+        $companyDirectory = Company::query()
+            ->select('id', 'name', 'code')
+            ->when(! $scopeAllCompanies, function ($query) use ($effectiveCompanyId): void {
+                $query->where('id', $effectiveCompanyId);
+            })
+            ->get()
+            ->keyBy('id');
+
+        $resolveCompanyMeta = function (?int $rowCompanyId) use ($companyDirectory): array {
+            $resolvedId = (int) ($rowCompanyId ?? 0);
+            $company = $resolvedId > 0 ? $companyDirectory->get($resolvedId) : null;
+
+            if ($company) {
+                return [
+                    'companyId' => (int) $company->id,
+                    'companyName' => (string) $company->name,
+                    'companyCode' => (string) $company->code,
+                ];
+            }
+
+            return [
+                'companyId' => $resolvedId,
+                'companyName' => $resolvedId > 0 ? ('Company #'.$resolvedId) : 'Company',
+                'companyCode' => 'N/A',
+            ];
+        };
 
         $items = collect();
 
         if ($type === 'all' || $type === 'asset') {
             $assetQuery = AssetLog::query()
                 ->with(['asset:id,name,asset_code', 'performer:id,name'])
-                ->where('company_id', $companyId)
+                ->when(! $scopeAllCompanies, function ($query) use ($effectiveCompanyId): void {
+                    $query->where('company_id', $effectiveCompanyId);
+                })
                 ->latest('created_at')
                 ->limit(120);
 
@@ -100,9 +167,10 @@ class HcmActivityController extends Controller
                 });
             }
 
-            $assetItems = $assetQuery->get()->map(function (AssetLog $log): array {
+            $assetItems = $assetQuery->get()->map(function (AssetLog $log) use ($resolveCompanyMeta): array {
                 $createdAt = $log->created_at;
                 $normalizedAction = strtolower((string) $log->action);
+                $companyMeta = $resolveCompanyMeta((int) $log->company_id);
 
                 return [
                     'id' => 'asset-'.$log->id,
@@ -115,6 +183,9 @@ class HcmActivityController extends Controller
                     'statusTypeLabel' => $normalizedAction !== '' ? ucfirst(str_replace('_', ' ', $normalizedAction)) : 'Updated',
                     'dueDate' => null,
                     'ownerName' => $log->performer?->name ?: 'System',
+                    'companyId' => $companyMeta['companyId'],
+                    'companyName' => $companyMeta['companyName'],
+                    'companyCode' => $companyMeta['companyCode'],
                     'canEdit' => false,
                     'canDelete' => false,
                     'readOnlyReason' => 'System-generated activity. Read-only.',
@@ -129,7 +200,9 @@ class HcmActivityController extends Controller
         if ($type === 'all' || $type === 'user_access') {
             $roleQuery = HcmUserRoleAudit::query()
                 ->with(['actorUser:id,name', 'targetUser:id,name', 'role:id,name'])
-                ->where('company_id', $companyId)
+                ->when(! $scopeAllCompanies, function ($query) use ($effectiveCompanyId): void {
+                    $query->where('company_id', $effectiveCompanyId);
+                })
                 ->latest('created_at')
                 ->limit(120);
 
@@ -140,11 +213,12 @@ class HcmActivityController extends Controller
                 });
             }
 
-            $roleItems = $roleQuery->get()->map(function (HcmUserRoleAudit $audit): array {
+            $roleItems = $roleQuery->get()->map(function (HcmUserRoleAudit $audit) use ($resolveCompanyMeta): array {
                 $createdAt = $audit->created_at;
                 $targetName = $audit->targetUser?->name ?: 'User';
                 $roleName = $audit->role?->name ?: 'Role';
                 $normalizedAction = strtolower((string) $audit->action);
+                $companyMeta = $resolveCompanyMeta((int) $audit->company_id);
                 $baseTitle = match ($audit->action) {
                     'assigned' => sprintf('%s assigned to %s', $roleName, $targetName),
                     'revoked' => sprintf('%s revoked from %s', $roleName, $targetName),
@@ -162,6 +236,9 @@ class HcmActivityController extends Controller
                     'statusTypeLabel' => $normalizedAction !== '' ? ucfirst(str_replace('_', ' ', $normalizedAction)) : 'Updated',
                     'dueDate' => null,
                     'ownerName' => $audit->actorUser?->name ?: 'System',
+                    'companyId' => $companyMeta['companyId'],
+                    'companyName' => $companyMeta['companyName'],
+                    'companyCode' => $companyMeta['companyCode'],
                     'canEdit' => false,
                     'canDelete' => false,
                     'readOnlyReason' => 'System-generated activity. Read-only.',
@@ -176,7 +253,9 @@ class HcmActivityController extends Controller
         if ($type === 'all' || $type === 'payroll') {
             $runQuery = HcmPayrollRun::query()
                 ->with(['period:id,period_year,period_month', 'finalizedBy:id,name'])
-                ->where('company_id', $companyId)
+                ->when(! $scopeAllCompanies, function ($query) use ($effectiveCompanyId): void {
+                    $query->where('company_id', $effectiveCompanyId);
+                })
                 ->latest('created_at')
                 ->limit(120);
 
@@ -184,8 +263,9 @@ class HcmActivityController extends Controller
                 $runQuery->where('purpose', 'like', '%'.$search.'%');
             }
 
-            $payrollItems = $runQuery->get()->map(function (HcmPayrollRun $run): array {
+            $payrollItems = $runQuery->get()->map(function (HcmPayrollRun $run) use ($resolveCompanyMeta): array {
                 $createdAt = $run->finalized_at ?: $run->calculated_at ?: $run->created_at;
+                $companyMeta = $resolveCompanyMeta((int) $run->company_id);
                 $purposeLabel = match ($run->purpose) {
                     HcmPayrollRun::PURPOSE_THR => 'THR',
                     HcmPayrollRun::PURPOSE_PKWT_COMPENSATION => 'PKWT Compensation',
@@ -221,6 +301,9 @@ class HcmActivityController extends Controller
                         ? sprintf('%04d-%02d-%02d', (int) $run->period->period_year, (int) $run->period->period_month, 1)
                         : null,
                     'ownerName' => $run->finalizedBy?->name ?: 'System',
+                    'companyId' => $companyMeta['companyId'],
+                    'companyName' => $companyMeta['companyName'],
+                    'companyCode' => $companyMeta['companyCode'],
                     'canEdit' => false,
                     'canDelete' => false,
                     'readOnlyReason' => 'System-generated activity. Read-only.',
@@ -235,7 +318,9 @@ class HcmActivityController extends Controller
         if ($type === 'all' || $type === 'manual') {
             $manualQuery = HcmManualActivity::query()
                 ->with(['creator:id,name'])
-                ->where('company_id', $companyId)
+                ->when(! $scopeAllCompanies, function ($query) use ($effectiveCompanyId): void {
+                    $query->where('company_id', $effectiveCompanyId);
+                })
                 ->latest('created_at')
                 ->limit(200);
 
@@ -247,10 +332,11 @@ class HcmActivityController extends Controller
                 });
             }
 
-            $manualItems = $manualQuery->get()->map(function (HcmManualActivity $manual): array {
+            $manualItems = $manualQuery->get()->map(function (HcmManualActivity $manual) use ($resolveCompanyMeta, $canManageManual): array {
                 $createdAt = $manual->created_at;
                 $status = strtolower((string) $manual->status);
                 $kind = strtolower((string) $manual->activity_kind);
+                $companyMeta = $resolveCompanyMeta((int) $manual->company_id);
 
                 return [
                     'id' => 'manual-'.$manual->id,
@@ -265,9 +351,12 @@ class HcmActivityController extends Controller
                     'statusTypeLabel' => ucfirst(str_replace('_', ' ', $status !== '' ? $status : 'planned')),
                     'dueDate' => $manual->due_date?->format('Y-m-d'),
                     'ownerName' => $manual->creator?->name ?: 'System',
-                    'canEdit' => true,
-                    'canDelete' => true,
-                    'readOnlyReason' => null,
+                    'companyId' => $companyMeta['companyId'],
+                    'companyName' => $companyMeta['companyName'],
+                    'companyCode' => $companyMeta['companyCode'],
+                    'canEdit' => $canManageManual,
+                    'canDelete' => $canManageManual,
+                    'readOnlyReason' => $canManageManual ? null : 'Only HCM admin for this company can edit or delete activity logs.',
                     'createdAt' => $createdAt?->toIso8601String(),
                     'createdAtTs' => $createdAt?->timestamp ?? 0,
                 ];
@@ -432,6 +521,41 @@ class HcmActivityController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Manual activity deleted.',
+        ]);
+    }
+
+    /**
+     * Get list of all companies for super admin to filter activity feed.
+     * Only accessible to global HCM admin.
+     */
+    public function listCompanies(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user?->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Only super admin can list all companies.',
+                ],
+            ], 403);
+        }
+
+        $companies = Company::query()
+            ->select(['id', 'code', 'name', 'status', 'created_at'])
+            ->where('status', 'active')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $companies->map(fn ($c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'name' => $c->name,
+                'status' => $c->status,
+                'createdAt' => $c->created_at?->toIso8601String(),
+            ]),
         ]);
     }
 }

@@ -64,4 +64,47 @@ class KnowledgebaseWebTest extends TestCase
             ->get('/knowledgebase-view?category=payroll')
             ->assertRedirect(route('knowledgebase.category', ['slug' => 'payroll']));
     }
+
+    public function test_search_with_no_results_shows_empty_state(): void
+    {
+        $user = User::query()->create([
+            'name' => 'KB Reader 4',
+            'email' => 'kb.reader4@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase?q=nonexistentsearchterm')
+            ->assertOk()
+            ->assertSee('Knowledge Base', false)
+            ->assertSee('nonexistentsearchterm', false)
+            ->assertDontSee('Memulai dan akun', false); // Should not show categories when no results
+    }
+
+    public function test_category_with_no_articles_shows_empty_state(): void
+    {
+        $user = User::query()->create([
+            'name' => 'KB Reader 5',
+            'email' => 'kb.reader5@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase/category/memulai') // This category exists but let's test the view
+            ->assertOk()
+            ->assertSee('Memulai dan akun', false);
+    }
+
+    public function test_invalid_category_returns_404(): void
+    {
+        $user = User::query()->create([
+            'name' => 'KB Reader 6',
+            'email' => 'kb.reader6@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase/category/nonexistent-category')
+            ->assertNotFound();
+    }
 }

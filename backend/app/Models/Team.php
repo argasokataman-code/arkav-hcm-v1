@@ -2,23 +2,30 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class Team extends Model
 {
+    use AssignsUuid;
+
     protected static function booted(): void
     {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
+        static::creating(function (self $team): void {
+            if (! Schema::hasColumn($team->getTable(), 'uuid') || ! empty($team->uuid)) {
+                return;
             }
+
+            $team->uuid = (string) Str::uuid();
         });
     }
 
     protected $fillable = [
+        'uuid',
         'company_id',
         'department_id',
         'name',
@@ -26,6 +33,7 @@ class Team extends Model
     ];
 
     protected $casts = [
+        'uuid' => 'string',
         'company_id' => 'integer',
         'is_active' => 'boolean',
     ];

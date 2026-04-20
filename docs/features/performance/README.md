@@ -1,12 +1,48 @@
-## Performance (Phase 1) — README
+# Performance (Phase 1)
 
-Modul Performance Phase 1 menyediakan alur penilaian sederhana dengan workflow:
+## Ringkasan
 
-- **Employee** mengisi **self review** (draft → submit)
-- **Manager** mengisi **manager review** (submitted → manager reviewed)
-- **HCM Admin** mengisi **final score** dan **finalize**
+Modul Performance Phase 1 menyediakan alur penilaian sederhana dengan workflow self review oleh employee, manager review oleh atasan, dan final scoring oleh HCM Admin. Modul ini menjadi pusat appraisal formal dan juga berbagi konteks dengan goal tracking, attendance, dan leave saat organisasi membutuhkan gambaran performa yang lebih utuh.
 
-### Role & akses (target)
+## Akses
+
+- Employee: mengisi dan submit self review milik sendiri saat cycle aktif.
+- Manager: melihat review tim dan memberi manager review pada scope bawahan.
+- HCM Admin: mengelola indicator template, cycle, create review, final score, dan finalize.
+
+## UI Aktif
+
+- `/performance-indicator` untuk master indikator.
+- `/performance-appraisal` untuk cycle dan list review admin.
+- `/performance-review` untuk editor review employee/manager/admin.
+- JS aktif: `performance-data.js`.
+
+## Flow Bisnis End-to-End
+
+1. HCM Admin menyiapkan template indikator dan appraisal cycle.
+2. Admin membuat review untuk employee.
+3. Employee mengisi self review saat status masih `draft` dan cycle aktif, lalu submit.
+4. Manager mengisi manager review dan menyelesaikan tahap manager.
+5. HCM Admin memberi final score dan finalize review.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Draft → submitted → manager_reviewed → finalized menjadi jalur utama appraisal.
+- Manager scope mengikuti `employee_profiles.manager_user_id`.
+- Scope `all` hanya untuk admin; employee dan manager hanya boleh melihat scope yang relevan.
+- Scoring model hybrid menggabungkan KPI dan behavioral score.
+- Review creation sekarang menyimpan `company_id` tenant aktif agar metrik leave/performance tetap tenant-scoped.
+
+## Integrasi
+
+- Goal Tracking: goal tracking melengkapi appraisal dengan sasaran kerja yang dapat dilihat bersama pada konteks performance. Lihat `docs/features/goal-tracking/README.md`.
+- Leave & Holidays serta Attendance: metrik frekuensi leave dan absenteeism menjadi input tambahan pada evaluasi tertentu di controller performance. Lihat `docs/features/leave-and-holidays/README.md` dan `docs/features/attendance-shift-schedule/README.md`.
+- Employees & Organization: relasi employee-manager dan detail user berasal dari directory employee. Lihat `docs/features/employees-organization/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+
+## Kontrak API
+
+### Role & akses
 
 - **Employee (karyawan non-admin)**:
   - Lihat & edit review milik sendiri saat status `draft`
@@ -25,6 +61,17 @@ Modul Performance Phase 1 menyediakan alur penilaian sederhana dengan workflow:
 
 Catatan: hubungan employee→manager diambil dari `employee_profiles.manager_user_id`.
 
+### Kontrak identifier aktif
+
+- `POST /v1/hcm/performance/reviews` menerima `cycleId`, `userId`, dan `templateId` dalam format numeric `id` sebagai kontrak aktif UI.
+- UUID masih diterima sebagai fallback legacy untuk ketiga field tersebut.
+- `userId` target wajib anggota tenant aktif; review baru disimpan dengan `company_id` tenant aktif agar metrik leave/performance tidak bocor lintas company.
+
+## Existing Vs Target
+
+- Existing: workflow appraisal dasar, RBAC per scope, indicator templates, cycles, dan reviews sudah aktif.
+- Target: pengayaan analitik performa lintas modul dan visualisasi lebih dalam masih bisa dikembangkan di fase berikutnya.
+
 ### UI (web)
 
 - `GET /performance-indicator` — master template indikator (admin)
@@ -38,6 +85,11 @@ Catatan: hubungan employee→manager diambil dari `employee_profiles.manager_use
   - Panel kiri: list review (scope: me/team/all)
   - Panel kanan: editor skor + notes sesuai role
   - Panduan: tombol **Panduan pemakaian** (modal) berisi langkah karyawan/manager/admin
+
+Catatan wiring aktif:
+- `performance-data.js` mengirim auth + tenant headers ke semua request `apiRequest()`.
+- Page admin `performance-indicator` / `performance-appraisal` akan fallback ke `/performance-review` saat `performance.manage` tidak ada.
+- Page review menyembunyikan scope `all` saat user tidak punya permission admin performance.
 
 ### API (Phase 1)
 
@@ -86,4 +138,5 @@ Semua endpoint di bawah prefix **`/v1/hcm/performance`**.
 ### Tests
 
 - Feature test: `backend/tests/Feature/PerformanceApiTest.php`
+- UI wiring test: `backend/tests/ui/performance.wiring.test.js`
 

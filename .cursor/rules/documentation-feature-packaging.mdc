@@ -73,6 +73,62 @@ Dokumentasi feature ini terorganisir di folder ini:
 [Module version, status, completion date]
 ```
 
+### 2A) README.md — Flow Bisnis Wajib (untuk fitur yang punya alur operasional)
+
+Untuk feature yang dipakai user bisnis / operasional, `README.md` **tidak boleh hanya teknis**. README wajib bisa dibaca oleh PM/PO/Business Analyst yang tidak paham kode.
+
+**Berlaku saat:** feature tersebut sedang dikerjakan, diubah perilaku runtime-nya, dipakai sebagai dasar evaluasi produk, atau sedang dirapikan dokumentasinya secara substantif. **Tidak berarti setiap diskusi / brainstorming kecil wajib langsung mengubah docs.**
+
+**Wajib ada section bisnis yang seragam minimal:**
+
+```markdown
+## Ringkasan Bisnis
+[apa tujuan bisnis feature ini]
+
+## Aktor & Role
+[siapa yang mengakses, siapa yang memutuskan, siapa yang hanya melihat]
+
+## Flow Bisnis End-to-End
+### Flow utama
+1. ...
+2. ...
+3. ...
+
+### Keputusan / percabangan
+- jika A → outcome A
+- jika B → outcome B
+
+## Status / Lifecycle
+| Status | Arti bisnis | Pemicu masuk | Dampak | Catatan |
+
+## E2E Bisnis
+- skenario happy path
+- skenario exception / rollback / cancel / rejection
+
+## Role & Permission Cross-check
+- halaman web yang terlibat
+- endpoint API yang terlibat
+- siapa boleh view / create / approve / finalize / delete
+
+## Kondisi Existing vs Target Bisnis
+- existing runtime saat ini
+- gap yang belum tertutup
+- keputusan kompromi sementara
+```
+
+**Tujuan section ini:**
+- reviewer non-engineering bisa evaluasi feature hanya dari flow bisnis;
+- gap antara perilaku existing vs target produk terlihat transparan;
+- keputusan status/lifecycle bisa diperdebatkan sebelum implementasi lebih jauh.
+
+**Rule ketat:**
+- Kewajiban update README bisnis dipicu oleh pekerjaan feature yang substantif, bukan oleh setiap percakapan. Jika masih tahap diskusi awal dan belum ada perubahan/keputusan yang perlu diabadikan, cukup pakai rule ini sebagai format target saat feature itu benar-benar didokumentasikan.
+- Jika flow bisnis detail belum tersedia, **jangan diamkan kosong**. Isi dulu berdasarkan sistem existing saat ini, lalu tandai gap/ambiguity secara eksplisit.
+- Jangan menyamarkan gap dengan kalimat marketing seperti “sudah mendukung penuh” jika runtime belum benar-benar end-to-end.
+- Jika ada lifecycle/status, wajib jelaskan **arti bisnis tiap status**, bukan hanya enum atau label UI.
+- Jika ada approval/settlement/clearance/workflow, wajib jelaskan **siapa mengambil keputusan**, **kapan status berubah**, dan **apa konsekuensi operasionalnya**.
+- Format heading harus konsisten antar feature agar mudah dibandingkan lintas modul.
+
 ### 3) Jenis File Dokumentasi Per Feature
 
 **Pilih file yang relevan, HARUS konsisten:**
@@ -177,8 +233,10 @@ Agent HARUS bisa jawab YES untuk semua:
 
 - [ ] Feature folder exist di `docs/features/<feature-name>/`?
 - [ ] `README.md` exist dengan overview + navigation + quick start?
+- [ ] `README.md` sudah punya flow bisnis end-to-end + decision path + status/lifecycle + gap existing vs target?
 - [ ] `IMPLEMENTATION.md` exist dengan technical docs lengkap (jika ada backend)?
 - [ ] Testing/Setup/Schema docs exist sesuai jenis feature?
+- [ ] Role/permission cross-check terhadap API + halaman aktif sudah tercantum di docs?
 - [ ] Semua doc files pindah dari root / random folder?
 - [ ] Root directory bersih (tidak ada `<FEATURE-NAME>-DOCS.md` dll)?
 - [ ] `docs/features/README.md` ter-update dengan feature di main index?

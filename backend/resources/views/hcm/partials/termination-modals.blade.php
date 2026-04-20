@@ -25,6 +25,7 @@
                             <select class="form-select" data-arcav-termination-status>
                                 <option value="pending">pending</option>
                                 <option value="approved">approved</option>
+                                <option value="finalized">finalized</option>
                                 <option value="cancelled">cancelled</option>
                             </select>
                         </div>
@@ -63,6 +64,62 @@
                         <div class="col-12">
                             <label class="form-label">Notes</label>
                             <textarea class="form-control" rows="2" maxlength="2000" data-arcav-termination-notes></textarea>
+                        </div>
+                        <div class="col-12 d-none" data-arcav-termination-finalization-fields>
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                    <h6 class="mb-0">Final settlement snapshot</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-arcav-termination-preview-settlement>
+                                        Refresh from payroll &amp; assets
+                                    </button>
+                                </div>
+                                <div class="alert alert-info d-none mb-3" role="alert" data-arcav-termination-preview-flash></div>
+                                <div class="border rounded-3 bg-white p-3 mb-3 d-none" data-arcav-termination-preview-wrap>
+                                    <div class="d-flex flex-wrap gap-3 small text-muted mb-2">
+                                        <span data-arcav-termination-preview-period>Payroll period: —</span>
+                                        <span data-arcav-termination-preview-source>Source: —</span>
+                                        <span data-arcav-termination-preview-net>Net: —</span>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="fw-semibold small mb-2">Settlement breakdown</div>
+                                            <div class="list-group list-group-flush border rounded-3" data-arcav-termination-preview-breakdown></div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="fw-semibold small mb-2">Outstanding clearance items</div>
+                                            <div class="list-group list-group-flush border rounded-3" data-arcav-termination-preview-clearance></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Payroll period</label>
+                                        <input type="month" class="form-control" data-arcav-termination-settlement-payroll-period />
+                                        <small class="text-muted fs-12">Periode payroll terdekat untuk settlement akhir.</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Final salary amount</label>
+                                        <input type="number" min="0" step="0.01" class="form-control" data-arcav-termination-final-salary-amount />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Final allowance amount</label>
+                                        <input type="number" min="0" step="0.01" class="form-control" data-arcav-termination-final-allowance-amount />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Final deduction amount</label>
+                                        <input type="number" min="0" step="0.01" class="form-control" data-arcav-termination-final-deduction-amount />
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label">Asset return notes</label>
+                                        <textarea class="form-control" rows="2" maxlength="2000" data-arcav-termination-asset-return-notes></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Clearance notes</label>
+                                        <textarea class="form-control" rows="3" maxlength="2000" data-arcav-termination-clearance-notes></textarea>
+                                        <small class="text-muted fs-12">Wajib saat status finalized untuk menjelaskan keputusan settlement dan tindak lanjut clearance.</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

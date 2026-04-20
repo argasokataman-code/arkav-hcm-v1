@@ -34,6 +34,7 @@ tags:
   - name: User Management
   - name: Reporting
   # --- PATCH: Add missing endpoints for governance compliance ---
+paths:
   /v1/reconciliation/exports:
     get:
       tags: [Reporting]
@@ -73,7 +74,7 @@ tags:
         - name: id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: File download
@@ -208,9 +209,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [package_id, billing_cycle, company, owner]
+              required: [package_uuid, billing_cycle, company, owner]
               properties:
-                package_id: { type: integer, minimum: 1 }
+                package_uuid: { type: string, format: uuid }
                 billing_cycle: { type: string, enum: [monthly, yearly] }
                 start_mode: { type: string, enum: [trial, pending_payment], nullable: true }
                 billingEmail: { type: string, format: email, nullable: true, maxLength: 255 }
@@ -262,7 +263,6 @@ paths:
                     city:
                       type: string
                       maxLength: 120
-                      description: Company city.
                     postal_code:
                       type: string
                       maxLength: 12
@@ -317,7 +317,7 @@ paths:
                           trialEndsAt: { type: string, format: date-time, nullable: true }
                           billingCycle: { type: string, enum: [monthly, yearly] }
                           amount: { type: number }
-                          packageId: { type: integer }
+                          packageId: { type: string, format: uuid }
                           packageCode: { type: string }
                           packageName: { type: string }
                       invoice:
@@ -327,7 +327,6 @@ paths:
                           id: { type: integer }
                           invoiceNumber: { type: string, nullable: true }
                           issueDate: { type: string, format: date }
-                          dueDate: { type: string, format: date }
                           amountDue: { type: number }
                           isPaid: { type: boolean }
                           status: { type: string }
@@ -379,7 +378,7 @@ paths:
   /v1/hcm/activity-feed:
     get:
       tags: [HCM]
-      summary: Get tenant activity feed for /activity page
+      summary: Get tenant activity feed for /activity page (global admin can filter by company)
       security:
         - bearerAuth: []
       parameters:
@@ -405,6 +404,13 @@ paths:
           required: false
           schema:
             type: string
+        - name: companyId
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Optional company filter for global HCM admin.
         - name: page
           in: query
           required: false
@@ -424,10 +430,39 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/activity-feed-companies:
+    get:
+      tags: [HCM]
+      summary: List active companies for activity feed filter (global HCM admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        code: { type: string }
+                        name: { type: string }
+                        status: { type: string }
+                        createdAt: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /v1/hcm/activity-manual:
     post:
       tags: [HCM]
-      summary: Create manual activity record
+      summary: Create manual activity record (global admin or tenant owner/admin)
       security:
         - bearerAuth: []
       requestBody:
@@ -459,7 +494,7 @@ paths:
   /v1/hcm/activity-manual/{id}:
     put:
       tags: [HCM]
-      summary: Update manual activity record
+      summary: Update manual activity record (global admin or tenant owner/admin)
       security:
         - bearerAuth: []
       parameters:
@@ -496,7 +531,7 @@ paths:
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [HCM]
-      summary: Delete manual activity record
+      summary: Delete manual activity record (global admin or tenant owner/admin)
       security:
         - bearerAuth: []
       parameters:
@@ -648,7 +683,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -713,7 +748,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -828,7 +863,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -848,7 +883,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -955,11 +990,11 @@ paths:
           application/json:
             schema:
               type: object
-              required: [package_id, billing_cycle]
+              required: [package_uuid, billing_cycle]
               properties:
-                package_id:
-                  type: integer
-                  minimum: 1
+                package_uuid:
+                  type: string
+                  format: uuid
                 billing_cycle:
                   type: string
                   enum: [monthly, yearly]
@@ -987,7 +1022,7 @@ paths:
                           status: { type: string }
                           billingCycle: { type: string }
                           amount: { type: number }
-                          packageId: { type: integer }
+                          packageId: { type: string, format: uuid }
                           packageCode: { type: string }
                           packageName: { type: string }
                       invoice:
@@ -1024,6 +1059,122 @@ paths:
                     error:
                       code: TENANT_CONTEXT_REQUIRED
                       message: Active company context is required.
+
+  /v1/hcm/billing/invoices:
+    get:
+      tags: [SaaS, HCM]
+      summary: List tenant invoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/billing/invoices/{id}:
+    get:
+      tags: [SaaS, HCM]
+      summary: Get tenant invoice detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/billing/invoices/{id}/download:
+    get:
+      tags: [SaaS, HCM]
+      summary: Download invoice PDF
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/billing/invoices/{id}/mock-pay:
+    post:
+      tags: [SaaS, HCM]
+      summary: Mark invoice paid using mock gateway and create payment audit record
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentMethod:
+                  type: string
+                  enum: [mock_card, mock_bank, mock_ewallet]
+                gateway:
+                  type: string
+                  maxLength: 50
+      responses:
+        '200':
+          description: Invoice paid (or already paid)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      invoiceNumber: { type: string, nullable: true }
+                      issueDate: { type: string, nullable: true }
+                      dueDate: { type: string, nullable: true }
+                      amountDue: { type: number }
+                      isPaid: { type: boolean }
+                      status: { type: string }
+                  payment:
+                    type: object
+                    nullable: true
+                    properties:
+                      id: { type: integer }
+                      gateway: { type: string }
+                      gatewayReference: { type: string, nullable: true }
+                      paymentMethod: { type: string }
+                      status: { type: string }
+                      amount: { type: number }
+                      paidAt: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
   # -------------------------
   # User Management (implemented under /v1/hcm/user-management)
@@ -1094,7 +1245,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UserNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1106,7 +1257,17 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UserNumericIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 2, maxLength: 150 }
+                email: { type: string, format: email, maxLength: 255 }
+                status: { type: string, enum: [active, inactive] }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1117,7 +1278,7 @@ paths:
   /v1/hcm/user-management/roles:
     get:
       tags: [User Management]
-      summary: List roles (admin only)
+      summary: List roles (tenant-scoped)
       security:
         - bearerAuth: []
       parameters:
@@ -1129,9 +1290,21 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
     post:
       tags: [User Management]
-      summary: Create role (admin only)
+      summary: Create role (requires super user)
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string, maxLength: 80 }
+                name: { type: string, maxLength: 150 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                status: { type: string, enum: [active, inactive] }
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1141,11 +1314,21 @@ paths:
   /v1/hcm/user-management/roles/{id}:
     put:
       tags: [User Management]
-      summary: Update role (admin only)
+      summary: Update role (requires super user)
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/RoleIdentifierPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 150 }
+                description: { type: string, nullable: true, maxLength: 2000 }
+                status: { type: string, enum: [active, inactive, archived] }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1154,11 +1337,11 @@ paths:
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [User Management]
-      summary: Delete or archive role (admin only)
+      summary: Delete or archive role (requires super user)
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/RoleIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1187,7 +1370,19 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/RoleIdentifierPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissionCodes]
+              properties:
+                permissionCodes:
+                  type: array
+                  minItems: 1
+                  items: { type: string, maxLength: 120 }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1202,7 +1397,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UserIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1214,7 +1409,19 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UserIdentifierPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleCode]
+              properties:
+                roleCode: { type: string, maxLength: 80 }
+                effectiveFrom: { type: string, format: date, nullable: true }
+                effectiveUntil: { type: string, format: date, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1229,8 +1436,8 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
-        - { name: assignmentId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/UserIdentifierPath'
+        - $ref: '#/components/parameters/AssignmentIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1306,7 +1513,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ReportSnapshotIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1320,7 +1527,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ReportSnapshotIdentifierPath'
       requestBody:
         required: true
         content:
@@ -1346,6 +1553,93 @@ paths:
                   data:
                     type: object
                     properties:
+  /v1/saas/reports/revenue:
+    get:
+      tags: [Reporting]
+      summary: Get revenue report (admin only)
+      description: |
+        Legacy reporting endpoint that remains backward compatible for global consumers.
+        If the request carries `X-Company-Id`, the backend pins the scope to that company.
+        A conflicting `company_id` query returns `403 TENANT_SCOPE_MISMATCH`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [monthly, yearly]
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: company_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/reports/aging:
+    get:
+      tags: [Reporting]
+      summary: Get aging report (admin only)
+      description: |
+        Legacy reporting endpoint that remains backward compatible for global consumers.
+        If the request carries `X-Company-Id`, the backend pins the scope to that company.
+        A conflicting `company_id` query returns `403 TENANT_SCOPE_MISMATCH`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/reports/churn:
+    get:
+      tags: [Reporting]
+      summary: Get churn report (admin only)
+      description: |
+        Legacy reporting endpoint that remains backward compatible for global consumers.
+        If the request carries `X-Company-Id`, the backend pins the scope to that company.
+        A conflicting `company_id` query returns `403 TENANT_SCOPE_MISMATCH`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [monthly, yearly]
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: company_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
                       id: { type: integer, example: 12 }
                       fileType: { type: string, enum: [csv, excel, pdf], example: csv }
                       fileUrl: { type: string, example: /storage/report-exports/company_1/snapshot_8/employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
@@ -1386,7 +1680,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/TicketNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1398,7 +1692,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/TicketNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1410,9 +1704,35 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/TicketNumericIdPath'
       responses:
         '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/tickets/{id}/comments:
+    post:
+      tags: [Tickets]
+      summary: Add ticket comment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketNumericIdPath'
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/tickets/{id}/attachments:
+    post:
+      tags: [Tickets]
+      summary: Upload ticket attachment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TicketNumericIdPath'
+      responses:
+        '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -1426,6 +1746,7 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/tickets/categories:
     get:
       tags: [Tickets]
@@ -1486,7 +1807,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidCategoryPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1499,7 +1820,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidCategoryPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1532,7 +1853,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1544,7 +1865,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1557,7 +1878,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1570,7 +1891,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1584,7 +1905,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1598,7 +1919,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1612,7 +1933,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidAssetPath'
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1647,10 +1968,41 @@ paths:
       summary: Admin upsert attendance record (admin only)
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, workDate]
+              properties:
+                userId:
+                  type: integer
+                  description: Active contract uses users.id.
+                workDate:
+                  type: string
+                  format: date
+                checkInTime:
+                  type: string
+                  nullable: true
+                  pattern: '^\\d{2}:\\d{2}$'
+                checkOutTime:
+                  type: string
+                  nullable: true
+                  pattern: '^\\d{2}:\\d{2}$'
+                breakMinutes:
+                  type: integer
+                  minimum: 0
+                  maximum: 720
+                lateMinutes:
+                  type: integer
+                  minimum: 0
+                  maximum: 1440
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/attendance/me/today:
     get:
@@ -1735,6 +2087,39 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/selfie:
+    post:
+      tags: [Attendance]
+      summary: Upload attendance selfie for today (self)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [selfie_base64]
+              properties:
+                selfie_base64:
+                  type: string
+                  description: Base64-encoded image payload.
+                timestamp:
+                  type: integer
+                  nullable: true
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/selfie/status:
+    get:
+      tags: [Attendance]
+      summary: Get selfie status for today's attendance (self)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
   /v1/hcm/timesheets:
     get:
       tags: [Attendance]
@@ -1743,7 +2128,7 @@ paths:
         - bearerAuth: []
       parameters:
         - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
-        - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: false, schema: { type: string, format: date }, description: "Must be after or equal to dateFrom when both are provided." }
         - { name: project, in: query, required: false, schema: { type: string, maxLength: 100 } }
         - { name: sort, in: query, required: false, schema: { type: string } }
         - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
@@ -1767,6 +2152,59 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/schedule-timing/{userId}:
+    put:
+      tags: [Attendance]
+      summary: Upsert schedule timing override for one user (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shiftId:
+                  type: integer
+                  nullable: true
+                  description: Active contract uses hcm_shifts.id.
+                startTime:
+                  type: string
+                  nullable: true
+                  pattern: '^\\d{2}:\\d{2}$'
+                endTime:
+                  type: string
+                  nullable: true
+                  pattern: '^\\d{2}:\\d{2}$'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Attendance]
+      summary: Delete schedule timing override for one user (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
   # -------------------------
   # Leave (implemented under /v1/hcm)
@@ -1780,6 +2218,29 @@ paths:
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
+  /v1/hcm/employee-leave-balance:
+    get:
+      tags: [Leave]
+      summary: Get employee leave balance for a selected leave type
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: leaveType, in: query, required: true, schema: { type: string, maxLength: 100 } }
+        -
+          name: userId
+          in: query
+          required: false
+          description: Numeric users.id from the active admin UI. UUID is accepted as legacy fallback.
+          schema:
+            oneOf:
+              - { type: integer }
+              - { type: string, format: uuid }
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/leave-types:
     get:
       tags: [Leave]
@@ -1807,7 +2268,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1819,7 +2280,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1836,7 +2297,15 @@ paths:
         - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
         - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
         - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
-        - { name: userId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        -
+          name: userId
+          in: query
+          required: false
+          description: Numeric users.id from the active admin UI. UUID is accepted as legacy fallback.
+          schema:
+            oneOf:
+              - { type: integer }
+              - { type: string, format: uuid }
       responses:
         '200':
           description: CSV export
@@ -1861,7 +2330,15 @@ paths:
         - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
         - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
         - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
-        - { name: userId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        -
+          name: userId
+          in: query
+          required: false
+          description: Numeric users.id from the active admin UI. UUID is accepted as legacy fallback.
+          schema:
+            oneOf:
+              - { type: integer }
+              - { type: string, format: uuid }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1870,6 +2347,35 @@ paths:
       summary: Create leave request (admin can create for other users)
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leaveType, dateFrom, dateTo]
+              properties:
+                userId:
+                  description: Numeric users.id from the active admin UI. UUID is accepted as legacy fallback.
+                  oneOf:
+                    - { type: integer }
+                    - { type: string, format: uuid }
+                leaveType:
+                  type: string
+                  maxLength: 100
+                dateFrom:
+                  type: string
+                  format: date
+                dateTo:
+                  type: string
+                  format: date
+                days:
+                  type: number
+                  minimum: 0.5
+                  maximum: 365
+                notes:
+                  type: string
+                  maxLength: 2000
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1882,7 +2388,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1894,7 +2400,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1962,7 +2468,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -1983,7 +2489,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -2011,7 +2517,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2157,7 +2663,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2220,6 +2726,13 @@ paths:
                           finalizedByUserId:
                             type: integer
                             nullable: true
+                          voidedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          voidedByUserId:
+                            type: integer
+                            nullable: true
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -2233,7 +2746,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2276,6 +2789,16 @@ paths:
                           finalizedByUserId:
                             type: integer
                             nullable: true
+                          voidedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          voidedByUserId:
+                            type: integer
+                            nullable: true
+                          voidedByUserName:
+                            type: string
+                            nullable: true
                       lineCount:
                         type: integer
                         example: 15
@@ -2314,7 +2837,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2403,6 +2926,15 @@ paths:
                             meta:
                               type: object
                               nullable: true
+                      auditTrail:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            event: { type: string, example: voided }
+                            at: { type: string, format: date-time, nullable: true }
+                            actorUserId: { type: integer, nullable: true }
+                            actorName: { type: string, nullable: true }
                       specialRecipients:
                         type: object
                         properties:
@@ -2445,7 +2977,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2481,6 +3013,16 @@ paths:
                       finalizedAt:
                         type: string
                         format: date-time
+                        nullable: true
+                      voidedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      voidedByUserId:
+                        type: integer
+                        nullable: true
+                      voidedByUserName:
+                        type: string
                         nullable: true
                       finalizedByUserId:
                         type: integer
@@ -2518,6 +3060,90 @@ paths:
                         enum: [PAYROLL_RUN_NOT_DRAFT, PAYROLL_FINALIZED_EXISTS, PAYROLL_RUN_EMPTY, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA]
                       message:
                         type: string
+  /v1/hcm/payroll-runs/{id}/void:
+    post:
+      tags: [Payroll]
+      summary: Void finalized payroll run (HCM admin)
+      description: |
+        Menandai run `finalized` menjadi `void` selama belum ada line dengan `paymentStatus = paid`.
+        Jika run ini adalah finalized terakhir pada periode tersebut, status periodenya dikembalikan ke `open`.
+        Runtime saat ini menerima identifier numeric legacy pada path `{id}`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 5
+                      payrollPeriodId:
+                        type: integer
+                        example: 1
+                      purpose:
+                        type: string
+                        enum: [monthly, thr, pkwt_compensation]
+                        example: monthly
+                      status:
+                        type: string
+                        enum: [draft, finalized, void]
+                        example: void
+                      calculatedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      finalizedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      finalizedByUserId:
+                        type: integer
+                        nullable: true
+                      period:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                          periodYear:
+                            type: integer
+                          periodMonth:
+                            type: integer
+                          status:
+                            type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422':
+          description: Validation/domain error termasuk PAYROLL_RUN_NOT_FINALIZED dan PAYROLL_RUN_ALREADY_PAID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [PAYROLL_RUN_NOT_FINALIZED, PAYROLL_RUN_ALREADY_PAID]
+                      message:
+                        type: string
   /v1/hcm/payroll-runs/{id}/disburse:
     post:
       tags: [Payroll]
@@ -2532,7 +3158,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: false
         content:
@@ -2543,8 +3169,9 @@ paths:
                 userIds:
                   type: array
                   items:
-                    type: integer
-                  description: Optional subset of employee user IDs to disburse. Required when applyAll is not true.
+                    type: string
+                    format: uuid
+                  description: Optional subset of employee user UUIDs to disburse. Required when applyAll is not true.
                 applyAll:
                   type: boolean
                   description: Set true to disburse all eligible employees in the run explicitly.
@@ -3483,7 +4110,7 @@ paths:
         - name: line
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: application/pdf
@@ -3571,7 +4198,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: Binary export file
@@ -3593,7 +4220,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: Binary image file
@@ -3654,7 +4281,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -3667,7 +4294,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -3681,7 +4308,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - { name: userId, in: query, required: true, schema: { type: integer } }
+        - { name: userId, in: query, required: true, schema: { type: string, format: uuid } }
         - { name: kind, in: query, required: false, schema: { type: string, enum: [addition, deduction] } }
         - { name: isActive, in: query, required: false, schema: { type: boolean } }
       responses:
@@ -3702,7 +4329,7 @@ paths:
               type: object
               required: [userId, payrollItemId, amount]
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid }
                 payrollItemId: { type: integer }
                 amount: { type: number, minimum: 0.01 }
                 isActive: { type: boolean, default: true }
@@ -3776,6 +4403,32 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/overtime-types/{id}:
+    put:
+      tags: [Overtime]
+      summary: Update overtime type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Overtime]
+      summary: Delete overtime type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/overtime-requests:
     get:
       tags: [Overtime]
@@ -3796,8 +4449,34 @@ paths:
     post:
       tags: [Overtime]
       summary: Create overtime request
+      description: |
+        Admin dapat mengirim `userId` sebagai numeric `users.id`; UUID masih diterima sebagai fallback legacy.
+        Target user wajib anggota tenant aktif. Request akan ditolak dengan `OT_ON_LEAVE_CONFLICT`
+        bila tanggal lembur bertabrakan dengan leave approved untuk user dan tenant yang sama.
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workDate, minutes]
+              properties:
+                userId:
+                  oneOf:
+                    - { type: integer }
+                    - { type: string, format: uuid }
+                  nullable: true
+                  description: Admin-only target user identifier. Numeric `users.id` is the active UI contract; UUID is accepted as a legacy fallback. User must belong to the active company.
+                overtimeTypeId: { type: integer, nullable: true }
+                requestType: { type: string, enum: [employee_request, company_assignment, missed_log_correction], nullable: true }
+                workDate: { type: string, format: date }
+                minutes: { type: integer, minimum: 1, maximum: 1440 }
+                status: { type: string, enum: [pending, approved, declined], nullable: true }
+                projectName: { type: string, maxLength: 200, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+                policyNote: { type: string, maxLength: 500, nullable: true }
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -3894,6 +4573,8 @@ paths:
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422':
+          description: Validation error or tenant context missing (TENANT_CONTEXT_REQUIRED)
     post:
       tags: [Training]
       summary: Create training type (admin only)
@@ -3904,6 +4585,36 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/training/types/{id}:
+    put:
+      tags: [Training]
+      summary: Update training type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Training]
+      summary: Delete training type (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
   /v1/hcm/training/trainings:
     get:
       tags: [Training]
@@ -3914,6 +4625,8 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422':
+          description: Validation error or tenant context missing (TENANT_CONTEXT_REQUIRED)
     post:
       tags: [Training]
       summary: Create training (admin only)
@@ -3924,6 +4637,36 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/training/trainings/{id}:
+    put:
+      tags: [Training]
+      summary: Update training (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Training]
+      summary: Delete training (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
   /v1/hcm/training/trainers:
     get:
       tags: [Training]
@@ -3934,6 +4677,8 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422':
+          description: Validation error or tenant context missing (TENANT_CONTEXT_REQUIRED)
     post:
       tags: [Training]
       summary: Create trainer (admin only)
@@ -3944,6 +4689,54 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/training/trainers/{id}:
+    put:
+      tags: [Training]
+      summary: Update trainer (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Training]
+      summary: Delete trainer (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/training/users/{userId}/trainings:
+    get:
+      tags: [Training]
+      summary: List trainings for a user in the active tenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: User not found in active company }
+        '422':
+          description: Validation error or tenant context missing (TENANT_CONTEXT_REQUIRED)
 
   # -------------------------
   # Performance (implemented under /v1/hcm/performance)
@@ -3981,6 +4774,57 @@ paths:
       summary: Create goal
       security:
         - bearerAuth: []
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/performance/reviews:
+    get:
+      tags: [Performance]
+      summary: List performance reviews (scope me/team/all)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [me, team, all] } }
+        - { name: cycleId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [draft, submitted, manager_reviewed, finalized] } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Performance]
+      summary: Create performance review (HCM admin)
+      description: |
+        Kontrak aktif UI mengirim `cycleId`, `userId`, dan `templateId` sebagai numeric `id`.
+        UUID masih diterima sebagai fallback legacy. `userId` target wajib anggota tenant aktif,
+        dan review baru disimpan dengan `company_id` tenant aktif untuk menjaga tenant isolation.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cycleId, userId, templateId]
+              properties:
+                cycleId:
+                  oneOf:
+                    - { type: integer, minimum: 1 }
+                    - { type: string, format: uuid }
+                userId:
+                  oneOf:
+                    - { type: integer, minimum: 1 }
+                    - { type: string, format: uuid }
+                  description: Target employee identifier. User must belong to the active company.
+                templateId:
+                  oneOf:
+                    - { type: integer, minimum: 1 }
+                    - { type: string, format: uuid }
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4027,7 +4871,7 @@ paths:
               type: object
               required: [userId, promotionDate]
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid }
                 department: { type: string, maxLength: 150, nullable: true }
                 designationFrom: { type: string, maxLength: 150, nullable: true }
                 designationTo: { type: string, maxLength: 150, nullable: true }
@@ -4046,10 +4890,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: userId
-          required: true
-          schema: { type: integer }
+        - $ref: '#/components/parameters/UserNumericLegacyPath'
         - in: query
           name: perPage
           schema: { type: integer, minimum: 1, maximum: 100 }
@@ -4067,7 +4908,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PromotionNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4079,7 +4920,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PromotionNumericIdPath'
       requestBody:
         required: true
         content:
@@ -4087,7 +4928,7 @@ paths:
             schema:
               type: object
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid }
                 department: { type: string, maxLength: 150, nullable: true }
                 designationFrom: { type: string, maxLength: 150, nullable: true }
                 designationTo: { type: string, maxLength: 150, nullable: true }
@@ -4105,7 +4946,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PromotionNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4151,13 +4992,19 @@ paths:
               type: object
               required: [userId, reason, noticeDate, resignationDate]
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid }
                 department: { type: string, maxLength: 150, nullable: true }
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 resignationDate: { type: string, format: date }
                 status: { type: string, enum: [pending, approved, cancelled], nullable: true }
                 notes: { type: string, maxLength: 2000, nullable: true }
+                settlementPayrollPeriod: { type: string, pattern: '^\d{4}-\d{2}$', nullable: true, example: '2026-05' }
+                finalSalaryAmount: { type: number, format: float, minimum: 0, nullable: true, example: 4500000 }
+                finalAllowanceAmount: { type: number, format: float, minimum: 0, nullable: true, example: 750000 }
+                finalDeductionAmount: { type: number, format: float, minimum: 0, nullable: true, example: 500000 }
+                assetReturnNotes: { type: string, maxLength: 2000, nullable: true }
+                clearanceNotes: { type: string, maxLength: 2000, nullable: true }
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4171,10 +5018,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: userId
-          required: true
-          schema: { type: integer }
+        - $ref: '#/components/parameters/UserNumericLegacyPath'
         - in: query
           name: perPage
           schema: { type: integer, minimum: 1, maximum: 100 }
@@ -4192,7 +5036,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ResignationNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4204,7 +5048,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ResignationNumericIdPath'
       requestBody:
         required: true
         content:
@@ -4212,13 +5056,19 @@ paths:
             schema:
               type: object
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid }
                 department: { type: string, maxLength: 150, nullable: true }
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 resignationDate: { type: string, format: date }
                 status: { type: string, enum: [pending, approved, cancelled] }
                 notes: { type: string, maxLength: 2000, nullable: true }
+                settlementPayrollPeriod: { type: string, pattern: '^\d{4}-\d{2}$', nullable: true, example: '2026-05' }
+                finalSalaryAmount: { type: number, format: float, minimum: 0, nullable: true, example: 4500000 }
+                finalAllowanceAmount: { type: number, format: float, minimum: 0, nullable: true, example: 750000 }
+                finalDeductionAmount: { type: number, format: float, minimum: 0, nullable: true, example: 500000 }
+                assetReturnNotes: { type: string, maxLength: 2000, nullable: true }
+                clearanceNotes: { type: string, maxLength: 2000, nullable: true }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4231,7 +5081,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/ResignationNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4274,16 +5124,52 @@ paths:
               type: object
               required: [userId, terminationType, reason, noticeDate, terminationDate]
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid, description: User UUID. User must belong to the active company. }
                 department: { type: string, maxLength: 150, nullable: true }
                 terminationType: { type: string, maxLength: 150 }
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 terminationDate: { type: string, format: date }
-                status: { type: string, enum: [pending, approved, cancelled], nullable: true }
+                status: { type: string, enum: [pending, approved, finalized, cancelled], nullable: true }
                 notes: { type: string, maxLength: 2000, nullable: true }
+                settlementPayrollPeriod: { type: string, pattern: '^\d{4}-\d{2}$', nullable: true, example: '2026-05' }
+                finalSalaryAmount: { type: number, format: float, minimum: 0, nullable: true, example: 4500000 }
+                finalAllowanceAmount: { type: number, format: float, minimum: 0, nullable: true, example: 750000 }
+                finalDeductionAmount: { type: number, format: float, minimum: 0, nullable: true, example: 500000 }
+                assetReturnNotes: { type: string, maxLength: 2000, nullable: true }
+                clearanceNotes: { type: string, maxLength: 2000, nullable: true }
+                settlementBreakdown:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
+                clearanceItems:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
       responses:
         '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/terminations/settlement-preview:
+    get:
+      tags: [Termination]
+      summary: Preview settlement and clearance for a termination candidate (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+          description: User UUID. User must belong to the active company.
+        - in: query
+          name: terminationDate
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -4295,10 +5181,11 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - in: path
-          name: userId
+        - name: userId
+          in: path
           required: true
-          schema: { type: integer }
+          schema: { type: integer, minimum: 1 }
+          description: Numeric user id (legacy endpoint behavior).
         - in: query
           name: perPage
           schema: { type: integer, minimum: 1, maximum: 100 }
@@ -4316,7 +5203,11 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric termination id (legacy endpoint behavior).
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4328,7 +5219,11 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric termination id (legacy endpoint behavior).
       requestBody:
         required: true
         content:
@@ -4336,14 +5231,28 @@ paths:
             schema:
               type: object
               properties:
-                userId: { type: integer }
+                userId: { type: string, format: uuid, description: User UUID. User must belong to the active company. }
                 department: { type: string, maxLength: 150, nullable: true }
                 terminationType: { type: string, maxLength: 150 }
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 terminationDate: { type: string, format: date }
-                status: { type: string, enum: [pending, approved, cancelled] }
+                status: { type: string, enum: [pending, approved, finalized, cancelled] }
                 notes: { type: string, maxLength: 2000, nullable: true }
+                settlementPayrollPeriod: { type: string, pattern: '^\d{4}-\d{2}$', nullable: true, example: '2026-05' }
+                finalSalaryAmount: { type: number, format: float, minimum: 0, nullable: true, example: 4500000 }
+                finalAllowanceAmount: { type: number, format: float, minimum: 0, nullable: true, example: 750000 }
+                finalDeductionAmount: { type: number, format: float, minimum: 0, nullable: true, example: 500000 }
+                assetReturnNotes: { type: string, maxLength: 2000, nullable: true }
+                clearanceNotes: { type: string, maxLength: 2000, nullable: true }
+                settlementBreakdown:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
+                clearanceItems:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4356,11 +5265,66 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric termination id (legacy endpoint behavior).
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/terminations/{id}/settlement-preview:
+    get:
+      tags: [Termination]
+      summary: Preview settlement and clearance for an existing termination (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric termination id (legacy endpoint behavior).
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/terminations/{id}/clearance-items/{assignmentId}/return:
+    post:
+      tags: [Termination]
+      summary: Return one asset clearance item from a termination context (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric termination id (legacy endpoint behavior).
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+          description: Numeric asset assignment id.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnedDate: { type: string, format: date, nullable: true }
+                conditionAtReturn: { type: string, maxLength: 30, nullable: true }
+                notes: { type: string, maxLength: 5000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/saas/package-addons:
     get:
@@ -4428,6 +5392,183 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/saas/packages:
+    get:
+      tags: [SaaS]
+      summary: List packages
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, archived, all]
+      responses:
+        '200':
+          description: OK
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [SaaS]
+      summary: Create package (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name, monthly_price, yearly_price, billing_unit]
+              properties:
+                code: { type: string, maxLength: 50 }
+                name: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true }
+                monthly_price: { type: number, minimum: 0 }
+                yearly_price: { type: number, minimum: 0 }
+                billing_unit: { type: string, enum: [user, company, flat] }
+                status: { type: string, enum: [active, inactive, archived] }
+                color: { type: string, maxLength: 7, nullable: true }
+                sort_order: { type: integer, minimum: 0, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/packages/{package}:
+    get:
+      tags: [SaaS]
+      summary: Get package by UUID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [SaaS]
+      summary: Update package (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, maxLength: 50 }
+                name: { type: string, maxLength: 100 }
+                description: { type: string, nullable: true }
+                monthly_price: { type: number, minimum: 0 }
+                yearly_price: { type: number, minimum: 0 }
+                billing_unit: { type: string, enum: [user, company, flat] }
+                status: { type: string, enum: [active, inactive, archived] }
+                color: { type: string, maxLength: 7, nullable: true }
+                sort_order: { type: integer, minimum: 0, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [SaaS]
+      summary: Delete package (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422':
+          description: Package still referenced by subscription history (`PACKAGE_IN_USE`) or other validation failure.
+
+  /v1/saas/packages/{package}/features:
+    get:
+      tags: [SaaS]
+      summary: List features for a package
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    post:
+      tags: [SaaS]
+      summary: Add feature to package (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature_code, feature_name]
+              properties:
+                feature_code: { type: string, maxLength: 50 }
+                feature_name: { type: string, maxLength: 100 }
+                limit: { type: integer, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/packages/features/{feature}:
+    put:
+      tags: [SaaS]
+      summary: Update package feature (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageFeatureIdentifierPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feature_name: { type: string, maxLength: 100 }
+                limit: { type: integer, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [SaaS]
+      summary: Delete package feature (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageFeatureIdentifierPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
   /v1/saas/package-addons/{id}:
     get:
       tags: [SaaS]
@@ -4435,7 +5576,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PackageAddonIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4446,7 +5587,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PackageAddonIdentifierPath'
       requestBody:
         required: true
         content:
@@ -4472,7 +5613,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PackageAddonIdentifierPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -4482,7 +5623,8 @@ paths:
   /v1/saas/subscriptions:
     get:
       tags: [SaaS]
-      summary: List subscriptions
+      summary: List subscriptions (HCM admin)
+      description: Admin-only listing for subscriptions across the active SaaS admin surface.
       security:
         - bearerAuth: []
       parameters:
@@ -4503,6 +5645,12 @@ paths:
         - name: search
           in: query
           schema: { type: string, maxLength: 200 }
+        - name: company_id
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: plan_code
+          in: query
+          schema: { type: string, maxLength: 100 }
       responses:
         '200':
           description: OK
@@ -4535,10 +5683,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [company_id, package_id, status, starts_at, billing_cycle]
+              required: [company_id, package_uuid, status, starts_at, billing_cycle]
               properties:
-                company_id: { type: integer, minimum: 1 }
-                package_id: { type: integer, minimum: 1 }
+                company_id: { type: string, format: uuid }
+                package_uuid: { type: string, format: uuid }
                 status:
                   type: string
                   enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
@@ -4568,10 +5716,11 @@ paths:
       - name: subscription
         in: path
         required: true
-        schema: { type: integer, minimum: 1 }
+        schema: { type: string, format: uuid }
     get:
       tags: [SaaS]
-      summary: Get subscription by id
+      summary: Get subscription by id (HCM admin)
+      description: Admin-only detail lookup for one subscription.
       security:
         - bearerAuth: []
       responses:
@@ -4599,7 +5748,7 @@ paths:
             schema:
               type: object
               properties:
-                package_id: { type: integer, minimum: 1 }
+                package_uuid: { type: string, format: uuid }
                 status:
                   type: string
                   enum: [active, trial, pending_payment, inactive, expired, cancelled, suspended]
@@ -4636,13 +5785,13 @@ paths:
       - name: subscription
         in: path
         required: true
-        schema: { type: integer, minimum: 1 }
+        schema: { type: string, format: uuid }
     post:
       tags: [SaaS]
       summary: Renew subscription — sets active, starts_at now, ends_at from body (HCM admin)
       description: |
         Typical prior statuses: expired, cancelled, suspended, inactive. Not valid for `pending_payment` (422).
-        Web UI `/saas/subscriptions` may resolve `{subscription}` via **Renew by ID** (`GET /v1/saas/subscriptions/{subscription}` first).
+        Web UI `/saas/subscriptions` may resolve `{subscription}` via **Renew by UUID** (`GET /v1/saas/subscriptions/{subscription}` first).
       security:
         - bearerAuth: []
       requestBody:
@@ -4680,10 +5829,11 @@ paths:
               type: object
               required: [company_id, issue_date, due_date, amount_due]
               properties:
-                company_id: { type: integer, minimum: 1 }
-                purchase_transaction_id: { type: integer, nullable: true }
+                company_id: { type: string, format: uuid }
+                purchase_transaction_id: { type: string, format: uuid, nullable: true }
                 subscription_id:
-                  type: integer
+                  type: string
+                  format: uuid
                   nullable: true
                   description: Same-company subscription; used to auto-activate pending_payment on mark paid
                 issue_date: { type: string, format: date }
@@ -4749,7 +5899,7 @@ paths:
                             endsAt: { type: string, format: date-time }
                             trialEndsAt: { type: string, format: date-time, nullable: true }
                             planCode: { type: string }
-                            packageId: { type: integer, nullable: true }
+                            packageId: { type: string, format: uuid, nullable: true }
                             packageName: { type: string }
                             amount: { type: number, nullable: true }
                         latestInvoice:
@@ -4757,18 +5907,29 @@ paths:
                           nullable: true
                           properties:
                             id: { type: integer }
+                            uuid: { type: string, format: uuid }
                             invoiceNumber: { type: string, nullable: true }
                             issueDate: { type: string, format: date, nullable: true }
                             dueDate: { type: string, format: date, nullable: true }
                             amountDue: { type: number }
                             isPaid: { type: boolean }
                             status: { type: string }
+                            detailUrl: { type: string, format: uri, nullable: true }
                         email:
                           type: object
                           properties:
                             status: { type: string }
                             sentAt: { type: string, format: date-time, nullable: true }
                             lastError: { type: string, nullable: true }
+                        stateBadges:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              code: { type: string }
+                              label: { type: string }
+                              kind: { type: string, enum: [warning, danger, info, success, secondary] }
+                              message: { type: string }
                   pagination:
                     type: object
                     properties:
@@ -4780,14 +5941,936 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
-  /v1/saas/invoices/{id}/send-email:
+  /v1/saas/dashboard/kpi:
+    get:
+      tags: [SaaS]
+      summary: Get top-level SaaS dashboard KPIs (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      totalCompanies: { type: integer }
+                      totalUsers: { type: integer }
+                      mrr: { type: number }
+                      arr: { type: number }
+                      activeSubscriptions: { type: integer }
+                      churnRate: { type: number }
+                      customerLifetimeValue: { type: number }
+                      netRevenueRetention: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/kpi/{metricKey}:
+    get:
+      tags: [SaaS]
+      summary: Get historical trend for one dashboard metric (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: metricKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      metricKey: { type: string }
+                      currentValue: { type: number, nullable: true }
+                      metadata:
+                        type: object
+                        nullable: true
+                        additionalProperties: true
+                      trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            value: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/companies:
+    get:
+      tags: [SaaS]
+      summary: List companies for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        uuid: { type: string, format: uuid }
+                        code: { type: string }
+                        name: { type: string }
+                        email: { type: string, nullable: true }
+                        userCount: { type: integer }
+                        subscriptionCount: { type: integer }
+                        totalRevenue: { type: number }
+                        createdAt: { type: string, format: date-time }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/companies/top-performers:
+    get:
+      tags: [SaaS]
+      summary: List top companies by revenue (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        code: { type: string }
+                        totalRevenue: { type: number }
+                        subscriptionCount: { type: integer }
+                        avgRevenuePerSubscription: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/companies/{company}/details:
+    get:
+      tags: [SaaS]
+      summary: Get one company detail for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      code: { type: string }
+                      name: { type: string }
+                      email: { type: string, nullable: true }
+                      country: { type: string, nullable: true }
+                      industry: { type: string, nullable: true }
+                      userCount: { type: integer }
+                      totalRevenue: { type: number }
+                      activeSubscriptions: { type: integer }
+                      subscriptionsByStatus:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            count: { type: integer }
+                            revenue: { type: number }
+                      createdAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/dashboard/users:
+    get:
+      tags: [SaaS]
+      summary: Get user statistics for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      totalUsers: { type: integer }
+                      verifiedUsers: { type: integer }
+                      unverifiedUsers: { type: integer }
+                      newUsersThisMonth: { type: integer }
+                      verificationRate: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/users/retention:
+    get:
+      tags: [SaaS]
+      summary: Get user retention summary for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      cohortMonth: { type: string }
+                      previousCohortUsers: { type: integer }
+                      retainedUsers: { type: integer }
+                      churnedUsers: { type: integer }
+                      newUsersThisMonth: { type: integer }
+                      activeUsersCurrent: { type: integer }
+                      retentionRate: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/revenue/monthly:
+    get:
+      tags: [SaaS]
+      summary: Get monthly revenue trend for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month: { type: string }
+                        mrr: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/revenue/forecast:
+    get:
+      tags: [SaaS]
+      summary: Get short-term revenue forecast for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      method: { type: string }
+                      history:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string }
+                            mrr: { type: number }
+                      forecast:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string }
+                            projectedMrr: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/revenue/by-plan:
+    get:
+      tags: [SaaS]
+      summary: Get revenue by package for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        packageId: { type: string, format: uuid, nullable: true }
+                        packageName: { type: string }
+                        subscriptionCount: { type: integer }
+                        revenue: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/subscriptions/status:
+    get:
+      tags: [SaaS]
+      summary: Get subscription status breakdown for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        count: { type: integer }
+                        revenue: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/subscriptions/health:
+    get:
+      tags: [SaaS]
+      summary: Get subscription health summary for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      healthScore: { type: number }
+                      totalSubscriptions: { type: integer }
+                      activeSubscriptions: { type: integer }
+                      expiringSoon: { type: integer }
+                      autoRenewDisabled: { type: integer }
+                      expiredButNotClosed: { type: integer }
+                      breakdown:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            count: { type: integer }
+                            revenue: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/reports/custom:
+    get:
+      tags: [SaaS]
+      summary: Get custom summary report for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: group_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [month, plan, status]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      filters:
+                        type: object
+                        properties:
+                          from: { type: string, format: date }
+                          to: { type: string, format: date }
+                          groupBy: { type: string }
+                      summary:
+                        type: object
+                        properties:
+                          companiesCreated: { type: integer }
+                          userMembershipsAdded: { type: integer }
+                          subscriptionsCreated: { type: integer }
+                          activeSubscriptions: { type: integer }
+                          cancelledSubscriptions: { type: integer }
+                          totalRevenue: { type: number }
+                      breakdown:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/audit-logs:
+    get:
+      tags: [SaaS]
+      summary: Get audit logs for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: super_admin_id
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string }
+        - name: target_type
+          in: query
+          required: false
+          schema: { type: string }
+        - name: date_from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: date_to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        superAdminId: { type: integer, nullable: true }
+                        superAdminName: { type: string, nullable: true }
+                        action: { type: string }
+                        actionLabel: { type: string, nullable: true }
+                        targetType: { type: string, nullable: true }
+                        targetId: { type: integer, nullable: true }
+                        details:
+                          type: object
+                          nullable: true
+                          additionalProperties: true
+                        ipAddress: { type: string, nullable: true }
+                        createdAt: { type: string, format: date-time }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/dashboard/audit-logs/{auditLog}:
+    get:
+      tags: [SaaS]
+      summary: Get one audit log detail for SaaS dashboard (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: auditLog
+          in: path
+          required: true
+          schema: { type: string }
+          description: UUID when available, or legacy numeric id fallback.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      uuid: { type: string, nullable: true }
+                      superAdminId: { type: integer, nullable: true }
+                      superAdminName: { type: string, nullable: true }
+                      action: { type: string }
+                      actionLabel: { type: string, nullable: true }
+                      targetType: { type: string, nullable: true }
+                      targetId: { type: integer, nullable: true }
+                      details:
+                        type: object
+                        nullable: true
+                        additionalProperties: true
+                      ipAddress: { type: string, nullable: true }
+                      userAgent: { type: string, nullable: true }
+                      isSensitiveAction: { type: boolean }
+                      createdAt: { type: string, format: date-time, nullable: true }
+                      updatedAt: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/transactions:
+    get:
+      tags: [SaaS]
+      summary: List purchase transactions (HCM admin)
+      description: |
+        Bearer-token API consumers receive the purchase transaction payload documented here.
+        The active SaaS admin page currently consumes a legacy ledger shape on the same path via API-token cookie auth.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [draft, issued, sent, paid, overdue, cancelled] }
+        - name: company_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: Company identifier supporting UUID-first input with numeric legacy fallback.
+        - name: transaction_type
+          in: query
+          required: false
+          schema: { type: string, enum: [subscription, addon, refund, credit, manual] }
+        - name: from_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: to_date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        transactionCode: { type: string }
+                        companyId: { type: integer }
+                        company:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            code: { type: string, nullable: true }
+                            name: { type: string, nullable: true }
+                        subscriptionId: { type: integer, nullable: true }
+                        subscription:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            planCode: { type: string, nullable: true }
+                            status: { type: string, nullable: true }
+                        packageAddonId: { type: integer, nullable: true }
+                        packageAddon:
+                          type: object
+                          nullable: true
+                          properties:
+                            id: { type: integer }
+                            code: { type: string, nullable: true }
+                            name: { type: string, nullable: true }
+                        transactionType: { type: string }
+                        description: { type: string, nullable: true }
+                        amount: { type: number }
+                        taxAmount: { type: number }
+                        discountAmount: { type: number }
+                        totalAmount: { type: number }
+                        billingPeriodStart: { type: string, format: date, nullable: true }
+                        billingPeriodEnd: { type: string, format: date, nullable: true }
+                        dueDate: { type: string, format: date-time, nullable: true }
+                        paidAt: { type: string, format: date-time, nullable: true }
+                        paymentMethod: { type: string, nullable: true }
+                        paymentReference: { type: string, nullable: true }
+                        status: { type: string }
+                        isPaid: { type: boolean }
+                        isOverdue: { type: boolean }
+                        notes: { type: string, nullable: true }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [SaaS]
+      summary: Create purchase transaction (HCM admin)
+      description: |
+        Bearer-token API consumers create purchase transactions through this contract.
+        External identifiers are UUID-based; internal persistence still resolves to integer foreign keys.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, transaction_type, amount, status]
+              properties:
+                company_id: { type: string, format: uuid }
+                subscription_id: { type: string, format: uuid, nullable: true }
+                package_addon_id: { type: string, format: uuid, nullable: true }
+                transaction_type: { type: string, enum: [subscription, addon, refund, credit, manual] }
+                description: { type: string, nullable: true }
+                amount: { type: number, minimum: 0 }
+                tax_amount: { type: number, minimum: 0, nullable: true }
+                discount_amount: { type: number, minimum: 0, nullable: true }
+                status: { type: string, enum: [draft, issued, sent, paid, overdue, cancelled] }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      transactionCode: { type: string }
+                      companyId: { type: integer }
+                      subscriptionId: { type: integer, nullable: true }
+                      transactionType: { type: string }
+                      amount: { type: number }
+                      taxAmount: { type: number }
+                      discountAmount: { type: number }
+                      totalAmount: { type: number }
+                      status: { type: string }
+                      isPaid: { type: boolean }
+                      isOverdue: { type: boolean }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/transactions/export:
+    get:
+      tags: [SaaS]
+      summary: Export transaction ledger CSV (HCM admin)
+      description: Used by the active SaaS admin transaction page download action.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/transactions/{transaction}:
+    get:
+      tags: [SaaS]
+      summary: Get purchase transaction detail (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transaction
+          in: path
+          required: true
+          schema: { type: string }
+          description: Transaction identifier supporting UUID with numeric legacy fallback.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      transactionCode: { type: string }
+                      companyId: { type: integer }
+                      transactionType: { type: string }
+                      amount: { type: number }
+                      taxAmount: { type: number }
+                      discountAmount: { type: number }
+                      totalAmount: { type: number }
+                      paymentMethod: { type: string, nullable: true }
+                      paymentReference: { type: string, nullable: true }
+                      status: { type: string }
+                      isPaid: { type: boolean }
+                      isOverdue: { type: boolean }
+                      createdAt: { type: string, format: date-time }
+                      updatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [SaaS]
+      summary: Update purchase transaction (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transaction
+          in: path
+          required: true
+          schema: { type: string }
+          description: Transaction identifier supporting UUID with numeric legacy fallback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [draft, issued, sent, paid, overdue, cancelled] }
+                paid_at: { type: string, format: date-time, nullable: true }
+                payment_method: { type: string, enum: [bank_transfer, credit_card, e_wallet, cash], nullable: true }
+                payment_reference: { type: string, nullable: true }
+                notes: { type: string, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      transactionCode: { type: string }
+                      status: { type: string }
+                      paymentMethod: { type: string, nullable: true }
+                      paymentReference: { type: string, nullable: true }
+                      paidAt: { type: string, format: date-time, nullable: true }
+                      isPaid: { type: boolean }
+                      isOverdue: { type: boolean }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/invoices/{invoice}:
+    get:
+      tags: [SaaS]
+      summary: Get invoice detail with full email history (HCM admin or active tenant owner)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoice
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      uuid: { type: string, format: uuid }
+                      invoiceNumber: { type: string, nullable: true }
+                      companyId: { type: integer }
+                      companyName: { type: string, nullable: true }
+                      company:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          code: { type: string, nullable: true }
+                          name: { type: string, nullable: true }
+                      subscriptionId: { type: integer, nullable: true }
+                      subscription:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          status: { type: string }
+                          billingCycle: { type: string, nullable: true }
+                          startsAt: { type: string, format: date-time, nullable: true }
+                          endsAt: { type: string, format: date-time, nullable: true }
+                          trialEndsAt: { type: string, format: date-time, nullable: true }
+                          planCode: { type: string, nullable: true }
+                          packageId: { type: string, format: uuid, nullable: true }
+                          packageName: { type: string, nullable: true }
+                          amount: { type: number, nullable: true }
+                      issueDate: { type: string, format: date }
+                      dueDate: { type: string, format: date }
+                      amountDue: { type: number }
+                      isPaid: { type: boolean }
+                      paidDate: { type: string, format: date, nullable: true }
+                      pdfPath: { type: string, nullable: true }
+                      status: { type: string }
+                      isOverdue: { type: boolean }
+                      isDueSoon: { type: boolean }
+                      notes: { type: string, nullable: true }
+                      latestEmail:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          toEmail: { type: string, nullable: true }
+                          status: { type: string }
+                          providerMessageId: { type: string, nullable: true }
+                          errorMessage: { type: string, nullable: true }
+                          createdAt: { type: string, format: date-time, nullable: true }
+                      emailLogs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            uuid: { type: string, format: uuid }
+                            toEmail: { type: string, nullable: true }
+                            status: { type: string }
+                            providerMessageId: { type: string, nullable: true }
+                            errorMessage: { type: string, nullable: true }
+                            createdAt: { type: string, format: date-time, nullable: true }
+                            updatedAt: { type: string, format: date-time, nullable: true }
+                      createdAt: { type: string, format: date-time }
+                      updatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/invoices/{invoice}/send-email:
     post:
       tags: [SaaS]
       summary: Send invoice email (HCM admin)
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -4829,13 +6912,142 @@ components:
       scheme: bearer
       bearerFormat: SanctumToken
   parameters:
-    IdPath:
+    UuidPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PackageUuidPath:
+      name: package
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Package UUID.
+    PackageFeatureIdentifierPath:
+      name: feature
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Package feature identifier supporting numeric active ids with UUID fallback.
+    PackageAddonIdentifierPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Package add-on identifier supporting numeric active ids with UUID fallback.
+    TicketNumericIdPath:
       name: id
       in: path
       required: true
       schema:
         type: integer
         minimum: 1
+      description: Numeric ticket id.
+    UserNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric user id (legacy endpoint behavior).
+    UserNumericLegacyPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric user id (legacy endpoint behavior).
+    ResignationNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric resignation id (legacy endpoint behavior).
+    ReportSnapshotIdentifierPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Snapshot identifier supporting UUID with numeric legacy fallback.
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    PromotionNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric promotion id (legacy endpoint behavior).
+    UserIdentifierPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: User identifier supporting UUID with numeric legacy fallback.
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    RoleIdentifierPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Role identifier supporting UUID with numeric legacy fallback.
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    AssignmentIdentifierPath:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Role assignment identifier supporting UUID with numeric legacy fallback.
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    UuidUserPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UuidAssignmentPath:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AssetNumericIdPath:
+      name: asset
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    UuidCategoryPath:
+      name: category
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UuidAttachmentPath:
+      name: attachmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     Page:
       name: page
       in: query
@@ -4917,10 +7129,10 @@ components:
       type: object
       description: Subscription row as returned by Laravel formatter (camelCase keys).
       properties:
-        id: { type: integer }
-        companyId: { type: integer }
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
         companyName: { type: string }
-        packageId: { type: integer }
+        packageId: { type: string, format: uuid }
         packageName: { type: string }
         planCode: { type: string }
         status:
@@ -5003,6 +7215,7 @@ components:
       type: object
       properties:
         id: { type: integer }
+        uuid: { type: string, format: uuid, nullable: true }
         employeeNo: { type: string }
         fullName: { type: string }
         email: { type: string, format: email }
@@ -5422,6 +7635,7 @@ components:
           type: object
           properties:
             id: { type: integer }
+            uuid: { type: string, format: uuid, nullable: true }
             employeeNo: { type: string }
             fullName: { type: string }
             email: { type: string, format: email }
@@ -5699,6 +7913,9 @@ components:
               properties:
                 id:
                   type: integer
+                uuid:
+                  type: string
+                  format: uuid
                 code:
                   type: string
                 name:
@@ -5751,12 +7968,25 @@ components:
                 type: string
             hcmAdmin:
               type: boolean
+            hcmGlobalAdmin:
+              type: boolean
+            permissions:
+              type: object
+              additionalProperties:
+                type: boolean
+            permissionCodes:
+              type: array
+              items:
+                type: string
             activeCompany:
               type: object
               nullable: true
               properties:
                 id:
                   type: integer
+                uuid:
+                  type: string
+                  format: uuid
                 code:
                   type: string
                 name:

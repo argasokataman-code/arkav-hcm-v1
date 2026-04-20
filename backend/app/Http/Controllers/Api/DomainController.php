@@ -122,14 +122,17 @@ class DomainController extends Controller
 
         $validated = $request->validate([
             'domain_name' => 'required|string|unique:domains|max:255',
-            'company_id' => 'required|integer|exists:companies,id',
+            'company_id' => 'required|uuid|exists:companies,uuid',
             'verification_type' => 'required|in:dns,file',
             'notes' => 'nullable|string',
         ]);
 
+        $companyId = Company::query()->where('uuid', $validated['company_id'])->value('id');
+
         // Generate verification token
         $validated['verification_token'] = \Illuminate\Support\Str::random(32);
         $validated['status'] = 'pending';
+        $validated['company_id'] = $companyId;
 
         $domain = Domain::create($validated);
         $domain->load('company');
@@ -165,11 +168,15 @@ class DomainController extends Controller
 
         $validated = $request->validate([
             'domain_name' => 'sometimes|string|unique:domains,domain_name,' . $domain->id . '|max:255',
-            'company_id' => 'sometimes|integer|exists:companies,id',
+            'company_id' => 'sometimes|uuid|exists:companies,uuid',
             'verification_type' => 'sometimes|in:dns,file',
             'notes' => 'nullable|string',
             'status' => 'sometimes|in:pending,verified,failed',
         ]);
+
+        if (array_key_exists('company_id', $validated)) {
+            $validated['company_id'] = Company::query()->where('uuid', $validated['company_id'])->value('id');
+        }
 
         $domain->update($validated);
         $domain->load('company');

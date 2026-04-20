@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class HcmPermission extends Model
 {
+    use AssignsUuid;
+
     protected $fillable = [
         'code',
         'module',
@@ -23,18 +25,6 @@ class HcmPermission extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (! Schema::hasColumn($record->getTable(), 'uuid')) {
-                return;
-            }
-
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     public function roles(): BelongsToMany
     {

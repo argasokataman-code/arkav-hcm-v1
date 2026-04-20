@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HcmSalaryComponent;
+use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
 use App\Models\User;
 use App\Services\Hcm\OvertimePayCalculator;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class HcmOvertimeRequestController extends Controller
 {
@@ -134,6 +138,12 @@ class HcmOvertimeRequestController extends Controller
             return false;
         }
 
+        // Backward compatibility: owner/admin membership should still be treated
+        // as HCM admin capability in tenant-scoped overtime pages.
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
+        }
+
         return $user->hasPermissionForCompany('overtime.view', $companyId)
             || $user->hasPermissionForCompany('overtime.approve', $companyId)
             || $user->hasPermissionForCompany('attendance.admin', $companyId);
@@ -147,8 +157,66 @@ class HcmOvertimeRequestController extends Controller
             return false;
         }
 
+        if ($user->isHcmAdminForCompany($companyId)) {
+            return true;
+        }
+
         return $user->hasPermissionForCompany('overtime.approve', $companyId)
             || $user->hasPermissionForCompany('attendance.admin', $companyId);
+    }
+
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function resolveUserIdentifier(mixed $identifier): ?User
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $raw = trim((string) $identifier);
+        if ($raw === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where(function (Builder $query) use ($raw): void {
+                if (ctype_digit($raw)) {
+                    $query->where('id', (int) $raw)
+                        ->orWhere('uuid', $raw);
+
+                    return;
+                }
+
+                $query->where('uuid', $raw);
+            })
+            ->first();
+    }
+
+    private function resolveScopedUserIdentifierOrFail(Request $request, mixed $identifier): ?string
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $user = $this->resolveUserIdentifier($identifier);
+        if (! $user || ! $this->userBelongsToActiveCompany((int) $user->id, $this->activeCompanyId($request))) {
+            throw ValidationException::withMessages([
+                'userId' => ['The selected userId is invalid for the active company.'],
+            ]);
+        }
+
+        return (string) $user->id;
     }
 
     public function store(Request $request): JsonResponse
@@ -160,7 +228,7 @@ class HcmOvertimeRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'userId' => ['nullable', 'integer', 'exists:users,id'],
+            'userId' => ['nullable'],
             'overtimeTypeId' => ['nullable', 'integer', $typeExists],
             'requestType' => ['nullable', 'in:employee_request,company_assignment,missed_log_correction'],
             'workDate' => ['required', 'date'],
@@ -171,14 +239,22 @@ class HcmOvertimeRequestController extends Controller
             'policyNote' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $userId = isset($validated['userId']) ? (int) $validated['userId'] : $actor->id;
-        $requestType = $validated['requestType'] ?? 'employee_request';
-        if ($userId !== $actor->id && ! $this->canManageOvertime($request)) {
+        $rawUserIdentifier = $validated['userId'] ?? null;
+
+        if ($rawUserIdentifier !== null && $rawUserIdentifier !== '' && ! $this->canManageOvertime($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Cannot create overtime for another user.'],
             ], 403);
         }
+
+        $validated['userId'] = $this->resolveScopedUserIdentifierOrFail($request, $rawUserIdentifier);
+
+        $user = isset($validated['userId'])
+            ? User::query()->findOrFail((int) $validated['userId'])
+            : $actor;
+        $userId = $user->id;
+        $requestType = $validated['requestType'] ?? 'employee_request';
         if (! $this->canManageOvertime($request) && $requestType !== 'employee_request') {
             return response()->json([
                 'success' => false,
@@ -187,6 +263,26 @@ class HcmOvertimeRequestController extends Controller
         }
         User::query()->findOrFail($userId);
         $status = $this->canManageOvertime($request) ? ($validated['status'] ?? 'pending') : 'pending';
+
+        // Check for approved leave conflict
+        $workDate = Carbon::parse($validated['workDate']);
+        $leaveConflict = LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('status', 'approved')
+            ->where('company_id', $this->activeCompanyId($request))
+            ->whereDate('date_from', '<=', $workDate)
+            ->whereDate('date_to', '>=', $workDate)
+            ->exists();
+
+        if ($leaveConflict) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'OT_ON_LEAVE_CONFLICT',
+                    'message' => 'Cannot request overtime on an approved leave date.',
+                ],
+            ], 422);
+        }
 
         $otComp = HcmSalaryComponent::resolveForOvertimePay();
 
@@ -208,9 +304,9 @@ class HcmOvertimeRequestController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
-        $r = OvertimeRequest::query()->findOrFail($id);
+        $r = $this->resolveOvertimeRequestRouteModel($id);
 
         $actor = $request->user();
         if ($r->user_id !== $actor->id) {
@@ -324,9 +420,9 @@ class HcmOvertimeRequestController extends Controller
         return response()->json(['success' => true, 'data' => $result]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $r = OvertimeRequest::query()->findOrFail($id);
+        $r = $this->resolveOvertimeRequestRouteModel($id);
         if ($r->user_id !== $request->user()->id) {
             return response()->json([
                 'success' => false,
@@ -342,6 +438,19 @@ class HcmOvertimeRequestController extends Controller
         $r->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    private function resolveOvertimeRequestRouteModel(string $routeId): OvertimeRequest
+    {
+        return OvertimeRequest::query()
+            ->where(function (Builder $builder) use ($routeId): void {
+                $builder->where('uuid', $routeId);
+
+                if (ctype_digit($routeId)) {
+                    $builder->orWhere('id', (int) $routeId);
+                }
+            })
+            ->firstOrFail();
     }
 
     /**

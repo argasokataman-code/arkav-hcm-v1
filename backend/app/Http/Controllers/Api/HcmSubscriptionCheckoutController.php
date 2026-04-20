@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rule;
 class HcmSubscriptionCheckoutController
 {
     use ChecksPermissions;
+    use EnsuresHcmAdmin;
 
     /**
      * POST /v1/hcm/billing/checkout
@@ -24,7 +26,7 @@ class HcmSubscriptionCheckoutController
      */
     public function checkout(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'subscription.manage')) {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
 
@@ -40,18 +42,17 @@ class HcmSubscriptionCheckoutController
         }
 
         $validated = $request->validate([
-            'package_id' => [
+            'package_uuid' => [
                 'required',
-                'integer',
-                'min:1',
-                Rule::exists('packages', 'id')->where(fn ($q) => $q->where('status', 'active')),
+                'uuid',
+                Rule::exists('packages', 'uuid')->where(fn ($q) => $q->where('status', 'active')),
             ],
             'billing_cycle' => ['required', 'string', Rule::in(['monthly', 'yearly'])],
             'billingEmail' => ['nullable', 'string', 'email:rfc', 'max:255'],
         ]);
 
         /** @var Package $package */
-        $package = Package::query()->findOrFail((int) $validated['package_id']);
+        $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
 
         if ((string) $package->code === 'trial') {
             return response()->json([
@@ -97,7 +98,7 @@ class HcmSubscriptionCheckoutController
                                 'status' => $existingPending->status,
                                 'billingCycle' => $existingPending->billing_cycle,
                                 'amount' => (float) $existingPending->amount,
-                                'packageId' => $existingPending->package_id,
+                                'packageId' => $existingPending->package_uuid,
                                 'packageCode' => $existingPending->plan_code,
                             ],
                             'invoice' => [
@@ -129,7 +130,7 @@ class HcmSubscriptionCheckoutController
                 $subscription->auto_renew = false;
             }
 
-            $subscription->package_id = $package->id;
+            $subscription->package_uuid = $package->uuid;
             $subscription->plan_code = $package->code;
             $subscription->status = 'pending_payment';
             $subscription->billing_cycle = $billingCycle;
@@ -160,7 +161,7 @@ class HcmSubscriptionCheckoutController
                         'status' => $subscription->status,
                         'billingCycle' => $subscription->billing_cycle,
                         'amount' => (float) $subscription->amount,
-                        'packageId' => $package->id,
+                        'packageId' => $package->uuid,
                         'packageCode' => $package->code,
                         'packageName' => $package->name,
                     ],

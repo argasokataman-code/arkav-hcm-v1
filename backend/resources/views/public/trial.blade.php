@@ -23,8 +23,8 @@
 			<div class="col-lg-8">
 				<div class="mb-4" data-reveal>
 					<span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">Coba Trial Gratis</span>
-					<h1 class="h2 fw-bold mt-3 mb-2">Buat company & owner dalam 1 menit</h1>
-					<p class="text-muted mb-0">Isi form di bawah. Setelah berhasil, kamu bisa login sebagai owner dan mulai setup modul HCM.</p>
+					<h1 class="h2 fw-bold mt-3 mb-2">Pilih plan lalu buat company & owner</h1>
+					<p class="text-muted mb-0">Plan yang kamu pilih dari landing akan otomatis terbawa ke form ini. Lengkapi onboarding company, lalu login sebagai owner untuk mulai setup modul HCM.</p>
 				</div>
 
 				<div class="card border-0 shadow-lg" data-reveal>
@@ -39,9 +39,9 @@
 							<div class="row g-3">
 								<div class="col-md-6">
 									<label class="form-label">Paket <span class="text-danger">*</span></label>
-									<select class="form-select" name="package_id" required data-onboarding-package>
+									<select class="form-select" name="package_uuid" required data-onboarding-package>
 										@foreach ($packages as $package)
-											<option value="{{ $package->id }}" @selected($selectedPackageId && (int) $selectedPackageId === (int) $package->id)>
+											<option value="{{ $package->uuid }}" @selected($selectedPackageId && (string) $selectedPackageId === (string) $package->uuid)>
 												{{ $package->name }} ({{ $package->code }})
 											</option>
 										@endforeach
@@ -145,24 +145,25 @@
 								</div>
 							</div>
 
+							@if (config('turnstile.enabled') && config('turnstile.site_key'))
+								<div class="mt-3">
+									<div class="cf-turnstile" data-sitekey="{{ config('turnstile.site_key') }}"></div>
+									<div class="form-text">Verifikasi keamanan untuk mencegah spam/bot.</div>
+								</div>
+							@endif
+
 							<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mt-4">
 								<div class="text-muted small">
-									Dengan klik “Buat Trial”, kamu setuju proses onboarding dan validasi data berjalan sesuai sistem.
+									Dengan klik “Daftarkan company”, kamu setuju proses onboarding dan validasi data berjalan sesuai sistem.
 								</div>
 								<button type="submit" class="btn btn-primary" data-onboarding-submit>
-									<i class="ti ti-rocket me-1"></i> Buat Trial
+									<i class="ti ti-rocket me-1"></i> Daftarkan company
 								</button>
 							</div>
 						</form>
-						{{--
 						@if (config('turnstile.enabled') && config('turnstile.site_key'))
-							<div class="mt-3">
-								<div class="cf-turnstile" data-sitekey="{{ config('turnstile.site_key') }}"></div>
-								<div class="form-text">Verifikasi keamanan untuk mencegah spam/bot.</div>
-							</div>
 							<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 						@endif
-						--}}
 					</div>
 				</div>
 

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\EmployeeProfile;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
+use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,20 +20,28 @@ class TicketApiTest extends TestCase
 
     private function loginWithRole(bool $admin, string $email): array
     {
+        if ($admin) {
+            $result = $this->createHcmAdminWithCompany([
+                'name' => 'Admin Ticket',
+                'email' => $email,
+                'password' => 'StrongPass1',
+            ]);
+
+            return [
+                'user' => User::query()->where('email', $email)->firstOrFail(),
+                'token' => $result['token'],
+                'company' => $result['company'],
+            ];
+        }
+
         $this->postJson('/v1/identity/auth/register', [
-            'name' => $admin ? 'Admin Ticket' : 'Employee Ticket',
+            'name' => 'Employee Ticket',
             'email' => $email,
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
         $user = User::query()->where('email', $email)->firstOrFail();
-        if ($admin) {
-            EmployeeProfile::query()->updateOrCreate(
-                ['user_id' => $user->id],
-                ['designation' => 'HR Admin']
-            );
-        }
 
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
@@ -49,7 +58,11 @@ class TicketApiTest extends TestCase
     {
         Storage::fake('public');
         $employee = $this->loginWithRole(false, 'ticket-employee@example.com');
-        $headers = ['Authorization' => 'Bearer '.$employee['token']];
+        $companyId = (int) CompanyUser::query()->where('user_id', $employee['user']->id)->value('company_id');
+        $headers = [
+            'Authorization' => 'Bearer '.$employee['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
         $category = TicketCategory::query()->create([
             'name' => 'IT',
             'is_active' => true,
@@ -66,6 +79,7 @@ class TicketApiTest extends TestCase
 
         $this->assertDatabaseHas('tickets', [
             'id' => $ticketId,
+            'company_id' => $companyId,
             'category_id' => $category->id,
             'category' => 'IT',
         ]);
@@ -98,8 +112,10 @@ class TicketApiTest extends TestCase
     {
         $employeeA = $this->loginWithRole(false, 'ticket-employee-a@example.com');
         $employeeB = $this->loginWithRole(false, 'ticket-employee-b@example.com');
+        $companyId = (int) CompanyUser::query()->where('user_id', $employeeA['user']->id)->value('company_id');
 
         $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
             'user_id' => $employeeA['user']->id,
             'code' => 'TIC-TEST-001',
             'subject' => 'A ticket',
@@ -108,7 +124,10 @@ class TicketApiTest extends TestCase
             'status' => 'open',
         ]);
 
-        $headersB = ['Authorization' => 'Bearer '.$employeeB['token']];
+        $headersB = [
+            'Authorization' => 'Bearer '.$employeeB['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
         $this->withHeaders($headersB)->getJson("/v1/hcm/tickets/{$ticket->id}")
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
@@ -122,9 +141,26 @@ class TicketApiTest extends TestCase
     {
         $admin = $this->loginWithRole(true, 'ticket-admin@example.com');
         $employee = $this->loginWithRole(false, 'ticket-admin-target@example.com');
-        $headersAdmin = ['Authorization' => 'Bearer '.$admin['token']];
+        $companyId = (int) $admin['company']->id;
+
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $companyId,
+                'user_id' => $employee['user']->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
+
+        $headersAdmin = [
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
 
         $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
             'user_id' => $employee['user']->id,
             'code' => 'TIC-TEST-002',
             'subject' => 'Need support',
@@ -158,8 +194,13 @@ class TicketApiTest extends TestCase
     public function test_employee_cannot_update_closed_ticket(): void
     {
         $employee = $this->loginWithRole(false, 'ticket-closed@example.com');
-        $headers = ['Authorization' => 'Bearer '.$employee['token']];
+        $companyId = (int) CompanyUser::query()->where('user_id', $employee['user']->id)->value('company_id');
+        $headers = [
+            'Authorization' => 'Bearer '.$employee['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
         $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
             'user_id' => $employee['user']->id,
             'code' => 'TIC-TEST-003',
             'subject' => 'Closed ticket',
@@ -172,14 +213,27 @@ class TicketApiTest extends TestCase
         $this->withHeaders($headers)->putJson("/v1/hcm/tickets/{$ticket->id}", [
             'subject' => 'Try update closed',
         ])->assertStatus(422)->assertJsonPath('error.code', 'TICKET_CLOSED_LOCKED');
+
+        $this->withHeaders($headers)->postJson("/v1/hcm/tickets/{$ticket->id}/comments", [
+            'body' => 'Trying to reopen via comment.',
+        ])->assertStatus(422)->assertJsonPath('error.code', 'TICKET_CLOSED_LOCKED');
+
+        $this->withHeaders($headers)->postJson("/v1/hcm/tickets/{$ticket->id}/attachments", [
+            'file' => UploadedFile::fake()->create('closed.txt', 10, 'text/plain'),
+        ])->assertStatus(422)->assertJsonPath('error.code', 'TICKET_CLOSED_LOCKED');
     }
 
     public function test_attachment_validation_rejects_large_file(): void
     {
         Storage::fake('public');
         $employee = $this->loginWithRole(false, 'ticket-file@example.com');
-        $headers = ['Authorization' => 'Bearer '.$employee['token']];
+        $companyId = (int) CompanyUser::query()->where('user_id', $employee['user']->id)->value('company_id');
+        $headers = [
+            'Authorization' => 'Bearer '.$employee['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
         $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
             'user_id' => $employee['user']->id,
             'code' => 'TIC-TEST-004',
             'subject' => 'Attachment ticket',
@@ -206,5 +260,77 @@ class TicketApiTest extends TestCase
         // Status will be 403 because ticket doesn't belong to user + user is not admin
         // OR ticket doesn't exist (in admin case). Either way, non-existent resources are handled.
         $this->assertTrue(in_array($response->status(), [403, 404]));
+    }
+
+    public function test_admin_can_create_ticket_with_numeric_assignee_id_in_active_company(): void
+    {
+        $admin = $this->loginWithRole(true, 'ticket-admin-create@example.com');
+        $employee = $this->loginWithRole(false, 'ticket-admin-create-target@example.com');
+        $companyId = (int) $admin['company']->id;
+
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $companyId,
+                'user_id' => $employee['user']->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
+
+        $category = TicketCategory::query()->create([
+            'name' => 'Ops',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/tickets', [
+            'subject' => 'Need follow up',
+            'description' => 'Create from admin modal',
+            'categoryId' => $category->id,
+            'priority' => 'medium',
+            'assigneeUserId' => $employee['user']->id,
+        ])->assertStatus(201)->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('tickets', [
+            'company_id' => $companyId,
+            'assignee_user_id' => $employee['user']->id,
+            'category_id' => $category->id,
+        ]);
+    }
+
+    public function test_admin_cannot_assign_ticket_to_user_outside_active_company(): void
+    {
+        $admin = $this->loginWithRole(true, 'ticket-admin-tenant@example.com');
+        $outsider = $this->loginWithRole(false, 'ticket-admin-outsider@example.com');
+        $companyId = (int) $admin['company']->id;
+
+        CompanyUser::query()
+            ->where('user_id', $outsider['user']->id)
+            ->where('company_id', $companyId)
+            ->delete();
+
+        $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
+            'user_id' => $admin['user']->id,
+            'code' => 'TIC-TEST-005',
+            'subject' => 'Tenant guard',
+            'description' => 'Check assignee tenant',
+            'priority' => 'medium',
+            'status' => 'open',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Id' => (string) $companyId,
+        ])->putJson('/v1/hcm/tickets/'.$ticket->id, [
+            'assigneeUserId' => $outsider['user']->id,
+        ])->assertStatus(422)->assertInvalid([
+            'assigneeUserId' => 'active company',
+        ]);
     }
 }

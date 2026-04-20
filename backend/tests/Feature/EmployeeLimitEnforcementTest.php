@@ -32,7 +32,7 @@ class EmployeeLimitEnforcementTest extends TestCase
         ]);
 
         PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'max_employees',
             'feature_name' => 'Maximum Employees',
             'limit' => 1,
@@ -40,7 +40,7 @@ class EmployeeLimitEnforcementTest extends TestCase
 
         Subscription::create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => 'starter',
             'status' => 'active',
             'starts_at' => now()->subDay(),
@@ -105,14 +105,14 @@ class EmployeeLimitEnforcementTest extends TestCase
             'status' => 'active',
         ]);
         PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'max_employees',
             'feature_name' => 'Maximum Employees',
             'limit' => 5,
         ]);
         Subscription::create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => 'pend_pkg',
             'status' => 'pending_payment',
             'starts_at' => now(),

@@ -35,7 +35,7 @@ Tambah path tema (mis. `login-2`) hanya jika produk benar-benar membutuhkan hala
 
 ### Halaman web HCM Admin saja (middleware `hcm.web.admin`)
 
-Route **`GET /promotion`**, **`/resignation`**, **`/termination`**, **`/salary-component-master`** *(redirect ke `/payroll` untuk admin)*, **`/employee-salary`**, **`/payroll`**, **`/payroll-overtime`**, **`/payroll-deduction`**, **`/payroll-run`**, **`/payroll-run-history`**, **`/payroll-thr`** memakai middleware **`hcm.web.admin`** **setelah** guard auth umum. Pengguna terautentikasi yang **bukan** `User::isHcmAdmin()` mendapat **redirect 302** ke **`/employee-dashboard`** (sumber kebenaran sama dengan heuristik admin di API). Ini melengkapi redirect di JS; **tanpa** mengganti RBAC di endpoint `/v1/hcm/*`.
+Route **`GET /promotion`**, **`/resignation`**, **`/termination`**, **`/salary-component-master`**, **`/employee-salary`**, **`/payroll`**, **`/payroll-overtime`**, **`/payroll-deduction`**, **`/payroll-run`**, **`/payroll-run-history`**, **`/payroll-thr`** memakai middleware **`hcm.web.admin`** **setelah** guard auth umum. Pengguna terautentikasi yang **bukan** `User::isHcmAdmin()` mendapat **redirect 302** ke **`/employee-dashboard`** (sumber kebenaran sama dengan heuristik admin di API). Ini melengkapi redirect di JS; **tanpa** mengganti RBAC di endpoint `/v1/hcm/*`.
 
 ## Prinsip keamanan (ringkas)
 

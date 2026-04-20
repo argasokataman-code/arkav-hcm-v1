@@ -20,10 +20,19 @@
       if (!document.getElementById("um_users_tbody")) {
         return;
       }
-      // Granular permission check
-      this.canManageUsers = window.AuthPermissions && window.AuthPermissions.hasPermission
-        ? window.AuthPermissions.hasPermission('users.manage')
-        : false;
+      var authUser = window.AuthUser || null;
+      var isAppSuperUser = !!(authUser && authUser.hcmGlobalAdmin === true);
+      var hasPermission = window.AuthPermissions && window.AuthPermissions.hasPermission
+        ? window.AuthPermissions.hasPermission.bind(window.AuthPermissions)
+        : null;
+      this.canManageUsers = isAppSuperUser || (hasPermission
+        ? (
+          hasPermission('user_management.manage') ||
+          hasPermission('user.create') ||
+          hasPermission('user.update') ||
+          hasPermission('user.assign_role')
+        )
+        : false);
       this.bindEvents();
       this.loadRoles();
       this.loadUsers();

@@ -105,7 +105,12 @@ class EmployeeProfile extends Model
             $this->user_uuid = (string) (User::query()->where('id', $this->user_id)->value('uuid') ?? '');
         }
 
-        if (Schema::hasColumn($this->getTable(), 'company_uuid') && ! $this->company_uuid && $this->company_id) {
+        if (
+            Schema::hasColumn($this->getTable(), 'company_uuid')
+            && Schema::hasColumn((new Company)->getTable(), 'uuid')
+            && ! $this->company_uuid
+            && $this->company_id
+        ) {
             $this->company_uuid = (string) (Company::query()->where('id', $this->company_id)->value('uuid') ?? '');
         }
 

@@ -2,20 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class HcmThrBatchLine extends Model
 {
-    protected static function booted(): void
-    {
-        static::creating(function (self $model): void {
-            if (empty($model->uuid)) {
-                $model->uuid = (string) Str::uuid();
-            }
-        });
-    }
+    use AssignsUuid;
 
     protected $fillable = [
         'thr_slip_public_no',

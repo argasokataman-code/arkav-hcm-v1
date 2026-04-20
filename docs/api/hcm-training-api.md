@@ -2,6 +2,8 @@
 
 Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/HcmTrainingController.php`.
 
+Semua endpoint di bawah modul ini membaca **active company context**. Jika tenant context tidak aktif, backend mengembalikan `422 TENANT_CONTEXT_REQUIRED`.
+
 ## Base path
 
 `/v1/hcm/training`
@@ -17,6 +19,7 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/H
 
 RBAC:
 - HCM Admin only
+- tenant-scoped ke company aktif
 
 Query:
 - `status` optional `active|inactive`
@@ -27,6 +30,7 @@ Query:
 
 RBAC:
 - HCM Admin only
+- butuh permission `training.manage`
 
 Body:
 - `name` required string max 200
@@ -36,6 +40,9 @@ Body:
 - `isActive` optional boolean
 
 Success `201`: `{ success: true, data: { id } }`
+
+Validasi tambahan:
+- trainer hanya dibuat di company aktif
 
 ## Training Types
 
@@ -49,16 +56,21 @@ Success `201`: `{ success: true, data: { id } }`
 RBAC:
 - Authenticated: allowed
 - Non-admin: hanya tipe aktif (`is_active=true`)
+- semua hasil tenant-scoped ke company aktif
 
 ### POST `/types`
 
 RBAC:
 - HCM Admin only
+- butuh permission `training.manage`
 
 Body:
 - `name` required string max 200 (unique by name; duplicate → `422 VALIDATION_ERROR`)
 - `description` optional string max 5000
 - `isActive` optional boolean
+
+Catatan:
+- uniqueness `name` berlaku per company aktif, bukan global semua tenant.
 
 Success `201`: `{ success: true, data: { id } }`
 
@@ -76,6 +88,7 @@ Catatan validasi:
 
 RBAC:
 - HCM Admin only
+- tenant-scoped ke company aktif
 
 Query:
 - `status` optional `active|inactive|completed`
@@ -92,12 +105,13 @@ Success `200`:
 
 RBAC:
 - HCM Admin only
+- butuh permission `training.manage`
 
 Body:
-- `trainingTypeId` optional integer exists `hcm_training_types.id`
-- `trainerId` optional integer exists `hcm_trainers.id` (disarankan)
+- `trainingTypeId` optional integer exists `hcm_training_types.id` **di company aktif**
+- `trainerId` optional integer exists `hcm_trainers.id` **di company aktif** (disarankan)
 - `trainerName` optional string max 200
-- `participantUserIds` optional array max 200; items integer exists `users.id`
+- `participantUserIds` optional array max 200; items integer harus merupakan `company_users.user_id` aktif di company aktif
 - `startDate` required date
 - `endDate` required date `after_or_equal:startDate`
 - `description` optional string max 5000
@@ -107,6 +121,7 @@ Body:
 Catatan relasi:
 - Jika `trainerId` dikirim, backend menyimpan FK `hcm_trainings.trainer_id` dan sinkronkan `trainerName` dari master trainer.
 - Jika hanya `trainerName` dikirim (legacy payload), backend tetap menerima; FK diisi bila nama trainer cocok.
+- record training disimpan dengan `company_id` milik company aktif.
 
 Success `201`: `{ success: true, data: { id } }`
 
@@ -114,6 +129,7 @@ Success `201`: `{ success: true, data: { id } }`
 
 RBAC:
 - HCM Admin only
+- hanya bisa mengubah record training di company aktif
 
 Body:
 - field `sometimes` (same keys as POST, termasuk `trainerId`)
@@ -123,6 +139,7 @@ Body:
 
 RBAC:
 - HCM Admin only
+- hanya bisa menghapus record training di company aktif
 
 ## Trainings for user (employee detail)
 
@@ -135,10 +152,16 @@ RBAC:
 RBAC:
 - HCM Admin: any userId
 - Non-admin: hanya self (`userId == auth.id`)
+- user target juga harus member aktif di company aktif
 
 Query:
 - `perPage` optional int 1..50
 
 Success `200`:
 - list trainings yang user tersebut ikut sebagai participant
+
+Negative responses penting:
+- `403 FORBIDDEN` untuk user tanpa `training.manage` saat mutasi, atau non-admin yang mengakses `userId` lain
+- `404 USER_NOT_FOUND` jika `userId` tidak menjadi member aktif di company aktif
+- `422 TENANT_CONTEXT_REQUIRED` jika request tidak membawa tenant context aktif
 

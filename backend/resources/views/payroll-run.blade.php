@@ -29,9 +29,11 @@
 
 
 
-            <div class="alert alert-light border mb-4" role="status">
+            <div class="alert alert-light border mb-3" role="status">
                 <strong>Payroll Run Bulanan:</strong> Halaman ini terkunci ke periode payroll aktif. Untuk melihat periode historis gunakan <a href="{{ url('payroll-run-history') }}" class="alert-link fw-semibold">History Monthly Payroll</a>.
             </div>
+
+            @include('hcm.partials.payroll-lifecycle-alert', ['variant' => 'warning', 'title' => 'Aturan void & perubahan setup'])
 
             <div class="card mb-4" data-payroll-run-panel>
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -69,6 +71,7 @@
 
                     <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-run-error></div>
                     <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-payroll-run-reconciliation-hint></div>
+                    <div class="alert alert-info d-none py-2 small mb-3" role="alert" data-payroll-run-void-hint></div>
                     <div class="d-none mb-3" role="status" data-payroll-run-evidence-indicator>
                         <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
                         <small class="d-block mt-1 text-muted" data-evidence-timestamp></small>
@@ -76,6 +79,7 @@
 
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled title="Hitung / refresh draft selama run masih status draft.">Calculate Draft</button>
+                        <button type="button" class="btn btn-outline-warning" data-payroll-run-void disabled title="Hanya aktif untuk run finalized yang belum ada pembayaran.">Void Finalized Run</button>
                         <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh CSV → Pay via Gateway.">Export Reconciliation</button>
                         <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Pay via Gateway</button>
                         @if (app()->environment(['local', 'development', 'testing']))

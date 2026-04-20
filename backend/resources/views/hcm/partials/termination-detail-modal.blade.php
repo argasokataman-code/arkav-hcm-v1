@@ -28,6 +28,30 @@
                         <dd class="col-sm-8 text-break" data-arcav-termination-detail-reason>—</dd>
                         <dt class="col-sm-4 text-muted">Notes</dt>
                         <dd class="col-sm-8 text-break" data-arcav-termination-detail-notes>—</dd>
+                        <div class="d-none" data-arcav-termination-detail-settlement-wrap>
+                            <dt class="col-sm-4 text-muted">Settlement payroll period</dt>
+                            <dd class="col-sm-8" data-arcav-termination-detail-settlement-period>—</dd>
+                            <dt class="col-sm-4 text-muted">Final salary</dt>
+                            <dd class="col-sm-8" data-arcav-termination-detail-final-salary>—</dd>
+                            <dt class="col-sm-4 text-muted">Final allowance</dt>
+                            <dd class="col-sm-8" data-arcav-termination-detail-final-allowance>—</dd>
+                            <dt class="col-sm-4 text-muted">Final deduction</dt>
+                            <dd class="col-sm-8" data-arcav-termination-detail-final-deduction>—</dd>
+                            <dt class="col-sm-4 text-muted">Net payable</dt>
+                            <dd class="col-sm-8" data-arcav-termination-detail-final-net>—</dd>
+                            <dt class="col-sm-4 text-muted">Asset return notes</dt>
+                            <dd class="col-sm-8 text-break" data-arcav-termination-detail-asset-return-notes>—</dd>
+                            <dt class="col-sm-4 text-muted">Clearance notes</dt>
+                            <dd class="col-sm-8 text-break" data-arcav-termination-detail-clearance-notes>—</dd>
+                            <dt class="col-sm-4 text-muted">Settlement breakdown</dt>
+                            <dd class="col-sm-8">
+                                <div class="list-group list-group-flush border rounded-3" data-arcav-termination-detail-breakdown></div>
+                            </dd>
+                            <dt class="col-sm-4 text-muted">Outstanding clearance</dt>
+                            <dd class="col-sm-8">
+                                <div class="list-group list-group-flush border rounded-3" data-arcav-termination-detail-clearance-items></div>
+                            </dd>
+                        </div>
                         <dt class="col-sm-4 text-muted">Recorded</dt>
                         <dd class="col-sm-8 text-muted small" data-arcav-termination-detail-created>—</dd>
                     </dl>

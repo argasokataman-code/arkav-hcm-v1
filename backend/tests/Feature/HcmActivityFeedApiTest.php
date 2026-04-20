@@ -3,7 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\HcmPermission;
+use App\Models\HcmRole;
+use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -58,6 +63,75 @@ class HcmActivityFeedApiTest extends TestCase
         ])->assertOk();
 
         return (string) $login->json('data.accessToken');
+    }
+
+    /**
+     * @return array{token:string,companyCode:string}
+     */
+    private function tenantOwnerContext(): array
+    {
+        $email = 'tenant-owner-activity@example.com';
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant Owner Activity',
+            'email' => $email,
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $owner = User::query()->where('email', $email)->firstOrFail();
+
+        $company = Company::factory()->create([
+            'status' => 'active',
+            'owner_user_id' => $owner->id,
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $owner->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $permission = HcmPermission::query()->firstOrCreate(
+            ['code' => 'attendance.admin'],
+            [
+                'module' => 'attendance',
+                'resource' => 'attendance',
+                'action' => 'admin',
+                'name' => 'Admin Attendance Management',
+                'description' => null,
+                'is_active' => true,
+            ]
+        );
+
+        $role = HcmRole::query()->create([
+            'company_id' => $company->id,
+            'code' => 'TENANT_ACTIVITY_ADMIN',
+            'name' => 'Tenant Activity Admin',
+            'description' => 'Role used for activity feed test scope',
+            'status' => 'active',
+            'is_system' => false,
+        ]);
+        $role->permissions()->sync([(int) $permission->id]);
+
+        HcmUserRole::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $owner->id,
+            'role_id' => $role->id,
+            'status' => 'active',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $email,
+            'password' => 'StrongPass1',
+            'companyCode' => (string) $company->code,
+        ])->assertOk();
+
+        return [
+            'token' => (string) $login->json('data.accessToken'),
+            'companyCode' => (string) $company->code,
+        ];
     }
 
     public function test_hcm_admin_can_fetch_activity_feed_from_real_records(): void
@@ -164,5 +238,109 @@ class HcmActivityFeedApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_tenant_owner_can_crud_manual_activity_for_active_company_context(): void
+    {
+        $ctx = $this->tenantOwnerContext();
+
+        $create = $this->withHeaders([
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Code' => $ctx['companyCode'],
+        ])->postJson('/v1/hcm/activity-manual', [
+            'title' => 'Tenant owner created manual activity',
+            'activityKind' => 'task',
+            'statusType' => 'planned',
+            'dueDate' => '2026-04-21',
+        ])->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $manualId = (int) $create->json('data.id');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Code' => $ctx['companyCode'],
+        ])->getJson('/v1/hcm/activity-feed?type=manual')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.manualActivityId', $manualId)
+            ->assertJsonPath('data.0.canEdit', true)
+            ->assertJsonPath('data.0.canDelete', true);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Code' => $ctx['companyCode'],
+        ])->putJson('/v1/hcm/activity-manual/'.$manualId, [
+            'title' => 'Tenant owner updated manual activity',
+            'activityKind' => 'meeting',
+            'statusType' => 'in_progress',
+            'dueDate' => '2026-04-23',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Code' => $ctx['companyCode'],
+        ])->deleteJson('/v1/hcm/activity-manual/'.$manualId)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
+
+    public function test_company_owner_membership_can_crud_manual_activity_without_explicit_rbac_role(): void
+    {
+        $email = 'tenant-owner-membership-only@example.com';
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant Owner Membership Only',
+            'email' => $email,
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $owner = User::query()->where('email', $email)->firstOrFail();
+
+        $company = Company::factory()->create([
+            'status' => 'active',
+            'owner_user_id' => $owner->id,
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $owner->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $email,
+            'password' => 'StrongPass1',
+            'companyCode' => (string) $company->code,
+        ])->assertOk();
+
+        $token = (string) $login->json('data.accessToken');
+        $headers = [
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Code' => (string) $company->code,
+        ];
+
+        $create = $this->withHeaders($headers)
+            ->postJson('/v1/hcm/activity-manual', [
+                'title' => 'Owner membership manual activity',
+                'activityKind' => 'task',
+                'statusType' => 'planned',
+                'dueDate' => '2026-04-21',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $manualId = (int) $create->json('data.id');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/activity-feed?type=manual')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.manualActivityId', $manualId)
+            ->assertJsonPath('data.0.canEdit', true)
+            ->assertJsonPath('data.0.canDelete', true);
     }
 }

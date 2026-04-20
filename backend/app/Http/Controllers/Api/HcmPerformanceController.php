@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeProfile;
+use App\Models\LeaveRequest;
 use App\Models\PerformanceCycle;
 use App\Models\PerformanceIndicatorItem;
 use App\Models\PerformanceIndicatorTemplate;
@@ -13,8 +14,11 @@ use App\Models\PerformanceGoalType;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewScore;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class HcmPerformanceController extends Controller
 {
@@ -32,6 +36,83 @@ class HcmPerformanceController extends Controller
                 'message' => 'Forbidden.',
             ],
         ], 403);
+    }
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function resolveNumericOrUuidModelId(string $modelClass, mixed $identifier): ?int
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $raw = trim((string) $identifier);
+        if ($raw === '') {
+            return null;
+        }
+
+        $record = $modelClass::query()
+            ->where(function (Builder $query) use ($raw): void {
+                if (ctype_digit($raw)) {
+                    $query->where('id', (int) $raw)
+                        ->orWhere('uuid', $raw);
+
+                    return;
+                }
+
+                $query->where('uuid', $raw);
+            })
+            ->first();
+
+        return $record ? (int) $record->getKey() : null;
+    }
+
+    private function resolveReviewCreationIdentifiersOrFail(Request $request, array $validated): array
+    {
+        $cycleId = $this->resolveNumericOrUuidModelId(PerformanceCycle::class, $validated['cycleId'] ?? null);
+        $templateId = $this->resolveNumericOrUuidModelId(PerformanceIndicatorTemplate::class, $validated['templateId'] ?? null);
+        $userId = $this->resolveNumericOrUuidModelId(User::class, $validated['userId'] ?? null);
+
+        $errors = [];
+        if (! $cycleId) {
+            $errors['cycleId'] = ['The selected cycle id is invalid.'];
+        }
+        if (! $templateId) {
+            $errors['templateId'] = ['The selected template id is invalid.'];
+        }
+        if (! $userId) {
+            $errors['userId'] = ['The selected user id is invalid.'];
+        } elseif (! $this->userBelongsToActiveCompany($userId, $this->activeCompanyId($request))) {
+            $errors['userId'] = ['The selected user id is invalid for the active company.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return [
+            'cycleId' => $cycleId,
+            'templateId' => $templateId,
+            'userId' => $userId,
+        ];
     }
 
     // -------------------------
@@ -204,8 +285,8 @@ class HcmPerformanceController extends Controller
     public function storeGoal(Request $request): JsonResponse
     {
         $v = $request->validate([
-            'goalTypeId' => ['nullable', 'integer', 'exists:performance_goal_types,id'],
-            'userId' => ['nullable', 'integer', 'exists:users,id'],
+            'goalTypeId' => ['nullable'],
+            'userId' => ['nullable'],
             'subject' => ['required', 'string', 'max:200'],
             'targetAchievement' => ['nullable', 'string', 'max:255'],
             'startDate' => ['nullable', 'date'],
@@ -218,19 +299,34 @@ class HcmPerformanceController extends Controller
         $auth = $request->user();
         $isAdmin = $this->canManagePerformance($request);
 
+        $goalTypeId = $this->resolveNumericOrUuidModelId(PerformanceGoalType::class, $v['goalTypeId'] ?? null);
+        if (($v['goalTypeId'] ?? null) !== null && ! $goalTypeId) {
+            throw ValidationException::withMessages([
+                'goalTypeId' => ['The selected goal type id is invalid.'],
+            ]);
+        }
+
         $userId = $auth->id;
         if (isset($v['userId'])) {
             if (! $isAdmin) {
                 return $this->forbidden();
             }
-            $userId = (int) $v['userId'];
+
+            $resolvedUserId = $this->resolveNumericOrUuidModelId(User::class, $v['userId']);
+            if (! $resolvedUserId) {
+                throw ValidationException::withMessages([
+                    'userId' => ['The selected user id is invalid.'],
+                ]);
+            }
+
+            $userId = $resolvedUserId;
         }
 
         $profile = EmployeeProfile::query()->where('user_id', $userId)->first();
         $managerUserId = $profile?->manager_user_id;
 
         $g = PerformanceGoal::query()->create([
-            'goal_type_id' => $v['goalTypeId'] ?? null,
+            'goal_type_id' => $goalTypeId,
             'user_id' => $userId,
             'manager_user_id' => $managerUserId,
             'subject' => trim((string) $v['subject']),
@@ -257,7 +353,7 @@ class HcmPerformanceController extends Controller
         }
 
         $v = $request->validate([
-            'goalTypeId' => ['sometimes', 'nullable', 'integer', 'exists:performance_goal_types,id'],
+            'goalTypeId' => ['sometimes', 'nullable'],
             'subject' => ['sometimes', 'required', 'string', 'max:200'],
             'targetAchievement' => ['sometimes', 'nullable', 'string', 'max:255'],
             'startDate' => ['sometimes', 'nullable', 'date'],
@@ -269,7 +365,14 @@ class HcmPerformanceController extends Controller
 
         $data = [];
         if (array_key_exists('goalTypeId', $v)) {
-            $data['goal_type_id'] = $v['goalTypeId'];
+            $goalTypeId = $this->resolveNumericOrUuidModelId(PerformanceGoalType::class, $v['goalTypeId']);
+            if ($v['goalTypeId'] !== null && ! $goalTypeId) {
+                throw ValidationException::withMessages([
+                    'goalTypeId' => ['The selected goal type id is invalid.'],
+                ]);
+            }
+
+            $data['goal_type_id'] = $goalTypeId;
         }
         if (array_key_exists('subject', $v)) {
             $data['subject'] = trim((string) $v['subject']);
@@ -634,25 +737,28 @@ class HcmPerformanceController extends Controller
         }
 
         $v = $request->validate([
-            'cycleId' => ['required', 'integer', 'exists:performance_cycles,id'],
-            'userId' => ['required', 'integer', 'exists:users,id'],
-            'templateId' => ['required', 'integer', 'exists:performance_indicator_templates,id'],
+            'cycleId' => ['required'],
+            'userId' => ['required'],
+            'templateId' => ['required'],
         ]);
 
-        $employee = User::query()->findOrFail((int) $v['userId']);
+        $resolved = $this->resolveReviewCreationIdentifiersOrFail($request, $v);
+
+        $employee = User::query()->findOrFail($resolved['userId']);
         $profile = EmployeeProfile::query()->where('user_id', $employee->id)->first();
         $managerUserId = $profile?->manager_user_id;
 
         $review = PerformanceReview::query()->create([
-            'cycle_id' => (int) $v['cycleId'],
+            'company_id' => $this->activeCompanyId($request),
+            'cycle_id' => $resolved['cycleId'],
             'user_id' => $employee->id,
             'manager_user_id' => $managerUserId,
-            'template_id' => (int) $v['templateId'],
+            'template_id' => $resolved['templateId'],
             'status' => 'draft',
         ]);
 
         // Pre-create score rows for items.
-        $items = PerformanceIndicatorItem::query()->where('template_id', (int) $v['templateId'])->get(['id']);
+        $items = PerformanceIndicatorItem::query()->where('template_id', $resolved['templateId'])->get(['id']);
         foreach ($items as $it) {
             PerformanceReviewScore::query()->create([
                 'review_id' => $review->id,
@@ -679,6 +785,11 @@ class HcmPerformanceController extends Controller
         if (! $this->canAccessReview($request, $review)) {
             return $this->forbidden();
         }
+
+        $auth = $request->user();
+        $isOwner = $review->user_id === $auth->id;
+        $isManager = $review->manager_user_id !== null && $review->manager_user_id === $auth->id;
+        $isAdmin = $this->hasAnyPermission($request, ['performance.manage']);
 
         $items = $review->template?->items?->sortBy(['section', 'sort_order', 'id'])->values() ?? collect();
         $scoreByItem = $review->scores?->keyBy('item_id') ?? collect();
@@ -735,6 +846,7 @@ class HcmPerformanceController extends Controller
                     'managerTotalScore' => $review->manager_total_score !== null ? (float) $review->manager_total_score : null,
                     'finalTotalScore' => $review->final_total_score !== null ? (float) $review->final_total_score : null,
                 ],
+                'leaveFrequency' => $this->calculateLeaveFrequencyMetrics($review),
                 'items' => $payloadItems,
                 'permissions' => [
                     'isOwner' => $isOwner,
@@ -1018,6 +1130,58 @@ class HcmPerformanceController extends Controller
         $behAvg = $behList !== [] ? (array_sum($behList) / count($behList)) : 0.0;
 
         return round(($kpiAvg * self::KPI_WEIGHT_GLOBAL) + ($behAvg * self::BEHAVIOR_WEIGHT_GLOBAL), 2);
+    }
+
+    /**
+     * Calculate leave frequency metrics for a performance review period.
+     * Provides absenteeism score and breakdown of approved leaves.
+     */
+    private function calculateLeaveFrequencyMetrics(PerformanceReview $review): ?array
+    {
+        if (!$review->cycle || !$review->cycle->period_start || !$review->cycle->period_end) {
+            return null;
+        }
+
+        // Count approved leave days in the review cycle
+        $approvedLeaves = LeaveRequest::query()
+            ->when($review->company_id !== null, function ($query) use ($review) {
+                $query->where('company_id', $review->company_id);
+            }, function ($query) {
+                $query->whereNull('company_id');
+            })
+            ->where('user_id', $review->user_id)
+            ->where('status', 'approved')
+            ->whereDate('date_from', '<=', $review->cycle->period_end)
+            ->whereDate('date_to', '>=', $review->cycle->period_start)
+            ->get(['id', 'date_from', 'date_to', 'leave_type', 'days']);
+
+        $totalApproveDays = (float) $approvedLeaves->sum('days');
+
+        // Calculate cycle period length (in days)
+        $startDate = $review->cycle->period_start;
+        $endDate = $review->cycle->period_end;
+        $periodLength = $startDate->diffInDays($endDate) + 1; // inclusive of both start and end date
+
+        // Calculate absenteeism percentage
+        $absenteeismPercentage = $periodLength > 0 ? round(($totalApproveDays / $periodLength) * 100, 2) : 0.0;
+
+        // Group leaves by type
+        $leavesByType = [];
+        foreach ($approvedLeaves as $leave) {
+            $type = (string) $leave->leave_type;
+            if (!isset($leavesByType[$type])) {
+                $leavesByType[$type] = 0;
+            }
+            $leavesByType[$type] += (float) $leave->days;
+        }
+
+        return [
+            'totalApproveDays' => $totalApproveDays,
+            'periodDays' => $periodLength,
+            'absenteeismPercentage' => $absenteeismPercentage,
+            'leaveCount' => count($approvedLeaves),
+            'leavesByType' => $leavesByType,
+        ];
     }
 }
 

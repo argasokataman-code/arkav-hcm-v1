@@ -38,7 +38,7 @@ class ConvertExpiredTrialsJobTest extends TestCase
 
         $sub = Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'trial',
             'starts_at' => now()->subDays(40),
@@ -86,7 +86,7 @@ class ConvertExpiredTrialsJobTest extends TestCase
 
         $sub = Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'trial',
             'starts_at' => now()->subDays(40),

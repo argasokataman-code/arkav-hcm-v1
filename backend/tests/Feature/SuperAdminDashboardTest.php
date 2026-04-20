@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\DashboardMetric;
 use App\Models\Package;
 use App\Models\Subscription;
@@ -116,12 +117,28 @@ class SuperAdminDashboardTest extends TestCase
             'currency' => 'GBP',
         ]);
 
+        $package = Package::create([
+            'name' => 'Starter Plan',
+            'code' => 'STARTER',
+            'description' => 'Starter plan',
+            'price' => 49.99,
+        ]);
+
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $package->uuid,
+            'status' => 'active',
+            'billing_cycle' => 'monthly',
+            'amount' => 49.99,
+        ]);
+
         $response = $this->adminRequest()->getJson('/v1/saas/dashboard/companies');
 
         $response->assertStatus(200);
         $this->assertTrue($response->json('success'));
         $this->assertGreaterThanOrEqual(2, count($response->json('data')));
         $this->assertArrayHasKey('pagination', $response->json());
+        $this->assertArrayHasKey('totalRevenue', $response->json('data.0'));
     }
 
     public function test_admin_can_get_top_companies()
@@ -136,7 +153,7 @@ class SuperAdminDashboardTest extends TestCase
 
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'active',
             'billing_cycle' => 'monthly',
             'amount' => 99.99,
@@ -160,13 +177,13 @@ class SuperAdminDashboardTest extends TestCase
 
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'active',
             'billing_cycle' => 'monthly',
             'amount' => 29.99,
         ]);
 
-        $response = $this->adminRequest()->getJson("/v1/saas/dashboard/companies/{$this->company->id}/details");
+        $response = $this->adminRequest()->getJson("/v1/saas/dashboard/companies/{$this->company->uuid}/details");
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -214,6 +231,64 @@ class SuperAdminDashboardTest extends TestCase
         $this->assertGreaterThan(0, $response->json('data.totalUsers'));
     }
 
+    public function test_admin_can_get_user_retention_summary(): void
+    {
+        $retainedUser = User::create([
+            'name' => 'Retained User',
+            'email' => 'retained@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $churnedUser = User::create([
+            'name' => 'Churned User',
+            'email' => 'churned@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $newUser = User::create([
+            'name' => 'New User',
+            'email' => 'new-user@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        CompanyUser::create([
+            'company_id' => $this->company->id,
+            'user_id' => $retainedUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+            'joined_at' => now()->subMonths(2),
+        ]);
+
+        CompanyUser::create([
+            'company_id' => $this->company->id,
+            'user_id' => $churnedUser->id,
+            'role' => 'employee',
+            'status' => 'inactive',
+            'joined_at' => now()->subMonths(2),
+        ]);
+
+        CompanyUser::create([
+            'company_id' => $this->company->id,
+            'user_id' => $newUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+            'joined_at' => now()->subDays(5),
+        ]);
+
+        CompanyUser::query()->where('user_id', $retainedUser->id)->update(['joined_at' => now()->subMonths(2)->startOfDay()]);
+        CompanyUser::query()->where('user_id', $churnedUser->id)->update(['joined_at' => now()->subMonths(2)->startOfDay()]);
+        CompanyUser::query()->where('user_id', $newUser->id)->update(['joined_at' => now()->subDays(5)->startOfDay()]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/users/retention');
+
+        $response->assertOk();
+        $this->assertEquals(2, $response->json('data.previousCohortUsers'));
+        $this->assertEquals(1, $response->json('data.retainedUsers'));
+        $this->assertEquals(1, $response->json('data.churnedUsers'));
+        $this->assertGreaterThanOrEqual(1, $response->json('data.newUsersThisMonth'));
+        $this->assertEquals(50.0, $response->json('data.retentionRate'));
+    }
+
     public function test_admin_can_get_monthly_revenue()
     {
         $package = Package::create([
@@ -225,7 +300,7 @@ class SuperAdminDashboardTest extends TestCase
 
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'active',
             'billing_cycle' => 'monthly',
             'amount' => 299.99,
@@ -249,7 +324,7 @@ class SuperAdminDashboardTest extends TestCase
 
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'active',
             'billing_cycle' => 'monthly',
             'amount' => 199.99,
@@ -259,6 +334,36 @@ class SuperAdminDashboardTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertTrue($response->json('success'));
+    }
+
+    public function test_admin_can_get_revenue_forecast(): void
+    {
+        $package = Package::create([
+            'name' => 'Forecast Plan',
+            'code' => 'FORECAST',
+            'description' => 'Forecast plan',
+            'price' => 100,
+        ]);
+
+        foreach ([120, 180, 240] as $index => $amount) {
+            $subscription = Subscription::create([
+                'company_id' => $this->company->id,
+                'package_uuid' => $package->uuid,
+                'status' => 'active',
+                'billing_cycle' => 'monthly',
+                'amount' => $amount,
+            ]);
+
+            Subscription::query()
+                ->whereKey($subscription->id)
+                ->update(['created_at' => now()->subMonths(2 - $index)->startOfMonth()->addDays(2)]);
+        }
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/revenue/forecast');
+
+        $response->assertOk();
+        $this->assertSame('average_delta_last_6_months', $response->json('data.method'));
+        $this->assertCount(3, $response->json('data.forecast'));
     }
 
     public function test_admin_can_get_subscription_status()
@@ -273,7 +378,7 @@ class SuperAdminDashboardTest extends TestCase
         // Create subscriptions with different statuses
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'active',
             'billing_cycle' => 'monthly',
             'amount' => 0,
@@ -281,7 +386,7 @@ class SuperAdminDashboardTest extends TestCase
 
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'status' => 'cancelled',
             'billing_cycle' => 'monthly',
             'amount' => 0,
@@ -292,6 +397,51 @@ class SuperAdminDashboardTest extends TestCase
         $response->assertStatus(200);
         $this->assertTrue($response->json('success'));
         $this->assertArrayHasKey('active', $response->json('data'));
+    }
+
+    public function test_admin_can_get_subscription_health(): void
+    {
+        $package = Package::create([
+            'name' => 'Health Plan',
+            'code' => 'HEALTH',
+            'description' => 'Health plan',
+            'price' => 79,
+        ]);
+
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $package->uuid,
+            'status' => 'active',
+            'billing_cycle' => 'monthly',
+            'amount' => 79,
+            'ends_at' => now()->addDays(7),
+            'auto_renew' => false,
+        ]);
+
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $package->uuid,
+            'status' => 'trial',
+            'billing_cycle' => 'monthly',
+            'amount' => 0,
+            'ends_at' => now()->addDays(10),
+            'auto_renew' => true,
+        ]);
+
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $package->uuid,
+            'status' => 'cancelled',
+            'billing_cycle' => 'monthly',
+            'amount' => 79,
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/subscriptions/health');
+
+        $response->assertOk();
+        $this->assertIsNumeric($response->json('data.healthScore'));
+        $this->assertGreaterThanOrEqual(1, $response->json('data.expiringSoon'));
+        $this->assertGreaterThanOrEqual(1, $response->json('data.autoRenewDisabled'));
     }
 
     public function test_admin_can_view_audit_logs()
@@ -344,9 +494,53 @@ class SuperAdminDashboardTest extends TestCase
         $this->assertGreaterThan(0, count($response->json('data')));
     }
 
+    public function test_admin_can_get_audit_log_detail(): void
+    {
+        $auditLog = AuditLog::create([
+            'super_admin_id' => User::where('email', 'qa.login@example.com')->first()->id,
+            'action' => 'modify_subscription',
+            'target_type' => 'subscription',
+            'target_id' => 42,
+            'details' => ['change' => 'plan'],
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/audit-logs/'.$auditLog->id);
+
+        $response->assertOk();
+        $this->assertTrue($response->json('data.isSensitiveAction'));
+        $this->assertEquals('PHPUnit', $response->json('data.userAgent'));
+    }
+
+    public function test_admin_can_get_custom_report_summary(): void
+    {
+        $package = Package::create([
+            'name' => 'Custom Report Plan',
+            'code' => 'CUSTOMREP',
+            'description' => 'Custom report plan',
+            'price' => 150,
+        ]);
+
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $package->uuid,
+            'status' => 'active',
+            'billing_cycle' => 'monthly',
+            'amount' => 150,
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/reports/custom?group_by=status');
+
+        $response->assertOk();
+        $this->assertEquals('status', $response->json('data.filters.groupBy'));
+        $this->assertIsArray($response->json('data.breakdown'));
+        $this->assertArrayHasKey('totalRevenue', $response->json('data.summary'));
+    }
+
     public function test_non_admin_cannot_access_company_details()
     {
-        $response = $this->userRequest()->getJson("/v1/saas/dashboard/companies/{$this->company->id}/details");
+        $response = $this->userRequest()->getJson("/v1/saas/dashboard/companies/{$this->company->uuid}/details");
 
         $response->assertStatus(403);
         $this->assertEquals('ADMIN_REQUIRED', $response->json('error.code'));
@@ -385,6 +579,23 @@ class SuperAdminDashboardTest extends TestCase
         $this->assertIsNumeric($data['mrr']);
     }
 
+    public function test_dashboard_kpi_prefers_cached_metric_when_available(): void
+    {
+        DashboardMetric::create([
+            'metric_date' => now()->toDateString(),
+            'metric_key' => 'mrr',
+            'metric_value' => 777,
+            'metric_metadata' => ['source' => 'test-cache'],
+            'calculated_at' => now(),
+            'next_calculation_at' => now()->addHour(),
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/kpi');
+
+        $response->assertOk();
+        $this->assertEquals(777, $response->json('data.mrr'));
+    }
+
     public function test_company_list_pagination()
     {
         // Create 20 companies with unique codes
@@ -405,5 +616,25 @@ class SuperAdminDashboardTest extends TestCase
         $this->assertGreaterThanOrEqual(20, $response->json('pagination.total'));
         $this->assertEquals(15, $response->json('pagination.per_page'));
         $this->assertEquals(1, $response->json('pagination.current_page'));
+    }
+
+    public function test_company_list_honors_requested_per_page(): void
+    {
+        for ($i = 1; $i <= 12; $i++) {
+            Company::create([
+                'code' => 'PERPAGE' . str_pad($i, 4, '0', STR_PAD_LEFT),
+                'name' => 'Per Page Company ' . $i,
+                'email' => 'perpage' . $i . '@test.com',
+                'country' => 'US',
+                'industry' => 'Tech',
+                'currency' => 'USD',
+            ]);
+        }
+
+        $response = $this->adminRequest()->getJson('/v1/saas/dashboard/companies?per_page=5');
+
+        $response->assertOk();
+        $this->assertCount(5, $response->json('data'));
+        $this->assertEquals(5, $response->json('pagination.per_page'));
     }
 }

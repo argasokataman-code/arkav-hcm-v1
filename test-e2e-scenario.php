@@ -1,146 +1,191 @@
 <?php
-/**
- * E2E Test Scenario Setup
- * 
- * Flow:
- * 1. Create company with trial subscription
- * 2. Create user account (owner)
- * 3. Create employee record linked to user
- * 4. Test login in both modes (Regular + Company Mode)
- * 5. Create admin role
- * 6. Assign admin role to employee
- */
 
-// Bootstrap Laravel
-require __DIR__ . '/backend/bootstrap/app.php';
-
-use Illuminate\Support\Facades\Artisan;
-
-$app = require __DIR__ . '/backend/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-$kernel->bootstrap();
-
-use App\Models\User;
 use App\Models\Company;
 use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
 use App\Models\Package;
+use App\Models\PackageFeature;
 use App\Models\Subscription;
-use App\Models\HcmRole;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
-echo "=== E2E Test Scenario Setup ===\n\n";
+require __DIR__ . '/backend/vendor/autoload.php';
 
-// Step 1: Create test user
-echo "Step 1: Creating test user...\n";
-$testUser = User::firstOrCreate(
-    ['email' => 'e2e-test@arcav.test'],
-    [
-        'name' => 'E2E Test User',
-        'password' => Hash::make('password123'),
-        'email_verified_at' => now(),
-    ]
-);
-echo "✓ User created: {$testUser->email} (ID: {$testUser->id})\n\n";
+$app = require __DIR__ . '/backend/bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-// Step 2: Create test company
-echo "Step 2: Creating test company...\n";
-$testCompany = Company::firstOrCreate(
-    ['code' => 'e2e_test_company'],
-    [
-        'name' => 'E2E Test Company',
-        'description' => 'Company for E2E testing',
-        'status' => 'active',
-    ]
-);
-echo "✓ Company created: {$testCompany->name} (code: {$testCompany->code}, ID: {$testCompany->id})\n\n";
+function log_line(string $message): void
+{
+    echo '[' . now()->format('Y-m-d H:i:s') . '] ' . $message . PHP_EOL;
+}
 
-// Step 3: Add user to company as owner
-echo "Step 3: Adding user to company as owner...\n";
-$companyUser = CompanyUser::firstOrCreate(
-    [
-        'company_id' => $testCompany->id,
-        'user_id' => $testUser->id,
-    ],
-    [
-        'role' => 'owner',
-        'status' => 'active',
-        'joined_at' => now(),
-    ]
-);
-echo "✓ User added to company as {$companyUser->role}\n\n";
-
-// Step 4: Create or get trial package
-echo "Step 4: Setting up trial subscription...\n";
-$trialPackage = Package::where('code', 'trial')->orWhere('name', 'like', '%trial%')->first();
-if (!$trialPackage) {
-    echo "⚠ Trial package not found, skipping subscription\n";
-} else {
-    $subscription = Subscription::firstOrCreate(
+function ensureTrialPackage(): Package
+{
+    $package = Package::query()->updateOrCreate(
+        ['code' => 'trial'],
         [
-            'company_id' => $testCompany->id,
-            'package_id' => $trialPackage->id,
-        ],
-        [
+            'name' => 'Trial (30 Hari)',
+            'description' => 'Paket khusus trial untuk evaluasi. Otomatis aktif 30 hari lalu diminta upgrade.',
+            'monthly_price' => 0,
+            'yearly_price' => 0,
+            'billing_unit' => 'company',
             'status' => 'active',
-            'start_date' => now(),
-            'end_date' => now()->addDays(14),
+            'color' => '#6B7280',
+            'sort_order' => 0,
         ]
     );
-    echo "✓ Subscription created: {$trialPackage->name} (ID: {$subscription->id})\n";
+
+    $featureTemplate = [
+        'employee_management' => 'Employee Management',
+        'attendance' => 'Attendance',
+        'leave_management' => 'Leave Management',
+        'payroll' => 'Payroll',
+        'performance' => 'Performance',
+        'training' => 'Training',
+        'goal_tracking' => 'Goal Tracking',
+        'asset_management' => 'Asset Management',
+        'api_access' => 'API Access',
+        'priority_support' => 'Priority Support',
+    ];
+
+    $limits = [
+        'employee_management' => 20,
+        'attendance' => 1,
+        'leave_management' => 1,
+        'payroll' => 0,
+        'performance' => 0,
+        'training' => 0,
+        'goal_tracking' => 0,
+        'asset_management' => 0,
+        'api_access' => 0,
+        'priority_support' => 0,
+    ];
+
+    foreach ($featureTemplate as $featureCode => $featureName) {
+        PackageFeature::query()->updateOrCreate(
+            [
+                'package_uuid' => $package->uuid,
+                'feature_code' => $featureCode,
+            ],
+            [
+                'feature_name' => $featureName,
+                'limit' => $limits[$featureCode],
+            ]
+        );
+    }
+
+    return $package;
 }
-echo "\n";
 
-// Step 5: Create employee profile
-echo "Step 5: Creating employee profile...\n";
-$employee = EmployeeProfile::firstOrCreate(
-    [
-        'company_id' => $testCompany->id,
-        'user_id' => $testUser->id,
-    ],
-    [
-        'name' => $testUser->name,
-        'email' => $testUser->email,
-        'status' => 'active',
-        'employment_date' => now(),
-    ]
-);
-echo "✓ Employee profile created (ID: {$employee->id})\n\n";
+function ensureSuperAdmin(): User
+{
+    $email = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+    $password = (string) config('hcm.admin_password', 'StrongPass1');
 
-// Step 6: Create admin role
-echo "Step 6: Creating admin role...\n";
-$adminRole = HcmRole::firstOrCreate(
-    [
-        'company_id' => $testCompany->id,
-        'code' => 'ADMIN_E2E',
-    ],
-    [
-        'name' => 'Admin (E2E Test)',
-        'description' => 'Test admin role for dashboard control',
-        'status' => 'active',
-        'is_system' => false,
-    ]
-);
-echo "✓ Admin role created (ID: {$adminRole->id})\n\n";
+    $user = User::query()->updateOrCreate(
+        ['email' => $email],
+        [
+            'name' => 'Super User 1',
+            'password' => Hash::make($password),
+        ]
+    );
 
-// Summary
-echo "=== Test Setup Complete ===\n";
-echo "Test User Email: {$testUser->email}\n";
-echo "Test Password: password123\n";
-echo "Company Code: {$testCompany->code}\n";
-echo "Company Name: {$testCompany->name}\n";
-echo "Employee ID: {$employee->id}\n";
-echo "Admin Role: {$adminRole->code}\n";
-echo "\n";
+    if (Schema::hasTable('companies') && Schema::hasTable('company_users')) {
+        $defaultCompany = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'legal_name' => 'Default Company',
+                'status' => 'active',
+                'owner_user_id' => $user->id,
+                'timezone' => (string) config('app.timezone', 'UTC'),
+                'currency' => 'IDR',
+                'country_code' => 'ID',
+            ]
+        );
 
-echo "Next steps:\n";
-echo "1. Go to login page\n";
-echo "2. Login in Regular Mode with: {$testUser->email} / password123\n";
-echo "3. Verify employee dashboard access\n";
-echo "4. Logout\n";
-echo "5. Login in Company Mode with company code: {$testCompany->code}\n";
-echo "6. Verify admin dashboard + user/roles management\n";
-echo "7. Create/assign admin role to employee\n";
+        CompanyUser::query()->firstOrCreate(
+            [
+                'company_id' => $defaultCompany->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'owner',
+                'status' => 'active',
+                'joined_at' => now(),
+                'invited_by_user_id' => null,
+            ]
+        );
+    }
 
-echo "\n✓ Test scenario ready!\n";
-?>
+    return $user;
+}
+
+function ensureTrialCompany(Package $package): Company
+{
+    $company = Company::query()->updateOrCreate(
+        ['code' => 'e2e_trial_company'],
+        [
+            'name' => 'E2E Trial Company',
+            'legal_name' => 'E2E Trial Company',
+            'status' => 'active',
+            'timezone' => (string) config('app.timezone', 'UTC'),
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]
+    );
+
+    if (Schema::hasTable('subscriptions')) {
+        Subscription::query()->updateOrCreate(
+            [
+                'company_id' => $company->id,
+                'package_uuid' => $package->uuid,
+            ],
+            [
+                'plan_code' => $package->code,
+                'status' => 'trial',
+                'starts_at' => now(),
+                'ends_at' => now()->addDays(30),
+                'trial_ends_at' => now()->addDays(30),
+                'auto_renew' => false,
+                'billing_cycle' => 'monthly',
+                'amount' => $package->monthly_price,
+                'terminated_at' => null,
+                'termination_reason' => null,
+                'suspended_at' => null,
+                'suspension_reason' => null,
+                'metadata' => [
+                    'seed_source' => 'test-e2e-scenario.php',
+                    'scenario' => 'trial-package-super-admin-login',
+                ],
+            ]
+        );
+    }
+
+    return $company;
+}
+
+log_line('Bootstrapping E2E scenario...');
+
+$package = ensureTrialPackage();
+log_line(sprintf('Trial package ready: %s (%s)', $package->name, $package->code));
+
+$superAdmin = ensureSuperAdmin();
+log_line(sprintf('Super admin ready: %s', $superAdmin->email));
+
+if (! Auth::validate(['email' => $superAdmin->email, 'password' => (string) config('hcm.admin_password', 'StrongPass1')])) {
+    throw new RuntimeException('Super admin credentials failed validation.');
+}
+
+log_line('Super admin credentials validated successfully.');
+
+$company = ensureTrialCompany($package);
+log_line(sprintf('Trial company ready: %s (%s)', $company->name, $company->code));
+
+log_line('E2E scenario completed.');
+log_line('Login with the super admin account below:');
+log_line(sprintf('Email: %s', $superAdmin->email));
+log_line(sprintf('Password: %s', (string) config('hcm.admin_password', 'StrongPass1')));
+log_line(sprintf('Trial package code: %s', $package->code));
+log_line(sprintf('Trial company code: %s', $company->code));

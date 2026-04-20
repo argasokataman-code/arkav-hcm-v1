@@ -44,7 +44,7 @@ class HcmPayrollThrSettingsController extends Controller
         ]);
     }
 
-    public function upsert(Request $request, int $calendarYear): JsonResponse
+    public function upsert(Request $request, string $calendarYear): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
@@ -52,7 +52,18 @@ class HcmPayrollThrSettingsController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
-        if ($calendarYear < 2000 || $calendarYear > 2100) {
+        if (! ctype_digit($calendarYear)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'THR_SETTINGS_YEAR_INVALID',
+                    'message' => 'calendarYear must be a numeric year between 2000 and 2100.',
+                ],
+            ], 422);
+        }
+
+        $calendarYearInt = (int) $calendarYear;
+        if ($calendarYearInt < 2000 || $calendarYearInt > 2100) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -85,7 +96,7 @@ class HcmPayrollThrSettingsController extends Controller
         $row = HcmThrYearlySetting::query()->updateOrCreate(
             [
                 'company_id' => $companyId,
-                'calendar_year' => $calendarYear,
+                'calendar_year' => $calendarYearInt,
             ],
             [
                 'company_id' => $companyId,

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subscription;
+use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,39 +32,63 @@ class SaasCompanyBillingOverviewController extends Controller
         $tab = $validated['tab'];
         $search = trim((string) ($validated['search'] ?? ''));
 
-        $query = Subscription::query()
+        $query = Company::query()
             ->with([
-                'company',
-                'package',
-                'latestInvoice.latestEmailLog',
+                'latestSubscription.package',
+                'latestSubscription.latestInvoice.latestEmailLog',
             ]);
 
         if ($tab === 'trial') {
-            $query->where('status', 'trial');
+            $query->whereHas('latestSubscription', function ($subQuery): void {
+                $subQuery->where('status', 'trial');
+            });
         } else {
-            $query->whereIn('status', ['active', 'pending_payment']);
+            $query->whereHas('latestSubscription', function ($subQuery): void {
+                $subQuery->whereIn('status', ['active', 'pending_payment']);
+            });
         }
 
         if ($search !== '') {
-            $query->whereHas('company', function ($q) use ($search): void {
-                $q->where('name', 'like', '%'.$search.'%')
+            $query->where(function ($companyQuery) use ($search): void {
+                $companyQuery->where('name', 'like', '%'.$search.'%')
                     ->orWhere('code', 'like', '%'.$search.'%');
             });
         }
 
         $perPage = (int) ($validated['per_page'] ?? 15);
-        $subscriptions = $query->latest('created_at')->paginate($perPage);
+        $companies = $query->orderByDesc('id')->paginate($perPage);
 
-        $rows = collect($subscriptions->items())
-            ->map(function (Subscription $subscription): array {
-                $company = $subscription->company;
-                $package = $subscription->package;
-                $invoice = $subscription->latestInvoice;
+        $rows = collect($companies->items())
+            ->map(function (Company $company): array {
+                $subscription = $company->latestSubscription;
+                $package = $subscription?->package;
+                $invoice = $subscription?->latestInvoice;
                 $emailLog = $invoice?->latestEmailLog;
 
                 $emailStatus = 'not_sent';
                 if ($emailLog) {
                     $emailStatus = $emailLog->status === 'sent' ? 'sent' : 'failed';
+                }
+
+                $stateBadges = [];
+                if (($subscription?->status ?? null) === 'pending_payment') {
+                    if (! $invoice) {
+                        $stateBadges[] = [
+                            'code' => 'INVOICE_MISSING',
+                            'label' => 'Invoice Missing',
+                            'kind' => 'warning',
+                            'message' => 'Subscription pending payment tetapi invoice terbaru tidak ditemukan.',
+                        ];
+                    }
+
+                    if ($invoice && (bool) $invoice->is_paid) {
+                        $stateBadges[] = [
+                            'code' => 'STATE_MISMATCH',
+                            'label' => 'State Mismatch',
+                            'kind' => 'warning',
+                            'message' => 'Invoice sudah paid tetapi subscription masih pending payment.',
+                        ];
+                    }
                 }
 
                 return [
@@ -74,31 +98,34 @@ class SaasCompanyBillingOverviewController extends Controller
                         'name' => (string) ($company?->name ?? ''),
                     ],
                     'subscription' => [
-                        'id' => $subscription->id,
-                        'status' => (string) $subscription->status,
-                        'billingCycle' => (string) $subscription->billing_cycle,
-                        'startsAt' => $subscription->starts_at,
-                        'endsAt' => $subscription->ends_at,
-                        'trialEndsAt' => $subscription->trial_ends_at,
-                        'planCode' => (string) $subscription->plan_code,
-                        'packageId' => $package?->id,
+                        'id' => $subscription?->id,
+                        'status' => (string) ($subscription?->status ?? ''),
+                        'billingCycle' => (string) ($subscription?->billing_cycle ?? ''),
+                        'startsAt' => $subscription?->starts_at,
+                        'endsAt' => $subscription?->ends_at,
+                        'trialEndsAt' => $subscription?->trial_ends_at,
+                        'planCode' => (string) ($subscription?->plan_code ?? ''),
+                        'packageId' => $package?->uuid,
                         'packageName' => (string) ($package?->name ?? ''),
-                        'amount' => $subscription->amount,
+                        'amount' => $subscription?->amount,
                     ],
                     'latestInvoice' => $invoice ? [
                         'id' => $invoice->id,
+                        'uuid' => $invoice->uuid,
                         'invoiceNumber' => $invoice->invoice_number,
                         'issueDate' => $invoice->issue_date,
                         'dueDate' => $invoice->due_date,
                         'amountDue' => $invoice->amount_due,
                         'isPaid' => (bool) $invoice->is_paid,
                         'status' => (string) $invoice->status,
+                        'detailUrl' => url('/saas/billing-overview/invoices/'.$invoice->uuid),
                     ] : null,
                     'email' => [
                         'status' => $emailStatus,
                         'sentAt' => $emailLog?->created_at,
                         'lastError' => $emailLog?->error_message,
                     ],
+                    'stateBadges' => $stateBadges,
                 ];
             })
             ->values();
@@ -107,10 +134,10 @@ class SaasCompanyBillingOverviewController extends Controller
             'success' => true,
             'data' => $rows,
             'pagination' => [
-                'total' => $subscriptions->total(),
-                'per_page' => $subscriptions->perPage(),
-                'current_page' => $subscriptions->currentPage(),
-                'last_page' => $subscriptions->lastPage(),
+                'total' => $companies->total(),
+                'per_page' => $companies->perPage(),
+                'current_page' => $companies->currentPage(),
+                'last_page' => $companies->lastPage(),
             ],
         ]);
     }

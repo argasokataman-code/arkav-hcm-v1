@@ -8,6 +8,16 @@
             </div>
             <form data-hcm-leave-form="add">
                 <div class="modal-body pb-0">
+                    <!-- Error Alert -->
+                    <div class="alert alert-danger d-none mb-3" data-hcm-leave-error-add role="alert">
+                        <div class="d-flex align-items-start">
+                            <i class="ti ti-alert-circle me-2 mt-1 flex-shrink-0"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1" data-hcm-error-title>Error</h6>
+                                <p class="mb-0 small" data-hcm-error-message></p>
+                            </div>
+                        </div>
+                    </div>
                     @if($arcavLeaveAdmin)
                     <div class="mb-3">
                         <label class="form-label">Employee</label>
@@ -21,14 +31,36 @@
                         </select>
                         <span class="text-muted fs-12" data-hcm-leave-type-hint>Info potong saldo akan tampil setelah jenis dipilih.</span>
                     </div>
+                    <!-- Balance Display -->
+                    <div class="alert alert-info d-none mb-3" data-hcm-leave-balance-card>
+                        <div class="d-flex align-items-start">
+                            <i class="ti ti-info-circle me-2 mt-1"></i>
+                            <div>
+                                <small class="fw-semibold">Saldo Cuti Tersedia:</small>
+                                <div class="mt-1">
+                                    <span data-hcm-leave-balance-value>--</span>
+                                    <span class="text-muted">/</span>
+                                    <span data-hcm-leave-balance-total>--</span> hari
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">From</label>
-                            <input type="text" class="form-control" data-hcm-field="dateFrom" placeholder="YYYY-MM-DD" autocomplete="off" required>
+                            <input type="text" class="form-control" data-hcm-field="dateFrom" 
+                                   placeholder="YYYY-MM-DD" autocomplete="off" required
+                                   pattern="\d{4}-\d{2}-\d{2}" 
+                                   title="Format: YYYY-MM-DD">
+                            <small class="text-muted d-block mt-1" data-hcm-date-from-hint>Contoh: 2026-04-20</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">To</label>
-                            <input type="text" class="form-control" data-hcm-field="dateTo" placeholder="YYYY-MM-DD" autocomplete="off" required>
+                            <input type="text" class="form-control" data-hcm-field="dateTo" 
+                                   placeholder="YYYY-MM-DD" autocomplete="off" required
+                                   pattern="\d{4}-\d{2}-\d{2}" 
+                                   title="Format: YYYY-MM-DD">
+                            <small class="text-muted d-block mt-1" data-hcm-date-to-hint>Contoh: 2026-04-22</small>
                         </div>
                     </div>
                     <div class="mb-2">
@@ -62,6 +94,16 @@
             </div>
             <form data-hcm-leave-form="edit">
                 <div class="modal-body pb-0">
+                    <!-- Error Alert -->
+                    <div class="alert alert-danger d-none mb-3" data-hcm-leave-error-edit role="alert">
+                        <div class="d-flex align-items-start">
+                            <i class="ti ti-alert-circle me-2 mt-1 flex-shrink-0"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1" data-hcm-error-title>Error</h6>
+                                <p class="mb-0 small" data-hcm-error-message></p>
+                            </div>
+                        </div>
+                    </div>
                     <input type="hidden" data-hcm-field="id" value="">
                     <input type="hidden" data-hcm-field="ownerUserId" value="">
                     <div class="mb-3" data-hcm-leave-admin-only style="{{ $arcavLeaveAdmin ? '' : 'display:none' }}">

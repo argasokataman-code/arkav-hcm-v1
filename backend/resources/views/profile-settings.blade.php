@@ -103,7 +103,7 @@
                                 </div>
                             </div>
                             <div class="mt-2 text-muted fs-12">
-                                Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login as Company</em>.
+                                Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login Company</em>.
                             </div>
                         </div>
                         <div class="alert d-none" data-profile-settings-feedback></div>

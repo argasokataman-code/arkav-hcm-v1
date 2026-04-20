@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class HcmPayrollRun extends Model
 {
+    use AssignsUuid;
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_FINALIZED = 'finalized';
@@ -21,14 +22,6 @@ class HcmPayrollRun extends Model
 
     public const PURPOSE_PKWT_COMPENSATION = 'pkwt_compensation';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $fillable = [
         'company_id',
@@ -38,6 +31,8 @@ class HcmPayrollRun extends Model
         'calculated_at',
         'finalized_at',
         'finalized_by_user_id',
+        'voided_at',
+        'voided_by_user_id',
     ];
 
     protected function casts(): array
@@ -46,6 +41,7 @@ class HcmPayrollRun extends Model
             'company_id' => 'integer',
             'calculated_at' => 'datetime',
             'finalized_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -57,6 +53,11 @@ class HcmPayrollRun extends Model
     public function finalizedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'finalized_by_user_id');
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by_user_id');
     }
 
     public function lines(): HasMany

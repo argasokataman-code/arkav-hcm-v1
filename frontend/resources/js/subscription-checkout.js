@@ -150,7 +150,8 @@
         }
 
         pkgSelect.innerHTML = '<option value="">Pilih paket…</option>' + items.map(function (p) {
-            return '<option value="' + String(p.id) + '" data-code="' + String(p.code || "") + '">' +
+            var packageId = String(p.id || p.uuid || "");
+            return '<option value="' + packageId + '" data-code="' + String(p.code || "") + '">' +
                 String(p.name || p.code) + "</option>";
         }).join("");
     }
@@ -166,7 +167,7 @@
         }
 
         var payload = {
-            package_id: Number(packageId),
+            package_uuid: packageId,
             billing_cycle: billingCycleValue(),
         };
         var billingEmail = billingEmailInput ? String(billingEmailInput.value || "").trim() : "";

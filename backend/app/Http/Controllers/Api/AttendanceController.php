@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
@@ -184,8 +185,12 @@ class AttendanceController extends Controller
             });
 
         if ($companyId) {
-            $q->where(function ($inner) use ($companyId): void {
-                $inner->where('ep.company_id', $companyId)->orWhereNull('ep.company_id');
+            $q->whereExists(function ($sub) use ($companyId): void {
+                $sub->selectRaw('1')
+                    ->from('company_users as cu')
+                    ->whereColumn('cu.user_id', 'users.id')
+                    ->where('cu.company_id', $companyId)
+                    ->where('cu.status', 'active');
             });
         }
 
@@ -400,7 +405,7 @@ class AttendanceController extends Controller
         }
 
         $validated = $request->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            'userId' => ['required'],
             'workDate' => ['required', 'date'],
             'checkInTime' => ['nullable', 'date_format:H:i'],
             'checkOutTime' => ['nullable', 'date_format:H:i'],
@@ -411,11 +416,26 @@ class AttendanceController extends Controller
         $tz = $this->tz();
         $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
         $activeCompanyId = $this->activeCompanyId($request);
+        $targetUserId = $this->resolveUserId($validated['userId']);
+
+        if (! $targetUserId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => 'userId must reference an existing user.',
+                ],
+            ], 422);
+        }
+
+        if (! $this->userBelongsToActiveCompany($targetUserId, $activeCompanyId)) {
+            return $this->userNotInCompanyResponse();
+        }
 
         $recQuery = AttendanceRecord::query();
         $this->applyTenantScope($recQuery, $activeCompanyId);
         $rec = $recQuery
-            ->where('user_id', $validated['userId'])
+            ->where('user_id', $targetUserId)
             ->whereDate('work_date', $workDate)
             ->first();
 
@@ -463,7 +483,7 @@ class AttendanceController extends Controller
         if (! $rec) {
             $rec = new AttendanceRecord([
                 'company_id' => $activeCompanyId,
-                'user_id' => $validated['userId'],
+                'user_id' => $targetUserId,
                 'work_date' => $workDate,
                 'status' => 'present',
                 'correction_status' => 'none',
@@ -1114,7 +1134,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate([
             'dateFrom' => ['nullable', 'date'],
-            'dateTo' => ['nullable', 'date'],
+            'dateTo' => ['nullable', 'date', 'after_or_equal:dateFrom'],
             'project' => ['nullable', 'string', 'max:100'],
             'sort' => ['nullable', 'string', 'in:employee_asc,employee_desc,date_desc,date_asc,worked_desc,worked_asc'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -1355,6 +1375,10 @@ class AttendanceController extends Controller
 
         $activeCompanyId = $this->activeCompanyId($request);
 
+        if (! $this->userBelongsToActiveCompany($userId, $activeCompanyId)) {
+            return $this->userNotInCompanyResponse();
+        }
+
         $shiftId = isset($validated['shiftId']) ? (int) $validated['shiftId'] : null;
         $startStr = null;
         $endStr = null;
@@ -1394,7 +1418,6 @@ class AttendanceController extends Controller
             ], 422);
         }
 
-        User::query()->findOrFail($userId);
         $row = HcmScheduleTiming::query()->updateOrCreate(
             ['user_id' => $userId],
             [
@@ -1422,7 +1445,10 @@ class AttendanceController extends Controller
             return $forbidden;
         }
 
-        User::query()->findOrFail($userId);
+        if (! $this->userBelongsToActiveCompany($userId, $this->activeCompanyId($request))) {
+            return $this->userNotInCompanyResponse();
+        }
+
         $deleteQuery = HcmScheduleTiming::query()->where('user_id', $userId);
         $this->applyTenantScope($deleteQuery, $this->activeCompanyId($request));
         $deleteQuery->delete();
@@ -1597,7 +1623,7 @@ class AttendanceController extends Controller
     /**
      * Download employee selfie file for a specific attendance record (admin-only).
      */
-    public function adminSelfieDownload(Request $request, int $attendanceId): BinaryFileResponse|JsonResponse
+    public function adminSelfieDownload(Request $request, string $attendanceId): BinaryFileResponse|JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'attendance.admin');
         if ($forbidden) {
@@ -1617,7 +1643,8 @@ class AttendanceController extends Controller
 
         $query = AttendanceRecord::query();
         $this->applyTenantScope($query, $companyId);
-        $rec = $query->whereKey($attendanceId)->first();
+        $this->applyIdentifierScope($query, $attendanceId, true);
+        $rec = $query->first();
         if (! $rec) {
             return response()->json([
                 'success' => false,
@@ -1653,6 +1680,60 @@ class AttendanceController extends Controller
         $downloadName = basename($path);
 
         return response()->download($fullPath, $downloadName);
+    }
+
+    private function applyIdentifierScope(Builder $query, string $identifier, bool $hasUuidColumn): Builder
+    {
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function resolveUserId(string|int $identifier): ?int
+    {
+        $query = User::query();
+
+        if (is_int($identifier) || ctype_digit((string) $identifier)) {
+            $query->whereKey((int) $identifier);
+        } elseif (Str::isUuid((string) $identifier)) {
+            $query->where('uuid', (string) $identifier);
+        } else {
+            return null;
+        }
+
+        $user = $query->first();
+
+        return $user ? (int) $user->id : null;
+    }
+
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function userNotInCompanyResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'USER_NOT_IN_COMPANY',
+                'message' => 'User not found in active company context.',
+            ],
+        ], 404);
     }
 }
 

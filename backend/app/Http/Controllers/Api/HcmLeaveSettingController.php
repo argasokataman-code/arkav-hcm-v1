@@ -6,15 +6,83 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmLeaveCustomPolicy;
 use App\Models\HcmLeaveTypeSetting;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class HcmLeaveSettingController extends Controller
 {
     use ChecksPermissions;
 
     private const SIMPLE_CODES = ['sick_leave', 'hospitalisation', 'maternity', 'paternity', 'lop'];
+
+    private function activeCompanyId(Request $request): ?int
+    {
+        $value = $request->attributes->get('activeCompanyId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+    {
+        if (! $companyId) {
+            return true;
+        }
+
+        return DB::table('company_users')
+            ->where('user_id', $userId)
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    private function resolveUserIdentifier(mixed $identifier): ?User
+    {
+        if ($identifier === null || $identifier === '') {
+            return null;
+        }
+
+        $raw = trim((string) $identifier);
+        if ($raw === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where(function (Builder $query) use ($raw): void {
+                if (ctype_digit($raw)) {
+                    $query->where('id', (int) $raw)
+                        ->orWhere('uuid', $raw);
+
+                    return;
+                }
+
+                $query->where('uuid', $raw);
+            })
+            ->first();
+    }
+
+    private function resolveScopedAssigneeIdsOrFail(Request $request, array $identifiers): array
+    {
+        $companyId = $this->activeCompanyId($request);
+        $resolved = [];
+
+        foreach (array_values($identifiers) as $index => $identifier) {
+            $user = $this->resolveUserIdentifier($identifier);
+            if (! $user || ! $this->userBelongsToActiveCompany((int) $user->id, $companyId)) {
+                throw ValidationException::withMessages([
+                    "assigneeUserIds.{$index}" => ['The selected assignee user is invalid for the active company.'],
+                ]);
+            }
+
+            $resolved[] = (int) $user->id;
+        }
+
+        return array_values(array_unique($resolved));
+    }
 
     private function typePayload(HcmLeaveTypeSetting $t): array
     {
@@ -128,8 +196,8 @@ class HcmLeaveSettingController extends Controller
             'name' => ['required', 'string', 'max:200'],
             'days' => ['required', 'numeric', 'min:0.5', 'max:366'],
             'assigneeUserIds' => ['nullable', 'array'],
-            'assigneeUserIds.*' => ['integer', 'exists:users,id'],
         ]);
+        $validated['assigneeUserIds'] = $this->resolveScopedAssigneeIdsOrFail($request, $validated['assigneeUserIds'] ?? []);
 
         $leaveTypeCode = $validated['leaveTypeCode'] ?? null;
         $leaveTypeName = isset($validated['leaveTypeName']) ? trim((string) $validated['leaveTypeName']) : '';
@@ -206,8 +274,10 @@ class HcmLeaveSettingController extends Controller
             'name' => ['sometimes', 'string', 'max:200'],
             'days' => ['sometimes', 'numeric', 'min:0.5', 'max:366'],
             'assigneeUserIds' => ['nullable', 'array'],
-            'assigneeUserIds.*' => ['integer', 'exists:users,id'],
         ]);
+        if (array_key_exists('assigneeUserIds', $validated)) {
+            $validated['assigneeUserIds'] = $this->resolveScopedAssigneeIdsOrFail($request, $validated['assigneeUserIds'] ?? []);
+        }
 
         if (array_key_exists('name', $validated)) {
             $p->name = $validated['name'];

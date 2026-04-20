@@ -6,12 +6,13 @@
     $whiteMiniLogoUrl = \App\Support\WebsiteSettings::brandingUrl('white_mini_logo', URL::asset('build/img/image111.png'));
     $darkMiniLogoUrl = \App\Support\WebsiteSettings::brandingUrl('dark_mini_logo', URL::asset('build/img/logo-white.svg'));
     $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
+    $isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin());
     $primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
     $secondarySuperAdminEmail = strtolower(trim((string) config('hcm.secondary_admin_email', 'qa.hcm@example.com')));
     $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
     $isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
     $isSecondarySuperAdmin = $authUser && $authUserEmail === $secondarySuperAdminEmail;
-    $showTemplateCatalogMenus = $isPrimarySuperAdmin;
+    $showTemplateCatalogMenus = $isPrimarySuperAdmin || $isGlobalHcmAdmin; // Super admin sees all template catalogs
     $isQaSuperAdmin = $authUser
         && (
             strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
@@ -23,9 +24,13 @@
         : null;
     $hasCompanyBillingAccess = (bool) $activeCompanySubscription;
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
-    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin;
+    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin || $isGlobalHcmAdmin; // Super admin sees all assets
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
     $hasPerformance = (bool) ($activeCompanySubscription?->package?->hasFeature('performance') ?? false);
+    // Super admin (developer mode) sees all features regardless of package
+    $isSuperAdminDeveloperMode = $isGlobalHcmAdmin;
+    $superAdminUnlockedPayroll = $hasPayroll || $isSuperAdminDeveloperMode;
+    $superAdminUnlockedPerformance = $hasPerformance || $isSuperAdminDeveloperMode;
 @endphp
 <div class="sidebar" id="sidebar">
     <!-- Logo -->
@@ -165,16 +170,16 @@
                                 <li><a href="{{url('invoices')}}"  class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </li> -->
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Super Admin</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('dashboard')}}"  class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                                 <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                                <li><a href="{{url('saas/billing-overview')}}"  class="{{ Request::is('saas/billing-overview') ? 'active' : '' }}">Trial & Billing</a></li>
+                                <li><a href="{{url('saas/billing-overview')}}"  class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
                                 <li><a href="{{url('subscription')}}"  class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                                 <li><a href="{{url('packages')}}"  class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                                 <li><a href="{{url('domain')}}"  class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
@@ -392,7 +397,7 @@
                                 </li>
                             </ul>
                         </li>
-@if ($isHcmAdmin || $hasPerformance)
+@if ($isHcmAdmin || $superAdminUnlockedPerformance)
                         <li class="submenu">
                             <a href="javascript:void(0);"  class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-school"></i><span>Performance</span>
@@ -486,7 +491,7 @@
                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                             </ul>
                         </li> -->
-@if ($isHcmAdmin || $hasPayroll)
+@if ($isHcmAdmin || $superAdminUnlockedPayroll)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Payroll</span>
@@ -1284,7 +1289,7 @@
                         <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
                     </ul>
                 </li>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                 <li class="submenu">
                     <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders') ? 'active subdrop' : '' }}">
                         <i class="ti ti-user-star"></i><span>Super Admin</span>
@@ -2315,7 +2320,7 @@
                             'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices') ? ' show active ' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#application">
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
-                    @if ($isHcmAdmin)
+                    @if ($isGlobalHcmAdmin)
                     <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
                         <i class="ti ti-user-star"></i>
                     </a>
@@ -2468,7 +2473,7 @@
                             <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                         </ul>
                     </div>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                     <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? '  show active' : '' }}" id="super-admin">
                         <ul>
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
@@ -3441,7 +3446,7 @@
                                     <p>Applications</p>
                                 </a>
                             </div>
-                            @if ($isHcmAdmin)
+                            @if ($isGlobalHcmAdmin)
                             <div class="col-6">
                                 <a href="#menu-superadmin" role="tab" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? 'show active' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#menu-superadmin" aria-selected="false">
                                     <span><i class="ti ti-user-star"></i></span>
@@ -3588,7 +3593,7 @@
                         <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
                             </ul>
                         </div>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                         <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? ' show active ' : '' }}" id="menu-superadmin">
                             <ul class="stack-submenu">
                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>

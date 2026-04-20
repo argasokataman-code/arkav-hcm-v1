@@ -2,7 +2,12 @@
 
 ## Overview
 
-Reporting module memakai pola snapshot immutable untuk membekukan data laporan pada periode tertentu. Endpoint berada di `/v1/hcm/reports/snapshots*` dengan tenant isolation (`X-Company-Id`) dan admin-only authorization.
+Reporting module memakai dua surface runtime yang masih aktif:
+
+- snapshot HCM immutable di `/v1/hcm/reports/snapshots*`;
+- legacy report API di `/v1/saas/reports/*` yang masih menjadi sumber data untuk beberapa halaman report lama.
+
+Untuk flow HCM tenant-scoped, kedua surface sekarang menghormati `X-Company-Id` sebagai tenant aktif.
 
 ## Architecture
 
@@ -14,6 +19,7 @@ Reporting module memakai pola snapshot immutable untuk membekukan data laporan p
 ### Main Components
 
 - `backend/app/Http/Controllers/Api/ReportSnapshotController.php`
+- `backend/app/Http/Controllers/Api/ReportController.php`
 - `backend/app/Services/Reporting/ReportSnapshotService.php`
 - `backend/app/Jobs/Reporting/GenerateReportSnapshot.php`
 - `backend/app/Models/ReportSnapshot.php`
@@ -27,8 +33,19 @@ Base: `/v1/hcm/reports/snapshots`
 
 - `POST /` generate snapshot (`attendance|payroll|employee|leave|finance`)
 - `GET /` list snapshots
-- `GET /{id}` detail snapshot + grouped blocks (`dataByModule`)
-- `POST /{id}/export` generate export file (`csv|excel|pdf`) dan simpan ke disk publik
+- `GET /{id}` detail snapshot + grouped blocks (`dataByModule`) dengan identifier UUID atau numeric legacy fallback
+- `POST /{id}/export` generate export file (`csv|excel|pdf`) dan simpan ke disk publik dengan identifier UUID atau numeric legacy fallback
+
+Legacy report API:
+
+- `GET /v1/saas/reports/revenue`
+- `GET /v1/saas/reports/aging`
+- `GET /v1/saas/reports/churn`
+
+Ketiga endpoint legacy ini tetap backward compatible untuk consumer global lama, tetapi ketika request membawa `X-Company-Id` dari HCM page flow, backend sekarang:
+
+- mengunci query ke company aktif pada header tersebut;
+- menolak `company_id` query yang berbeda (`403 TENANT_SCOPE_MISMATCH`).
 
 Response envelope konsisten:
 
@@ -81,20 +98,34 @@ Storage target:
 - Semua endpoint snapshot memerlukan bearer auth + tenant context aktif
 - Permission check server-side memakai `EnsuresHcmAdmin`
 - Non-admin selalu menerima `403 AUTH_FORBIDDEN`
+- Legacy report API mempertahankan permission `report.view`, tetapi bila `X-Company-Id` dikirim maka company scope tidak boleh dioverride lewat query string.
+
+## Tenant Wiring
+
+- Frontend reporting requests sekarang mengirim tenant context dari `AuthApi.getTenantContext()` agar cocok dengan backend guard berbasis `X-Company-Id`.
+- `ReportsHub` diekspor ke `window` supaya aksi inline di blade tetap bekerja tanpa bergantung pada scope module.
+- Wiring mismatch yang ditemukan selama validasi sudah diperbaiki dan divalidasi lagi dengan Vitest serta PHPUnit.
 
 ## Tests
 
 Regression tests ada di:
 
 - `backend/tests/Feature/ReportSnapshotApiTest.php`
+- `backend/tests/Feature/ReportControllerTest.php`
+- `backend/tests/ui/reports-api-sync.wiring.test.js`
+- `backend/tests/ui/reports-hub.wiring.test.js`
 
 Coverage utama:
 
 - Generate/list snapshot (admin)
 - Forbidden generate (non-admin)
 - Show snapshot detail
+- Show snapshot detail by UUID
 - Export file nyata untuk `csv`, `excel`, `pdf`
 - Edge case export: `SNAPSHOT_NOT_READY`, `SNAPSHOT_NOT_FOUND`
+- Cross-company snapshot isolation (`404` bila snapshot milik company lain)
+- Legacy report tenant hardening (`TENANT_SCOPE_MISMATCH` bila query mencoba override `X-Company-Id`)
+- Tenant/auth wiring untuk reporting frontend dan guard backend
 
 ## Known Limits
 

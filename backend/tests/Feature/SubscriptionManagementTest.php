@@ -46,7 +46,7 @@ class SubscriptionManagementTest extends TestCase
 
         // Add employee limit feature
         PackageFeature::create([
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'feature_code' => 'max_employees',
             'feature_name' => 'Maximum Employees',
             'limit' => 5, // 5 employee limit for testing
@@ -55,7 +55,7 @@ class SubscriptionManagementTest extends TestCase
         // Create active subscription
         $this->subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'active',
             'starts_at' => now()->subMonths(3),
@@ -72,7 +72,7 @@ class SubscriptionManagementTest extends TestCase
         // Create expired subscription
         $expiredSub = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'active',
             'starts_at' => now()->subMonths(6),
@@ -98,7 +98,7 @@ class SubscriptionManagementTest extends TestCase
         // Create multiple subscriptions with different statuses
         $expired1 = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'active',
             'starts_at' => now()->subMonths(3),
@@ -109,7 +109,7 @@ class SubscriptionManagementTest extends TestCase
 
         $expired2 = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'trial',
             'starts_at' => now()->subMonths(3),
@@ -122,7 +122,7 @@ class SubscriptionManagementTest extends TestCase
         // This one is not expired
         $active = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'active',
             'starts_at' => now()->subMonths(1),
@@ -339,12 +339,12 @@ class SubscriptionManagementTest extends TestCase
     public function test_employee_count_validator_allows_unlimited(): void
     {
         // Remove employee limit
-        PackageFeature::where('package_id', $this->package->id)
+        PackageFeature::where('package_uuid', $this->package->uuid)
             ->where('feature_code', 'max_employees')
             ->delete();
 
         PackageFeature::create([
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'feature_code' => 'max_employees',
             'feature_name' => 'Maximum Employees',
             'limit' => null, // Unlimited
@@ -378,7 +378,7 @@ class SubscriptionManagementTest extends TestCase
         $co = Company::factory()->create();
         Subscription::create([
             'company_id' => $co->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'active',
             'starts_at' => now()->subMonth(),
@@ -394,7 +394,7 @@ class SubscriptionManagementTest extends TestCase
     {
         $pending = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->package->id,
+            'package_uuid' => $this->package->uuid,
             'plan_code' => 'pro',
             'status' => 'pending_payment',
             'starts_at' => now()->subMonths(2),

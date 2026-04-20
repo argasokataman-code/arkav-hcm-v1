@@ -9,6 +9,7 @@ use App\Models\PackageFeature;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class PackageController extends Controller
 {
@@ -45,7 +46,7 @@ class PackageController extends Controller
 
         $packages = $query
             ->orderBy('sort_order')
-            ->orderBy('id')
+            ->orderBy('code')
             ->with('features')
             ->withCount([
                 'subscriptions as active_subscriptions_count' => function (Builder $subQuery): void {
@@ -56,7 +57,7 @@ class PackageController extends Controller
             ->paginate($perPage);
 
         $items = collect($packages->items())->map(fn($pkg) => [
-            'id' => $pkg->id,
+            'id' => $pkg->uuid,
             'code' => $pkg->code,
             'name' => $pkg->name,
             'description' => $pkg->description,
@@ -146,11 +147,19 @@ class PackageController extends Controller
      * GET /v1/saas/package-addons/{addon}
      * Get add-on details.
      */
-    public function showAddon(PackageAddon $addon): JsonResponse
+    public function showAddon(Request $request, string $addon): JsonResponse
     {
+        $addonModel = $this->resolveAddonByIdentifier($addon);
+        if (! $addonModel) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package addon not found.'],
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
-            'data' => $this->formatAddon($addon, true),
+            'data' => $this->formatAddon($addonModel, true),
         ]);
     }
 
@@ -171,7 +180,7 @@ class PackageController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'id' => $package->id,
+                'id' => $package->uuid,
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
@@ -227,7 +236,7 @@ class PackageController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'id' => $package->id,
+                'id' => $package->uuid,
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
@@ -255,7 +264,7 @@ class PackageController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'sometimes|string|unique:packages,code,' . $package->id . '|max:50',
+            'code' => 'sometimes|string|unique:packages,code,' . $package->uuid . ',uuid|max:50',
             'name' => 'sometimes|string|max:100',
             'description' => 'nullable|string',
             'monthly_price' => 'sometimes|numeric|min:0',
@@ -271,7 +280,7 @@ class PackageController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'id' => $package->id,
+                'id' => $package->uuid,
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
@@ -297,6 +306,16 @@ class PackageController extends Controller
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
+        }
+
+        if ($package->subscriptions()->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PACKAGE_IN_USE',
+                    'message' => 'Package cannot be deleted while subscription history still references it.',
+                ],
+            ], 422);
         }
 
         $package->delete();
@@ -450,7 +469,7 @@ class PackageController extends Controller
      * PUT /v1/saas/package-addons/{addon}
      * Update package add-on (super admin only)
      */
-    public function updateAddon(Request $request, PackageAddon $addon): JsonResponse
+    public function updateAddon(Request $request, string $addon): JsonResponse
     {
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
@@ -459,8 +478,16 @@ class PackageController extends Controller
             ], 403);
         }
 
+        $addonModel = $this->resolveAddonByIdentifier($addon);
+        if (! $addonModel) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package addon not found.'],
+            ], 404);
+        }
+
         $validated = $request->validate([
-            'code' => 'sometimes|string|unique:package_addons,code,' . $addon->id . '|max:100',
+            'code' => 'sometimes|string|unique:package_addons,code,' . $addonModel->id . '|max:100',
             'name' => 'sometimes|string|max:100',
             'description' => 'nullable|string',
             'price_per_unit' => 'sometimes|numeric|min:0',
@@ -468,11 +495,11 @@ class PackageController extends Controller
             'status' => 'sometimes|in:active,inactive',
         ]);
 
-        $addon->update($validated);
+        $addonModel->update($validated);
 
         return response()->json([
             'success' => true,
-            'data' => $this->formatAddon($addon, true),
+            'data' => $this->formatAddon($addonModel, true),
         ]);
     }
 
@@ -480,7 +507,7 @@ class PackageController extends Controller
      * DELETE /v1/saas/package-addons/{addon}
      * Delete package add-on (super admin only)
      */
-    public function destroyAddon(Request $request, PackageAddon $addon): JsonResponse
+    public function destroyAddon(Request $request, string $addon): JsonResponse
     {
         if (!$this->isHcmAdmin($request)) {
             return response()->json([
@@ -489,7 +516,15 @@ class PackageController extends Controller
             ], 403);
         }
 
-        $addon->delete();
+        $addonModel = $this->resolveAddonByIdentifier($addon);
+        if (! $addonModel) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package addon not found.'],
+            ], 404);
+        }
+
+        $addonModel->delete();
 
         return response()->json([
             'success' => true,
@@ -524,5 +559,19 @@ class PackageController extends Controller
         }
 
         return $data;
+    }
+
+    private function resolveAddonByIdentifier(string $identifier): ?PackageAddon
+    {
+        $query = PackageAddon::query();
+        if (Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier)->first();
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier)->first();
+        }
+
+        return null;
     }
 }

@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route;
@@ -62,6 +65,11 @@ class WebHcmRouteGuardTest extends TestCase
             }
 
             $uri = $route->uri();
+            if (str_contains($uri, '{')) {
+                // Broad smoke test only covers static web paths. Parameterized routes can
+                // 404 with synthetic sample values before the intended guard behavior is exercised.
+                continue;
+            }
             $samplePath = '/'.ltrim((string) preg_replace('/\{[^}]+\}/', '1', $uri), '/');
             $samplePath = $samplePath === '//' ? '/' : (rtrim($samplePath, '/') ?: '/');
             if (isset($seenPaths[$samplePath])) {
@@ -125,6 +133,10 @@ class WebHcmRouteGuardTest extends TestCase
     private function criticalAdminWebPaths(): array
     {
         return [
+            '/dashboard',
+            '/saas-dashboard',
+            '/saas/transactions',
+            '/purchase-transaction',
             '/promotion',
             '/resignation',
             '/termination',
@@ -295,6 +307,53 @@ class WebHcmRouteGuardTest extends TestCase
         foreach ($adminPaths as $path) {
             $this->get($path)->assertRedirect(url('employee-dashboard'));
         }
+    }
+
+    public function test_tenant_hcm_admin_without_global_signal_is_redirected_from_super_admin_dashboard(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'tenant_admin_guard',
+            'name' => 'Tenant Guard Company',
+            'legal_name' => 'Tenant Guard Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Tenant HCM Admin',
+            'email' => 'qa.hcm@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'employment_status' => 'active',
+            'designation' => 'HCM Admin',
+            'team' => 'HCM',
+            'nik' => 'EMP-GLOBAL-GUARD',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/dashboard')
+            ->assertRedirect(url('employee-dashboard'));
+
+        $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/saas-dashboard')
+            ->assertRedirect(url('employee-dashboard'));
     }
 
     public function test_authenticated_api_cookie_can_open_sample_hcm_pages(): void

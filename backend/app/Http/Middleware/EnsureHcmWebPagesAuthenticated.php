@@ -95,7 +95,24 @@ class EnsureHcmWebPagesAuthenticated
         $company = $result['company'] ?? null;
         $membership = $result['membership'] ?? null;
         if (! $company || ! $membership) {
-            return;
+            // For global admins without explicit company request, use first membership
+            if ($user->isGlobalHcmAdmin()) {
+                $firstMembership = \App\Models\CompanyUser::query()
+                    ->with('company')
+                    ->where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->orderBy('company_id')
+                    ->first();
+                
+                if ($firstMembership) {
+                    $company = $firstMembership->company;
+                    $membership = $firstMembership;
+                }
+            }
+            
+            if (! $company || ! $membership) {
+                return;
+            }
         }
 
         $request->attributes->set('activeCompany', $company);

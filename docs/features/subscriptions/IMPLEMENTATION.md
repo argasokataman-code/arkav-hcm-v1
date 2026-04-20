@@ -53,8 +53,8 @@ Response:
 `POST /v1/saas/subscriptions`
 
 Validation:
-- `company_id` required
-- `package_id` required
+- `company_id` required (UUID company)
+- `package_uuid` required (UUID package)
 - `status` required
 - `starts_at` required
 - `billing_cycle` required (`monthly|yearly`)
@@ -66,7 +66,7 @@ Validation:
 Behavior:
 - `plan_code` didenormalisasi dari package.
 - Jika amount kosong, otomatis diisi dari `monthly_price` atau `yearly_price` package.
-- **Update `package_id`**: `plan_code` dan **`amount`** diselaraskan ulang ke harga katalog paket baru (mengikuti `billing_cycle` payload atau nilai yang ada).
+- **Update `package_uuid`**: `plan_code` dan **`amount`** diselaraskan ulang ke harga katalog paket baru (mengikuti `billing_cycle` payload atau nilai yang ada).
 
 ### 2b) Integrasi invoice → aktif (`pending_payment`)
 
@@ -91,7 +91,7 @@ Return detail lengkap dalam format `formatSubscription()`.
 
 `PUT /v1/saas/subscriptions/{subscription}`
 
-Partial update diperbolehkan (`sometimes`) termasuk `status`, `package_id`, `starts_at`, `ends_at`, `billing_cycle`, `auto_renew`, `amount`.
+Partial update diperbolehkan (`sometimes`) termasuk `status`, `package_uuid`, `starts_at`, `ends_at`, `billing_cycle`, `auto_renew`, `amount`.
 
 Guard tambahan (domain validation):
 - Jika payload mengubah `status` menjadi `active|trial|pending_payment`, maka `ends_at` efektif **tidak boleh null** (jika null → `422 VALIDATION_ERROR`).
@@ -119,19 +119,19 @@ Tidak berlaku untuk `pending_payment` → `422 SUBSCRIPTION_INVALID_STATE` (akti
 
 ## Access Control
 
-- Semua mutasi menggunakan check `isHcmAdmin()` di controller.
-- Implementasi admin-check sudah distandardkan: `User::isHcmAdmin()`.
-- Non-admin akan menerima `403 ADMIN_REQUIRED`.
+- Semua endpoint subscriptions (`GET` list/detail + semua mutasi) menggunakan check global admin di controller.
+- Implementasi admin-check runtime saat ini memakai `User::isGlobalHcmAdmin()`.
+- Non-admin akan menerima `403 ADMIN_REQUIRED`, termasuk bila mencoba enumerate list/detail via bearer token langsung.
 
 ## Frontend Flow
 
 File: `frontend/resources/js/subscriptions-management.js`
 
 Flow utama:
-1. `init()` bind event, load companies, load packages, lalu load subscriptions.
+1. `init()` bind event, load companies/packages/subscriptions hanya jika user punya `subscription.manage`; selain itu halaman masuk unauthorized/read-only state tanpa memanggil list sensitif.
 2. `loadSubscriptions()` request list dengan query filter dari UI.
 3. `renderSubscriptions()` tampilkan tabel + action buttons.
-4. `handleSaveSubscription()` create/update payload dengan field backend.
+4. `handleSaveSubscription()` create/update payload dengan field backend (`company_id` UUID, `package_uuid` UUID).
 5. `cancelSubscription()` update status menjadi `cancelled`.
 6. `deleteSubscription()` hard delete endpoint.
 
@@ -143,6 +143,8 @@ Flow utama:
 - Modal add/edit disatukan dan stabil.
 - Confirm action memakai Arcav confirm jika tersedia.
 - Backend index ditambah filter `billing_cycle` dan `search`.
+- Enumerasi list/detail via bearer token non-admin kini ditolak `403 ADMIN_REQUIRED`.
+- Manager JS create flow kini mengirim `company_id` UUID (bukan numeric id) agar selaras dengan kontrak backend dan deep-link Packages.
 
 ## Known Gaps
 
@@ -152,7 +154,6 @@ Flow utama:
 Gap besar terkait billing-upgrade (requirement product):
 - Belum ada flow “upgrade paket otomatis → generate invoice → bayar → unlock fitur”.
 - Belum ada recurring invoice generator bulanan berbasis subscription terbaru.
-- OpenAPI `docs/api/openapi.yaml` belum mendokumentasikan endpoint `/v1/saas/subscriptions` (dan sebagian endpoint SaaS billing lain).
 
 ## Integration Notes (lintas modul)
 
@@ -177,13 +178,13 @@ Sumber API: `backend/routes/api.php` (prefix `/v1/saas`) + `SubscriptionControll
 
 | Area | Endpoint / perilaku BE | Sudah di-wire di UI SaaS? | Catatan |
 |------|-------------------------|---------------------------|---------|
-| Auth / role | `GET /v1/identity/auth/me` → `hcmAdmin` | ✅ | Dipakai untuk hide tombol admin vs read-only notice. |
+| Auth / role | `GET /v1/identity/auth/me` → `subscription.manage` | ✅ | Dipakai untuk memutuskan apakah halaman boleh load list sensitif atau masuk unauthorized/read-only state. |
 | Dropdown company | `GET /v1/company?page=1&per_page=200` | ✅ | Mengisi select company di modal. |
 | Dropdown package | `GET /v1/saas/packages?status=active&per_page=200` | ✅ | Mengisi select package di modal. |
-| List + filter | `GET /v1/saas/subscriptions?...` | ✅ | Query `search`, `status`, `billing_cycle` dari filter card. |
-| Create | `POST /v1/saas/subscriptions` | ✅ | Payload: `company_id`, `package_id`, `status` (active/trial/…), `starts_at`, `ends_at`, `trial_ends_at` (wajib jika `trial`), `billing_cycle`, `auto_renew: true`. |
+| List + filter | `GET /v1/saas/subscriptions?...` | ✅ | Query `search`, `status`, `billing_cycle` dari filter card; endpoint sekarang admin-only. |
+| Create | `POST /v1/saas/subscriptions` | ✅ | Payload: `company_id` UUID dari dropdown company, `package_uuid`, `status` (active/trial/…), `starts_at`, `ends_at`, `trial_ends_at` (wajib jika `trial`), `billing_cycle`, `auto_renew: true`. |
 | Load untuk edit | `GET /v1/saas/subscriptions/{id}` | ✅ | Mengisi company (read-only saat edit), package, start, cycle, `ends_at`; status asal disimpan untuk PUT (tidak dipaksa ke `active`). |
-| Update | `PUT /v1/saas/subscriptions/{id}` | ✅ | Body: `package_id`, `status` (nilai saat load), `starts_at`, `ends_at`, `billing_cycle`, `auto_renew` — bukan hitung ulang diam-diam tanpa input. |
+| Update | `PUT /v1/saas/subscriptions/{id}` | ✅ | Body: `package_uuid`, `status` (nilai saat load), `starts_at`, `ends_at`, `billing_cycle`, `auto_renew` — bukan hitung ulang diam-diam tanpa input. |
 | Cancel | `PUT /v1/saas/subscriptions/{id}` body `{ status: cancelled }` | ✅ | Tombol cancel untuk `active`, `trial`, `suspended`. |
 | Delete | `DELETE /v1/saas/subscriptions/{id}` | ✅ | Hard delete. |
 | Renew | `GET /v1/saas/subscriptions/{id}` + `POST .../renew` | ✅ | Baris tabel: modal `#subscriptionRenewModal`. **Renew by ID** (admin): tombol toolbar → modal `#subscriptionRenewByIdModal` → Load (GET) → tanggal akhir → Renew (POST). Status eligible: expired, cancelled, suspended, inactive. |
@@ -248,4 +249,4 @@ Perlu keputusan implementasi (gap produk):
 - Renew (row eligible) memanggil `POST .../renew` dengan `ends_at` baru; **Renew by ID** memuat `GET .../{id}` lalu renew.
 - Delete subscription menghapus record.
 - Filter status/cycle/search bekerja sesuai query.
-- Non-admin mutasi mendapat `403 ADMIN_REQUIRED`.
+- Non-admin list/detail/mutasi mendapat `403 ADMIN_REQUIRED`.

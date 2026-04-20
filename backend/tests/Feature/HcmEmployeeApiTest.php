@@ -8,6 +8,7 @@ use App\Models\EmployeeProfile;
 use App\Models\Company;
 use App\Models\Policy;
 use App\Models\User;
+use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use App\Models\WilayahDistrict;
@@ -16,6 +17,7 @@ use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -25,25 +27,51 @@ class HcmEmployeeApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function bearerToken(): string
-    {
-        $this->postJson('/v1/identity/auth/register', [
-            'name' => 'Hcm Admin',
-            'email' => 'hcm-admin@example.com',
-            'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
+    /** @var Company */
+    private ?Company $company = null;
 
-        $login = $this->postJson('/v1/identity/auth/login', [
-            'email' => 'hcm-admin@example.com',
-            'password' => 'StrongPass1',
+    private function bearerToken(bool $isAdmin = true): string
+    {
+        if ($isAdmin) {
+            $result = $this->createHcmAdminWithCompany([
+                'name' => 'Hcm Admin',
+                'email' => 'hcm-admin@example.com',
+                'password' => 'StrongPass1',
+            ]);
+            $this->company = $result['company'];
+            return $result['token'];
+        }
+
+        // Regular user without HCM admin permissions
+        if (! $this->company) {
+            $this->company = Company::query()->firstOrCreate(
+                ['code' => 'TEST_COMPANY'],
+                ['name' => 'Test Company', 'domain' => 'test-company.local']
+            );
+        }
+
+        $user = User::factory()->create([
+            'name' => 'Regular User',
+            'email' => 'regular-user-'.time().'@example.com',
         ]);
 
-        $login->assertOk();
-        $token = $login->json('data.accessToken');
-        $this->assertNotEmpty($token);
+        // Add user to company but WITHOUT HCM admin permissions
+        $companyUserClass = class_exists('App\\Models\\CompanyUser') ? 'App\\Models\\CompanyUser' : null;
+        if ($companyUserClass) {
+            $companyUserClass::firstOrCreate([
+                'user_id' => $user->id,
+                'company_id' => $this->company->id,
+            ]);
+        }
 
-        return $token;
+        // Login
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'companyCode' => $this->company->code,
+        ])->assertOk();
+
+        return (string) $login->json('data.accessToken');
     }
 
     private function adminBearerToken(): string
@@ -53,6 +81,7 @@ class HcmEmployeeApiTest extends TestCase
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
+                'company_id' => $this->company?->id,
                 'team' => 'HR',
                 'designation' => 'Manager',
                 'employment_status' => 'active',
@@ -163,7 +192,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees')
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -195,7 +224,7 @@ class HcmEmployeeApiTest extends TestCase
             ],
         );
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees')
             ->assertOk()
             ->assertJsonPath('data.0.phone', '081234567890');
@@ -216,7 +245,7 @@ class HcmEmployeeApiTest extends TestCase
             'is_active' => true,
         ]);
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Org Hire',
                 'email' => 'orghire@example.com',
@@ -232,7 +261,7 @@ class HcmEmployeeApiTest extends TestCase
             'designation_id' => $designation->id,
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$id)
             ->assertOk()
             ->assertJsonPath('data.departmentId', $dept->id)
@@ -252,7 +281,7 @@ class HcmEmployeeApiTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Bad Combo',
                 'email' => 'badcombo@example.com',
@@ -267,7 +296,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'New Hire',
                 'email' => 'newhire@example.com',
@@ -286,7 +315,7 @@ class HcmEmployeeApiTest extends TestCase
             'employment_status' => 'probation',
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'employmentStatus' => 'active',
                 'phone' => '081234567800',
@@ -300,7 +329,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'PKWT Staff',
                 'email' => 'pkwtstaff@example.com',
@@ -312,7 +341,7 @@ class HcmEmployeeApiTest extends TestCase
         $create->assertStatus(201)->assertJsonPath('success', true);
         $id = (int) $create->json('data.id');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'contractType' => 'contract',
                 'contractStartDate' => '2025-05-01',
@@ -336,7 +365,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Identity Staff',
                 'email' => 'identity.staff@example.com',
@@ -345,7 +374,7 @@ class HcmEmployeeApiTest extends TestCase
         $create->assertStatus(201)->assertJsonPath('success', true);
         $id = (int) $create->json('data.id');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'nik' => '3174011708980001',
                 'placeOfBirth' => 'Jakarta',
@@ -382,7 +411,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', [
                 'name' => 'Strict Validation',
                 'email' => 'strict.validation@example.com',
@@ -426,7 +455,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $missingEndDate = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $missingEndDate = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'PKWT Missing End',
                 'email' => 'pkwt.missing.end@example.com',
@@ -438,7 +467,7 @@ class HcmEmployeeApiTest extends TestCase
         $missingEndDate->assertStatus(422)
             ->assertJsonValidationErrors(['contractEndDate']);
 
-        $unexpectedEndDate = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $unexpectedEndDate = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'PKWTT With End',
                 'email' => 'pkwtt.with.end@example.com',
@@ -473,7 +502,7 @@ class HcmEmployeeApiTest extends TestCase
             'name' => 'Jagakarsa',
         ]);
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Wilayah Address Employee',
                 'email' => 'wilayah.address.employee@example.com',
@@ -498,7 +527,7 @@ class HcmEmployeeApiTest extends TestCase
             'address_detail' => 'Blok A2, dekat masjid, RT 02/RW 03',
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$userId)
             ->assertOk()
             ->assertJsonPath('data.addressDetail', 'Blok A2, dekat masjid, RT 02/RW 03')
@@ -515,11 +544,12 @@ class HcmEmployeeApiTest extends TestCase
         $u = User::factory()->create(['email' => 'inactive@example.com']);
         EmployeeProfile::query()->create([
             'user_id' => $u->id,
+            'company_id' => $this->company?->id,
             'employment_status' => 'inactive',
             'team' => 'X',
         ]);
 
-        $res = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $res = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees?status=inactive&perPage=50');
 
         $res->assertOk();
@@ -539,7 +569,7 @@ class HcmEmployeeApiTest extends TestCase
         ]);
         $manager = User::factory()->create(['email' => 'manager-hcm@example.com']);
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Normalized Employee',
                 'email' => 'normalized.employee@example.com',
@@ -548,7 +578,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $id = (int) $create->json('data.id');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'employmentStatus' => 'active',
                 'employeeType' => 'contract',
@@ -631,7 +661,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/departments')
             ->assertOk()
             ->assertJsonStructure([
@@ -668,26 +698,26 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Export Employee',
                 'email' => 'export.employee@example.com',
             ]))
             ->assertStatus(201);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/export?format=xlsx')
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->assertHeader('content-disposition');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/export?format=csv')
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8')
             ->assertHeader('content-disposition');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/export?format=pdf')
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
@@ -713,17 +743,17 @@ class HcmEmployeeApiTest extends TestCase
             'effective_date' => now()->toDateString(),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/departments/export?format=xlsx')
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/designations/export?format=pdf')
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/policies/export?format=xlsx')
             ->assertOk()
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -731,9 +761,9 @@ class HcmEmployeeApiTest extends TestCase
 
     public function test_bulk_template_and_upload_requires_hcm_admin(): void
     {
-        $token = $this->bearerToken();
+        $token = $this->bearerToken(false);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/bulk-template')
             ->assertStatus(403);
 
@@ -742,7 +772,7 @@ class HcmEmployeeApiTest extends TestCase
             "employee_no,name,email,password,confirm_password,team,designation,employment_status,base_salary,fixed_allowance\n,No Admin,noadmin@example.com,StrongPass1,StrongPass1,HR,Staff,active,5000000,600000\n",
         );
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file])
             ->assertStatus(403);
     }
@@ -758,6 +788,7 @@ class HcmEmployeeApiTest extends TestCase
             'is_active' => true,
         ]);
         DB::table('teams')->insert([
+            'uuid' => (string) Str::uuid(),
             'department_id' => $department->id,
             'name' => 'Talent Acquisition',
             'is_active' => true,
@@ -765,7 +796,7 @@ class HcmEmployeeApiTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/bulk-template');
 
         $response->assertOk()->assertHeader('content-disposition');
@@ -805,7 +836,7 @@ class HcmEmployeeApiTest extends TestCase
             .",Employee Two,employee2@example.com,StrongPass1,StrongPass1,Finance,Analyst,probation,6000000,800000,08234,Bandung,,Mandiri,98765,MDR001,Bandung\n",
         );
 
-        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
         $upload->assertOk()
@@ -827,7 +858,7 @@ class HcmEmployeeApiTest extends TestCase
             'name' => 'Employee Two',
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/bulk-template')
             ->assertOk()
             ->assertHeader('content-disposition');
@@ -844,7 +875,7 @@ class HcmEmployeeApiTest extends TestCase
             .",Broken Employee,broken.rollback@example.com,StrongPass1,StrongPass1,HR,Staff,active,4000000,300000,weekly,invalid_contract,robot,complicated,Bank Khayalan,TK9\n",
         );
 
-        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
         $upload->assertStatus(422)
@@ -883,7 +914,7 @@ class HcmEmployeeApiTest extends TestCase
             ."{$employeeNo},Conflict Row,bulk.conflict.second@example.com,,,HR,Staff,active,5000000,500000\n",
         );
 
-        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
         $upload->assertStatus(422)
@@ -899,7 +930,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Contract Transition',
                 'email' => 'transition.contract@example.com',
@@ -910,7 +941,7 @@ class HcmEmployeeApiTest extends TestCase
         $id = (int) $create->json('data.id');
         $profileId = (int) EmployeeProfile::query()->where('user_id', $id)->value('id');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'contractType' => 'contract',
                 'contractStartDate' => '2025-01-01',
@@ -919,7 +950,7 @@ class HcmEmployeeApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.contract.contractType', 'contract');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'contractType' => 'permanent',
                 'contractStartDate' => '2026-01-01',
@@ -945,7 +976,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $token = $this->adminBearerToken();
 
-        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
                 'name' => 'Detail Histories',
                 'email' => 'detail.histories@example.com',
@@ -954,7 +985,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $id = (int) $create->json('data.id');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$id, [
                 'employmentStatus' => 'probation',
                 'startDate' => '2025-01-10',
@@ -971,7 +1002,7 @@ class HcmEmployeeApiTest extends TestCase
             ])
             ->assertOk();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$id)
             ->assertOk()
             ->assertJsonStructure([
@@ -988,9 +1019,9 @@ class HcmEmployeeApiTest extends TestCase
 
     public function test_non_hcm_admin_cannot_list_employees(): void
     {
-        $token = $this->bearerToken();
+        $token = $this->bearerToken(false);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
@@ -998,10 +1029,10 @@ class HcmEmployeeApiTest extends TestCase
 
     public function test_non_hcm_admin_cannot_view_other_employee(): void
     {
-        $token = $this->bearerToken();
+        $token = $this->bearerToken(false);
         $other = User::factory()->create();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$other->id)
             ->assertStatus(403);
     }
@@ -1011,7 +1042,7 @@ class HcmEmployeeApiTest extends TestCase
         $token = $this->bearerToken();
         $self = User::query()->where('email', 'hcm-admin@example.com')->firstOrFail();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$self->id)
             ->assertOk()
             ->assertJsonPath('data.email', 'hcm-admin@example.com')
@@ -1032,14 +1063,15 @@ class HcmEmployeeApiTest extends TestCase
 
     public function test_non_hcm_admin_can_update_self_profile_subset_only(): void
     {
-        $token = $this->bearerToken();
-        $self = User::query()->where('email', 'hcm-admin@example.com')->firstOrFail();
+        $token = $this->bearerToken(false);
+        // Get the last created regular user (they have a timestamped email)
+        $self = User::latest('id')->first();
         EmployeeProfile::query()->firstOrCreate(
             ['user_id' => $self->id],
             ['employment_status' => 'active'],
         );
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$self->id, [
                 'phone' => '081234567890',
                 'address' => 'Jakarta',
@@ -1047,7 +1079,7 @@ class HcmEmployeeApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.phone', '081234567890');
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$self->id, [
                 'baseSalary' => 999999,
             ])
@@ -1105,7 +1137,7 @@ class HcmEmployeeApiTest extends TestCase
     {
         $admin = $this->adminBearerToken();
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/999999')
             ->assertNotFound();
     }

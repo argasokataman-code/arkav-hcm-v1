@@ -27,7 +27,7 @@ class EnsureAssetManagementWebAccess
             return redirect()->to(url('login'));
         }
 
-        if ($this->isQaSuperAdmin($user)) {
+        if ($user->isGlobalHcmAdmin()) {
             return $next($request);
         }
 
@@ -79,13 +79,5 @@ class EnsureAssetManagementWebAccess
         }
 
         return null;
-    }
-
-    private function isQaSuperAdmin(User $user): bool
-    {
-        $email = strtolower(trim((string) ($user->email ?? '')));
-        $qaAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
-
-        return $email === $qaAdminEmail || (bool) ($user->is_super_admin ?? false);
     }
 }

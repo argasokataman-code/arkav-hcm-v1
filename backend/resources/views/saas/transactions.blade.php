@@ -90,9 +90,6 @@
             <div class="modal-body" id="details_content"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="btn_download_invoice">
-                    <i class="ti ti-download"></i> Download PDF
-                </button>
             </div>
         </div>
     </div>

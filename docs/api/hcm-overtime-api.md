@@ -80,7 +80,7 @@ Response:
 ### POST `/overtime-requests`
 
 Body:
-- `userId` optional int exists users.id (admin only; default self)
+- `userId` optional integer `users.id` (admin only; default self). UUID masih diterima sebagai fallback legacy, tetapi runtime UI aktif mengirim numeric id.
 - `overtimeTypeId` optional int exists hcm_overtime_types.id (non-admin hanya active)
 - `requestType` optional enum (non-admin only `employee_request`)
 - `workDate` required date
@@ -92,7 +92,9 @@ Body:
 
 RBAC / guard:
 - non-admin set `userId` ≠ self → 403 `AUTH_FORBIDDEN`
+- admin set `userId` ke user di luar tenant aktif → `422 VALIDATION_ERROR`
 - non-admin set `requestType` selain `employee_request` → 403
+- jika pada `workDate` sudah ada leave `approved` untuk `company_id` + `user_id` yang sama → `422 OT_ON_LEAVE_CONFLICT`
 
 Success `201`: `{ success: true, data: { id } }`
 

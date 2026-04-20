@@ -83,5 +83,48 @@ class TrainersApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
     }
+
+    public function test_trainers_list_is_tenant_scoped(): void
+    {
+        $companyA = \App\Models\Company::query()->create([
+            'code' => 'TRAINER_A',
+            'name' => 'Trainer Company A',
+            'domain' => 'trainer-a.local',
+        ]);
+        $companyB = \App\Models\Company::query()->create([
+            'code' => 'TRAINER_B',
+            'name' => 'Trainer Company B',
+            'domain' => 'trainer-b.local',
+        ]);
+
+        $adminA = $this->createHcmAdminWithCompany([
+            'name' => 'Trainer Admin A',
+            'email' => 'trainer-admin-a@example.com',
+        ], $companyA);
+        $adminB = $this->createHcmAdminWithCompany([
+            'name' => 'Trainer Admin B',
+            'email' => 'trainer-admin-b@example.com',
+        ], $companyB);
+
+        $headersA = ['Authorization' => 'Bearer '.$adminA['token'], 'X-Company-Id' => (string) $companyA->id];
+        $headersB = ['Authorization' => 'Bearer '.$adminB['token'], 'X-Company-Id' => (string) $companyB->id];
+
+        $this->withHeaders($headersA)->postJson('/v1/hcm/training/trainers', [
+            'name' => 'Tenant Trainer A',
+            'email' => 'tenant-a@example.com',
+            'isActive' => true,
+        ])->assertStatus(201);
+
+        $this->withHeaders($headersB)->postJson('/v1/hcm/training/trainers', [
+            'name' => 'Tenant Trainer B',
+            'email' => 'tenant-b@example.com',
+            'isActive' => true,
+        ])->assertStatus(201);
+
+        $this->withHeaders($headersA)->getJson('/v1/hcm/training/trainers?perPage=50')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Tenant Trainer A'])
+            ->assertJsonMissing(['name' => 'Tenant Trainer B']);
+    }
 }
 

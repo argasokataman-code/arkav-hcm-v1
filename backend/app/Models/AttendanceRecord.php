@@ -1,14 +1,38 @@
 <?php
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class AttendanceRecord extends Model
 {
+    use AssignsUuid;
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
+                $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($record->getTable(), 'user_uuid') && ! $record->user_uuid && $record->user_id) {
+                $record->user_uuid = (string) (User::query()->where('id', $record->user_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($record->getTable(), 'corrected_by_user_uuid') && ! $record->corrected_by_user_uuid && $record->corrected_by_user_id) {
+                $record->corrected_by_user_uuid = (string) (User::query()->where('id', $record->corrected_by_user_id)->value('uuid') ?? '');
+            }
+        });
+    }
+
     protected $fillable = [
+        'uuid',
         'company_id',
+        'company_uuid',
         'user_id',
+        'user_uuid',
         'work_date',
         'status',
         'correction_status',
@@ -30,6 +54,7 @@ class AttendanceRecord extends Model
         'correction_reason',
         'correction_requested_at',
         'corrected_by_user_id',
+        'corrected_by_user_uuid',
         'corrected_at',
         'selfie_path',
         'selfie_encrypted_hash',
@@ -38,8 +63,12 @@ class AttendanceRecord extends Model
     protected function casts(): array
     {
         return [
+            'uuid' => 'string',
             'work_date' => 'date',
             'company_id' => 'integer',
+            'company_uuid' => 'string',
+            'user_uuid' => 'string',
+            'corrected_by_user_uuid' => 'string',
             'check_in_at' => 'datetime',
             'check_in_latitude' => 'float',
             'check_in_longitude' => 'float',

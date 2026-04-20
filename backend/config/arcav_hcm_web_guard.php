@@ -27,6 +27,8 @@ return [
         'reset-password-3',
         'lock-screen',
         'register',
+        'register-2',
+        'register-3',
         'signout',
         'api-token',
         'api-docs',

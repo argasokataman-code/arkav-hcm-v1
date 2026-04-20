@@ -2,24 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class HcmTermination extends Model
 {
     use SoftDeletes;
+    use AssignsUuid;
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $table = 'hcm_terminations';
 
@@ -33,11 +26,26 @@ class HcmTermination extends Model
         'termination_date',
         'status',
         'notes',
+        'settlement_payroll_period',
+        'settlement_payroll_period_id',
+        'final_salary_amount',
+        'final_allowance_amount',
+        'final_deduction_amount',
+        'asset_return_notes',
+        'clearance_notes',
+        'settlement_breakdown',
+        'clearance_items',
     ];
 
     protected $casts = [
+        'settlement_payroll_period_id' => 'integer',
         'notice_date' => 'date',
         'termination_date' => 'date',
+        'final_salary_amount' => 'decimal:2',
+        'final_allowance_amount' => 'decimal:2',
+        'final_deduction_amount' => 'decimal:2',
+        'settlement_breakdown' => 'array',
+        'clearance_items' => 'array',
     ];
 
     /**
@@ -53,6 +61,11 @@ class HcmTermination extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function settlementPayrollPeriodRef(): BelongsTo
+    {
+        return $this->belongsTo(HcmPayrollPeriod::class, 'settlement_payroll_period_id');
     }
 
     /**

@@ -57,6 +57,11 @@
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                     <h5>Activity List</h5>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
+                        <div class="me-3" data-activity-company-select-wrap style="display: none;">
+                            <select class="form-select" data-activity-company>
+                                <option value="">Select Company</option>
+                            </select>
+                        </div>
                         <div class="me-3">
                             <input
                                 type="text"
@@ -105,6 +110,7 @@
                                     <th>Title</th>
                                     <th>Activity Type</th>
                                     <th>Source</th>
+                                    <th>Company</th>
                                     <th>Status</th>
                                     <th>Due Date</th>
                                     <th>Owner</th>
@@ -114,7 +120,7 @@
                             </thead>
                             <tbody data-activity-body>
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">Loading activity...</td>
+                                    <td colspan="9" class="text-center text-muted py-4">Loading activity...</td>
                                 </tr>
                             </tbody>
                         </table>

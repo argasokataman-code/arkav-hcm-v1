@@ -2,7 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\LeaveRequest;
+use App\Models\PerformanceCycle;
+use App\Models\PerformanceIndicatorTemplate;
+use App\Models\PerformanceReview;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -12,8 +19,31 @@ class PerformanceApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?Company $company = null;
+
     private function login(string $email, string $name, ?string $designation = null): array
     {
+        $company = $this->performanceCompany();
+
+        if ($designation !== null && str_contains(strtolower($designation), 'hr admin')) {
+            $result = $this->createHcmAdminWithCompany([
+                'name' => $name,
+                'email' => $email,
+                'password' => 'StrongPass1',
+            ], $company);
+
+            $user = User::query()->where('email', $email)->firstOrFail();
+            EmployeeProfile::query()->updateOrCreate(
+                ['user_id' => $user->id],
+                ['company_id' => $company->id, 'designation' => $designation]
+            );
+
+            return [
+                'user' => $user,
+                'token' => $result['token'],
+            ];
+        }
+
         $this->postJson('/v1/identity/auth/register', [
             'name' => $name,
             'email' => $email,
@@ -21,23 +51,47 @@ class PerformanceApiTest extends TestCase
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
-        $user = \App\Models\User::query()->where('email', $email)->firstOrFail();
+        $user = User::query()->where('email', $email)->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            ['user_id' => $user->id, 'company_id' => $company->id],
+            ['role' => 'employee', 'status' => 'active']
+        );
+
         if ($designation !== null) {
             EmployeeProfile::query()->updateOrCreate(
                 ['user_id' => $user->id],
-                ['designation' => $designation]
+                ['company_id' => $company->id, 'designation' => $designation]
             );
         }
 
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
             'password' => 'StrongPass1',
+            'companyCode' => $company->code,
         ])->assertOk();
 
         return [
             'user' => $user,
             'token' => (string) $login->json('data.accessToken'),
         ];
+    }
+
+    private function performanceCompany(): Company
+    {
+        if ($this->company instanceof Company) {
+            return $this->company;
+        }
+
+        $this->company = Company::query()->create([
+            'name' => 'Performance Test Company',
+            'code' => 'PERFTEST',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        return $this->company;
     }
 
     private function adminToken(): string
@@ -54,12 +108,12 @@ class PerformanceApiTest extends TestCase
         // Link employee -> manager.
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $employee['user']->id],
-            ['designation' => 'Staff', 'manager_user_id' => $manager['user']->id]
+            ['company_id' => $this->performanceCompany()->id, 'designation' => 'Staff', 'manager_user_id' => $manager['user']->id]
         );
 
-        $hAdmin = ['Authorization' => 'Bearer '.$admin['token']];
-        $hMgr = ['Authorization' => 'Bearer '.$manager['token']];
-        $hEmp = ['Authorization' => 'Bearer '.$employee['token']];
+        $hAdmin = $this->withCompanyContext(['Authorization' => 'Bearer '.$admin['token']], $this->performanceCompany());
+        $hMgr = $this->withCompanyContext(['Authorization' => 'Bearer '.$manager['token']], $this->performanceCompany());
+        $hEmp = $this->withCompanyContext(['Authorization' => 'Bearer '.$employee['token']], $this->performanceCompany());
 
         // Admin creates template + items.
         $tpl = $this->withHeaders($hAdmin)->postJson('/v1/hcm/performance/indicator-templates', [
@@ -172,6 +226,82 @@ class PerformanceApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->getJson('/v1/hcm/performance/reviews/999999')
             ->assertNotFound();
+    }
+
+    public function test_review_leave_frequency_counts_only_same_company_approved_leaves(): void
+    {
+        $company = Company::factory()->create(['code' => 'perf_leave_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'perf-leave-admin@example.com',
+            'name' => 'Perf Leave Admin',
+        ], $company);
+        $employee = $this->login('perf-leave-employee@example.com', 'Perf Leave Employee', 'Staff');
+        $otherCompany = Company::factory()->create(['code' => 'perf_leave_other_company']);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee['user']->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $headers = [
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Code' => $company->code,
+        ];
+
+        $template = PerformanceIndicatorTemplate::query()->create([
+            'company_id' => $company->id,
+            'name' => 'OPS IC',
+            'department' => 'Operations',
+            'designation' => 'Staff',
+            'is_active' => true,
+        ]);
+
+        $cycle = PerformanceCycle::query()->create([
+            'company_id' => $company->id,
+            'name' => '2026 Annual',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-06-30',
+            'status' => 'active',
+        ]);
+
+        $review = PerformanceReview::query()->create([
+            'company_id' => $company->id,
+            'cycle_id' => $cycle->id,
+            'user_id' => $employee['user']->id,
+            'manager_user_id' => null,
+            'template_id' => $template->id,
+            'status' => 'draft',
+        ]);
+
+        LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee['user']->id,
+            'leave_type' => 'Annual Leave',
+            'date_from' => '2026-02-10',
+            'date_to' => '2026-02-11',
+            'days' => 2,
+            'status' => 'approved',
+            'notes' => null,
+        ]);
+        LeaveRequest::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $employee['user']->id,
+            'leave_type' => 'Sick Leave',
+            'date_from' => '2026-03-10',
+            'date_to' => '2026-03-12',
+            'days' => 3,
+            'status' => 'approved',
+            'notes' => null,
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/performance/reviews/'.$review->id)
+            ->assertOk()
+            ->assertJsonPath('data.leaveFrequency.totalApproveDays', 2)
+            ->assertJsonPath('data.leaveFrequency.leaveCount', 1)
+            ->assertJsonPath('data.leaveFrequency.leavesByType.Annual Leave', 2);
     }
 }
 

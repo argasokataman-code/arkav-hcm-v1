@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Throwable;
 
 class HcmHolidayController extends Controller
@@ -69,14 +70,16 @@ class HcmHolidayController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $h->id]], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'holiday.update');
         if ($forbidden) {
             return $forbidden;
         }
 
-        $h = Holiday::query()->findOrFail($id);
+        $holidayQuery = Holiday::query();
+        $this->applyIdentifierScope($holidayQuery, $id, true);
+        $h = $holidayQuery->firstOrFail();
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:200'],
             'holidayDate' => ['required', 'date'],
@@ -289,18 +292,18 @@ class HcmHolidayController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'holiday.update');
         if ($forbidden) {
             return $forbidden;
         }
 
-        $holiday = Holiday::query()->findOrFail($id);
+        $holidayQuery = Holiday::query();
+        $this->applyIdentifierScope($holidayQuery, $id, true);
+        $holiday = $holidayQuery->firstOrFail();
         $date = $holiday->holiday_date?->toDateString();
         $title = (string) $holiday->title;
-
-        $holiday->delete();
 
         if ($date && $title) {
             HolidayCalendar::query()
@@ -308,7 +311,22 @@ class HcmHolidayController extends Controller
                 ->delete();
         }
 
+        $holiday->delete();
+
         return response()->json(['success' => true]);
+    }
+
+    private function applyIdentifierScope($query, string $identifier, bool $hasUuidColumn)
+    {
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     private function buildLinkageSummary(): array

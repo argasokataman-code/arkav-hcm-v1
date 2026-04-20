@@ -12,6 +12,7 @@ use App\Services\Reconciliation\ReconciliationGateService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HcmPayrollThrBatchController extends Controller
@@ -288,7 +289,7 @@ class HcmPayrollThrBatchController extends Controller
         ]);
     }
 
-    public function slip(Request $request, int $line): BinaryFileResponse|JsonResponse
+    public function slip(Request $request, string $line): BinaryFileResponse|JsonResponse
     {
         $user = $request->user();
         if ($user === null) {
@@ -302,9 +303,8 @@ class HcmPayrollThrBatchController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $batchLine = HcmThrBatchLine::query()
+        $batchLineQuery = HcmThrBatchLine::query()
             ->with('batch')
-            ->whereKey($line)
             ->whereHas('batch', function (Builder $query) use ($companyId): void {
                 if ($companyId !== null) {
                     $query->where('company_id', $companyId)->orWhereNull('company_id');
@@ -313,8 +313,9 @@ class HcmPayrollThrBatchController extends Controller
                 }
 
                 $query->whereNull('company_id');
-            })
-            ->first();
+            });
+        $this->applyBatchLineIdentifierScope($batchLineQuery, $line);
+        $batchLine = $batchLineQuery->first();
         if ($batchLine === null || $batchLine->slip_storage_path === null || $batchLine->slip_storage_path === '') {
             return response()->json([
                 'success' => false,
@@ -360,6 +361,19 @@ class HcmPayrollThrBatchController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$slipFile.'"',
         ]);
+    }
+
+    private function applyBatchLineIdentifierScope(Builder $query, string $identifier): Builder
+    {
+        if (Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     public function sendSlip(Request $request): JsonResponse

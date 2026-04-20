@@ -10,11 +10,13 @@ use App\Models\HcmRole;
 use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
 use App\Models\User;
+use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -45,9 +47,24 @@ class HcmUserManagementController extends Controller
         ]);
     }
 
+    private function ensureRoleSetupSuperUser(Request $request): ?JsonResponse
+    {
+        $user = $request->user();
+        if ($user && $user->isGlobalHcmAdmin()) {
+            return null;
+        }
+
+        return $this->errorResponse(
+            'SUPER_USER_REQUIRED',
+            'Only application super user can configure role and permission setup.',
+            403,
+        );
+    }
+
     public function users(Request $request): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
+
         if (! $companyId) {
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
@@ -348,10 +365,15 @@ class HcmUserManagementController extends Controller
                 'password' => Hash::make((string) $validated['password']),
             ]);
 
+            $legacyUserId = $this->resolveLegacyUserIdFromModel($user);
+            if (! $legacyUserId) {
+                abort(500, 'Failed to resolve legacy user identifier.');
+            }
+
             CompanyUser::query()->updateOrCreate(
                 [
                     'company_id' => $companyId,
-                    'user_id' => $user->id,
+                    'user_id' => $legacyUserId,
                 ],
                 [
                     'role' => 'member',
@@ -363,20 +385,20 @@ class HcmUserManagementController extends Controller
 
             if (isset($validated['roleCodes']) && is_array($validated['roleCodes'])) {
                 $this->assignRoleCodesToUser(
-                    userId: (int) $user->id,
+                    userId: $legacyUserId,
                     companyId: $companyId,
                     roleCodes: $validated['roleCodes'],
                     actorUserId: $actorId,
                 );
             }
 
-            return ['user' => $user];
+            return ['user' => $user, 'legacyUserId' => $legacyUserId];
         });
 
         return response()->json([
             'success' => true,
             'data' => [
-                'id' => $result['user']->id,
+                'id' => $result['legacyUserId'],
                 'name' => $result['user']->name,
                 'email' => $result['user']->email,
             ],
@@ -563,6 +585,10 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
+        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:80'],
             'name' => ['required', 'string', 'max:150'],
@@ -594,7 +620,7 @@ class HcmUserManagementController extends Controller
         ], 201);
     }
 
-    public function updateRole(Request $request, int $id): JsonResponse
+    public function updateRole(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -605,10 +631,13 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        $role = HcmRole::query()
-            ->where('company_id', $companyId)
-            ->where('id', $id)
-            ->first();
+        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+            return $response;
+        }
+
+        $roleQuery = HcmRole::query()->where('company_id', $companyId);
+        $this->applyRoleIdentifierScope($roleQuery, $id);
+        $role = $roleQuery->first();
 
         if (! $role) {
             return $this->errorResponse('ROLE_NOT_FOUND', 'Role not found.', 404);
@@ -644,7 +673,7 @@ class HcmUserManagementController extends Controller
         ]]);
     }
 
-    public function deleteRole(Request $request, int $id): JsonResponse
+    public function deleteRole(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -655,10 +684,13 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        $role = HcmRole::query()
-            ->where('company_id', $companyId)
-            ->where('id', $id)
-            ->first();
+        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+            return $response;
+        }
+
+        $roleQuery = HcmRole::query()->where('company_id', $companyId);
+        $this->applyRoleIdentifierScope($roleQuery, $id);
+        $role = $roleQuery->first();
 
         if (! $role) {
             return $this->errorResponse('ROLE_NOT_FOUND', 'Role not found.', 404);
@@ -704,6 +736,8 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
+        $this->ensurePermissionCatalogSeeded();
+
         $validated = $request->validate([
             'module' => ['nullable', 'string', 'max:80'],
             'search' => ['nullable', 'string', 'max:120'],
@@ -741,7 +775,7 @@ class HcmUserManagementController extends Controller
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
-    public function syncRolePermissions(Request $request, int $id): JsonResponse
+    public function syncRolePermissions(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -752,10 +786,13 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        $role = HcmRole::query()
-            ->where('company_id', $companyId)
-            ->where('id', $id)
-            ->first();
+        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+            return $response;
+        }
+
+        $roleQuery = HcmRole::query()->where('company_id', $companyId);
+        $this->applyRoleIdentifierScope($roleQuery, $id);
+        $role = $roleQuery->first();
 
         if (! $role) {
             return $this->errorResponse('ROLE_NOT_FOUND', 'Role not found.', 404);
@@ -765,6 +802,8 @@ class HcmUserManagementController extends Controller
             'permissionCodes' => ['required', 'array', 'min:1'],
             'permissionCodes.*' => ['string', 'max:120'],
         ]);
+
+        $this->ensurePermissionCatalogSeeded();
 
         $codes = collect($validated['permissionCodes'])
             ->map(static fn ($code): string => strtolower(trim((string) $code)))
@@ -780,7 +819,7 @@ class HcmUserManagementController extends Controller
             return $this->errorResponse('PERMISSION_NOT_FOUND', 'One or more permissions are invalid.', 404);
         }
 
-        $role->permissions()->sync($permissions->pluck('id')->all());
+        $role->syncPermissionsForCompany($permissions->pluck('id')->all());
 
         return response()->json([
             'success' => true,
@@ -791,7 +830,7 @@ class HcmUserManagementController extends Controller
         ]);
     }
 
-    public function userRoles(Request $request, int $id): JsonResponse
+    public function userRoles(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -802,14 +841,19 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $id)->exists()) {
+        $userId = $this->resolveUserIdFromIdentifier($id);
+        if (! $userId) {
+            return $this->errorResponse('USER_NOT_FOUND', 'User not found for active company.', 404);
+        }
+
+        if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $userId)->exists()) {
             return $this->errorResponse('USER_NOT_FOUND', 'User not found for active company.', 404);
         }
 
         $assignments = HcmUserRole::query()
             ->with('role:id,company_id,code,name,status')
             ->where('company_id', $companyId)
-            ->where('user_id', $id)
+            ->where('user_id', $userId)
             ->orderByDesc('id')
             ->get();
 
@@ -832,7 +876,7 @@ class HcmUserManagementController extends Controller
         ]);
     }
 
-    public function assignUserRole(Request $request, int $id): JsonResponse
+    public function assignUserRole(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -843,7 +887,12 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $id)->exists()) {
+        $userId = $this->resolveUserIdFromIdentifier($id);
+        if (! $userId) {
+            return $this->errorResponse('USER_NOT_FOUND', 'User not found for active company.', 404);
+        }
+
+        if (! CompanyUser::query()->where('company_id', $companyId)->where('user_id', $userId)->exists()) {
             return $this->errorResponse('USER_NOT_FOUND', 'User not found for active company.', 404);
         }
 
@@ -867,7 +916,7 @@ class HcmUserManagementController extends Controller
         $actorId = $request->user()?->id;
         $assignment = HcmUserRole::query()->updateOrCreate(
             [
-                'user_id' => $id,
+                'user_id' => $userId,
                 'company_id' => $companyId,
                 'role_id' => $role->id,
                 'status' => 'active',
@@ -883,7 +932,7 @@ class HcmUserManagementController extends Controller
         $this->auditRoleChange(
             companyId: $companyId,
             actorUserId: $actorId,
-            targetUserId: $id,
+            targetUserId: $userId,
             roleId: (int) $role->id,
             action: 'role_assigned',
             notes: isset($validated['notes']) ? (string) $validated['notes'] : null,
@@ -902,7 +951,7 @@ class HcmUserManagementController extends Controller
         ], 201);
     }
 
-    public function revokeUserRole(Request $request, int $id, int $assignmentId): JsonResponse
+    public function revokeUserRole(Request $request, string $id, string $assignmentId): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -913,11 +962,16 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        $assignment = HcmUserRole::query()
-            ->where('id', $assignmentId)
+        $userId = $this->resolveUserIdFromIdentifier($id);
+        if (! $userId) {
+            return $this->errorResponse('ROLE_ASSIGNMENT_NOT_FOUND', 'Role assignment not found.', 404);
+        }
+
+        $assignmentQuery = HcmUserRole::query()
             ->where('company_id', $companyId)
-            ->where('user_id', $id)
-            ->first();
+            ->where('user_id', $userId);
+        $this->applyAssignmentIdentifierScope($assignmentQuery, $assignmentId);
+        $assignment = $assignmentQuery->first();
 
         if (! $assignment) {
             return $this->errorResponse('ROLE_ASSIGNMENT_NOT_FOUND', 'Role assignment not found.', 404);
@@ -935,7 +989,7 @@ class HcmUserManagementController extends Controller
         $this->auditRoleChange(
             companyId: $companyId,
             actorUserId: $actorId,
-            targetUserId: $id,
+            targetUserId: $userId,
             roleId: (int) $assignment->role_id,
             action: 'role_revoked',
             notes: null,
@@ -983,6 +1037,73 @@ class HcmUserManagementController extends Controller
         }
 
         return $map;
+    }
+
+    private function ensurePermissionCatalogSeeded(): void
+    {
+        if (HcmPermission::query()->exists()) {
+            return;
+        }
+
+        app(HcmUserManagementSeeder::class)->run();
+    }
+
+    private function applyRoleIdentifierScope(Builder $query, string $identifier): Builder
+    {
+        if (Schema::hasColumn((new HcmRole)->getTable(), 'uuid') && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function applyAssignmentIdentifierScope(Builder $query, string $identifier): Builder
+    {
+        if (Schema::hasColumn((new HcmUserRole)->getTable(), 'uuid') && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function resolveUserIdFromIdentifier(string $identifier): ?int
+    {
+        if (Schema::hasColumn((new User)->getTable(), 'uuid') && Str::isUuid($identifier)) {
+            $resolved = User::query()->where('uuid', $identifier)->value('id');
+
+            return is_numeric($resolved) ? (int) $resolved : null;
+        }
+
+        if (ctype_digit($identifier)) {
+            return (int) $identifier;
+        }
+
+        return null;
+    }
+
+    private function resolveLegacyUserIdFromModel(User $user): ?int
+    {
+        $id = $user->getAttribute('id');
+        if (is_numeric($id)) {
+            return (int) $id;
+        }
+
+        $uuid = (string) ($user->getAttribute('uuid') ?? '');
+        if ($uuid === '' || ! Schema::hasColumn($user->getTable(), 'uuid')) {
+            return null;
+        }
+
+        $resolved = User::query()->where('uuid', $uuid)->value('id');
+
+        return is_numeric($resolved) ? (int) $resolved : null;
     }
 
     private function isAssignmentEffective(HcmUserRole $assignment): bool

@@ -7,6 +7,7 @@ use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
 use App\Models\User;
+use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -16,30 +17,55 @@ class AttendanceApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** @var Company */
+    private ?Company $company = null;
+
     private function bearerToken(bool $isAdmin = true, string $email = 'att@example.com'): string
     {
-        $this->postJson('/v1/identity/auth/register', [
-            'name' => 'Att User',
-            'email' => $email,
-            'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
+        if (! $this->company) {
+            $this->company = Company::query()->firstOrCreate(
+                ['code' => 'TEST_COMPANY'],
+                ['name' => 'Test Company', 'domain' => 'test-company.local']
+            );
+        }
+
+        if ($isAdmin) {
+            $result = $this->createHcmAdminWithCompany([
+                'name' => 'Att User',
+                'email' => $email,
+                'password' => 'StrongPass1',
+            ], $this->company);
+            $this->company = $result['company'];
+            $token = $result['token'];
+        } else {
+            // For non-admin, create user directly and add to company without HCM permissions
+            $user = User::factory()->create([
+                'name' => 'Att User',
+                'email' => $email,
+            ]);
+
+            if (class_exists('App\\Models\\CompanyUser')) {
+                \App\Models\CompanyUser::firstOrCreate([
+                    'user_id' => $user->id,
+                    'company_id' => $this->company->id,
+                ]);
+            }
+
+            $login = $this->postJson('/v1/identity/auth/login', [
+                'email' => $email,
+                'password' => 'password',
+                'companyCode' => $this->company->code,
+            ]);
+
+            $login->assertOk();
+            $token = $login->json('data.accessToken');
+        }
 
         $user = User::query()->where('email', $email)->firstOrFail();
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             ['designation' => $isAdmin ? 'HR Admin' : 'Employee']
         );
-
-        $login = $this->postJson('/v1/identity/auth/login', [
-            'email' => $email,
-            'password' => 'StrongPass1',
-        ]);
-
-        $login->assertOk();
-
-        $token = $login->json('data.accessToken');
-        $this->assertNotEmpty($token);
 
         return $token;
     }
@@ -48,6 +74,20 @@ class AttendanceApiTest extends TestCase
     private function punchGpsBody(): array
     {
         return ['latitude' => -6.2088, 'longitude' => 106.8456];
+    }
+
+    private function attachUserToActiveCompany(User $user): void
+    {
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
     }
 
     public function test_attendance_admin_requires_auth(): void
@@ -60,7 +100,7 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken(false, 'staff@example.com');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/admin')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
@@ -94,7 +134,7 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken();
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/admin');
 
         $response
@@ -121,20 +161,20 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken();
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', $this->punchGpsBody())
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.action', 'in');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', $this->punchGpsBody())
             ->assertOk()
             ->assertJsonPath('data.action', 'out');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', $this->punchGpsBody())
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'ATTENDANCE_ALREADY_COMPLETE');
@@ -145,12 +185,12 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken();
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', [])
             ->assertStatus(422);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', ['latitude' => 91, 'longitude' => 0])
             ->assertStatus(422);
     }
@@ -159,11 +199,11 @@ class AttendanceApiTest extends TestCase
     {
         $token = $this->bearerToken();
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', $this->punchGpsBody())->assertOk();
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/break')
             ->assertOk()
             ->assertJsonPath('data.action', 'break_start');
@@ -172,7 +212,7 @@ class AttendanceApiTest extends TestCase
         usleep(1500000);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/break')
             ->assertOk()
             ->assertJsonPath('data.action', 'break_end');
@@ -206,7 +246,7 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/punch', $this->punchGpsBody())
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -214,7 +254,7 @@ class AttendanceApiTest extends TestCase
             ->assertJsonPath('data.needsReview', true);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/me/today')
             ->assertOk()
             ->assertJsonPath('data.needsReview', true)
@@ -240,7 +280,7 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/me/today')
             ->assertOk()
             ->assertJsonPath('data.needsReview', true);
@@ -257,7 +297,7 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/me/today')
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -282,13 +322,13 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/me/today')
             ->assertOk()
             ->assertJsonPath('data.productionProgressPercent', 100);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/me/stats')
             ->assertOk()
             ->assertJsonPath('data.todayTarget', 8)
@@ -332,7 +372,7 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->postJson('/v1/hcm/attendance/me/correction-request', [
             'workDate' => $today,
             'reason' => 'Accidentally tapped punch out too early.',
@@ -348,7 +388,7 @@ class AttendanceApiTest extends TestCase
         $date = '2026-04-02';
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/attendance/admin/record', [
             'userId' => $user->id,
             'workDate' => $date,
@@ -361,7 +401,7 @@ class AttendanceApiTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/admin?date='.$date)
             ->assertOk()
             ->assertJsonFragment(['userId' => $user->id]);
@@ -373,7 +413,7 @@ class AttendanceApiTest extends TestCase
         $user = User::query()->where('email', 'att@example.com')->firstOrFail();
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/attendance/admin/record', [
             'userId' => $user->id,
             'workDate' => '2026-04-02',
@@ -389,7 +429,7 @@ class AttendanceApiTest extends TestCase
         $user = User::query()->where('email', 'att@example.com')->firstOrFail();
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/attendance/admin/record', [
             'userId' => $user->id,
             'workDate' => '2026-04-02',
@@ -409,7 +449,7 @@ class AttendanceApiTest extends TestCase
         );
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/admin')
             ->assertOk()
             ->assertJsonPath('success', true);
@@ -420,7 +460,7 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken(false, 'qa.login@example.com');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/attendance/admin')
             ->assertOk()
             ->assertJsonPath('success', true);
@@ -431,7 +471,7 @@ class AttendanceApiTest extends TestCase
         $token = $this->bearerToken(true, 'timesheetadmin@example.com');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/timesheets')
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -441,12 +481,24 @@ class AttendanceApiTest extends TestCase
             ]);
     }
 
+    public function test_timesheets_rejects_reversed_date_range(): void
+    {
+        $token = $this->bearerToken(true, 'timesheet-range@example.com');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/timesheets?dateFrom=2026-04-30&dateTo=2026-04-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['dateTo']);
+    }
+
     public function test_schedule_timing_endpoint_returns_rows_for_admin(): void
     {
         $token = $this->bearerToken(true, 'scheduletiming@example.com');
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->getJson('/v1/hcm/schedule-timing')
             ->assertOk()
             ->assertJsonPath('success', true)
@@ -459,9 +511,10 @@ class AttendanceApiTest extends TestCase
     {
         $token = $this->bearerToken(true, 'scheduletiming-edit@example.com');
         $target = User::factory()->create();
+        $this->attachUserToActiveCompany($target);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
             'startTime' => '08:30',
             'endTime' => '17:30',
@@ -473,9 +526,10 @@ class AttendanceApiTest extends TestCase
     {
         $token = $this->bearerToken(true, 'scheduletiming-del@example.com');
         $target = User::factory()->create();
+        $this->attachUserToActiveCompany($target);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
             'startTime' => '08:00',
             'endTime' => '17:00',
@@ -484,7 +538,7 @@ class AttendanceApiTest extends TestCase
         $this->assertDatabaseHas('hcm_schedule_timings', ['user_id' => $target->id]);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->deleteJson('/v1/hcm/schedule-timing/'.$target->id)
             ->assertOk()
             ->assertJsonPath('success', true);
@@ -496,6 +550,7 @@ class AttendanceApiTest extends TestCase
     {
         $token = $this->bearerToken(true, 'scheduletiming-shift@example.com');
         $target = User::factory()->create();
+        $this->attachUserToActiveCompany($target);
         $shift = HcmShift::query()->create([
             'code' => 'test_shift_apply',
             'name' => 'Apply Me',
@@ -506,7 +561,7 @@ class AttendanceApiTest extends TestCase
         ]);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id
         ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
             'shiftId' => $shift->id,
         ])->assertOk()
@@ -547,6 +602,41 @@ class AttendanceApiTest extends TestCase
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
 
+    public function test_attendance_admin_upsert_record_rejects_target_user_outside_active_company(): void
+    {
+        $token = $this->bearerToken(true, 'att-upsert-scope@example.com');
+
+        $otherCompany = Company::query()->create([
+            'code' => 'att_target_other_company',
+            'name' => 'Att Target Other Company',
+            'legal_name' => 'Att Target Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $target = User::factory()->create();
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $target->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/attendance/admin/record', [
+            'userId' => $target->id,
+            'workDate' => '2026-04-02',
+            'checkInTime' => '09:00',
+            'checkOutTime' => '17:00',
+        ])->assertStatus(404)
+            ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
+    }
+
     public function test_timesheets_forbidden_when_switching_to_unowned_company(): void
     {
         $token = $this->bearerToken(true, 'att-timesheet-other@example.com');
@@ -568,5 +658,45 @@ class AttendanceApiTest extends TestCase
         ])->getJson('/v1/hcm/timesheets')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
+    public function test_schedule_timing_write_rejects_target_user_outside_active_company(): void
+    {
+        $token = $this->bearerToken(true, 'scheduletiming-scope@example.com');
+
+        $otherCompany = Company::query()->create([
+            'code' => 'st_target_other_company',
+            'name' => 'ST Target Other Company',
+            'legal_name' => 'ST Target Other Company LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $target = User::factory()->create();
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $target->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
+            'startTime' => '08:30',
+            'endTime' => '17:30',
+        ])->assertStatus(404)
+            ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->deleteJson('/v1/hcm/schedule-timing/'.$target->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
     }
 }

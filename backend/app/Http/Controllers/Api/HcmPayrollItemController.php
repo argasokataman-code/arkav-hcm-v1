@@ -9,6 +9,7 @@ use App\Models\HcmSalaryComponent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -228,7 +229,7 @@ class HcmPayrollItemController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $item->id]], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'payroll.manage');
         if ($forbidden) {
@@ -237,7 +238,8 @@ class HcmPayrollItemController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
-        $itemQuery = HcmPayrollItem::query()->whereKey($id);
+        $itemQuery = HcmPayrollItem::query();
+        $this->applyIdentifierScope($itemQuery, $id, true);
         $this->applyTenantScope($itemQuery, $companyId);
         $item = $itemQuery->firstOrFail();
 
@@ -446,14 +448,15 @@ class HcmPayrollItemController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'payroll.manage');
         if ($forbidden) {
             return $forbidden;
         }
 
-        $itemQuery = HcmPayrollItem::query()->whereKey($id);
+        $itemQuery = HcmPayrollItem::query();
+        $this->applyIdentifierScope($itemQuery, $id, true);
         $this->applyTenantScope($itemQuery, $this->activeCompanyId($request));
         $item = $itemQuery->firstOrFail();
         $item->delete();
@@ -553,6 +556,19 @@ class HcmPayrollItemController extends Controller
 
             $inner->whereNull('company_id');
         });
+    }
+
+    private function applyIdentifierScope(Builder $query, string $identifier, bool $hasUuidColumn): Builder
+    {
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     /**

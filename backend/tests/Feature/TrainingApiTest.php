@@ -204,5 +204,153 @@ class TrainingApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonFragment(['id' => $trainingId]);
     }
+
+    public function test_training_types_and_trainings_are_tenant_scoped_for_admins(): void
+    {
+        $companyA = \App\Models\Company::query()->create([
+            'code' => 'TRAIN_A',
+            'name' => 'Training Company A',
+            'domain' => 'train-a.local',
+        ]);
+        $companyB = \App\Models\Company::query()->create([
+            'code' => 'TRAIN_B',
+            'name' => 'Training Company B',
+            'domain' => 'train-b.local',
+        ]);
+
+        $adminA = $this->createHcmAdminWithCompany([
+            'name' => 'Training Admin A',
+            'email' => 'training-admin-a@example.com',
+        ], $companyA);
+        $adminB = $this->createHcmAdminWithCompany([
+            'name' => 'Training Admin B',
+            'email' => 'training-admin-b@example.com',
+        ], $companyB);
+
+        $headersA = [
+            'Authorization' => 'Bearer '.$adminA['token'],
+            'X-Company-Id' => (string) $companyA->id,
+        ];
+        $headersB = [
+            'Authorization' => 'Bearer '.$adminB['token'],
+            'X-Company-Id' => (string) $companyB->id,
+        ];
+
+        $typeA = $this->withHeaders($headersA)->postJson('/v1/hcm/training/types', [
+            'name' => 'Type A',
+            'isActive' => true,
+        ])->assertStatus(201);
+        $typeB = $this->withHeaders($headersB)->postJson('/v1/hcm/training/types', [
+            'name' => 'Type B',
+            'isActive' => true,
+        ])->assertStatus(201);
+
+        $trainerA = $this->withHeaders($headersA)->postJson('/v1/hcm/training/trainers', [
+            'name' => 'Trainer A',
+            'email' => 'trainer-a@example.com',
+            'isActive' => true,
+        ])->assertStatus(201);
+        $trainerB = $this->withHeaders($headersB)->postJson('/v1/hcm/training/trainers', [
+            'name' => 'Trainer B',
+            'email' => 'trainer-b@example.com',
+            'isActive' => true,
+        ])->assertStatus(201);
+
+        $this->withHeaders($headersA)->postJson('/v1/hcm/training/trainings', [
+            'trainingTypeId' => (int) $typeA->json('data.id'),
+            'trainerId' => (int) $trainerA->json('data.id'),
+            'participantUserIds' => [],
+            'startDate' => '2026-04-09',
+            'endDate' => '2026-04-10',
+            'description' => 'A only',
+            'costCents' => 1000,
+            'status' => 'active',
+        ])->assertStatus(201);
+
+        $this->withHeaders($headersB)->postJson('/v1/hcm/training/trainings', [
+            'trainingTypeId' => (int) $typeB->json('data.id'),
+            'trainerId' => (int) $trainerB->json('data.id'),
+            'participantUserIds' => [],
+            'startDate' => '2026-04-11',
+            'endDate' => '2026-04-12',
+            'description' => 'B only',
+            'costCents' => 1000,
+            'status' => 'active',
+        ])->assertStatus(201);
+
+        $this->withHeaders($headersA)->getJson('/v1/hcm/training/types')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Type A'])
+            ->assertJsonMissing(['name' => 'Type B']);
+
+        $this->withHeaders($headersA)->getJson('/v1/hcm/training/trainers')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Trainer A'])
+            ->assertJsonMissing(['name' => 'Trainer B']);
+
+        $this->withHeaders($headersA)->getJson('/v1/hcm/training/trainings?perPage=50')
+            ->assertOk()
+            ->assertJsonFragment(['description' => 'A only'])
+            ->assertJsonMissing(['description' => 'B only']);
+    }
+
+    public function test_training_mutation_requires_manage_permission_not_view_only(): void
+    {
+        $company = \App\Models\Company::query()->create([
+            'code' => 'TRAIN_VIEW_ONLY',
+            'name' => 'Training View Only',
+            'domain' => 'train-view-only.local',
+        ]);
+
+        $user = $this->login('training-view-only@example.com', 'Training View Only User');
+        $authUser = User::query()->where('email', 'training-view-only@example.com')->firstOrFail();
+
+        \App\Models\CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $authUser->id,
+            'role' => 'member',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $role = \App\Models\HcmRole::query()->create([
+            'company_id' => $company->id,
+            'code' => 'TRAINING_VIEWER',
+            'name' => 'Training Viewer',
+            'status' => 'active',
+            'is_system' => false,
+        ]);
+        $permission = \App\Models\HcmPermission::query()->firstOrCreate(
+            ['code' => 'training.view'],
+            ['module' => 'training', 'resource' => 'training', 'action' => 'view', 'name' => 'Training View', 'is_active' => true]
+        );
+        \Illuminate\Support\Facades\DB::table('hcm_role_permissions')->insert([
+            'company_id' => $company->id,
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        ]);
+        \Illuminate\Support\Facades\DB::table('hcm_user_roles')->insert([
+            'user_id' => $authUser->id,
+            'company_id' => $company->id,
+            'role_id' => $role->id,
+            'status' => 'active',
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        ]);
+
+        $headers = [
+            'Authorization' => 'Bearer '.$user['token'],
+            'X-Company-Id' => (string) $company->id,
+        ];
+
+        $this->withHeaders($headers)->postJson('/v1/hcm/training/types', [
+            'name' => 'Should be forbidden',
+            'isActive' => true,
+        ])->assertStatus(403);
+
+        $this->withHeaders($headers)->getJson('/v1/hcm/training/types')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
 }
 

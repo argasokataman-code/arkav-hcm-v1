@@ -190,7 +190,7 @@ class HcmUserManagementSeeder extends Seeder
                 $createdRoles[$role['code']] = (int) $createdRole->id;
 
                 if (in_array($role['code'], $adminRoleCodes, true)) {
-                    $createdRole->permissions()->sync($adminPermissionIds);
+                    $createdRole->syncPermissionsForCompany($adminPermissionIds);
                 }
             }
 

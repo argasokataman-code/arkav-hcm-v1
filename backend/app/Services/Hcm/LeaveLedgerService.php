@@ -87,9 +87,50 @@ class LeaveLedgerService
                 $carryDelta = $amount;
             }
 
-            $nextUsed = max(0, (float) $balanceRow->used + $usedDelta);
-            $nextExpired = max(0, (float) $balanceRow->expired + $expiredDelta);
-            $nextCarried = max(0, (float) $balanceRow->carried_forward + $carryDelta);
+            $nextUsed = (float) $balanceRow->used + $usedDelta;
+            if ($nextUsed < 0) {
+                \Log::warning('Leave balance clamping detected', [
+                    'employee_id' => $balanceRow->employee_id,
+                    'leave_type_id' => $balanceRow->leave_type_id,
+                    'year' => $balanceRow->year,
+                    'field' => 'used',
+                    'delta' => $usedDelta,
+                    'clamped_from' => $nextUsed,
+                    'transaction_type' => $transactionType,
+                    'reference_id' => $payload['referenceId'] ?? null,
+                ]);
+                $nextUsed = 0;
+            }
+
+            $nextExpired = (float) $balanceRow->expired + $expiredDelta;
+            if ($nextExpired < 0) {
+                \Log::warning('Leave balance clamping detected', [
+                    'employee_id' => $balanceRow->employee_id,
+                    'leave_type_id' => $balanceRow->leave_type_id,
+                    'year' => $balanceRow->year,
+                    'field' => 'expired',
+                    'delta' => $expiredDelta,
+                    'clamped_from' => $nextExpired,
+                    'transaction_type' => $transactionType,
+                    'reference_id' => $payload['referenceId'] ?? null,
+                ]);
+                $nextExpired = 0;
+            }
+
+            $nextCarried = (float) $balanceRow->carried_forward + $carryDelta;
+            if ($nextCarried < 0) {
+                \Log::warning('Leave balance clamping detected', [
+                    'employee_id' => $balanceRow->employee_id,
+                    'leave_type_id' => $balanceRow->leave_type_id,
+                    'year' => $balanceRow->year,
+                    'field' => 'carried_forward',
+                    'delta' => $carryDelta,
+                    'clamped_from' => $nextCarried,
+                    'transaction_type' => $transactionType,
+                    'reference_id' => $payload['referenceId'] ?? null,
+                ]);
+                $nextCarried = 0;
+            }
 
             $balanceRow->update([
                 'balance' => $balanceAfter,

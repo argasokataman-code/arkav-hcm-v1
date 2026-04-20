@@ -9,9 +9,10 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/H
 ## Tenant context
 
 - `leave_requests.company_id` — kolom tenant ditambahkan via migrasi; backfill ke `default_company`.
-- Semua query `LeaveRequest` di-scope ke `company_id` aktif (`WHERE company_id = ? OR company_id IS NULL`).
+- Semua query `LeaveRequest` di-scope ketat ke `company_id` aktif (`WHERE company_id = ?`).
 - `GET /leave-requests`, `POST /leave-requests`, `PUT /leave-requests/:id`, `DELETE /leave-requests/:id`, `GET /leave-requests/export` — semua mem-filter by active company.
 - Admin dari company A tidak dapat approve/decline leave request milik company B.
+- Admin juga tidak dapat create/filter/balance-check untuk `userId` yang bukan anggota tenant aktif.
 - Header opsional: `X-Company-Id` / `X-Company-Code`; jika company bukan milik user → `403 TENANT_FORBIDDEN`.
 
 ## Leave type options (untuk form request)
@@ -126,7 +127,7 @@ Query:
 - `status` optional `pending|approved|declined`
 - `dateFrom` optional date
 - `dateTo` optional date
-- `userId` optional integer (admin only)
+- `userId` optional integer `users.id` (admin only). UUID masih diterima sebagai fallback legacy, tetapi runtime UI aktif mengirim numeric id.
 
 Catatan filter `leaveType`:
 - Server menormalkan variasi nama/kode legacy agar hasil tetap konsisten (contoh: `Annual Leave` dan `annual_leave` dianggap ekuivalen).
@@ -185,10 +186,24 @@ Success `200`:
 - `Content-Type: text/csv; charset=UTF-8`
 - `Content-Disposition: attachment; filename="leave-requests-*.csv"`
 
+### GET `/employee-leave-balance`
+
+Query:
+- `leaveType` required string max 100
+- `userId` optional integer `users.id` (admin only, same-tenant only). UUID masih diterima sebagai fallback legacy.
+
+RBAC:
+- Employee: bisa melihat saldo dirinya sendiri.
+- Admin: bisa melihat saldo user lain hanya jika user tersebut anggota tenant aktif.
+
+Error penting:
+- `404 USER_NOT_IN_COMPANY` jika `userId` bukan anggota tenant aktif.
+- `403 FORBIDDEN` jika non-admin mencoba membaca saldo user lain.
+
 ### POST `/leave-requests`
 
 Body:
-- `userId` (optional, admin only) integer, exists `users.id`
+- `userId` (optional, admin only) integer, exists `users.id`, dan wajib anggota tenant aktif. UUID masih diterima sebagai fallback legacy.
 - `leaveType` required string max 100
 - `dateFrom` required date
 - `dateTo` required date, `>= dateFrom`
@@ -196,7 +211,7 @@ Body:
 - `notes` optional string max 2000
 
 RBAC:
-- Admin boleh buat untuk orang lain via `userId`
+- Admin boleh buat untuk orang lain via `userId` jika target user anggota tenant aktif
 - Non-admin **tidak boleh** mengirim `userId` (403 `AUTH_FORBIDDEN`)
 
 Success `201`:

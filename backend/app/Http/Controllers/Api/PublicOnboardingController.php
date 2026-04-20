@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\CompanyUser;
+use App\Models\HcmManualActivity;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
@@ -80,7 +81,7 @@ class PublicOnboardingController
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'package_id' => ['required', 'integer', 'min:1', Rule::exists('packages', 'id')->where(fn ($q) => $q->where('status', 'active'))],
+            'package_uuid' => ['required', 'uuid', Rule::exists('packages', 'uuid')->where(fn ($q) => $q->where('status', 'active'))],
             'billing_cycle' => ['required', 'string', Rule::in(['monthly', 'yearly'])],
             'start_mode' => ['nullable', 'string', Rule::in(['trial', 'pending_payment'])],
             'turnstile_token' => ['nullable', 'string', 'max:2048'],
@@ -112,7 +113,7 @@ class PublicOnboardingController
 
         return DB::transaction(function () use ($validated): JsonResponse {
             /** @var Package $package */
-            $package = Package::query()->findOrFail((int) $validated['package_id']);
+            $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
 
             if ((string) $package->code === 'trial') {
                 // Guardrail: trial package is only for start_mode=trial.
@@ -236,6 +237,19 @@ class PublicOnboardingController
                 'joined_at' => now(),
             ]);
 
+            $startMode = (string) ($validated['start_mode'] ?? 'trial');
+
+            // Log company registration/trial signup as manual activity
+            $modeLabel = $startMode === 'pending_payment' ? 'pending payment' : 'trial';
+            HcmManualActivity::query()->create([
+                'company_id' => $company->id,
+                'created_by_user_id' => $owner->id,
+                'title' => 'Company Registration',
+                'description' => 'Company registered and started '.$modeLabel.' with '.$package->name.' package',
+                'status' => 'completed',
+                'priority' => 'normal',
+            ]);
+
             $startsAt = now()->startOfDay();
             $billingCycle = $validated['billing_cycle'];
             $periodEndsAt = $billingCycle === 'yearly'
@@ -244,14 +258,12 @@ class PublicOnboardingController
 
             $trialEndsAt = (clone $startsAt)->addDays(30);
 
-            $startMode = (string) ($validated['start_mode'] ?? 'trial');
-
             // When starting as pending_payment, ends_at becomes a provisioning/payment window.
             $provisioningEndsAt = (clone $startsAt)->addDays(7);
 
             $subscription = Subscription::query()->create([
                 'company_id' => $company->id,
-                'package_id' => $package->id,
+                'package_uuid' => $package->uuid,
                 'plan_code' => $package->code,
                 'status' => $startMode === 'pending_payment' ? 'pending_payment' : 'trial',
                 'starts_at' => $startsAt,
@@ -304,7 +316,7 @@ class PublicOnboardingController
                         'trialEndsAt' => $subscription->trial_ends_at,
                         'billingCycle' => $subscription->billing_cycle,
                         'amount' => $subscription->amount,
-                        'packageId' => $package->id,
+                        'packageId' => $package->uuid,
                         'packageCode' => $package->code,
                         'packageName' => $package->name,
                     ],

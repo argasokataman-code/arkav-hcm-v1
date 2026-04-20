@@ -13,36 +13,57 @@ return new class extends Migration
             return;
         }
 
-        // Check if column already exists (might have been added by another migration)
         if (! Schema::hasColumn('hcm_role_permissions', 'company_id')) {
-            // Add company_id to hcm_role_permissions for tenant-scoped mappings
             Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('permission_id');
+            });
+        }
+
+        if (! $this->indexExists('hcm_role_permissions', 'hcm_role_permissions_role_id_idx')) {
+            Schema::table('hcm_role_permissions', function (Blueprint $table): void {
+                $table->index('role_id', 'hcm_role_permissions_role_id_idx');
+            });
+        }
+
+        if (! $this->indexExists('hcm_role_permissions', 'hcm_role_permissions_company_role_idx')) {
+            Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->index(['company_id', 'role_id'], 'hcm_role_permissions_company_role_idx');
+            });
+        }
+
+        if (! $this->indexExists('hcm_role_permissions', 'hcm_role_permissions_company_permission_idx')) {
+            Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->index(['company_id', 'permission_id'], 'hcm_role_permissions_company_permission_idx');
             });
+        }
 
-            $this->tryAddCompanyIdForeignKey();
+        if (Schema::hasColumn('hcm_role_permissions', 'company_id')) {
+            DB::statement('UPDATE hcm_role_permissions rp JOIN hcm_roles r ON r.id = rp.role_id SET rp.company_id = r.company_id WHERE rp.company_id IS NULL');
+        }
 
-            // Update unique constraint to include company_id
-            try {
+        $this->tryAddCompanyIdForeignKey();
+
+        try {
+            if ($this->indexExists('hcm_role_permissions', 'hcm_role_permissions_unique')) {
                 Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                     $table->dropUnique('hcm_role_permissions_unique');
                 });
-            } catch (\Throwable $e) {
-                if (stripos($e->getMessage(), 'doesn\'t exist') === false && stripos($e->getMessage(), 'can\'t drop') === false) {
-                    throw $e;
-                }
             }
+        } catch (\Throwable $e) {
+            if (stripos($e->getMessage(), 'doesn\'t exist') === false && stripos($e->getMessage(), 'can\'t drop') === false) {
+                throw $e;
+            }
+        }
 
-            try {
+        try {
+            if (! $this->indexExists('hcm_role_permissions', 'hcm_role_permissions_tenant_unique')) {
                 Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                     $table->unique(['company_id', 'role_id', 'permission_id'], 'hcm_role_permissions_tenant_unique');
                 });
-            } catch (\Throwable $e) {
-                if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
-                    throw $e;
-                }
+            }
+        } catch (\Throwable $e) {
+            if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
+                throw $e;
             }
         }
     }
@@ -76,9 +97,21 @@ return new class extends Migration
         Schema::table('hcm_role_permissions', function (Blueprint $table): void {
             $table->dropIndex('hcm_role_permissions_company_role_idx');
             $table->dropIndex('hcm_role_permissions_company_permission_idx');
+            $table->dropIndex('hcm_role_permissions_role_id_idx');
             $table->dropColumn('company_id');
             $table->unique(['role_id', 'permission_id'], 'hcm_role_permissions_unique');
         });
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $database = DB::getDatabaseName();
+        $rows = DB::select(
+            'SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1',
+            [$database, $table, $indexName]
+        );
+
+        return $rows !== [];
     }
 
     private function tryAddCompanyIdForeignKey(): void
@@ -110,7 +143,7 @@ return new class extends Migration
                 $table->foreign('company_id')->references('id')->on('companies')->nullOnDelete();
             });
         } catch (\Throwable $e) {
-            if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
+            if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false && stripos($e->getMessage(), 'Duplicate foreign key constraint name') === false) {
                 throw $e;
             }
         }

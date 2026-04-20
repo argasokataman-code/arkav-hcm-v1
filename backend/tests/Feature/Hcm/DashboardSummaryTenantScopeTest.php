@@ -49,6 +49,7 @@ class DashboardSummaryTenantScopeTest extends TestCase
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => 'dashboard-scope-admin@example.com',
             'password' => 'StrongPass1',
+            'companyCode' => (string) $companyA->code,
         ])->assertOk();
         $token = (string) $login->json('data.accessToken');
 
@@ -79,7 +80,7 @@ class DashboardSummaryTenantScopeTest extends TestCase
         // Act: Hit dashboard summary endpoint as this user
         $response = $this->withHeaders([
                 'Authorization' => 'Bearer '.$token,
-                'X-Company-Id' => (string) $companyA->id,
+            'X-Company-Code' => (string) $companyA->code,
             ])
             ->getJson('/v1/hcm/dashboard-summary');
         $response->assertStatus(200);

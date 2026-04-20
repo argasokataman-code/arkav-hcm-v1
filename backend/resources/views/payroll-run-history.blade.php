@@ -39,6 +39,7 @@
                             <option value="">Semua</option>
                             <option value="draft">Draft</option>
                             <option value="finalized">Finalized</option>
+                            <option value="void">Void</option>
                         </select>
                     </div>
                     <div class="col-md-3">

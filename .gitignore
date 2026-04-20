@@ -8,6 +8,7 @@
 .phpunit.result.cache
 repomix-*.xml
 call_*.txt
+*.bak
 
 # Node / frontend
 node_modules/
@@ -45,3 +46,22 @@ backend/.env.*
 coverage/
 backend/coverage/
 backend/.phpunit.cache/
+
+# Local debug / scratch artifacts
+backend/debug-*.js
+backend/test-*.js
+backend/test_*.php
+backend/test-output.log
+backend/verify-comprehensive-permissions.js
+backend/SUPERADMIN_PERMISSION_AUDIT.js
+backend/payment-before.png
+backend/payment-after.png
+backend/registration-result.png
+backend/full_backup.sql
+backend/schema.sql
+backend/schema_for_dbeaver.sql
+backend/e2e/check-*.js
+backend/e2e/diagnostic.js
+backend/e2e/final-test.js
+backend/e2e/super-admin-employee-crud-final.js
+validation_audit.txt

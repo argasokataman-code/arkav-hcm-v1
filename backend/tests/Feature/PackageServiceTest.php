@@ -127,20 +127,20 @@ class PackageServiceTest extends TestCase
         ]);
 
         PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'employee_management',
             'feature_name' => 'Employee Management',
             'limit' => 100,
         ]);
 
         PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'payroll',
             'feature_name' => 'Payroll Processing',
             'limit' => null,
         ]);
 
-        $response = $this->request()->getJson("/v1/saas/packages/{$package->id}");
+        $response = $this->request()->getJson("/v1/saas/packages/{$package->uuid}");
 
         $response->assertOk();
         $response->assertJson(['success' => true]);
@@ -183,7 +183,7 @@ class PackageServiceTest extends TestCase
 
         Subscription::create([
             'company_id' => $companyOne->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'active',
             'starts_at' => now()->subDays(10),
@@ -194,7 +194,7 @@ class PackageServiceTest extends TestCase
 
         Subscription::create([
             'company_id' => $companyTwo->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'cancelled',
             'starts_at' => now()->subMonth(),
@@ -339,7 +339,7 @@ class PackageServiceTest extends TestCase
             'billing_unit' => 'flat',
         ]);
 
-        $response = $this->request()->putJson("/v1/saas/packages/{$package->id}", [
+        $response = $this->request()->putJson("/v1/saas/packages/{$package->uuid}", [
             'name' => 'Basic Plan Updated',
             'monthly_price' => 109000,
             'status' => 'inactive',
@@ -404,12 +404,52 @@ class PackageServiceTest extends TestCase
             'billing_unit' => 'flat',
         ]);
 
-        $response = $this->request()->deleteJson("/v1/saas/packages/{$package->id}");
+        $response = $this->request()->deleteJson("/v1/saas/packages/{$package->uuid}");
 
         $response->assertOk();
         $response->assertJson(['success' => true]);
 
-        $this->assertDatabaseMissing('packages', ['id' => $package->id]);
+        $this->assertDatabaseMissing('packages', ['uuid' => $package->uuid]);
+    }
+
+    public function test_delete_package_is_blocked_when_subscription_history_exists(): void
+    {
+        $package = Package::create([
+            'code' => 'growth',
+            'name' => 'Growth Plan',
+            'monthly_price' => 149000,
+            'yearly_price' => 1490000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        $company = Company::create([
+            'code' => 'cmp_growth',
+            'name' => 'Growth Company',
+            'legal_name' => 'Growth Company LLC',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        Subscription::create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subWeek(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 149000,
+        ]);
+
+        $response = $this->request()->deleteJson("/v1/saas/packages/{$package->uuid}");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'PACKAGE_IN_USE');
+
+        $this->assertDatabaseHas('packages', ['uuid' => $package->uuid]);
     }
 
     /**
@@ -448,7 +488,7 @@ class PackageServiceTest extends TestCase
         ]);
 
         $response = $this->request()->postJson(
-            "/v1/saas/packages/{$package->id}/features",
+            "/v1/saas/packages/{$package->uuid}/features",
             [
                 'feature_code' => 'payroll',
                 'feature_name' => 'Payroll Processing',
@@ -462,7 +502,7 @@ class PackageServiceTest extends TestCase
         $this->assertTrue($response->json('data.isUnlimited'));
 
         $this->assertDatabaseHas('package_features', [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'payroll',
         ]);
     }
@@ -481,7 +521,7 @@ class PackageServiceTest extends TestCase
         ]);
 
         $feature = PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'employees',
             'feature_name' => 'Employee Count',
             'limit' => 50,
@@ -516,7 +556,7 @@ class PackageServiceTest extends TestCase
         ]);
 
         $feature = PackageFeature::create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'payroll',
             'feature_name' => 'Payroll',
             'limit' => null,

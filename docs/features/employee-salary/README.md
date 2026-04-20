@@ -9,6 +9,7 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 ## Dokumentasi QA
 
 - E2E browser flow: `docs/features/employee-salary/E2E-TESTING.md`
+- Status snapshot & evidence formal: `docs/features/employee-salary/tracker.md`
 
 ## Akses
 
@@ -31,13 +32,14 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 - **Edit** baris: modal yang sama, tanpa dropdown.
 - **Custom payroll item per karyawan:** di modal edit tersedia section assignment dengan flow tambah, ubah nominal, aktif/nonaktif, dan hapus assignment.
 - Metadata kontrak yang disunting di sini sudah distandardkan ke **`pkwt` / `pkwtt`** dan ikut mengalir ke preview kompensasi PKWT serta payroll draft bulanan.
-- **Slip:** halaman **`/payslip`** masih placeholder; API self-service **`GET /v1/hcm/payroll/my-slip-lines`** tersedia setelah admin **finalize** run (`docs/api/hcm-payroll-api.md`).
+- **Slip:** halaman **`/payslip`** sudah aktif untuk audience employee dan memakai `GET /v1/hcm/payroll/my-slip`, `GET /v1/hcm/payroll/my-slip-latest-period`, serta `GET /v1/hcm/payroll/my-slip-pdf` sebagai surface self-service sesudah ada run final.
 
 ## Integrasi
 
 - **Lembur:** `POST /v1/hcm/overtime-requests/calculate` memakai gaji pokok + tunjangan tetap dari profil; pastikan nilai di halaman ini selaras dengan yang dipakai kalkulator.
 - **Payroll items:** tautan ke `/payroll` (komponen slip / katalog, termasuk konteks upah lembur).
 - **Payroll draft:** assignment custom aktif akan ikut terbentuk sebagai payroll line saat admin menghitung draft periode (`POST /v1/hcm/payroll-periods/{id}/calculate-draft`).
+- **Payslip:** perubahan kompensasi utama dan assignment custom di sini menjadi salah satu input utama yang akhirnya muncul di `/payslip` saat payroll monthly/THR/PKWT pada bulan tersebut sudah final.
 - **Directory / detail:** tautan ke `/employees` dan `/employee-details?id=…`.
 
 ## Kontrak API
@@ -49,3 +51,9 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 
 - `WebHcmRouteGuardTest` — akses `/employee-salary` untuk admin vs non-admin (cookie API + sesi web).
 - `HcmEmployeeApiTest` — perilaku umum employees API (kompensasi diuji lewat create/update profil).
+
+## Existing Vs Target
+
+- Existing: halaman admin, modal kompensasi, custom payroll item assignment per karyawan, dan integrasi ke overtime/payroll draft sudah aktif.
+- Existing: kompensasi utama tetap bersumber dari `employee_profiles` dan sinkron ke employees API/detail karyawan.
+- Target: penyatuan dokumentasi business flow dan lifecycle kompensasi dengan modul payroll terkait bisa dibuat lebih detail bila area ini diaudit lebih dalam lagi.

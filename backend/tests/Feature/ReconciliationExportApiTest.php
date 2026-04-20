@@ -48,7 +48,7 @@ class ReconciliationExportApiTest extends TestCase
 
     private function adminToken(): string
     {
-        return $this->registerAndLogin('Recon Admin', 'recon-admin@example.com', 'HR Admin', 'HR');
+        return $this->registerAndLogin('Recon Admin', 'qa.login@example.com', 'HR Admin', 'HR');
     }
 
     private function employeeToken(): string
@@ -172,7 +172,7 @@ class ReconciliationExportApiTest extends TestCase
             'feature_key' => 'payroll_run',
             'action_key' => 'finalize',
             'scope_ref' => (string) $run->id,
-            'exported_by_user_id' => User::query()->where('email', 'recon-admin@example.com')->firstOrFail()->id,
+            'exported_by_user_id' => User::query()->where('email', 'qa.login@example.com')->firstOrFail()->id,
             'exported_at' => now(),
             'file_format' => 'csv',
             'file_path' => 'reconciliation/payroll-run-'.$run->id.'.csv',
@@ -195,8 +195,8 @@ class ReconciliationExportApiTest extends TestCase
         config()->set('hcm.export_reconciliation.enforce.payment.verify', true);
 
         $admin = $this->adminToken();
-        $companyId = $this->activeCompanyIdForUser('recon-admin@example.com');
-        $adminId = User::query()->where('email', 'recon-admin@example.com')->firstOrFail()->id;
+        $companyId = $this->activeCompanyIdForUser('qa.login@example.com');
+        $adminId = User::query()->where('email', 'qa.login@example.com')->firstOrFail()->id;
 
         $invoice = Invoice::factory()->create([
             'company_id' => $companyId,
@@ -218,7 +218,7 @@ class ReconciliationExportApiTest extends TestCase
         ]);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->putJson('/v1/saas/invoices/'.$invoice->id.'/mark-paid')
+            ->putJson('/v1/saas/invoices/'.$invoice->uuid.'/mark-paid')
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
 
@@ -238,12 +238,12 @@ class ReconciliationExportApiTest extends TestCase
         ]);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->putJson('/v1/saas/invoices/'.$invoice->id.'/mark-paid')
+            ->putJson('/v1/saas/invoices/'.$invoice->uuid.'/mark-paid')
             ->assertOk()
             ->assertJsonPath('success', true);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->putJson('/v1/saas/payments/'.$payment->id.'/verify')
+            ->putJson('/v1/saas/payments/'.$payment->uuid.'/verify')
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
 
@@ -263,7 +263,7 @@ class ReconciliationExportApiTest extends TestCase
         ]);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->putJson('/v1/saas/payments/'.$payment->id.'/verify')
+            ->putJson('/v1/saas/payments/'.$payment->uuid.'/verify')
             ->assertOk()
             ->assertJsonPath('success', true);
     }
@@ -277,7 +277,7 @@ class ReconciliationExportApiTest extends TestCase
 
         $admin = $this->adminToken();
         $employee = $this->employeeToken();
-        $companyId = $this->activeCompanyIdForUser('recon-admin@example.com');
+        $companyId = $this->activeCompanyIdForUser('qa.login@example.com');
 
         $runId = $this->createDraftRun($admin, 2026, 12);
         $invoice = Invoice::factory()->create([
@@ -303,12 +303,12 @@ class ReconciliationExportApiTest extends TestCase
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$employee])
-            ->putJson('/v1/saas/invoices/'.$invoice->id.'/mark-paid')
+            ->putJson('/v1/saas/invoices/'.$invoice->uuid.'/mark-paid')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$employee])
-            ->putJson('/v1/saas/payments/'.$payment->id.'/verify')
+            ->putJson('/v1/saas/payments/'.$payment->uuid.'/verify')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }

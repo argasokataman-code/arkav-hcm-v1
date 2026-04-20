@@ -26,7 +26,7 @@ class WilayahLookupController extends Controller
     public function regencies(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'provinceId' => ['required', 'integer', 'exists:wilayah_provinces,id'],
+            'provinceId' => ['required', 'integer', 'exists:wilayah_provinces,uuid'],
         ]);
 
         return response()->json([
@@ -42,7 +42,7 @@ class WilayahLookupController extends Controller
     public function districts(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'regencyId' => ['required', 'integer', 'exists:wilayah_regencies,id'],
+            'regencyId' => ['required', 'integer', 'exists:wilayah_regencies,uuid'],
         ]);
 
         return response()->json([
@@ -58,7 +58,7 @@ class WilayahLookupController extends Controller
     public function villages(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'districtId' => ['required', 'integer', 'exists:wilayah_districts,id'],
+            'districtId' => ['required', 'integer', 'exists:wilayah_districts,uuid'],
         ]);
 
         return response()->json([

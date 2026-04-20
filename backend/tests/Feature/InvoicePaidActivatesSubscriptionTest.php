@@ -57,7 +57,7 @@ class InvoicePaidActivatesSubscriptionTest extends TestCase
 
         $sub = Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'pending_payment',
             'starts_at' => now()->subDays(1),
@@ -78,7 +78,7 @@ class InvoicePaidActivatesSubscriptionTest extends TestCase
         ]);
 
         $this->withHeader('Authorization', 'Bearer '.$this->adminToken)
-            ->putJson("/v1/saas/invoices/{$invoice->id}/mark-paid")
+            ->putJson("/v1/saas/invoices/{$invoice->uuid}/mark-paid")
             ->assertOk()
             ->assertJsonPath('success', true);
 

@@ -1,44 +1,51 @@
 # Packages API
 
-Endpoints untuk mengelola subscription tiers dan package features dalam sistem SaaS.
+Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/PackageController.php`.
 
-## Base Path
+## Base path
 
-```
-/v1/saas/packages
-```
+- `/v1/saas/packages`
+- `/v1/saas/package-addons`
 
 ## Authentication
 
-Semua endpoints memerlukan `api.token` middleware (bearer token atau cookie).
+Semua endpoint memakai middleware `api.token`.
 
-```
-Authorization: Bearer <token>
-```
+- Header auth: `Authorization: Bearer <token>`
+- Read/list endpoint dapat diakses user bertoken non-admin.
+- Operasi mutasi package, feature, dan add-on tetap admin-only.
 
-## Endpoints
+## Packages
 
-### List Packages (Public)
+### GET `/packages`
 
-```
-GET /v1/saas/packages
-```
+Query:
+- `page` optional int, default `1`
+- `per_page` optional int, default `15`, max `100`
+- `status` optional enum `active|inactive|archived|all`, default logical `active`
+- `search` optional string, filter `name|code|description`
 
-Mendapatkan daftar semua package aktif dengan features.
+Behavior:
+- Return list package dengan nested features.
+- `data[].id` adalah UUID package.
+- `data[].activeSubscriptionsCount` menghitung subscription `active|trial`.
+- `data[].totalSubscriptionsCount` menghitung seluruh histori subscription.
+- Bila `status=all`, runtime tidak memfilter status.
 
-**Response (200 OK)**
+Success `200` (ringkas):
 ```json
 {
   "success": true,
   "data": [
     {
-      "id": 1,
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "code": "basic",
       "name": "Basic Plan",
       "description": "Basic plan untuk startup",
       "monthlyPrice": 99000,
       "yearlyPrice": 990000,
       "billingUnit": "flat",
+      "status": "active",
       "color": "#007bff",
       "sortOrder": 1,
       "activeSubscriptionsCount": 24,
@@ -55,29 +62,31 @@ Mendapatkan daftar semua package aktif dengan features.
       ],
       "createdAt": "2026-04-13T10:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "total": 1,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 1
+  }
 }
 ```
 
-### Get Package Details
+### GET `/packages/{package}`
 
-```
-GET /v1/saas/packages/{id}
-```
+Path:
+- `package` required UUID
 
-Mendapatkan detail package dengan semua features.
+Behavior:
+- Mengembalikan detail package + seluruh features.
+- Counter subscription memakai agregat runtime yang sama dengan list endpoint.
 
-**Parameters**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| id | integer | ✓ | Package ID |
-
-**Response (200 OK)**
+Success `200`:
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "code": "pro",
     "name": "Pro Plan",
     "description": "Professional plan",
@@ -113,15 +122,23 @@ Mendapatkan detail package dengan semua features.
 }
 ```
 
-### Create Package (Admin Only)
+### POST `/packages`
 
-```
-POST /v1/saas/packages
-```
+RBAC:
+- Admin only.
 
-Membuat package baru.
+Body:
+- `code` required string unique max 50
+- `name` required string max 100
+- `description` optional string
+- `monthly_price` required numeric >= 0
+- `yearly_price` required numeric >= 0
+- `billing_unit` required enum `user|company|flat`
+- `status` optional enum `active|inactive|archived`
+- `color` optional string max 7
+- `sort_order` optional int >= 0
 
-**Request**
+Request contoh:
 ```json
 {
   "code": "enterprise",
@@ -135,24 +152,12 @@ Membuat package baru.
 }
 ```
 
-**Parameters**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| code | string | ✓ | Unique package code |
-| name | string | ✓ | Display name |
-| description | string | - | Package description |
-| monthly_price | number | ✓ | Monthly price |
-| yearly_price | number | ✓ | Yearly price |
-| billing_unit | enum | ✓ | `flat`, `user`, `company` |
-| color | string | - | Hex color code |
-| sort_order | integer | - | Display order |
-
-**Response (201 Created)**
+Success `201`:
 ```json
 {
   "success": true,
   "data": {
-    "id": 3,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "code": "enterprise",
     "name": "Enterprise Plan",
     "description": "Enterprise plan untuk perusahaan besar",
@@ -166,33 +171,28 @@ Membuat package baru.
 }
 ```
 
-### Update Package (Admin Only)
+### PUT `/packages/{package}`
 
-```
-PUT /v1/saas/packages/{id}
-```
+RBAC:
+- Admin only.
 
-Mengupdate package.
+Path:
+- `package` required UUID
 
-**Parameters**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| code | string | - | Unique package code |
-| name | string | - | Display name |
-| description | string | - | Package description |
-| monthly_price | number | - | Monthly price |
-| yearly_price | number | - | Yearly price |
-| billing_unit | enum | - | `flat`, `user`, `company` |
-| status | enum | - | `active`, `inactive`, `archived` |
-| color | string | - | Hex color code |
-| sort_order | integer | - | Display order |
+Body:
+- Semua field bersifat optional (`sometimes`).
+- Field yang diterima sama dengan create endpoint.
 
-**Response (200 OK)**
+Catatan UI aktif:
+- Modal packages hanya mengekspos satu harga berbasis billing cycle pada satu waktu.
+- Jika admin hanya mengubah metadata tanpa menyentuh input harga atau cycle, FE mempertahankan `monthly_price` dan `yearly_price` existing agar tidak terjadi rewrite diam-diam.
+
+Success `200`:
 ```json
 {
   "success": true,
   "data": {
-    "id": 1,
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "code": "basic",
     "name": "Basic Plan Updated",
     "monthlyPrice": 109000,
@@ -206,15 +206,19 @@ Mengupdate package.
 }
 ```
 
-### Delete Package (Admin Only)
+### DELETE `/packages/{package}`
 
-```
-DELETE /v1/saas/packages/{id}
-```
+RBAC:
+- Admin only.
 
-Menghapus package (cascade delete features).
+Path:
+- `package` required UUID
 
-**Response (200 OK)**
+Guard:
+- Package tidak boleh dihapus jika masih direferensikan histori subscription.
+- Runtime mengembalikan `422 PACKAGE_IN_USE`, bukan 500 database.
+
+Success `200`:
 ```json
 {
   "success": true,
@@ -222,17 +226,21 @@ Menghapus package (cascade delete features).
 }
 ```
 
-## Package Add-ons
+## Package add-ons
 
-### List Add-ons
+### GET `/package-addons`
 
-```
-GET /v1/saas/package-addons
-```
+Query:
+- `page` optional int, default `1`
+- `per_page` optional int, default `15`, max `100`
+- `status` optional enum `active|inactive|all`, default logical `active`
+- `search` optional string, filter `name|code|description|unit_name`
 
-Mendapatkan daftar add-on aktif dengan pagination.
+Behavior:
+- Return list add-on dengan pagination.
+- `id` pada response adalah numeric add-on id aktif.
 
-**Response (200 OK)**
+Success `200` (ringkas):
 ```json
 {
   "success": true,
@@ -247,23 +255,39 @@ Mendapatkan daftar add-on aktif dengan pagination.
       "status": "active",
       "createdAt": "2026-04-13T10:00:00Z"
     }
-  ]
+  ],
+  "pagination": {
+    "total": 1,
+    "per_page": 15,
+    "current_page": 1,
+    "last_page": 1
+  }
 }
 ```
 
-### Get Add-on Details
+### GET `/package-addons/{addon}`
 
-```
-GET /v1/saas/package-addons/{id}
-```
+Path:
+- `addon` required identifier
 
-### Create Add-on (Admin Only)
+Behavior:
+- `{addon}` menerima numeric add-on id aktif dengan UUID fallback untuk caller transisi.
+- Jika add-on tidak ditemukan, runtime mengembalikan `404 NOT_FOUND`.
 
-```
-POST /v1/saas/package-addons
-```
+### POST `/package-addons`
 
-**Request**
+RBAC:
+- Admin only.
+
+Body:
+- `code` required string unique
+- `name` required string
+- `description` optional string
+- `price_per_unit` required numeric >= 0
+- `unit_name` optional string
+- `status` optional enum `active|inactive`
+
+Request contoh:
 ```json
 {
   "code": "storage_gb",
@@ -275,29 +299,33 @@ POST /v1/saas/package-addons
 }
 ```
 
-### Update Add-on (Admin Only)
+### PUT `/package-addons/{addon}`
 
-```
-PUT /v1/saas/package-addons/{id}
-```
+RBAC:
+- Admin only.
 
-### Delete Add-on (Admin Only)
+Path:
+- `addon` required identifier, numeric aktif dengan UUID fallback.
 
-```
-DELETE /v1/saas/package-addons/{id}
-```
+### DELETE `/package-addons/{addon}`
 
-## Features Management
+RBAC:
+- Admin only.
 
-### Get Package Features
+Path:
+- `addon` required identifier, numeric aktif dengan UUID fallback.
 
-```
-GET /v1/saas/packages/{id}/features
-```
+## Package features
 
-Mendapatkan daftar features dalam package.
+### GET `/packages/{package}/features`
 
-**Response (200 OK)**
+Path:
+- `package` required UUID
+
+Behavior:
+- Mengembalikan daftar feature yang sudah terpasang pada package.
+
+Success `200`:
 ```json
 {
   "success": true,
@@ -314,15 +342,20 @@ Mendapatkan daftar features dalam package.
 }
 ```
 
-### Add Feature to Package (Admin Only)
+### POST `/packages/{package}/features`
 
-```
-POST /v1/saas/packages/{id}/features
-```
+RBAC:
+- Admin only.
 
-Menambahkan feature ke package.
+Path:
+- `package` required UUID
 
-**Request**
+Body:
+- `feature_code` required string
+- `feature_name` required string
+- `limit` optional integer, `null` untuk unlimited, `0` untuk disabled/excluded
+
+Request contoh:
 ```json
 {
   "feature_code": "leave_management",
@@ -331,14 +364,7 @@ Menambahkan feature ke package.
 }
 ```
 
-**Parameters**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| feature_code | string | ✓ | Feature code |
-| feature_name | string | ✓ | Feature name |
-| limit | integer | - | Feature limit (null=unlimited, 0=excluded) |
-
-**Response (201 Created)**
+Success `201`:
 ```json
 {
   "success": true,
@@ -353,21 +379,19 @@ Menambahkan feature ke package.
 }
 ```
 
-### Update Feature Limit (Admin Only)
+### PUT `/packages/features/{feature}`
 
-```
-PUT /v1/saas/packages/features/{id}
-```
+RBAC:
+- Admin only.
 
-Mengupdate limit feature.
+Path:
+- `feature` required identifier, numeric feature id aktif dengan UUID fallback.
 
-**Parameters**
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| feature_name | string | - | Feature name |
-| limit | integer | - | Feature limit |
+Body:
+- `feature_name` optional string
+- `limit` optional integer
 
-**Response (200 OK)**
+Success `200`:
 ```json
 {
   "success": true,
@@ -382,15 +406,15 @@ Mengupdate limit feature.
 }
 ```
 
-### Delete Feature (Admin Only)
+### DELETE `/packages/features/{feature}`
 
-```
-DELETE /v1/saas/packages/features/{id}
-```
+RBAC:
+- Admin only.
 
-Menghapus feature dari package.
+Path:
+- `feature` required identifier, numeric feature id aktif dengan UUID fallback.
 
-**Response (200 OK)**
+Success `200`:
 ```json
 {
   "success": true,
@@ -398,9 +422,9 @@ Menghapus feature dari package.
 }
 ```
 
-## Error Responses
+## Error responses
 
-### 403 Forbidden (Admin Required)
+### `403 ADMIN_REQUIRED`
 
 ```json
 {
@@ -412,7 +436,23 @@ Menghapus feature dari package.
 }
 ```
 
-### 422 Unprocessable Entity (Validation Error)
+Dipakai saat user non-admin mencoba create, update, atau delete package/add-on/feature.
+
+### `422 PACKAGE_IN_USE`
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PACKAGE_IN_USE",
+    "message": "Package cannot be deleted while subscription history still references it."
+  }
+}
+```
+
+Dipakai saat delete package ditolak karena histori subscription masih mereferensikan package.
+
+### `422 VALIDATION_ERROR`
 
 ```json
 {
@@ -428,7 +468,23 @@ Menghapus feature dari package.
 }
 ```
 
-## Feature Codes
+Dipakai untuk payload request yang gagal validasi.
+
+### `404 NOT_FOUND`
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Package addon not found."
+  }
+}
+```
+
+Dipakai saat identifier add-on tidak ditemukan.
+
+## Feature codes
 
 Daftar feature codes yang tersedia:
 
@@ -443,40 +499,10 @@ Daftar feature codes yang tersedia:
 - `custom_domain` — Custom domain support
 - `sso` — Single Sign-On
 
-## Admin Check
+## Catatan access check
 
 Admin user ditentukan oleh:
-1. Email `qa.login@example.com`, OR
-2. Designation atau Team mengandung: admin, hr, lead, supervisor, owner
+1. Email `qa.login@example.com`, atau
+2. Designation atau team mengandung: `admin`, `hr`, `lead`, `supervisor`, `owner`.
 
-## Error Responses
-
-### 403 Forbidden
-
-All admin-only endpoints return `AUTH_FORBIDDEN` when user lacks permissions:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "AUTH_FORBIDDEN",
-    "message": "Forbidden."
-  }
-}
-```
-
-**Note:** Error code standardized (2026-04-17) to `AUTH_FORBIDDEN` for consistency with HCM controllers and OpenAPI schema.
-
-### 401 Unauthorized
-
-Missing or invalid authentication token:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "UNAUTHENTICATED",
-    "message": "Unauthorized."
-  }
-}
-```
+Implementasi aktif tetap mengembalikan `ADMIN_REQUIRED` pada operasi mutasi, sehingga dokumentasi packages mengikuti kontrak runtime itu.

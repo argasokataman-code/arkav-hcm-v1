@@ -10,6 +10,7 @@ use App\Models\EmployeeProfile;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Subscription;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -47,7 +48,7 @@ class HcmAssetApiTest extends TestCase
         ]);
 
         PackageFeature::query()->create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'asset_management',
             'feature_name' => 'Asset Management',
             'limit' => null,
@@ -55,7 +56,7 @@ class HcmAssetApiTest extends TestCase
 
         Subscription::query()->create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'active',
             'starts_at' => now()->subDay(),
@@ -248,7 +249,7 @@ class HcmAssetApiTest extends TestCase
         ]);
 
         PackageFeature::query()->create([
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'feature_code' => 'asset_management',
             'feature_name' => 'Asset Management',
             'limit' => 0,
@@ -256,7 +257,7 @@ class HcmAssetApiTest extends TestCase
 
         Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'active',
             'starts_at' => now()->subDay(),
@@ -306,5 +307,56 @@ class HcmAssetApiTest extends TestCase
 
         $response->assertStatus(403);
         $response->assertJsonPath('error.code', 'FEATURE_DISABLED');
+    }
+
+    public function test_reporting_asset_issue_creates_ticket_in_same_company(): void
+    {
+        $category = AssetCategory::query()->create([
+            'company_id' => $this->company->id,
+            'code' => 'device',
+            'name' => 'Device',
+            'description' => 'Device assets',
+            'is_active' => true,
+        ]);
+
+        $asset = Asset::query()->create([
+            'company_id' => $this->company->id,
+            'asset_category_id' => $category->id,
+            'asset_code' => 'AST-ISSUE-001',
+            'name' => 'Work Laptop',
+            'brand' => 'Lenovo',
+            'model' => 'T14',
+            'serial_number' => 'SN-ISSUE-001',
+            'purchase_date' => now()->subMonth()->toDateString(),
+            'purchase_price' => 18000000,
+            'condition' => 'good',
+            'status' => 'assigned',
+            'location' => 'Jakarta',
+        ]);
+
+        $response = $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/issue-report', [
+                'issue_type' => 'maintenance',
+                'priority' => 'high',
+                'description' => 'Battery health dropping quickly.',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $ticketId = (int) $response->json('data.ticketId');
+
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticketId,
+            'company_id' => $this->company->id,
+            'user_id' => User::query()->where('email', 'qa.login@example.com')->value('id'),
+            'category' => 'asset_issue',
+            'priority' => 'high',
+            'status' => 'open',
+        ]);
+
+        $ticket = Ticket::query()->findOrFail($ticketId);
+        $this->assertStringContainsString('AST-ISSUE-001', $ticket->subject);
+        $this->assertStringContainsString('Battery health dropping quickly.', (string) $ticket->description);
     }
 }

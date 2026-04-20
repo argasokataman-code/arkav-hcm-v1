@@ -1,23 +1,17 @@
 <?php
 
 namespace App\Models;
+use App\Models\Concerns\AssignsUuid;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class EmployeeCompensation extends Model
 {
+    use AssignsUuid;
+
     protected $table = 'employee_compensations';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     protected $fillable = [
         'employee_id',

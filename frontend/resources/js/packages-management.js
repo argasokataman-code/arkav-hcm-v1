@@ -189,6 +189,8 @@
     packages: [],
     addons: [],
     currentEditId: null,
+    currentEditSnapshot: null,
+    currentPricingDirty: false,
     currentAddonEditId: null,
     currentStatus: "all",
     currentSearch: "",
@@ -293,6 +295,20 @@
       if (featureSearchInput) {
         featureSearchInput.addEventListener("input", function () {
           self.filterFeatureCatalog(String(this.value || ""));
+        });
+      }
+
+      const priceInput = document.getElementById("input_package_price");
+      if (priceInput) {
+        priceInput.addEventListener("input", function () {
+          self.currentPricingDirty = true;
+        });
+      }
+
+      const cycleInput = document.getElementById("input_package_cycle");
+      if (cycleInput) {
+        cycleInput.addEventListener("change", function () {
+          self.currentPricingDirty = true;
         });
       }
 
@@ -772,8 +788,14 @@
         return String(pkg.id) === String(self.currentEditId);
       });
 
-      const monthlyPrice = billingCycle === "monthly" ? price : Math.round((price / 12) * 100) / 100;
-      const yearlyPrice = billingCycle === "yearly" ? price : Math.round((price * 12) * 100) / 100;
+      const snapshot = this.currentEditSnapshot;
+      let monthlyPrice = billingCycle === "monthly" ? price : Math.round((price / 12) * 100) / 100;
+      let yearlyPrice = billingCycle === "yearly" ? price : Math.round((price * 12) * 100) / 100;
+
+      if (this.currentEditId && snapshot && !this.currentPricingDirty) {
+        monthlyPrice = snapshot.monthlyPrice;
+        yearlyPrice = snapshot.yearlyPrice;
+      }
 
       const data = {
         code: existing?.code || normalizedCode,
@@ -805,6 +827,8 @@
             self.showSuccess(self.currentEditId ? "Package updated successfully" : "Package added successfully");
             form.reset();
             self.currentEditId = null;
+            self.currentEditSnapshot = null;
+            self.currentPricingDirty = false;
             self.resetPackageModalState();
             self.renderFeatureCatalog(DEFAULT_FEATURE_CATALOG);
             if (self.packageModalInstance) self.packageModalInstance.hide();
@@ -1123,6 +1147,8 @@
       const submitBtn = document.querySelector("#packageForm button[type='submit']");
       if (title) title.textContent = "Add Package";
       if (submitBtn) submitBtn.textContent = "Save Package";
+      this.currentEditSnapshot = null;
+      this.currentPricingDirty = false;
     },
 
     openCreateModal: function () {
@@ -1223,6 +1249,11 @@
             document.getElementById("input_package_price").value = Number(pkg.monthlyPrice || 0);
             document.getElementById("input_package_cycle").value = "monthly";
             document.getElementById("input_package_active").checked = pkg.status === "active";
+            self.currentEditSnapshot = {
+              monthlyPrice: Number(pkg.monthlyPrice || 0),
+              yearlyPrice: Number(pkg.yearlyPrice || 0),
+            };
+            self.currentPricingDirty = false;
 
             const selectedCodes = (pkg.features || []).map(function (f) {
               return f.code;
@@ -1395,12 +1426,15 @@
      */
     showToast: function (message, type) {
       const alertDiv = document.createElement("div");
-      alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+      const safeType = type === "success" ? "success" : "danger";
+      alertDiv.className = `alert alert-${safeType} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
       alertDiv.style.zIndex = 9999;
-      alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
+      alertDiv.appendChild(document.createTextNode(String(message || "")));
+      const closeBtn = document.createElement("button");
+      closeBtn.type = "button";
+      closeBtn.className = "btn-close";
+      closeBtn.setAttribute("data-bs-dismiss", "alert");
+      alertDiv.appendChild(closeBtn);
       document.body.appendChild(alertDiv);
       setTimeout(() => alertDiv.remove(), 5000);
     },

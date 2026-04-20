@@ -25,7 +25,8 @@ Query:
 - `status` optional `active|inactive|probation|resigned|terminated`
 
 Success `200`:
-- `data[]`: `{ id, employeeNo(EMP-0001), fullName, email, phone, team, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
+- `data[]`: `{ id, uuid, employeeNo(EMP-0001), fullName, email, phone, team, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
+- `uuid` disertakan sebagai identifier user stabil untuk modul yang mengirim payload UUID ke endpoint lain, termasuk Termination.
 - `designation` = label tampilan (prioritas nama master `designation_id` jika ada).
 - `employeeType`, gaji, pajak, assignment, dan kontrak di-resolve dari tabel riwayat relasional (`employee_employment_history`, `employee_assignments`, `employee_compensations`, `employee_contracts`, `employee_tax_profiles`) dengan fallback legacy agar backward-compatible.
 - `contractType` distandardkan ke `pkwt|pkwtt` (alias legacy `permanent` masih diterima pada input lama, tetapi disimpan/ditampilkan sebagai `pkwtt`).
@@ -93,7 +94,7 @@ Errors:
 - `403 AUTH_FORBIDDEN`
 
 Success `200`:
-- mengembalikan detail profile + `departmentId`, `departmentName`, `designationId`, `designationName`, `designation`, `employeeType`, `startDate`, serta field personal top-level: `nik`, `ktpNo`, `placeOfBirth`, `dateOfBirth`, `gender`, `maritalStatus`, `religion`, `nationality`
+- mengembalikan detail profile + `uuid`, `departmentId`, `departmentName`, `designationId`, `designationName`, `designation`, `employeeType`, `startDate`, serta field personal top-level: `nik`, `ktpNo`, `placeOfBirth`, `dateOfBirth`, `gender`, `maritalStatus`, `religion`, `nationality`
 - nested blocks:
   - `personal { nik, ktpNo, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, nationality }`
   - `assignment { team, departmentId, departmentName, designationId, designationName, managerUserId }`

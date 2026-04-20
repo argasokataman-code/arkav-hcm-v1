@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OvertimeRequest extends Model
 {
+    use AssignsUuid;
+
     protected $fillable = [
         'user_id',
         'company_id',

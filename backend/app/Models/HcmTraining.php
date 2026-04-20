@@ -2,25 +2,29 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class HcmTraining extends Model
 {
-    protected $table = 'hcm_trainings';
+    use AssignsUuid;
 
     protected static function booted(): void
     {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
+                $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
             }
         });
     }
 
+
     protected $fillable = [
+        'company_id',
+        'company_uuid',
         'training_type_id',
         'trainer_id',
         'trainer_name',
@@ -32,6 +36,7 @@ class HcmTraining extends Model
     ];
 
     protected $casts = [
+        'company_uuid' => 'string',
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
         'cost_cents' => 'integer',

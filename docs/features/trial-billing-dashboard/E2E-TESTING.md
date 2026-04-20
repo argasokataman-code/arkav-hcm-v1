@@ -35,7 +35,8 @@
 
 - Klik invoice terakhir pada salah satu row.
 - Expected:
-  - halaman/detail modal menampilkan invoice id/no, amount_due, due_date, is_paid, subscription_id, company_id.
+  - berpindah ke halaman detail invoice terpisah.
+  - halaman detail menampilkan invoice id/no, amount_due, due_date, is_paid, subscription status, company, status email terakhir, dan tabel riwayat email penuh.
 
 ## Skenario 5 — Email status (automated) tampil
 
@@ -60,4 +61,11 @@ Kasus mismatch yang harus muncul warning:
 
 Expected:
 - UI menandai row dengan badge warning dan menyediakan link untuk investigasi (ke subscriptions/invoices).
+
+## Skenario 8 — Duplicate subscription history tidak menggandakan row
+
+- Siapkan 1 company dengan lebih dari 1 subscription history.
+- Expected:
+  - company hanya muncul satu kali pada tab yang sesuai.
+  - row mengikuti subscription terbaru, bukan row lama.
 

@@ -86,9 +86,10 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/dashboard-summary', [HcmDashboardController::class, 'summary']);
     Route::get('/employee-dashboard-summary', [HcmDashboardController::class, 'employeeSummary']);
     Route::get('/activity-feed', [HcmActivityController::class, 'index']);
+    Route::get('/activity-feed-companies', [HcmActivityController::class, 'listCompanies']); // Super admin: list all companies for filtering
     Route::post('/activity-manual', [HcmActivityController::class, 'storeManual']);
-    Route::put('/activity-manual/{id}', [HcmActivityController::class, 'updateManual'])->whereNumber('id');
-    Route::delete('/activity-manual/{id}', [HcmActivityController::class, 'destroyManual'])->whereNumber('id');
+    Route::put('/activity-manual/{id}', [HcmActivityController::class, 'updateManual']);
+    Route::delete('/activity-manual/{id}', [HcmActivityController::class, 'destroyManual']);
 
     Route::get('/employees', [HcmEmployeeController::class, 'index']);
     Route::get('/employees/export', [HcmEmployeeController::class, 'exportEmployees']);
@@ -97,9 +98,9 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/employees/bulk-upload', [HcmEmployeeController::class, 'bulkUpload']);
     Route::get('/employees/salary-template', [HcmEmployeeController::class, 'bulkTemplate']);
     Route::post('/employees/salary-bulk-upload', [HcmEmployeeController::class, 'bulkUpload']);
-    Route::get('/employees/{id}', [HcmEmployeeController::class, 'show'])->whereNumber('id');
-    Route::put('/employees/{id}', [HcmEmployeeController::class, 'update'])->whereNumber('id');
-    Route::post('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'uploadProfilePhoto'])->whereNumber('id');
+    Route::get('/employees/{id}', [HcmEmployeeController::class, 'show']);
+    Route::put('/employees/{id}', [HcmEmployeeController::class, 'update']);
+    Route::post('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'uploadProfilePhoto']);
     Route::get('/wilayah/provinces', [WilayahLookupController::class, 'provinces']);
     Route::get('/wilayah/regencies', [WilayahLookupController::class, 'regencies']);
     Route::get('/wilayah/districts', [WilayahLookupController::class, 'districts']);
@@ -107,60 +108,61 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/departments', [HcmEmployeeController::class, 'departments']);
     Route::get('/departments/export', [HcmEmployeeController::class, 'exportDepartments']);
     Route::post('/departments', [HcmEmployeeController::class, 'storeDepartment']);
-    Route::put('/departments/{id}', [HcmEmployeeController::class, 'updateDepartment'])->whereNumber('id');
-    Route::delete('/departments/{id}', [HcmEmployeeController::class, 'destroyDepartment'])->whereNumber('id');
+    Route::put('/departments/{id}', [HcmEmployeeController::class, 'updateDepartment']);
+    Route::delete('/departments/{id}', [HcmEmployeeController::class, 'destroyDepartment']);
     Route::get('/designations', [HcmEmployeeController::class, 'designations']);
     Route::get('/designations/export', [HcmEmployeeController::class, 'exportDesignations']);
     Route::post('/designations', [HcmEmployeeController::class, 'storeDesignation']);
-    Route::put('/designations/{id}', [HcmEmployeeController::class, 'updateDesignation'])->whereNumber('id');
-    Route::delete('/designations/{id}', [HcmEmployeeController::class, 'destroyDesignation'])->whereNumber('id');
+    Route::put('/designations/{id}', [HcmEmployeeController::class, 'updateDesignation']);
+    Route::delete('/designations/{id}', [HcmEmployeeController::class, 'destroyDesignation']);
     Route::get('/policies', [HcmEmployeeController::class, 'policies']);
     Route::get('/policies/export', [HcmEmployeeController::class, 'exportPolicies']);
     Route::post('/policies', [HcmEmployeeController::class, 'storePolicy']);
-    Route::put('/policies/{id}', [HcmEmployeeController::class, 'updatePolicy'])->whereNumber('id');
-    Route::delete('/policies/{id}', [HcmEmployeeController::class, 'destroyPolicy'])->whereNumber('id');
+    Route::put('/policies/{id}', [HcmEmployeeController::class, 'updatePolicy']);
+    Route::delete('/policies/{id}', [HcmEmployeeController::class, 'destroyPolicy']);
 
     Route::get('/attendance/admin', [AttendanceController::class, 'adminIndex']);
     Route::put('/attendance/admin/record', [AttendanceController::class, 'adminUpsertRecord']);
     Route::get('/timesheets', [AttendanceController::class, 'timesheetsIndex']);
     Route::get('/schedule-timing', [AttendanceController::class, 'scheduleTimingIndex']);
-    Route::put('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingUpsert'])->whereNumber('userId');
-    Route::delete('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingDestroy'])->whereNumber('userId');
+    Route::put('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingUpsert']);
+    Route::delete('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingDestroy']);
     Route::get('/shifts', [HcmShiftController::class, 'index']);
     Route::post('/shifts', [HcmShiftController::class, 'store']);
-    Route::put('/shifts/{id}', [HcmShiftController::class, 'update'])->whereNumber('id');
-    Route::delete('/shifts/{id}', [HcmShiftController::class, 'destroy'])->whereNumber('id');
+    Route::put('/shifts/{id}', [HcmShiftController::class, 'update']);
+    Route::delete('/shifts/{id}', [HcmShiftController::class, 'destroy']);
     Route::get('/salary-components', [HcmSalaryComponentController::class, 'index']);
     Route::post('/salary-components', [HcmSalaryComponentController::class, 'store']);
-    Route::get('/salary-components/{id}', [HcmSalaryComponentController::class, 'show'])->whereNumber('id');
-    Route::put('/salary-components/{id}', [HcmSalaryComponentController::class, 'update'])->whereNumber('id');
-    Route::delete('/salary-components/{id}', [HcmSalaryComponentController::class, 'destroy'])->whereNumber('id');
+    Route::get('/salary-components/{id}', [HcmSalaryComponentController::class, 'show']);
+    Route::put('/salary-components/{id}', [HcmSalaryComponentController::class, 'update']);
+    Route::delete('/salary-components/{id}', [HcmSalaryComponentController::class, 'destroy']);
 
     Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);
     Route::post('/asset-categories', [HcmAssetCategoryController::class, 'store']);
-    Route::put('/asset-categories/{category}', [HcmAssetCategoryController::class, 'update'])->whereNumber('category');
-    Route::delete('/asset-categories/{category}', [HcmAssetCategoryController::class, 'destroy'])->whereNumber('category');
+    Route::put('/asset-categories/{category}', [HcmAssetCategoryController::class, 'update']);
+    Route::delete('/asset-categories/{category}', [HcmAssetCategoryController::class, 'destroy']);
 
     Route::get('/assets', [HcmAssetController::class, 'index']);
     Route::post('/assets', [HcmAssetController::class, 'store']);
-    Route::get('/assets/{asset}', [HcmAssetController::class, 'show'])->whereNumber('asset');
-    Route::put('/assets/{asset}', [HcmAssetController::class, 'update'])->whereNumber('asset');
-    Route::delete('/assets/{asset}', [HcmAssetController::class, 'destroy'])->whereNumber('asset');
-    Route::post('/assets/{asset}/assign', [HcmAssetController::class, 'assign'])->whereNumber('asset');
-    Route::post('/assets/{asset}/return', [HcmAssetController::class, 'returnAsset'])->whereNumber('asset');
-    Route::post('/assets/{asset}/issue-report', [HcmAssetController::class, 'reportIssue'])->whereNumber('asset');
-    Route::post('/assets/{asset}/attachments', [HcmAssetController::class, 'attach'])->whereNumber('asset');
+    Route::get('/assets/{asset}', [HcmAssetController::class, 'show']);
+    Route::put('/assets/{asset}', [HcmAssetController::class, 'update']);
+    Route::delete('/assets/{asset}', [HcmAssetController::class, 'destroy']);
+    Route::post('/assets/{asset}/assign', [HcmAssetController::class, 'assign']);
+    Route::post('/assets/{asset}/return', [HcmAssetController::class, 'returnAsset']);
+    Route::post('/assets/{asset}/issue-report', [HcmAssetController::class, 'reportIssue']);
+    Route::post('/assets/{asset}/attachments', [HcmAssetController::class, 'attach']);
 
     Route::get('/payroll-periods', [HcmPayrollPeriodController::class, 'index']);
     Route::get('/payroll-periods/active', [HcmPayrollPeriodController::class, 'active']);
     Route::post('/payroll-periods', [HcmPayrollPeriodController::class, 'store']);
-    Route::get('/payroll-periods/{id}', [HcmPayrollPeriodController::class, 'show'])->whereNumber('id');
-    Route::post('/payroll-periods/{id}/calculate-draft', [HcmPayrollPeriodController::class, 'calculateDraft'])->whereNumber('id');
+    Route::get('/payroll-periods/{id}', [HcmPayrollPeriodController::class, 'show']);
+    Route::post('/payroll-periods/{id}/calculate-draft', [HcmPayrollPeriodController::class, 'calculateDraft']);
     Route::get('/payroll-runs/history', [HcmPayrollRunController::class, 'history']);
-    Route::get('/payroll-runs/{id}', [HcmPayrollRunController::class, 'show'])->whereNumber('id');
-    Route::post('/payroll-runs/{id}/finalize', [HcmPayrollRunController::class, 'finalize'])->whereNumber('id');
-    Route::post('/payroll-runs/{id}/disburse', [HcmPayrollRunController::class, 'disburse'])->whereNumber('id');
-    Route::post('/payroll-runs/{id}/reset-payments', [HcmPayrollRunController::class, 'resetPayments'])->whereNumber('id');
+    Route::get('/payroll-runs/{id}', [HcmPayrollRunController::class, 'show']);
+    Route::post('/payroll-runs/{id}/finalize', [HcmPayrollRunController::class, 'finalize']);
+    Route::post('/payroll-runs/{id}/void', [HcmPayrollRunController::class, 'void']);
+    Route::post('/payroll-runs/{id}/disburse', [HcmPayrollRunController::class, 'disburse']);
+    Route::post('/payroll-runs/{id}/reset-payments', [HcmPayrollRunController::class, 'resetPayments']);
     Route::get('/payroll/my-slip-latest-period', [HcmPayrollRunController::class, 'mySlipLatestPeriod']);
     Route::get('/payroll/my-slip', [HcmPayrollRunController::class, 'mySlip']);
     Route::get('/payroll/my-slip-lines', [HcmPayrollRunController::class, 'mySlipLines']);
@@ -174,27 +176,27 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/payroll/pkwt-compensations/post-payroll', [HcmPayrollPkwtCompensationController::class, 'postPayroll']);
     Route::post('/payroll/thr-calculate', [HcmPayrollThrController::class, 'calculate']);
     Route::get('/payroll/thr-settings', [HcmPayrollThrSettingsController::class, 'index']);
-    Route::put('/payroll/thr-settings/{calendarYear}', [HcmPayrollThrSettingsController::class, 'upsert'])->whereNumber('calendarYear');
+    Route::put('/payroll/thr-settings/{calendarYear}', [HcmPayrollThrSettingsController::class, 'upsert']);
     Route::get('/payroll/thr-batch', [HcmPayrollThrBatchController::class, 'show']);
     Route::post('/payroll/thr-batch/generate', [HcmPayrollThrBatchController::class, 'generate']);
     Route::post('/payroll/thr-batch/disburse', [HcmPayrollThrBatchController::class, 'disburse']);
     Route::post('/payroll/thr-batch/post-payroll', [HcmPayrollThrBatchController::class, 'postPayroll']);
     Route::post('/payroll/thr-batch/send-slip', [HcmPayrollThrBatchController::class, 'sendSlip']);
-    Route::get('/payroll/thr-batch/lines/{line}/slip', [HcmPayrollThrBatchController::class, 'slip'])->whereNumber('line');
+    Route::get('/payroll/thr-batch/lines/{line}/slip', [HcmPayrollThrBatchController::class, 'slip']);
     Route::get('/payroll-items', [HcmPayrollItemController::class, 'index']);
     Route::get('/payroll-items/export', [HcmPayrollItemController::class, 'export']);
     Route::post('/payroll-items', [HcmPayrollItemController::class, 'store']);
-    Route::put('/payroll-items/{id}', [HcmPayrollItemController::class, 'update'])->whereNumber('id');
-    Route::delete('/payroll-items/{id}', [HcmPayrollItemController::class, 'destroy'])->whereNumber('id');
+    Route::put('/payroll-items/{id}', [HcmPayrollItemController::class, 'update']);
+    Route::delete('/payroll-items/{id}', [HcmPayrollItemController::class, 'destroy']);
     Route::get('/payroll-item-assignments', [HcmPayrollItemAssignmentController::class, 'index']);
     Route::post('/payroll-item-assignments', [HcmPayrollItemAssignmentController::class, 'store']);
-    Route::put('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'update'])->whereNumber('id');
-    Route::delete('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'destroy'])->whereNumber('id');
+    Route::put('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'update']);
+    Route::delete('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'destroy']);
 
     Route::get('/overtime-types', [HcmOvertimeTypeController::class, 'index']);
     Route::post('/overtime-types', [HcmOvertimeTypeController::class, 'store']);
-    Route::put('/overtime-types/{id}', [HcmOvertimeTypeController::class, 'update'])->whereNumber('id');
-    Route::delete('/overtime-types/{id}', [HcmOvertimeTypeController::class, 'destroy'])->whereNumber('id');
+    Route::put('/overtime-types/{id}', [HcmOvertimeTypeController::class, 'update']);
+    Route::delete('/overtime-types/{id}', [HcmOvertimeTypeController::class, 'destroy']);
     Route::get('/attendance/me/today', [AttendanceController::class, 'meToday']);
     Route::get('/attendance/me/history', [AttendanceController::class, 'meHistory']);
     Route::get('/attendance/me/stats', [AttendanceController::class, 'meStats']);
@@ -203,110 +205,108 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/attendance/me/correction-request', [AttendanceController::class, 'requestCorrection']);
     Route::post('/attendance/me/selfie', [AttendanceController::class, 'meSelfie']);
     Route::get('/attendance/me/selfie/status', [AttendanceController::class, 'meSelfieStatus']);
-    Route::get('/attendance/admin/records/{id}/selfie/download', [AttendanceController::class, 'adminSelfieDownload'])
-        ->whereNumber('id');
+    Route::get('/attendance/admin/records/{id}/selfie/download', [AttendanceController::class, 'adminSelfieDownload']);
 
     Route::get('/holidays', [HcmHolidayController::class, 'index']);
     Route::post('/holidays', [HcmHolidayController::class, 'store']);
     Route::post('/holidays/sync-indonesia', [HcmHolidayController::class, 'syncIndonesia']);
-    Route::put('/holidays/{id}', [HcmHolidayController::class, 'update'])->whereNumber('id');
-    Route::delete('/holidays/{id}', [HcmHolidayController::class, 'destroy'])->whereNumber('id');
+    Route::put('/holidays/{id}', [HcmHolidayController::class, 'update']);
+    Route::delete('/holidays/{id}', [HcmHolidayController::class, 'destroy']);
 
     Route::get('/leave-type-options', [HcmLeaveRequestController::class, 'enabledLeaveTypes']);
     Route::get('/leave-types', [HcmLeaveTypeController::class, 'index']);
     Route::post('/leave-types', [HcmLeaveTypeController::class, 'store']);
-    Route::put('/leave-types/{id}', [HcmLeaveTypeController::class, 'update'])->whereNumber('id');
-    Route::delete('/leave-types/{id}', [HcmLeaveTypeController::class, 'destroy'])->whereNumber('id');
+    Route::put('/leave-types/{id}', [HcmLeaveTypeController::class, 'update']);
+    Route::delete('/leave-types/{id}', [HcmLeaveTypeController::class, 'destroy']);
     Route::get('/leave-requests/export', [HcmLeaveRequestController::class, 'export']);
     Route::get('/leave-requests', [HcmLeaveRequestController::class, 'index']);
+    Route::get('/employee-leave-balance', [HcmLeaveRequestController::class, 'getEmployeeBalance']);
     Route::post('/leave-requests', [HcmLeaveRequestController::class, 'store']);
-    Route::put('/leave-requests/{id}', [HcmLeaveRequestController::class, 'update'])->whereNumber('id');
-    Route::delete('/leave-requests/{id}', [HcmLeaveRequestController::class, 'destroy'])->whereNumber('id');
+    Route::put('/leave-requests/{id}', [HcmLeaveRequestController::class, 'update']);
+    Route::delete('/leave-requests/{id}', [HcmLeaveRequestController::class, 'destroy']);
 
     Route::get('/leave-settings', [HcmLeaveSettingController::class, 'index']);
     Route::put('/leave-settings/types/{code}', [HcmLeaveSettingController::class, 'updateType'])->where('code', '[a-z_]+');
     Route::post('/leave-settings/custom-policies', [HcmLeaveSettingController::class, 'storeCustomPolicy']);
-    Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy'])->whereNumber('id');
-    Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy'])->whereNumber('id');
+    Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy']);
+    Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy']);
     Route::get('/email-settings/mailtrap-status', [HcmEmailSettingsController::class, 'mailtrapStatus']);
 
     Route::get('/overtime-requests', [HcmOvertimeRequestController::class, 'index']);
     Route::post('/overtime-requests', [HcmOvertimeRequestController::class, 'store']);
     Route::post('/overtime-requests/calculate', [HcmOvertimeRequestController::class, 'calculate']);
-    Route::put('/overtime-requests/{id}', [HcmOvertimeRequestController::class, 'update'])->whereNumber('id');
-    Route::delete('/overtime-requests/{id}', [HcmOvertimeRequestController::class, 'destroy'])->whereNumber('id');
+    Route::put('/overtime-requests/{id}', [HcmOvertimeRequestController::class, 'update']);
+    Route::delete('/overtime-requests/{id}', [HcmOvertimeRequestController::class, 'destroy']);
 
     Route::get('/tickets/assignable-users', [HcmTicketController::class, 'assignableUsers']);
     Route::get('/tickets/category-options', [HcmTicketController::class, 'categoryOptions']);
     Route::get('/tickets/categories', [HcmTicketController::class, 'categories']);
     Route::post('/tickets/categories', [HcmTicketController::class, 'storeCategory']);
-    Route::put('/tickets/categories/{id}', [HcmTicketController::class, 'updateCategory'])->whereNumber('id');
-    Route::delete('/tickets/categories/{id}', [HcmTicketController::class, 'destroyCategory'])->whereNumber('id');
+    Route::put('/tickets/categories/{id}', [HcmTicketController::class, 'updateCategory']);
+    Route::delete('/tickets/categories/{id}', [HcmTicketController::class, 'destroyCategory']);
     Route::get('/tickets', [HcmTicketController::class, 'index']);
     Route::post('/tickets', [HcmTicketController::class, 'store']);
-    Route::get('/tickets/{id}', [HcmTicketController::class, 'show'])->whereNumber('id');
-    Route::put('/tickets/{id}', [HcmTicketController::class, 'update'])->whereNumber('id');
-    Route::delete('/tickets/{id}', [HcmTicketController::class, 'destroy'])->whereNumber('id');
-    Route::post('/tickets/{id}/comments', [HcmTicketController::class, 'addComment'])->whereNumber('id');
-    Route::post('/tickets/{id}/attachments', [HcmTicketController::class, 'addAttachment'])->whereNumber('id');
+    Route::get('/tickets/{id}', [HcmTicketController::class, 'show']);
+    Route::put('/tickets/{id}', [HcmTicketController::class, 'update']);
+    Route::delete('/tickets/{id}', [HcmTicketController::class, 'destroy']);
+    Route::post('/tickets/{id}/comments', [HcmTicketController::class, 'addComment']);
+    Route::post('/tickets/{id}/attachments', [HcmTicketController::class, 'addAttachment']);
     Route::get('/tickets/{id}/attachments/{attachmentId}/preview', [HcmTicketController::class, 'previewAttachment'])
-        ->whereNumber('id')
-        ->whereNumber('attachmentId');
+        ;
     Route::get('/tickets/{id}/attachments/{attachmentId}/download', [HcmTicketController::class, 'downloadAttachment'])
-        ->whereNumber('id')
-        ->whereNumber('attachmentId');
+        ;
 
     // Tenant billing checkout (owner / tenant admin)
     Route::post('/billing/checkout', [\App\Http\Controllers\Api\HcmSubscriptionCheckoutController::class, 'checkout']);
 
     // Tenant invoices (my billing)
     Route::get('/billing/invoices', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'index']);
-    Route::get('/billing/invoices/{id}', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'show'])->whereNumber('id');
-    Route::get('/billing/invoices/{id}/download', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'download'])->whereNumber('id');
+    Route::get('/billing/invoices/{id}', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'show']);
+    Route::get('/billing/invoices/{id}/download', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'download']);
     // Dev-only mock payment flow (keeps UX testable before gateway is integrated)
-    Route::post('/billing/invoices/{id}/mock-pay', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'mockPay'])->whereNumber('id');
+    Route::post('/billing/invoices/{id}/mock-pay', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'mockPay']);
 
     // Performance (Phase 1)
     Route::prefix('performance')->group(function () {
         // Goal types (list for all authenticated, mutating admin-only)
         Route::get('/goal-types', [HcmPerformanceController::class, 'goalTypes']);
         Route::post('/goal-types', [HcmPerformanceController::class, 'storeGoalType']);
-        Route::put('/goal-types/{id}', [HcmPerformanceController::class, 'updateGoalType'])->whereNumber('id');
-        Route::delete('/goal-types/{id}', [HcmPerformanceController::class, 'destroyGoalType'])->whereNumber('id');
+        Route::put('/goal-types/{id}', [HcmPerformanceController::class, 'updateGoalType']);
+        Route::delete('/goal-types/{id}', [HcmPerformanceController::class, 'destroyGoalType']);
 
         // Goals
         Route::get('/goals', [HcmPerformanceController::class, 'goals']);
         Route::post('/goals', [HcmPerformanceController::class, 'storeGoal']);
-        Route::put('/goals/{id}', [HcmPerformanceController::class, 'updateGoal'])->whereNumber('id');
-        Route::delete('/goals/{id}', [HcmPerformanceController::class, 'destroyGoal'])->whereNumber('id');
+        Route::put('/goals/{id}', [HcmPerformanceController::class, 'updateGoal']);
+        Route::delete('/goals/{id}', [HcmPerformanceController::class, 'destroyGoal']);
 
         // Indicator templates (admin)
         Route::get('/indicator-templates', [HcmPerformanceController::class, 'indicatorTemplates']);
         Route::post('/indicator-templates', [HcmPerformanceController::class, 'storeIndicatorTemplate']);
-        Route::put('/indicator-templates/{id}', [HcmPerformanceController::class, 'updateIndicatorTemplate'])->whereNumber('id');
-        Route::delete('/indicator-templates/{id}', [HcmPerformanceController::class, 'destroyIndicatorTemplate'])->whereNumber('id');
-        Route::get('/indicator-templates/{id}/items', [HcmPerformanceController::class, 'indicatorItems'])->whereNumber('id');
-        Route::post('/indicator-templates/{id}/items', [HcmPerformanceController::class, 'storeIndicatorItem'])->whereNumber('id');
-        Route::put('/indicator-items/{itemId}', [HcmPerformanceController::class, 'updateIndicatorItem'])->whereNumber('itemId');
-        Route::delete('/indicator-items/{itemId}', [HcmPerformanceController::class, 'destroyIndicatorItem'])->whereNumber('itemId');
+        Route::put('/indicator-templates/{id}', [HcmPerformanceController::class, 'updateIndicatorTemplate']);
+        Route::delete('/indicator-templates/{id}', [HcmPerformanceController::class, 'destroyIndicatorTemplate']);
+        Route::get('/indicator-templates/{id}/items', [HcmPerformanceController::class, 'indicatorItems']);
+        Route::post('/indicator-templates/{id}/items', [HcmPerformanceController::class, 'storeIndicatorItem']);
+        Route::put('/indicator-items/{itemId}', [HcmPerformanceController::class, 'updateIndicatorItem']);
+        Route::delete('/indicator-items/{itemId}', [HcmPerformanceController::class, 'destroyIndicatorItem']);
 
         // Cycles (admin)
         Route::get('/cycles', [HcmPerformanceController::class, 'cycles']);
         Route::post('/cycles', [HcmPerformanceController::class, 'storeCycle']);
-        Route::put('/cycles/{id}', [HcmPerformanceController::class, 'updateCycle'])->whereNumber('id');
-        Route::post('/cycles/{id}/activate', [HcmPerformanceController::class, 'activateCycle'])->whereNumber('id');
-        Route::post('/cycles/{id}/close', [HcmPerformanceController::class, 'closeCycle'])->whereNumber('id');
+        Route::put('/cycles/{id}', [HcmPerformanceController::class, 'updateCycle']);
+        Route::post('/cycles/{id}/activate', [HcmPerformanceController::class, 'activateCycle']);
+        Route::post('/cycles/{id}/close', [HcmPerformanceController::class, 'closeCycle']);
 
         // Reviews
         Route::get('/reviews', [HcmPerformanceController::class, 'reviews']);
         Route::post('/reviews', [HcmPerformanceController::class, 'createReview']);
-        Route::get('/reviews/{id}', [HcmPerformanceController::class, 'showReview'])->whereNumber('id');
-        Route::put('/reviews/{id}', [HcmPerformanceController::class, 'updateReviewSelf'])->whereNumber('id');
-        Route::post('/reviews/{id}/submit', [HcmPerformanceController::class, 'submitReview'])->whereNumber('id');
-        Route::put('/reviews/{id}/manager', [HcmPerformanceController::class, 'managerUpdate'])->whereNumber('id');
-        Route::post('/reviews/{id}/manager-complete', [HcmPerformanceController::class, 'managerComplete'])->whereNumber('id');
-        Route::put('/reviews/{id}/final', [HcmPerformanceController::class, 'adminFinalUpdate'])->whereNumber('id');
-        Route::post('/reviews/{id}/finalize', [HcmPerformanceController::class, 'finalize'])->whereNumber('id');
+        Route::get('/reviews/{id}', [HcmPerformanceController::class, 'showReview']);
+        Route::put('/reviews/{id}', [HcmPerformanceController::class, 'updateReviewSelf']);
+        Route::post('/reviews/{id}/submit', [HcmPerformanceController::class, 'submitReview']);
+        Route::put('/reviews/{id}/manager', [HcmPerformanceController::class, 'managerUpdate']);
+        Route::post('/reviews/{id}/manager-complete', [HcmPerformanceController::class, 'managerComplete']);
+        Route::put('/reviews/{id}/final', [HcmPerformanceController::class, 'adminFinalUpdate']);
+        Route::post('/reviews/{id}/finalize', [HcmPerformanceController::class, 'finalize']);
     });
 
     // Training (Phase 1)
@@ -314,73 +314,75 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         // Training types (list for all authenticated, mutating admin-only)
         Route::get('/types', [HcmTrainingController::class, 'types']);
         Route::post('/types', [HcmTrainingController::class, 'storeType']);
-        Route::put('/types/{id}', [HcmTrainingController::class, 'updateType'])->whereNumber('id');
-        Route::delete('/types/{id}', [HcmTrainingController::class, 'destroyType'])->whereNumber('id');
+        Route::put('/types/{id}', [HcmTrainingController::class, 'updateType']);
+        Route::delete('/types/{id}', [HcmTrainingController::class, 'destroyType']);
 
         // Trainings (admin-only phase 1)
         Route::get('/trainings', [HcmTrainingController::class, 'trainings']);
         Route::post('/trainings', [HcmTrainingController::class, 'storeTraining']);
-        Route::put('/trainings/{id}', [HcmTrainingController::class, 'updateTraining'])->whereNumber('id');
-        Route::delete('/trainings/{id}', [HcmTrainingController::class, 'destroyTraining'])->whereNumber('id');
-        Route::get('/users/{userId}/trainings', [HcmTrainingController::class, 'trainingsForUser'])->whereNumber('userId');
+        Route::put('/trainings/{id}', [HcmTrainingController::class, 'updateTraining']);
+        Route::delete('/trainings/{id}', [HcmTrainingController::class, 'destroyTraining']);
+        Route::get('/users/{userId}/trainings', [HcmTrainingController::class, 'trainingsForUser']);
 
         // Trainers (admin-only phase 1)
         Route::get('/trainers', [HcmTrainingController::class, 'trainers']);
         Route::post('/trainers', [HcmTrainingController::class, 'storeTrainer']);
-        Route::put('/trainers/{id}', [HcmTrainingController::class, 'updateTrainer'])->whereNumber('id');
-        Route::delete('/trainers/{id}', [HcmTrainingController::class, 'destroyTrainer'])->whereNumber('id');
+        Route::put('/trainers/{id}', [HcmTrainingController::class, 'updateTrainer']);
+        Route::delete('/trainers/{id}', [HcmTrainingController::class, 'destroyTrainer']);
     });
 
     // Promotion (Phase 1)
     Route::prefix('promotions')->group(function () {
         Route::get('/', [HcmPromotionController::class, 'index']);
-        Route::get('/users/{userId}/promotions', [HcmPromotionController::class, 'promotionsForUser'])->whereNumber('userId');
+        Route::get('/users/{userId}/promotions', [HcmPromotionController::class, 'promotionsForUser']);
         Route::post('/', [HcmPromotionController::class, 'store']);
-        Route::get('/{id}', [HcmPromotionController::class, 'show'])->whereNumber('id');
-        Route::put('/{id}', [HcmPromotionController::class, 'update'])->whereNumber('id');
-        Route::delete('/{id}', [HcmPromotionController::class, 'destroy'])->whereNumber('id');
+        Route::get('/{id}', [HcmPromotionController::class, 'show']);
+        Route::put('/{id}', [HcmPromotionController::class, 'update']);
+        Route::delete('/{id}', [HcmPromotionController::class, 'destroy']);
     });
 
     Route::prefix('resignations')->group(function () {
         Route::get('/', [HcmResignationController::class, 'index']);
-        Route::get('/users/{userId}/resignations', [HcmResignationController::class, 'resignationsForUser'])->whereNumber('userId');
+        Route::get('/users/{userId}/resignations', [HcmResignationController::class, 'resignationsForUser']);
         Route::post('/', [HcmResignationController::class, 'store']);
-        Route::get('/{id}', [HcmResignationController::class, 'show'])->whereNumber('id');
-        Route::put('/{id}', [HcmResignationController::class, 'update'])->whereNumber('id');
-        Route::delete('/{id}', [HcmResignationController::class, 'destroy'])->whereNumber('id');
+        Route::get('/{id}', [HcmResignationController::class, 'show']);
+        Route::put('/{id}', [HcmResignationController::class, 'update']);
+        Route::delete('/{id}', [HcmResignationController::class, 'destroy']);
     });
 
     Route::prefix('terminations')->group(function () {
         Route::get('/', [HcmTerminationController::class, 'index']);
-        Route::get('/users/{userId}/terminations', [HcmTerminationController::class, 'terminationsForUser'])->whereNumber('userId');
+        Route::get('/settlement-preview', [HcmTerminationController::class, 'settlementPreviewByUser']);
+        Route::get('/users/{userId}/terminations', [HcmTerminationController::class, 'terminationsForUser']);
         Route::post('/', [HcmTerminationController::class, 'store']);
-        Route::get('/{id}', [HcmTerminationController::class, 'show'])->whereNumber('id');
-        Route::put('/{id}', [HcmTerminationController::class, 'update'])->whereNumber('id');
-        Route::delete('/{id}', [HcmTerminationController::class, 'destroy'])->whereNumber('id');
+        Route::get('/{id}/settlement-preview', [HcmTerminationController::class, 'settlementPreview']);
+        Route::post('/{id}/clearance-items/{assignmentId}/return', [HcmTerminationController::class, 'returnClearanceItem']);
+        Route::get('/{id}', [HcmTerminationController::class, 'show']);
+        Route::put('/{id}', [HcmTerminationController::class, 'update']);
+        Route::delete('/{id}', [HcmTerminationController::class, 'destroy']);
     });
 
     // User Management
     Route::prefix('user-management')->group(function () {
         Route::get('/users', [HcmUserManagementController::class, 'users']);
         Route::get('/users/export', [HcmUserManagementController::class, 'usersExport']);
-        Route::get('/users/{id}', [HcmUserManagementController::class, 'userDetail'])->whereNumber('id');
+        Route::get('/users/{id}', [HcmUserManagementController::class, 'userDetail']);
         Route::post('/users', [HcmUserManagementController::class, 'createUser']);
-        Route::put('/users/{id}', [HcmUserManagementController::class, 'updateUser'])->whereNumber('id');
-        Route::delete('/users/{id}', [HcmUserManagementController::class, 'deleteUser'])->whereNumber('id');
+        Route::put('/users/{id}', [HcmUserManagementController::class, 'updateUser']);
+        Route::delete('/users/{id}', [HcmUserManagementController::class, 'deleteUser']);
 
         Route::get('/roles', [HcmUserManagementController::class, 'roles']);
         Route::post('/roles', [HcmUserManagementController::class, 'createRole']);
-        Route::put('/roles/{id}', [HcmUserManagementController::class, 'updateRole'])->whereNumber('id');
-        Route::delete('/roles/{id}', [HcmUserManagementController::class, 'deleteRole'])->whereNumber('id');
+        Route::put('/roles/{id}', [HcmUserManagementController::class, 'updateRole']);
+        Route::delete('/roles/{id}', [HcmUserManagementController::class, 'deleteRole']);
 
         Route::get('/permissions', [HcmUserManagementController::class, 'permissions']);
-        Route::post('/roles/{id}/permissions:sync', [HcmUserManagementController::class, 'syncRolePermissions'])->whereNumber('id');
+        Route::post('/roles/{id}/permissions:sync', [HcmUserManagementController::class, 'syncRolePermissions']);
 
-        Route::get('/users/{id}/roles', [HcmUserManagementController::class, 'userRoles'])->whereNumber('id');
-        Route::post('/users/{id}/roles', [HcmUserManagementController::class, 'assignUserRole'])->whereNumber('id');
+        Route::get('/users/{id}/roles', [HcmUserManagementController::class, 'userRoles']);
+        Route::post('/users/{id}/roles', [HcmUserManagementController::class, 'assignUserRole']);
         Route::delete('/users/{id}/roles/{assignmentId}', [HcmUserManagementController::class, 'revokeUserRole'])
-            ->whereNumber('id')
-            ->whereNumber('assignmentId');
+            ;
     });
 
     // Settings Management
@@ -398,8 +400,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::prefix('snapshots')->group(function () {
             Route::post('/', [ReportSnapshotController::class, 'generate']);
             Route::get('/', [ReportSnapshotController::class, 'list']);
-            Route::get('/{id}', [ReportSnapshotController::class, 'show'])->whereNumber('id');
-            Route::post('/{id}/export', [ReportSnapshotController::class, 'export'])->whereNumber('id');
+            Route::get('/{id}', [ReportSnapshotController::class, 'show']);
+            Route::post('/{id}/export', [ReportSnapshotController::class, 'export']);
         });
     });
 });
@@ -407,7 +409,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
 Route::prefix('v1/reconciliation')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::post('/exports', [ReconciliationExportController::class, 'store']);
     Route::get('/exports', [ReconciliationExportController::class, 'index']);
-    Route::get('/exports/{id}/download', [ReconciliationExportController::class, 'download'])->whereNumber('id');
+    Route::get('/exports/{id}/download', [ReconciliationExportController::class, 'download']);
 });
 
 // SaaS Packages Routes
@@ -421,10 +423,10 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 
     // Package Add-ons
     Route::get('/package-addons', [PackageController::class, 'addons']);
-    Route::get('/package-addons/{addon}', [PackageController::class, 'showAddon'])->whereNumber('addon');
+    Route::get('/package-addons/{addon}', [PackageController::class, 'showAddon']);
     Route::post('/package-addons', [PackageController::class, 'storeAddon']);
-    Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon'])->whereNumber('addon');
-    Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon'])->whereNumber('addon');
+    Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon']);
+    Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon']);
 
     // Package Features
     Route::get('/packages/{package}/features', [PackageController::class, 'getFeatures']);
@@ -444,8 +446,8 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::get('/transactions/export', [TransactionController::class, 'export']);
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::post('/transactions', [TransactionController::class, 'store']);
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->whereNumber('transaction');
-    Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->whereNumber('transaction');
+    Route::get('/transactions/{transaction}', [TransactionController::class, 'show']);
+    Route::put('/transactions/{transaction}', [TransactionController::class, 'update']);
 
     // Custom Domains
     Route::get('/domains', [DomainController::class, 'index']);
@@ -489,10 +491,15 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::get('/dashboard/companies/top-performers', [SuperAdminDashboardController::class, 'getTopCompanies']);
     Route::get('/dashboard/companies/{company}/details', [SuperAdminDashboardController::class, 'getCompanyDetails']);
     Route::get('/dashboard/users', [SuperAdminDashboardController::class, 'getUserStats']);
+    Route::get('/dashboard/users/retention', [SuperAdminDashboardController::class, 'getUserRetention']);
     Route::get('/dashboard/revenue/monthly', [SuperAdminDashboardController::class, 'getMonthlytRevenue']);
+    Route::get('/dashboard/revenue/forecast', [SuperAdminDashboardController::class, 'getRevenueForecast']);
     Route::get('/dashboard/revenue/by-plan', [SuperAdminDashboardController::class, 'getRevenueByPlan']);
     Route::get('/dashboard/subscriptions/status', [SuperAdminDashboardController::class, 'getSubscriptionStatus']);
+    Route::get('/dashboard/subscriptions/health', [SuperAdminDashboardController::class, 'getSubscriptionHealth']);
+    Route::get('/dashboard/reports/custom', [SuperAdminDashboardController::class, 'getCustomReport']);
     Route::get('/dashboard/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
+    Route::get('/dashboard/audit-logs/{auditLog}', [SuperAdminDashboardController::class, 'getAuditLogDetail']);
 
     // Billing overview (companies)
     Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);

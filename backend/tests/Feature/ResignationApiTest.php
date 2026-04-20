@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -44,7 +46,7 @@ class ResignationApiTest extends TestCase
 
         $create = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/resignations', [
-                'userId' => $emp->id,
+                'userId' => $emp->uuid,
                 'department' => 'Finance',
                 'reason' => 'Career change',
                 'noticeDate' => '2026-04-01',
@@ -98,12 +100,12 @@ class ResignationApiTest extends TestCase
         ];
 
         $idA = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
-            ->postJson('/v1/hcm/resignations', array_merge(['userId' => $empA->id], $body))
+            ->postJson('/v1/hcm/resignations', array_merge(['userId' => $empA->uuid], $body))
             ->assertStatus(201)
             ->json('data.id');
 
         $idB = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
-            ->postJson('/v1/hcm/resignations', array_merge(['userId' => $empB->id], $body))
+            ->postJson('/v1/hcm/resignations', array_merge(['userId' => $empB->uuid], $body))
             ->assertStatus(201)
             ->json('data.id');
 
@@ -112,12 +114,26 @@ class ResignationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
+        $rowAUuid = (string) \App\Models\HcmResignation::query()->findOrFail($idA)->uuid;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$empAToken])
+            ->getJson('/v1/hcm/resignations/'.$rowAUuid)
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.uuid', $rowAUuid)
+            ->assertJsonPath('data.employee.uuid', $empA->uuid);
+
         $this->withHeaders(['Authorization' => 'Bearer '.$empAToken])
             ->getJson('/v1/hcm/resignations/'.$idB)
             ->assertStatus(403);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$empAToken])
             ->getJson('/v1/hcm/resignations/users/'.$empA->id.'/resignations')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$empAToken])
+            ->getJson('/v1/hcm/resignations/users/'.$empA->uuid.'/resignations')
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -134,5 +150,53 @@ class ResignationApiTest extends TestCase
             ->getJson('/v1/hcm/resignations/999999')
             ->assertNotFound()
             ->assertJsonPath('error.code', 'RESIGNATION_NOT_FOUND');
+    }
+
+    public function test_resignation_create_rejects_user_uuid_outside_active_company(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Other Company Employee',
+            'email' => 'other-company-employee@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $outsider = User::query()->where('email', 'other-company-employee@example.com')->firstOrFail();
+        $activeCompanyId = (int) CompanyUser::query()->where('user_id', $admin->id)->value('company_id');
+        $this->assertGreaterThan(0, $activeCompanyId);
+
+        CompanyUser::query()->where('user_id', $outsider->id)->delete();
+
+        $otherCompany = Company::query()->create([
+            'code' => 'resign_other_company',
+            'name' => 'Resign Other Company',
+            'legal_name' => 'Resign Other Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $outsider->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Id' => (string) $activeCompanyId,
+        ])->postJson('/v1/hcm/resignations', [
+            'userId' => $outsider->uuid,
+            'department' => 'Finance',
+            'reason' => 'Cross tenant injection',
+            'noticeDate' => '2026-04-01',
+            'resignationDate' => '2026-04-30',
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonPath('error.message', 'The selected user id is invalid for the active company.');
     }
 }

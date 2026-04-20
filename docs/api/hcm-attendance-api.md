@@ -10,7 +10,7 @@ Tenant context:
 - Endpoint attendance membaca `activeCompany` dari middleware tenant context.
 - Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
 - Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
-- `PUT /attendance/admin/record` — lookup record + create menggunakan `company_id` aktif; admin dari company lain tidak dapat menulis record employee company lain.
+- `PUT /attendance/admin/record` — lookup record + create menggunakan `company_id` aktif; admin dari company lain tidak dapat menulis record employee company lain. Jika `userId` bukan member company aktif, API mengembalikan `404 USER_NOT_IN_COMPANY`.
 - `GET /timesheets` — query `attendance_records` di-scope ke `company_id` aktif.
 
 ## Attendance (admin)
@@ -51,6 +51,7 @@ Validasi tambahan:
 - jika `checkInTime` dan `checkOutTime` diisi: `checkOutTime >= checkInTime` (422 `VALIDATION_ERROR`)
 - jika tanpa `checkInTime` tapi `lateMinutes > 0` → 422
 - jika semua kosong (`checkInTime`, `checkOutTime`, `breakMinutes=0`, `lateMinutes=0`) dan record ada → record dihapus (`data.deleted=true`)
+- jika `userId` tidak termasuk membership aktif pada tenant yang sedang dipilih → 404 `USER_NOT_IN_COMPANY`
 
 Success `200`:
 
@@ -119,6 +120,51 @@ Success `200`:
 { "success": true, "data": { "correctionStatus": "requested" } }
 ```
 
+### POST `/attendance/me/selfie`
+
+RBAC:
+- Authenticated: self only
+
+Body:
+- `selfie_base64` required string base64 image
+- `timestamp` optional integer
+
+Errors:
+- `422 ATTENDANCE_NOT_STARTED` jika employee belum punya attendance record hari ini
+- `422 VALIDATION_ERROR` jika payload base64 tidak valid
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "attendance_id": 123,
+    "selfie_path": "selfie/1/45_2026-04-20_1770000000.jpg",
+    "uploaded_at": "2026-04-20T08:00:00.000000Z"
+  }
+}
+```
+
+### GET `/attendance/me/selfie/status`
+
+RBAC:
+- Authenticated: self only
+
+Success `200`:
+- `data.has_selfie` boolean
+- `data.selfie` nullable object dengan `path`, `uploaded_at`, `is_encrypted`
+
+### GET `/attendance/admin/records/{id}/selfie/download`
+
+RBAC:
+- HCM Admin only
+
+Behavior:
+- Wajib punya active company context
+- Attendance record di-resolve di dalam tenant aktif; admin tidak bisa mengunduh selfie dari tenant lain
+- Jika file selfie belum ada, API mengembalikan `404 SELFIE_NOT_FOUND`
+
 ## Timesheets (admin)
 
 ### GET `/timesheets`
@@ -127,7 +173,8 @@ RBAC:
 - HCM Admin only
 
 Query:
-- `dateFrom`/`dateTo` optional date
+- `dateFrom` optional date
+- `dateTo` optional date, must be `>= dateFrom` when both diisi
 - `project` optional string max 100 (filter)
 - `sort` optional enum `employee_asc|employee_desc|date_desc|date_asc|worked_desc|worked_asc`
 - `page` optional int >=1
@@ -163,9 +210,13 @@ Body:
 Validasi tambahan:
 - `endTime > startTime` (422 `VALIDATION_ERROR`)
 - Jika shift inactive/not found → 422 `VALIDATION_ERROR`
+- Jika `{userId}` bukan membership aktif pada tenant yang dipilih → 404 `USER_NOT_IN_COMPANY`
 
 ### DELETE `/schedule-timing/{userId}`
 
 RBAC:
 - HCM Admin only
+
+Errors:
+- `404 USER_NOT_IN_COMPANY` jika target user bukan member company aktif
 

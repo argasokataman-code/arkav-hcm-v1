@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\InvoiceEmailLog;
 use App\Models\PurchaseTransaction;
+use App\Models\Subscription;
 use App\Services\InvoiceService;
 use App\Services\NotificationService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
@@ -89,7 +90,16 @@ class InvoiceController extends Controller
             ], 403);
         }
 
-        $invoice->load('company', 'purchaseTransaction', 'payments');
+        $invoice->load([
+            'company',
+            'purchaseTransaction',
+            'payments',
+            'subscription.package',
+            'emailLogs' => function ($query): void {
+                $query->latest('created_at');
+            },
+            'latestEmailLog',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -111,20 +121,30 @@ class InvoiceController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|integer|exists:companies,id',
-            'purchase_transaction_id' => 'nullable|integer|exists:purchase_transactions,id',
-            'subscription_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('subscriptions', 'id')->where(
-                    fn ($q) => $q->where('company_id', (int) $request->input('company_id'))
-                ),
-            ],
+            'company_id' => 'required|uuid|exists:companies,uuid',
+            'purchase_transaction_id' => 'nullable|uuid|exists:purchase_transactions,uuid',
+            'subscription_id' => ['nullable', 'uuid', Rule::exists('subscriptions', 'uuid')],
             'issue_date' => 'required|date',
             'due_date' => 'required|date|after:issue_date',
             'amount_due' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
+
+        if (! empty($validated['subscription_id'])) {
+            $subscriptionCompanyId = Subscription::query()
+                ->where('uuid', $validated['subscription_id'])
+                ->value('company_id');
+
+            if ((string) $subscriptionCompanyId !== (string) $validated['company_id']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'subscription_id must belong to the selected company_id.',
+                    ],
+                ], 422);
+            }
+        }
 
         $invoice = Invoice::create($validated);
         $invoice->load('company', 'purchaseTransaction');
@@ -152,14 +172,24 @@ class InvoiceController extends Controller
             'due_date' => 'sometimes|date|after:'.$invoice->issue_date->toDateString(),
             'amount_due' => 'sometimes|numeric|min:0',
             'notes' => 'nullable|string',
-            'subscription_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('subscriptions', 'id')->where(
-                    fn ($q) => $q->where('company_id', $invoice->company_id)
-                ),
-            ],
+            'subscription_id' => ['nullable', 'uuid', Rule::exists('subscriptions', 'uuid')],
         ]);
+
+        if (! empty($validated['subscription_id'])) {
+            $subscriptionCompanyId = Subscription::query()
+                ->where('uuid', $validated['subscription_id'])
+                ->value('company_id');
+
+            if ((string) $subscriptionCompanyId !== (string) $invoice->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'subscription_id must belong to the invoice company.',
+                    ],
+                ], 422);
+            }
+        }
 
         $invoice->update($validated);
 
@@ -341,11 +371,31 @@ class InvoiceController extends Controller
     {
         return [
             'id' => $invoice->id,
+            'uuid' => $invoice->uuid,
             'invoiceNumber' => $invoice->invoice_number,
             'companyId' => $invoice->company_id,
             'companyName' => $invoice->company?->name,
+            'company' => $invoice->company ? [
+                'id' => $invoice->company->id,
+                'uuid' => $invoice->company->uuid,
+                'code' => $invoice->company->code,
+                'name' => $invoice->company->name,
+            ] : null,
             'purchaseTransactionId' => $invoice->purchase_transaction_id,
             'subscriptionId' => $invoice->subscription_id,
+            'subscription' => $invoice->subscription ? [
+                'id' => $invoice->subscription->id,
+                'uuid' => $invoice->subscription->uuid,
+                'status' => $invoice->subscription->status,
+                'billingCycle' => $invoice->subscription->billing_cycle,
+                'startsAt' => $invoice->subscription->starts_at,
+                'endsAt' => $invoice->subscription->ends_at,
+                'trialEndsAt' => $invoice->subscription->trial_ends_at,
+                'planCode' => $invoice->subscription->plan_code,
+                'packageId' => $invoice->subscription->package?->uuid,
+                'packageName' => $invoice->subscription->package?->name,
+                'amount' => $invoice->subscription->amount,
+            ] : null,
             'issueDate' => $invoice->issue_date->toDateString(),
             'dueDate' => $invoice->due_date->toDateString(),
             'amountDue' => (float) $invoice->amount_due,
@@ -356,6 +406,27 @@ class InvoiceController extends Controller
             'isOverdue' => $invoice->isOverdue(),
             'isDueSoon' => $invoice->isDueSoon(),
             'notes' => $invoice->notes,
+            'latestEmail' => $invoice->latestEmailLog ? [
+                'id' => $invoice->latestEmailLog->id,
+                'uuid' => $invoice->latestEmailLog->uuid,
+                'toEmail' => $invoice->latestEmailLog->to_email,
+                'status' => $invoice->latestEmailLog->status,
+                'providerMessageId' => $invoice->latestEmailLog->provider_message_id,
+                'errorMessage' => $invoice->latestEmailLog->error_message,
+                'createdAt' => $invoice->latestEmailLog->created_at?->toIso8601String(),
+            ] : null,
+            'emailLogs' => $invoice->emailLogs->map(function (InvoiceEmailLog $emailLog): array {
+                return [
+                    'id' => $emailLog->id,
+                    'uuid' => $emailLog->uuid,
+                    'toEmail' => $emailLog->to_email,
+                    'status' => $emailLog->status,
+                    'providerMessageId' => $emailLog->provider_message_id,
+                    'errorMessage' => $emailLog->error_message,
+                    'createdAt' => $emailLog->created_at?->toIso8601String(),
+                    'updatedAt' => $emailLog->updated_at?->toIso8601String(),
+                ];
+            })->values()->all(),
             'createdAt' => $invoice->created_at->toIso8601String(),
             'updatedAt' => $invoice->updated_at->toIso8601String(),
         ];

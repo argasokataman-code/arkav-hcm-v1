@@ -3,16 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Services\InvoiceService;
+use App\Services\MockPaymentGatewayService;
 use App\Services\SubscriptionActivationFromInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class HcmCompanyInvoiceController
 {
     use ChecksPermissions;
+    use EnsuresHcmAdmin;
 
     public function __construct(
         private readonly InvoiceService $invoiceService,
@@ -22,7 +28,7 @@ class HcmCompanyInvoiceController
     public function index(Request $request): JsonResponse
     {
         // Tenant owner is treated as tenant-admin for their company; keep same gate as checkout.
-        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
 
@@ -78,7 +84,7 @@ class HcmCompanyInvoiceController
 
     public function show(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
 
@@ -100,7 +106,7 @@ class HcmCompanyInvoiceController
 
     public function download(Request $request, int $id)
     {
-        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
 
@@ -132,7 +138,7 @@ class HcmCompanyInvoiceController
 
     public function mockPay(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'subscription.view')) {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
             return $forbidden;
         }
 
@@ -149,24 +155,95 @@ class HcmCompanyInvoiceController
             ->whereKey($id)
             ->firstOrFail();
 
-        if ($invoice->is_paid) {
-            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
-        }
-
-        $invoice->update([
-            'is_paid' => true,
-            'paid_date' => now()->toDateString(),
-            'status' => 'paid',
+        $validated = $request->validate([
+            'paymentMethod' => ['nullable', 'string', 'in:mock_card,mock_bank,mock_ewallet'],
+            'gateway' => ['nullable', 'string', 'max:50'],
         ]);
 
-        // Activate subscription if this invoice belongs to a subscription.
-        if ($invoice->subscription_id) {
-            $this->activationService->activateFromPaidInvoice($invoice->id);
+        if ($invoice->is_paid) {
+            $existingPayment = Payment::query()
+                ->where('invoice_id', $invoice->id)
+                ->latest('id')
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->invoiceService->formatInvoice($invoice),
+                'payment' => $existingPayment ? [
+                    'id' => $existingPayment->id,
+                    'gateway' => $existingPayment->gateway,
+                    'gatewayReference' => $existingPayment->gateway_reference,
+                    'paymentMethod' => $existingPayment->payment_method,
+                    'status' => $existingPayment->status,
+                    'amount' => (float) $existingPayment->amount,
+                    'paidAt' => $existingPayment->paid_at?->toIso8601String(),
+                ] : null,
+            ]);
         }
+
+        $mockGateway = new MockPaymentGatewayService();
+        $paymentMethod = (string) ($validated['paymentMethod'] ?? 'mock_card');
+        $gateway = (string) ($validated['gateway'] ?? 'xendit_mock');
+        $mappedPaymentMethod = match ($paymentMethod) {
+            'mock_bank' => 'bank_transfer',
+            'mock_ewallet' => 'e_wallet',
+            default => 'credit_card',
+        };
+
+        $payment = DB::transaction(function () use ($invoice, $companyId, $mockGateway, $paymentMethod, $mappedPaymentMethod, $gateway): Payment {
+            $result = $mockGateway->createPayment([
+                'invoice_id' => $invoice->id,
+                'amount' => (float) $invoice->amount_due,
+                'currency' => 'IDR',
+                'payment_method' => $paymentMethod,
+            ]);
+
+            $payment = Payment::query()->create([
+                'company_id' => $companyId,
+                'subscription_id' => $invoice->subscription_id,
+                'invoice_id' => $invoice->id,
+                'amount' => (float) $invoice->amount_due,
+                'currency' => 'IDR',
+                'status' => 'completed',
+                'payment_method' => $mappedPaymentMethod,
+                'gateway' => $gateway,
+                'gateway_reference' => (string) ($result['charge_id'] ?? ('mock_'.$invoice->id.'_'.now()->timestamp)),
+                'paid_at' => now(),
+                'verified_at' => now(),
+            ]);
+
+            $invoice->update([
+                'is_paid' => true,
+                'paid_date' => now(),
+                'status' => 'paid',
+            ]);
+
+            // Activate subscription if this invoice belongs to a subscription.
+            if ($invoice->subscription_id) {
+                $this->activationService->activateIfEligible($invoice->fresh());
+            }
+
+            return $payment;
+        });
 
         $invoice->refresh();
 
-        return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+            // Best-effort: notify customer with invoice email (includes PDF attachment when available).
+            SendInvoiceEmailJob::dispatch($invoice->id)->afterCommit();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->invoiceService->formatInvoice($invoice),
+            'payment' => [
+                'id' => $payment->id,
+                'gateway' => $payment->gateway,
+                'gatewayReference' => $payment->gateway_reference,
+                'paymentMethod' => $payment->payment_method,
+                'status' => $payment->status,
+                'amount' => (float) $payment->amount,
+                'paidAt' => $payment->paid_at?->toIso8601String(),
+            ],
+        ]);
     }
 }
 

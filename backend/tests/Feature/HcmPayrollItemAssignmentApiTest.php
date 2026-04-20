@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollItem;
@@ -15,31 +17,45 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?Company $company = null;
+
+    private function payrollCompany(): Company
+    {
+        return Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            ['name' => 'Default Company', 'domain' => 'default-company.local']
+        );
+    }
+
     private function adminToken(): string
     {
-        $this->postJson('/v1/identity/auth/register', [
+        $this->company ??= $this->payrollCompany();
+
+        $result = $this->createHcmAdminWithCompany([
             'name' => 'Assignment Admin',
             'email' => 'assignment-admin@example.com',
             'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
+        ], $this->company);
+
+        $this->company = $result['company'];
 
         $user = User::query()->where('email', 'assignment-admin@example.com')->firstOrFail();
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
-            ['designation' => 'HR Admin', 'employment_status' => 'active'],
+            ['company_id' => $this->company->id, 'designation' => 'HR Admin', 'employment_status' => 'active'],
         );
 
-        $login = $this->postJson('/v1/identity/auth/login', [
-            'email' => 'assignment-admin@example.com',
-            'password' => 'StrongPass1',
-        ])->assertOk();
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
-        return (string) $login->json('data.accessToken');
+        return $result['token'];
     }
 
     private function employeeToken(string $email = 'assignment-employee@example.com', float $baseSalary = 4_500_000): string
     {
+        if (! $this->company) {
+            $this->company = $this->payrollCompany();
+        }
+
         $this->postJson('/v1/identity/auth/register', [
             'name' => 'Assignment Employee',
             'email' => $email,
@@ -48,9 +64,21 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::query()->where('email', $email)->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
+
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
+                'company_id' => $this->company->id,
                 'employment_status' => 'active',
                 'base_salary' => $baseSalary,
                 'fixed_allowance' => 100_000,
@@ -60,7 +88,10 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
             'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
         ])->assertOk();
+
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return (string) $login->json('data.accessToken');
     }
@@ -84,13 +115,13 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
         $targetUser = User::query()->where('email', 'assignment-employee@example.com')->firstOrFail();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$employeeToken])
-            ->getJson('/v1/hcm/payroll-item-assignments?userId='.(int) $targetUser->id)
+            ->getJson('/v1/hcm/payroll-item-assignments?userId='.$targetUser->uuid)
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
 
         $create = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/payroll-item-assignments', [
-                'userId' => (int) $targetUser->id,
+                'userId' => $targetUser->uuid,
                 'payrollItemId' => $itemId,
                 'amount' => 175000,
             ])
@@ -101,7 +132,7 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$employeeToken])
             ->postJson('/v1/hcm/payroll-item-assignments', [
-                'userId' => (int) $targetUser->id,
+                'userId' => $targetUser->uuid,
                 'payrollItemId' => $itemId,
                 'amount' => 100000,
             ])
@@ -143,7 +174,7 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/payroll-item-assignments', [
-                'userId' => (int) $employee->id,
+                'userId' => $employee->uuid,
                 'payrollItemId' => $itemId,
                 'amount' => 250000,
             ])

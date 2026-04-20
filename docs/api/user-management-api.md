@@ -1,114 +1,124 @@
 # User Management API
 
-Status: Live (backend implemented)
+Status: Implemented (UUID transition compatible)
 Base path: `/v1/hcm/user-management`
 
-**Last Updated:** 2026-04-18
-**Changes:** Internal tenant-awareness refactoring for RBAC hardening (auth flow optimization, company context validation)
+Last updated: 2026-04-19
 
-## 1) Users
+## Contract Notes
 
-### GET `/users`
+- Semua endpoint tenant-scoped: wajib ada active company context (header/tenant resolver).
+- Format response standar: `{ success, data? , error? }`.
+- Identifier transition:
+  - `users/{id}` pada endpoint detail/update/delete saat ini memakai numeric user id.
+  - `roles/{id}`, `users/{id}/roles`, dan `users/{id}/roles/{assignmentId}` sudah menerima UUID identifier, dengan fallback numeric legacy.
 
-Query:
-- `page`, `perPage`
-- `search` (name/email)
-- `status` (`active|inactive|all`)
-- `roleCode` (optional)
+## Authorization Rules
 
-Success 200:
-- `data[]`: user summary + active roles
-- `meta.pagination`
+- View endpoints: butuh salah satu permission `user.view`, `role.view`, atau `user_management.view`.
+- Manage endpoints: butuh salah satu permission `user.create|user.update|user.assign_role|role.create|role.update|role.delete|role.sync_permission|user_management.manage`.
+- Setup role/permission (`create role`, `update role`, `delete role`, `sync role permissions`) juga butuh application super user (`SUPER_USER_REQUIRED`) selain permission manage.
 
-### GET `/users/{id}`
+## Endpoints
 
-Success 200:
-- user profile
-- role assignments
-- permission summary (effective)
+### Users
 
-### POST `/users`
+- `GET /users`
+  - Query: `page`, `perPage`, `search`, `status(active|inactive|all)`, `roleCode`
 
-Body:
-- `name` required
-- `email` required unique
-- `password` required
-- `roleCodes[]` optional (company context diambil dari tenant middleware)
+- `GET /users/export`
+  - Query: `search`, `status`, `roleCode`, `format=csv`
+  - Response: CSV stream (`text/csv`)
 
-Errors:
-- `422 VALIDATION_ERROR`
-- `403 AUTH_FORBIDDEN`
+- `GET /users/{id}`
+  - `{id}`: numeric user id
 
-### PUT `/users/{id}`
+- `POST /users`
+  - Body:
+```json
+{
+  "name": "Assigned User",
+  "email": "assigned.user@example.com",
+  "password": "StrongPass1",
+  "status": "active",
+  "roleCodes": ["STAFF"]
+}
+```
 
-Body (partial):
-- `name`, `status`, `email` (opsional)
+- `PUT /users/{id}`
+  - `{id}`: numeric user id
+  - Body (partial): `name`, `email`, `status`
 
-## 2) Roles
+- `DELETE /users/{id}`
+  - `{id}`: numeric user id
+  - Behavior: remove membership pada company aktif + revoke assignment role aktif.
 
-### GET `/roles`
+### Roles
 
-Query:
-- `scope` (`global|company`)
-- `status`
+- `GET /roles`
+  - Query: `scope(global|company)`, `status(active|inactive|archived|all)`
 
-### POST `/roles`
+- `POST /roles`
+  - Body: `code`, `name`, `description?`, `status?`
+  - Requires super user.
 
-Body:
-- `code`, `name` required
-- `description` optional
-- `status` optional
+- `PUT /roles/{id}`
+  - `{id}`: UUID role atau numeric legacy id
+  - Body (partial): `name`, `description`, `status(active|inactive|archived)`
+  - Requires super user.
 
-### PUT `/roles/{id}`
+- `DELETE /roles/{id}`
+  - `{id}`: UUID role atau numeric legacy id
+  - Requires super user.
+  - Rule:
+    - role system -> `ROLE_LOCKED` (422)
+    - role in-use -> archive (`status=archived`)
 
-Body partial:
-- `name`, `description`, `status`
+### Permissions
 
-### DELETE `/roles/{id}`
+- `GET /permissions`
+  - Query: `module`, `search`
 
-Soft delete/archive role jika masih dipakai.
+- `POST /roles/{id}/permissions:sync`
+  - `{id}`: UUID role atau numeric legacy id
+  - Body:
+```json
+{
+  "permissionCodes": ["user.view", "user.update"]
+}
+```
+  - Requires super user.
 
-## 3) Permissions
+### User Role Assignment
 
-### GET `/permissions`
+- `GET /users/{id}/roles`
+  - `{id}`: UUID user atau numeric legacy id
 
-Query:
-- `module`
-- `search`
+- `POST /users/{id}/roles`
+  - `{id}`: UUID user atau numeric legacy id
+  - Body:
+```json
+{
+  "roleCode": "STAFF",
+  "effectiveFrom": "2026-04-19",
+  "effectiveUntil": "2026-12-31",
+  "notes": "optional"
+}
+```
 
-### POST `/roles/{id}/permissions:sync`
+- `DELETE /users/{id}/roles/{assignmentId}`
+  - `{id}`: UUID user atau numeric legacy id
+  - `{assignmentId}`: UUID assignment atau numeric legacy id
 
-Body:
-- `permissionCodes[]` required
+## Common Errors
 
-Behavior:
-- replace seluruh mapping role-permission dengan daftar terbaru.
-
-## 4) User Role Assignment
-
-### GET `/users/{id}/roles`
-
-Return role assignments history + active flag.
-
-### POST `/users/{id}/roles`
-
-Body:
-- `roleCode` required
-- `effectiveFrom` optional
-- `effectiveUntil` optional
-
-### DELETE `/users/{id}/roles/{assignmentId}`
-
-Behavior:
-- revoke assignment (soft revoke status inactive)
-
-## Error Codes (Draft)
-
-- `AUTH_UNAUTHORIZED` (401)
+- `TENANT_CONTEXT_REQUIRED` (422)
 - `AUTH_FORBIDDEN` (403)
-- `TENANT_FORBIDDEN` (403)
-- `VALIDATION_ERROR` (422)
+- `SUPER_USER_REQUIRED` (403)
 - `USER_NOT_FOUND` (404)
 - `ROLE_NOT_FOUND` (404)
 - `PERMISSION_NOT_FOUND` (404)
-- `ROLE_IN_USE` (422)
+- `ROLE_ASSIGNMENT_NOT_FOUND` (404)
+- `ROLE_ASSIGNMENT_NOT_ACTIVE` (422)
+- `ROLE_LOCKED` (422)
+- `SELF_DELETE_FORBIDDEN` (422)

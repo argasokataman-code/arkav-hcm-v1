@@ -189,6 +189,14 @@ const _state: {
     reconciliationDownloadedForRunId: null,
 };
 
+function currentRunStatus(): string {
+    return String(_state.currentRunStatus || "").toLowerCase();
+}
+
+function canVoidCurrentRun(): boolean {
+    return !!_state.currentRunId && currentRunStatus() === "finalized" && _state.currentRows.some((row) => row.paymentStatus !== "paid");
+}
+
 function hasDownloadedReconciliationForCurrentRun(): boolean {
     return (
         _state.currentRunId !== null &&
@@ -223,6 +231,20 @@ function showErr(msg: string): void {
         errEl.classList.remove("d-none");
         errEl.textContent = msg;
     }
+}
+
+function setPayrollVoidHint(message: string): void {
+    const root = _getRoot();
+    if (!root) return;
+    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-void-hint]");
+    if (!hintEl) return;
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
 }
 
 function getApiErrorCode(res: unknown): string | null {
@@ -428,16 +450,49 @@ function refreshSelectionSummary(): void {
         selectedCountEl.textContent = String(selectedIds.length);
     }
     if (disburseBtn) {
+        const st = currentRunStatus();
         const canDisburse = !_state.currentRunId ||
             _state.currentRows.length === 0 ||
             selectedIds.length === 0 ||
-            !hasDownloadedReconciliationForCurrentRun();
-        console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), disabled: canDisburse });
+            !hasDownloadedReconciliationForCurrentRun() ||
+            !(st === "draft" || st === "finalized");
+        console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), status: st, disabled: canDisburse });
         disburseBtn.disabled = canDisburse;
     }
     if (resetBtn) {
         resetBtn.disabled = !_state.currentRunId;
     }
+}
+
+function syncVoidButton(): void {
+    const root = _getRoot();
+    if (!root) return;
+    const voidBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-void]");
+    if (!voidBtn) return;
+
+    const status = currentRunStatus();
+    const hasPaidRows = _state.currentRows.some((row) => row.paymentStatus === "paid");
+    const hasUnpaidRows = _state.currentRows.some((row) => row.paymentStatus !== "paid");
+    const canVoid = canVoidCurrentRun();
+
+    voidBtn.disabled = !canVoid;
+
+    if (status === "void") {
+        setPayrollVoidHint("Run ini sudah di-void. Anda bisa hitung draft ulang untuk periode aktif yang sama.");
+        return;
+    }
+
+    if (status === "finalized" && hasPaidRows) {
+        setPayrollVoidHint("Run sudah memiliki pembayaran berstatus paid, jadi tidak bisa di-void agar rekonsiliasi transfer tidak rancu.");
+        return;
+    }
+
+    if (status === "finalized" && hasUnpaidRows) {
+        setPayrollVoidHint("Run finalized ini belum dibayar, jadi masih bisa di-void bila perlu koreksi setup atau hitung ulang draft.");
+        return;
+    }
+
+    setPayrollVoidHint("");
 }
 
 function syncExportReconciliationButton(): void {
@@ -459,7 +514,7 @@ function syncCalculateDraftButton(): void {
     if (!calculateBtn) return;
     const st = String(_state.currentRunStatus || "").toLowerCase();
     /** Backend mengizinkan hitung ulang / reuse draft (`reusedExistingDraft`) selama status `draft`. */
-    const canCalculate = !!_state.currentPeriodId && (!_state.currentRunId || st === "draft");
+    const canCalculate = !!_state.currentPeriodId && (!_state.currentRunId || st === "draft" || st === "void");
     console.log("[syncCalculateDraftButton]", { periodId: _state.currentPeriodId, runId: _state.currentRunId, status: st, canCalculate });
     calculateBtn.disabled = !canCalculate;
 }
@@ -519,10 +574,13 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
 
     syncCalculateDraftButton();
     syncExportReconciliationButton();
+    syncVoidButton();
 
     if (emptyEl && (!runData || _state.currentRows.length === 0)) {
         emptyEl.textContent = runData
-            ? "Belum ada karyawan payroll untuk periode ini. Gunakan Calculate Draft untuk refresh data aktif."
+            ? (currentRunStatus() === "void"
+                ? "Run sebelumnya sudah di-void. Gunakan Calculate Draft untuk membuat draft baru dari setup payroll terbaru."
+                : "Belum ada karyawan payroll untuk periode ini. Gunakan Calculate Draft untuk refresh data aktif.")
             : "Klik Calculate Draft untuk membuat draft payroll. Setelah itu lakukan Export Reconciliation dan unduh file CSV; Pay via Gateway aktif hanya setelah unduhan selesai.";
         emptyEl.classList.remove("d-none");
         if (gridEl) gridEl.classList.add("d-none");
@@ -790,6 +848,51 @@ async function calculateDraft(silent = false): Promise<void> {
     }
 }
 
+async function voidCurrentRun(): Promise<void> {
+    const root = _getRoot();
+    if (!root || !_state.currentRunId || !canVoidCurrentRun()) {
+        return;
+    }
+
+    const confirmed = (window as any).ArcavUi?.confirm
+        ? await (window as any).ArcavUi.confirm(
+            "Void run finalized ini? Hanya boleh jika payroll belum ditransfer/dibayar.",
+            "Void Finalized Run"
+        )
+        : false;
+
+    if (!confirmed) {
+        return;
+    }
+
+    const voidBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-void]");
+    if (voidBtn) {
+        voidBtn.disabled = true;
+        voidBtn.textContent = "Voiding...";
+    }
+
+    try {
+        const resp = await apiRequest("post", `/v1/hcm/payroll-runs/${_state.currentRunId}/void`) as ApiResponse<any>;
+        if (!resp.success) {
+            toast(formatApiError(resp, 400), true);
+            return;
+        }
+
+        clearReconciliationDownloaded();
+        updateRunUI((resp.data || null) as PayrollRun | null, null);
+        toast("Run finalized berhasil di-void. Anda bisa hitung draft ulang untuk periode aktif ini.", false);
+    } catch (e: any) {
+        toast(formatApiError(e.response?.data || {}, 500), true);
+    } finally {
+        if (voidBtn) {
+            voidBtn.textContent = "Void Finalized Run";
+            syncVoidButton();
+            syncCalculateDraftButton();
+            refreshSelectionSummary();
+        }
+    }
+}
+
 function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     const modal = document.getElementById("payroll_gateway_modal");
     if (!modal) return [];
@@ -1049,6 +1152,13 @@ function bindEvents(): void {
             return;
         }
 
+        const voidBtn = (event.target as HTMLElement).closest("[data-payroll-run-void]");
+        if (voidBtn) {
+            event.preventDefault();
+            void voidCurrentRun();
+            return;
+        }
+
         const resetBtn = (event.target as HTMLElement).closest("[data-payroll-run-reset-payments]");
         if (resetBtn) {
             event.preventDefault();
@@ -1112,6 +1222,7 @@ function bindEvents(): void {
 
 (window as any).payrollRunLoadPeriod = () => loadPeriod(false);
 (window as any).payrollRunCalculateDraft = () => calculateDraft(false);
+(window as any).payrollRunVoid = () => voidCurrentRun();
 (window as any).payrollRunDisburse = () => openDisburseModal();
 
 if (document.readyState === "loading") {

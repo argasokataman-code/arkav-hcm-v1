@@ -1,9 +1,9 @@
 <?php
 
 namespace App\Models;
+use App\Models\Concerns\AssignsUuid;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 /**
  * Master komponen penggajian (Indonesia-oriented flags for future payroll engine).
@@ -32,16 +32,9 @@ use Illuminate\Support\Str;
  */
 class HcmSalaryComponent extends Model
 {
+    use AssignsUuid;
     protected $table = 'hcm_salary_components';
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     /** @var list<string> */
     public const ADDITION_CATEGORIES = [

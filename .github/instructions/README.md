@@ -19,6 +19,7 @@
 2. Sesuaikan **ringkasan** di `.github/instructions/*.instructions.md` yang relevan (`applyTo` masih cocok dengan path yang disentuh).
 3. Perbarui baris **“Terakhir diselaraskan dengan”** di bagian bawah berkas instruksi yang Anda sentuh.
 4. Jika matriks HCM / izin berubah: ikuti juga [`docs/planning/active-hcm-templates-and-permissions.md`](../../docs/planning/active-hcm-templates-and-permissions.md) dan cerminan di `.cursor/rules/role-permissions-with-features.mdc`.
+5. Jika mengubah aturan dokumentasi feature: sinkronkan juga requirement bahwa `docs/features/<feature>/README.md` harus business-readable (flow end-to-end, decision path, lifecycle/status, gap existing vs target, dan cross-check permission/API).
 
 ## Daftar berkas instruksi GitHub
 
@@ -27,6 +28,7 @@
 | [`laravel-hcm.instructions.md`](./laravel-hcm.instructions.md) | Backend PHP, routes, Blade | `development-closure-checklist`, `openapi-collection-sync`, `api-spec-docs-sync-per-change`, `migration-discipline`, `application-security-baseline`, `bugfix-guardrails`, `context7-usage` |
 | [`frontend-hcm.instructions.md`](./frontend-hcm.instructions.md) | JS sumber + Blade | `backend-template-lock`, `no-hardcoded-dummy-template-data`, `documentation-sync-after-development`, `role-permissions-with-features` (UX vs server), `context7-usage` |
 | [`project-governance.instructions.md`](./project-governance.instructions.md) | Semua berkas | `00-session-preamble`, `development-closure-checklist`, `documentation-feature-packaging`, `quality-anomaly-pass` |
+| [`api-contract-sync.instructions.md`](./api-contract-sync.instructions.md) | Route/controller API + docs/api + sync script | `openapi-collection-sync`, `api-spec-docs-sync-per-change`, `development-closure-checklist` |
 
 ## Cursor tidak membaca folder ini secara otomatis
 

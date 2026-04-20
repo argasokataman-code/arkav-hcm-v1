@@ -185,10 +185,11 @@
         .then(() => {
           this.applyRoleUi();
 
-          const tasks = [this.loadSubscriptions()];
+          const tasks = [];
           if (this.canManageSubscriptions) {
-            tasks.unshift(this.loadPackages());
-            tasks.unshift(this.loadCompanies());
+            tasks.push(this.loadCompanies(), this.loadPackages(), this.loadSubscriptions());
+          } else {
+            this.renderUnauthorizedState();
           }
           return Promise.all(tasks);
         })
@@ -208,7 +209,7 @@
     applyQueryStringDefaults: function () {
       if (!this.canManageSubscriptions) return;
       const q = new URLSearchParams(window.location.search);
-      const packageId = q.get("packageId") || q.get("package_id");
+      const packageId = q.get("packageId") || q.get("package_uuid") || q.get("package_id");
       const companyId = q.get("companyId") || q.get("company_id");
       const status = q.get("status");
       if (!packageId && !companyId && !status) return;
@@ -263,6 +264,13 @@
       if (renewByIdBtn) {
         renewByIdBtn.classList.toggle("d-none", !this.canManageSubscriptions);
       }
+    },
+
+    renderUnauthorizedState: function () {
+      const container = document.querySelector('[data-subscriptions-list-container]');
+      if (!container) return;
+      container.innerHTML =
+        '<div class="card"><div class="card-body text-center text-muted py-4">Subscription data is only available for HCM admins.</div></div>';
     },
 
     /**
@@ -534,7 +542,8 @@
 
       const options = this.companies
         .map(function (company) {
-          return '<option value="' + esc(company.id) + '">' + esc(company.name || ("Company #" + company.id)) + "</option>";
+          const companyValue = company.uuid || company.id;
+          return '<option value="' + esc(companyValue) + '">' + esc(company.name || ("Company #" + company.id)) + "</option>";
         })
         .join("");
       select.innerHTML = '<option value="">Select company</option>' + options;
@@ -841,7 +850,7 @@
       let data;
       if (isEdit) {
         data = {
-          package_id: Number(packageId),
+          package_uuid: String(packageId),
           status: status,
           starts_at: startDate,
           ends_at: endDate,
@@ -851,8 +860,8 @@
         };
       } else {
         data = {
-          company_id: Number(companyId),
-          package_id: Number(packageId),
+          company_id: String(companyId),
+          package_uuid: String(packageId),
           status: status,
           starts_at: startDate,
           ends_at: endDate,
@@ -900,7 +909,12 @@
             const sub = response.data;
             const companySel = document.getElementById("input_subscription_company");
             if (companySel) {
-              companySel.value = String(sub.companyId || "");
+              const companyUuid = sub.company?.uuid
+                || (self.companies.find(function (company) {
+                  return String(company.id) === String(sub.companyId);
+                }) || {}).uuid
+                || String(sub.companyId || "");
+              companySel.value = String(companyUuid || "");
               companySel.disabled = true;
             }
             document.getElementById("input_subscription_package").value = String(sub.packageId || "");

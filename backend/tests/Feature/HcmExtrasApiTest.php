@@ -108,7 +108,7 @@ class HcmExtrasApiTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->assertDatabaseMissing('holiday_calendars', [
-            'date' => '2026-04-01 00:00:00',
+            'date' => '2026-04-01',
             'name' => 'Nyepi',
         ]);
     }
@@ -330,6 +330,22 @@ class HcmExtrasApiTest extends TestCase
     public function test_leave_request_create_and_me_scope(): void
     {
         $token = $this->bearerToken();
+
+        // Seed balance for the test user
+        $user = \App\Models\User::where('email', 'hcmextra@example.com')->first();
+        $leaveType = \App\Models\LeaveType::where('code', 'annual_leave')->first();
+        $companyId = $user->company_id ?? 1;
+
+        \App\Models\EmployeeLeaveBalance::create([
+            'company_id' => $companyId,
+            'employee_id' => $user->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,

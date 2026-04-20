@@ -1,9 +1,52 @@
 # Employees & Organization
 
+## Ringkasan
+
+Fitur ini menjadi directory utama employee, organisasi, departemen, designation, dan data profil kerja yang dipakai modul HCM lain. Hampir semua flow operasional seperti attendance, leave, overtime, salary, promotion, termination, training, dan payroll menggantungkan identitas employee, status kerja, dan struktur organisasinya dari modul ini.
+
+## Akses
+
+- HCM Admin: boleh melihat full directory, membuat/mengubah employee, serta mengelola department, designation, dan policy.
+- Employee: hanya boleh membaca dan mengubah data sendiri pada subset field yang diizinkan.
+- Rujukan perilaku dan hak akses paling rinci tetap berada di `USE-CASES.md` dan `../../planning/active-hcm-templates-and-permissions.md`.
+
+## UI Aktif
+
+- Halaman employee list, employee details, employee report, department, designation, dan policy memakai JS manager employee/HCM pages.
+- Halaman `/employee-salary` menggunakan data employee yang sama untuk kompensasi bulanan.
+
+## Flow Bisnis End-to-End
+
+1. HCM Admin membuat atau memperbarui employee beserta profil organisasinya.
+2. Sistem menyimpan kombinasi data di `users`, `employee_profiles`, dan tabel normalized history/compatibility yang relevan.
+3. Halaman employee list, detail, preview panel, salary, training history, dan modul lain membaca data employee yang sama dari API ini.
+4. Employee dapat melihat detail dirinya sendiri dan mengubah subset field self-service yang diperbolehkan.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Status kerja seperti `active`, `inactive`, dan `probation` menjadi penentu filter dan eligibility di modul lain.
+- Kompensasi legacy `base_salary` dan `fixed_allowance` tetap di-sync untuk backward compatibility.
+- Normalized history dipakai agar perubahan assignment, kontrak, bank account, dan kompensasi bisa terlacak tanpa bergantung hanya pada satu tabel profil.
+
+## Integrasi
+
+- Employee Salary: `/employee-salary`, `GET /v1/hcm/employees`, dan `PUT /v1/hcm/employees/{id}` memakai data employee yang sama. Lihat `docs/features/employee-salary/README.md`.
+- Attendance, Leave, Overtime, Training, Promotion, Termination, dan Payroll semua bergantung pada identity + employment status employee dari modul ini. Lihat `docs/features/INTEGRATION-MAP.md`.
+- Training: employee detail memakai `GET /v1/hcm/training/users/{userId}/trainings`. Lihat `docs/features/training/README.md`.
+- Promotion dan Termination: mutasi lifecycle employee selalu merujuk user/employee dari directory yang sama. Lihat `docs/features/promotion/README.md` dan `docs/features/termination/README.md`.
+
+## Kontrak API
+
 ## Use case (sumber kebenaran perilaku & hak akses)
 
 - **`USE-CASES.md`** — definisi aktor (HCM Admin vs karyawan), matriks hak, alur UC-01–UC-07, aturan bulk upload, privasi field, dan **gap implementasi vs target** (termasuk pembatasan akses API employee).
 - **`../../planning/active-hcm-templates-and-permissions.md`** — posisi halaman employee dalam indeks **semua** template HCM aktif (URL, JS, API, target role).
+
+## Existing Vs Target
+
+- Existing: employee CRUD, organization masters, detail histories, salary modal, bulk upload, dan wilayah address flow sudah aktif.
+- Existing: API sudah melayani kebutuhan banyak modul turunan dan expose kompensasi untuk integrasi overtime/payroll.
+- Target: template bulk multi-sheet dengan referensi master dan UX import yang lebih kaya masih backlog.
 
 ## Scope
 

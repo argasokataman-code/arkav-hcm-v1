@@ -35,9 +35,20 @@ class WilayahLocationController extends Controller
                 ]);
             }
 
-            if (app()->runningUnitTests()) {
-                Artisan::call('wilayah:sync');
-                $output = trim((string) Artisan::output());
+            $isTestingRuntime = app()->runningUnitTests()
+                || app()->environment('testing')
+                || defined('PHPUNIT_COMPOSER_INSTALL')
+                || defined('__PHPUNIT_PHAR__');
+
+            if ($isTestingRuntime) {
+                $summary = app(WilayahSyncService::class)->sync();
+                $output = sprintf(
+                    'provinces=%d regencies=%d districts=%d villages=%d',
+                    $summary['provinces'] ?? 0,
+                    $summary['regencies'] ?? 0,
+                    $summary['districts'] ?? 0,
+                    $summary['villages'] ?? 0
+                );
 
                 return redirect()->back()->with('wilayahSyncStatus', [
                     'type' => 'success',

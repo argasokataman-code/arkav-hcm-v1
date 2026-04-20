@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\HcmResignation;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class HcmResignationController extends Controller
 {
@@ -87,7 +90,7 @@ class HcmResignationController extends Controller
         ]);
     }
 
-    public function show(Request $request, int $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
         if ($activeCompanyId <= 0) {
@@ -100,10 +103,11 @@ class HcmResignationController extends Controller
             ], 422);
         }
 
-        $r = HcmResignation::query()
+        $query = HcmResignation::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email'])
-            ->find($id);
+            ->with(['user:id,uuid,name,email']);
+        $this->applyResignationIdentifierScope($query, $id);
+        $r = $query->first();
         if (! $r) {
             return response()->json([
                 'success' => false,
@@ -125,7 +129,7 @@ class HcmResignationController extends Controller
         ]);
     }
 
-    public function resignationsForUser(Request $request, int $userId): JsonResponse
+    public function resignationsForUser(Request $request, string $userId): JsonResponse
     {
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
         if ($activeCompanyId <= 0) {
@@ -138,12 +142,15 @@ class HcmResignationController extends Controller
             ], 422);
         }
 
-        $auth = $request->user();
-        if (! $auth->hasPermissionForCompany('resignation.view', $activeCompanyId) && (int) $auth->id !== (int) $userId) {
-            return $this->resignationForbidden();
+        $resolvedUserId = $this->resolveUserIdFromIdentifier($userId, $activeCompanyId, false);
+        if ($resolvedUserId === null) {
+            abort(404);
         }
 
-        User::query()->findOrFail($userId);
+        $auth = $request->user();
+        if (! $auth->hasPermissionForCompany('resignation.view', $activeCompanyId) && (int) $auth->id !== $resolvedUserId) {
+            return $this->resignationForbidden();
+        }
 
         $v = $request->validate([
             'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -151,8 +158,8 @@ class HcmResignationController extends Controller
 
         $rows = HcmResignation::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email'])
-            ->where('user_id', $userId)
+            ->with(['user:id,uuid,name,email'])
+            ->where('user_id', $resolvedUserId)
             ->orderByDesc('resignation_date')
             ->orderByDesc('id')
             ->paginate((int) ($v['perPage'] ?? 20));
@@ -187,7 +194,7 @@ class HcmResignationController extends Controller
         }
 
         $v = $request->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            'userId' => ['required', 'uuid', 'exists:users,uuid'],
             'department' => ['nullable', 'string', 'max:150'],
             'reason' => ['required', 'string', 'max:2000'],
             'noticeDate' => ['required', 'date'],
@@ -196,11 +203,14 @@ class HcmResignationController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        User::query()->findOrFail((int) $v['userId']);
+            $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
+            if ($resolvedUserId === null) {
+                return $this->invalidActiveCompanyUserResponse();
+            }
 
         $r = HcmResignation::query()->create([
             'company_id' => $activeCompanyId,
-            'user_id' => (int) $v['userId'],
+                'user_id' => $resolvedUserId,
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'reason' => trim((string) $v['reason']),
             'notice_date' => $v['noticeDate'],
@@ -212,7 +222,7 @@ class HcmResignationController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'resignation.manage')) {
             return $forbidden;
@@ -229,12 +239,12 @@ class HcmResignationController extends Controller
             ], 422);
         }
 
-        $r = HcmResignation::query()
-            ->where('company_id', $activeCompanyId)
-            ->findOrFail($id);
+        $query = HcmResignation::query()->where('company_id', $activeCompanyId);
+        $this->applyResignationIdentifierScope($query, $id);
+        $r = $query->firstOrFail();
 
         $v = $request->validate([
-            'userId' => ['sometimes', 'required', 'integer', 'exists:users,id'],
+            'userId' => ['sometimes', 'required', 'uuid', 'exists:users,uuid'],
             'department' => ['sometimes', 'nullable', 'string', 'max:150'],
             'reason' => ['sometimes', 'required', 'string', 'max:2000'],
             'noticeDate' => ['sometimes', 'required', 'date'],
@@ -277,7 +287,12 @@ class HcmResignationController extends Controller
 
         $payload = [];
         if (array_key_exists('userId', $v)) {
-            $payload['user_id'] = (int) $v['userId'];
+            $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
+            if ($resolvedUserId === null) {
+                return $this->invalidActiveCompanyUserResponse();
+            }
+
+            $payload['user_id'] = $resolvedUserId;
         }
         if (array_key_exists('department', $v)) {
             $payload['department'] = $v['department'] !== null ? trim((string) $v['department']) : null;
@@ -305,7 +320,7 @@ class HcmResignationController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'resignation.manage')) {
             return $forbidden;
@@ -322,19 +337,72 @@ class HcmResignationController extends Controller
             ], 422);
         }
 
-        HcmResignation::query()
-            ->where('company_id', $activeCompanyId)
-            ->whereKey($id)
-            ->delete();
+        $query = HcmResignation::query()->where('company_id', $activeCompanyId);
+        $this->applyResignationIdentifierScope($query, $id);
+        $query->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    private function applyResignationIdentifierScope(Builder $query, string $identifier): Builder
+    {
+        if (Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->where('uuid', $identifier);
+    }
+
+    private function resolveUserIdFromIdentifier(string $identifier, int $activeCompanyId, bool $mustBelongToCompany = true): ?int
+    {
+        $userId = 0;
+        if (Str::isUuid($identifier)) {
+            $userId = (int) (User::query()->where('uuid', $identifier)->value('id') ?? 0);
+        } elseif (ctype_digit($identifier)) {
+            $userId = (int) $identifier;
+        }
+
+        if ($userId <= 0) {
+            return null;
+        }
+
+        if (! User::query()->whereKey($userId)->exists()) {
+            return null;
+        }
+
+        if (! $mustBelongToCompany) {
+            return $userId;
+        }
+
+        return CompanyUser::query()
+            ->where('company_id', $activeCompanyId)
+            ->where('user_id', $userId)
+            ->exists()
+            ? $userId
+            : null;
+    }
+
+    private function invalidActiveCompanyUserResponse(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'VALIDATION_ERROR',
+                'message' => 'The selected user id is invalid for the active company.',
+            ],
+        ], 422);
     }
 
     private function payload(HcmResignation $r): array
     {
         return [
             'id' => $r->id,
-            'employee' => $r->user ? ['id' => $r->user->id, 'name' => $r->user->name, 'email' => $r->user->email] : null,
+            'uuid' => $r->uuid,
+            'employee' => $r->user ? ['id' => $r->user->id, 'uuid' => $r->user->uuid, 'name' => $r->user->name, 'email' => $r->user->email] : null,
             'department' => $r->department ?? '',
             'reason' => $r->reason ?? '',
             'noticeDate' => $r->notice_date?->toDateString(),

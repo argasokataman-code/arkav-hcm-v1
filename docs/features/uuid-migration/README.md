@@ -1,63 +1,88 @@
-# UUID Migration Summary & Integration Report
+# UUID Migration - Ringkasan Eksekutif
 
-Tanggal pembaruan: 18 April 2026
+Tanggal pembaruan: 19 April 2026
 
-## Status saat ini
+## Ringkasan
 
-Cutover UUID core tables sudah selesai di database lokal.
+Dokumen ini menjadi ringkasan eksekutif untuk status migrasi UUID lintas domain. Fokusnya bukan satu fitur UI, tetapi kesehatan kontrak identifier, keamanan route/API, dan status transisi dari integer legacy ke UUID pada runtime aktif.
 
-- Selesai mayoritas: rollout kolom `uuid` dan banyak relasi `*_uuid` sudah dibuat dan dibackfill bertahap.
-- Selesai final: primary key inti `users`, `companies`, `employee_profiles`, `hcm_user_roles`, dan `company_users` sudah berpindah ke `uuid`.
-- Bukti utama: migration [backend/database/migrations/2026_04_26_170000_finalize_uuid_full_cutover_core_tables.php](../../../backend/database/migrations/2026_04_26_170000_finalize_uuid_full_cutover_core_tables.php) dan [backend/database/migrations/2026_04_26_180000_add_uuid_primary_keys_to_company_users_and_hcm_user_roles.php](../../../backend/database/migrations/2026_04_26_180000_add_uuid_primary_keys_to_company_users_and_hcm_user_roles.php) sudah `Ran`.
+## Akses
 
-## Cakupan target
+- Audiens utama: backend engineer, reviewer API, dan tim audit runtime.
+- Dokumen ini dipakai sebagai acuan keputusan teknis, bukan surface user-facing.
 
-Target akhir adalah seluruh entitas inti memakai UUID sebagai primary key dan seluruh relasi utama memakai foreign key UUID.
+## UI Aktif
 
-Kondisi aktual per tanggal dokumen:
+- Tidak ada halaman UI bisnis khusus.
+- Evidence utama ada di tracker runtime database dan langkah operasional UUID migration.
 
-- Sistem sudah melewati fase transisi aman untuk core tables yang menjadi target cutover.
-- Integer `id` masih dipertahankan sebagai indeks legacy untuk kompatibilitas transisional, tetapi PK aktif sudah `uuid` pada core tables target.
+## Flow Bisnis End-to-End
 
-## Ringkasan progres
+1. Tim mengecek status domain melalui tracker runtime.
+2. Saat fixing runtime dilakukan, tim menjalankan migrate lalu retest scope terdampak.
+3. Domain yang masih hybrid dicatat eksplisit sebagai compatibility layer, bukan dianggap selesai penuh.
+4. Status lintas domain ditutup hanya bila tracker dan kontrak API sudah konsisten.
 
-- Batch UUID rollout sudah berjalan luas lintas domain (core, payroll, leave, asset, performance, reporting, billing support, RBAC).
-- Hardening khusus billing telah ditambahkan melalui migration lanjutan untuk menutup mismatch urutan migrasi historis.
-- Full PK/FK cutover core tables sudah dijalankan pada database lokal, termasuk penutupan relasi inbound `id` dan rebind ke `uuid`.
-- Tracking detail per batch dan status final cutover dipisah ke file tracker: [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md).
+## Lifecycle Dan Keputusan Bisnis
 
-## Gap yang masih kurang
+- Target security/API UUID utama sudah dianggap selesai bila guard route, validasi, dan kontrak utama sudah aman.
+- Full PK cutover baru dianggap selesai bila domain hybrid tidak lagi diperlukan.
+- Domain hybrid dipertahankan sementara hanya untuk kompatibilitas transisi yang terkontrol.
 
-1. Penyesuaian menyeluruh model, service, dan query raw yang masih asumsikan integer PK/FK sebagai sumber utama.
-2. Regression test dan smoke test end-to-end pasca cutover.
-3. Verifikasi ulang API contract jika ada perubahan identifier pada payload/route binding.
+## Integrasi
 
-Catatan implementasi terbaru:
+- OpenAPI dan API feature docs: status UUID harus selaras dengan kontrak aktif pada `docs/api/openapi.yaml` dan dokumen API per fitur.
+- Reporting audit domain: domain yang masih hybrid perlu ditulis eksplisit di feature README terkait agar FE/BE tidak salah asumsi.
+- Payroll, resignation, termination, reporting, dan feature HCM lain yang masih memakai UUID + numeric fallback harus merujuk tracker ini sebagai konteks migrasi lintas domain.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
 
-- Migration final sudah ditambahkan di [backend/database/migrations/2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php](../../../backend/database/migrations/2026_04_26_150000_finalize_uuid_primary_keys_for_core_tables.php).
-- Migration tersebut melakukan PK cutover ke `uuid` untuk tabel inti (`users`, `companies`, `employee_profiles`, `hcm_user_roles`, `company_users`) dengan guard idempotent, backfill UUID, dan menjaga indeks legacy `id` untuk kompatibilitas transisi.
+## Kontrak API
 
-## Risks & safeguards
+## Jawaban cepat
 
-- Risiko downtime tetap ada pada tahap cutover PK/FK.
-- Backup wajib sebelum eksekusi migration final.
-- Gunakan pendekatan forward-only dan idempotent guard untuk menghindari drift antar environment.
-- Jangan menghapus migration historis yang sudah berpotensi tercatat pada tabel `migrations` di environment lain.
+Status proses UUID migration: **SUDAH selesai untuk target security/API, tetapi full PK cutover masih menyisakan domain hybrid**.
 
-## Definition of done
+Yang sudah selesai saat ini:
+- mayoritas tabel target security sudah UUID PK,
+- OpenAPI target UUID utama sudah disapu,
+- guard dasar (route + validasi) sudah banyak dipindahkan ke UUID.
 
-UUID migration dianggap selesai jika seluruh kondisi ini terpenuhi:
+Yang masih tinggal:
+- area hybrid (`UUID + legacy integer`) masih ada di beberapa domain sebagai kompatibilitas transisi,
+- tracker runtime masih menunjukkan tabel yang berstatus PROSES⚠️, jadi ini belum full cutover,
+- gunakan [runtime-db-table-tracker.md](runtime-db-table-tracker.md) untuk detil bukti dan status per tabel.
 
-1. PK utama tabel inti sudah UUID (bukan integer auto-increment).
-2. FK utama child table sudah mereferensikan kolom UUID parent.
-3. Tidak ada query critical path yang mengandalkan integer PK sebagai identifier bisnis.
-4. Test migration, integrity check, dan smoke test modul utama lulus.
-5. Dokumentasi dan tracker status sinkron.
+Rule after fixing:
+- setiap selesai fixing code yang menyentuh behavior runtime, jalankan dulu `cd backend && php artisan migrate --force`,
+- setelah itu wajib rerun test pada scope terdampak,
+- jangan klaim selesai tanpa bukti hasil migrate + test.
 
-## Dokumen terkait
+## Sumber kebenaran
 
-- Detail langkah eksekusi: [docs/features/uuid-migration/STEPS.md](STEPS.md)
-- Tracker batch dan status per migration: [docs/features/uuid-migration/uuid-migration-table-list.md](uuid-migration-table-list.md)
-- Runbook production: [docs/features/uuid-migration/PRODUCTION-RUNBOOK.md](PRODUCTION-RUNBOOK.md)
-- SQL integrity checks: [docs/sql/uuid-cutover-integrity-check.sql](../../sql/uuid-cutover-integrity-check.sql)
-- Script pre-check: `bash scripts/uuid-pre-migration-check.sh`
+1. Status runtime database real: [runtime-db-table-tracker.md](runtime-db-table-tracker.md)
+2. Langkah operasional ringkas: [STEPS.md](STEPS.md)
+
+## Cara pakai dokumen ini
+
+- Kalau butuh jawaban cepat "sudah 100% belum": lihat bagian **Jawaban cepat** di file ini.
+- Kalau butuh bukti detail per tabel/API: buka [runtime-db-table-tracker.md](runtime-db-table-tracker.md).
+- Kalau butuh urutan kerja tim: buka [STEPS.md](STEPS.md).
+
+## Status tinggalan
+
+Checklist cepat untuk membaca apakah masih ada sisa:
+
+- kalau tracker runtime masih punya `PROSES⚠️`, berarti masih ada tinggalan domain,
+- kalau semua resource target sudah UUID namun ada tabel hybrid, berarti cutover belum penuh,
+- kalau `Nothing to migrate` muncul setelah fixing, tetap lanjut ke retest dan catat hasilnya.
+
+## Ruang lingkup yang sengaja dipisah
+
+Dokumen lama yang sangat detail tetap disimpan untuk histori/audit, tapi **bukan** sumber keputusan harian.
+Gunakan file ini + runtime tracker sebagai acuan utama tim.
+
+## Existing Vs Target
+
+- Existing: target security/API utama sudah selesai, tetapi beberapa domain masih hybrid UUID + integer legacy.
+- Existing: rule migrate lalu retest setelah runtime fix masih wajib berlaku.
+- Target: full cutover tanpa tabel/domain hybrid dan tanpa fallback numeric legacy.

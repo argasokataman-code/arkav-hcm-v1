@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Mail\MonthlyPayslipMail;
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeTaxProfile;
 use App\Models\HcmResignation;
@@ -22,19 +24,33 @@ class HcmPayrollApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?Company $company = null;
+
+    private function payrollCompany(): Company
+    {
+        return Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            ['name' => 'Default Company', 'domain' => 'default-company.local']
+        );
+    }
+
     private function adminToken(): string
     {
-        $this->postJson('/v1/identity/auth/register', [
+        $this->company ??= $this->payrollCompany();
+
+        $result = $this->createHcmAdminWithCompany([
             'name' => 'Payroll Admin',
             'email' => 'payroll-admin@example.com',
             'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
+        ], $this->company);
+
+        $this->company = $result['company'];
 
         $user = User::query()->where('email', 'payroll-admin@example.com')->firstOrFail();
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
+                'company_id' => $this->company->id,
                 'team' => 'HR',
                 'designation' => 'HR Admin',
                 'employment_status' => 'active',
@@ -43,16 +59,17 @@ class HcmPayrollApiTest extends TestCase
             ],
         );
 
-        $login = $this->postJson('/v1/identity/auth/login', [
-            'email' => 'payroll-admin@example.com',
-            'password' => 'StrongPass1',
-        ])->assertOk();
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
-        return (string) $login->json('data.accessToken');
+        return $result['token'];
     }
 
     private function workerToken(): string
     {
+        if (! $this->company) {
+            $this->company = $this->payrollCompany();
+        }
+
         $this->postJson('/v1/identity/auth/register', [
             'name' => 'Payroll Worker',
             'email' => 'payroll-worker@example.com',
@@ -61,9 +78,21 @@ class HcmPayrollApiTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::query()->where('email', 'payroll-worker@example.com')->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
+
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
+                'company_id' => $this->company->id,
                 'employment_status' => 'active',
                 'base_salary' => 4_000_000,
                 'fixed_allowance' => 100_000,
@@ -73,7 +102,10 @@ class HcmPayrollApiTest extends TestCase
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => 'payroll-worker@example.com',
             'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
         ])->assertOk();
+
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return (string) $login->json('data.accessToken');
     }
@@ -156,17 +188,19 @@ class HcmPayrollApiTest extends TestCase
 
     public function test_finalize_rejects_empty_payroll_run(): void
     {
-        $this->postJson('/v1/identity/auth/register', [
+        $result = $this->createHcmAdminWithCompany([
             'name' => 'Inactive Admin',
             'email' => 'inactive-payroll-admin@example.com',
             'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
+        ], $this->company);
+
+        $this->company = $result['company'];
 
         $user = User::query()->where('email', 'inactive-payroll-admin@example.com')->firstOrFail();
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             [
+                'company_id' => $this->company->id,
                 'team' => 'HR',
                 'designation' => 'HR Admin',
                 'employment_status' => 'inactive',
@@ -175,12 +209,9 @@ class HcmPayrollApiTest extends TestCase
             ],
         );
 
-        $login = $this->postJson('/v1/identity/auth/login', [
-            'email' => 'inactive-payroll-admin@example.com',
-            'password' => 'StrongPass1',
-        ])->assertOk();
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
-        $token = (string) $login->json('data.accessToken');
+        $token = $result['token'];
 
         $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->postJson('/v1/hcm/payroll-periods', [
@@ -742,7 +773,7 @@ class HcmPayrollApiTest extends TestCase
             ->assertJsonPath('data.totals.earningsTotal', 4182947.98)
             ->assertJsonPath('data.totals.deductionsTotal', 164000)
             ->assertJsonPath('data.totals.netPay', 4018947.98)
-            ->assertJsonPath('data.slipNumber', 'PS-2026-06-1')
+            ->assertJsonPath('data.slipNumber', 'PS-2026-06-'.$worker->id)
             ->assertJsonCount(3, 'data.earnings')
             ->assertJsonCount(3, 'data.deductions');
     }
@@ -807,6 +838,46 @@ class HcmPayrollApiTest extends TestCase
                 'periodYear' => 2026,
                 'periodMonth' => 7,
                 'userIds' => [$worker->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.sentUserIds.0', $worker->id);
+
+        Mail::assertSent(MonthlyPayslipMail::class, function (MonthlyPayslipMail $mail) use ($worker): bool {
+            return $mail->hasTo($worker->email);
+        });
+    }
+
+    public function test_hcm_admin_can_send_finalized_monthly_slips_with_uuid_identifier(): void
+    {
+        Mail::fake();
+
+        $this->workerToken();
+        $admin = $this->adminToken();
+        $worker = User::query()->where('email', 'payroll-worker@example.com')->firstOrFail();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 8,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/send-slips', [
+                'periodYear' => 2026,
+                'periodMonth' => 8,
+                'userIds' => [$worker->uuid],
             ])
             ->assertOk()
             ->assertJsonPath('success', true)

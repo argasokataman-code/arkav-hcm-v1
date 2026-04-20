@@ -89,7 +89,7 @@ class TransactionControllerTest extends TestCase
     public function test_create_transaction_requires_admin()
     {
         $response = $this->postJson('/v1/saas/transactions', [
-            'subscription_id' => $this->subscription->id,
+            'subscription_id' => $this->subscription->uuid,
             'invoice_number' => 'INV-001',
             'amount' => 100000,
             'status' => 'completed',
@@ -102,7 +102,7 @@ class TransactionControllerTest extends TestCase
     {
         $response = $this->withHeader('Cookie', $this->adminCookieHeader())
             ->postJson('/v1/saas/transactions', [
-                'subscription_id' => $this->subscription->id,
+                'subscription_id' => $this->subscription->uuid,
                 'invoice_number' => 'INV-TEST-001',
                 'amount' => 150000,
                 'status' => 'completed',

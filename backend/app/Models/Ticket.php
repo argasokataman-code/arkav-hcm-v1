@@ -2,26 +2,29 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class Ticket extends Model
 {
-    use SoftDeletes;
+    use AssignsUuid, SoftDeletes;
 
     protected static function booted(): void
     {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
+                $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
             }
         });
     }
 
     protected $fillable = [
+        'company_id',
+        'company_uuid',
         'user_id',
         'code',
         'subject',
@@ -40,6 +43,7 @@ class Ticket extends Model
     protected function casts(): array
     {
         return [
+            'company_uuid' => 'string',
             'sla_due_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
@@ -49,6 +53,11 @@ class Ticket extends Model
     public function reporter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     public function assignee(): BelongsTo

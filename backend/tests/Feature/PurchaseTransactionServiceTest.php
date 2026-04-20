@@ -73,7 +73,7 @@ class PurchaseTransactionServiceTest extends TestCase
 
         $this->subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -129,8 +129,8 @@ class PurchaseTransactionServiceTest extends TestCase
     public function test_create_transaction_as_admin(): void
     {
         $response = $this->adminRequest()->postJson('/v1/saas/transactions', [
-            'company_id' => $this->company->id,
-            'subscription_id' => $this->subscription->id,
+            'company_id' => $this->company->uuid,
+            'subscription_id' => $this->subscription->uuid,
             'transaction_type' => 'subscription',
             'description' => 'Monthly billing',
             'amount' => 100000,
@@ -147,14 +147,92 @@ class PurchaseTransactionServiceTest extends TestCase
     public function test_create_transaction_forbidden_for_non_admin(): void
     {
         $response = $this->userRequest()->postJson('/v1/saas/transactions', [
-            'company_id' => $this->company->id,
-            'subscription_id' => $this->subscription->id,
+            'company_id' => $this->company->uuid,
+            'subscription_id' => $this->subscription->uuid,
             'transaction_type' => 'subscription',
             'amount' => 100000,
             'status' => 'issued',
         ]);
 
         $response->assertStatus(403)->assertJson(['success' => false]);
+    }
+
+    public function test_create_transaction_rejects_subscription_from_another_company(): void
+    {
+        $otherCompany = Company::create([
+            'code' => 'other-co',
+            'name' => 'Other Co',
+            'legal_name' => 'Other Co LLC',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherSubscription = Subscription::create([
+            'company_id' => $otherCompany->id,
+            'package_uuid' => $this->subscription->package_uuid,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->adminRequest()->postJson('/v1/saas/transactions', [
+            'company_id' => $this->company->uuid,
+            'subscription_id' => $otherSubscription->uuid,
+            'transaction_type' => 'subscription',
+            'amount' => 100000,
+            'status' => 'issued',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.code', 'SUBSCRIPTION_COMPANY_MISMATCH');
+    }
+
+    public function test_list_transactions_accepts_company_uuid_filter(): void
+    {
+        $otherCompany = Company::create([
+            'code' => 'other-list',
+            'name' => 'Other List Co',
+            'legal_name' => 'Other List Co LLC',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        PurchaseTransaction::create([
+            'transaction_code' => PurchaseTransaction::generateCode(),
+            'company_id' => $this->company->id,
+            'subscription_id' => $this->subscription->id,
+            'transaction_type' => 'subscription',
+            'amount' => 100000,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total_amount' => 100000,
+            'status' => 'paid',
+        ]);
+
+        PurchaseTransaction::create([
+            'transaction_code' => PurchaseTransaction::generateCode(),
+            'company_id' => $otherCompany->id,
+            'subscription_id' => null,
+            'transaction_type' => 'manual',
+            'amount' => 50000,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total_amount' => 50000,
+            'status' => 'draft',
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/transactions?company_id=' . $this->company->uuid);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.company.name', 'Purchase Txn Co');
     }
 
     public function test_update_transaction_status_to_paid(): void

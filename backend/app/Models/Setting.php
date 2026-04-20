@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
+    use AssignsUuid;
     protected $fillable = ['key', 'value', 'group'];
     
     protected $casts = [

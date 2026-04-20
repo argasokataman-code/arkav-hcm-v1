@@ -7,6 +7,12 @@ use Illuminate\Support\Str;
 
 trait AssignsUuid
 {
+    public function initializeAssignsUuid(): void
+    {
+        // Keep legacy integer PK behavior until full FK migration is completed.
+        // This trait only guarantees UUID assignment + UUID route binding.
+    }
+
     protected static function bootAssignsUuid(): void
     {
         static::creating(function ($model): void {
@@ -31,5 +37,10 @@ trait AssignsUuid
 
             $model->uuid = $uuid;
         });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 }

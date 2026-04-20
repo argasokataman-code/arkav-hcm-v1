@@ -26,9 +26,41 @@
     else console.log(message);
   }
 
+  function getAuthHeaders() {
+    const headers = {};
+    const token = window.AuthApi && typeof window.AuthApi.getToken === 'function'
+      ? window.AuthApi.getToken()
+      : null;
+    const tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === 'function'
+      ? (window.AuthApi.getTenantContext() || {})
+      : {};
+
+    if (token) {
+      headers.Authorization = 'Bearer ' + token;
+    }
+    if (tenant.companyCode) {
+      headers['X-Company-Code'] = tenant.companyCode;
+    }
+    if (tenant.companyId) {
+      headers['X-Company-Id'] = String(tenant.companyId);
+    }
+    if (tenant.companyUuid) {
+      headers['X-Company-UUID'] = String(tenant.companyUuid);
+    }
+
+    return headers;
+  }
+
   async function apiRequest(method, url, body) {
     const fullUrl = url.startsWith('http') ? url : url;
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    };
+
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // axios (if available) matches other HCM modules.
     if (window.axios) {

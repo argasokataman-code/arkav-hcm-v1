@@ -1,6 +1,21 @@
 (function (window, document) {
     "use strict";
 
+    function safeRedirect(path) {
+        window.__ARCAV_LAST_REDIRECT__ = path;
+        if (window.__ARCAV_DISABLE_REDIRECTS__ === true) {
+            return;
+        }
+
+        try {
+            window.location.replace(path);
+        } catch (_e) {
+            try {
+                window.location.href = path;
+            } catch (__e) {}
+        }
+    }
+
     function init() {
         var form = document.getElementById("api-login-form");
         if (!form || !window.AuthApi || form.dataset.authBound === "1") {
@@ -58,8 +73,12 @@
                     ? companyCodeInput.value.trim()
                     : "";
 
+                if (window.AuthApi && typeof window.AuthApi.clearTenantContext === "function") {
+                    window.AuthApi.clearTenantContext();
+                }
+
                 if (companyModeActive && !companyCode) {
-                    throw new Error("Company code wajib diisi untuk Login as Company.");
+                    throw new Error("Company code wajib diisi untuk Login Company.");
                 }
 
                 var response = await window.AuthApi.login({
@@ -68,22 +87,26 @@
                     rememberMe: !!(rememberMeInput && rememberMeInput.checked),
                     companyCode: companyModeActive ? companyCode : undefined,
                 });
-                if (!response || !response.data || response.data.success !== true) {
+                var payload = response && response.data ? response.data : null;
+                var loginData = payload && payload.data ? payload.data : null;
+
+                if (!payload || payload.success !== true || !loginData) {
                     throw new Error("Login failed.");
                 }
 
                 if (companyModeActive) {
-                    var activeCompany = response && response.data ? response.data.activeCompany : null;
+                    var activeCompany = loginData.activeCompany || null;
+                    if (!activeCompany || !activeCompany.code || !activeCompany.id) {
+                        throw new Error("Login company berhasil tetapi context tenant tidak valid.");
+                    }
                     window.AuthApi.setTenantContext({
-                        companyCode: companyCode,
-                        companyId: activeCompany && activeCompany.id ? activeCompany.id : undefined,
-                        companyUuid: activeCompany && activeCompany.uuid ? activeCompany.uuid : undefined,
+                        companyCode: activeCompany.code,
+                        companyId: activeCompany.id,
+                        companyUuid: activeCompany.uuid ? activeCompany.uuid : undefined,
                     });
-                } else {
-                    window.AuthApi.clearTenantContext();
                 }
 
-                window.location.href = "/index";
+                safeRedirect("/index");
             } catch (error) {
                 var apiMessage = error?.response?.data?.error?.message;
                 setError(apiMessage || error.message || "Login gagal. Periksa email/password.");

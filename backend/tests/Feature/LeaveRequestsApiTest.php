@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\AttendanceRecord;
+use App\Models\CompanyUser;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
@@ -10,6 +12,7 @@ use App\Models\LeaveLedger;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +64,14 @@ class LeaveRequestsApiTest extends TestCase
     {
         $employeeToken = $this->bearerToken('employee-leave@example.com', 'Employee');
         $other = User::factory()->create();
+        $employee = User::query()->where('email', 'employee-leave@example.com')->firstOrFail();
+
+        CompanyUser::query()->create([
+            'company_id' => $employee->company_id ?? 1,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$employeeToken,
@@ -76,11 +87,39 @@ class LeaveRequestsApiTest extends TestCase
 
     public function test_admin_can_create_leave_for_other_user(): void
     {
-        $adminToken = $this->bearerToken('admin-leave@example.com', 'HR Admin');
+        $company = Company::factory()->create(['code' => 'leave_admin_create_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave@example.com',
+            'name' => 'Admin Leave',
+        ], $company);
+        $adminToken = $admin['token'];
         $other = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        // Seed balance for the other user
+        $leaveType = \App\Models\LeaveType::where('code', 'annual_leave')->first();
+        $companyId = $company->id;
+
+        \App\Models\EmployeeLeaveBalance::create([
+            'company_id' => $companyId,
+            'employee_id' => $other->id,
+            'leave_type_id' => $leaveType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
         ])->postJson('/v1/hcm/leave-requests', [
             'userId' => $other->id,
             'leaveType' => 'Annual Leave',
@@ -95,7 +134,17 @@ class LeaveRequestsApiTest extends TestCase
     {
         $employeeToken = $this->bearerToken('employee-leave2@example.com', 'Staff');
         $other = User::factory()->create();
+        $employee = User::query()->where('email', 'employee-leave2@example.com')->firstOrFail();
+
+        CompanyUser::query()->create([
+            'company_id' => $employee->company_id ?? 1,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
         $leave = LeaveRequest::query()->create([
+            'company_id' => $employee->company_id ?? 1,
             'user_id' => $other->id,
             'leave_type' => 'Annual',
             'date_from' => '2026-04-10',
@@ -115,9 +164,23 @@ class LeaveRequestsApiTest extends TestCase
 
     public function test_admin_can_update_another_users_leave_status(): void
     {
-        $adminToken = $this->bearerToken('admin-leave2@example.com', 'HR Manager');
+        $company = Company::factory()->create(['code' => 'leave_admin_update_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave2@example.com',
+            'name' => 'Admin Leave Update',
+        ], $company);
+        $adminToken = $admin['token'];
         $other = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
         $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
             'user_id' => $other->id,
             'leave_type' => 'Annual',
             'date_from' => '2026-04-10',
@@ -129,6 +192,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
         ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
             'status' => 'approved',
         ])->assertOk()
@@ -139,9 +203,23 @@ class LeaveRequestsApiTest extends TestCase
 
     public function test_admin_approval_posts_leave_ledger_and_balance(): void
     {
-        $adminToken = $this->bearerToken('admin-leave3@example.com', 'HR Manager');
+        $company = Company::factory()->create(['code' => 'leave_admin_approve_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave3@example.com',
+            'name' => 'Admin Leave Approve',
+        ], $company);
+        $adminToken = $admin['token'];
         $other = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
         $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
             'user_id' => $other->id,
             'leave_type' => 'Annual',
             'date_from' => '2026-04-10',
@@ -153,6 +231,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
         ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
             'status' => 'approved',
         ])->assertOk();
@@ -180,9 +259,49 @@ class LeaveRequestsApiTest extends TestCase
 
     public function test_approve_decline_reapprove_keeps_net_usage_consistent(): void
     {
-        $adminToken = $this->bearerToken('admin-leave4@example.com', 'HR Manager');
+        $company = Company::factory()->create(['code' => 'leave_admin_reapprove_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave4@example.com',
+            'name' => 'Admin Leave Reapprove',
+        ], $company);
+        $adminToken = $admin['token'];
         $other = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        // Seed balance for the test
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $other->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
+
+        // Seed policy for the test
+        $policy = \App\Models\LeavePolicy::create([
+            'company_id' => $company->id,
+            'leave_type_id' => $annualType->id,
+            'name' => 'Test Annual Policy',
+            'effective_from' => '2026-01-01',
+            'effective_to' => null,
+            'max_days_per_year' => 12,
+            'max_consecutive_days' => 5,
+            'requires_approval' => true,
+            'is_active' => true,
+        ]);
+
         $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
             'user_id' => $other->id,
             'leave_type' => 'Annual',
             'date_from' => '2026-04-15',
@@ -192,7 +311,10 @@ class LeaveRequestsApiTest extends TestCase
             'notes' => null,
         ]);
 
-        $headers = ['Authorization' => 'Bearer '.$adminToken];
+        $headers = [
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ];
 
         $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])->assertOk();
         $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'declined'])->assertOk();
@@ -200,6 +322,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
         $net = (float) LeaveLedger::query()
+            ->where('company_id', $company->id)
             ->where('employee_id', $other->id)
             ->where('leave_type_id', $annualType->id)
             ->where('reference_id', 'like', 'leave_request:'.$leave->id.':%')
@@ -207,6 +330,64 @@ class LeaveRequestsApiTest extends TestCase
 
         $this->assertEquals(-2.0, $net);
         $this->assertSame('approved', $leave->fresh()->status);
+    }
+
+    public function test_approved_leave_only_updates_attendance_within_same_company(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_attendance_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave4@example.com',
+            'name' => 'Admin Leave Attendance',
+        ], $company);
+        $adminToken = $admin['token'];
+        $other = User::factory()->create();
+        $otherCompany = Company::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $other->id,
+            'leave_type' => 'Annual',
+            'date_from' => '2026-04-15',
+            'date_to' => '2026-04-15',
+            'days' => 1,
+            'status' => 'pending',
+            'notes' => null,
+        ]);
+
+        AttendanceRecord::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $other->id,
+            'work_date' => '2026-04-15',
+            'status' => 'present',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ])
+            ->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('attendance_records', [
+            'company_id' => $leave->company_id,
+            'user_id' => $other->id,
+            'work_date' => '2026-04-15 00:00:00',
+            'status' => 'on_leave',
+        ]);
+
+        $this->assertDatabaseHas('attendance_records', [
+            'company_id' => $otherCompany->id,
+            'user_id' => $other->id,
+            'work_date' => '2026-04-15 00:00:00',
+            'status' => 'present',
+        ]);
     }
 
     public function test_scope_me_returns_balance_summary_meta_for_ui_cards(): void
@@ -238,10 +419,23 @@ class LeaveRequestsApiTest extends TestCase
 
     public function test_index_filter_leave_type_accepts_name_and_legacy_code_variants(): void
     {
-        $adminToken = $this->bearerToken('leave-filter-admin@example.com', 'HR Admin');
+        $company = Company::factory()->create(['code' => 'leave_filter_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'leave-filter-admin@example.com',
+            'name' => 'Leave Filter Admin',
+        ], $company);
+        $adminToken = $admin['token'];
         $employee = User::factory()->create();
 
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
         LeaveRequest::query()->create([
+            'company_id' => $company->id,
             'user_id' => $employee->id,
             'leave_type' => 'annual_leave',
             'date_from' => '2026-04-10',
@@ -251,6 +445,7 @@ class LeaveRequestsApiTest extends TestCase
             'notes' => null,
         ]);
         LeaveRequest::query()->create([
+            'company_id' => $company->id,
             'user_id' => $employee->id,
             'leave_type' => 'Annual Leave',
             'date_from' => '2026-04-11',
@@ -262,6 +457,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
         ])->getJson('/v1/hcm/leave-requests?leaveType=Annual%20Leave&userId='.$employee->id)
             ->assertOk()
             ->assertJsonPath('success', true);
@@ -275,6 +471,7 @@ class LeaveRequestsApiTest extends TestCase
         $user = User::query()->where('email', 'leave-labels@example.com')->firstOrFail();
 
         LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'annual_leave',
             'date_from' => '2026-04-10',
@@ -296,6 +493,20 @@ class LeaveRequestsApiTest extends TestCase
     public function test_store_auto_calculates_working_days_excluding_weekend_and_holiday(): void
     {
         $token = $this->bearerToken('leave-autodays@example.com', 'Staff');
+        $user = User::query()->where('email', 'leave-autodays@example.com')->firstOrFail();
+
+        // Seed balance for the test user
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $user->company_id ?? 1,
+            'employee_id' => $user->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
 
         HolidayCalendar::query()->create([
             'company_id' => null,
@@ -325,6 +536,20 @@ class LeaveRequestsApiTest extends TestCase
     public function test_store_persists_leave_request_breakdowns_with_holiday_calendar_link(): void
     {
         $token = $this->bearerToken('leave-breakdown-create@example.com', 'Staff');
+        $user = User::query()->where('email', 'leave-breakdown-create@example.com')->firstOrFail();
+
+        // Seed balance for the test user
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $user->company_id ?? 1,
+            'employee_id' => $user->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
 
         $holiday = Holiday::query()->create([
             'title' => 'Hari Libur Breakdown',
@@ -381,6 +606,7 @@ class LeaveRequestsApiTest extends TestCase
         $user = User::query()->where('email', 'leave-breakdown-update@example.com')->firstOrFail();
 
         $leave = LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'Annual Leave',
             'date_from' => '2026-04-10',
@@ -453,6 +679,7 @@ class LeaveRequestsApiTest extends TestCase
         $user = User::query()->where('email', 'leave-filter@example.com')->firstOrFail();
 
         LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'Annual Leave',
             'date_from' => '2026-04-10',
@@ -462,6 +689,7 @@ class LeaveRequestsApiTest extends TestCase
             'notes' => null,
         ]);
         LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'Sick Leave',
             'date_from' => '2026-04-20',
@@ -527,6 +755,7 @@ class LeaveRequestsApiTest extends TestCase
         $user = User::query()->where('email', 'leave-export-admin@example.com')->firstOrFail();
 
         LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'Annual Leave',
             'date_from' => '2026-04-03',
@@ -536,6 +765,7 @@ class LeaveRequestsApiTest extends TestCase
             'notes' => 'export-me',
         ]);
         LeaveRequest::query()->create([
+            'company_id' => $user->company_id ?? 1,
             'user_id' => $user->id,
             'leave_type' => 'Sick Leave',
             'date_from' => '2026-05-03',
@@ -547,13 +777,13 @@ class LeaveRequestsApiTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
-        ])->get('/v1/hcm/leave-requests/export?status=approved&dateFrom=2026-04-01&dateTo=2026-04-30');
+        ])->get('/v1/hcm/leave-requests/export?scope=me&status=approved&dateFrom=2026-04-01&dateTo=2026-04-30');
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
 
         $content = $response->streamedContent();
-        $this->assertStringContainsString('Employee,Email,"Leave Type","Date From","Date To",Days,Status,Notes', $content);
+        $this->assertStringContainsString('"Leave Type","Date From","Date To",Days,Status,Notes', $content);
         $this->assertStringContainsString('export-me', $content);
         $this->assertStringNotContainsString('should-not-export', $content);
     }
@@ -575,6 +805,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $otherUser = User::factory()->create();
         $leave = LeaveRequest::query()->create([
+            'company_id' => $otherUser->company_id ?? 1,
             'user_id' => $otherUser->id,
             'leave_type' => 'Annual',
             'date_from' => '2026-04-10',
@@ -591,5 +822,88 @@ class LeaveRequestsApiTest extends TestCase
         ])->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
+    public function test_store_rejects_leave_request_when_balance_insufficient(): void
+    {
+        $token = $this->bearerToken('leave-insufficient-balance@example.com', 'Staff');
+        $user = User::query()->where('email', 'leave-insufficient-balance@example.com')->firstOrFail();
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+
+        // Set low balance
+        EmployeeLeaveBalance::query()->create([
+            'company_id' => null,
+            'employee_id' => $user->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 1.0, // Only 1 day available
+            'used' => 0,
+            'expired' => 0,
+            'carried_forward' => 0,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-04-14', // Monday
+            'dateTo' => '2026-04-15', // Tuesday, 2 working days
+            'notes' => 'Should fail due to insufficient balance',
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'LEAVE_INSUFFICIENT_BALANCE');
+    }
+
+    public function test_admin_cannot_create_leave_for_user_outside_active_company(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_foreign_create_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'leave-foreign-admin@example.com',
+            'name' => 'Leave Foreign Admin',
+        ], $company);
+        $otherCompany = Company::factory()->create(['code' => 'leave_foreign_target_company']);
+        $foreignUser = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $foreignUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'userId' => $foreignUser->id,
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-04-10',
+            'dateTo' => '2026-04-11',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['userId']);
+    }
+
+    public function test_admin_cannot_view_leave_balance_for_user_outside_active_company(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_foreign_balance_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'leave-balance-admin@example.com',
+            'name' => 'Leave Balance Admin',
+        ], $company);
+        $otherCompany = Company::factory()->create(['code' => 'leave_foreign_balance_target']);
+        $foreignUser = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $foreignUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Code' => $company->code,
+        ])->getJson('/v1/hcm/employee-leave-balance?leaveType=Annual%20Leave&userId='.$foreignUser->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
     }
 }

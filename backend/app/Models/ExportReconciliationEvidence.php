@@ -2,15 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class ExportReconciliationEvidence extends Model
 {
+    use AssignsUuid;
     use HasFactory;
+    use AssignsUuid;
+
 
     protected $table = 'export_reconciliation_evidences';
 
@@ -35,6 +40,7 @@ class ExportReconciliationEvidence extends Model
     public const ACTION_VERIFY = 'verify';
 
     protected $fillable = [
+        'uuid',
         'company_id',
         'feature_key',
         'action_key',
@@ -52,6 +58,7 @@ class ExportReconciliationEvidence extends Model
     protected function casts(): array
     {
         return [
+            'uuid' => 'string',
             'company_id' => 'integer',
             'exported_by_user_id' => 'integer',
             'row_count' => 'integer',

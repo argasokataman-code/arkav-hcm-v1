@@ -6,7 +6,7 @@ Prefix: `/v1/hcm` · middleware **`api.token`** · envelope `{ success, data?, e
 
 Sumber utama **admin** untuk mendefinisikan baris yang dipakai konteks payroll (katalog `hcm_payroll_items`): **kustom** atau **taut ke** baris existing `hcm_salary_components` (seed). Halaman web: **`/payroll`**.
 
-Menu terpisah **Master komponen gaji** dihapus dari navigasi; URL lama **`/salary-component-master`** diarahkan ke **`/payroll`**. API **`/salary-components`** tetap ada untuk mesin/integrasi internal.
+Halaman **Master komponen gaji** tetap aktif di **`/salary-component-master`** untuk CRUD seed `hcm_salary_components`. API **`/salary-components`** dipakai baik oleh halaman master tersebut maupun oleh `/payroll` saat admin menautkan payroll item ke master aktif.
 
 ## RBAC
 
@@ -69,6 +69,7 @@ Menghapus baris `hcm_payroll_items` saja (tidak menghapus `hcm_salary_components
 ## Web
 
 - Route **`/payroll`** — middleware **`hcm.web.admin`**, JS `payroll-items-data.js` + partial `hcm/partials/payroll-item-modals.blade.php`.
+- Route **`/salary-component-master`** — middleware **`hcm.web.admin`**, JS `salary-component-master-data.js` untuk CRUD master komponen gaji.
 - Dropdown taut master memakai **`GET /v1/hcm/salary-components`** (hanya master yang belum punya payroll item lain).
 
 ## Tes

@@ -1,8 +1,16 @@
 # Goal Tracking (Phase 1)
 
-Modul ini melengkapi Performance Phase 1 dengan fitur **Goal Tracking**: master *goal type* (admin-only untuk mutasi) dan daftar goals yang bisa diakses dengan scope **me/team/all** sesuai role.
+## Ringkasan
 
-Rujukan role & akses per URL: `docs/planning/active-hcm-templates-and-permissions.md`.
+Modul ini melengkapi Performance Phase 1 dengan master goal type dan daftar goals yang bisa diakses pada scope `me`, `team`, atau `all` sesuai role. Goal tracking memberi lapisan sasaran kerja yang lebih operasional daripada appraisal, tetapi tetap memakai relasi employee-manager dan tenant scope yang sama.
+
+## Akses
+
+- Authenticated user: dapat membuat dan melihat goal dirinya sendiri.
+- Manager: dapat melihat dan memperbarui goal bawahan dengan `manager_user_id = user.id`.
+- HCM Admin: mutasi goal type dan akses scope `all`.
+
+## UI Aktif
 
 ## UI pages (template aktif)
 
@@ -13,6 +21,27 @@ Rujukan role & akses per URL: `docs/planning/active-hcm-templates-and-permission
   - List goals dengan filter scope, goal type, status, keyword.
   - CRUD via modal `#arcav_goal_modal`.
   - Export CSV dari list saat ini.
+
+## Flow Bisnis End-to-End
+
+1. HCM Admin menyiapkan goal type yang bisa dipakai tenant.
+2. Employee membuat goal pribadi dari `/goal-tracking`.
+3. Manager memantau dan mengupdate goal bawahan bila diperlukan.
+4. Admin dapat melihat keseluruhan goal tenant untuk kebutuhan monitoring dan evaluasi.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Scope `me`, `team`, dan `all` memisahkan boundary akses tanpa memecah endpoint.
+- Goal owner tetap user pemilik; manager hanya mendapat hak update pada goal timnya.
+- Goal type mutation tetap admin-only agar kamus sasaran tidak liar.
+
+## Integrasi
+
+- Performance: goal tracking menjadi pelengkap appraisal performance dan berbagi konteks role/manager yang sama. Lihat `docs/features/performance/README.md`.
+- Employees & Organization: `manager_user_id` dan user owner mengandalkan data employee profile tenant. Lihat `docs/features/employees-organization/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+
+## Kontrak API
 
 ## API endpoints (Laravel)
 
@@ -39,6 +68,11 @@ Base path: `/v1/hcm/performance`
   - Manager: goal dengan `manager_user_id = user.id`
   - Admin: semua
 - `DELETE /goals/{id}` (Owner / Admin)
+
+## Existing Vs Target
+
+- Existing: goal types, goal CRUD scope-aware, export CSV, dan manager/team filtering sudah aktif.
+- Target: integrasi analitik yang lebih dalam ke performance review dan dashboard performa masih bisa diperluas.
 
 ## Data model (ringkas)
 

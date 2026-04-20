@@ -45,6 +45,9 @@
                     </div>
                 </div>
             </div>
+
+            @include('hcm.partials.payroll-lifecycle-alert', ['variant' => 'info', 'title' => 'Efek perubahan payroll item'])
+
             <div class="d-flex flex-wrap gy-2 justify-content-between my-4">
                 @include('hcm.partials.payroll-section-tabs', ['payrollTab' => 'additions'])
                 <div class="mb-2">

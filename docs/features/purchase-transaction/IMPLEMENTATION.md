@@ -68,6 +68,14 @@ Purchase Transactions Module
   - Mark as sent/paid actions
   - Real-time token refresh
 
+#### Active Ledger Page
+- **Dashboard** - `/saas/transactions` view
+- **Manager** - `frontend/resources/js/purchase-transactions-data.js`
+  - Filter invoice number, company name, status, payment method, and date
+  - Transaction detail modal via active blade ids
+  - CSV export through `GET /v1/saas/transactions/export`
+  - Uses the legacy transaction payload contract that matches the active SaaS admin page
+
 ---
 
 ### 2. **Payment Management**
@@ -226,6 +234,14 @@ $schedule->job(\App\Jobs\SendPaymentReminder::class)
 - Select gateway: `$service = new PaymentGatewayService('stripe')`
 - Abstracted interface allows easy switching
 - Metadata storage for gateway references
+
+---
+
+## UI / UX Notes
+
+- Halaman aktif `/saas/transactions` diposisikan sebagai ledger SaaS admin, bukan form entry per transaksi.
+- Aksi utama yang tersedia sekarang: filter, detail row, dan export CSV keseluruhan.
+- Tombol aksi tunggal yang tidak punya endpoint backend tidak ditampilkan agar tidak menimbulkan CTA palsu.
 
 ---
 

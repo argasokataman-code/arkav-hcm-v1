@@ -26,7 +26,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - Nominal negatif dari DB diperlakukan sebagai **0**.
 - Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** pembayaran gateway, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
 
-**Belum** di-cover penuh: posting GL, void/reopen run, tabel audit terpisah, dan aturan pajak/payroll lanjutan.
+**Belum** di-cover penuh: posting GL, tabel audit terpisah, dan aturan pajak/payroll lanjutan.
 
 ## RBAC
 
@@ -34,7 +34,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 |----------|--------|
 | `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
-| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
+| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
 | `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
 | `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji milik sendiri untuk periode query; `404` bila belum ada run final |
@@ -111,11 +111,20 @@ Query opsional:
 
 **200** `data[]`: ringkasan run (`serializeRun`) + `auditTrail[]`.
 
+Field audit yang kini relevan untuk run `void`:
+- `voidedAt`
+- `voidedByUserId`
+- `voidedByUserName`
+
+`auditTrail[]` dapat memuat event `calculated`, `finalized`, `voided`, dan `disbursed`.
+
 **200** `meta.pagination`: `page`, `perPage`, `total`, `totalPages`.
 
 ### `GET /payroll-runs/{id}`
 
 **200** `data`: `run` (detail + `period` jika termuat), `lines[]` semua karyawan — urut `userId`, `sortOrder`.
+
+Untuk run yang sudah di-void, payload `run` juga memuat `voidedAt`, `voidedByUserId`, dan `voidedByUserName`; `auditTrail[]` akan berisi event `voided` dengan waktu dan actor bila metadata tersedia.
 
 Tambahan konteks UI payroll run:
 - `specialRecipients.thrUserIds[]` — user dalam periode yang sama yang punya run `purpose=thr` dengan net pay positif.
@@ -132,6 +141,17 @@ Menyetel run menjadi `finalized`, `finalized_at`, `finalized_by_user_id` = user 
 - `PAYROLL_RUN_NOT_DRAFT` jika run bukan `draft`.
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run `finalized` lain dengan **`purpose` yang sama** (gaji bulanan dan THR boleh sama-sama final dalam satu periode jika `purpose` berbeda).
 - `PAYROLL_RUN_EMPTY` jika run tidak memiliki satupun baris (mis. tidak ada karyawan active/probation di draft).
+
+### `POST /payroll-runs/{id}/void`
+
+Menyetel run `finalized` menjadi `void` selama payroll tersebut **belum pernah dibayar**. Jika sesudah void tidak ada lagi run `finalized` lain di periode yang sama, status periode dikembalikan dari `posted` ke `open`. Saat aksi berhasil, sistem juga menyimpan metadata `voidedAt`, `voidedByUserId`, dan `voidedByUserName` untuk history/audit trail.
+
+Identifier saat ini masih menerima **numeric legacy** pada runtime controller (`{id}` integer), walau kontrak OpenAPI repo tetap memakai path parameter UUID generik.
+
+**422**
+
+- `PAYROLL_RUN_NOT_FINALIZED` jika run belum `finalized`.
+- `PAYROLL_RUN_ALREADY_PAID` jika ada line pada run yang sudah berstatus `paid`.
 
 ### `POST /payroll-runs/{id}/disburse`
 
@@ -269,7 +289,7 @@ List assignment payroll item per karyawan.
 
 Query:
 
-- `userId` (wajib, `users.id`)
+- `userId` (wajib, `users.uuid`)
 - `kind` (opsional: `addition|deduction`)
 - `isActive` (opsional boolean)
 
@@ -287,7 +307,7 @@ Membuat assignment payroll item untuk satu karyawan.
 
 | Field | Wajib | Aturan |
 |-------|--------|--------|
-| `userId` | ya | integer `users.id` |
+| `userId` | ya | UUID `users.uuid` |
 | `payrollItemId` | ya | integer `hcm_payroll_items.id` (harus aktif dan berada pada tenant yang sama) |
 | `amount` | ya | numeric `0.01`–`999999999999.99` |
 | `isActive` | tidak | boolean, default `true` |

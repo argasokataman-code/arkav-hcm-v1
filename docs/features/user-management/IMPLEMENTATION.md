@@ -3,6 +3,8 @@
 Status: Implemented (Backend API v1 + Authorization Pattern v1)
 Updated: 2026-04-18
 
+Tracker: [TRACKER.md](TRACKER.md)
+
 ## 1. Objective
 
 Menyediakan fondasi akses berbasis role-permission yang tenant-aware, tetap kompatibel dengan model existing (`company_users.role`) selama masa transisi.

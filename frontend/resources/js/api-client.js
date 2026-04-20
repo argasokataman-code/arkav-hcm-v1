@@ -82,11 +82,26 @@
         }
         var titleEl = el.querySelector("[data-arcav-upgrade-title]");
         var bodyEl = el.querySelector("[data-arcav-upgrade-body]");
+        var tipEl = el.querySelector("[data-arcav-upgrade-tip]");
+        var secondaryEl = el.querySelector("[data-arcav-upgrade-secondary]");
+        var primaryEl = el.querySelector("[data-arcav-upgrade-primary]");
+        var mode = payload && payload.mode ? String(payload.mode) : "upgrade";
+        var isUpgradeMode = mode === "upgrade";
+
         if (titleEl) {
             titleEl.textContent = (payload && payload.title) || "Akses dibatasi";
         }
         if (bodyEl) {
             bodyEl.textContent = (payload && payload.message) || "Fitur ini terkunci untuk paket saat ini.";
+        }
+        if (tipEl) {
+            tipEl.classList.toggle("d-none", !isUpgradeMode);
+        }
+        if (secondaryEl) {
+            secondaryEl.classList.toggle("d-none", !isUpgradeMode);
+        }
+        if (primaryEl) {
+            primaryEl.classList.toggle("d-none", !isUpgradeMode);
         }
         window.bootstrap.Modal.getOrCreateInstance(el).show();
     }
@@ -106,24 +121,34 @@
         var roleScope = ds.roleScope ? String(ds.roleScope) : "";
 
         var isTrial = subStatus === "trial";
+        var code = data && data.error && data.error.code ? String(data.error.code) : "";
         var title = "Akses dibatasi";
         var message = "Fitur ini terkunci untuk paket saat ini. Yuk subscribe sekarang untuk akses lebih lengkap.";
+        var mode = "upgrade";
 
         // If it looks like a role-only restriction, keep the UX friendly but not misleading.
         if (!isTrial && roleScope !== "hcm-admin") {
             message = "Fitur ini hanya bisa diakses oleh HCM Admin. Jika kamu butuh akses, hubungi admin perusahaan.";
+            mode = "permission";
+        }
+
+        if (!isTrial && (code === "FORBIDDEN" || code === "AUTH_FORBIDDEN")) {
+            mode = "permission";
         }
 
         // If API provides a safe message, surface it.
         if (data && data.error && typeof data.error.message === "string" && data.error.message.trim()) {
             message = data.error.message.trim();
-            if (isTrial) {
+            if (isTrial && mode === "upgrade") {
                 // Keep the subscribe CTA framing for trial users.
                 message += " Yuk subscribe sekarang untuk akses lebih lengkap.";
             }
+            if (!isTrial && message.toLowerCase().indexOf("only hcm admin") !== -1) {
+                mode = "permission";
+            }
         }
 
-        showUpgradeRequiredModal({ title: title, message: message });
+        showUpgradeRequiredModal({ title: title, message: message, mode: mode });
         return true;
     }
 

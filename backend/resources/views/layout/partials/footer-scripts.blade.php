@@ -8,21 +8,45 @@
 <!-- Authorization/Permissions Utility (MUST BE LOADED EARLY) -->
 <script>
     @php
-        $footerAuthUser = auth()->user();
+        $footerAuthUser = request()->user() ?: auth()->user();
         $footerActiveCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+        $footerIsGlobalHcmAdmin = $footerAuthUser ? $footerAuthUser->isGlobalHcmAdmin() : false;
         $footerIsHcmAdmin = $footerAuthUser
             ? ($footerActiveCompanyId > 0
                 ? $footerAuthUser->isHcmAdminForCompany($footerActiveCompanyId)
                 : $footerAuthUser->isHcmAdmin())
             : false;
+        $footerPermissionCodes = [];
+
+        if ($footerAuthUser) {
+            if ($footerIsGlobalHcmAdmin) {
+                $footerPermissionCodes = \App\Models\HcmPermission::query()
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->pluck('code')
+                    ->map(static fn ($code): string => (string) $code)
+                    ->values()
+                    ->all();
+            } else {
+                $footerPermissionCodes = array_keys(
+                    $footerActiveCompanyId > 0
+                        ? $footerAuthUser->permissionsForContext($footerActiveCompanyId)
+                        : $footerAuthUser->permissionsForContext()
+                );
+
+                sort($footerPermissionCodes);
+            }
+        }
     @endphp
 
 	// Inject auth user context from blade template
 	window.AuthUser = {
-		id: {{ auth()->id() ?? 'null' }},
-		email: '{{ auth()->user()?->email ?? '' }}',
+        id: {{ $footerAuthUser?->id ?? 'null' }},
+        email: '{{ $footerAuthUser?->email ?? '' }}',
         isHcmAdmin: {{ $footerIsHcmAdmin ? 'true' : 'false' }},
-		name: '{{ auth()->user()?->name ?? '' }}',
+        hcmGlobalAdmin: {{ $footerIsGlobalHcmAdmin ? 'true' : 'false' }},
+        permissions: @json($footerPermissionCodes),
+        name: '{{ $footerAuthUser?->name ?? '' }}',
 	};
 </script>
 <script src="{{ URL::asset('build/js/auth-permissions-utils.js') }}"></script>
@@ -399,7 +423,7 @@
     <script src="{{ URL::asset('build/js/leave-settings-data.js') }}"></script>
 @endif
 
-@if (Route::is(['saas.billing-overview']))
+@if (Route::is(['saas.billing-overview', 'saas.billing-overview.invoice-detail']))
     <script src="{{ URL::asset('build/js/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas-billing-overview.js')) : time() }}"></script>
 @endif
 

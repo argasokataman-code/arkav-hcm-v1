@@ -88,6 +88,7 @@ class EmployeesTenantScopeTest extends TestCase
         $loginResponse = $this->postJson('/v1/identity/auth/login', [
             'email' => 'owner@example.com',
             'password' => 'StrongPass1',
+            'companyCode' => $companyA->code,
         ])->assertOk()->assertCookie($this->cookieName());
 
         $token = $this->readCookieValueFromLoginResponse($loginResponse);

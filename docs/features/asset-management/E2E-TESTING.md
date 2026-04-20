@@ -9,6 +9,7 @@ Memastikan alur asset management berjalan end-to-end untuk admin: kategori, asse
 - App URL: `http://localhost:8000`
 - Admin user: `qa.login@example.com / StrongPass1`
 - Company token requires `X-Company-Code` header when tenant context is needed.
+- Kontrak aktif asset flow memakai numeric ID untuk `{asset}`, `asset_category_id`, dan `employee_id`.
 
 ## Scenario 0 - UI Smoke Check
 
@@ -88,6 +89,7 @@ Memastikan alur asset management berjalan end-to-end untuk admin: kategori, asse
 1. Panggil `POST /v1/hcm/assets/{asset}/issue-report`.
 2. Expected:
    - Ticket baru dibuat
+   - Ticket mewarisi `company_id` asset yang dilaporkan
    - Asset status mengikuti issue type
    - Log asset tercatat
 

@@ -6,11 +6,41 @@ const ReportsHub = {
     modal: null,
     selectedReportType: null,
 
-    apiRequest(method, url, payload) {
+    getTenantContext() {
+        if (window.AuthApi && typeof window.AuthApi.getTenantContext === 'function') {
+            return window.AuthApi.getTenantContext() || {};
+        }
+        return {};
+    },
+
+    buildHeaders(payload) {
         const headers = { Accept: 'application/json' };
+        const token = window.AuthApi && typeof window.AuthApi.getToken === 'function' ? window.AuthApi.getToken() : null;
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        const tenant = this.getTenantContext();
+        if (tenant.companyCode) {
+            headers['X-Company-Code'] = tenant.companyCode;
+        }
+        if (tenant.companyId) {
+            headers['X-Company-Id'] = String(tenant.companyId);
+        }
+        if (tenant.companyUuid) {
+            headers['X-Company-UUID'] = String(tenant.companyUuid);
+        }
+
         if (payload && typeof payload === 'object') {
             headers['Content-Type'] = 'application/json';
         }
+
+        return headers;
+    },
+
+    apiRequest(method, url, payload) {
+        const headers = this.buildHeaders(payload);
 
         if (window.axios) {
             return window.axios({ method, url, headers, data: payload, withCredentials: true })
@@ -43,6 +73,18 @@ const ReportsHub = {
             }
             return data;
         }));
+    },
+
+    extractErrorMessage(error, fallback) {
+        if (error && error.data && error.data.error && error.data.error.message) {
+            return error.data.error.message;
+        }
+
+        if (error && error.message) {
+            return error.message;
+        }
+
+        return fallback;
     },
 
     init() {
@@ -98,7 +140,7 @@ const ReportsHub = {
                 this.showAlert('error', result.error?.message || 'Failed to generate snapshot');
             }
         } catch (error) {
-            this.showAlert('error', `Error: ${error.message}`);
+            this.showAlert('error', this.extractErrorMessage(error, 'Failed to generate snapshot'));
         }
     },
 
@@ -128,7 +170,7 @@ const ReportsHub = {
             }
         } catch (error) {
             loading.style.display = 'none';
-            this.showAlert('error', `Error loading snapshots: ${error.message}`);
+            this.showAlert('error', this.extractErrorMessage(error, 'Failed to load snapshots'));
             empty.style.display = 'block';
         }
     },
@@ -191,7 +233,7 @@ const ReportsHub = {
                 this.showAlert('info', `Snapshot ID ${id}: ${result.data.rowCount} rows`);
             }
         } catch (error) {
-            this.showAlert('error', `Error: ${error.message}`);
+            this.showAlert('error', this.extractErrorMessage(error, 'Failed to load snapshot detail'));
         }
     },
 
@@ -226,7 +268,7 @@ const ReportsHub = {
                 }
             }
         } catch (error) {
-            this.showAlert('error', `Export error: ${error.message}`);
+            this.showAlert('error', this.extractErrorMessage(error, 'Failed to export snapshot'));
         }
     },
 
@@ -267,6 +309,8 @@ const ReportsHub = {
         return new Date(isoDate).toLocaleString();
     },
 };
+
+window.ReportsHub = ReportsHub;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => ReportsHub.init());

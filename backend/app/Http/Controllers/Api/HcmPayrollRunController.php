@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Closure;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
@@ -35,7 +36,7 @@ class HcmPayrollRunController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $runQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name']);
+        $runQuery = HcmPayrollRun::query()->with(['period', 'finalizedBy:id,name', 'voidedBy:id,name', 'lines.user:id,name']);
         $this->applyTenantScope($runQuery, $companyId);
         $run = $runQuery->where('id', $id)->firstOrFail();
         $lines = $run->lines
@@ -74,7 +75,7 @@ class HcmPayrollRunController extends Controller
 
         $perPage = (int) ($validated['perPage'] ?? 20);
         $companyId = $this->activeCompanyId($request);
-        $query = HcmPayrollRun::query()->with(['period', 'finalizedBy:id,name', 'lines']);
+        $query = HcmPayrollRun::query()->with(['period', 'finalizedBy:id,name', 'voidedBy:id,name', 'lines']);
         $this->applyTenantScope($query, $companyId);
         if (! empty($validated['status'] ?? null)) {
             $query->where('status', $validated['status']);
@@ -193,6 +194,97 @@ class HcmPayrollRunController extends Controller
         ]);
     }
 
+    public function void(Request $request, int $id): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.finalize');
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        $result = DB::transaction(function () use ($id, $companyId, $request): array {
+            $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
+            $this->applyTenantScope($runQuery, $companyId);
+            $run = $runQuery->firstOrFail();
+
+            if ($run->status !== HcmPayrollRun::STATUS_FINALIZED) {
+                return [
+                    'error' => [
+                        'code' => 'PAYROLL_RUN_NOT_FINALIZED',
+                        'message' => 'Only finalized runs can be voided.',
+                    ],
+                    'status' => 422,
+                ];
+            }
+
+            $lines = HcmPayrollLine::query()
+                ->where('hcm_payroll_run_id', $run->id)
+                ->lockForUpdate()
+                ->get();
+
+            $hasPaidLines = $lines->contains(function (HcmPayrollLine $line): bool {
+                return strtolower((string) (($line->meta['paymentStatus'] ?? 'unpaid'))) === 'paid';
+            });
+
+            if ($hasPaidLines) {
+                return [
+                    'error' => [
+                        'code' => 'PAYROLL_RUN_ALREADY_PAID',
+                        'message' => 'Paid payroll runs cannot be voided.',
+                    ],
+                    'status' => 422,
+                ];
+            }
+
+            $user = $request->user();
+            $run->update([
+                'status' => HcmPayrollRun::STATUS_VOID,
+                'voided_at' => now(),
+                'voided_by_user_id' => $user?->id,
+                'voided_by_user_uuid' => $user?->uuid,
+            ]);
+
+            $periodQuery = HcmPayrollPeriod::query()->whereKey($run->hcm_payroll_period_id)->lockForUpdate();
+            $this->applyTenantScope($periodQuery, $companyId);
+            $period = $periodQuery->first();
+
+            if ($period !== null) {
+                $remainingFinalizedQuery = HcmPayrollRun::query()
+                    ->where('hcm_payroll_period_id', $run->hcm_payroll_period_id)
+                    ->where('status', HcmPayrollRun::STATUS_FINALIZED)
+                    ->where('id', '!=', $run->id)
+                    ->lockForUpdate();
+                $this->applyTenantScope($remainingFinalizedQuery, $companyId);
+
+                if (! $remainingFinalizedQuery->exists()) {
+                    $period->update(['status' => HcmPayrollPeriod::STATUS_OPEN]);
+                }
+            }
+
+            $freshRunQuery = HcmPayrollRun::query()->with(['period', 'finalizedBy:id,name', 'voidedBy:id,name'])->whereKey($run->id);
+            $this->applyTenantScope($freshRunQuery, $companyId);
+
+            return [
+                'run' => $freshRunQuery->firstOrFail(),
+            ];
+        });
+
+        if (isset($result['error'])) {
+            return response()->json([
+                'success' => false,
+                'error' => $result['error'],
+            ], $result['status'] ?? 422);
+        }
+
+        /** @var HcmPayrollRun $run */
+        $run = $result['run'];
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->serializeRun($run),
+        ]);
+    }
+
     public function disburse(Request $request, int $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'payroll.disburse');
@@ -202,11 +294,15 @@ class HcmPayrollRunController extends Controller
 
         $validated = $request->validate([
             'userIds' => ['nullable', 'array', 'min:1'],
-            'userIds.*' => ['integer', 'exists:users,id'],
+            'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
+                if (! $this->userIdentifierExists($value)) {
+                    $fail("The selected {$attribute} is invalid.");
+                }
+            }],
             'applyAll' => ['nullable', 'boolean'],
         ]);
 
-        $selectedUserIds = collect($validated['userIds'] ?? [])->map(fn ($userId) => (int) $userId);
+        $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
         $applyAll = (bool) ($validated['applyAll'] ?? false);
         $companyId = $this->activeCompanyId($request);
         $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId): array {
@@ -624,8 +720,14 @@ class HcmPayrollRunController extends Controller
             'periodYear' => ['required', 'integer', 'min:2000', 'max:2100'],
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
             'userIds' => ['required', 'array', 'min:1'],
-            'userIds.*' => ['integer', 'exists:users,id'],
+            'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
+                if (! $this->userIdentifierExists($value)) {
+                    $fail("The selected {$attribute} is invalid.");
+                }
+            }],
         ]);
+
+        $resolvedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds']);
 
         $companyId = $this->activeCompanyId($request);
         $periodQuery = HcmPayrollPeriod::query()
@@ -664,14 +766,14 @@ class HcmPayrollRunController extends Controller
 
         $users = User::query()
             ->with(['employeeProfile.department', 'employeeProfile.designationRef'])
-            ->whereIn('id', array_values(array_unique($validated['userIds'])))
+            ->whereIn('id', $resolvedUserIds->all())
             ->get()
             ->keyBy('id');
 
         $sentUserIds = [];
         $skipped = [];
 
-        foreach ($validated['userIds'] as $userId) {
+        foreach ($resolvedUserIds as $userId) {
             $user = $users->get((int) $userId);
             if (! $user) {
                 $skipped[] = ['userId' => (int) $userId, 'reason' => 'USER_NOT_FOUND'];
@@ -721,6 +823,83 @@ class HcmPayrollRunController extends Controller
                 'skipped' => $skipped,
             ],
         ]);
+    }
+
+    private function userIdentifierExists(mixed $identifier): bool
+    {
+        $query = User::query();
+
+        if ($this->isNumericUserIdentifier($identifier)) {
+            return $query->whereKey((int) $identifier)->exists();
+        }
+
+        if (is_string($identifier) && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier)->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>  $identifiers
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function resolveUserIdsFromIdentifiers(array $identifiers)
+    {
+        $numericIds = collect($identifiers)
+            ->filter(fn (mixed $identifier): bool => $this->isNumericUserIdentifier($identifier))
+            ->map(fn (mixed $identifier): int => (int) $identifier)
+            ->unique()
+            ->values();
+
+        $uuids = collect($identifiers)
+            ->filter(fn (mixed $identifier): bool => is_string($identifier) && Str::isUuid($identifier))
+            ->map(fn (string $identifier): string => strtolower($identifier))
+            ->unique()
+            ->values();
+
+        if ($numericIds->isEmpty() && $uuids->isEmpty()) {
+            return collect();
+        }
+
+        $users = User::query()
+            ->where(function (Builder $query) use ($numericIds, $uuids): void {
+                if ($numericIds->isNotEmpty()) {
+                    $query->whereIn('id', $numericIds->all());
+                }
+
+                if ($uuids->isNotEmpty()) {
+                    $method = $numericIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
+                    $query->{$method}('uuid', $uuids->all());
+                }
+            })
+            ->get(['id', 'uuid']);
+
+        $usersById = $users->keyBy(fn (User $user): string => (string) $user->id);
+        $usersByUuid = $users->keyBy(fn (User $user): string => strtolower((string) $user->uuid));
+
+        return collect($identifiers)
+            ->map(function (mixed $identifier) use ($usersById, $usersByUuid): ?int {
+                if ($this->isNumericUserIdentifier($identifier)) {
+                    return $usersById->get((string) ((int) $identifier))?->id;
+                }
+
+                if (is_string($identifier) && Str::isUuid($identifier)) {
+                    return $usersByUuid->get(strtolower($identifier))?->id;
+                }
+
+                return null;
+            })
+            ->filter(fn (?int $identifier): bool => $identifier !== null)
+            ->map(fn (int $identifier): int => (int) $identifier)
+            ->unique()
+            ->values();
+    }
+
+    private function isNumericUserIdentifier(mixed $identifier): bool
+    {
+        return is_int($identifier)
+            || (is_string($identifier) && $identifier !== '' && ctype_digit($identifier));
     }
 
     public function mySlipLines(Request $request): JsonResponse
@@ -1141,6 +1320,8 @@ class HcmPayrollRunController extends Controller
             'purpose' => $r->purpose ?? HcmPayrollRun::PURPOSE_MONTHLY,
             'status' => $r->status,
             'finalizedAt' => $r->finalized_at?->toIso8601String(),
+            'voidedAt' => $r->voided_at?->toIso8601String(),
+            'voidedByUserId' => $r->voided_by_user_id,
             'paymentStatus' => $payment['status'],
             'paidAt' => $payment['paidAt'],
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
@@ -1165,6 +1346,9 @@ class HcmPayrollRunController extends Controller
             'finalizedAt' => $r->finalized_at?->toIso8601String(),
             'finalizedByUserId' => $r->finalized_by_user_id,
             'finalizedByUserName' => $r->relationLoaded('finalizedBy') ? $r->finalizedBy?->name : null,
+            'voidedAt' => $r->voided_at?->toIso8601String(),
+            'voidedByUserId' => $r->voided_by_user_id,
+            'voidedByUserName' => $r->relationLoaded('voidedBy') ? $r->voidedBy?->name : null,
             'paymentStatus' => $payment['status'],
             'paidAt' => $payment['paidAt'],
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
@@ -1199,6 +1383,14 @@ class HcmPayrollRunController extends Controller
                 'at' => $run->finalized_at->toIso8601String(),
                 'actorUserId' => $run->finalized_by_user_id,
                 'actorName' => $run->relationLoaded('finalizedBy') ? $run->finalizedBy?->name : null,
+            ];
+        }
+        if ($run->voided_at) {
+            $trail[] = [
+                'event' => 'voided',
+                'at' => $run->voided_at->toIso8601String(),
+                'actorUserId' => $run->voided_by_user_id,
+                'actorName' => $run->relationLoaded('voidedBy') ? $run->voidedBy?->name : null,
             ];
         }
 

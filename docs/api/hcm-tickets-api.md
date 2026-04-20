@@ -26,6 +26,11 @@ RBAC:
 - HCM Admin: all tickets
 - Non-admin: scope ke ticket milik sendiri (`user_id`)
 
+Tenant:
+- Request wajib membawa active company context.
+- Ticket baru yang sudah tersimpan dengan `company_id` hanya muncul di tenant tempat ticket dibuat.
+- Row legacy yang belum punya `company_id` masih difallback ke membership reporter sampai backfill histori selesai.
+
 Success `200` (ringkas):
 - `meta.summary`: `total/open/inProgress/resolved/closed`
 - `data[]` item menyertakan `reporter`, `assignee`, `commentsCount`, `attachmentsCount`
@@ -47,6 +52,10 @@ Catatan relasi:
 
 RBAC:
 - Non-admin mengirim `assigneeUserId` → `403 AUTH_FORBIDDEN`
+
+Tenant:
+- Ticket baru disimpan dengan `tickets.company_id = activeCompanyId`.
+- `assigneeUserId` hanya valid jika user tersebut aktif di tenant yang sama.
 
 Success `201`:
 
@@ -80,6 +89,7 @@ Body (semua optional via `sometimes`, tergantung role):
 RBAC:
 - Non-admin mengirim `status|slaDueAt|assigneeUserId` → `403 AUTH_FORBIDDEN`
 - Non-admin edit ticket dengan status `closed` → `422 TICKET_CLOSED_LOCKED`
+- Admin assign/reassign user dari tenant lain → `422` validation error pada `assigneeUserId`
 
 Success `200`:
 
@@ -107,9 +117,12 @@ Success `200`:
 Body:
 - `body` required string max 5000
 
+Guard:
+- Non-admin comment ticket `closed` → `422 TICKET_CLOSED_LOCKED`
+
 Success `201`:
 
-- `data[]` item menyertakan `reporter`, `assignee`, `commentsCount`, `attachmentsCount`, `categoryId`
+```json
 { "success": true, "data": { "id": 1 } }
 ```
 
@@ -117,6 +130,9 @@ Success `201`:
 
 Multipart:
 - `file` required file, max 5120KB, mimes: `jpg,jpeg,png,pdf,doc,docx,xls,xlsx,csv,txt`
+
+Guard:
+- Non-admin upload attachment ke ticket `closed` → `422 TICKET_CLOSED_LOCKED`
 
 Success `201`:
 
@@ -138,6 +154,9 @@ Errors:
 
 RBAC:
 - HCM Admin only
+
+Tenant:
+- Hanya return user aktif pada active company.
 
 Success `200`:
 

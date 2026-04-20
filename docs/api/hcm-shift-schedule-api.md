@@ -89,6 +89,8 @@ Not found `404`:
 Catatan:
 - `shiftId` optional; jika diisi, jam kerja mengikuti master shift
 - Jika tanpa `shiftId`, `startTime` dan `endTime` wajib (`required_without`)
+- Kontrak aktif memakai numeric identifier: `shiftId` mengacu ke `hcm_shifts.id`, dan `{userId}` mengacu ke `users.id`.
+- Write endpoint schedule timing hanya boleh memodifikasi target user yang masih menjadi membership aktif di company context yang sedang dipilih; selain itu API mengembalikan `404 USER_NOT_IN_COMPANY`.
 
 Lihat detail kontrak schedule timing di `docs/api/hcm-attendance-api.md` bagian **Schedule timing (admin)** (source of truth tetap controller).
 

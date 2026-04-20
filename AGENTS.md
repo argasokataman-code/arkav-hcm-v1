@@ -2,6 +2,8 @@
 
 Full agent notes live in [`.cursor/rules/AGENTS.md`](.cursor/rules/AGENTS.md). **Penutupan task:** ikuti [`development-closure-checklist.mdc`](.cursor/rules/development-closure-checklist.mdc) (security + docs + OpenAPI).
 
+README feature di [docs/features](docs/features) harus business-readable: flow end-to-end, keputusan/lifecycle, gap existing vs target, dan cross-check role/API permission tidak boleh hilang untuk fitur operasional.
+
 HCM role/permission vs URL aktif: [`docs/planning/active-hcm-templates-and-permissions.md`](docs/planning/active-hcm-templates-and-permissions.md).
 
 ## GitHub Copilot / instruksi di repo

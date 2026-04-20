@@ -10,7 +10,7 @@ Endpoints untuk mengelola subscription companies dalam sistem SaaS.
 
 ## Authentication
 
-Semua endpoints memerlukan `api.token` middleware (bearer token).
+Semua endpoints memerlukan bearer token **dan** hak HCM admin/global admin. Non-admin menerima `403 ADMIN_REQUIRED` untuk list, detail, dan seluruh mutasi.
 
 ```
 Authorization: Bearer <token>
@@ -49,7 +49,7 @@ Mendapatkan daftar subscriptions dengan filter dan pagination.
         "code": "acme",
         "name": "ACME Corp"
       },
-      "packageId": 1,
+      "packageId": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
       "package": {
         "id": 1,
         "code": "pro",
@@ -93,8 +93,8 @@ Membuat subscription baru untuk company.
 **Request**
 ```json
 {
-  "company_id": 1,
-  "package_id": 2,
+  "company_id": "7a09df6a-c2f3-4a43-a538-fd1e2127b0dd",
+  "package_uuid": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
   "status": "active",
   "starts_at": "2026-04-13",
   "ends_at": "2026-05-13",
@@ -107,8 +107,8 @@ Membuat subscription baru untuk company.
 **Parameters**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| company_id | integer | ✓ | Company ID |
-| package_id | integer | ✓ | Package ID |
+| company_id | string (UUID) | ✓ | Company UUID |
+| package_uuid | string (UUID) | ✓ | Package UUID |
 | status | enum | ✓ | active, trial, inactive, expired, cancelled, suspended |
 | starts_at | date | ✓ | Start date |
 | ends_at | date | ✓ if status active or trial | Subscription end date (after `starts_at`) |
@@ -124,7 +124,7 @@ Membuat subscription baru untuk company.
     "id": 5,
     "companyId": 1,
     "company": {...},
-    "packageId": 2,
+    "packageId": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
     "package": {...},
     "planCode": "pro",
     "status": "active",
@@ -137,7 +137,7 @@ Membuat subscription baru untuk company.
 }
 ```
 
-### Get Subscription Details
+### Get Subscription Details (Admin Only)
 
 ```
 GET /v1/saas/subscriptions/{id}
@@ -168,7 +168,7 @@ Mengupdate subscription.
 **Request Parameters**
 | Name | Type | Description |
 |------|------|-------------|
-| package_id | integer | New package |
+| package_uuid | string (UUID) | New package |
 | status | enum | active, trial, inactive, expired, cancelled, suspended |
 | starts_at | date | New start date |
 | ends_at | date | New end date (required in effect when status is active or trial) |
@@ -176,7 +176,7 @@ Mengupdate subscription.
 | auto_renew | boolean | Enable/disable auto-renewal |
 | billing_cycle | enum | monthly, yearly |
 
-**Errors (422)** — selain validasi Laravel: `trial_ends_at is required when status is trial`, `trial_ends_at must be after starts_at`, `trial_ends_at must be on or before ends_at`, `ends_at is required when status is active or trial`.
+**Errors (422)** — selain validasi Laravel: `trial_ends_at is required when status is trial`, `trial_ends_at must be after starts_at`, `trial_ends_at must be on or before ends_at`, `ends_at is required when status is active or trial`, `package_uuid` must be a valid active package UUID.
 
 **Response (200 OK)**
 ```json
@@ -258,7 +258,7 @@ Memperpanjang subscription: mengaktifkan kembali (`status` → `active`), `start
     "message": "The given data was invalid.",
     "validation": {
       "company_id": ["The company_id field is required."],
-      "package_id": ["Package does not exist."]
+      "package_uuid": ["Package does not exist."]
     }
   }
 }
@@ -298,19 +298,17 @@ $sub->getDurationDays();
 
 ### 403 Forbidden
 
-All admin-only endpoints return `AUTH_FORBIDDEN` when user lacks permissions:
+All subscriptions endpoints return `ADMIN_REQUIRED` when user lacks permissions:
 
 ```json
 {
   "success": false,
   "error": {
-    "code": "AUTH_FORBIDDEN",
-    "message": "Forbidden."
+    "code": "ADMIN_REQUIRED",
+    "message": "Admin access required."
   }
 }
 ```
-
-**Note:** Error code standardized (2026-04-17) to `AUTH_FORBIDDEN` for consistency with HCM controllers and OpenAPI schema.
 
 ### 401 Unauthorized
 

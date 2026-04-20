@@ -1,10 +1,43 @@
 # Export Reconciliation
 
-Export Reconciliation adalah fitur kontrol sebelum aksi finansial yang irreversible (finalize payroll, disburse payroll/THR, post payroll, mark invoice paid, verify payment).
+## Ringkasan
 
-Fitur ini mewajibkan tim Finance/Accounts mengekspor dataset transaksi ke Excel/CSV untuk membandingkan angka system vs hasil verifikasi internal sebelum proses dilanjutkan.
+Export Reconciliation adalah fitur kontrol sebelum aksi finansial yang irreversible seperti finalize payroll, disburse payroll/THR, post payroll, mark invoice paid, dan verify payment. Fitur ini memaksa operator mengekspor dataset ke CSV/XLSX, membandingkan angka sistem dengan verifikasi internal, lalu baru melanjutkan action berisiko.
 
----
+## Akses
+
+- Primary users: HCM Admin, Finance Admin, Accounting/Controller, dan internal auditor pembaca evidence.
+- Non-primary users seperti customer/subscriber tidak diwajibkan menjalankan export manual ini.
+- Gate action hanya relevan pada surface internal admin/operator.
+
+## UI Aktif
+
+- Saat ini runtime aktif terutama terhubung dari flow payroll/THR/PKWT dan billing melalui trigger export sebelum action sensitif.
+- Browser mengunduh file evidence via `AuthApi.downloadV1Binary` setelah evidence berhasil dibuat.
+
+## Flow Bisnis End-to-End
+
+1. Operator berada di halaman/flow yang akan menjalankan action finansial sensitif.
+2. Operator membuat export reconciliation untuk dataset yang relevan.
+3. Sistem menyimpan evidence export lengkap dengan metadata siapa, kapan, dan filter apa yang dipakai.
+4. Browser mengunduh file evidence.
+5. Gate server memeriksa evidence valid sebelum mengizinkan finalize/disburse/mark-paid/verify.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Compare dulu, execute kemudian adalah prinsip utama modul ini.
+- Evidence harus relevan dengan filter/periode/action yang sama dengan aksi yang akan dijalankan.
+- Scope fase awal berfokus pada gate dan audit trail, belum pada rekonsiliasi dua arah otomatis dengan ERP eksternal.
+
+## Integrasi
+
+- Payroll Runs: gate finalize/disburse payroll run dan batch payroll terkait. Lihat `docs/features/payroll-runs/README.md`.
+- Purchase Transactions, invoice, dan payment verification: billing action sensitif menjadi kandidat gate export. Lihat `docs/features/purchase-transaction/README.md`.
+- Reporting: evidence export membantu audit dan investigasi saat angka finansial dipertanyakan. Lihat `docs/features/reporting/README.md`.
+- Subscriptions dan Trial/Billing Dashboard: rollout gate di area billing harus sinkron dengan status invoice/subscription tenant. Lihat `docs/features/subscriptions/README.md` dan `docs/features/trial-billing-dashboard/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+
+## Kontrak API
 
 ## Documentation Structure
 
@@ -24,6 +57,12 @@ Status task implementasi lintas backend, frontend, QA, docs, dan security.
 Skenario manual untuk validasi gate export sebelum finalize/payment.
 
 ---
+
+## Existing Vs Target
+
+- Existing: backend export endpoint dan gate prioritas runtime sudah aktif untuk flow tertentu, termasuk payroll/THR/PKWT.
+- Existing: UI payroll dan flow terkait sudah bisa membuat evidence lalu memicu download file.
+- Target: coverage gate lintas semua endpoint finansial berisiko dan rollout UI role polish masih berjalan.
 
 ## Catatan API (implementasi)
 

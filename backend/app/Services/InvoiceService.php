@@ -38,6 +38,16 @@ class InvoiceService
             return ['ok' => false, 'toEmail' => null, 'error' => 'Missing recipient email.'];
         }
 
+        // Ensure PDF is available so email can include attachment.
+        if (! $invoice->pdf_path) {
+            $generatedPath = $this->generatePdf($invoice);
+            if (! $generatedPath) {
+                return ['ok' => false, 'toEmail' => $toEmail, 'error' => 'Failed to generate invoice PDF.'];
+            }
+
+            $invoice->refresh();
+        }
+
         try {
             Mail::to($toEmail)->send(new InvoiceMailable($invoice));
 

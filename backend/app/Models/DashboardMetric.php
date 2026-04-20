@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DashboardMetric extends Model
 {
+    use AssignsUuid;
     protected $table = 'dashboard_metrics';
 
     protected $fillable = [
@@ -44,9 +46,9 @@ class DashboardMetric extends Model
         $query = self::where('metric_key', $key);
 
         if ($date) {
-            $query->where('metric_date', $date);
+            $query->whereDate('metric_date', $date);
         } else {
-            $query->where('metric_date', now()->toDateString());
+            $query->whereDate('metric_date', now()->toDateString());
         }
 
         return $query->first();

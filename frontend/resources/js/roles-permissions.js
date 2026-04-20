@@ -16,10 +16,19 @@
       if (!document.getElementById("rp_roles_tbody")) {
         return;
       }
-      // Granular permission check
-      this.canManageRoles = window.AuthPermissions && window.AuthPermissions.hasPermission
-        ? window.AuthPermissions.hasPermission('roles.manage')
+      var authUser = window.AuthUser || null;
+      var isAppSuperUser = !!(authUser && authUser.hcmGlobalAdmin === true);
+      var hasManagePermission = window.AuthPermissions && window.AuthPermissions.hasPermission
+        ? (
+          window.AuthPermissions.hasPermission('user_management.manage') ||
+          window.AuthPermissions.hasPermission('role.create') ||
+          window.AuthPermissions.hasPermission('role.update') ||
+          window.AuthPermissions.hasPermission('role.delete') ||
+          window.AuthPermissions.hasPermission('role.sync_permission')
+        )
         : false;
+      // Role/permission setup can only be changed by application super user.
+      this.canManageRoles = isAppSuperUser && (hasManagePermission || !(authUser && Array.isArray(authUser.permissions) && authUser.permissions.length));
       this.bindEvents();
       this.loadPermissions();
       this.loadRoles();

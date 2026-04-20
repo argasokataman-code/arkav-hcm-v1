@@ -16,6 +16,17 @@ class HcmTrainingController extends Controller
 {
     use ChecksPermissions;
 
+    private function tenantContextRequired(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'TENANT_CONTEXT_REQUIRED',
+                'message' => 'Active company context is required.',
+            ],
+        ], 422);
+    }
+
     private function forbidden(): JsonResponse
     {
         return response()->json([
@@ -32,7 +43,13 @@ class HcmTrainingController extends Controller
     // -------------------------
     public function types(Request $request): JsonResponse
     {
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
         $query = HcmTrainingType::query()->orderBy('name');
+        $query->where('company_id', $companyId);
         if (! $this->canManageTraining($request)) {
             $query->where('is_active', true);
         }
@@ -49,8 +66,13 @@ class HcmTrainingController extends Controller
 
     public function storeType(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
         }
 
         $v = $request->validate([
@@ -59,7 +81,7 @@ class HcmTrainingController extends Controller
             'isActive' => ['nullable', 'boolean'],
         ]);
 
-        if (HcmTrainingType::query()->where('name', trim((string) $v['name']))->exists()) {
+        if (HcmTrainingType::query()->where('company_id', $companyId)->where('name', trim((string) $v['name']))->exists()) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -70,6 +92,7 @@ class HcmTrainingController extends Controller
         }
 
         $t = HcmTrainingType::query()->create([
+            'company_id' => $companyId,
             'name' => trim((string) $v['name']),
             'description' => isset($v['description']) ? trim((string) $v['description']) : null,
             'is_active' => (bool) ($v['isActive'] ?? true),
@@ -80,11 +103,16 @@ class HcmTrainingController extends Controller
 
     public function updateType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        $t = HcmTrainingType::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        $t = HcmTrainingType::query()->where('company_id', $companyId)->findOrFail($id);
         $v = $request->validate([
             'name' => ['required', 'string', 'max:200'],
             'description' => ['nullable', 'string', 'max:5000'],
@@ -92,7 +120,7 @@ class HcmTrainingController extends Controller
         ]);
 
         $name = trim((string) $v['name']);
-        if ($name !== $t->name && HcmTrainingType::query()->where('name', $name)->whereKeyNot($t->id)->exists()) {
+        if ($name !== $t->name && HcmTrainingType::query()->where('company_id', $companyId)->where('name', $name)->whereKeyNot($t->id)->exists()) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -113,11 +141,16 @@ class HcmTrainingController extends Controller
 
     public function destroyType(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        HcmTrainingType::query()->whereKey($id)->delete();
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        HcmTrainingType::query()->where('company_id', $companyId)->whereKey($id)->delete();
 
         return response()->json(['success' => true]);
     }
@@ -129,6 +162,11 @@ class HcmTrainingController extends Controller
     {
         if (! $this->canManageTraining($request)) {
             return $this->forbidden();
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
         }
 
         $v = $request->validate([
@@ -144,6 +182,7 @@ class HcmTrainingController extends Controller
                 'trainer:id,name,is_active',
                 'participants:id,name,email',
             ])
+            ->where('company_id', $companyId)
             ->orderByDesc('id');
 
         if (! empty($v['status'])) {
@@ -199,16 +238,21 @@ class HcmTrainingController extends Controller
 
     public function storeTraining(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
         $v = $request->validate([
-            'trainingTypeId' => ['nullable', 'integer', 'exists:hcm_training_types,id'],
-            'trainerId' => ['nullable', 'integer', 'exists:hcm_trainers,id'],
+            'trainingTypeId' => ['nullable', 'integer', Rule::exists('hcm_training_types', 'id')->where(fn ($query) => $query->where('company_id', $companyId))],
+            'trainerId' => ['nullable', 'integer', Rule::exists('hcm_trainers', 'id')->where(fn ($query) => $query->where('company_id', $companyId))],
             'trainerName' => ['nullable', 'string', 'max:200'],
             'participantUserIds' => ['nullable', 'array', 'max:200'],
-            'participantUserIds.*' => ['integer', 'exists:users,id'],
+            'participantUserIds.*' => ['integer', Rule::exists('company_users', 'user_id')->where(fn ($query) => $query->where('company_id', $companyId)->where('status', 'active'))],
             'startDate' => ['required', 'date'],
             'endDate' => ['required', 'date', 'after_or_equal:startDate'],
             'description' => ['nullable', 'string', 'max:5000'],
@@ -216,9 +260,10 @@ class HcmTrainingController extends Controller
             'status' => ['nullable', Rule::in(['active', 'inactive', 'completed'])],
         ]);
 
-        $trainerData = $this->resolveTrainerInput($v, false);
+        $trainerData = $this->resolveTrainerInput($v + ['__companyId' => $companyId], false);
 
         $t = HcmTraining::query()->create([
+            'company_id' => $companyId,
             'training_type_id' => $v['trainingTypeId'] ?? null,
             'trainer_id' => $trainerData['trainer_id'],
             'trainer_name' => $trainerData['trainer_name'],
@@ -238,18 +283,23 @@ class HcmTrainingController extends Controller
 
     public function updateTraining(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        $t = HcmTraining::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        $t = HcmTraining::query()->where('company_id', $companyId)->findOrFail($id);
 
         $v = $request->validate([
-            'trainingTypeId' => ['sometimes', 'nullable', 'integer', 'exists:hcm_training_types,id'],
-            'trainerId' => ['sometimes', 'nullable', 'integer', 'exists:hcm_trainers,id'],
+            'trainingTypeId' => ['sometimes', 'nullable', 'integer', Rule::exists('hcm_training_types', 'id')->where(fn ($query) => $query->where('company_id', $companyId))],
+            'trainerId' => ['sometimes', 'nullable', 'integer', Rule::exists('hcm_trainers', 'id')->where(fn ($query) => $query->where('company_id', $companyId))],
             'trainerName' => ['sometimes', 'nullable', 'string', 'max:200'],
             'participantUserIds' => ['sometimes', 'nullable', 'array', 'max:200'],
-            'participantUserIds.*' => ['integer', 'exists:users,id'],
+            'participantUserIds.*' => ['integer', Rule::exists('company_users', 'user_id')->where(fn ($query) => $query->where('company_id', $companyId)->where('status', 'active'))],
             'startDate' => ['sometimes', 'required', 'date'],
             'endDate' => ['sometimes', 'required', 'date', 'after_or_equal:startDate'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
@@ -262,7 +312,7 @@ class HcmTrainingController extends Controller
             $data['training_type_id'] = $v['trainingTypeId'];
         }
 
-        $trainerData = $this->resolveTrainerInput($v, true);
+        $trainerData = $this->resolveTrainerInput($v + ['__companyId' => $companyId], true);
         if (array_key_exists('trainer_id', $trainerData)) {
             $data['trainer_id'] = $trainerData['trainer_id'];
             $data['trainer_name'] = $trainerData['trainer_name'];
@@ -297,11 +347,16 @@ class HcmTrainingController extends Controller
 
     public function destroyTraining(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        HcmTraining::query()->whereKey($id)->delete();
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        HcmTraining::query()->where('company_id', $companyId)->whereKey($id)->delete();
 
         return response()->json(['success' => true]);
     }
@@ -311,8 +366,29 @@ class HcmTrainingController extends Controller
     {
         $auth = $request->user();
         $isAdmin = $this->canManageTraining($request);
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
         if (! $isAdmin && (int) $auth->id !== (int) $userId) {
             return $this->forbidden();
+        }
+
+        $isCompanyMember = \App\Models\CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->where('status', 'active')
+            ->exists();
+
+        if (! $isCompanyMember) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'USER_NOT_FOUND',
+                    'message' => 'User not found in active company.',
+                ],
+            ], 404);
         }
 
         $v = $request->validate([
@@ -321,6 +397,7 @@ class HcmTrainingController extends Controller
 
         $query = HcmTraining::query()
             ->with(['type:id,name', 'trainer:id,name,is_active'])
+            ->where('company_id', $companyId)
             ->whereHas('participants', fn ($q) => $q->where('users.id', $userId))
             ->orderByDesc('start_date')
             ->orderByDesc('id');
@@ -363,13 +440,18 @@ class HcmTrainingController extends Controller
             return $this->forbidden();
         }
 
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
         $v = $request->validate([
             'status' => ['nullable', 'in:active,inactive'],
             'q' => ['nullable', 'string', 'max:200'],
             'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $query = HcmTrainer::query()->orderBy('name');
+        $query = HcmTrainer::query()->where('company_id', $companyId)->orderBy('name');
         if (! empty($v['status'])) {
             $query->where('is_active', $v['status'] === 'active');
         }
@@ -408,8 +490,13 @@ class HcmTrainingController extends Controller
 
     public function storeTrainer(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
         }
 
         $v = $request->validate([
@@ -421,6 +508,7 @@ class HcmTrainingController extends Controller
         ]);
 
         $t = HcmTrainer::query()->create([
+            'company_id' => $companyId,
             'name' => trim((string) $v['name']),
             'email' => isset($v['email']) ? trim((string) $v['email']) : null,
             'phone' => isset($v['phone']) ? trim((string) $v['phone']) : null,
@@ -433,11 +521,16 @@ class HcmTrainingController extends Controller
 
     public function updateTrainer(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        $t = HcmTrainer::query()->findOrFail($id);
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        $t = HcmTrainer::query()->where('company_id', $companyId)->findOrFail($id);
         $v = $request->validate([
             'name' => ['required', 'string', 'max:200'],
             'email' => ['nullable', 'email', 'max:200'],
@@ -459,11 +552,16 @@ class HcmTrainingController extends Controller
 
     public function destroyTrainer(Request $request, int $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'training.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'training.manage')) {
             return $forbidden;
         }
 
-        HcmTrainer::query()->whereKey($id)->delete();
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->tenantContextRequired();
+        }
+
+        HcmTrainer::query()->where('company_id', $companyId)->whereKey($id)->delete();
 
         return response()->json(['success' => true]);
     }
@@ -473,6 +571,7 @@ class HcmTrainingController extends Controller
      */
     private function resolveTrainerInput(array $validated, bool $partialUpdate): array
     {
+        $companyId = $validated['__companyId'] ?? null;
         $hasTrainerId = array_key_exists('trainerId', $validated);
         $hasTrainerName = array_key_exists('trainerName', $validated);
 
@@ -481,7 +580,11 @@ class HcmTrainingController extends Controller
         }
 
         if ($hasTrainerId && $validated['trainerId'] !== null) {
-            $trainer = HcmTrainer::query()->find((int) $validated['trainerId']);
+            $trainerQuery = HcmTrainer::query();
+            if ($companyId) {
+                $trainerQuery->where('company_id', $companyId);
+            }
+            $trainer = $trainerQuery->find((int) $validated['trainerId']);
 
             if ($trainer) {
                 return [
@@ -497,7 +600,10 @@ class HcmTrainingController extends Controller
                 return ['trainer_id' => null, 'trainer_name' => null];
             }
 
-            $matchedTrainer = HcmTrainer::query()->where('name', $name)->first();
+            $matchedTrainer = HcmTrainer::query()
+                ->when($companyId, fn ($query) => $query->where('company_id', $companyId))
+                ->where('name', $name)
+                ->first();
 
             return [
                 'trainer_id' => $matchedTrainer ? (int) $matchedTrainer->id : null,
@@ -510,7 +616,7 @@ class HcmTrainingController extends Controller
 
     private function canManageTraining(Request $request): bool
     {
-        return $this->hasAnyPermission($request, ['training.manage', 'training.view']);
+        return $this->hasPermission($request, 'training.manage');
     }
 }
 

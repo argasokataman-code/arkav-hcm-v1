@@ -44,11 +44,11 @@
                                         <div class="d-flex align-items-center gap-4">
                                             <div class="form-check form-check-md mb-0">
                                                 <input class="form-check-input" type="radio" name="login_mode" id="login_mode_regular" value="regular" checked>
-                                                <label class="form-check-label mt-0" for="login_mode_regular">Regular Login</label>
+                                                <label class="form-check-label mt-0" for="login_mode_regular">Login Employee</label>
                                             </div>
                                             <div class="form-check form-check-md mb-0">
                                                 <input class="form-check-input" type="radio" name="login_mode" id="login_mode_company" value="company">
-                                                <label class="form-check-label mt-0" for="login_mode_company">Login as Company</label>
+                                                <label class="form-check-label mt-0" for="login_mode_company">Login Company</label>
                                             </div>
                                         </div>
                                     </div>
@@ -95,7 +95,7 @@
                                     </div>
                                     <div class="text-center">
                                         <h6 class="fw-normal text-dark mb-0">Don’t have an account? 
-                                            <a href="{{url('register')}}" class="hover-a"> Create Account</a>
+                                            <a href="{{ route('register') }}" class="hover-a"> Daftarkan company di sini</a>
                                         </h6>
                                     </div>
                                 </div>

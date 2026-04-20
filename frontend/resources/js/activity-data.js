@@ -10,6 +10,8 @@
     var typeSelect = document.querySelector('[data-activity-type]');
     var sourceSelect = document.querySelector('[data-activity-source]');
     var statusSelect = document.querySelector('[data-activity-status]');
+    var companySelect = document.querySelector('[data-activity-company]');
+    var companySelectWrap = document.querySelector('[data-activity-company-select-wrap]');
     var prevButton = document.querySelector('[data-activity-prev]');
     var nextButton = document.querySelector('[data-activity-next]');
     var pageInfo = document.querySelector('[data-activity-page-info]');
@@ -35,6 +37,8 @@
         type: 'all',
         sourceType: 'all',
         statusType: 'all',
+        companyId: '',
+        isSuperAdmin: false,
         manualRowsById: {},
     };
 
@@ -105,7 +109,7 @@
 
     function renderRows(rows) {
         if (!rows || rows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No activity found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No activity found.</td></tr>';
             return;
         }
 
@@ -132,6 +136,7 @@
                 + '<td><p class="fs-14 text-dark fw-medium mb-0">' + escapeHtml(row.title || '-') + '</p></td>'
                 + '<td>' + typeBadge(row.activityType, row.activityTypeLabel) + '</td>'
                 + '<td>' + sourceBadge(row.sourceType, row.sourceTypeLabel) + '</td>'
+                + '<td><span class="badge badge-light-transparent">' + escapeHtml(row.companyName || row.companyCode || '-') + '</span></td>'
                 + '<td>' + statusBadge(row.statusType, row.statusTypeLabel) + '</td>'
                 + '<td>' + escapeHtml(formatDate(row.dueDate)) + '</td>'
                 + '<td>' + escapeHtml(row.ownerName || '-') + '</td>'
@@ -146,7 +151,7 @@
     function setLoading(loading) {
         state.loading = loading;
         if (loading) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Loading activity...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Loading activity...</td></tr>';
         }
 
         if (prevButton) {
@@ -189,6 +194,9 @@
         if (state.statusType && state.statusType !== 'all') {
             params.set('statusType', state.statusType);
         }
+        if (state.companyId) {
+            params.set('companyId', state.companyId);
+        }
 
         return '/v1/hcm/activity-feed?' + params.toString();
     }
@@ -222,7 +230,7 @@
                 updatePagination(payload.meta || {});
             })
             .catch(function (error) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">' + escapeHtml(error.message || 'Failed to load activity feed.') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">' + escapeHtml(error.message || 'Failed to load activity feed.') + '</td></tr>';
                 updatePagination({ totalPages: 1 });
             })
             .finally(function () {
@@ -465,6 +473,69 @@
         modalForm.addEventListener('submit', submitManualActivity);
     }
 
+    if (companySelect) {
+        companySelect.addEventListener('change', function () {
+            state.companyId = String(companySelect.value || '').trim();
+            state.page = 1;
+            loadActivities();
+        });
+    }
+
+    function loadCompanies() {
+        if (!companySelect) {
+            return;
+        }
+
+        fetch('/v1/hcm/activity-feed-companies', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        })
+            .then(function (res) {
+                return res.json().catch(function () {
+                    return null;
+                }).then(function (payload) {
+                    if (!res.ok || !payload || payload.success !== true) {
+                        return null;
+                    }
+                    return payload;
+                });
+            })
+            .then(function (payload) {
+                if (!payload || !payload.data || payload.data.length === 0) {
+                    if (companySelectWrap) {
+                        companySelectWrap.style.display = 'none';
+                    }
+                    state.isSuperAdmin = false;
+                    return;
+                }
+
+                state.isSuperAdmin = true;
+                if (companySelectWrap) {
+                    companySelectWrap.style.display = 'block';
+                }
+
+                var companies = payload.data;
+                var options = '<option value="">All Companies</option>';
+                options += companies.map(function (company) {
+                    return '<option value="' + escapeHtml(company.id || '') + '">'
+                        + escapeHtml(company.code || '') + ' - ' + escapeHtml(company.name || '')
+                        + '</option>';
+                }).join('');
+
+                companySelect.innerHTML = options;
+            })
+            .catch(function () {
+                if (companySelectWrap) {
+                    companySelectWrap.style.display = 'none';
+                }
+                state.isSuperAdmin = false;
+            });
+    }
+
     tbody.addEventListener('click', function (event) {
         var editId = event.target && event.target.getAttribute('data-activity-edit');
         if (editId) {
@@ -478,5 +549,6 @@
         }
     });
 
+    loadCompanies();
     loadActivities();
 })();

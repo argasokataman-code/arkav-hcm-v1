@@ -232,6 +232,7 @@ class AssetService
             $assetPrefix = WebsiteSettings::prefixAssets();
 
             $ticket = Ticket::query()->create([
+                'company_id' => $asset->company_id,
                 'user_id' => $reporter->id,
                 'code' => $assetPrefix.Str::upper(Str::random(6)).'-'.str_pad((string) $asset->id, 4, '0', STR_PAD_LEFT),
                 'subject' => sprintf('Asset %s reported %s', $asset->asset_code, $issueType),

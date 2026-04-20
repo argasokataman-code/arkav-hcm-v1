@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class HcmRole extends Model
 {
+    use AssignsUuid;
+
     protected $fillable = [
         'company_id',
         'code',
@@ -25,18 +29,6 @@ class HcmRole extends Model
         'is_system' => 'boolean',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $record): void {
-            if (! Schema::hasColumn($record->getTable(), 'uuid')) {
-                return;
-            }
-
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     public function company(): BelongsTo
     {
@@ -51,5 +43,50 @@ class HcmRole extends Model
     public function userAssignments(): HasMany
     {
         return $this->hasMany(HcmUserRole::class, 'role_id');
+    }
+
+    /**
+     * @param  iterable<int, int|string>|Collection<int, mixed>  $permissionIds
+     */
+    public function syncPermissionsForCompany(iterable $permissionIds): void
+    {
+        $normalizedPermissionIds = collect($permissionIds)
+            ->map(static fn ($permissionId): int => (int) $permissionId)
+            ->filter(static fn (int $permissionId): bool => $permissionId > 0)
+            ->unique()
+            ->values();
+
+        $companyUuid = null;
+        if ($this->company_id !== null && Schema::hasColumn('hcm_role_permissions', 'company_uuid')) {
+            $companyUuid = Company::query()->where('id', $this->company_id)->value('uuid');
+        }
+
+        DB::transaction(function () use ($normalizedPermissionIds, $companyUuid): void {
+            $existingMappings = HcmRolePermission::query()->where('role_id', $this->id);
+            if ($this->company_id !== null) {
+                $existingMappings->where('company_id', $this->company_id);
+            }
+
+            $existingMappings->delete();
+
+            if ($normalizedPermissionIds->isEmpty()) {
+                return;
+            }
+
+            $timestamp = now();
+            HcmRolePermission::query()->insert(
+                $normalizedPermissionIds
+                    ->map(function (int $permissionId) use ($timestamp, $companyUuid): array {
+                        return [
+                            'role_id' => $this->id,
+                            'permission_id' => $permissionId,
+                            'company_id' => $this->company_id,
+                            'company_uuid' => $companyUuid,
+                            'created_at' => $timestamp,
+                        ];
+                    })
+                    ->all()
+            );
+        });
     }
 }

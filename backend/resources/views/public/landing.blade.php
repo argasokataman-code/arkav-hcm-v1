@@ -508,7 +508,7 @@
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
 					<h2 class="h3 fw-bold mb-2">Pilih paket</h2>
-					<p class="text-muted mb-0">Paket real dari sistem (DB). Upgrade kapan saja.</p>
+					<p class="text-muted mb-0">Pilih plan yang aktif, lalu lanjut ke form onboarding company dengan paket yang sudah terpilih.</p>
 				</div>
 				<div class="col-lg-4 text-lg-end" data-reveal>
 					<div class="d-inline-flex align-items-center gap-2 p-2 rounded-3 bg-light border">
@@ -563,9 +563,9 @@
 							</div>
 							<a
 								class="btn btn-primary"
-								href="{{ url('/trial') }}?packageId={{ $package->id }}"
+								href="{{ url('/trial') }}?packageId={{ $package->uuid }}"
 							>
-								Mulai
+								Pilih plan
 							</a>
 						</div>
 
@@ -669,10 +669,10 @@
 				<div class="card-body p-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
 					<div>
 						<div class="fw-bold">Siap mulai?</div>
-						<div class="text-muted">Klik “Mulai” pada paket pilihanmu, isi onboarding, lalu login sebagai owner.</div>
+						<div class="text-muted">Klik “Pilih plan” pada paket pilihanmu, isi onboarding company, lalu login sebagai owner.</div>
 					</div>
 					<div class="d-flex gap-2">
-						<a class="btn btn-primary" href="{{ url('/trial') }}">Mulai onboarding</a>
+						<a class="btn btn-primary" href="{{ url('/trial') }}">Daftarkan company</a>
 						<a class="btn btn-outline-secondary" href="{{ url('/login') }}">Login</a>
 					</div>
 				</div>
@@ -752,7 +752,7 @@
 					<div class="row g-3">
 						<div class="col-md-6">
 							<label class="form-label">Paket <span class="text-danger">*</span></label>
-							<select class="form-select" name="package_id" required data-onboarding-package></select>
+							<select class="form-select" name="package_uuid" required data-onboarding-package></select>
 						</div>
 						<div class="col-md-3">
 							<label class="form-label">Billing cycle <span class="text-danger">*</span></label>
@@ -864,6 +864,12 @@
 						<div class="small text-muted">Catatan</div>
 						<div class="fw-semibold">Setelah onboarding berhasil, silakan login pakai email owner untuk masuk ke aplikasi.</div>
 					</div>
+					@if (config('turnstile.enabled') && config('turnstile.site_key'))
+						<div class="mt-3">
+							<div class="cf-turnstile" data-sitekey="{{ config('turnstile.site_key') }}"></div>
+							<div class="form-text">Verifikasi keamanan untuk mencegah spam/bot.</div>
+						</div>
+					@endif
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -871,10 +877,6 @@
 				</div>
 			</form>
 			@if (config('turnstile.enabled') && config('turnstile.site_key'))
-				<div class="px-4 pb-4">
-					<div class="cf-turnstile" data-sitekey="{{ config('turnstile.site_key') }}"></div>
-					<div class="form-text">Verifikasi keamanan untuk mencegah spam/bot.</div>
-				</div>
 				<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 			@endif
 		</div>

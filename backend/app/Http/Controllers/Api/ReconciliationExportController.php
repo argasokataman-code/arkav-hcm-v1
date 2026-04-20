@@ -9,7 +9,9 @@ use App\Models\HcmPayrollLine;
 use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -365,7 +367,7 @@ class ReconciliationExportController extends Controller
         ]);
     }
 
-    public function download(Request $request, int $id): BinaryFileResponse|JsonResponse
+    public function download(Request $request, string $id): BinaryFileResponse|JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -376,10 +378,9 @@ class ReconciliationExportController extends Controller
             return $response;
         }
 
-        $evidence = ExportReconciliationEvidence::query()
-            ->where('company_id', $companyId)
-            ->whereKey($id)
-            ->first();
+        $evidenceQuery = ExportReconciliationEvidence::query()->where('company_id', $companyId);
+        $this->applyIdentifierScope($evidenceQuery, $id);
+        $evidence = $evidenceQuery->first();
 
         if (! $evidence) {
             return $this->errorResponse('EXPORT_RECON_NOT_FOUND', 'Export reconciliation evidence not found.', 404);
@@ -463,5 +464,19 @@ class ReconciliationExportController extends Controller
                 'message' => $message,
             ],
         ], $status);
+    }
+
+    private function applyIdentifierScope($query, string $identifier)
+    {
+        $hasUuidColumn = Schema::hasColumn((new ExportReconciliationEvidence)->getTable(), 'uuid');
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

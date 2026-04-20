@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HcmOvertimeType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class HcmOvertimeTypeController extends Controller
@@ -66,14 +67,16 @@ class HcmOvertimeTypeController extends Controller
         return response()->json(['success' => true, 'data' => ['id' => $t->id]], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'attendance.manage');
         if ($forbidden) {
             return $forbidden;
         }
 
-        $t = HcmOvertimeType::query()->findOrFail($id);
+        $query = HcmOvertimeType::query();
+        $this->applyIdentifierScope($query, $id);
+        $t = $query->firstOrFail();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
@@ -107,14 +110,16 @@ class HcmOvertimeTypeController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'attendance.manage');
         if ($forbidden) {
             return $forbidden;
         }
 
-        HcmOvertimeType::query()->whereKey($id)->delete();
+        $query = HcmOvertimeType::query();
+        $this->applyIdentifierScope($query, $id);
+        $query->delete();
 
         return response()->json(['success' => true]);
     }
@@ -151,5 +156,19 @@ class HcmOvertimeTypeController extends Controller
         }
 
         return $code;
+    }
+
+    private function applyIdentifierScope($query, string $identifier)
+    {
+        $hasUuidColumn = Schema::hasColumn((new HcmOvertimeType)->getTable(), 'uuid');
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

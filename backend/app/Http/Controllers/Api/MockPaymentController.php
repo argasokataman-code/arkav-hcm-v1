@@ -39,7 +39,7 @@ class MockPaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'invoice_id' => 'required|integer|exists:invoices,id',
+            'invoice_id' => 'required|uuid|exists:invoices,uuid',
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'nullable|string|in:mock_card,mock_bank,mock_ewallet',
             'simulate_failure' => 'nullable|boolean',
@@ -217,7 +217,7 @@ class MockPaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'payment_id' => 'required|integer|exists:payments,id',
+            'payment_id' => 'required|uuid|exists:payments,uuid',
         ]);
 
         $payment = Payment::find($validated['payment_id']);

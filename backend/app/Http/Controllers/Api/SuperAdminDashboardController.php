@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\DashboardMetric;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Schema;
 
 class SuperAdminDashboardController extends Controller
 {
@@ -28,14 +31,14 @@ class SuperAdminDashboardController extends Controller
         }
 
         $kpis = [
-            'totalCompanies' => Company::count(),
-            'totalUsers' => User::whereHas('companyMemberships')->count(),
-            'mrr' => $this->calculateMRR(),
-            'arr' => $this->calculateARR(),
-            'activeSubscriptions' => Subscription::where('status', 'active')->count(),
-            'churnRate' => $this->calculateChurnRate(),
-            'customerLifetimeValue' => $this->calculateCLV(),
-            'netRevenueRetention' => $this->calculateNRR(),
+            'totalCompanies' => $this->resolveDashboardMetric('total_companies', fn (): float => (float) Company::count()),
+            'totalUsers' => $this->resolveDashboardMetric('total_users', fn (): float => (float) User::whereHas('companyMemberships')->count()),
+            'mrr' => $this->resolveDashboardMetric('mrr', fn (): float => $this->calculateMRR(), ['currency' => 'IDR']),
+            'arr' => $this->resolveDashboardMetric('arr', fn (): float => $this->calculateARR(), ['currency' => 'IDR']),
+            'activeSubscriptions' => $this->resolveDashboardMetric('active_subscriptions', fn (): float => (float) Subscription::where('status', 'active')->count()),
+            'churnRate' => $this->resolveDashboardMetric('churn_rate', fn (): float => $this->calculateChurnRate(), ['unit' => 'percent']),
+            'customerLifetimeValue' => $this->resolveDashboardMetric('customer_lifetime_value', fn (): float => $this->calculateCLV(), ['currency' => 'IDR']),
+            'netRevenueRetention' => $this->resolveDashboardMetric('net_revenue_retention', fn (): float => $this->calculateNRR(), ['unit' => 'percent']),
         ];
 
         return response()->json([
@@ -89,19 +92,24 @@ class SuperAdminDashboardController extends Controller
             ], 403);
         }
 
+        $perPage = max(1, min((int) $request->integer('per_page', 15), 100));
+
         $companies = Company::withCount('users', 'subscriptions')
+            ->withSum('subscriptions', 'amount')
             ->latest('created_at')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json([
             'success' => true,
             'data' => $companies->map(fn ($c) => [
                 'id' => $c->id,
+                'uuid' => $c->uuid,
                 'code' => $c->code,
                 'name' => $c->name,
                 'email' => $c->email,
                 'userCount' => $c->users_count,
                 'subscriptionCount' => $c->subscriptions_count,
+                'totalRevenue' => (float) ($c->subscriptions_sum_amount ?? 0),
                 'createdAt' => $c->created_at->toIso8601String(),
             ]),
             'pagination' => [
@@ -232,6 +240,57 @@ class SuperAdminDashboardController extends Controller
     }
 
     /**
+     * GET /v1/saas/dashboard/users/retention
+     * Retention summary based on tenant membership lifecycle
+     */
+    public function getUserRetention(): JsonResponse
+    {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $currentMonthStart = now()->startOfMonth();
+        $previousMonthEnd = $currentMonthStart->copy()->subSecond();
+
+        $previousCohortUsers = CompanyUser::query()
+            ->whereNotNull('joined_at')
+            ->whereDate('joined_at', '<=', $previousMonthEnd->toDateString())
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $retainedUsers = CompanyUser::query()
+            ->whereNotNull('joined_at')
+            ->whereDate('joined_at', '<=', $previousMonthEnd->toDateString())
+            ->where('status', 'active')
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $activeUsersCurrent = CompanyUser::query()
+            ->where('status', 'active')
+            ->distinct('user_id')
+            ->count('user_id');
+
+        $newUsersThisMonth = max(0, $activeUsersCurrent - $retainedUsers);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cohortMonth' => $currentMonthStart->copy()->subMonth()->format('Y-m'),
+                'previousCohortUsers' => $previousCohortUsers,
+                'retainedUsers' => $retainedUsers,
+                'churnedUsers' => max(0, $previousCohortUsers - $retainedUsers),
+                'newUsersThisMonth' => $newUsersThisMonth,
+                'activeUsersCurrent' => $activeUsersCurrent,
+                'retentionRate' => $previousCohortUsers > 0 ? round(($retainedUsers / $previousCohortUsers) * 100, 2) : 0,
+            ],
+        ]);
+    }
+
+    /**
      * GET /v1/saas/dashboard/revenue/monthly
      * MRR trend (last 12 months)
      */
@@ -266,6 +325,49 @@ class SuperAdminDashboardController extends Controller
     }
 
     /**
+     * GET /v1/saas/dashboard/revenue/forecast
+     * Short-term revenue projection based on recent monthly trend
+     */
+    public function getRevenueForecast(): JsonResponse
+    {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $history = $this->buildMonthlyRevenueSeries(6);
+        $historyValues = $history->pluck('mrr')->values();
+        $deltas = collect();
+
+        for ($i = 1; $i < $historyValues->count(); $i++) {
+            $deltas->push((float) $historyValues[$i] - (float) $historyValues[$i - 1]);
+        }
+
+        $averageDelta = $deltas->isNotEmpty() ? round((float) $deltas->avg(), 2) : 0.0;
+        $lastMonth = now()->startOfMonth();
+        $lastValue = (float) ($historyValues->last() ?? 0);
+
+        $forecast = collect(range(1, 3))->map(function (int $step) use ($lastMonth, $lastValue, $averageDelta) {
+            return [
+                'month' => $lastMonth->copy()->addMonths($step)->format('Y-m'),
+                'projectedMrr' => round(max(0, $lastValue + ($averageDelta * $step)), 2),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'method' => 'average_delta_last_6_months',
+                'history' => $history->values(),
+                'forecast' => $forecast->values(),
+            ],
+        ]);
+    }
+
+    /**
      * GET /v1/saas/dashboard/revenue/by-plan
      * Revenue breakdown by subscription plan
      */
@@ -280,12 +382,12 @@ class SuperAdminDashboardController extends Controller
         }
 
         $breakdown = Subscription::where('status', 'active')
-            ->selectRaw('package_id, COUNT(*) as count, SUM(amount) as revenue')
-            ->groupBy('package_id')
+            ->selectRaw('package_uuid, COUNT(*) as count, SUM(amount) as revenue')
+            ->groupBy('package_uuid')
             ->with('package')
             ->get()
             ->map(fn ($s) => [
-                'packageId' => $s->package_id,
+                'packageId' => $s->package_uuid,
                 'packageName' => $s->package?->name ?? 'Unknown',
                 'subscriptionCount' => (int) $s->count,
                 'revenue' => (float) $s->revenue,
@@ -324,6 +426,143 @@ class SuperAdminDashboardController extends Controller
         return response()->json([
             'success' => true,
             'data' => $breakdown,
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/dashboard/subscriptions/health
+     * Subscription portfolio health summary
+     */
+    public function getSubscriptionHealth(): JsonResponse
+    {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $breakdown = Subscription::selectRaw('status, COUNT(*) as count, SUM(amount) as revenue')
+            ->groupBy('status')
+            ->get()
+            ->mapWithKeys(fn ($subscription) => [
+                $subscription->status => [
+                    'count' => (int) $subscription->count,
+                    'revenue' => (float) $subscription->revenue,
+                ],
+            ]);
+
+        $totalSubscriptions = Subscription::count();
+        $activeSubscriptions = (int) ($breakdown['active']['count'] ?? 0);
+        $expiringSoon = Subscription::query()
+            ->whereIn('status', ['active', 'trial'])
+            ->whereNotNull('ends_at')
+            ->whereBetween('ends_at', [now(), now()->copy()->addDays(14)])
+            ->count();
+
+        $autoRenewDisabled = Subscription::query()
+            ->whereIn('status', ['active', 'trial'])
+            ->where('auto_renew', false)
+            ->count();
+
+        $expiredButNotClosed = Subscription::query()
+            ->whereIn('status', ['active', 'trial'])
+            ->whereNotNull('ends_at')
+            ->where('ends_at', '<', now())
+            ->count();
+
+        $activeRatio = $totalSubscriptions > 0 ? $activeSubscriptions / $totalSubscriptions : 0;
+        $expiringPenalty = $activeSubscriptions > 0 ? $expiringSoon / $activeSubscriptions : 0;
+        $autoRenewPenalty = $activeSubscriptions > 0 ? $autoRenewDisabled / $activeSubscriptions : 0;
+        $healthScore = round(max(0, min(100, ($activeRatio * 70 + (1 - $expiringPenalty) * 20 + (1 - $autoRenewPenalty) * 10) * 100)), 2);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'healthScore' => $healthScore,
+                'totalSubscriptions' => $totalSubscriptions,
+                'activeSubscriptions' => $activeSubscriptions,
+                'expiringSoon' => $expiringSoon,
+                'autoRenewDisabled' => $autoRenewDisabled,
+                'expiredButNotClosed' => $expiredButNotClosed,
+                'breakdown' => $breakdown,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/dashboard/reports/custom
+     * Custom summary report using date range and grouping filters
+     */
+    public function getCustomReport(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $groupBy = $request->string('group_by', 'month')->toString();
+        if (! in_array($groupBy, ['month', 'plan', 'status'], true)) {
+            $groupBy = 'month';
+        }
+
+        $fromDate = $request->date('from')?->startOfDay() ?? now()->copy()->subDays(90)->startOfDay();
+        $toDate = $request->date('to')?->endOfDay() ?? now()->endOfDay();
+
+        $subscriptionQuery = Subscription::query()->whereBetween('created_at', [$fromDate, $toDate]);
+        $companyQuery = Company::query()->whereBetween('created_at', [$fromDate, $toDate]);
+        $membershipQuery = CompanyUser::query()->whereBetween('joined_at', [$fromDate, $toDate]);
+
+        $summary = [
+            'companiesCreated' => $companyQuery->count(),
+            'userMembershipsAdded' => $membershipQuery->count(),
+            'subscriptionsCreated' => $subscriptionQuery->count(),
+            'activeSubscriptions' => (clone $subscriptionQuery)->where('status', 'active')->count(),
+            'cancelledSubscriptions' => (clone $subscriptionQuery)->where('status', 'cancelled')->count(),
+            'totalRevenue' => round((float) ((clone $subscriptionQuery)->sum('amount')), 2),
+        ];
+
+        $breakdown = match ($groupBy) {
+            'plan' => Subscription::query()
+                ->selectRaw('package_uuid, COUNT(*) as subscription_count, SUM(amount) as revenue')
+                ->whereBetween('created_at', [$fromDate, $toDate])
+                ->groupBy('package_uuid')
+                ->with('package')
+                ->get()
+                ->map(fn ($subscription) => [
+                    'packageId' => $subscription->package_uuid,
+                    'packageName' => $subscription->package?->name ?? 'Unknown',
+                    'subscriptionCount' => (int) $subscription->subscription_count,
+                    'revenue' => (float) $subscription->revenue,
+                ]),
+            'status' => Subscription::query()
+                ->selectRaw('status, COUNT(*) as subscription_count, SUM(amount) as revenue')
+                ->whereBetween('created_at', [$fromDate, $toDate])
+                ->groupBy('status')
+                ->get()
+                ->map(fn ($subscription) => [
+                    'status' => $subscription->status,
+                    'subscriptionCount' => (int) $subscription->subscription_count,
+                    'revenue' => (float) $subscription->revenue,
+                ]),
+            default => $this->buildMonthlyRevenueSeriesBetween($fromDate, $toDate),
+        };
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'filters' => [
+                    'from' => $fromDate->toDateString(),
+                    'to' => $toDate->toDateString(),
+                    'groupBy' => $groupBy,
+                ],
+                'summary' => $summary,
+                'breakdown' => $breakdown->values(),
+            ],
         ]);
     }
 
@@ -380,6 +619,58 @@ class SuperAdminDashboardController extends Controller
                 'per_page' => $logs->perPage(),
                 'current_page' => $logs->currentPage(),
                 'last_page' => $logs->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/dashboard/audit-logs/{auditLog}
+     * Show audit log detail
+     */
+    public function getAuditLogDetail(string $auditLog): JsonResponse
+    {
+        $user = request()->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $auditLogRecord = AuditLog::query()
+            ->with('superAdmin')
+            ->where(function ($query) use ($auditLog): void {
+                if (Schema::hasColumn('audit_logs', 'uuid')) {
+                    $query->where('uuid', $auditLog);
+
+                    if (ctype_digit($auditLog)) {
+                        $query->orWhere('id', (int) $auditLog);
+                    }
+
+                    return;
+                }
+
+                $query->where('id', ctype_digit($auditLog) ? (int) $auditLog : 0);
+            })
+            ->firstOrFail();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $auditLogRecord->id,
+                'uuid' => $auditLogRecord->uuid,
+                'superAdminId' => $auditLogRecord->super_admin_id,
+                'superAdminName' => $auditLogRecord->superAdmin?->name,
+                'action' => $auditLogRecord->action,
+                'actionLabel' => $auditLogRecord->getActionLabel(),
+                'targetType' => $auditLogRecord->target_type,
+                'targetId' => $auditLogRecord->target_id,
+                'details' => $auditLogRecord->details,
+                'ipAddress' => $auditLogRecord->ip_address,
+                'userAgent' => $auditLogRecord->user_agent,
+                'isSensitiveAction' => $auditLogRecord->isSensitiveAction(),
+                'createdAt' => $auditLogRecord->created_at?->toIso8601String(),
+                'updatedAt' => $auditLogRecord->updated_at?->toIso8601String(),
             ],
         ]);
     }
@@ -446,6 +737,82 @@ class SuperAdminDashboardController extends Controller
             ->sum('amount');
 
         return $startingRevenue > 0 ? round(($currentRevenue / $startingRevenue) * 100, 2) : 0;
+    }
+
+    private function buildMonthlyRevenueSeries(int $months): \Illuminate\Support\Collection
+    {
+        $startDate = now()->startOfMonth()->subMonths($months - 1);
+
+        return $this->buildMonthlyRevenueSeriesBetween($startDate, now()->endOfMonth());
+    }
+
+    private function buildMonthlyRevenueSeriesBetween(\Carbon\CarbonInterface $fromDate, \Carbon\CarbonInterface $toDate): \Illuminate\Support\Collection
+    {
+        $cursor = $fromDate->copy()->startOfMonth();
+        $endMonth = $toDate->copy()->startOfMonth();
+        $series = collect();
+
+        while ($cursor <= $endMonth) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth();
+
+            $series->push([
+                'month' => $cursor->format('Y-m'),
+                'mrr' => round((float) Subscription::query()
+                    ->where('status', 'active')
+                    ->whereBetween('created_at', [$monthStart, $monthEnd])
+                    ->sum('amount'), 2),
+            ]);
+
+            $cursor->addMonth();
+        }
+
+        return $series;
+    }
+
+    private function resolveDashboardMetric(string $metricKey, callable $fallbackResolver, array $metadata = []): float|int
+    {
+        $metric = DashboardMetric::getMetric($metricKey);
+
+        if ($metric && ! $metric->needsRecalculation()) {
+            return $this->normalizeMetricValue($metric->metric_value);
+        }
+
+        $value = $this->normalizeMetricValue($fallbackResolver());
+
+        $values = [
+            'metric_value' => $value,
+            'metric_metadata' => Arr::where($metadata, static fn ($metadataValue): bool => $metadataValue !== null),
+            'calculated_at' => now(),
+            'next_calculation_at' => now()->addHour(),
+        ];
+
+        if (Schema::hasColumn('dashboard_metrics', 'company_id')) {
+            $values['company_id'] = null;
+        }
+
+        if ($metric) {
+            $metric->fill($values);
+            $metric->save();
+        } else {
+            DashboardMetric::create(array_merge([
+                'metric_date' => now()->toDateString(),
+                'metric_key' => $metricKey,
+            ], $values));
+        }
+
+        return $value;
+    }
+
+    private function normalizeMetricValue(mixed $value): float|int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        $numericValue = (float) $value;
+
+        return fmod($numericValue, 1.0) === 0.0 ? (int) $numericValue : round($numericValue, 2);
     }
 
     /**

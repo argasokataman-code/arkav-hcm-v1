@@ -1,6 +1,6 @@
 # Packages Module - E2E UI Testing
 
-## Objective
+## Tujuan
 
 Memastikan alur UI Packages berjalan end-to-end dari sisi Super User (admin) dan company user, termasuk validasi akses, filter/search, dan operasi CRUD.
 
@@ -11,7 +11,7 @@ Memastikan alur UI Packages berjalan end-to-end dari sisi Super User (admin) dan
 - Company user: role non-admin
 - API token endpoint aktif: `GET /api-token`
 
-## Scenario 1 - Admin Can Manage Packages
+## Skenario 1 - Admin Can Manage Packages
 
 1. Login sebagai admin.
 2. Buka `/saas/packages`.
@@ -29,7 +29,7 @@ Memastikan alur UI Packages berjalan end-to-end dari sisi Super User (admin) dan
    - Data package baru muncul di list.
    - Badge status `active`.
 
-## Scenario 2 - Admin Search and Filter
+## Skenario 2 - Admin Search and Filter
 
 1. Di halaman Packages admin, ketik keyword unik (misal `Starter`).
 2. Tunggu debounce selesai.
@@ -45,17 +45,19 @@ Memastikan alur UI Packages berjalan end-to-end dari sisi Super User (admin) dan
    - Search input kosong.
    - List kembali default.
 
-## Scenario 3 - Admin Edit Package
+## Skenario 3 - Admin Edit Package
 
 1. Klik icon edit pada package existing.
 2. Ubah nama/deskripsi dan ubah pilihan fitur.
-3. Submit.
-4. Expected:
+3. Jangan ubah field price/cycle bila hanya ingin update metadata.
+4. Submit.
+5. Expected:
    - Toast update sukses.
    - Data terbaru tampil di list.
    - Feature modal menampilkan fitur terbaru.
+   - Harga tahunan existing tidak ikut berubah diam-diam bila input harga/cycle tidak disentuh.
 
-## Scenario 4 - Admin Delete Package
+## Skenario 4 - Admin Delete Package
 
 1. Klik icon delete pada satu package.
 2. Expected:
@@ -65,10 +67,11 @@ Memastikan alur UI Packages berjalan end-to-end dari sisi Super User (admin) dan
    - Toast delete sukses.
    - Data hilang dari list.
 
-Negative check:
+Negative checks:
 - Jika komponen konfirmasi tidak tersedia, user mendapat error toast dan delete dibatalkan.
+- Jika package masih punya subscription history, delete ditolak dengan error bisnis `PACKAGE_IN_USE` dan package tetap ada di list.
 
-## Scenario 4b - Admin Can Manage Add-ons
+## Skenario 4b - Admin Can Manage Add-ons
 
 1. Scroll ke section Package Add-ons.
 2. Klik Add Add-on.
@@ -92,7 +95,7 @@ Negative check:
 12. Expected:
    - Add-on hilang dari list.
 
-## Scenario 5 - Company User Access Behavior
+## Skenario 5 - Company User Access Behavior
 
 1. Login sebagai company user.
 2. Buka `/saas/packages`.
@@ -102,7 +105,7 @@ Negative check:
    - Request mutasi ditolak dengan `403 ADMIN_REQUIRED`.
    - UI menampilkan pesan error.
 
-## Scenario 6 - Session and Stability
+## Skenario 6 - Session and Stability
 
 1. Reload halaman beberapa kali.
 2. Buka DevTools network.
@@ -119,7 +122,8 @@ Negative check:
 - `GET /v1/saas/packages?status=all&search=starter`
 - `POST /v1/saas/packages` (admin => 201)
 - `POST /v1/saas/packages` (company => 403)
-- `DELETE /v1/saas/packages/{id}` (company => 403)
+- `DELETE /v1/saas/packages/{packageUuid}` (company => 403)
+- `DELETE /v1/saas/packages/{packageUuid}` (admin, package masih dipakai subscription => 422 `PACKAGE_IN_USE`)
 
 ## Exit Criteria
 

@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,6 +95,7 @@ class TicketTenantScopeTest extends TestCase
         ]);
 
         $ticketA = Ticket::query()->create([
+            'company_id' => $companyA->id,
             'user_id' => $reporterA->id,
             'code' => 'TIC-A-001',
             'subject' => 'Issue A',
@@ -106,6 +106,7 @@ class TicketTenantScopeTest extends TestCase
             'status' => 'open',
         ]);
         $ticketB = Ticket::query()->create([
+            'company_id' => $companyB->id,
             'user_id' => $reporterB->id,
             'code' => 'TIC-B-001',
             'subject' => 'Issue B',
@@ -142,6 +143,143 @@ class TicketTenantScopeTest extends TestCase
         $idsB = collect($resB->json('data'))->pluck('id')->all();
         $this->assertContains($ticketB->id, $idsB);
         $this->assertNotContains($ticketA->id, $idsB);
+    }
+
+    public function test_ticket_created_in_one_active_company_does_not_leak_to_other_membership(): void
+    {
+        $companyA = Company::query()->create([
+            'name' => 'Scoped A',
+            'code' => 'scoped_a',
+            'status' => 'active',
+        ]);
+        $companyB = Company::query()->create([
+            'name' => 'Scoped B',
+            'code' => 'scoped_b',
+            'status' => 'active',
+        ]);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Multi Tenant Reporter',
+            'email' => 'multi-ticket@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $reporter = User::query()->where('email', 'multi-ticket@example.com')->firstOrFail();
+
+        CompanyUser::query()->create([
+            'company_id' => $companyA->id,
+            'user_id' => $reporter->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $companyB->id,
+            'user_id' => $reporter->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'multi-ticket@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk()->assertCookie($this->cookieName());
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $create = $this->withHeader('Cookie', $cookieHeader)
+            ->withHeader('X-Company-Id', (string) $companyA->id)
+            ->postJson('/v1/hcm/tickets', [
+                'subject' => 'Scoped ticket',
+                'description' => 'Only for company A',
+                'priority' => 'medium',
+            ])->assertStatus(201);
+
+        $ticketId = (int) $create->json('data.id');
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->withHeader('X-Company-Id', (string) $companyA->id)
+            ->getJson('/v1/hcm/tickets?perPage=50')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $ticketId]);
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->withHeader('X-Company-Id', (string) $companyB->id)
+            ->getJson('/v1/hcm/tickets?perPage=50')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $ticketId]);
+    }
+
+    public function test_assignable_users_are_scoped_to_active_company(): void
+    {
+        $companyA = Company::query()->create([
+            'name' => 'Assignable A',
+            'code' => 'assignable_a',
+            'status' => 'active',
+        ]);
+        $companyB = Company::query()->create([
+            'name' => 'Assignable B',
+            'code' => 'assignable_b',
+            'status' => 'active',
+        ]);
+
+        $adminEmail = (string) config('hcm.admin_email', 'qa.login@example.com');
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Assignable Admin',
+            'email' => $adminEmail,
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $admin = User::query()->where('email', $adminEmail)->firstOrFail();
+
+        CompanyUser::query()->create([
+            'company_id' => $companyA->id,
+            'user_id' => $admin->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $userA = User::query()->create([
+            'name' => 'Assignable User A',
+            'email' => 'assignable.user.a@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $companyA->id,
+            'user_id' => $userA->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $userB = User::query()->create([
+            'name' => 'Assignable User B',
+            'email' => 'assignable.user.b@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $companyB->id,
+            'user_id' => $userB->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => $adminEmail,
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = (string) $loginResponse->json('data.accessToken');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->withHeader('X-Company-Id', (string) $companyA->id)
+            ->getJson('/v1/hcm/tickets/assignable-users')
+            ->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($userA->id, $ids);
+        $this->assertNotContains($userB->id, $ids);
     }
 }
 

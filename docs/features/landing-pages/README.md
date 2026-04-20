@@ -15,6 +15,39 @@ Fitur **Landing Pages** adalah halaman marketing yang bisa diakses publik (guest
 - melakukan **registrasi company (tenant)** + user owner,
 - melanjutkan ke flow **subscribe → invoice → payment** sesuai kontrak SaaS yang sudah ada.
 
+## Akses
+
+- Surface ini bersifat publik/guest untuk calon customer.
+- Endpoint onboarding public yang akan ditambahkan harus tetap dibatasi oleh rate limit dan ownership rules.
+
+## UI Aktif
+
+- Halaman marketing utama: `/`.
+- CTA mengarah ke flow onboarding, package selection, dan billing follow-up.
+
+## Flow Bisnis End-to-End
+
+1. Guest membuka landing page.
+2. Guest membaca paket yang tersedia dan memilih CTA yang relevan.
+3. Guest mengisi data company dan owner.
+4. Sistem membuat entity onboarding yang diperlukan lalu mengarahkan ke flow subscription/invoice/payment.
+
+## Lifecycle Dan Keputusan Bisnis
+
+- Landing hanya boleh menampilkan data marketing-safe.
+- Self-serve onboarding belum boleh dianggap final sebelum kontrak public onboarding disahkan.
+- Validasi FE/BE harus tetap parity dengan kontrak identity/company yang aktif.
+
+## Integrasi
+
+- Packages: daftar paket dan ringkasan limit diambil dari modul packages. Lihat `docs/features/packages/README.md`.
+- Subscriptions dan Purchase Transactions: flow subscribe, invoice, dan payment melanjut ke ekosistem billing aktif. Lihat `docs/features/subscriptions/README.md` dan `docs/features/purchase-transaction/README.md`.
+- Identity Auth: register owner dan login company mengikuti kontrak auth yang aktif. Lihat `docs/features/identity-auth/README.md`.
+- Domain Management dan Trial/Billing Dashboard: tenant yang selesai onboarding akan masuk ke operasi SaaS lanjutan. Lihat `docs/features/domain-management/README.md` dan `docs/features/trial-billing-dashboard/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+
+## Kontrak API
+
 ## Target flow (public → onboarding → payment)
 
 Alur yang diinginkan:
@@ -107,4 +140,9 @@ Daftar ini melengkapi `E2E-TESTING.md` dan harus jadi acuan saat implementasi en
 
 - Flow SaaS existing: `docs/features/subscriptions/` dan `docs/features/packages/`
 - Guard web (public whitelist): `docs/security/hcm-web-route-guard.md`
+
+## Existing Vs Target
+
+- Existing: landing berfungsi sebagai dokumen flow marketing/onboarding dan masih bergantung pada kontrak auth/company/subscription yang sebagian besar admin-oriented.
+- Target: self-serve onboarding public yang final, aman, dan sinkron ke OpenAPI serta feature billing terkait.
 

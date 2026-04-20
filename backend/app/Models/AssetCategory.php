@@ -2,27 +2,30 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class AssetCategory extends Model
 {
-    use HasFactory;
+    use HasFactory, AssignsUuid;
 
     protected static function booted(): void
     {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
+                $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
             }
         });
     }
 
     protected $fillable = [
+        'uuid',
         'company_id',
+        'company_uuid',
         'code',
         'name',
         'description',
@@ -30,6 +33,8 @@ class AssetCategory extends Model
     ];
 
     protected $casts = [
+        'uuid' => 'string',
+        'company_uuid' => 'string',
         'is_active' => 'boolean',
     ];
 

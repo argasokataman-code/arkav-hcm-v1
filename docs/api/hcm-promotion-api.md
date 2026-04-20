@@ -15,7 +15,7 @@ Base path: `/v1/hcm`
 
 Promotion record menyimpan riwayat promosi employee.
 
-- `userId` (required): target employee (User)
+- `userId` (required, UUID): target employee (User) yang juga harus menjadi anggota company aktif
 - `department` (optional, string ≤ 150)
 - `designationFrom` (optional, string ≤ 150)
 - `designationTo` (optional, string ≤ 150)
@@ -59,6 +59,7 @@ List promotion records (**HCM admin only**).
 
 Detail satu promotion.
 
+- `id` pada path masih numeric legacy.
 - **Admin**: semua id.
 - **Karyawan**: hanya baris milik sendiri (`user_id` = user login).
 
@@ -71,6 +72,7 @@ Detail satu promotion.
 
 Riwayat promotion untuk satu employee (paginated).
 
+- `userId` pada path masih numeric legacy.
 - **Admin**: semua `userId`.
 - **Karyawan**: hanya `userId` = diri sendiri.
 
@@ -86,7 +88,7 @@ Create a promotion record (**HCM admin only**).
 
 ```json
 {
-  "userId": 2,
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "department": "Finance",
   "designationFrom": "Accountant",
   "designationTo": "Sr Accountant",
@@ -94,6 +96,8 @@ Create a promotion record (**HCM admin only**).
   "notes": "Congrats"
 }
 ```
+
+**422**: `VALIDATION_ERROR` bila `userId` valid secara format/existence tetapi user tersebut bukan anggota company aktif.
 
 **201 Response**
 
@@ -104,6 +108,8 @@ Create a promotion record (**HCM admin only**).
 ### PUT `/promotions/{id}`
 
 Update a promotion record (partial update, **HCM admin only**).
+
+- `id` pada path masih numeric legacy.
 
 **Request example**
 
@@ -120,6 +126,8 @@ Update a promotion record (partial update, **HCM admin only**).
 ### DELETE `/promotions/{id}`
 
 Delete a promotion record (**HCM admin only**).
+
+- `id` pada path masih numeric legacy.
 
 **200 Response**
 

@@ -2141,10 +2141,30 @@
             apiGet("/v1/hcm/reports/snapshots/" + encodeURIComponent(String(snapshotId)))
                 .then(function (payload) {
                     if (!payload || payload.success !== true || !payload.data) {
+                        reportRowsCache = [];
+                        fillReportDepartmentFilter(reportRowsCache);
+                        applyReportSummary({}, dateParam);
+                        renderReportChart([], dateParam);
                         renderReportMessage("Snapshot tidak ditemukan atau tidak bisa diakses.");
                         return;
                     }
                     var snapshot = payload.data;
+                    if (String(snapshot.reportType || "").toLowerCase() !== "attendance") {
+                        reportRowsCache = [];
+                        fillReportDepartmentFilter(reportRowsCache);
+                        applyReportSummary({}, dateParam);
+                        renderReportChart([], dateParam);
+                        renderReportMessage("Snapshot ini bukan report attendance.");
+                        return;
+                    }
+                    if (String(snapshot.status || "").toLowerCase() !== "completed") {
+                        reportRowsCache = [];
+                        fillReportDepartmentFilter(reportRowsCache);
+                        applyReportSummary({}, dateParam);
+                        renderReportChart([], dateParam);
+                        renderReportMessage("Snapshot attendance belum siap digunakan.");
+                        return;
+                    }
                     var effectiveDate = snapshot.periodEnd || dateParam;
                     reportActiveDate = effectiveDate;
                     var rows = normalizeArchiveAttendanceRows(snapshot, effectiveDate);
@@ -2753,6 +2773,10 @@
         }
 
         var range = getTimesheetDateRange();
+        if (range.from && range.to && range.from > range.to) {
+            renderTimesheetsMessage("Date to harus sama atau setelah Date from.");
+            return;
+        }
         var sortSel = document.querySelector("[data-timesheets-sort]");
         var projectSel = document.querySelector("[data-timesheets-filter-project]");
         var sort = sortSel ? sortSel.value || "date_desc" : "date_desc";

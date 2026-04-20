@@ -2,9 +2,9 @@
 
 ## Status
 - ✅ FE: Camera modal + capture UI implemented
-- ✅ API: POST/GET selfie endpoints created
+- ✅ API: `POST /v1/hcm/attendance/me/selfie`, `GET /v1/hcm/attendance/me/selfie/status`, dan admin download endpoint aktif
 - ✅ DB: Selfie fields + hash storage added
-- ✅ Security: Server-side encryption + SHA256 hash
+- ✅ Security: Private storage + SHA256 hash integrity
 
 ---
 
@@ -62,12 +62,11 @@
 
 #### A6: Verify Storage
 1. Open browser **DevTools** → **Network** tab
-2. Look for POST request: `/api/v1/attendance/me/selfie`
+2. Look for POST request: `/v1/hcm/attendance/me/selfie`
 3. Check response:
    ```json
    {
      "success": true,
-     "message": "Selfie berhasil disimpan dan dienkripsi",
      "data": {
        "attendance_id": 123,
        "selfie_path": "selfie/1/456_2026-04-15_1713182400.jpg",
@@ -84,7 +83,7 @@
 1. Server running (see A1)
 2. Get bearer token:
    ```bash
-   curl -X POST http://localhost:8000/api/v1/login \
+  curl -X POST http://localhost:8000/v1/auth/login \
      -H 'Content-Type: application/json' \
      -d '{"email":"employee1@arcav.test","password":"password"}'
    ```
@@ -94,7 +93,7 @@
 
 #### B1: Check Attendance Status
 ```bash
-curl -X GET http://localhost:8000/api/v1/attendance/me/today \
+curl -X GET http://localhost:8000/v1/hcm/attendance/me/today \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company-Id: 1'
 ```
@@ -103,7 +102,7 @@ Expected: `200 OK` with attendance record for today
 
 #### B2: Upload Selfie (base64 image)
 ```bash
-curl -X POST http://localhost:8000/api/v1/attendance/me/selfie \
+curl -X POST http://localhost:8000/v1/hcm/attendance/me/selfie \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company-Id: 1' \
   -H 'Content-Type: application/json' \
@@ -117,7 +116,6 @@ Expected response `200`:
 ```json
 {
   "success": true,
-  "message": "Selfie berhasil disimpan dan dienkripsi",
   "data": {
     "attendance_id": 123,
     "selfie_path": "selfie/1/456_2026-04-15_1713182400.jpg",
@@ -128,7 +126,7 @@ Expected response `200`:
 
 #### B3: Check Selfie Status
 ```bash
-curl -X GET http://localhost:8000/api/v1/attendance/me/selfie/status \
+curl -X GET http://localhost:8000/v1/hcm/attendance/me/selfie/status \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'X-Company-Id: 1'
 ```
@@ -136,11 +134,14 @@ curl -X GET http://localhost:8000/api/v1/attendance/me/selfie/status \
 Expected:
 ```json
 {
-  "has_selfie": true,
-  "selfie": {
-    "path": "selfie/1/456_2026-04-15_1713182400.jpg",
-    "uploaded_at": "2026-04-15T10:30:00.000000Z",
-    "is_encrypted": true
+  "success": true,
+  "data": {
+    "has_selfie": true,
+    "selfie": {
+      "path": "selfie/1/456_2026-04-15_1713182400.jpg",
+      "uploaded_at": "2026-04-15T10:30:00.000000Z",
+      "is_encrypted": true
+    }
   }
 }
 ```
@@ -187,11 +188,11 @@ Responds with prompts - enter your token when asked.
 - [ ] Encryption badge visible ("Foto akan dienkripsi")
 
 ### API
-- [ ] `POST /api/v1/attendance/me/selfie` returns 200 on valid image
+- [ ] `POST /v1/hcm/attendance/me/selfie` returns 200 on valid image
 - [ ] Response includes `selfie_path` + `uploaded_at`
-- [ ] `GET /api/v1/attendance/me/selfie/status` returns `has_selfie: true`
+- [ ] `GET /v1/hcm/attendance/me/selfie/status` returns `data.has_selfie: true`
 - [ ] Invalid base64 returns 422 error
-- [ ] No attendance record returns 422 "No attendance record found today"
+- [ ] No attendance record returns 422 `ATTENDANCE_NOT_STARTED`
 - [ ] Unauthenticated request returns 401
 
 ### Database
@@ -213,7 +214,8 @@ Responds with prompts - enter your token when asked.
 - **Setup**: Don't punch in
 - **Action**: Try to upload selfie
 - **Expected**: `422 Unprocessable Entity`
-- **Message**: "Harap lakukan punch in terlebih dahulu sebelum mengambil selfie"
+- **Code**: `ATTENDANCE_NOT_STARTED`
+- **Message**: "Harap lakukan punch in terlebih dahulu sebelum mengambil selfie."
 
 ### 2. Invalid Base64
 - **Setup**: Submit `selfie_base64: "not-base64"`
@@ -228,7 +230,11 @@ Responds with prompts - enter your token when asked.
 - **Setup**: No token or invalid token
 - **Expected**: `401 Unauthorized`
 
-### 5. Empty Selfie Data
+### 5. Cross-tenant Admin Download Attempt
+- **Setup**: Login sebagai HCM admin tenant A lalu coba unduh selfie attendance record tenant B via `GET /v1/hcm/attendance/admin/records/{id}/selfie/download`
+- **Expected**: `404 Not Found` atau `403 TENANT_FORBIDDEN` tergantung konteks tenant aktif, tanpa membuka akses file tenant lain
+
+### 6. Empty Selfie Data
 - **Setup**: Click "Simpan Selfie" without capturing
 - **Expected**: Alert "Tidak ada foto untuk disimpan"
 

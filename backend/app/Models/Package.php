@@ -2,14 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class Package extends Model
 {
+    use AssignsUuid;
     use HasFactory;
+
+    protected $primaryKey = 'uuid';
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $fillable = [
         'code',
@@ -28,26 +36,22 @@ class Package extends Model
         'yearly_price' => 'decimal:2',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (self $package): void {
-            if (empty($package->uuid)) {
-                $package->uuid = (string) Str::uuid();
-            }
-        });
-    }
 
     /**
      * Package features
      */
     public function features(): HasMany
     {
-        return $this->hasMany(PackageFeature::class);
+        if (Schema::hasColumn('package_features', 'package_uuid')) {
+            return $this->hasMany(PackageFeature::class, 'package_uuid', 'uuid');
+        }
+
+        return $this->hasMany(PackageFeature::class, 'package_id', 'id');
     }
 
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(Subscription::class);
+        return $this->hasMany(Subscription::class, 'package_uuid', 'uuid');
     }
 
     /**

@@ -58,6 +58,7 @@ Success `200`:
     "user": { "id": 1, "name": "Budi", "email": "budi@company.com", "roles": ["employee"] },
     "activeCompany": {
       "id": 1,
+      "uuid": "11111111-2222-3333-4444-555555555555",
       "code": "default_company",
       "name": "Default Company",
       "role": "member"
@@ -68,12 +69,14 @@ Success `200`:
 
 Behavior note (tenant login mode):
 - Jika `companyCode` diisi, backend memverifikasi membership aktif user ke company tersebut saat login.
+- Jika user adalah owner/admin tenant dan login tanpa `companyCode`, backend menolak dengan `422 AUTH_COMPANY_MODE_REQUIRED`.
 - Jika tidak punya akses ke company yang diminta, login ditolak dengan `403 TENANT_FORBIDDEN`.
 
 Errors:
 - `401 AUTH_INVALID_CREDENTIALS`
 - `403 TENANT_FORBIDDEN`
 - `422 VALIDATION_ERROR`
+- `422 AUTH_COMPANY_MODE_REQUIRED`
 - `429 AUTH_TOO_MANY_ATTEMPTS`
 
 ### POST `/auth/logout` (protected)
@@ -123,8 +126,14 @@ Success `200`:
     },
     "roles": ["employee"],
     "hcmAdmin": false,
+    "hcmGlobalAdmin": false,
+    "permissions": {
+      "training.view": true
+    },
+    "permissionCodes": ["training.view"],
     "activeCompany": {
       "id": 1,
+      "uuid": "11111111-2222-3333-4444-555555555555",
       "code": "default_company",
       "name": "Default Company",
       "role": "member"
@@ -137,6 +146,10 @@ Errors:
 - `401 AUTH_UNAUTHORIZED`
 - `403 TENANT_MEMBERSHIP_REQUIRED`
 - `403 TENANT_FORBIDDEN`
+
+Frontend hardening note:
+- Login form menyimpan tenant context hanya dari `activeCompany` hasil backend.
+- Jika payload sukses login company tidak menyertakan tenant aktif yang valid, FE membatalkan redirect dan menampilkan error.
 
 ### PUT `/auth/profile` (protected)
 

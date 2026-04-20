@@ -137,6 +137,7 @@ class AuthApiTest extends TestCase
         $loginResponse = $this->postJson('/v1/identity/auth/login', [
             'email' => 'trial.owner@example.com',
             'password' => 'StrongPass1',
+            'companyCode' => $defaultCompany->code,
         ])->assertOk()->assertCookie($this->cookieName());
 
         $token = $this->readCookieValueFromLoginResponse($loginResponse);
@@ -474,6 +475,42 @@ class AuthApiTest extends TestCase
         ])->assertStatus(403)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
+    }
+
+    public function test_company_owner_cannot_login_without_company_code(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Must Use Company Mode',
+            'email' => 'owner.companymode@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_mode_only',
+            'name' => 'Owner Mode Only',
+            'legal_name' => 'Owner Mode Only LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.companymode@example.com',
+            'password' => 'StrongPass1',
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'AUTH_COMPANY_MODE_REQUIRED');
     }
 
     public function test_company_active_endpoint_returns_details(): void

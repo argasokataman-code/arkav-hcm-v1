@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\Package;
 use App\Models\Subscription;
 use Carbon\Carbon;
@@ -17,10 +18,10 @@ class SubscriptionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user() || ! $this->hasBearerApiToken($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -100,8 +101,8 @@ class SubscriptionController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|integer|exists:companies,id',
-            'package_id' => 'required|integer|exists:packages,id',
+            'company_id' => 'required|uuid|exists:companies,uuid',
+            'package_uuid' => 'required|uuid|exists:packages,uuid',
             'status' => 'required|in:active,trial,pending_payment,inactive,expired,cancelled,suspended',
             'starts_at' => 'required|date',
             'ends_at' => 'required_if:status,active,trial,pending_payment|nullable|date|after:starts_at',
@@ -124,8 +125,12 @@ class SubscriptionController extends Controller
             }
         }
 
+        // API contract accepts company UUID while subscriptions table stores numeric company_id.
+        $company = Company::query()->where('uuid', $validated['company_id'])->firstOrFail();
+        $validated['company_id'] = $company->id;
+
         // Get package to denormalize plan_code and calculate amount
-        $package = Package::findOrFail($validated['package_id']);
+        $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
         if ($gate = $this->ensurePackageAssignableForStatuses($package, $validated['status'])) {
             return $gate;
         }
@@ -155,10 +160,10 @@ class SubscriptionController extends Controller
      */
     public function show(Request $request, Subscription $subscription): JsonResponse
     {
-        if (! $request->user() || ! $this->hasBearerApiToken($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.'],
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
 
@@ -184,7 +189,7 @@ class SubscriptionController extends Controller
         }
 
         $validated = $request->validate([
-            'package_id' => 'sometimes|integer|exists:packages,id',
+            'package_uuid' => 'sometimes|uuid|exists:packages,uuid',
             'status' => 'sometimes|in:active,trial,pending_payment,inactive,expired,cancelled,suspended',
             'starts_at' => 'sometimes|date',
             'ends_at' => 'nullable|date',
@@ -240,15 +245,15 @@ class SubscriptionController extends Controller
             }
         }
 
-        $effectivePackageId = (int) ($validated['package_id'] ?? $subscription->package_id);
-        $effectivePackage = Package::findOrFail($effectivePackageId);
+        $effectivePackageUuid = (string) ($validated['package_uuid'] ?? $subscription->package_uuid);
+        $effectivePackage = Package::query()->where('uuid', $effectivePackageUuid)->firstOrFail();
         if ($gate = $this->ensurePackageAssignableForStatuses($effectivePackage, $mergedStatus)) {
             return $gate;
         }
 
         // If package changed, update plan_code and sync amount to catalog prices
-        if (isset($validated['package_id'])) {
-            $package = Package::findOrFail($validated['package_id']);
+        if (isset($validated['package_uuid'])) {
+            $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
             $validated['plan_code'] = $package->code;
             $billing = $validated['billing_cycle'] ?? $subscription->billing_cycle;
             $validated['amount'] = $billing === 'yearly'
@@ -410,10 +415,10 @@ class SubscriptionController extends Controller
                 'code' => $company?->code,
                 'name' => $companyName,
             ],
-            'packageId' => $subscription->package_id,
+            'packageId' => $subscription->package_uuid,
             'packageName' => $packageName,
             'package' => [
-                'id' => $package?->id,
+                'id' => $package?->uuid,
                 'code' => $package?->code,
                 'name' => $packageName,
                 'monthlyPrice' => (float) ($package?->monthly_price ?? 0),
@@ -436,13 +441,6 @@ class SubscriptionController extends Controller
             'createdAt' => $subscription->created_at->toIso8601String(),
             'updatedAt' => $subscription->updated_at->toIso8601String(),
         ];
-    }
-
-    private function hasBearerApiToken(Request $request): bool
-    {
-        $authorization = (string) $request->header('Authorization', '');
-
-        return str_starts_with($authorization, 'Bearer ');
     }
 
     /**

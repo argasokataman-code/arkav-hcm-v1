@@ -40,6 +40,12 @@
         return '<span class="badge bg-secondary">UNPAID</span>';
     }
 
+    function paymentStatusText(status) {
+        if (status === "paid") return "PAID";
+        if (status === "partial") return "PARTIAL";
+        return "UNPAID";
+    }
+
     function formatIdr(value) {
         return new Intl.NumberFormat("id-ID", {
             style: "currency",
@@ -175,7 +181,7 @@
 
             var detailHtml = "" +
                 "<div class=\"mb-3\"><strong>Run #" + esc(run.id || "-") + "</strong><br>" +
-                "Status: " + esc(run.status || "-") + " | Payment: " + esc(run.paymentStatus || "-") + "<br>" +
+                "Status: " + runStatusBadge(run.status) + " <span class=\"mx-1 text-muted\">|</span> Payment: " + paymentStatusBadge(run.paymentStatus) + "<br>" +
                 "Finalized by: " + esc(run.finalizedByUserName || "-") + "</div>" +
                 '<div class="row g-2 mb-3">' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Penghasilan</div><div class="fw-semibold">' + esc(formatIdr(totals.earningsTotal)) + '</div></div></div>' +
@@ -183,6 +189,7 @@
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Net Pay</div><div class="fw-semibold">' + esc(formatIdr(totals.netPay)) + '</div></div></div>' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Jumlah Baris</div><div class="fw-semibold">' + esc(String(totals.lineCount || lines.length || 0)) + '</div></div></div>' +
                 '</div>' +
+                '<div class="small text-muted mb-3">Ringkasan status: ' + esc(String(run.status || '-').toUpperCase()) + ' / ' + esc(paymentStatusText(run.paymentStatus)) + '</div>' +
                 "<div class=\"mb-3\"><strong>Audit Trail</strong><br>" + trail.map(function (t) {
                     return esc(t.event || "-") + (t.at ? " @ " + esc(t.at) : "");
                 }).join("<br>") + "</div>" +

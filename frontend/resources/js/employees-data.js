@@ -1962,6 +1962,11 @@
                     updateReportSummary({ summary: {} });
                     return;
                 }
+                if (String(snapshot.status || "").toLowerCase() !== "completed") {
+                    renderReportMessage("Snapshot employee belum siap digunakan.");
+                    updateReportSummary({ summary: {} });
+                    return;
+                }
                 var rows = normalizeArchiveEmployeeRows(snapshot);
                 if (!rows.length) {
                     renderReportMessage("Snapshot employee tidak memiliki data baris.");

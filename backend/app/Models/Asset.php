@@ -2,30 +2,39 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Schema;
 
 class Asset extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, AssignsUuid;
 
     protected static function booted(): void
     {
-        static::creating(function (self $record): void {
-            if (empty($record->uuid)) {
-                $record->uuid = (string) Str::uuid();
+        static::saving(function (self $record): void {
+            if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
+                $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($record->getTable(), 'asset_category_uuid') && ! $record->asset_category_uuid && $record->asset_category_id) {
+                $record->asset_category_uuid = (string) (AssetCategory::query()->where('id', $record->asset_category_id)->value('uuid') ?? '');
             }
         });
     }
 
     protected $fillable = [
+        'uuid',
         'company_id',
+        'company_uuid',
         'asset_category_id',
+        'asset_category_uuid',
         'asset_code',
         'name',
         'brand',
@@ -42,6 +51,9 @@ class Asset extends Model
     ];
 
     protected $casts = [
+        'uuid' => 'string',
+        'company_uuid' => 'string',
+        'asset_category_uuid' => 'string',
         'purchase_date' => 'date',
         'purchase_price' => 'decimal:2',
         'warranty_start_date' => 'date',
@@ -76,5 +88,21 @@ class Asset extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(AssetAttachment::class);
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?self
+    {
+        $routeField = $field ?? $this->getRouteKeyName();
+
+        $model = $this->newQuery()->where($routeField, $value)->first();
+        if ($model) {
+            return $model;
+        }
+
+        if ($field === null && is_numeric($value)) {
+            return $this->newQuery()->whereKey((int) $value)->first();
+        }
+
+        throw (new ModelNotFoundException())->setModel(static::class, [$value]);
     }
 }

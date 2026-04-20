@@ -48,7 +48,7 @@
 									</div>
 									<div class="text-center">
 										<h6 class="fw-normal text-dark mb-0">Don’t have an account? 
-											<a href="{{url('register-3')}}" class="hover-a"> Create Account</a>
+											<a href="{{ route('register') }}" class="hover-a"> Daftarkan company di sini</a>
 										</h6>
 									</div>
 									<div class="login-or">

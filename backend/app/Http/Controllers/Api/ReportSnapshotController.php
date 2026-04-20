@@ -13,6 +13,7 @@ use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ReportSnapshotController extends Controller
@@ -160,7 +161,7 @@ class ReportSnapshotController extends Controller
      * Get a single snapshot with its data blocks and filters.
      * GET /v1/hcm/reports/snapshots/{id}
      */
-    public function show(Request $request, int $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -171,10 +172,12 @@ class ReportSnapshotController extends Controller
             return $response;
         }
 
-        $snapshot = ReportSnapshot::where('company_id', $companyId)
-            ->where('id', $id)
-            ->with(['dataBlocks', 'filters', 'exports', 'generatedBy'])
-            ->first();
+        $snapshotQuery = ReportSnapshot::query()
+            ->where('company_id', $companyId)
+            ->with(['dataBlocks', 'filters', 'exports', 'generatedBy']);
+
+        $this->applyIdentifierScope($snapshotQuery, $id);
+        $snapshot = $snapshotQuery->first();
 
         if (! $snapshot) {
             return $this->errorResponse('SNAPSHOT_NOT_FOUND', 'Snapshot not found.', 404);
@@ -224,7 +227,7 @@ class ReportSnapshotController extends Controller
      * Generate an export file from a snapshot.
      * POST /v1/hcm/reports/snapshots/{id}/export
      */
-    public function export(Request $request, int $id): JsonResponse
+    public function export(Request $request, string $id): JsonResponse
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
@@ -239,10 +242,12 @@ class ReportSnapshotController extends Controller
             'fileType' => ['required', 'string', Rule::in(['csv', 'excel', 'pdf'])],
         ]);
 
-        $snapshot = ReportSnapshot::where('company_id', $companyId)
-            ->where('id', $id)
-            ->with(['dataBlocks', 'generatedBy'])
-            ->first();
+        $snapshotQuery = ReportSnapshot::query()
+            ->where('company_id', $companyId)
+            ->with(['dataBlocks', 'generatedBy']);
+
+        $this->applyIdentifierScope($snapshotQuery, $id);
+        $snapshot = $snapshotQuery->first();
 
         if (! $snapshot) {
             return $this->errorResponse('SNAPSHOT_NOT_FOUND', 'Snapshot not found.', 404);
@@ -425,5 +430,18 @@ class ReportSnapshotController extends Controller
                 'message' => $message,
             ],
         ], $status);
+    }
+
+    private function applyIdentifierScope($query, string $identifier)
+    {
+        if (Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

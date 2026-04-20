@@ -1047,6 +1047,75 @@
             }
         }
 
+        function updateLeaveBalanceDisplay(leaveTypeSelect) {
+            if (!leaveTypeSelect) return;
+            
+            var modal = leaveTypeSelect.closest('.modal');
+            if (!modal) return;
+            
+            var selectedLeaveType = leaveTypeSelect.value;
+            var balanceCard = modal.querySelector('[data-hcm-leave-balance-card]');
+            
+            if (!balanceCard) return;
+            
+            // Hide if no leave type selected
+            if (!selectedLeaveType) {
+                balanceCard.classList.add('d-none');
+                return;
+            }
+            
+            // Get employee ID from the form (default to current user)
+            var form = modal.querySelector('[data-hcm-leave-form]');
+            var userSelect = form ? form.querySelector('[data-hcm-field="userId"]') : null;
+            var userId = userSelect && userSelect.value ? userSelect.value : null;
+            
+            // Build request payload
+            var params = new URLSearchParams();
+            params.append('leaveType', selectedLeaveType);
+            if (userId) {
+                params.append('userId', userId);
+            }
+            
+            // Fetch balance from API
+            apiRequest('get', '/v1/hcm/employee-leave-balance?' + params.toString(), null)
+                .then(function (response) {
+                    if (!response || !response.success) {
+                        balanceCard.classList.add('d-none');
+                        return;
+                    }
+                    
+                    var balance = response.data;
+                    if (!balance) {
+                        balanceCard.classList.add('d-none');
+                        return;
+                    }
+                    
+                    // Update balance values
+                    var valueEl = balanceCard.querySelector('[data-hcm-leave-balance-value]');
+                    var totalEl = balanceCard.querySelector('[data-hcm-leave-balance-total]');
+                    
+                    if (valueEl && totalEl) {
+                        var available = Math.max(0, parseFloat(balance.balance) || 0);
+                        var total = (parseFloat(balance.used) || 0) + available;
+                        
+                        valueEl.textContent = available.toFixed(1);
+                        totalEl.textContent = total.toFixed(1);
+                        
+                        // Show/hide based on availability
+                        if (available > 0) {
+                            balanceCard.classList.remove('d-none', 'alert-warning');
+                            balanceCard.classList.add('alert-info');
+                        } else if (available <= 0) {
+                            balanceCard.classList.remove('d-none', 'alert-info');
+                            balanceCard.classList.add('alert-warning');
+                        }
+                    }
+                })
+                .catch(function () {
+                    balanceCard.classList.add('d-none');
+                });
+        }
+
         function setText(sel, value) {
             var el = document.querySelector(sel);
             if (el) {
@@ -1121,6 +1190,37 @@
                               "</small></td>"
                             : "";
                         var cb = '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td>';
+                        var isOwnRequest = String(r.userId || "") === String(window.__arcav_me_id || "");
+                        var canEdit = isAdmin ? (!isOwnRequest || r.status === "pending") : r.status === "pending";
+                        var canDelete = isOwnRequest && r.status === "pending";
+                        var actions = [];
+
+                        if (canEdit) {
+                            actions.push(
+                                '<a href="#" class="me-2" data-hcm-leave-edit data-id="' +
+                                    esc(r.id) +
+                                    '" data-user="' +
+                                    esc(r.userId) +
+                                    '" data-type="' +
+                                    esc(r.leaveType) +
+                                    '" data-from="' +
+                                    esc(r.dateFrom) +
+                                    '" data-to="' +
+                                    esc(r.dateTo) +
+                                    '" data-days="' +
+                                    esc(String(r.days)) +
+                                    '" data-status="' +
+                                    esc(r.status) +
+                                    '" data-notes="' +
+                                    esc(r.notes) +
+                                    '" data-bs-toggle="modal" data-bs-target="#arcav_edit_leave"><i class="ti ti-edit"></i></a>'
+                            );
+                        }
+
+                        if (canDelete) {
+                            actions.push('<a href="#" data-hcm-leave-delete="' + esc(r.id) + '"><i class="ti ti-trash"></i></a>');
+                        }
+
                         return (
                             "<tr>" +
                             cb +
@@ -1137,26 +1237,8 @@
                             badge +
                             ' d-inline-flex align-items-center badge-xs">' +
                             esc(r.status) +
-                            "</span></td><td><a href=\"#\" class=\"me-2\" data-hcm-leave-edit data-id=\"" +
-                            esc(r.id) +
-                            "\" data-user=\"" +
-                            esc(r.userId) +
-                            "\" data-type=\"" +
-                            esc(r.leaveType) +
-                            "\" data-from=\"" +
-                            esc(r.dateFrom) +
-                            "\" data-to=\"" +
-                            esc(r.dateTo) +
-                            "\" data-days=\"" +
-                            esc(String(r.days)) +
-                            "\" data-status=\"" +
-                            esc(r.status) +
-                            "\" data-notes=\"" +
-                            esc(r.notes) +
-                            "\" data-bs-toggle=\"modal\" data-bs-target=\"#arcav_edit_leave\"><i class=\"ti ti-edit\"></i></a>" +
-                            (r.status === "pending"
-                                ? '<a href="#" data-hcm-leave-delete="' + esc(r.id) + '"><i class="ti ti-trash"></i></a>'
-                                : "") +
+                            "</span></td><td>" +
+                            (actions.length ? actions.join("") : '<span class="text-muted">-</span>') +
                             "</td></tr>"
                         );
                     })
@@ -1260,6 +1342,34 @@
         var addForm = document.querySelector('[data-hcm-leave-form="add"]');
         if (addForm) {
             bindDateValidation(addForm);
+            
+            // Clear balance display and error alert when modal is shown
+            var addModal = document.getElementById('arcav_add_leave');
+            if (addModal) {
+                addModal.addEventListener('show.bs.modal', function () {
+                    // Clear error alert
+                    var errorAlert = addForm.querySelector('[data-hcm-leave-error-add]');
+                    if (errorAlert) {
+                        errorAlert.classList.add('d-none');
+                    }
+                    // Clear balance display
+                    var balanceCard = addForm.querySelector('[data-hcm-leave-balance-card]');
+                    if (balanceCard) {
+                        balanceCard.classList.add('d-none');
+                    }
+                    // Reset form
+                    addForm.reset();
+                });
+            }
+            
+            // Hide error alert when user starts editing
+            addForm.addEventListener("input", function () {
+                var errorAlert = addForm.querySelector('[data-hcm-leave-error-add]');
+                if (errorAlert) {
+                    errorAlert.classList.add("d-none");
+                }
+            });
+            
             var userSel = addForm.querySelector('[data-hcm-field="userId"]');
             if (userSel && isAdmin) {
                 loadEmployeeOptions(userSel);
@@ -1303,7 +1413,35 @@
                         reload();
                     })
                     .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
+                        var errorMsg = formatApiError(err.data, err.status);
+                        notify(errorMsg, true);
+                        
+                        // Display error in modal alert
+                        var errorAlert = addForm.querySelector('[data-hcm-leave-error-add]');
+                        if (errorAlert) {
+                            var titleEl = errorAlert.querySelector('[data-hcm-error-title]');
+                            var msgEl = errorAlert.querySelector('[data-hcm-error-message]');
+                            if (titleEl && msgEl) {
+                                // Extract error code and message from API response
+                                var errorCode = (err.data && err.data.error && err.data.error.code) || 'ERROR';
+                                var errorText = (err.data && err.data.error && err.data.error.message) || errorMsg;
+                                
+                                // Format error code to readable format
+                                var codeDisplay = errorCode
+                                    .replace(/_/g, ' ')
+                                    .toLowerCase()
+                                    .split(' ')
+                                    .map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); })
+                                    .join(' ');
+                                
+                                titleEl.textContent = codeDisplay;
+                                msgEl.textContent = errorText;
+                                errorAlert.classList.remove("d-none");
+                                
+                                // Scroll to error
+                                errorAlert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
                     });
             });
         }
@@ -1311,16 +1449,33 @@
         var editForm = document.querySelector('[data-hcm-leave-form="edit"]');
         if (editForm) {
             bindDateValidation(editForm);
+            
+            // Hide error alert when user starts editing
+            editForm.addEventListener("input", function () {
+                var errorAlert = editForm.querySelector('[data-hcm-leave-error-edit]');
+                if (errorAlert) {
+                    errorAlert.classList.add("d-none");
+                }
+            });
+            
             document.addEventListener("click", function (e) {
                 var btn = e.target.closest("[data-hcm-leave-edit]");
                 if (!btn) {
                     return;
                 }
+                // Clear error when opening form
+                var errorAlert = editForm.querySelector('[data-hcm-leave-error-edit]');
+                if (errorAlert) {
+                    errorAlert.classList.add("d-none");
+                }
+                
                 editForm.querySelector('[data-hcm-field="id"]').value = btn.dataset.id || "";
                 editForm.querySelector('[data-hcm-field="ownerUserId"]').value = btn.dataset.user || "";
                 var editLt = editForm.querySelector('[data-hcm-field="leaveType"]');
                 if (editLt) {
                     editLt.innerHTML = buildLeaveTypeOptionsHtml(leaveTypesCache, btn.dataset.type || "");
+                    // Update balance display when leave type is set
+                    updateLeaveBalanceDisplay(editLt);
                 }
                 editForm.querySelector('[data-hcm-field="dateFrom"]').value = btn.dataset.from || "";
                 editForm.querySelector('[data-hcm-field="dateTo"]').value = btn.dataset.to || "";
@@ -1378,7 +1533,35 @@
                         reload();
                     })
                     .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
+                        var errorMsg = formatApiError(err.data, err.status);
+                        notify(errorMsg, true);
+                        
+                        // Display error in modal alert
+                        var errorAlert = editForm.querySelector('[data-hcm-leave-error-edit]');
+                        if (errorAlert) {
+                            var titleEl = errorAlert.querySelector('[data-hcm-error-title]');
+                            var msgEl = errorAlert.querySelector('[data-hcm-error-message]');
+                            if (titleEl && msgEl) {
+                                // Extract error code and message from API response
+                                var errorCode = (err.data && err.data.error && err.data.error.code) || 'ERROR';
+                                var errorText = (err.data && err.data.error && err.data.error.message) || errorMsg;
+                                
+                                // Format error code to readable format
+                                var codeDisplay = errorCode
+                                    .replace(/_/g, ' ')
+                                    .toLowerCase()
+                                    .split(' ')
+                                    .map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); })
+                                    .join(' ');
+                                
+                                titleEl.textContent = codeDisplay;
+                                msgEl.textContent = errorText;
+                                errorAlert.classList.remove("d-none");
+                                
+                                // Scroll to error
+                                errorAlert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }
                     });
             });
             document.addEventListener("click", function (e) {
@@ -1430,6 +1613,7 @@
                 return;
             }
             refreshLeaveTypeHints();
+            updateLeaveBalanceDisplay(select);
         });
 
         apiRequest("get", "/v1/hcm/leave-type-options", null)
@@ -1620,23 +1804,43 @@
             }).join("");
         }
 
+        function fetchLiveLeaveReportPage(page, collected, firstMeta) {
+            return apiRequest("get", "/v1/hcm/leave-requests?perPage=100&page=" + encodeURIComponent(String(page)), null)
+                .then(function (payload) {
+                    if (!payload || payload.success !== true) {
+                        return Promise.reject({ payload: payload });
+                    }
+
+                    var rows = Array.isArray(payload.data) ? payload.data : [];
+                    var meta = payload.meta || {};
+                    var pagination = meta.pagination || {};
+                    var totalPages = parseInt(pagination.totalPages, 10) || 1;
+                    var nextCollected = collected.concat(rows);
+                    var seedMeta = firstMeta || meta;
+
+                    if (page >= totalPages || rows.length < 1) {
+                        return {
+                            rows: nextCollected,
+                            meta: seedMeta,
+                        };
+                    }
+
+                    return fetchLiveLeaveReportPage(page + 1, nextCollected, seedMeta);
+                });
+        }
+
         function loadLiveReport() {
             if (tbody) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat data live…</td></tr>';
             }
-            apiRequest("get", "/v1/hcm/leave-requests?perPage=100&page=1", null)
-                .then(function (payload) {
-                    if (!payload || payload.success !== true) {
-                        notify("Gagal memuat leave report.", true);
-                        renderRows([]);
-                        renderSummary({}, {});
-                        return;
-                    }
-                    var rows = Array.isArray(payload.data) ? payload.data : [];
+            fetchLiveLeaveReportPage(1, [], null)
+                .then(function (result) {
+                    var rows = Array.isArray(result && result.rows) ? result.rows : [];
+                    var meta = (result && result.meta) || {};
                     renderRows(rows.map(function (item) {
                         return {
                             employeeName: item.employeeName,
-                            leaveType: item.leaveType,
+                            leaveType: item.leaveTypeLabel || item.leaveType,
                             dateFrom: item.dateFrom,
                             dateTo: item.dateTo,
                             days: item.days,
@@ -1652,7 +1856,10 @@
                     var totalDays = rows.reduce(function (sum, item) {
                         return sum + (parseFloat(item.days || 0) || 0);
                     }, 0);
-                    renderSummary({ totalRequests: rows.length, totalDays: totalDays }, byStatus);
+                    renderSummary({
+                        totalRequests: meta.summary && meta.summary.totalRequests != null ? meta.summary.totalRequests : rows.length,
+                        totalDays: totalDays,
+                    }, byStatus);
                 })
                 .catch(function (err) {
                     notify(formatApiError(err && err.data, err && err.status), true);
@@ -1682,6 +1889,12 @@
                     var snapshot = payload.data;
                     if (snapshot.reportType !== "leave") {
                         notify("Snapshot ini bukan leave report.", true);
+                        renderRows([]);
+                        renderSummary({}, {});
+                        return;
+                    }
+                    if (String(snapshot.status || "").toLowerCase() !== "completed") {
+                        notify("Snapshot leave belum siap digunakan.", true);
                         renderRows([]);
                         renderSummary({}, {});
                         return;

@@ -111,7 +111,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->assertOk();
     }
 
-    public function test_secondary_hcm_admin_sees_hcm_menus_and_saas_super_admin_hub(): void
+    public function test_secondary_hcm_admin_sees_hcm_menus_without_global_super_admin_hub(): void
     {
         $company = $this->createCompanyWithActiveSubscriptionWithoutAssetFeature();
 
@@ -152,11 +152,10 @@ class SidebarAssetMenuVisibilityTest extends TestCase
         $response->assertSee('href="'.url('payroll-run').'"', false);
         $response->assertSee('href="'.url('users').'"', false);
         $response->assertSee('href="'.url('roles-permissions').'"', false);
-        // SaaS "Super Admin" hub is visible to all HCM admins (not only primary QA email).
-        $response->assertSee('href="'.url('dashboard').'"', false);
-        $response->assertSee('href="'.url('companies').'"', false);
-        $response->assertSee('href="'.url('subscription').'"', false);
-        $response->assertSee('href="'.url('packages').'"', false);
+        $response->assertDontSee('title="Super Admin"', false);
+        $response->assertDontSee('data-bs-target="#super-admin"', false);
+        $response->assertDontSee('href="#menu-superadmin"', false);
+        $response->assertDontSee('<span>SUPER ADMIN</span>', false);
         $response->assertDontSee('href="'.url('deals-dashboard').'"', false);
         $response->assertDontSee('href="'.url('refferals').'"', false);
         $response->assertSee('href="'.url('pages').'"', false);
@@ -186,7 +185,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
 
         Subscription::query()->create([
             'company_id' => $company->id,
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'plan_code' => $package->code,
             'status' => 'active',
             'starts_at' => now()->subDay(),

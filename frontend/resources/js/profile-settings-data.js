@@ -60,11 +60,11 @@
         }
         var activeCompany = mePayload.data.activeCompany || null;
         var tenant = getTenantContext();
-        var mode = tenant && tenant.companyCode ? 'Login as Company' : 'Regular Login';
+        var mode = tenant && tenant.companyCode ? 'Login Company' : 'Login Employee';
         if (companyModeNode) {
             companyModeNode.textContent = mode;
-            companyModeNode.classList.toggle('bg-warning-subtle', mode === 'Regular Login');
-            companyModeNode.classList.toggle('text-warning', mode === 'Regular Login');
+            companyModeNode.classList.toggle('bg-warning-subtle', mode === 'Login Employee');
+            companyModeNode.classList.toggle('text-warning', mode === 'Login Employee');
         }
         if (companyNameNode) {
             companyNameNode.textContent = activeCompany && activeCompany.name ? String(activeCompany.name) : '—';

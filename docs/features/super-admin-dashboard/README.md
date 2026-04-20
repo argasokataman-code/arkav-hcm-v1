@@ -1,138 +1,174 @@
-# Super Admin Dashboard Module
+# Super Admin Dashboard
 
-Comprehensive analytics dan monitoring Dashboard untuk super admin dalam sistem SaaS.
+## Ringkasan
 
-## Overview
+Super Admin Dashboard adalah halaman analitik global SaaS untuk membaca kesehatan platform secara lintas company. Feature ini dipakai admin global untuk memantau KPI platform, revenue, subscription health, company performance, dan audit log tanpa terikat pada satu tenant tertentu.
 
-Module **Super Admin Dashboard** menyediakan:
-- Real-time KPI monitoring (companies, users, revenue)
-- Growth analytics (MRR, ARR, churn rate)
-- Company performance metrics
-- User activity trends
-- Revenue forecasting
-- Custom reports builder
+## Akses
 
-## Key Metrics
+- Global HCM Admin / primary super admin: full access ke web route dan API dashboard global.
+- Tenant admin, company owner, dan user tenant lain: tidak boleh mengakses dashboard ini.
 
-### KPIs
-- **Total Companies** — active company count
-- **Total Users** — active user count across all companies
-- **MRR (Monthly Recurring Revenue)** — current month revenue
-- **ARR (Annual Recurring Revenue)** — projected yearly revenue
-- **Churn Rate** — % companies lost per month
-- **Customer Lifetime Value (CLV)** — average revenue per company
-- **NRR (Net Revenue Retention)** — how much revenue retained from existing customers
+## UI Aktif
 
-### Breakdown Metrics
-- Revenue by plan (Basic, Pro, Enterprise)
-- Revenue by region/country
-- Users by department
-- Top companies (by revenue, user count, activity)
-- Signup trend (daily/weekly/monthly)
-- Subscription status breakdown (active, trial, expired, cancelled)
+- Halaman aktif: `/dashboard` dan `/saas-dashboard`.
+- UI memuat KPI, tab Companies, revenue analytics, subscription analytics, dan audit logs.
 
-## Data Model
+## Flow Bisnis End-to-End
 
-### DashboardMetric (cached table: `dashboard_metrics`)
-Cached metrics untuk performa (updated setiap jam):
-- `id` — primary key
-- `metric_date` — date untuk metric
-- `metric_key` — `total_companies`, `total_users`, `mrr`, `arr`, `active_subscriptions`, `churn_rate` (lebih)
-- `metric_value` — numeric value
-- `metric_metadata` — JSON (breakdown by plan, region, etc)
-- `calculated_at` — when metric was calculated
-- `next_calculation_at` — when next recalculation scheduled
+### Flow utama
 
-### AuditLog (table: `audit_logs`)
-- `id` — primary key
-- `super_admin_id` — which super admin
-- `action` — `view_dashboard`, `modify_subscription`, `delete_company`, `refund_transaction` (lebih)
-- `target_type` — `company`, `user`, `subscription`, `transaction` (lebih)
-- `target_id` — ID dari target
-- `details` — JSON with action details
-- `ip_address` — from where action came
-- `user_agent` — browser info
-- `created_at`
+1. Global admin membuka `/dashboard` atau `/saas-dashboard`.
+2. Sistem memastikan user adalah global admin, bukan sekadar admin tenant.
+3. FE mengambil API token dari web session lalu memanggil endpoint dashboard SaaS.
+4. Sistem menampilkan KPI platform, daftar company, revenue trends, subscription status, dan audit logs.
+5. Admin dapat membuka detail company atau memantau audit platform dari satu layar global.
 
-## API Endpoints
+### Exception / skenario negatif
 
-### Dashboard KPIs
-- `GET /v1/saas/dashboard/kpi` — Get top-level KPIs (returns all major metrics)
-- `GET /v1/saas/dashboard/kpi/{metric_key}` — Get specific metric with trend
+- Tenant admin yang membuka URL manual harus diarahkan ke `/employee-dashboard`.
+- Session tidak valid harus mengarah ke `lock-screen`.
+- Jika API mengirim `ADMIN_REQUIRED`, FE mengarahkan user keluar dari dashboard global.
+- Pesan error harus tetap di-escape agar tidak menyuntik HTML berbahaya ke UI.
 
-### Company Analytics
-- `GET /v1/saas/dashboard/companies` — List companies with stats (revenue, user count, health)
-- `GET /v1/saas/dashboard/companies/{id}/details` — Deep dive company metrics
-- `GET /v1/saas/dashboard/companies/top-performers` — Top 10 companies by revenue
+## Lifecycle Dan Keputusan Bisnis
 
-### User Analytics
-- `GET /v1/saas/dashboard/users` — User statistics by department, role
-- `GET /v1/saas/dashboard/users/activity` — User activity heatmap (daily logins)
-- `GET /v1/saas/dashboard/users/retention` — User retention cohort analysis
+- Dashboard ini khusus analytics global SaaS, bukan dashboard operasional tenant.
+- Hanya global admin yang boleh melihat agregasi lintas company karena data yang ditampilkan bersifat platform-wide.
+- Endpoint wishlist yang belum aktif diperlakukan sebagai gap, bukan dianggap live.
 
-### Revenue Analytics
-- `GET /v1/saas/dashboard/revenue/monthly` — MRR trend (last 12 months)
-- `GET /v1/saas/dashboard/revenue/by-plan` — Revenue breakdown by subscription plan
-- `GET /v1/saas/dashboard/revenue/forecast` — Revenue forecast (next 3-12 months)
-- `GET /v1/saas/dashboard/revenue/churn` — Churn analysis
+## Integrasi
 
-### Subscription Analytics
-- `GET /v1/saas/dashboard/subscriptions/status` — Breakdown by status
-- `GET /v1/saas/dashboard/subscriptions/health` — Health score analysis
-- `GET /v1/saas/dashboard/subscriptions/upgrades` — Upgrade/downgrade trends
+- Subscriptions dan Packages: status subscription lintas tenant, revenue by plan, dan health subscription berasal dari modul billing inti. Lihat `docs/features/subscriptions/README.md` dan `docs/features/packages/README.md`.
+- Trial & Billing Dashboard: dashboard global membaca kesehatan billing platform di level agregat, sedangkan trial billing dashboard fokus ke company list operasional. Lihat `docs/features/trial-billing-dashboard/README.md`.
+- Purchase Transactions dan Reporting: analytics revenue, aging, churn, dan audit platform beririsan dengan report legacy/billing data source. Lihat `docs/features/purchase-transaction/README.md` dan `docs/features/reporting/README.md`.
+- User Management: statistik user global, retention, dan role hardening bergantung pada model user/authorization lintas tenant. Lihat `docs/features/user-management/README.md`.
+- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
 
-### Reports
-- `GET /v1/saas/dashboard/reports/export` — Export report (CSV/PDF) dengan date range
-- `GET /v1/saas/dashboard/reports/custom` — Custom report builder endpoint
+## Kontrak API
 
-### Audit
-- `GET /v1/saas/dashboard/audit-logs` — List audit logs (filter by super admin, action, date)
-- `GET /v1/saas/dashboard/audit-logs/{id}` — Get audit log details
+## Documentation Structure
 
-## Frontend Components
+- [README.md](README.md) — flow bisnis, role, lifecycle evaluasi, gap existing vs target
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) — source of truth teknis, file runtime, test, dan guard
+- [tracker.md](tracker.md) — snapshot audit, evidence, dan open gaps terbaru
 
-### Dashboard Widgets
-- **KPI Cards** — Total Companies, Total Users, MRR, ARR (large numbers dengan trend indicator)
-- **Revenue Chart** — Line chart showing MRR trend (last 12 months)
-- **Plan Distribution** — Pie/Donut chart (Basic vs Pro vs Enterprise revenue %)
-- **Top Companies** — Table dengan company name, users, revenue, growth %
-- **Recent Signups** — Timeline/list of last 10 company signups
-- **Churn Analysis** — Table of recently cancelled subscriptions (reason, date)
-- **User Activity Heatmap** — Calendar heatmap showing daily active users
+## Ringkasan Bisnis
 
-### Filters/Controls
-- Date range picker (last 7 days, 30 days, 90 days, YTD, custom)
-- Region/country filter
-- Subscription plan filter
-- Company status filter (active, trial, inactive)
-- Export button (CSV, PDF, Excel)
-- Refresh button (manual cache update)
+Super Admin Dashboard adalah halaman analitik **global SaaS** untuk melihat kesehatan platform secara lintas company. Feature ini bukan dashboard operasional per tenant dan bukan dashboard karyawan. Tujuannya adalah membantu admin global menjawab pertanyaan bisnis seperti:
 
-## Features
+- berapa total company dan user yang benar-benar aktif di platform;
+- bagaimana posisi revenue bulanan dan tahunan saat ini;
+- company mana yang paling berkontribusi terhadap revenue;
+- apakah status subscription lintas tenant terlihat sehat;
+- aksi admin sensitif apa yang terakhir terjadi di platform.
 
-- ✅ Real-time KPI tracking
-- ✅ Growth analytics (MRR, ARR, churn)
-- ✅ Company performance ranking
-- ✅ Revenue forecasting
-- ✅ User retention analysis
-- ✅ Audit logging
-- ✅ Custom date ranges
-- ✅ Export to CSV/PDF
-- ⏳ Predictive analytics (churn prediction)
-- ⏳ Alerting (send Slack notification on threshold breach)
-- ⏳ Custom dashboard per super admin
-- ⏳ API webhooks untuk third-party dashboards
+## Aktor & Role
 
-## Performance Considerations
+| Aktor | Peran bisnis | Akses runtime saat ini |
+|------|---------------|------------------------|
+| Global HCM Admin / primary super admin | Melihat analytics lintas tenant dan audit platform | Full access ke web route dan seluruh API dashboard |
+| Tenant HCM Admin / secondary admin | Mengelola tenant/company sendiri | Tidak boleh mengakses dashboard ini walau punya hak admin di tenant |
+| Company owner / user tenant | Hanya melihat data tenant sendiri lewat flow lain | Tidak boleh mengakses dashboard ini |
 
-- Metrics cached setiap 1 jam (configurable)
-- Dashboard KPI endpoint membalikkan cached data, bukan real-time compute
-- Historical data stored dalam `dashboard_metrics` untuk quick access
-- Detailed analytics (company-specific) computed on-demand dengan pagination
+## Status / Lifecycle
 
-## Related Modules
+| Area | Arti bisnis | Status runtime |
+|------|-------------|----------------|
+| Access guard | Dashboard hanya untuk global platform admin | Aktif |
+| KPI overview | Ringkasan kesehatan platform | Aktif |
+| Company list & detail | Investigasi tenant tertentu | Aktif |
+| Revenue by plan / monthly | Monitoring monetisasi | Aktif |
+| Audit logs | Monitoring aksi sensitif admin | Aktif |
+| Forecast / retention / custom report / subscription health / audit detail | Insight lanjutan investigasi | Aktif via API |
 
-- **Subscriptions** — data source untuk subscription metrics
-- **Companies** — company-level analytics
-- **Purchase Transaction** — revenue data
-- **Users** — user activity tracking
+## E2E Bisnis
+
+### Happy path
+
+1. Global admin login.
+2. Buka `/dashboard`.
+3. KPI platform tampil.
+4. Pindah ke tab Companies dan cek tenant yang paling besar.
+5. Buka detail company untuk melihat revenue dan subscription breakdown.
+6. Pindah ke tab Audit untuk mengecek aksi admin terbaru.
+
+### Negative / abuse scenarios
+
+- Tenant admin biasa mencoba membuka `/dashboard` langsung dengan URL manual.
+	Hasil existing: server redirect ke `/employee-dashboard`.
+- Company owner punya membership aktif di company dan mencoba memanggil `/v1/saas/dashboard/*`.
+	Hasil existing: API balas `403 ADMIN_REQUIRED`.
+- Session web habis tetapi halaman dashboard masih terbuka.
+	Hasil existing: FE gagal mengambil token dan redirect ke `lock-screen`.
+- Response error mengandung karakter HTML berbahaya.
+	Hasil existing: FE sekarang escape toast message agar tidak menyuntik HTML mentah ke UI.
+
+## Role & Permission Cross-check
+
+### Halaman aktif
+
+| Surface | Existing target role | Catatan |
+|--------|-----------------------|---------|
+| `/dashboard` | Global HCM Admin only | Alias ke view yang sama dengan `/saas-dashboard` |
+| `/saas-dashboard` | Global HCM Admin only | Web middleware sekarang setara dengan guard API |
+
+### Endpoint API existing
+
+| Endpoint | Tujuan | Existing role behavior |
+|----------|--------|------------------------|
+| `GET /v1/saas/dashboard/kpi` | KPI utama | Global HCM Admin only |
+| `GET /v1/saas/dashboard/kpi/{metricKey}` | Trend satu metrik | Global HCM Admin only |
+| `GET /v1/saas/dashboard/companies` | List company + revenue | Global HCM Admin only |
+| `GET /v1/saas/dashboard/companies/top-performers` | Ranking company | Global HCM Admin only |
+| `GET /v1/saas/dashboard/companies/{company}/details` | Detail company | Global HCM Admin only; route model binding via UUID |
+| `GET /v1/saas/dashboard/users` | Statistik user | Global HCM Admin only |
+| `GET /v1/saas/dashboard/users/retention` | Retention user lintas tenant | Global HCM Admin only |
+| `GET /v1/saas/dashboard/revenue/monthly` | Trend revenue 12 bulan | Global HCM Admin only |
+| `GET /v1/saas/dashboard/revenue/forecast` | Forecast revenue jangka pendek | Global HCM Admin only |
+| `GET /v1/saas/dashboard/revenue/by-plan` | Breakdown revenue per paket | Global HCM Admin only |
+| `GET /v1/saas/dashboard/subscriptions/status` | Breakdown status subscription | Global HCM Admin only |
+| `GET /v1/saas/dashboard/subscriptions/health` | Health portfolio subscription | Global HCM Admin only |
+| `GET /v1/saas/dashboard/reports/custom` | Summary report dengan filter rentang tanggal | Global HCM Admin only |
+| `GET /v1/saas/dashboard/audit-logs` | Audit actions | Global HCM Admin only |
+| `GET /v1/saas/dashboard/audit-logs/{auditLog}` | Detail satu audit log | Global HCM Admin only; UUID + numeric legacy fallback |
+
+## Existing Vs Target
+
+## Kondisi Existing vs Target Bisnis
+
+### Existing runtime yang sudah aktif
+
+- web route sekarang terkunci untuk global admin, tidak hanya admin tenant;
+- menu “Super Admin” di layout sekarang ikut tersembunyi untuk admin tenant non-global;
+- FE dan BE sudah sinkron untuk menampilkan `totalRevenue` pada daftar company;
+- query `per_page` pada list company sekarang dihormati backend;
+- API detail company memakai UUID route binding dan sudah dites;
+- dashboard punya fallback redirect untuk session invalid dan unauthorized access;
+- KPI overview sekarang membaca `dashboard_metrics` lebih konsisten, dengan fallback hitung lalu write-back cache per jam;
+- endpoint forecast, retention, custom report, subscription health, dan audit-log detail sekarang aktif di runtime.
+
+### Gap yang masih terbuka
+
+- endpoint wishlist lama lain seperti `users/activity`, `revenue/churn`, `subscriptions/upgrades`, dan `reports/export` masih belum aktif;
+- UI dashboard saat ini belum punya tab khusus untuk memanggil endpoint analytics lanjutan yang baru aktif, jadi konsumsi awalnya masih lewat API/integrasi lanjutan.
+
+### Keputusan kompromi sementara
+
+- dokumentasi sekarang mengikuti runtime yang sudah ada, bukan wishlist lama;
+- unsupported analytics dipindahkan menjadi gap/roadmap, bukan diklaim seolah sudah live;
+- dashboard tetap fokus sebagai global SaaS analytics, bukan tenant dashboard.
+
+## Sumber Kebenaran Runtime
+
+- Web route: `backend/routes/web.php`
+- API route: `backend/routes/api.php`
+- Controller: `backend/app/Http/Controllers/Api/SuperAdminDashboardController.php`
+- UI logic: `frontend/resources/js/super-admin-dashboard-data.js`
+- View: `backend/resources/views/saas-dashboard.blade.php`
+
+## Status
+
+- Status audit: **in progress**
+- Tracker: [tracker.md](tracker.md)
+- Snapshot 2026-04-19: guard global-admin sudah benar, menu visibility sudah selaras, KPI cache lebih konsisten, dan analytics lanjutan utama sudah aktif; sisa gap sekarang ada pada endpoint wishlist tambahan dan belum adanya tab UI khusus untuk endpoint baru.

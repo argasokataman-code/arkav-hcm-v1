@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
+use App\Models\PackageAddon;
 use App\Models\PurchaseTransaction;
+use App\Models\Subscription;
 use App\Models\Transaction;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -92,7 +96,13 @@ class TransactionController extends Controller
             $query->where('status', $request->string('status'));
         }
         if ($request->filled('company_id')) {
-            $query->where('company_id', $request->integer('company_id'));
+            $companyId = $this->resolveCompanyId((string) $request->input('company_id'));
+
+            if ($companyId === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('company_id', $companyId);
+            }
         }
         if ($request->filled('transaction_type')) {
             $query->where('transaction_type', $request->string('transaction_type'));
@@ -134,7 +144,9 @@ class TransactionController extends Controller
         }
 
         if ($this->usesPurchaseTransactionContract($request)) {
-            $model = PurchaseTransaction::query()->with(['company', 'subscription', 'packageAddon'])->findOrFail((int) $transaction);
+            $modelQuery = PurchaseTransaction::query()->with(['company', 'subscription', 'packageAddon']);
+            $this->applyUuidOrLegacyIdFilter($modelQuery, $transaction);
+            $model = $modelQuery->firstOrFail();
 
             return response()->json([
                 'success' => true,
@@ -142,9 +154,11 @@ class TransactionController extends Controller
             ]);
         }
 
-        $model = Transaction::query()->with(['subscription' => function ($q) {
+        $modelQuery = Transaction::query()->with(['subscription' => function ($q) {
             $q->with(['company', 'package']);
-        }])->findOrFail((int) $transaction);
+        }]);
+        $this->applyUuidOrLegacyIdFilter($modelQuery, $transaction);
+        $model = $modelQuery->firstOrFail();
 
         return response()->json([
             'success' => true,
@@ -170,7 +184,7 @@ class TransactionController extends Controller
         }
 
         $validated = $request->validate([
-            'subscription_id' => 'required|integer|exists:subscriptions,id',
+            'subscription_id' => 'required|uuid|exists:subscriptions,uuid',
             'invoice_number' => 'required|string|unique:transactions|max:50',
             'amount' => 'required|numeric|min:0',
             'status' => 'required|in:pending,completed,failed,refunded',
@@ -179,6 +193,22 @@ class TransactionController extends Controller
             'transaction_id' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
         ]);
+
+        $subscriptionId = Subscription::query()
+            ->where('uuid', (string) $validated['subscription_id'])
+            ->value('id');
+
+        if ($subscriptionId === null) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SUBSCRIPTION_NOT_FOUND',
+                    'message' => 'Selected subscription could not be resolved.',
+                ],
+            ], 422);
+        }
+
+        $validated['subscription_id'] = (int) $subscriptionId;
 
         $transaction = Transaction::create($validated);
         $transaction->load(['subscription' => function ($q) {
@@ -194,9 +224,9 @@ class TransactionController extends Controller
     private function storePurchaseTransaction(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'company_id' => 'required|integer|exists:companies,id',
-            'subscription_id' => 'nullable|integer|exists:subscriptions,id',
-            'package_addon_id' => 'nullable|integer|exists:package_addons,id',
+            'company_id' => 'required|uuid|exists:companies,uuid',
+            'subscription_id' => 'nullable|uuid|exists:subscriptions,uuid',
+            'package_addon_id' => 'nullable|uuid|exists:package_addons,uuid',
             'transaction_type' => ['required', Rule::in(['subscription', 'addon', 'refund', 'credit', 'manual'])],
             'description' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
@@ -204,6 +234,58 @@ class TransactionController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'status' => ['required', Rule::in(['draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled'])],
         ]);
+
+        $company = Company::query()
+            ->select(['id', 'uuid'])
+            ->where('uuid', (string) $validated['company_id'])
+            ->first();
+
+        if (! $company) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'COMPANY_NOT_FOUND',
+                    'message' => 'Selected company could not be resolved.',
+                ],
+            ], 422);
+        }
+
+        $validated['company_id'] = (int) $company->id;
+
+        if (! empty($validated['subscription_id'])) {
+            $subscription = Subscription::query()
+                ->select(['id', 'uuid', 'company_id'])
+                ->where('uuid', (string) $validated['subscription_id'])
+                ->first();
+
+            if (! $subscription) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SUBSCRIPTION_NOT_FOUND',
+                        'message' => 'Selected subscription could not be resolved.',
+                    ],
+                ], 422);
+            }
+
+            if ((int) $subscription->company_id !== $validated['company_id']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SUBSCRIPTION_COMPANY_MISMATCH',
+                        'message' => 'Selected subscription does not belong to the selected company.',
+                    ],
+                ], 422);
+            }
+
+            $validated['subscription_id'] = (int) $subscription->id;
+        }
+
+        if (! empty($validated['package_addon_id'])) {
+            $validated['package_addon_id'] = (int) (PackageAddon::query()
+                ->where('uuid', (string) $validated['package_addon_id'])
+                ->value('id') ?? 0);
+        }
 
         if (($validated['transaction_type'] ?? null) === 'addon' && empty($validated['package_addon_id'])) {
             return response()->json([
@@ -243,17 +325,19 @@ class TransactionController extends Controller
         }
 
         if ($this->usesPurchaseTransactionContract($request)) {
-            return $this->updatePurchaseTransaction($request, (int) $transaction);
+            return $this->updatePurchaseTransaction($request, $transaction);
         }
 
-        return $this->updateLegacyTransaction($request, (int) $transaction);
+        return $this->updateLegacyTransaction($request, $transaction);
     }
 
-    private function updateLegacyTransaction(Request $request, int $transactionId): JsonResponse
+    private function updateLegacyTransaction(Request $request, string $transactionId): JsonResponse
     {
-        $transaction = Transaction::query()->with(['subscription' => function ($q) {
+        $query = Transaction::query()->with(['subscription' => function ($q) {
             $q->with(['company', 'package']);
-        }])->findOrFail($transactionId);
+        }]);
+        $this->applyUuidOrLegacyIdFilter($query, $transactionId);
+        $transaction = $query->firstOrFail();
 
         $validated = $request->validate([
             'status' => 'sometimes|in:pending,completed,failed,refunded',
@@ -274,9 +358,11 @@ class TransactionController extends Controller
         ]);
     }
 
-    private function updatePurchaseTransaction(Request $request, int $transactionId): JsonResponse
+    private function updatePurchaseTransaction(Request $request, string $transactionId): JsonResponse
     {
-        $transaction = PurchaseTransaction::query()->with(['company', 'subscription', 'packageAddon'])->findOrFail($transactionId);
+        $query = PurchaseTransaction::query()->with(['company', 'subscription', 'packageAddon']);
+        $this->applyUuidOrLegacyIdFilter($query, $transactionId);
+        $transaction = $query->firstOrFail();
 
         $validated = $request->validate([
             'status' => ['sometimes', Rule::in(['draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled'])],
@@ -293,6 +379,17 @@ class TransactionController extends Controller
             'success' => true,
             'data' => $this->formatPurchaseTransaction($transaction),
         ]);
+    }
+
+    private function applyUuidOrLegacyIdFilter(Builder $query, string $identifier): void
+    {
+        $query->where(function (Builder $builder) use ($identifier): void {
+            $builder->where('uuid', $identifier);
+
+            if (ctype_digit($identifier)) {
+                $builder->orWhere('id', (int) $identifier);
+            }
+        });
     }
 
     /**
@@ -409,5 +506,24 @@ class TransactionController extends Controller
     private function usesPurchaseTransactionContract(Request $request): bool
     {
         return trim((string) $request->bearerToken()) !== '';
+    }
+
+    private function resolveCompanyId(string $identifier): ?int
+    {
+        $normalized = trim($identifier);
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (ctype_digit($normalized)) {
+            return (int) $normalized;
+        }
+
+        $companyId = Company::query()
+            ->where('uuid', $normalized)
+            ->value('id');
+
+        return $companyId !== null ? (int) $companyId : null;
     }
 }

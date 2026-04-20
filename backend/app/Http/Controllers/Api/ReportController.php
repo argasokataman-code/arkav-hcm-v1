@@ -23,10 +23,14 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
+        
+        if ($tenantScopeError = $this->tenantScopeError($request)) {
+            return $tenantScopeError;
+        }
 
         $period = $request->get('period', 'monthly'); // monthly, yearly
         $year = $request->get('year', now()->year);
-        $company_id = $request->get('company_id');
+        $company_id = $this->scopedCompanyId($request);
 
         $query = Payment::where('status', 'completed');
 
@@ -91,8 +95,12 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
+        
+        if ($tenantScopeError = $this->tenantScopeError($request)) {
+            return $tenantScopeError;
+        }
 
-        $company_id = $request->get('company_id');
+        $company_id = $this->scopedCompanyId($request);
 
         $query = Invoice::where('is_paid', false)
             ->where('due_date', '<', now());
@@ -145,10 +153,14 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
+        
+        if ($tenantScopeError = $this->tenantScopeError($request)) {
+            return $tenantScopeError;
+        }
 
         $period = $request->get('period', 'monthly'); // monthly, yearly
         $year = $request->get('year', now()->year);
-        $company_id = $request->get('company_id');
+        $company_id = $this->scopedCompanyId($request);
 
         $query = Subscription::where('status', 'cancelled');
 
@@ -216,6 +228,57 @@ class ReportController extends Controller
             $daysOverdue < 90 => '60-90',
             default => '90+',
         };
+    }
+
+    private function tenantScopeError(Request $request): ?JsonResponse
+    {
+        $headerCompanyId = $this->headerCompanyId($request);
+        if ($headerCompanyId <= 0) {
+            return null;
+        }
+
+        $user = $request->user();
+        if (! $user || ! $user->isHcmAdminForCompany($headerCompanyId)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Forbidden.',
+                ],
+            ], 403);
+        }
+
+        $requestedCompanyId = (int) $request->query('company_id', 0);
+        if ($requestedCompanyId > 0 && $requestedCompanyId !== $headerCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_SCOPE_MISMATCH',
+                    'message' => 'The requested company does not match the active tenant context.',
+                ],
+            ], 403);
+        }
+
+        return null;
+    }
+
+    private function scopedCompanyId(Request $request): ?int
+    {
+        $headerCompanyId = $this->headerCompanyId($request);
+        if ($headerCompanyId > 0) {
+            return $headerCompanyId;
+        }
+
+        $requestedCompanyId = (int) $request->query('company_id', 0);
+
+        return $requestedCompanyId > 0 ? $requestedCompanyId : null;
+    }
+
+    private function headerCompanyId(Request $request): int
+    {
+        $value = $request->header('X-Company-Id', $request->header('X-Company-ID'));
+
+        return is_numeric($value) ? (int) $value : 0;
     }
 
 }

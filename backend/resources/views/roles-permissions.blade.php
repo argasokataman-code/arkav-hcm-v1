@@ -89,10 +89,27 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+                    <div>
+                        <h5 class="mb-1">Permission Blueprint</h5>
+                        <p class="text-muted mb-0">Detail permission sekarang dibaca langsung di modal create/edit role dengan pola builder dua panel seperti create package.</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span id="rp_permission_summary" class="badge badge-light text-dark">0 permissions</span>
+                        <button id="rp_open_create_modal_secondary" type="button" class="btn btn-outline-primary">Open Role Builder</button>
+                    </div>
+                </div>
+                <div class="card-body pt-0">
+                    <div id="rp_permission_summary_modules" class="d-flex flex-wrap gap-2"></div>
+                    <p id="rp_permission_catalog_empty" class="text-muted small d-none mb-0 mt-3">No permissions available for current company.</p>
+                </div>
+            </div>
         </div>
 
         <div class="modal fade" id="rp_role_modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 id="rp_role_modal_title" class="modal-title">Add Role</h5>
@@ -100,26 +117,61 @@
                     </div>
                     <form id="rp_role_form" novalidate>
                         <div class="modal-body">
-                            <input id="rp_role_id" type="hidden">
-                            <div class="mb-3" id="rp_code_wrap">
-                                <label class="form-label" for="rp_code">Code</label>
-                                <input id="rp_code" type="text" class="form-control" placeholder="OPS_ADMIN" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="rp_name">Name</label>
-                                <input id="rp_name" type="text" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="rp_description">Description</label>
-                                <textarea id="rp_description" class="form-control" rows="3" placeholder="Optional description"></textarea>
-                            </div>
-                            <div class="mb-0">
-                                <label class="form-label" for="rp_role_status">Status</label>
-                                <select id="rp_role_status" class="form-select">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="archived">Archived</option>
-                                </select>
+                            <div class="row g-4">
+                                <div class="col-lg-4">
+                                    <div class="rp-role-modal-panel p-3">
+                                        <input id="rp_role_id" type="hidden">
+                                        <h6 class="fw-bold mb-3">Role Information</h6>
+                                        <div class="mb-3" id="rp_code_wrap">
+                                            <label class="form-label" for="rp_code">Code</label>
+                                            <input id="rp_code" type="text" class="form-control" placeholder="OPS_ADMIN" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label" for="rp_name">Name</label>
+                                            <input id="rp_name" type="text" class="form-control" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label" for="rp_description">Description</label>
+                                            <textarea id="rp_description" class="form-control" rows="4" placeholder="Ringkas tujuan role, tim pemakai, dan batas akses utamanya"></textarea>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label" for="rp_role_status">Status</label>
+                                            <select id="rp_role_status" class="form-select">
+                                                <option value="active">Active</option>
+                                                <option value="inactive">Inactive</option>
+                                                <option value="archived">Archived</option>
+                                            </select>
+                                        </div>
+                                        <div class="rp-permission-summary mt-3">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <p class="mb-0 fw-semibold">Selected Permissions</p>
+                                                <span id="rp_form_permission_summary" class="badge text-bg-primary">0</span>
+                                            </div>
+                                            <div id="rp_form_permission_preview" class="d-flex flex-wrap gap-2">
+                                                <span class="text-muted small">Belum ada permission dipilih</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-8">
+                                    <div class="rp-role-modal-panel p-3">
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-1">Permission Builder</h6>
+                                                <p class="text-muted small mb-0">Pilih permission detail per modul, resource, dan action. Jadi saat create role Anda tidak perlu menebak-nebak lagi.</p>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <button id="rp_form_select_visible" type="button" class="btn btn-sm btn-outline-secondary">Select visible</button>
+                                                <button id="rp_form_clear_all" type="button" class="btn btn-sm btn-outline-dark">Reset</button>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <input id="rp_form_permission_search" type="text" class="form-control" placeholder="Cari permission: payroll, approval, export, employee, reports, dll">
+                                        </div>
+                                        <div id="rp_form_permission_empty" class="text-muted small d-none">No permissions match the current filter.</div>
+                                        <div id="rp_form_permission_list" class="rp-permission-catalog"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -156,4 +208,80 @@
 
     @component('components.modal-popup')
     @endcomponent
+
+    <style>
+        #rp_role_modal .modal-content {
+            border-radius: 14px;
+        }
+
+        .rp-role-modal-panel {
+            border: 1px solid #e4e7ec;
+            border-radius: 12px;
+            background: #ffffff;
+        }
+
+        .rp-permission-summary {
+            border: 1px solid #e4e7ec;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 0.75rem;
+        }
+
+        .rp-permission-catalog {
+            max-height: 58vh;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .rp-permission-group {
+            border: 1px solid #eef2f7;
+            border-radius: 12px;
+            padding: 0.85rem;
+            margin-bottom: 0.75rem;
+            background: #fcfdff;
+        }
+
+        .rp-permission-item {
+            border: 1px solid #eef2f7;
+            border-radius: 10px;
+            padding: 0.65rem 0.75rem;
+            background: #ffffff;
+            height: 100%;
+        }
+
+        .rp-permission-item .form-check-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.12rem;
+        }
+
+        .rp-permission-item-title {
+            font-weight: 600;
+            color: #344054;
+        }
+
+        .rp-permission-item-desc {
+            font-size: 0.75rem;
+            color: #667085;
+        }
+
+        .rp-preview-chip,
+        .rp-module-chip,
+        .rp-role-permission-chip {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #d0d5dd;
+            border-radius: 999px;
+            padding: 0.15rem 0.55rem;
+            background: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #344054;
+        }
+
+        .rp-role-permission-chip {
+            border-radius: 10px;
+            font-weight: 500;
+        }
+    </style>
 @endsection

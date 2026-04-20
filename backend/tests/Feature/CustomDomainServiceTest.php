@@ -101,7 +101,7 @@ class CustomDomainServiceTest extends TestCase
             'status' => 'verified',
         ]);
 
-        $response = $this->adminRequest()->getJson("/v1/saas/domains/{$domain->id}");
+        $response = $this->adminRequest()->getJson("/v1/saas/domains/{$domain->uuid}");
 
         $response->assertStatus(200);
         $this->assertEquals('app.example.com', $response->json('data.domainName'));
@@ -110,7 +110,7 @@ class CustomDomainServiceTest extends TestCase
     public function test_admin_can_create_domain()
     {
         $response = $this->adminRequest()->postJson('/v1/saas/domains', [
-            'company_id' => $this->company->id,
+            'company_id' => $this->company->uuid,
             'domain_name' => 'newapp.example.com',
             'verification_type' => 'dns',
             'notes' => 'Production domain',
@@ -126,7 +126,7 @@ class CustomDomainServiceTest extends TestCase
     public function test_non_admin_cannot_create_domain()
     {
         $response = $this->userRequest()->postJson('/v1/saas/domains', [
-            'company_id' => $this->company->id,
+            'company_id' => $this->company->uuid,
             'domain_name' => 'newapp.example.com',
             'verification_type' => 'dns',
         ]);
@@ -145,7 +145,7 @@ class CustomDomainServiceTest extends TestCase
             'notes' => 'Old note',
         ]);
 
-        $response = $this->adminRequest()->putJson("/v1/saas/domains/{$domain->id}", [
+        $response = $this->adminRequest()->putJson("/v1/saas/domains/{$domain->uuid}", [
             'status' => 'verified',
             'notes' => 'Updated note',
         ]);
@@ -163,7 +163,7 @@ class CustomDomainServiceTest extends TestCase
             'status' => 'verified',
         ]);
 
-        $response = $this->adminRequest()->deleteJson("/v1/saas/domains/{$domain->id}");
+        $response = $this->adminRequest()->deleteJson("/v1/saas/domains/{$domain->uuid}");
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('domains', ['id' => $domain->id]);
@@ -178,7 +178,7 @@ class CustomDomainServiceTest extends TestCase
             'verification_type' => 'dns',
         ]);
 
-        $response = $this->adminRequest()->postJson("/v1/saas/domains/{$domain->id}/verify");
+        $response = $this->adminRequest()->postJson("/v1/saas/domains/{$domain->uuid}/verify");
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('domains', [
@@ -196,7 +196,7 @@ class CustomDomainServiceTest extends TestCase
             'verification_type' => 'dns',
         ]);
 
-        $response = $this->userRequest()->postJson("/v1/saas/domains/{$domain->id}/verify");
+        $response = $this->userRequest()->postJson("/v1/saas/domains/{$domain->uuid}/verify");
 
         $response->assertStatus(403);
         $this->assertEquals('ADMIN_REQUIRED', $response->json('error.code'));
@@ -212,7 +212,7 @@ class CustomDomainServiceTest extends TestCase
         ]);
 
         $response = $this->adminRequest()->postJson('/v1/saas/domains', [
-            'company_id' => $this->company->id,
+            'company_id' => $this->company->uuid,
             'domain_name' => 'app.example.com',
             'verification_type' => 'dns',
         ]);

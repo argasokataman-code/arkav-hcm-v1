@@ -55,7 +55,7 @@ Catatan penting:
 - **JS manager**: `frontend/resources/js/subscriptions-management.js`
 - **API**: `POST /v1/saas/subscriptions` (admin-only)
 - **Validasi kunci**:
-  - `company_id`, `package_id`, `starts_at`, `billing_cycle`
+  - `company_id` (UUID company), `package_uuid` (UUID package), `starts_at`, `billing_cycle`
   - `ends_at` **wajib** jika `status` = `active|trial` (required_if)
   - `amount` optional → auto-calc dari package
 - **Outcome**:
@@ -75,8 +75,8 @@ Catatan penting:
 - **Validasi kunci**:
   - Jika status diubah jadi `active|trial|pending_payment`, maka `ends_at` tidak boleh null (422 `VALIDATION_ERROR`)
 - **Outcome**:
-  - `plan_code` update jika `package_id` berubah
-  - Jika **`package_id`** berubah, **`amount`** disinkronkan ke harga katalog (`monthly_price` / `yearly_price`) sesuai `billing_cycle` efektif
+  - `plan_code` update jika `package_uuid` berubah
+  - Jika **`package_uuid`** berubah, **`amount`** disinkronkan ke harga katalog (`monthly_price` / `yearly_price`) sesuai `billing_cycle` efektif
 
 ---
 
@@ -192,14 +192,27 @@ Ada dua varian:
 
 ---
 
-### NS-5 — Non-admin mencoba mutate subscription/invoice/payment
+### NS-5 — Non-admin mencoba enumerate atau mutate subscription/invoice/payment
 
 - **API**:
-  - subscription mutasi: `403 ADMIN_REQUIRED`
+  - subscription list/detail/mutasi: `403 ADMIN_REQUIRED`
   - invoice/payment mutasi: `403 ADMIN_REQUIRED`
 - **UI**:
+  - halaman `/saas/subscriptions` sudah web-admin-only; jika state permission frontend tidak cukup, manager JS masuk unauthorized/read-only state dan tidak memanggil list sensitif
   - action button disembunyikan/disabled untuk non-admin (UX)
   - tetapi backend tetap source of truth: tetap 403
+
+### NS-6 — Deep link Packages memakai identifier stale / salah format
+
+- **Kasus**:
+  - link lama mengirim `companyId` numeric lama, atau
+  - `packageId` tidak lagi valid / tidak ada di katalog aktif.
+- **UI**:
+  - modal create tetap bisa dibuka, tetapi dropdown hanya akan preselect nilai yang valid dari opsi terbaru.
+  - submit akan menampilkan toast error dari backend bila `package_uuid` tidak valid / tidak aktif.
+- **API**:
+  - `POST /v1/saas/subscriptions` memvalidasi `company_id` sebagai UUID company dan `package_uuid` sebagai UUID package aktif.
+  - input invalid → `422 VALIDATION_ERROR` atau `422 PACKAGE_NOT_ACTIVE`.
 
 ---
 

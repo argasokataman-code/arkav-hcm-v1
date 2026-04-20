@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -55,7 +57,7 @@ class PromotionApiTest extends TestCase
         // Admin create
         $create = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/promotions', [
-                'userId' => $emp->id,
+                'userId' => $emp->uuid,
                 'department' => 'Finance',
                 'designationFrom' => 'Accountant',
                 'designationTo' => 'Sr Accountant',
@@ -113,12 +115,12 @@ class PromotionApiTest extends TestCase
         ];
 
         $idA = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
-            ->postJson('/v1/hcm/promotions', array_merge(['userId' => $empA->id], $body))
+            ->postJson('/v1/hcm/promotions', array_merge(['userId' => $empA->uuid], $body))
             ->assertStatus(201)
             ->json('data.id');
 
         $idB = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
-            ->postJson('/v1/hcm/promotions', array_merge(['userId' => $empB->id], $body))
+            ->postJson('/v1/hcm/promotions', array_merge(['userId' => $empB->uuid], $body))
             ->assertStatus(201)
             ->json('data.id');
 
@@ -148,6 +150,55 @@ class PromotionApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->getJson('/v1/hcm/promotions/999999')
             ->assertNotFound();
+    }
+
+    public function test_promotion_create_rejects_user_uuid_outside_active_company(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Other Company Employee',
+            'email' => 'other-company-promotion@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $outsider = User::query()->where('email', 'other-company-promotion@example.com')->firstOrFail();
+        $activeCompanyId = (int) CompanyUser::query()->where('user_id', $admin->id)->value('company_id');
+        $this->assertGreaterThan(0, $activeCompanyId);
+
+        CompanyUser::query()->where('user_id', $outsider->id)->delete();
+
+        $otherCompany = Company::query()->create([
+            'code' => 'promotion_other_company',
+            'name' => 'Promotion Other Company',
+            'legal_name' => 'Promotion Other Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $outsider->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Id' => (string) $activeCompanyId,
+        ])->postJson('/v1/hcm/promotions', [
+            'userId' => $outsider->uuid,
+            'department' => 'Finance',
+            'designationFrom' => 'Analyst',
+            'designationTo' => 'Senior Analyst',
+            'promotionDate' => '2026-04-09',
+            'notes' => 'Cross tenant injection',
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonPath('error.message', 'The selected user id is invalid for the active company.');
     }
 }
 

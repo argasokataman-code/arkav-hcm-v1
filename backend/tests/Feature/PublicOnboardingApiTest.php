@@ -47,7 +47,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'company' => [
                 'name' => 'Acme Inc',
@@ -89,7 +89,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'company' => [
                 'name' => 'Acme Inc',
@@ -128,7 +128,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'company' => [
                 'name' => 'Acme Inc',
@@ -161,7 +161,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'start_mode' => 'free_forever',
             'company' => [
@@ -196,7 +196,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'company' => [
                 'name' => 'Acme Inc',
@@ -256,7 +256,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'start_mode' => 'pending_payment',
             'billingEmail' => 'billing@acme.test',
@@ -319,7 +319,7 @@ class PublicOnboardingApiTest extends TestCase
         ]);
 
         $payload = [
-            'package_id' => $package->id,
+            'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'company' => [
                 'code' => 'acme_1',

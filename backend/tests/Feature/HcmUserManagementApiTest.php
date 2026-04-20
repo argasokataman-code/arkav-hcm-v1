@@ -370,4 +370,86 @@ class HcmUserManagementApiTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
+
+    public function test_tenant_admin_cannot_configure_role_setup_without_global_super_user_access(): void
+    {
+        $company = Company::factory()->create(['code' => 'tenant_role_setup_lock']);
+
+        $email = 'tenant-admin-role-setup@example.com';
+        $password = 'StrongPass1';
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant Role Admin',
+            'email' => $email,
+            'password' => $password,
+            'confirmPassword' => $password,
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+
+        CompanyUser::query()->where('user_id', $user->id)->delete();
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        foreach ([
+            ['code' => 'role.create', 'module' => 'user_management', 'resource' => 'role', 'action' => 'create', 'name' => 'Create Roles'],
+            ['code' => 'role.sync_permission', 'module' => 'user_management', 'resource' => 'role_permission', 'action' => 'sync', 'name' => 'Sync Role Permissions'],
+            ['code' => 'user_management.manage', 'module' => 'user_management', 'resource' => 'user_management', 'action' => 'manage', 'name' => 'Manage User Management'],
+        ] as $permissionData) {
+            HcmPermission::query()->updateOrCreate(
+                ['code' => $permissionData['code']],
+                [
+                    'module' => $permissionData['module'],
+                    'resource' => $permissionData['resource'],
+                    'action' => $permissionData['action'],
+                    'name' => $permissionData['name'],
+                    'description' => null,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $role = HcmRole::query()->create([
+            'company_id' => $company->id,
+            'code' => 'TENANT_MANAGER',
+            'name' => 'Tenant Manager',
+            'status' => 'active',
+            'is_system' => false,
+        ]);
+
+        $permissionIds = HcmPermission::query()
+            ->whereIn('code', ['role.create', 'role.sync_permission', 'user_management.manage'])
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+        $role->permissions()->sync($permissionIds);
+
+        HcmUserRole::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role_id' => $role->id,
+            'status' => 'active',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $email,
+            'password' => $password,
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $token = (string) $login->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ])->postJson('/v1/hcm/user-management/roles', [
+            'code' => 'TENANT_ONLY_ROLE',
+            'name' => 'Tenant Only Role',
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'SUPER_USER_REQUIRED');
+    }
 }

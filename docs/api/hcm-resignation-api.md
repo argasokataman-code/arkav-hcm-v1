@@ -13,13 +13,20 @@ Base path: `/v1/hcm`
 
 ## Data model (ringkas)
 
-- `userId` (required): target employee (User)
+- `userId` (required): target employee **UUID** (`users.uuid`) untuk request mutasi
 - `department` (optional, string ≤ 150)
 - `reason` (required, string ≤ 2000)
 - `noticeDate` (required, `YYYY-MM-DD`)
 - `resignationDate` (required, `YYYY-MM-DD`, harus ≥ `noticeDate`)
 - `status` (optional, default `pending`): `pending` | `approved` | `cancelled`
 - `notes` (optional, string ≤ 2000)
+
+## Identifier contract saat ini
+
+- `POST /resignations` dan `PUT /resignations/{id}` menerima `userId` sebagai **UUID user**.
+- `GET /resignations/{id}` dan `DELETE /resignations/{id}` masih memakai **numeric resignation id**.
+- `GET /resignations/users/{userId}/resignations` masih memakai **numeric user id** untuk route param legacy.
+- Untuk `POST`/`PUT`, UUID user juga harus menjadi anggota **company aktif**; UUID valid lintas tenant tetap ditolak dengan `422 VALIDATION_ERROR`.
 
 ## Endpoints
 
@@ -71,8 +78,8 @@ Detail satu resignation.
 
 Riwayat resignation untuk satu employee (paginated).
 
-- **Admin**: semua `userId`.
-- **Karyawan**: hanya `userId` = diri sendiri.
+- **Admin**: semua `userId` numeric legacy.
+- **Karyawan**: hanya `userId` numeric milik diri sendiri.
 
 **Query**: `perPage` optional 1..100 (default 20).
 
@@ -86,7 +93,7 @@ Create (**HCM admin only**).
 
 ```json
 {
-  "userId": 2,
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "department": "Finance",
   "reason": "Career change",
   "noticeDate": "2026-04-01",
@@ -101,6 +108,10 @@ Create (**HCM admin only**).
 ```json
 { "success": true, "data": { "id": 10 } }
 ```
+
+**422 penting**
+
+- `VALIDATION_ERROR` jika `userId` UUID tidak terdaftar pada company aktif walaupun UUID user valid.
 
 ### PUT `/resignations/{id}`
 

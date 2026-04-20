@@ -22,6 +22,9 @@ Setelah **perubahan substantif** (fitur baru, API, migrasi DB, alur template/UI,
    - Garis besar arsitektur atau prefix route: `docs/architecture/microservice-concept.md`, `docs/README.md`, dan bila perlu **root** `README.md`.
    - Struktur repo / layering / checklist engineering: `docs/engineering/phase-1-code-structure-todo.md`.
    - **Dokumen per fitur:** update `docs/features/<feature>/README.md` untuk fitur yang disentuh (flow UI, endpoint, aturan bisnis, edge case, test). Jika fitur baru, **buat folder fitur baru** + daftarkan di `docs/features/README.md` dan `docs/README.md`.
+   - Untuk feature yang punya alur operasional, `README.md` per fitur wajib memuat flow bisnis end-to-end, lifecycle/status bisnis, decision path, gap existing vs target, dan cross-check role/API permission. Jika detail target bisnis belum final, dokumentasikan dulu perilaku existing runtime + gap-nya secara eksplisit.
+   - Rule ini berlaku saat ada development/perubahan substantif atau saat feature doc sedang dirapikan secara sengaja; brainstorming atau diskusi kecil tanpa perubahan deliverable tidak wajib langsung memicu edit docs.
+   - Jika menyentuh route/permission/ownership untuk halaman HCM aktif, pastikan narasi `docs/features/<feature>/README.md` cocok dengan `docs/planning/active-hcm-templates-and-permissions.md`.
 
 3. **Definisi “selesai” untuk task dev:** kode + tes yang disepakati + **dokumen yang terdampak** (termasuk docs per fitur) sudah konsisten. Jika user meminta melewati dokumentasi, minta konfirmasi eksplisit di pesan itu.
 

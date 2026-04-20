@@ -37,6 +37,37 @@
         el.textContent = "";
     }
 
+    function getTenantContext() {
+        if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
+            return window.AuthApi.getTenantContext() || {};
+        }
+        return {};
+    }
+
+    function buildHeaders() {
+        var headers = { Accept: "application/json" };
+        var token = window.AuthApi && typeof window.AuthApi.getToken === "function"
+            ? window.AuthApi.getToken()
+            : null;
+
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+
+        var tenant = getTenantContext();
+        if (tenant.companyCode) {
+            headers["X-Company-Code"] = tenant.companyCode;
+        }
+        if (tenant.companyId) {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant.companyUuid) {
+            headers["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return headers;
+    }
+
     function formatSaveError(status, data) {
         if (data && typeof data === "object") {
             if (data.error && data.error.message) {
@@ -66,14 +97,12 @@
     }
 
     function apiRequest(method, url, body) {
-        var headers = { Accept: "application/json" };
-        headers["Content-Type"] = "application/json";
         if (window.axios) {
             return window.axios({
                 method: method,
                 url: url,
                 data: body || null,
-                headers: headers,
+                headers: Object.assign({ "Content-Type": "application/json" }, buildHeaders()),
                 withCredentials: true,
             }).then(function (res) {
                 return res.data;
@@ -88,7 +117,7 @@
         }
         return fetch(url, {
             method: method.toUpperCase(),
-            headers: headers,
+            headers: Object.assign({ "Content-Type": "application/json" }, buildHeaders()),
             credentials: "same-origin",
             body: body ? JSON.stringify(body) : undefined,
         }).then(function (res) {
@@ -151,7 +180,8 @@
                 return;
             }
             userSelect.innerHTML = '<option value="">Select employee…</option>' + rows.map(function (u) {
-                return '<option value="' + esc(u.id) + '">' + esc(u.fullName || u.name || ("User " + u.id)) + (u.email ? (" — " + esc(u.email)) : "") + "</option>";
+                var employeeValue = u.uuid || u.id;
+                return '<option value="' + esc(employeeValue) + '">' + esc(u.fullName || u.name || ("User " + u.id)) + (u.email ? (" — " + esc(u.email)) : "") + "</option>";
             }).join("");
             employeeOptionsLoaded = true;
         }).catch(function () {
@@ -175,7 +205,10 @@
     function autoFillDepartment(userId) {
         if (!deptInput) return Promise.resolve();
         return getEmployeeDetail(userId).then(function (emp) {
-            if (!emp) return;
+            if (!emp) {
+                deptInput.value = "";
+                return;
+            }
             var team = (emp.team && emp.team !== "-" && emp.team !== "—") ? emp.team : "";
             deptInput.value = team;
         });
@@ -189,6 +222,7 @@
         }
         tbody.innerHTML = rows.map(function (r) {
             var emp = r.employee || {};
+            var recordIdentifier = r.uuid || r.id;
             var name = emp.name || "—";
             var dept = r.department || "—";
             var reason = shortReason(r.reason);
@@ -206,9 +240,9 @@
                 "<td>" + esc(resign) + "</td>" +
                 '<td><span class="badge badge-' + esc(badge) + ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + esc(st) + "</span></td>" +
                 '<td><div class="action-icon d-inline-flex">' +
-                '<a href="#" class="me-2" title="Detail" data-arcav-resignation-view="' + esc(r.id) + '"><i class="ti ti-eye"></i></a>' +
-                '<a href="#" class="me-2" data-arcav-resignation-edit="' + esc(r.id) + '"><i class="ti ti-edit"></i></a>' +
-                '<a href="#" data-arcav-resignation-delete="' + esc(r.id) + '"><i class="ti ti-trash"></i></a>' +
+                '<a href="#" class="me-2" title="Detail" data-arcav-resignation-view="' + esc(recordIdentifier) + '"><i class="ti ti-eye"></i></a>' +
+                '<a href="#" class="me-2" data-arcav-resignation-edit="' + esc(recordIdentifier) + '"><i class="ti ti-edit"></i></a>' +
+                '<a href="#" data-arcav-resignation-delete="' + esc(recordIdentifier) + '"><i class="ti ti-trash"></i></a>' +
                 "</div></td>" +
                 "</tr>"
             );
@@ -233,7 +267,7 @@
         if (!modal || !form) return;
         clearFlash(flashEl);
         if (modalTitle) modalTitle.textContent = row ? "Edit Resignation" : "Add Resignation";
-        if (idInput) idInput.value = row ? String(row.id) : "";
+            if (idInput) idInput.value = row ? String(row.uuid || row.id) : "";
         if (noticeInput) noticeInput.value = row ? (row.noticeDate || "") : "";
         if (resignInput) resignInput.value = row ? (row.resignationDate || "") : "";
         if (reasonInput) reasonInput.value = row ? (row.reason || "") : "";
@@ -247,7 +281,7 @@
         loadEmployeeOptions().then(function () {
             if (userSelect) {
                 userSelect.disabled = !!row;
-                userSelect.value = row && row.employee ? String(row.employee.id) : "";
+                userSelect.value = row && row.employee ? String(row.employee.uuid || row.employee.id || "") : "";
             }
             if (!row && userSelect && userSelect.value) {
                 return autoFillDepartment(userSelect.value);
@@ -288,7 +322,7 @@
                 var id = edit.getAttribute("data-arcav-resignation-edit");
                 apiRequest("get", "/v1/hcm/resignations?perPage=100", null).then(function (res) {
                     var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
-                    var r = rows.find(function (x) { return String(x.id) === String(id); }) || null;
+                    var r = rows.find(function (x) { return String(x.uuid || x.id) === String(id); }) || null;
                     openModal(r);
                 }).catch(function () {
                     notify("Failed to load resignation.", true);
@@ -367,7 +401,7 @@
                 payload.department = null;
             }
             if (!id) {
-                payload.userId = userSelect ? Number(userSelect.value) : null;
+                payload.userId = userSelect ? String(userSelect.value || "") : "";
                 if (!payload.userId) {
                     flash(flashEl, "Employee wajib dipilih.", true);
                     return;
@@ -436,13 +470,14 @@
             setDetail("[data-arcav-resignation-detail-notes]", d.notes || "—");
             setDetail("[data-arcav-resignation-detail-created]", d.createdAt || "—");
             var prof = detailModalEl.querySelector("[data-arcav-resignation-detail-profile]");
-            if (prof && emp.id) {
+            var employeeIdentifier = emp.uuid || emp.id;
+            if (prof && employeeIdentifier) {
                 try {
                     var u = new URL(prof.getAttribute("href"), window.location.origin);
-                    u.searchParams.set("id", String(emp.id));
+                    u.searchParams.set("id", String(employeeIdentifier));
                     prof.setAttribute("href", u.pathname + u.search);
                 } catch (_e) {
-                    prof.setAttribute("href", "/employee-details?id=" + encodeURIComponent(String(emp.id)));
+                    prof.setAttribute("href", "/employee-details?id=" + encodeURIComponent(String(employeeIdentifier)));
                 }
             }
             if (bodyWrap) bodyWrap.classList.remove("d-none");
@@ -467,15 +502,32 @@
 
     window.ArcavResignationDetail = { open: openResignationDetail };
 
+    function safeRedirect(path) {
+        window.__ARCAV_LAST_REDIRECT__ = path;
+        if (window.__ARCAV_DISABLE_REDIRECTS__ === true) {
+            return;
+        }
+
+        try {
+            window.location.replace(path);
+        } catch (_e) {
+            try {
+                window.location.href = path;
+            } catch (__e) {
+                // Ignore non-browser navigation failures.
+            }
+        }
+    }
+
     if (tbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
             if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['resignation.view']) {
-                window.location.replace("/employee-dashboard");
+                safeRedirect("/employee-dashboard");
                 return;
             }
             loadList();
         }).catch(function () {
-            window.location.replace("/employee-dashboard");
+            safeRedirect("/employee-dashboard");
         });
     }
 })(window, document);

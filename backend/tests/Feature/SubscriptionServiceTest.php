@@ -86,8 +86,8 @@ class SubscriptionServiceTest extends TestCase
     public function test_create_subscription_as_admin()
     {
         $response = $this->request()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'active',
             'starts_at' => now()->toDateString(),
             'ends_at' => now()->addMonths(1)->toDateString(),
@@ -101,7 +101,7 @@ class SubscriptionServiceTest extends TestCase
 
         $this->assertDatabaseHas('subscriptions', [
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'active',
         ]);
     }
@@ -110,7 +110,7 @@ class SubscriptionServiceTest extends TestCase
     {
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -131,7 +131,7 @@ class SubscriptionServiceTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             Subscription::create([
                 'company_id' => $this->company->id,
-                'package_id' => $this->basicPackage->id,
+                'package_uuid' => $this->basicPackage->uuid,
                 'plan_code' => 'basic',
                 'status' => 'active',
                 'starts_at' => now(),
@@ -152,7 +152,7 @@ class SubscriptionServiceTest extends TestCase
     {
         Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'suspended',
             'starts_at' => now()->subMonth(),
@@ -169,11 +169,11 @@ class SubscriptionServiceTest extends TestCase
         $this->assertContains('suspended', array_column($response->json('data'), 'status'));
     }
 
-    public function test_non_admin_can_list_and_view_subscription_read_only()
+    public function test_non_admin_cannot_list_or_view_subscription_even_with_bearer_token()
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -183,21 +183,19 @@ class SubscriptionServiceTest extends TestCase
         ]);
 
         $listResponse = $this->nonAdminRequest()->getJson('/v1/saas/subscriptions?status=active');
-        $listResponse->assertOk();
-        $listResponse->assertJson(['success' => true]);
-        $this->assertGreaterThan(0, count($listResponse->json('data') ?? []));
+        $listResponse->assertStatus(403);
+        $listResponse->assertJsonPath('error.code', 'ADMIN_REQUIRED');
 
-        $showResponse = $this->nonAdminRequest()->getJson("/v1/saas/subscriptions/{$subscription->id}");
-        $showResponse->assertOk();
-        $showResponse->assertJson(['success' => true]);
-        $showResponse->assertJsonPath('data.id', $subscription->id);
+        $showResponse = $this->nonAdminRequest()->getJson("/v1/saas/subscriptions/{$subscription->uuid}");
+        $showResponse->assertStatus(403);
+        $showResponse->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
 
     public function test_update_subscription()
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -206,7 +204,7 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
             'status' => 'inactive',
         ]);
 
@@ -224,7 +222,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -233,7 +231,7 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
             'status' => 'suspended',
         ]);
 
@@ -248,8 +246,8 @@ class SubscriptionServiceTest extends TestCase
         $trialEnds = now()->addDays(10)->toDateString();
 
         $response = $this->request()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'trial',
             'starts_at' => $starts,
             'ends_at' => $ends,
@@ -265,8 +263,8 @@ class SubscriptionServiceTest extends TestCase
     public function test_create_trial_missing_trial_ends_at_returns_422(): void
     {
         $response = $this->request()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'trial',
             'starts_at' => now()->toDateString(),
             'ends_at' => now()->addMonths(1)->toDateString(),
@@ -283,8 +281,8 @@ class SubscriptionServiceTest extends TestCase
         $trialEnds = now()->addMonths(2)->toDateString();
 
         $response = $this->request()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'trial',
             'starts_at' => $starts,
             'ends_at' => $ends,
@@ -300,7 +298,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -309,7 +307,7 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
             'status' => 'trial',
         ]);
 
@@ -321,7 +319,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -332,7 +330,7 @@ class SubscriptionServiceTest extends TestCase
 
         $trialEnds = now()->addDays(7)->toDateString();
 
-        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
             'status' => 'trial',
             'trial_ends_at' => $trialEnds,
         ]);
@@ -345,7 +343,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -354,7 +352,7 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $response = $this->request()->deleteJson("/v1/saas/subscriptions/{$subscription->id}");
+        $response = $this->request()->deleteJson("/v1/saas/subscriptions/{$subscription->uuid}");
 
         $response->assertOk();
         $response->assertJson(['success' => true]);
@@ -366,7 +364,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'expired',
             'starts_at' => now()->subMonths(1),
@@ -377,7 +375,7 @@ class SubscriptionServiceTest extends TestCase
 
         $futureDate = now()->addMonths(1);
 
-        $response = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->id}/renew", [
+        $response = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->uuid}/renew", [
             'ends_at' => $futureDate->toDateString(),
         ]);
 
@@ -395,7 +393,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'inactive',
             'starts_at' => now()->subMonths(1),
@@ -404,10 +402,10 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $this->request()->getJson("/v1/saas/subscriptions/{$subscription->id}")->assertOk()->assertJsonPath('data.status', 'inactive');
+        $this->request()->getJson("/v1/saas/subscriptions/{$subscription->uuid}")->assertOk()->assertJsonPath('data.status', 'inactive');
 
         $futureDate = now()->addMonths(1)->toDateString();
-        $renew = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->id}/renew", [
+        $renew = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->uuid}/renew", [
             'ends_at' => $futureDate,
         ]);
 
@@ -418,8 +416,8 @@ class SubscriptionServiceTest extends TestCase
     public function test_non_admin_cannot_create_subscription()
     {
         $response = $this->nonAdminRequest()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
             'status' => 'active',
             'starts_at' => now()->toDateString(),
             'ends_at' => now()->addMonths(1)->toDateString(),
@@ -434,7 +432,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -443,17 +441,17 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $updateResponse = $this->nonAdminRequest()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
+        $updateResponse = $this->nonAdminRequest()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
             'status' => 'inactive',
         ]);
         $updateResponse->assertStatus(403);
         $updateResponse->assertJsonPath('error.code', 'ADMIN_REQUIRED');
 
-        $deleteResponse = $this->nonAdminRequest()->deleteJson("/v1/saas/subscriptions/{$subscription->id}");
+        $deleteResponse = $this->nonAdminRequest()->deleteJson("/v1/saas/subscriptions/{$subscription->uuid}");
         $deleteResponse->assertStatus(403);
         $deleteResponse->assertJsonPath('error.code', 'ADMIN_REQUIRED');
 
-        $renewResponse = $this->nonAdminRequest()->postJson("/v1/saas/subscriptions/{$subscription->id}/renew", [
+        $renewResponse = $this->nonAdminRequest()->postJson("/v1/saas/subscriptions/{$subscription->uuid}/renew", [
             'ends_at' => now()->addMonths(2)->toDateString(),
         ]);
         $renewResponse->assertStatus(403);
@@ -473,7 +471,7 @@ class SubscriptionServiceTest extends TestCase
 
         $subscription = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'active',
             'starts_at' => now(),
@@ -482,8 +480,8 @@ class SubscriptionServiceTest extends TestCase
             'amount' => 99000,
         ]);
 
-        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->id}", [
-            'package_id' => $pkg2->id,
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
+            'package_uuid' => $pkg2->uuid,
         ]);
 
         $response->assertOk();
@@ -503,8 +501,8 @@ class SubscriptionServiceTest extends TestCase
         ]);
 
         $response = $this->request()->postJson('/v1/saas/subscriptions', [
-            'company_id' => $this->company->id,
-            'package_id' => $inactive->id,
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $inactive->uuid,
             'status' => 'active',
             'starts_at' => now()->toDateString(),
             'ends_at' => now()->addMonth()->toDateString(),
@@ -519,7 +517,7 @@ class SubscriptionServiceTest extends TestCase
     {
         $sub = Subscription::create([
             'company_id' => $this->company->id,
-            'package_id' => $this->basicPackage->id,
+            'package_uuid' => $this->basicPackage->uuid,
             'plan_code' => 'basic',
             'status' => 'pending_payment',
             'starts_at' => now(),

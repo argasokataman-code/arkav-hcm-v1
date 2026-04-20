@@ -6,9 +6,12 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmPayrollItem;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class HcmPayrollItemAssignmentController extends Controller
@@ -22,16 +25,17 @@ class HcmPayrollItemAssignmentController extends Controller
         }
 
         $validated = $request->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            'userId' => ['required', 'uuid', 'exists:users,uuid'],
             'kind' => ['nullable', 'string', Rule::in(['addition', 'deduction'])],
             'isActive' => ['nullable', 'boolean'],
         ]);
+        $userId = $this->resolveUserIdFromUuid((string) $validated['userId']);
 
         $companyId = $this->activeCompanyId($request);
 
         $query = HcmEmployeePayrollItemAssignment::query()
             ->with(['payrollItem.salaryComponent'])
-            ->where('user_id', (int) $validated['userId'])
+            ->where('user_id', $userId)
             ->orderByDesc('is_active')
             ->orderBy('id');
         $this->applyTenantScope($query, $companyId);
@@ -62,7 +66,7 @@ class HcmPayrollItemAssignmentController extends Controller
         $companyId = $this->activeCompanyId($request);
 
         $validated = $request->validate([
-            'userId' => ['required', 'integer', 'exists:users,id'],
+            'userId' => ['required', 'uuid', 'exists:users,uuid'],
             'payrollItemId' => ['required', 'integer'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999999.99'],
             'isActive' => ['nullable', 'boolean'],
@@ -70,6 +74,7 @@ class HcmPayrollItemAssignmentController extends Controller
             'effectiveEndDate' => ['nullable', 'date', 'after_or_equal:effectiveStartDate'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
+        $userId = $this->resolveUserIdFromUuid((string) $validated['userId']);
 
         $itemQuery = HcmPayrollItem::query()->whereKey((int) $validated['payrollItemId'])->where('is_active', true);
         $this->applyTenantScope($itemQuery, $companyId);
@@ -85,7 +90,7 @@ class HcmPayrollItemAssignmentController extends Controller
         }
 
         $existsQuery = HcmEmployeePayrollItemAssignment::query()
-            ->where('user_id', (int) $validated['userId'])
+            ->where('user_id', $userId)
             ->where('hcm_payroll_item_id', (int) $item->id);
         $this->applyTenantScope($existsQuery, $companyId);
         if ($existsQuery->exists()) {
@@ -100,7 +105,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
         $assignment = HcmEmployeePayrollItemAssignment::query()->create([
             'company_id' => $companyId,
-            'user_id' => (int) $validated['userId'],
+            'user_id' => $userId,
             'hcm_payroll_item_id' => (int) $item->id,
             'amount' => round((float) $validated['amount'], 2),
             'is_active' => (bool) ($validated['isActive'] ?? true),
@@ -117,7 +122,7 @@ class HcmPayrollItemAssignmentController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $id): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
@@ -125,7 +130,12 @@ class HcmPayrollItemAssignmentController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
-        $assignmentQuery = HcmEmployeePayrollItemAssignment::query()->with(['payrollItem.salaryComponent'])->whereKey($id);
+        $assignmentQuery = HcmEmployeePayrollItemAssignment::query()->with(['payrollItem.salaryComponent']);
+        $this->applyIdentifierScope(
+            $assignmentQuery,
+            $id,
+            Schema::hasColumn((new HcmEmployeePayrollItemAssignment())->getTable(), 'uuid')
+        );
         $this->applyTenantScope($assignmentQuery, $companyId);
         $assignment = $assignmentQuery->firstOrFail();
 
@@ -165,7 +175,7 @@ class HcmPayrollItemAssignmentController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
@@ -173,7 +183,12 @@ class HcmPayrollItemAssignmentController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
-        $assignmentQuery = HcmEmployeePayrollItemAssignment::query()->whereKey($id);
+        $assignmentQuery = HcmEmployeePayrollItemAssignment::query();
+        $this->applyIdentifierScope(
+            $assignmentQuery,
+            $id,
+            Schema::hasColumn((new HcmEmployeePayrollItemAssignment())->getTable(), 'uuid')
+        );
         $this->applyTenantScope($assignmentQuery, $companyId);
         $assignment = $assignmentQuery->firstOrFail();
 
@@ -181,7 +196,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ['id' => $id],
+            'data' => ['id' => $assignment->id],
         ]);
     }
 
@@ -231,5 +246,25 @@ class HcmPayrollItemAssignmentController extends Controller
 
             $inner->whereNull('company_id');
         });
+    }
+
+    private function resolveUserIdFromUuid(string $uuid): int
+    {
+        $user = User::query()->where('uuid', $uuid)->firstOrFail();
+
+        return (int) $user->id;
+    }
+
+    private function applyIdentifierScope(Builder $query, string $identifier, bool $hasUuidColumn): Builder
+    {
+        if ($hasUuidColumn && Str::isUuid($identifier)) {
+            return $query->where('uuid', $identifier);
+        }
+
+        if (ctype_digit($identifier)) {
+            return $query->whereKey((int) $identifier);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

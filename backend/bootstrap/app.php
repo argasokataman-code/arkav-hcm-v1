@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\ApplyLocalizationSettings;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
+use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
 use App\Http\Middleware\HandleCorsRequests;
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.token' => AuthenticateApiToken::class,
             'tenant.context' => ResolveTenantContext::class,
             'hcm.web.admin' => EnsureHcmWebAdminPage::class,
+            'hcm.web.global-admin' => EnsureGlobalHcmWebAdminPage::class,
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
         ]);
     })

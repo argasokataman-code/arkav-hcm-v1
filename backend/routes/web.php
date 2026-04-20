@@ -154,11 +154,11 @@ Route::get('/invoice-details', function () {
 
 Route::get('/dashboard', function () {
     return view('saas-dashboard');
-})->name('dashboard');
+})->middleware('hcm.web.admin')->name('dashboard');
 
 Route::get('/saas-dashboard', function () {
     return view('saas-dashboard');
-})->name('saas-dashboard');
+})->middleware('hcm.web.admin')->name('saas-dashboard');
 
 Route::get('/saas/packages', function () {
     return view('saas.packages');
@@ -178,7 +178,7 @@ Route::get('/saas/domains', function () {
 
 Route::get('/saas/transactions', function () {
     return view('saas.transactions');
-})->name('saas.transactions');
+})->middleware('hcm.web.admin')->name('saas.transactions');
 
 Route::get('/saas/invoices', function () {
     return view('saas.invoices');
@@ -225,7 +225,7 @@ Route::get('/domain', function () {
 
 Route::get('/purchase-transaction', function () {
     return view('saas.transactions');
-})->name('purchase-transaction');
+})->middleware('hcm.web.admin')->name('purchase-transaction');
 
 Route::get('/layout-horizontal', function () {
     return view(view: 'layout-horizontal');
@@ -956,10 +956,10 @@ Route::get('/register', function () {
     return view('register');
 })->name('register');
 Route::get('/register-2', function () {
-    return view('register-2');
+    return redirect()->route('register');
 })->name('register-2');
 Route::get('/register-3', function () {
-    return view('register-3');
+    return redirect()->route('register');
 })->name('register-3');
 Route::get('/forgot-password', function () {
     return view('forgot-password');

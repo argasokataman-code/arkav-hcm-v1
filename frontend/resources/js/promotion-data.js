@@ -37,6 +37,34 @@
         el.textContent = "";
     }
 
+    function redirectToEmployeeDashboard() {
+        if (window.__ARCAV_DISABLE_REDIRECTS__) {
+            return;
+        }
+        window.location.replace("/employee-dashboard");
+    }
+
+    function getAuthHeaders() {
+        var headers = {};
+        var token = window.AuthApi && typeof window.AuthApi.getToken === "function" ? window.AuthApi.getToken() : "";
+        var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
+
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+        if (tenant && tenant.companyCode) {
+            headers["X-Company-Code"] = String(tenant.companyCode);
+        }
+        if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant && tenant.companyUuid) {
+            headers["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return headers;
+    }
+
     /** Laravel 422 + Arcav envelope */
     function formatSaveError(status, data) {
         if (data && typeof data === "object") {
@@ -69,6 +97,10 @@
     function apiRequest(method, url, body) {
         var headers = { Accept: "application/json" };
         headers["Content-Type"] = "application/json";
+        var authHeaders = getAuthHeaders();
+        Object.keys(authHeaders).forEach(function (key) {
+            headers[key] = authHeaders[key];
+        });
         if (window.axios) {
             return window.axios({
                 method: method,
@@ -123,6 +155,7 @@
 
     var employeeOptionsLoaded = false;
     var employeeDetailCache = {};
+    var canManagePromotion = false;
 
     function loadEmployeeOptions() {
         if (!userSelect || employeeOptionsLoaded) return Promise.resolve();
@@ -238,8 +271,8 @@
                 "<td>" + esc(date) + "</td>" +
                 '<td><div class="action-icon d-inline-flex">' +
                 '<a href="#" class="me-2" title="Detail" data-arcav-promotion-view="' + esc(p.id) + '"><i class="ti ti-eye"></i></a>' +
-                '<a href="#" class="me-2" data-arcav-promotion-edit="' + esc(p.id) + '"><i class="ti ti-edit"></i></a>' +
-                '<a href="#" data-arcav-promotion-delete="' + esc(p.id) + '"><i class="ti ti-trash"></i></a>' +
+                (canManagePromotion ? '<a href="#" class="me-2" data-arcav-promotion-edit="' + esc(p.id) + '"><i class="ti ti-edit"></i></a>' : '') +
+                (canManagePromotion ? '<a href="#" data-arcav-promotion-delete="' + esc(p.id) + '"><i class="ti ti-trash"></i></a>' : '') +
                 "</div></td>" +
                 "</tr>"
             );
@@ -306,6 +339,7 @@
     if (addBtn) {
         addBtn.addEventListener("click", function (e) {
             e.preventDefault();
+            if (!canManagePromotion) return;
             openModal(null);
         });
     }
@@ -500,12 +534,16 @@
     if (promotionsTbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
             if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['promotion.view']) {
-                window.location.replace("/employee-dashboard");
+                redirectToEmployeeDashboard();
                 return;
+            }
+            canManagePromotion = !!me.data.permissions['promotion.manage'];
+            if (addBtn && !canManagePromotion) {
+                addBtn.classList.add("d-none");
             }
             loadPromotions();
         }).catch(function () {
-            window.location.replace("/employee-dashboard");
+            redirectToEmployeeDashboard();
         });
     }
 })(window, document);

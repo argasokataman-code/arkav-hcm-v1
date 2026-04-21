@@ -129,6 +129,33 @@ function parseError(error) {
     };
 }
 
+function apiFieldToFormKey(apiField) {
+    // "company.contact_phone" → "companyContactPhone"
+    // "owner.name" → "ownerName"
+    // "billing_email" → "billingEmail"
+    return String(apiField || '')
+        .split('.')
+        .map((segment, segIndex) =>
+            segment
+                .split('_')
+                .map((part, partIndex) =>
+                    segIndex === 0 && partIndex === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)
+                )
+                .join('')
+        )
+        .join('');
+}
+
+function buildFieldErrors(details) {
+    const map = {};
+    (details || []).forEach((detail) => {
+        if (!detail.field) return;
+        const key = apiFieldToFormKey(detail.field);
+        if (!map[key]) map[key] = detail.message || 'Nilai tidak valid';
+    });
+    return map;
+}
+
 function getInitialFormState(defaultPackage) {
     const useTrialDefaults = isTrialPackage(defaultPackage);
 
@@ -529,6 +556,8 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
     const selectedPackage = packages.find((packageItem) => packageItem.uuid === formState.packageUuid) || null;
     const isTrialSelected = isTrialPackage(selectedPackage);
     const lockBillingCycle = isTrialSelected;
+    const fieldErrors = useMemo(() => buildFieldErrors(error?.details), [error]);
+    const fe = (name) => fieldErrors[name] || null;
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
     const e2eTurnstileToken = getE2ETurnstileToken();
@@ -618,17 +647,10 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                         </div>
                         <div className="modal-body pt-3">
                             {error ? (
-                                <div className="alert alert-danger" role="alert">
-                                    <div className="fw-semibold mb-1">{error.message}</div>
-                                    {error.details.length ? (
-                                        <ul className="mb-0 ps-3">
-                                            {error.details.map((detail, index) => (
-                                                <li key={`${detail.field || 'field'}-${index}`}>
-                                                    <strong>{detail.field || 'Field'}:</strong> {detail.message || 'Invalid value'}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : null}
+                                <div className="alert alert-danger py-2 small" role="alert">
+                                    {error.details.length
+                                        ? 'Beberapa field tidak valid — periksa field yang ditandai merah di bawah ini.'
+                                        : error.message}
                                 </div>
                             ) : null}
 
@@ -679,47 +701,58 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                             <div className="row g-3">
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nama company</label>
-                                                    <input className="form-control" name="companyName" value={formState.companyName} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyName') ? ' is-invalid' : ''}`} name="companyName" value={formState.companyName} onChange={onChange} required />
+                                                    {fe('companyName') ? <div className="invalid-feedback">{fe('companyName')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nama legal</label>
-                                                    <input className="form-control" name="companyLegalName" value={formState.companyLegalName} onChange={onChange} />
+                                                    <input className={`form-control${fe('companyLegalName') ? ' is-invalid' : ''}`} name="companyLegalName" value={formState.companyLegalName} onChange={onChange} />
+                                                    {fe('companyLegalName') ? <div className="invalid-feedback">{fe('companyLegalName')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Contact person</label>
-                                                    <input className="form-control" name="companyContactPersonName" value={formState.companyContactPersonName} onChange={onChange} />
+                                                    <input className={`form-control${fe('companyContactPersonName') ? ' is-invalid' : ''}`} name="companyContactPersonName" value={formState.companyContactPersonName} onChange={onChange} />
+                                                    {fe('companyContactPersonName') ? <div className="invalid-feedback">{fe('companyContactPersonName')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Peran contact person</label>
-                                                    <input className="form-control" name="companyContactPersonRole" value={formState.companyContactPersonRole} onChange={onChange} />
+                                                    <input className={`form-control${fe('companyContactPersonRole') ? ' is-invalid' : ''}`} name="companyContactPersonRole" value={formState.companyContactPersonRole} onChange={onChange} />
+                                                    {fe('companyContactPersonRole') ? <div className="invalid-feedback">{fe('companyContactPersonRole')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nomor kontak company</label>
-                                                    <input className="form-control" name="companyContactPhone" value={formState.companyContactPhone} onChange={onChange} />
+                                                    <input className={`form-control${fe('companyContactPhone') ? ' is-invalid' : ''}`} name="companyContactPhone" value={formState.companyContactPhone} onChange={onChange} />
+                                                    {fe('companyContactPhone') ? <div className="invalid-feedback">{fe('companyContactPhone')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Kota</label>
-                                                    <input className="form-control" name="companyCity" value={formState.companyCity} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyCity') ? ' is-invalid' : ''}`} name="companyCity" value={formState.companyCity} onChange={onChange} required />
+                                                    {fe('companyCity') ? <div className="invalid-feedback">{fe('companyCity')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Alamat</label>
-                                                    <textarea className="form-control" name="companyAddress" rows="3" value={formState.companyAddress} onChange={onChange} required />
+                                                    <textarea className={`form-control${fe('companyAddress') ? ' is-invalid' : ''}`} name="companyAddress" rows="3" value={formState.companyAddress} onChange={onChange} required />
+                                                    {fe('companyAddress') ? <div className="invalid-feedback">{fe('companyAddress')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Kode pos</label>
-                                                    <input className="form-control" name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} inputMode="numeric" maxLength="12" />
+                                                    <input className={`form-control${fe('companyPostalCode') ? ' is-invalid' : ''}`} name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} inputMode="numeric" maxLength="12" />
+                                                    {fe('companyPostalCode') ? <div className="invalid-feedback">{fe('companyPostalCode')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Country code</label>
-                                                    <input className="form-control" name="companyCountryCode" value={formState.companyCountryCode} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyCountryCode') ? ' is-invalid' : ''}`} name="companyCountryCode" value={formState.companyCountryCode} onChange={onChange} required />
+                                                    {fe('companyCountryCode') ? <div className="invalid-feedback">{fe('companyCountryCode')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Timezone</label>
-                                                    <input className="form-control" name="companyTimezone" value={formState.companyTimezone} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyTimezone') ? ' is-invalid' : ''}`} name="companyTimezone" value={formState.companyTimezone} onChange={onChange} required />
+                                                    {fe('companyTimezone') ? <div className="invalid-feedback">{fe('companyTimezone')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Currency</label>
-                                                    <input className="form-control" name="companyCurrency" value={formState.companyCurrency} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyCurrency') ? ' is-invalid' : ''}`} name="companyCurrency" value={formState.companyCurrency} onChange={onChange} required />
+                                                    {fe('companyCurrency') ? <div className="invalid-feedback">{fe('companyCurrency')}</div> : null}
                                                 </div>
                                             </div>
                                         </div>
@@ -731,27 +764,33 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                             <div className="row g-3">
                                                 <div className="col-12">
                                                     <label className="form-label">Nama owner</label>
-                                                    <input className="form-control" name="ownerName" value={formState.ownerName} onChange={onChange} required />
+                                                    <input className={`form-control${fe('ownerName') ? ' is-invalid' : ''}`} name="ownerName" value={formState.ownerName} onChange={onChange} required />
+                                                    {fe('ownerName') ? <div className="invalid-feedback">{fe('ownerName')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Email owner</label>
-                                                    <input className="form-control" name="ownerEmail" type="email" value={formState.ownerEmail} onChange={onChange} required />
+                                                    <input className={`form-control${fe('ownerEmail') ? ' is-invalid' : ''}`} name="ownerEmail" type="email" value={formState.ownerEmail} onChange={onChange} required />
+                                                    {fe('ownerEmail') ? <div className="invalid-feedback">{fe('ownerEmail')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Nomor owner</label>
-                                                    <input className="form-control" name="ownerPhone" value={formState.ownerPhone} onChange={onChange} />
+                                                    <input className={`form-control${fe('ownerPhone') ? ' is-invalid' : ''}`} name="ownerPhone" value={formState.ownerPhone} onChange={onChange} />
+                                                    {fe('ownerPhone') ? <div className="invalid-feedback">{fe('ownerPhone')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Password</label>
-                                                    <input className="form-control" name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} required />
+                                                    <input className={`form-control${fe('ownerPassword') ? ' is-invalid' : ''}`} name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} required />
+                                                    {fe('ownerPassword') ? <div className="invalid-feedback">{fe('ownerPassword')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Konfirmasi password</label>
-                                                    <input className="form-control" name="ownerConfirmPassword" type="password" value={formState.ownerConfirmPassword} onChange={onChange} required />
+                                                    <input className={`form-control${fe('ownerConfirmPassword') ? ' is-invalid' : ''}`} name="ownerConfirmPassword" type="password" value={formState.ownerConfirmPassword} onChange={onChange} required />
+                                                    {fe('ownerConfirmPassword') ? <div className="invalid-feedback">{fe('ownerConfirmPassword')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Billing email</label>
-                                                    <input className="form-control" name="billingEmail" type="email" value={formState.billingEmail} onChange={onChange} />
+                                                    <input className={`form-control${fe('billingEmail') ? ' is-invalid' : ''}`} name="billingEmail" type="email" value={formState.billingEmail} onChange={onChange} />
+                                                    {fe('billingEmail') ? <div className="invalid-feedback">{fe('billingEmail')}</div> : null}
                                                 </div>
                                                 <div className="col-12 d-none">
                                                     <label className="form-label">Website</label>
@@ -908,6 +947,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
 
     const handleChange = (event) => {
         const { name, value } = event.target;
+        setSubmitError(null);
         setFormState((current) => ({
             ...current,
             [name]: name === 'companyPostalCode' ? sanitizePostalCode(value) : value,

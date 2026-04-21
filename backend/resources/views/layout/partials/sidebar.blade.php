@@ -664,6 +664,7 @@
                                         @endif
                                     </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
@@ -676,6 +677,7 @@
                                         <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                     </ul>
                                 </li>
+                                @endif
                             </ul>
                         </li>
 @endif
@@ -1714,6 +1716,7 @@
                                         @endif
                                     </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
                                     <ul>
@@ -1726,6 +1729,7 @@
                                         <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                     </ul>
                                 </li>
+                                @endif
                             </ul>
                         </li>
 @endif
@@ -2829,6 +2833,7 @@
                                     @endif
                                 </ul>
                             </li>
+                            @if ($isGlobalHcmAdmin)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
                                 <ul>
@@ -2841,6 +2846,7 @@
                                     <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                 </ul>
                             </li>
+                            @endif
 @endif
                         </ul>
                     </div>
@@ -4023,6 +4029,7 @@
                                         @endif
                                     </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);"  class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
                                     <ul>
@@ -4035,6 +4042,7 @@
                                         <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                     </ul>
                                 </li>
+                                @endif
                                 @endif
                             </ul>
                         </div>

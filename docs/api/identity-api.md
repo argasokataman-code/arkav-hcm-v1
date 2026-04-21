@@ -152,6 +152,13 @@ Success `200`:
         "invoiceId": 15,
         "invoiceNumber": "INV202604-0001",
         "invoiceStatus": "draft"
+      },
+      "employeeSlots": {
+        "limit": 25,
+        "used": 1,
+        "remaining": 24,
+        "isUnlimited": false,
+        "isConfigured": true
       }
     },
     "activeCompany": {
@@ -175,6 +182,7 @@ Frontend hardening note:
 - Jika payload sukses login company tidak menyertakan tenant aktif yang valid, FE membatalkan redirect dan menampilkan error.
 - `roles` dan `currentUserRole` sekarang mengikuti role tenant aktif. Owner/admin tidak lagi dipaksa tampil sebagai `employee` di snapshot identitas.
 - `subscription` memberi ringkasan paket aktif, billing cycle, dan pembayaran berikutnya untuk halaman profile/account tanpa perlu memanggil endpoint billing terpisah.
+- `subscription.employeeSlots` memberi info limit employee paket aktif agar tenant admin tahu kapasitas input employee tanpa membuka halaman billing lain.
 
 ### PUT `/auth/profile` (protected)
 
@@ -221,6 +229,13 @@ Success `200`:
         "date": "2027-04-01",
         "amount": 2400000,
         "invoiceNumber": "INV202604-0001"
+      },
+      "employeeSlots": {
+        "limit": 25,
+        "used": 1,
+        "remaining": 24,
+        "isUnlimited": false,
+        "isConfigured": true
       }
     }
   }

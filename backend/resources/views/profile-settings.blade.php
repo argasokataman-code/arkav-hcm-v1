@@ -1,4 +1,5 @@
 <?php $page = 'profile-settings'; ?>
+@php($isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin()))
 @extends('layout.mainlayout')
 @section('content')
 
@@ -46,9 +47,11 @@
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('custom-css') }}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
+            @endif
         </ul>
         <div class="row">
             <div class="col-xl-3 theiaStickySidebar">
@@ -131,6 +134,11 @@
                                     <div class="small text-muted">Next Payment</div>
                                     <div class="fw-medium" data-subscription-next-payment-date>—</div>
                                     <div class="text-muted fs-12" data-subscription-next-payment-amount>—</div>
+                                </div>
+                                <div class="col-md-6 col-xl-3">
+                                    <div class="small text-muted">Employee Slots</div>
+                                    <div class="fw-medium" data-subscription-employee-slots>—</div>
+                                    <div class="text-muted fs-12" data-subscription-employee-usage>—</div>
                                 </div>
                             </div>
                         </div>

@@ -1208,7 +1208,25 @@ paths:
             minimum: 1
             maximum: 100
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantBillingInvoice'
+                  meta:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      perPage: { type: integer }
+                      total: { type: integer }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
@@ -1221,7 +1239,17 @@ paths:
       parameters:
         - $ref: '#/components/parameters/InvoiceNumericIdPath'
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TenantBillingInvoice'
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -8462,6 +8490,21 @@ components:
                     invoiceStatus:
                       type: string
                       nullable: true
+                employeeSlots:
+                  type: object
+                  properties:
+                    limit:
+                      type: integer
+                      nullable: true
+                    used:
+                      type: integer
+                    remaining:
+                      type: integer
+                      nullable: true
+                    isUnlimited:
+                      type: boolean
+                    isConfigured:
+                      type: boolean
             activeCompany:
               type: object
               nullable: true
@@ -8611,6 +8654,49 @@ components:
                     invoiceStatus:
                       type: string
                       nullable: true
+                employeeSlots:
+                  type: object
+                  properties:
+                    limit:
+                      type: integer
+                      nullable: true
+                    used:
+                      type: integer
+                    remaining:
+                      type: integer
+                      nullable: true
+                    isUnlimited:
+                      type: boolean
+                    isConfigured:
+                      type: boolean
+    TenantBillingInvoice:
+      type: object
+      properties:
+        id: { type: integer, example: 89 }
+        invoiceNumber: { type: string, example: INV-202604-0089 }
+        company: { type: string, nullable: true, example: Tenant Pro }
+        companyId: { type: integer, example: 7 }
+        subscriptionId: { type: integer, nullable: true, example: 11 }
+        packageCode: { type: string, nullable: true, example: starter }
+        packageName: { type: string, nullable: true, example: Starter }
+        packageDisplay: { type: string, nullable: true, example: Starter - Bulanan }
+        billingCycle: { type: string, nullable: true, enum: [monthly, yearly] }
+        billingCycleLabel: { type: string, nullable: true, example: Bulanan }
+        currentPeriodStart: { type: string, format: date, nullable: true }
+        currentPeriodEnd: { type: string, format: date, nullable: true }
+        nextBillingDate: { type: string, format: date, nullable: true }
+        amountDue: { type: number, format: float, example: 199000 }
+        issueDate: { type: string, format: date, nullable: true }
+        dueDate: { type: string, format: date, nullable: true }
+        status: { type: string, example: paid }
+        isPaid: { type: boolean, example: true }
+        paidDate: { type: string, format: date, nullable: true }
+        isOverdue: { type: boolean, example: false }
+        isDueSoon: { type: boolean, example: false }
+        notes: { type: string, nullable: true }
+        pdfPath: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
     DepartmentListResponse:
       type: object
       properties:

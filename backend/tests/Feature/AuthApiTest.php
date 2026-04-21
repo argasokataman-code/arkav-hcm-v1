@@ -8,6 +8,7 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Invoice;
 use App\Models\Package;
+use App\Models\PackageFeature;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -204,6 +205,27 @@ class AuthApiTest extends TestCase
             'type' => 'string',
         ]);
 
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Maximum Employees',
+            'limit' => 25,
+        ]);
+
+        $employeeUser = User::query()->create([
+            'name' => 'Company Employee',
+            'email' => 'company.employee@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employeeUser->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Operations',
+        ]);
+
         $subscription = Subscription::query()->create([
             'company_id' => $company->id,
             'package_uuid' => $package->uuid,
@@ -249,7 +271,11 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.subscription.billingCycle', 'yearly')
             ->assertJsonPath('data.subscription.nextPayment.invoiceId', $invoice->id)
             ->assertJsonPath('data.subscription.nextPayment.invoiceNumber', $invoice->invoice_number)
-                ->assertJsonPath('data.subscription.nextPayment.amount', 2400000);
+            ->assertJsonPath('data.subscription.nextPayment.amount', 2400000)
+            ->assertJsonPath('data.subscription.employeeSlots.limit', 25)
+            ->assertJsonPath('data.subscription.employeeSlots.used', 1)
+            ->assertJsonPath('data.subscription.employeeSlots.remaining', 24)
+            ->assertJsonPath('data.subscription.employeeSlots.isConfigured', true);
     }
 
     public function test_remember_me_login_has_longer_expiry_than_regular_login(): void

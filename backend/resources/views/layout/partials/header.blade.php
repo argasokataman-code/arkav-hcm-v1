@@ -567,6 +567,7 @@
                                                         @endif
                                                     </ul>
                                                 </li>
+                                                @if ($isGlobalHcmAdmin)
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
                                                     <ul>
@@ -580,6 +581,7 @@
 
                                                     </ul>
                                                 </li>
+                                                @endif
                                             </ul>
                                         </li>
                                     </ul>

@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 
@@ -134,11 +135,36 @@ class InvoiceService
      */
     public function formatInvoice(Invoice $invoice): array
     {
+        $invoice->loadMissing(['company:id,name,code', 'subscription.package']);
+
+        $subscription = $invoice->subscription;
+        $package = $subscription?->package;
+        $packageCode = $package?->code ?? $subscription?->plan_code;
+        $packageName = $package?->name ?? ($packageCode ? Str::headline((string) $packageCode) : null);
+        $billingCycle = $subscription?->billing_cycle;
+        $billingCycleLabel = match ($billingCycle) {
+            'monthly' => 'Bulanan',
+            'yearly' => 'Tahunan',
+            default => null,
+        };
+        $nextBillingAt = $subscription?->status === 'trial'
+            ? $subscription?->trial_ends_at
+            : $subscription?->ends_at;
+
         return [
             'id' => $invoice->id,
             'invoiceNumber' => $invoice->invoice_number,
             'company' => $invoice->company?->name,
             'companyId' => $invoice->company_id,
+            'subscriptionId' => $invoice->subscription_id,
+            'packageCode' => $packageCode,
+            'packageName' => $packageName,
+            'packageDisplay' => collect([$packageName, $billingCycleLabel])->filter()->implode(' - '),
+            'billingCycle' => $billingCycle,
+            'billingCycleLabel' => $billingCycleLabel,
+            'currentPeriodStart' => $subscription?->starts_at?->toDateString(),
+            'currentPeriodEnd' => $subscription?->ends_at?->toDateString(),
+            'nextBillingDate' => $nextBillingAt?->toDateString(),
             'amountDue' => (float) $invoice->amount_due,
             'issueDate' => $invoice->issue_date?->toDateString(),
             'dueDate' => $invoice->due_date?->toDateString(),
@@ -159,54 +185,12 @@ class InvoiceService
      */
     private function invoiceHtml(Invoice $invoice): string
     {
-        $companyName = e($invoice->company?->name ?? 'Unknown Company');
-        $invoiceNumber = e($invoice->invoice_number);
-        $issueDate = e(optional($invoice->issue_date)->toDateString() ?? '-');
-        $dueDate = e(optional($invoice->due_date)->toDateString() ?? '-');
-        $status = e($invoice->status);
-        $amountDue = number_format((float) $invoice->amount_due, 2, ',', '.');
-        $notes = nl2br(e((string) ($invoice->notes ?? '-')));
+        $invoice->loadMissing('company', 'purchaseTransaction', 'subscription');
 
-        return <<<HTML
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #111827; }
-        .wrap { padding: 24px; }
-        .title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-        .meta { margin-bottom: 20px; }
-        .box { border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-        .label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-        .notes { white-space: pre-line; }
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-        td:first-child { width: 35%; color: #6b7280; }
-    </style>
-</head>
-<body>
-    <div class="wrap">
-        <div class="title">Invoice {$invoiceNumber}</div>
-        <div class="meta">{$companyName}</div>
-
-        <div class="box">
-            <table>
-                <tr><td>Invoice Number</td><td>{$invoiceNumber}</td></tr>
-                <tr><td>Company</td><td>{$companyName}</td></tr>
-                <tr><td>Issue Date</td><td>{$issueDate}</td></tr>
-                <tr><td>Due Date</td><td>{$dueDate}</td></tr>
-                <tr><td>Status</td><td>{$status}</td></tr>
-                <tr><td>Amount Due</td><td>IDR {$amountDue}</td></tr>
-            </table>
-        </div>
-
-        <div class="box">
-            <div class="label">Notes</div>
-            <div class="notes">{$notes}</div>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
+        return View::make('pdf.invoice', [
+            'invoice' => $invoice,
+            'companyAddress' => config('hcm.organization_address'),
+            'appName' => config('app.name'),
+        ])->render();
     }
 }

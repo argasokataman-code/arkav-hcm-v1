@@ -166,5 +166,7 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice sudah dibayar');
     expect(document.querySelector('[data-checkout-go-dashboard]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil.');
+    expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);
+    expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(true);
   });
 });

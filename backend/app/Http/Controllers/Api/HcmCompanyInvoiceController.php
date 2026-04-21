@@ -51,6 +51,7 @@ class HcmCompanyInvoiceController
         $perPage = (int) ($validated['perPage'] ?? 15);
 
         $q = Invoice::query()
+            ->with(['company:id,name,code', 'subscription.package'])
             ->where('company_id', $companyId);
 
         if (!empty($validated['status'])) {
@@ -97,6 +98,7 @@ class HcmCompanyInvoiceController
         }
 
         $invoice = Invoice::query()
+            ->with(['company:id,name,code', 'subscription.package'])
             ->where('company_id', $companyId)
             ->whereKey($id)
             ->firstOrFail();
@@ -131,7 +133,7 @@ class HcmCompanyInvoiceController
             ], 500);
         }
 
-        return Storage::disk('local')->download('private/'.$path, basename($path), [
+        return Storage::disk('local')->download($path, basename($path), [
             'Content-Type' => 'application/pdf',
         ]);
     }

@@ -39,6 +39,8 @@ Sejak 2026-04-21 (hardening lanjutan), **Website Settings platform** (`/business
 
 Sejak 2026-04-21 (hardening pass 3), **Website Settings platform lanjutan** (`/language`, `/language-web`, `/add-language`, `/authentication-settings`, `/ai-settings`) juga dipindah ke middleware **`hcm.web.global-admin`**. Link menu Language, Authentication, dan AI Settings dibungkus `@if ($isGlobalHcmAdmin)` di semua 4 layout sidebar + header. Item `/prefixes`, `/preferences`, `/appearance` tetap tenant-admin (kustomisasi per-tenant).
 
+Sejak 2026-04-21 (hardening pass 4), submenu **Other Settings** (`/custom-css`, `/custom-js`, `/cronjob`, `/storage-settings`, `/ban-ip-address`, `/backup`, `/clear-cache`) diselaraskan dengan guard route **`hcm.web.global-admin`** di sidebar, header, dan tab Profile Settings. Tenant HCM admin tidak lagi melihat menu platform-only tersebut.
+
 ---
 
 ## 3. Matriks halaman aktif HCM (menu & wiring utama)

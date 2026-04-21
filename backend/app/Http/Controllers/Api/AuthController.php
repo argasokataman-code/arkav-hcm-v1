@@ -808,6 +808,11 @@ class AuthController extends Controller
         $nextPaymentDate = $nextInvoice?->due_date?->toDateString()
             ?? $subscription->ends_at?->toDateString();
         $nextPaymentAmount = $nextInvoice ? (float) $nextInvoice->amount_due : (float) ($subscription->amount ?? 0);
+        $employeeLimitFeature = $subscription->package?->getFeature('max_employees');
+        $employeeLimit = $employeeLimitFeature?->limit;
+        $employeeUsed = EmployeeProfile::query()
+            ->where('company_id', $activeCompany->id)
+            ->count();
 
         return [
             'id' => $subscription->id,
@@ -828,6 +833,13 @@ class AuthController extends Controller
                 'invoiceId' => $nextInvoice?->id,
                 'invoiceNumber' => $nextInvoice?->invoice_number,
                 'invoiceStatus' => $nextInvoice?->status,
+            ],
+            'employeeSlots' => [
+                'limit' => $employeeLimit,
+                'used' => $employeeUsed,
+                'remaining' => $employeeLimit === null ? null : max($employeeLimit - $employeeUsed, 0),
+                'isUnlimited' => $employeeLimitFeature !== null && $employeeLimit === null,
+                'isConfigured' => $employeeLimitFeature !== null,
             ],
         ];
     }

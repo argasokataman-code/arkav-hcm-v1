@@ -51,6 +51,8 @@ class SidebarAssetMenuVisibilityTest extends TestCase
         $response->assertOk();
         $response->assertDontSee('href="'.url('assets').'"', false);
         $response->assertDontSee('href="'.url('asset-categories').'"', false);
+        $response->assertDontSee('href="'.url('custom-css').'"', false);
+        $response->assertDontSee('href="'.url('clear-cache').'"', false);
 
         $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
@@ -167,6 +169,8 @@ class SidebarAssetMenuVisibilityTest extends TestCase
         $response->assertDontSee('href="'.url('language').'"', false);
         $response->assertDontSee('href="'.url('authentication-settings').'"', false);
         $response->assertDontSee('href="'.url('ai-settings').'"', false);
+        $response->assertDontSee('href="'.url('custom-css').'"', false);
+        $response->assertDontSee('href="'.url('clear-cache').'"', false);
         $response->assertDontSee('title="Super Admin"', false);
         $response->assertDontSee('data-bs-target="#super-admin"', false);
         $response->assertDontSee('href="#menu-superadmin"', false);

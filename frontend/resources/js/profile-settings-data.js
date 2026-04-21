@@ -25,6 +25,8 @@
     var subscriptionPeriodNode = document.querySelector('[data-subscription-period]');
     var subscriptionNextPaymentDateNode = document.querySelector('[data-subscription-next-payment-date]');
     var subscriptionNextPaymentAmountNode = document.querySelector('[data-subscription-next-payment-amount]');
+    var subscriptionEmployeeSlotsNode = document.querySelector('[data-subscription-employee-slots]');
+    var subscriptionEmployeeUsageNode = document.querySelector('[data-subscription-employee-usage]');
     var snapshot = {};
 
     function normalize(value) {
@@ -40,11 +42,29 @@
         return {};
     }
 
+    function getApiToken() {
+        try {
+            if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+                return window.AuthApi.getToken() || null;
+            }
+        } catch (_e) {}
+
+        try {
+            return window.localStorage.getItem((window.AuthApi && window.AuthApi.tokenKey) || 'arcav_access_token');
+        } catch (_e) {
+            return null;
+        }
+    }
+
     function buildHeaders(extra) {
         var headers = {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         };
+        var token = getApiToken();
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + String(token);
+        }
         var tenant = getTenantContext();
         if (tenant && tenant.companyCode) {
             headers['X-Company-Code'] = String(tenant.companyCode);
@@ -92,6 +112,32 @@
             }).format(amount);
         } catch (_e) {
             return 'Rp ' + String(amount);
+        }
+    }
+
+    function renderEmployeeSlots(subscription) {
+        if (!subscriptionEmployeeSlotsNode && !subscriptionEmployeeUsageNode) {
+            return;
+        }
+
+        var slots = subscription && subscription.employeeSlots ? subscription.employeeSlots : null;
+        if (!slots || slots.isConfigured !== true) {
+            if (subscriptionEmployeeSlotsNode) {
+                subscriptionEmployeeSlotsNode.textContent = '—';
+            }
+            if (subscriptionEmployeeUsageNode) {
+                subscriptionEmployeeUsageNode.textContent = 'Paket ini belum mengirim limit employee.';
+            }
+            return;
+        }
+
+        if (subscriptionEmployeeSlotsNode) {
+            subscriptionEmployeeSlotsNode.textContent = slots.isUnlimited ? 'Unlimited employees' : ('Max ' + String(slots.limit) + ' employees');
+        }
+        if (subscriptionEmployeeUsageNode) {
+            subscriptionEmployeeUsageNode.textContent = slots.isUnlimited
+                ? (String(slots.used || 0) + ' employee terdaftar')
+                : (String(slots.used || 0) + ' dipakai • ' + String(slots.remaining || 0) + ' slot tersisa');
         }
     }
 
@@ -171,6 +217,8 @@
             }
             subscriptionNextPaymentAmountNode.textContent = amountLabel;
         }
+
+        renderEmployeeSlots(subscription);
     }
 
     function showFeedback(type, message) {

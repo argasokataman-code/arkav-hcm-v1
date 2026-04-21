@@ -186,9 +186,10 @@
         }
         updateInvoiceActions(currentInvoice);
 
-        // When a pending (unpaid) invoice exists, hide the upgrade form to prevent
-        // creating another invoice — applies in both pending-lock and upgrade modes.
-        if (currentInvoice && !currentInvoice.isPaid && upgradeForm) {
+        // Once an invoice is the active focus of this page, keep the creation form locked.
+        // Pending invoices must be paid first, and paid-return states should not invite users
+        // to immediately create another invoice from the same success screen.
+        if (currentInvoice && upgradeForm) {
             upgradeForm.classList.add("d-none");
         }
     }

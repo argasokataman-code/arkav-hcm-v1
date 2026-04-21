@@ -37,6 +37,8 @@ Sejak 2026-04-18, route web admin kritikal untuk **Reports** dan **Administratio
 
 Sejak 2026-04-21 (hardening lanjutan), **Website Settings platform** (`/business-settings` ≡ `/bussiness-settings`, `/seo-settings`, `/localization-settings`) dan **Financial Settings platform** (`/currencies`, `/payment-gateways`) dipindah ke middleware **`hcm.web.global-admin`**. Link menu Website Settings/Financial Settings yang mengarah ke item platform ini dibungkus `@if ($isGlobalHcmAdmin)` di semua layout sidebar + header. `/tax-rates` tetap tenant-admin karena dipakai payroll Indonesia.
 
+Sejak 2026-04-21 (hardening pass 3), **Website Settings platform lanjutan** (`/language`, `/language-web`, `/add-language`, `/authentication-settings`, `/ai-settings`) juga dipindah ke middleware **`hcm.web.global-admin`**. Link menu Language, Authentication, dan AI Settings dibungkus `@if ($isGlobalHcmAdmin)` di semua 4 layout sidebar + header. Item `/prefixes`, `/preferences`, `/appearance` tetap tenant-admin (kustomisasi per-tenant).
+
 ---
 
 ## 3. Matriks halaman aktif HCM (menu & wiring utama)

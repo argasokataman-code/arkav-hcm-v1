@@ -24,6 +24,11 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 
 ## Evidence Log
 
+- 2026-04-21 (global-only hardening pass 3): Website Settings platform items `/language`, `/language-web`, `/add-language`, `/authentication-settings`, `/ai-settings` moved to `hcm.web.global-admin`. Menu entries for Language, Authentication, AI Settings wrapped in `@if ($isGlobalHcmAdmin)` across all 4 sidebar layouts + header. `/prefixes`, `/preferences`, `/appearance` kept as tenant-admin.
+  - `WebHcmRouteGuardTest` redirect path list extended with 5 new paths; tenant-redirect test now covers 22 paths.
+  - `SidebarAssetMenuVisibilityTest` assertDontSee extended with `language`, `authentication-settings`, `ai-settings` for tenant admin; assertSee extended with same for global admin.
+  - PHPUnit + Vitest run pending (see next evidence entry).
+
 - 2026-04-21 (global-only hardening pass 2): Platform-only Website Settings (`/business-settings`, `/bussiness-settings`, `/seo-settings`, `/localization-settings`) and Financial Settings platform items (`/currencies`, `/payment-gateways`) now use middleware `hcm.web.global-admin` and the corresponding menu entries are wrapped in `@if ($isGlobalHcmAdmin)` across all sidebar layouts + header. `/tax-rates` remains tenant-admin.
   - `WebHcmRouteGuardTest::test_tenant_hcm_admin_without_global_signal_is_redirected_from_super_admin_dashboard` extended to include the 5 new redirect targets.
   - `SidebarAssetMenuVisibilityTest::test_secondary_hcm_admin_sees_hcm_menus_without_global_super_admin_hub` now asserts tenant HCM admin no longer sees business/seo/localization/currencies/payment-gateways links, while `test_qa_super_admin_still_sees_asset_menu_when_feature_disabled` asserts global admin still sees `business-settings` and `currencies`.

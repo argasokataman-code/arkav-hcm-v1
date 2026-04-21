@@ -1184,23 +1184,23 @@ Route::get('/appearance', function () {
 
 Route::get('/language', function () {
     return view('language');
-})->middleware('hcm.web.admin')->name('language');
+})->middleware('hcm.web.global-admin')->name('language');
 
 Route::get('/language-web', function () {
     return view('language-web');
-})->middleware('hcm.web.admin')->name('language-web');
+})->middleware('hcm.web.global-admin')->name('language-web');
 
 Route::get('/add-language', function () {
     return view('add-language');
-})->middleware('hcm.web.admin')->name('add-language');
+})->middleware('hcm.web.global-admin')->name('add-language');
 
 Route::get('/authentication-settings', function () {
     return view('authentication-settings');
-})->middleware('hcm.web.admin')->name('authentication-settings');
+})->middleware('hcm.web.global-admin')->name('authentication-settings');
 
 Route::get('/ai-settings', function () {
     return view('ai-settings');
-})->middleware('hcm.web.admin')->name('ai-settings');
+})->middleware('hcm.web.global-admin')->name('ai-settings');
 
 Route::get( '/salary-settings', function () {
     return view('salary-settings');

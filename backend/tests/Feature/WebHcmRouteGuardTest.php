@@ -170,6 +170,8 @@ class WebHcmRouteGuardTest extends TestCase
             '/preferences',
             '/appearance',
             '/language',
+            '/language-web',
+            '/add-language',
             '/authentication-settings',
             '/ai-settings',
             '/salary-settings',
@@ -371,6 +373,11 @@ class WebHcmRouteGuardTest extends TestCase
             '/seo-settings',
             '/localization-settings',
             '/currencies',
+            '/language',
+            '/language-web',
+            '/add-language',
+            '/authentication-settings',
+            '/ai-settings',
         ] as $path) {
             $this->actingAs($user)
                 ->withHeader('X-Company-Code', $company->code)

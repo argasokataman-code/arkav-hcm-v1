@@ -19,7 +19,7 @@
     <script>
       window.onload = function () {
         window.ui = SwaggerUIBundle({
-          url: @json(route('api-docs.spec', absolute: false)),
+          url: @json('/'.ltrim(route('api-docs.spec', absolute: false), '/')),
           dom_id: "#swagger-ui",
           deepLinking: true,
           presets: [

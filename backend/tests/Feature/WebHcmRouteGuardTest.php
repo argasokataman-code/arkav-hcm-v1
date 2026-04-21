@@ -219,7 +219,7 @@ class WebHcmRouteGuardTest extends TestCase
         $response = $this->get('/api-docs');
 
         $response->assertOk();
-        $response->assertSee('api-docs\/openapi.yaml', false);
+        $response->assertSee('/api-docs\/openapi.yaml', false);
         $response->assertDontSee('http://arkav.puree.id/api-docs/openapi.yaml', false);
     }
 

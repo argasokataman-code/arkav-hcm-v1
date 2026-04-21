@@ -15,7 +15,8 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 ## UI Aktif
 
 - Login page: `backend/resources/views/login.blade.php`.
-- Register gate: `backend/resources/views/register.blade.php`.
+- Route `/register`: redirect ke onboarding resmi `/trial?startMode=pending_payment`; gate Blade lama bukan lagi surface aktif utama.
+- Onboarding public: `backend/resources/views/public/trial.blade.php` dengan mode `trial` dan `pending_payment`.
 - Forgot/reset password: `backend/resources/views/forgot-password.blade.php` dan `backend/resources/views/reset-password.blade.php`.
 - JS aktif: `frontend/resources/js/api-client.js`, `auth-login.js`, `auth-guard.js`, dan `auth-logout.js`.
 
@@ -26,17 +27,19 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 3. Backend memvalidasi credential, menetapkan cookie `arcav_access_token`, dan mengembalikan data user + `activeCompany`.
 4. FE membersihkan tenant context lama, menyimpan konteks tenant valid dari backend, lalu redirect ke halaman protected.
 5. Halaman protected memanggil `GET /v1/identity/auth/me`; jika token invalid atau context tenant rusak, user dipaksa kembali ke `/login`.
+6. Jika guest belum punya akun company, CTA registrasi dari login diarahkan ke `/register` lalu langsung masuk ke onboarding resmi `pending_payment` tanpa melewati flow trial.
 
 ## Lifecycle Dan Keputusan Bisnis
 
 - Employee mode vs company mode: memisahkan login user biasa dan login tenant owner/admin.
 - Tenant context: FE hanya boleh percaya `activeCompany` dari backend, bukan nilai input mentah user.
 - Unauthorized handling: helper auth wajib menghapus context lokal dan mengarahkan ulang user saat sesi tidak lagi valid.
-- Register gate: form signup lama ditutup; guest diarahkan ke flow pilih plan lalu onboarding company agar billing flow tetap konsisten.
+- Register gate: form signup lama ditutup; route `/register` sekarang menjadi redirect tipis ke onboarding resmi company pada mode `pending_payment` agar billing flow tetap konsisten.
+- Onboarding public memakai satu view dengan dua mode bisnis: `trial` untuk CTA landing dan `pending_payment` untuk registrasi resmi dari login.
 
 ## Integrasi
 
-- Landing pages: CTA dari `/landing` dan `/register` mengarah ke `/trial` untuk onboarding company. Lihat `docs/features/landing-pages/README.md`.
+- Landing pages: CTA dari `/landing` mengarah ke onboarding public trial, sedangkan CTA registrasi dari `/login` mengarah ke `/register` lalu redirect ke onboarding resmi `/trial?startMode=pending_payment`. Lihat `docs/features/landing-pages/README.md`.
 - User management dan seluruh modul HCM: `GET /v1/identity/auth/me` menyuplai `hcmAdmin`, `hcmGlobalAdmin`, `permissions`, dan `activeCompany` yang dipakai guard modul lain. Lihat `docs/features/user-management/README.md`.
 - Subscriptions dan SaaS billing: company-mode login bergantung pada tenant yang aktif agar halaman seperti `/subscription` dan `/company/invoices` bekerja pada company yang benar. Lihat `docs/features/subscriptions/README.md`.
 - Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
@@ -50,7 +53,7 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 ## Existing Vs Target
 
 - Existing: auth cookie-first, company-mode login, rate limit, dan reset password web flow sudah aktif.
-- Existing: register flow lama sudah ditutup dan diganti gate ke landing/trial.
+- Existing: login page sudah diselaraskan visualnya dengan landing, dan register flow lama sudah ditutup lalu diganti redirect ke onboarding resmi `pending_payment`.
 - Target: hardening lanjutan seperti device session management dan token rotation periodik masih backlog.
 
 ## Respons penting
@@ -71,16 +74,16 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 - `frontend/resources/js/auth-logout.js` - revoke token + redirect login.
 - Forgot/reset password web flow memakai Blade form server-rendered: `backend/resources/views/forgot-password.blade.php` -> `POST /forgot-password` -> email reset -> `backend/resources/views/reset-password.blade.php` -> `POST /reset-password`.
 - Login page: `backend/resources/views/login.blade.php`.
-- Register web gate: `backend/resources/views/register.blade.php`.
+- Route register resmi: redirect `/register` -> `/trial?startMode=pending_payment`.
 - Dashboard guard page: `backend/resources/views/index.blade.php` (tanpa axios CDN eksternal).
 
 Hardening FE hasil audit:
 - sebelum submit login, FE membersihkan tenant context lama agar header tenant stale tidak terbawa ke sesi berikutnya
 - login company hanya menyimpan tenant context dari `activeCompany` hasil backend, bukan dari input mentah user
 - jika login company sukses tetapi payload tenant tidak valid, FE membatalkan redirect dan menampilkan error
-- CTA `Create Account` dari login tidak lagi membuka form signup lama; guest diarahkan ke gate informatif untuk memilih plan di landing page lalu lanjut ke onboarding company resmi
-- CTA pricing di landing memakai wording pilih plan lalu daftar company, tetapi tetap mengarah ke flow onboarding resmi yang sama (`/trial?packageId=...`)
-- halaman `/trial` menegaskan paket pilihan dari landing dibawa ke form onboarding, sehingga guest tetap berada dalam satu alur plan-selection yang konsisten
+- CTA `Create Account` dari login tidak lagi membuka form signup lama; guest diarahkan ke route resmi `/register` yang langsung masuk ke onboarding `pending_payment`
+- CTA pricing di landing membuka flow onboarding trial sesuai package terpilih
+- halaman `/trial` menegaskan paket pilihan dari landing dibawa ke form onboarding, dan mode `pending_payment` mengganti copy + default package agar registrasi resmi tidak masuk ke trial
 
 ## UX / regex alignment
 
@@ -100,9 +103,9 @@ Hardening FE hasil audit:
 Flow guest registration yang aktif:
 
 1. Guest membuka landing page atau gate `/register`.
-2. Guest memilih plan dari `landing#pricing`.
-3. Guest lanjut ke `/trial` dan paket terpilih otomatis diprefill untuk onboarding company.
-4. Form signup web lama `register-2` dan `register-3` tidak lagi dipakai; keduanya redirect ke gate `/register`.
+2. Jika guest memulai dari landing, guest memilih plan dari `landing#pricing` lalu membuka onboarding trial dengan package terpilih otomatis diprefill.
+3. Jika guest memulai dari `/login`, CTA registrasi membawa guest ke `/register` lalu redirect ke `/trial?startMode=pending_payment` untuk onboarding resmi.
+4. Form signup web lama `register-2` dan `register-3` tidak lagi dipakai; keduanya redirect ke route resmi `/register` yang berujung ke onboarding `pending_payment`.
 
 ## Skenario negatif yang harus lolos
 

@@ -953,13 +953,13 @@ Route::get('/login-3', function () {
     return view('login-3');
 })->name('login-3');
 Route::get('/register', function () {
-    return view('register');
+    return redirect()->route('trial', ['startMode' => 'pending_payment']);
 })->name('register');
 Route::get('/register-2', function () {
-    return redirect()->route('register');
+    return redirect()->route('trial', ['startMode' => 'pending_payment']);
 })->name('register-2');
 Route::get('/register-3', function () {
-    return redirect()->route('register');
+    return redirect()->route('trial', ['startMode' => 'pending_payment']);
 })->name('register-3');
 Route::get('/forgot-password', function () {
     return view('forgot-password');

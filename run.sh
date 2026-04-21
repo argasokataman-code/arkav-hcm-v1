@@ -41,6 +41,15 @@ echo "[run.sh] Running pending migrations..."
 cd "$BACKEND_DIR"
 php artisan migrate --force || echo "[run.sh] Migrations already applied or errored"
 
+# Ensure local/dev bootstrap accounts still exist after local DB resets/imports.
+echo "[run.sh] Ensuring development super users are seeded..."
+php artisan db:seed --class=DevelopmentSuperUserSeeder --force
+
+if ! php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); exit((int) ! App\Models\User::query()->where("email", config("hcm.admin_email"))->exists());' >/dev/null; then
+  echo "[run.sh] configured development super user is missing after seeding." >&2
+  exit 1
+fi
+
 pids=()
 
 is_port_in_use() {

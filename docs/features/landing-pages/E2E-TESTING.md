@@ -1,6 +1,6 @@
 # Landing Pages — E2E TESTING (manual)
 
-Dokumen ini berisi skenario manual untuk memastikan landing page public dan CTA “Mulai trial” berjalan sesuai flow sistem.
+Dokumen ini berisi skenario manual untuk memastikan landing page public, login shell baru, dan flow onboarding public berjalan sesuai implementasi aktif.
 
 ## Prasyarat
 
@@ -23,69 +23,56 @@ Dokumen ini berisi skenario manual untuk memastikan landing page public dan CTA 
   - Section reveal animation halus (fade/slide).
   - Jika OS setting `prefers-reduced-motion` aktif, animasi minimal/disabled.
 
-## Skenario 3 — CTA “Mulai trial” membawa ke login + next redirect
+## Skenario 3 — CTA landing membuka onboarding public yang sesuai paket pilihan
 
 - Dari landing, klik “Mulai trial” pada salah satu paket.
 - Expected:
-  - Browser ke `/login?next=/subscription?...` (atau bentuk query yang dipakai implementasi).
+  - Muncul modal onboarding public di halaman yang sama.
+  - Package yang dipilih di pricing card sudah terpilih di form.
+  - Jika package trial dipilih, billing cycle terkunci ke `monthly` dan mode awal mengikuti trial.
 
-Lalu:
-- Login dengan akun valid.
+Lalu submit data company + owner yang valid.
 - Expected:
-  - Setelah login sukses, browser redirect ke halaman subscription dengan parameter paket terisi.
-  - Flow status awal subscription sesuai skenario `pending_payment`.
+  - Request terkirim ke `POST /v1/public/onboarding`.
+  - Jika sukses, flow lanjut ke hasil onboarding aktif sistem (login owner atau billing flow sesuai mode yang dipakai).
 
-## Skenario 4 — Anti open redirect pada parameter `next`
+## Skenario 4 — CTA registrasi resmi dari login tidak masuk trial
 
-- Buka `/login?next=https://example.com`.
-- Login sukses.
+- Buka `/login` sebagai guest.
+- Klik “Daftarkan company di sini”.
 - Expected:
-  - Tidak redirect ke domain luar.
-  - Fallback redirect ke `/index` (atau fallback internal yang disepakati).
+  - Browser tidak berhenti di gate informatif lama.
+  - Browser diarahkan ke `/register`, lalu redirect ke `/trial?startMode=pending_payment`.
+  - Copy halaman onboarding berubah ke registrasi resmi company, bukan copy trial.
+  - Trial package tidak tampil sebagai pilihan default untuk mode ini.
 
-## Skenario 5 — Lanjutan flow subscribe → invoice → payment
+## Skenario 5 — Lanjutan flow registrasi resmi → invoice → payment
 
-Tujuan skenario ini: memastikan landing tidak memutus flow SaaS yang sudah ada.
+Tujuan skenario ini: memastikan registrasi resmi dari login tidak memutus flow SaaS yang sudah ada.
 
-- Setelah redirect ke halaman subscription:
-  - Buat subscription (status `pending_payment`) sesuai paket yang dipilih.
-- Lanjutkan ke invoice screen (SaaS invoices) dan pastikan invoice terbuat/terkait subscription sesuai desain.
-- Lanjutkan payment:
-  - Buat payment record lalu verify (admin/operator).
+- Dari `/trial?startMode=pending_payment`, isi form dengan data valid.
 - Expected:
-  - Invoice menjadi paid sesuai mekanisme sistem.
-  - Subscription menjadi active sesuai lifecycle yang terdokumentasi pada `docs/features/subscriptions/`.
+  - Subscription awal berstatus `pending_payment`.
+  - Invoice draft tercipta dan mengikuti flow billing aktif.
+  - Setelah payment diverifikasi, subscription menjadi `active` sesuai lifecycle pada `docs/features/subscriptions/`.
 
-## Skenario 6 — Self-serve onboarding (company + owner) dari landing (target)
-
-Skenario ini berlaku jika endpoint public onboarding sudah diimplementasikan (lihat `IMPLEMENTATION.md`).
+## Skenario 6 — Self-serve onboarding trial dari landing
 
 - Dari landing, pilih paket lalu lanjut ke form onboarding.
 - Isi:
-  - Company code (pattern `^[A-Za-z0-9_-]+$`)
   - Company name, timezone, currency, country code
   - Owner name/email/password kuat
 - Submit.
 - Expected:
-  - User ter-login (cookie token ter-set)
-  - Company baru tercipta dan menjadi activeCompany
-  - Subscription tercipta dengan status `trial` atau `pending_payment`
-  - Jika `pending_payment`: invoice tercipta dan user diarahkan ke layar payment
+  - Company baru tercipta.
+  - Subscription tercipta dengan status `trial` jika package trial dipilih.
+  - Untuk package trial, tidak ada copy registrasi resmi dan billing cycle trial tetap terkunci sesuai aturan UI.
 
 Validasi negatif minimum:
-- Company code invalid (spasi / simbol) → 422 + pesan jelas
 - Password lemah → 422
 - Email duplicate → 409/422 sesuai kontrak
 
-## Skenario 7 — Negative: company code sudah dipakai (duplikat)
-
-- Isi onboarding dengan `company.code` yang sudah ada (mis. `default_company` atau kode lain yang sudah tersimpan).
-- Expected:
-  - `409` (Conflict) atau `422` (Validation) mengikuti pola implementasi,
-  - error envelope berisi pesan “code already exists” yang ditampilkan di field company code,
-  - tidak ada company/subscription baru yang tercipta.
-
-## Skenario 8 — Negative: email owner sudah terdaftar (duplikat)
+## Skenario 7 — Negative: email owner sudah terdaftar (duplikat)
 
 - Isi onboarding dengan email yang sudah ada di tabel `users`.
 - Expected:
@@ -93,21 +80,21 @@ Validasi negatif minimum:
   - UI menunjukkan pesan yang jelas (mis. “email sudah terdaftar, silakan login”),
   - tidak ada company/subscription baru yang tercipta (no partial provisioning).
 
-## Skenario 9 — Negative: paket tidak aktif / archived
+## Skenario 8 — Negative: paket tidak aktif / archived
 
 - Pilih paket yang statusnya bukan `active` (atau manipulasi request `package_id` ke id paket nonaktif).
 - Expected:
   - `404` (Not found) atau `422` (invalid package) sesuai kontrak,
   - UI menampilkan pesan “Paket tidak tersedia / sudah tidak aktif”.
 
-## Skenario 10 — Negative: billing_cycle invalid
+## Skenario 9 — Negative: billing_cycle invalid
 
 - Kirim `billing_cycle` selain `monthly|yearly` (mis. `weekly`) via request manipulation.
 - Expected:
   - `422 VALIDATION_ERROR`,
   - field error untuk billing cycle.
 
-## Skenario 11 — Negative: trial tidak tersedia untuk paket
+## Skenario 10 — Negative: trial tidak tersedia untuk paket
 
 - Jika bisnis membatasi trial hanya untuk paket tertentu:
   - Pilih paket tanpa trial, tapi paksa `status=trial`/`trialDays` pada payload (jika ada).
@@ -115,14 +102,14 @@ Validasi negatif minimum:
   - `422` dengan code domain (mis. `TRIAL_NOT_ALLOWED`) atau pesan yang setara,
   - UI fallback ke `pending_payment` atau meminta user memilih paket lain (sesuai product decision).
 
-## Skenario 12 — Negative: attempt berulang (rate limit)
+## Skenario 11 — Negative: attempt berulang (rate limit)
 
 - Lakukan submit onboarding berkali-kali dari IP/email yang sama dalam waktu singkat.
 - Expected:
   - `429` (Too many requests) untuk mencegah spam provisioning,
   - UI menampilkan “coba lagi setelah X detik/menit”.
 
-## Skenario 13 — Negative: double submit (idempotency)
+## Skenario 12 — Negative: double submit (idempotency)
 
 - Klik tombol submit onboarding cepat 2x atau refresh saat request berjalan.
 - Expected:
@@ -131,14 +118,14 @@ Validasi negatif minimum:
     - response idempotent (mengembalikan result yang sama), atau
     - `409` “already created” dengan pointer ke resource yang sudah dibuat.
 
-## Skenario 14 — Negative: subscription conflict untuk company yang sama
+## Skenario 13 — Negative: subscription conflict untuk company yang sama
 
 - Jika company sudah punya subscription `active` atau `pending_payment`, coba onboarding lagi untuk company yang sama (atau manipulasi payload agar menarget company existing).
 - Expected:
   - `422` dengan code domain (mis. `SUBSCRIPTION_ALREADY_EXISTS` / `SUBSCRIPTION_CONFLICT`),
   - UI mengarahkan user ke halaman subscription/invoice existing, bukan membuat entri baru.
 
-## Skenario 15 — Negative: invoice/payment mismatch
+## Skenario 14 — Negative: invoice/payment mismatch
 
 - Buat payment untuk invoice yang:
   - sudah `paid`, atau

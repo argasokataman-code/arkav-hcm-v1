@@ -56,7 +56,18 @@ Agent wajib bisa menjawab ya untuk yang relevan:
 - [ ] **Security:** RBAC/guard/tes regresi untuk route baru sudah selaras?
 - [ ] **Docs:** Semua file `docs/` yang kontraknya ikut berubah sudah di-update?
 - [ ] **OpenAPI:** `docs/api/openapi.yaml` sudah selaras dengan implementasi (atau dijawab jelas: tidak ada perubahan kontrak API)?
-- [ ] **Tes:** Minimal satu tes yang menyentuh flow berisiko (happy + forbidden/422 bila perlu)?
+- [ ] **Tes:** Untuk fixing atau fitur baru, `php artisan test <suite-terdampak>` sudah dijalankan; jika menyentuh JS/TS/Blade ter-wire atau asset Vite, `vitest`/`npm run test -- <scope>` juga sudah dijalankan; perubahan lintas FE+BE wajib menjalankan keduanya.
+
+## 4a) Rule test wajib setelah fixing / fitur baru
+
+Untuk setiap **fixing** atau **fitur baru** yang menyentuh behavior runtime, agent wajib menjalankan validasi executable berikut sebelum menutup task:
+
+1. `cd backend && php artisan migrate --force`
+2. `cd backend && php artisan test <suite-terdampak>` untuk kontrak/backend/PHP yang berubah
+3. `cd backend && npm run test -- <scope>` atau `npx vitest run <scope>` bila perubahan menyentuh JS/TS/Blade ter-wire, utilitas frontend, atau bundle Vite
+4. Jika perubahan lintas backend + frontend, **PHPUnit dan Vitest keduanya wajib**
+
+Task tidak boleh diklaim selesai tanpa menyebut evidence hasil migrate, hasil PHPUnit, dan hasil Vitest yang relevan.
 
 ## 5) Gate berurutan wajib (role -> UIUX -> manual UI E2E)
 

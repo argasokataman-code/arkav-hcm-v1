@@ -1,12 +1,14 @@
-# Landing Pages — IMPLEMENTATION (rencana)
+# Landing Pages — IMPLEMENTATION
 
-Dokumen ini menjelaskan rencana implementasi landing page public, tetap mengikuti aturan template HCM/SaaS di repo ini.
+Dokumen ini menjelaskan implementasi landing page public yang aktif, tetap mengikuti aturan template HCM/SaaS di repo ini.
 
 ## Scope (updated)
 
 - Landing page public (guest) untuk promosi produk + paket.
 - Landing menyediakan onboarding self-serve: **pilih paket → registrasi company + owner → subscription → invoice/payment**.
 - Tetap mengikuti kontrak validasi (regex) dan keamanan (rate limit, ownership, anti open-redirect).
+- Runtime aktif memakai React entry `frontend/resources/js/public-landing-react.jsx` dengan komponen `frontend/resources/js/components/public-landing-reference-app.jsx` dan stylesheet `frontend/resources/js/styles/public-landing-reference.css`.
+- Visual structure mengikuti repo referensi `Pureesocial/modern-parallax-land`: fixed header, centered hero, dashboard preview, features, 3-step setup, pricing focus, dan final CTA.
 
 ## Route & Web guard
 
@@ -36,6 +38,13 @@ Buat layout khusus public (contoh): `backend/resources/views/layout/publiclayout
 - Tidak include `layout.partials.header`, `layout.partials.sidebar`, dan modal admin.
 - Punya header marketing sederhana (logo + “Login” + CTA).
 - Punya footer marketing (terms/privacy/contact).
+
+### Runtime aktif saat ini
+
+- Blade tetap menyuplai bootstrap JSON marketing-safe via `#landing-app-data`.
+- React mengambil bootstrap data itu lalu merender landing penuh di `#landing-react-root`.
+- Package pricing tetap berasal dari backend SSR bootstrap, bukan dummy frontend.
+- Modal onboarding tetap submit ke `POST /v1/public/onboarding` dengan contract helper `frontend/resources/js/public-landing-contract.js`.
 
 ## Data paket (source of truth)
 
@@ -171,21 +180,19 @@ Jika kontrak onboarding memperkenalkan regex baru (mis. untuk `company.name`), h
 - `docs/api/openapi.yaml` (schema),
 - validasi backend + validasi frontend.
 
-## CTA dan redirect setelah login (anti open-redirect)
+## CTA login / register yang aktif
 
-Target behavior (jika onboarding memerlukan login step):
+Perilaku runtime aktif saat ini:
 
-- Landing membentuk URL `GET /login?next=/subscription?packageId=<id>&status=pending_payment`.
-- Setelah login sukses, user diarahkan ke `next` (bukan selalu ke `/index`).
+- CTA pricing/trial di landing membuka onboarding public langsung, bukan memaksa guest login dulu.
+- CTA registrasi pada halaman `/login` mengarah ke `/register`, lalu route itu langsung redirect ke `/trial?startMode=pending_payment`.
+- View `/trial` membaca `startMode` dan mengubah copy, hidden `start_mode`, filter package, dan default package sesuai mode bisnis.
 
-Keamanan:
+Implikasi keamanan dan UX:
 
-- Parameter `next` harus dibatasi ke **relative path** yang diawali `/` dan tidak mengandung skema (`http://`).
-- Jika invalid, fallback ke `/index`.
-
-Implementasi rencana:
-
-- Update `frontend/resources/js/auth-login.js` agar membaca `next` query param dan melakukan redirect yang aman.
+- Registrasi resmi dari login tidak boleh diam-diam kembali ke trial package.
+- Mode `pending_payment` harus tetap mengecualikan package trial dari daftar pilihan agar intent bisnisnya tidak rancu.
+- Karena flow aktif tidak memakai query `next` dari landing, catatan anti open-redirect untuk landing CTA tidak lagi menjadi jalur utama pada fitur ini.
 
 ## Animasi ringan (tanpa library baru)
 
@@ -206,6 +213,7 @@ Jika menambah file JS/CSS:
 ## Test plan (automation + manual)
 
 - Tambah regression test: guest bisa akses `/` landing tanpa redirect `lock-screen`.
-- Tambah regression test: login dengan `next` valid redirect sesuai, `next` invalid tidak bisa open redirect.
+- Tambah regression test: `/register` redirect ke `/trial?startMode=pending_payment`.
+- Tambah regression test: mode `pending_payment` di `/trial` menampilkan copy registrasi resmi dan tidak memilih package trial.
 - Manual: lihat `E2E-TESTING.md`.
 

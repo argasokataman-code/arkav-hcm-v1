@@ -22,21 +22,30 @@ Fitur **Landing Pages** adalah halaman marketing yang bisa diakses publik (guest
 
 ## UI Aktif
 
-- Halaman marketing utama: `/`.
-- CTA mengarah ke flow onboarding, package selection, dan billing follow-up.
+- Halaman marketing utama: `/landing` dan guest entry yang diarahkan ke surface marketing publik.
+- Runtime aktif memakai React entry `frontend/resources/js/public-landing-react.jsx` dengan komponen utama `frontend/resources/js/components/public-landing-reference-app.jsx`.
+- Styling aktif memakai stylesheet khusus `frontend/resources/js/styles/public-landing-reference.css` agar layout mengikuti repo referensi `Pureesocial/modern-parallax-land` tanpa bentrok dengan CSS Blade lama.
+- Halaman `/login` sudah memakai auth shell baru yang diselaraskan visualnya dengan landing, tetapi tetap mempertahankan DOM hook login lama (`api-login-form`, `login-email`, `login-password`, mode employee/company, dan company code).
+- Route `/register` tidak lagi merender gate informatif lama; route ini sekarang langsung redirect ke onboarding resmi `/trial?startMode=pending_payment`.
+- Halaman `/trial` sekarang melayani dua mode bisnis pada view yang sama: `trial` untuk CTA trial dan `pending_payment` untuk registrasi resmi company tanpa trial.
 
 ## Flow Bisnis End-to-End
 
 1. Guest membuka landing page.
-2. Guest membaca paket yang tersedia dan memilih CTA yang relevan.
-3. Guest mengisi data company dan owner.
-4. Sistem membuat entity onboarding yang diperlukan lalu mengarahkan ke flow subscription/invoice/payment.
+2. Guest membaca hero, dashboard preview, feature cards, step-by-step setup, dan pricing tier untuk membandingkan paket aktif.
+3. Guest memilih CTA yang relevan dari hero, pricing, preview, atau final CTA.
+4. Jika guest memulai dari CTA trial/plan di landing, sistem membuka onboarding publik dengan package pilihan yang sudah diprefill dan `start_mode=trial`.
+5. Jika guest memulai dari CTA “Daftarkan company di sini” pada halaman login, sistem masuk ke route `/register` lalu langsung diarahkan ke `/trial?startMode=pending_payment` untuk registrasi resmi tanpa trial.
+6. Guest mengisi data company dan owner.
+7. Sistem membuat entity onboarding yang diperlukan lalu mengarahkan ke flow login owner atau invoice/payment sesuai mode yang dipilih.
 
 ## Lifecycle Dan Keputusan Bisnis
 
 - Landing hanya boleh menampilkan data marketing-safe.
-- Self-serve onboarding belum boleh dianggap final sebelum kontrak public onboarding disahkan.
+- Self-serve onboarding aktif lewat modal publik, tetapi tetap wajib mengikuti kontrak public onboarding yang sudah didokumentasikan dan tidak boleh mem-bypass validasi backend.
 - Validasi FE/BE harus tetap parity dengan kontrak identity/company yang aktif.
+- Reference visual boleh berubah, tetapi package aktif, billing cycle, start mode, dan owner/company onboarding tetap mengikuti source of truth backend.
+- Registrasi resmi dari login tidak boleh jatuh ke paket trial atau copy trial; source of truth-nya adalah `startMode=pending_payment` di controller/view onboarding.
 
 ## Integrasi
 
@@ -143,6 +152,7 @@ Daftar ini melengkapi `E2E-TESTING.md` dan harus jadi acuan saat implementasi en
 
 ## Existing Vs Target
 
-- Existing: landing berfungsi sebagai dokumen flow marketing/onboarding dan masih bergantung pada kontrak auth/company/subscription yang sebagian besar admin-oriented.
-- Target: self-serve onboarding public yang final, aman, dan sinkron ke OpenAPI serta feature billing terkait.
+- Existing runtime: landing React publik sudah aktif dengan struktur section yang mengikuti repo referensi `modern-parallax-land`, pricing dinamis dari package aktif backend, dashboard preview visual, dan modal onboarding publik.
+- Existing runtime: login publik sudah memakai auth shell baru yang selaras dengan landing, sedangkan `/register` sekarang menjadi redirect ke onboarding resmi `pending_payment`.
+- Target lanjutan: fallback Blade lama diganti atau dipensiunkan penuh jika tidak lagi dibutuhkan, serta manual/E2E mobile visual check diselaraskan ke layout baru.
 

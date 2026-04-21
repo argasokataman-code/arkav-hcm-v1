@@ -123,18 +123,31 @@ git pull origin main
 cp backend/env.txt backend/.env
 # (edit .env with production settings)
 
-# 3. Build and run Docker image
+# 3. Siapkan persistent storage di host
+mkdir -p /data/code/storage
+
+# 4. Build and run Docker image
 docker build -t arkav-hcm .
 docker run -d --name arkav-hcm \
   --restart always \
   -p 8007:8007 \
   -p 5179:5179 \
   -v /data/code/.env:/app/backend/.env \
+    -v /data/code/storage:/app/backend/storage \
   arkav-hcm
 
-# 4. Run migrations
+# 5. Run caches + migrations
+docker exec arkav-hcm php artisan config:cache
+docker exec arkav-hcm php artisan route:cache
+docker exec arkav-hcm php artisan view:cache
 docker exec arkav-hcm php artisan migrate --force
 
-# 5. Check logs
+# 6. Check logs
 docker logs -f arkav-hcm
 ```
+
+### Important Deploy Notes
+
+- Jangan jalankan `php artisan key:generate` pada setiap deploy staging/production. `APP_KEY` harus stabil di file `.env` yang persistent; mengganti key tiap deploy akan menginvalidasi session/login yang sedang aktif dan bisa merusak data terenkripsi.
+- Data yang disimpan di filesystem container akan hilang saat container di-`rm -f` dan dibuat ulang. Karena workflow auto deploy memang recreate container, direktori `backend/storage` wajib dimount ke host atau persistent volume.
+- Database staging/production harus tetap memakai MySQL eksternal/persisten. Jika suatu saat container dijalankan tanpa `.env` yang benar atau tanpa DB persisten, gejalanya akan terlihat seperti "data hilang setelah push".

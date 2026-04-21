@@ -3,6 +3,17 @@
 @section('content')
 @php
 	$companyName = \App\Support\WebsiteSettings::businessCompanyName();
+	$startMode = in_array(($startMode ?? 'trial'), ['trial', 'pending_payment'], true) ? $startMode : 'trial';
+	$isPendingPaymentMode = $startMode === 'pending_payment';
+	$pageBadge = $isPendingPaymentMode ? 'Registrasi Resmi Company' : 'Coba Trial Gratis';
+	$pageTitle = $isPendingPaymentMode ? 'Pilih paket berlangganan lalu buat company & owner' : 'Pilih plan lalu buat company & owner';
+	$pageDescription = $isPendingPaymentMode
+		? 'Mulai registrasi resmi company tanpa trial. Pilih paket aktif, lengkapi data company dan owner, lalu lanjut ke invoice untuk aktivasi subscription.'
+		: 'Plan yang kamu pilih dari landing akan otomatis terbawa ke form ini. Lengkapi onboarding company, lalu login sebagai owner untuk mulai setup modul HCM.';
+	$billingCycleHelp = $isPendingPaymentMode
+		? 'Billing cycle akan langsung dipakai untuk pembuatan invoice registrasi company.'
+		: 'Berlaku saat subscription menjadi aktif (setelah masa trial berakhir).';
+	$submitLabel = $isPendingPaymentMode ? 'Daftarkan company resmi' : 'Daftarkan company';
 @endphp
 
 <div class="landing-shell">
@@ -22,9 +33,9 @@
 		<div class="row justify-content-center">
 			<div class="col-lg-8">
 				<div class="mb-4" data-reveal>
-					<span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">Coba Trial Gratis</span>
-					<h1 class="h2 fw-bold mt-3 mb-2">Pilih plan lalu buat company & owner</h1>
-					<p class="text-muted mb-0">Plan yang kamu pilih dari landing akan otomatis terbawa ke form ini. Lengkapi onboarding company, lalu login sebagai owner untuk mulai setup modul HCM.</p>
+					<span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">{{ $pageBadge }}</span>
+					<h1 class="h2 fw-bold mt-3 mb-2">{{ $pageTitle }}</h1>
+					<p class="text-muted mb-0">{{ $pageDescription }}</p>
 				</div>
 
 				<div class="card border-0 shadow-lg" data-reveal>
@@ -34,7 +45,7 @@
 
 						<form id="onboardingForm" data-onboarding-form>
 							<input type="text" name="website" class="d-none" tabindex="-1" autocomplete="off" aria-hidden="true">
-							<input type="hidden" name="start_mode" value="trial">
+							<input type="hidden" name="start_mode" value="{{ $startMode }}">
 
 							<div class="row g-3">
 								<div class="col-md-6">
@@ -53,7 +64,7 @@
 										<option value="monthly" selected>Monthly</option>
 										<option value="yearly">Yearly</option>
 									</select>
-									<div class="form-text" data-billing-cycle-help>Berlaku saat subscription menjadi aktif (setelah masa trial berakhir).</div>
+									<div class="form-text" data-billing-cycle-help>{{ $billingCycleHelp }}</div>
 									<div class="form-text text-muted d-none" data-billing-cycle-trial-help>
 										<i class="ti ti-lock text-warning"></i> Locked ke Monthly untuk trial. Bisa diubah setelah trial berakhir.
 									</div>
@@ -157,7 +168,7 @@
 									Dengan klik “Daftarkan company”, kamu setuju proses onboarding dan validasi data berjalan sesuai sistem.
 								</div>
 								<button type="submit" class="btn btn-primary" data-onboarding-submit>
-									<i class="ti ti-rocket me-1"></i> Daftarkan company
+									<i class="ti ti-rocket me-1"></i> {{ $submitLabel }}
 								</button>
 							</div>
 						</form>

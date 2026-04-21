@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
+import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
@@ -29,6 +31,15 @@ export default defineConfig({
     esbuild: {
         keepNames: true,
     },
+    resolve: {
+        alias: {
+            react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),
+            'react-dom': fileURLToPath(new URL('./node_modules/react-dom', import.meta.url)),
+            'react-dom/client': fileURLToPath(new URL('./node_modules/react-dom/client.js', import.meta.url)),
+            'framer-motion': fileURLToPath(new URL('./node_modules/framer-motion', import.meta.url)),
+            '@phosphor-icons/react': fileURLToPath(new URL('./node_modules/@phosphor-icons/react', import.meta.url)),
+        },
+    },
     build: {
         manifest: true,
         rtl: true,
@@ -48,10 +59,12 @@ export default defineConfig({
         },
     },
     plugins: [
+        react(),
         laravel({
             input: [
                 '../frontend/resources/css/style.css',
                 '../frontend/resources/js/script.js',
+                '../frontend/resources/js/public-landing-react.jsx',
                 '../frontend/resources/ts/thr-payroll-batch.ts',
                 '../frontend/resources/ts/payroll-run.ts',
             ],

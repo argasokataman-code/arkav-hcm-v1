@@ -24,9 +24,11 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 
 - Setiap selesai fixing code (BE/FE yang menyentuh behavior runtime), jalankan migrasi lebih dulu:
 	- `cd backend && php artisan migrate --force`
-- Setelah migrate, wajib test ulang minimal scope terdampak (dan perluas ke suite lintas modul bila area kritikal):
-	- contoh minimal: `php artisan test <suite-terdampak>`
-- Jangan klaim selesai tanpa evidence hasil migrate + hasil test run.
+- Setelah migrate, fixing atau fitur baru wajib test ulang minimal scope terdampak (dan perluas ke suite lintas modul bila area kritikal):
+	- backend/PHP/API: `cd backend && php artisan test <suite-terdampak>`
+	- frontend JS/TS/Blade ter-wire atau asset Vite: `cd backend && npm run test -- <scope>` atau `cd backend && npx vitest run <scope>`
+	- jika perubahan lintas FE+BE, PHPUnit dan Vitest keduanya wajib
+- Jangan klaim selesai tanpa evidence hasil migrate + hasil PHPUnit + hasil Vitest yang relevan.
 - Jika `Nothing to migrate`, tetap lanjut ke test ulang dan laporkan status tersebut.
 - Jika ada `Status` di dokumentasi fitur, update tracker terkait sebelum claim status final.
 
@@ -40,4 +42,4 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 
 Konflik instruksi user vs rule proyek: sebutkan konflik dan minta konfirmasi; jangan mengabaikan rule tanpa persetujuan eksplisit.
 
-**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-19 (business-flow docs + integrasi GitHub ↔ Cursor).
+**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-21 (mandatory PHPUnit + Vitest gate for fixes/features).

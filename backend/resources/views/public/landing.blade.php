@@ -3,13 +3,62 @@
 @section('content')
 @php
 	$companyName = \App\Support\WebsiteSettings::businessCompanyName();
+	$companyLogoUrl = \App\Support\WebsiteSettings::brandingUrl('white_logo', URL::asset('build/img/image111.png'));
+	$companyMiniLogoUrl = \App\Support\WebsiteSettings::brandingUrl('white_mini_logo', URL::asset('build/img/image111.png'));
+	$landingBootstrap = [
+		'companyName' => $companyName,
+		'companyLogoUrl' => $companyLogoUrl,
+		'companyMiniLogoUrl' => $companyMiniLogoUrl,
+		'landingUrl' => url('/landing'),
+		'loginUrl' => url('/login'),
+		'trialUrl' => url('/trial'),
+		'packages' => $packages->map(function ($package) {
+			$featureHighlights = $package->features
+				->filter(fn ($feature) => method_exists($feature, 'isIncluded') ? $feature->isIncluded() : true)
+				->take(4)
+				->map(fn ($feature) => [
+					'code' => (string) ($feature->feature_code ?? ''),
+					'name' => (string) ($feature->feature_name ?: $feature->feature_code),
+				])
+				->values();
+
+			return [
+				'uuid' => (string) $package->uuid,
+				'code' => (string) $package->code,
+				'name' => (string) $package->name,
+				'description' => (string) ($package->description ?? ''),
+				'monthlyPrice' => (float) $package->monthly_price,
+				'yearlyPrice' => (float) $package->yearly_price,
+				'billingUnit' => (string) ($package->billing_unit ?? 'company'),
+				'color' => (string) ($package->color ?: '#2D7FF9'),
+				'featureHighlights' => $featureHighlights,
+			];
+		})->values(),
+	];
 @endphp
 
-<div class="landing-shell">
+<script id="landing-app-data" type="application/json">@json($landingBootstrap)</script>
+<script>document.documentElement.classList.add('landing-react-ready');</script>
+<div id="landing-react-root" class="landing-react-root" aria-live="polite">
+	<div class="landing-react-loading" aria-hidden="true">
+		<div class="landing-react-loading__mark"><i class="ti ti-bolt"></i></div>
+		<div class="landing-react-loading__eyebrow">Loading landing experience</div>
+		<div class="landing-react-loading__title">Menyiapkan preview Arkav HCM...</div>
+	</div>
+</div>
+
+<div class="landing-shell" data-landing-fallback>
+	<div class="landing-orb landing-orb-one" aria-hidden="true"></div>
+	<div class="landing-orb landing-orb-two" aria-hidden="true"></div>
+	<div class="landing-grid" aria-hidden="true"></div>
 	<nav class="landing-nav navbar navbar-expand-lg">
 		<div class="container">
-			<a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{{ url('/landing') }}">
-				<i class="ti ti-sparkles"></i> <span>{{ $companyName }}</span>
+			<a class="navbar-brand landing-brand fw-bold d-flex align-items-center gap-3" href="{{ url('/landing') }}">
+				<span class="landing-brand-mark"><i class="ti ti-sparkles"></i></span>
+				<span>
+					<small class="d-block text-uppercase">Modern HCM</small>
+					<span>{{ $companyName }}</span>
+				</span>
 			</a>
 			<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#landingNav">
 				<span class="navbar-toggler-icon"></span>
@@ -22,10 +71,10 @@
 					<li class="nav-item"><a class="nav-link" href="#pricing">Paket</a></li>
 					<li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
 					<li class="nav-item ms-lg-2">
-						<a href="{{ url('/login') }}" class="btn btn-outline-secondary btn-sm">Login</a>
+						<a href="{{ url('/login') }}" class="btn btn-outline-secondary btn-sm landing-nav-ghost">Login</a>
 					</li>
 					<li class="nav-item">
-						<a href="#pricing" class="btn btn-primary btn-sm">Mulai</a>
+						<a href="#pricing" class="btn btn-primary btn-sm landing-nav-cta">Mulai Trial</a>
 					</li>
 				</ul>
 			</div>
@@ -35,55 +84,61 @@
 	<section class="landing-hero py-5">
 		<div class="container">
 			<div class="row align-items-center g-4">
-				<div class="col-lg-6" data-reveal>
+				<div class="col-lg-6" data-reveal data-parallax="0.08">
 					<div class="mb-3">
-						<span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">HCM + SaaS • Self-serve onboarding</span>
+						<span class="badge landing-pill fw-semibold px-3 py-2">Platform HCM modern untuk operasional HR yang rapi</span>
 					</div>
 					<h1 class="display-5 fw-bold mb-3 landing-title">
-						Satu platform untuk HR, Absensi, Cuti, Payroll, dan laporan—siap dipakai.
+						Kelola tim dengan ritme yang lebih ringan, dari absensi sampai payroll.
 					</h1>
 					<p class="text-muted fs-5 mb-4">
-						Pilih paket. Buat company & owner. Mulai trial atau langsung subscribe. Semua lewat alur yang rapi dan aman.
+						Kami pertahankan alur onboarding, paket, dan trial yang sudah hidup. Yang berubah adalah rasa antarmuka: lebih bersih, lebih tenang, dan lebih meyakinkan saat pertama kali dibuka calon tenant.
 					</p>
+
+					<div class="landing-proof-list d-flex flex-wrap gap-3 mb-4">
+						<span><i class="ti ti-bolt me-2"></i>Setup mandiri tanpa setup rumit</span>
+						<span><i class="ti ti-shield-check me-2"></i>Role-based access tetap aman</span>
+						<span><i class="ti ti-receipt-2 me-2"></i>Billing, invoice, dan trial tetap utuh</span>
+					</div>
 
 					<div class="d-flex flex-wrap gap-2">
 						<a href="#pricing" class="btn btn-primary btn-lg">
 							Lihat Paket
 						</a>
 						<a href="{{ url('/trial') }}" class="btn btn-outline-secondary btn-lg">
-							Coba Trial Gratis!!
+							Mulai Trial 30 Hari
 						</a>
 					</div>
 
 					<div class="landing-badges d-flex flex-wrap gap-2 mt-4">
-						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>RBAC admin vs karyawan</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-device-laptop me-1"></i>UI selaras template</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-mail-forward me-1"></i>Invoice email (opsional)</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Tenant-aware & audit-friendly</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Dashboard, HR core, payroll</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-mail-forward me-1"></i>Trial, invoice, dan onboarding</span>
 					</div>
 
 					<div class="row g-2 mt-4" data-reveal>
 						<div class="col-4">
 							<div class="p-3 rounded-3 bg-white border landing-stat">
-								<div class="text-muted small">Modul siap</div>
+								<div class="text-muted small">Modul inti</div>
 								<div class="h4 fw-bold mb-0" data-countup data-countup-end="6" data-countup-suffix="+">0+</div>
 							</div>
 						</div>
 						<div class="col-4">
 							<div class="p-3 rounded-3 bg-white border landing-stat">
-								<div class="text-muted small">Onboarding</div>
-								<div class="h4 fw-bold mb-0" data-countup data-countup-end="1" data-countup-suffix=" menit">0</div>
+								<div class="text-muted small">Masa trial</div>
+								<div class="h4 fw-bold mb-0" data-countup data-countup-end="30" data-countup-suffix=" hari">0</div>
 							</div>
 						</div>
 						<div class="col-4">
 							<div class="p-3 rounded-3 bg-white border landing-stat">
-								<div class="text-muted small">Audit-ready</div>
-								<div class="h4 fw-bold mb-0" data-countup data-countup-end="100" data-countup-suffix="%">0%</div>
+								<div class="text-muted small">State utama</div>
+								<div class="h4 fw-bold mb-0" data-countup data-countup-end="4" data-countup-suffix=" step">0</div>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				<div class="col-lg-6" data-reveal>
+				<div class="col-lg-6" data-reveal data-parallax="0.14">
 					<div class="landing-mock card border-0 shadow-lg overflow-hidden">
 						<div class="card-body p-4 p-lg-5">
 							<div class="landing-mock-head p-3 rounded-3 mb-3">
@@ -92,15 +147,15 @@
 										<div class="landing-dot"></div>
 										<div class="landing-dot"></div>
 										<div class="landing-dot"></div>
-										<div class="ms-2 fw-semibold">Preview Dashboard</div>
+										<div class="ms-2 fw-semibold">Experience Preview</div>
 									</div>
-									<span class="badge bg-success-subtle text-success"><i class="ti ti-bolt me-1"></i>HCM ready</span>
+									<span class="badge bg-success-subtle text-success"><i class="ti ti-bolt me-1"></i>Ready to onboard</span>
 								</div>
 								<div class="d-flex flex-wrap gap-2 mt-3">
-									<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Overview</span>
-									<span class="badge bg-light text-dark border"><i class="ti ti-users me-1"></i>Employees</span>
-									<span class="badge bg-light text-dark border"><i class="ti ti-fingerprint me-1"></i>Attendance</span>
-									<span class="badge bg-light text-dark border"><i class="ti ti-receipt-2 me-1"></i>Payroll</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Executive Overview</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-users me-1"></i>People Directory</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-calendar-time me-1"></i>Approval Flow</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-receipt-2 me-1"></i>Billing & Payroll</span>
 								</div>
 							</div>
 
@@ -108,10 +163,10 @@
 								<div class="col-7">
 									<div class="p-3 rounded-3 bg-light landing-kpi h-100">
 										<div class="d-flex align-items-center justify-content-between">
-											<div class="fw-semibold">Ringkasan minggu ini</div>
+											<div class="fw-semibold">Pulse minggu ini</div>
 											<i class="ti ti-chart-line text-primary"></i>
 										</div>
-										<div class="text-muted small mt-1">Aktivitas & progress modul HCM</div>
+										<div class="text-muted small mt-1">Visibility cepat untuk operasional HR dan billing</div>
 
 										<div class="landing-mini-chart mt-3" aria-hidden="true">
 											<span style="height: 45%"></span>
@@ -125,12 +180,12 @@
 
 										<div class="d-flex gap-2 mt-3">
 											<div class="flex-fill p-2 rounded-3 bg-white border">
-												<div class="text-muted small">Employees</div>
-												<div class="fw-bold">—</div>
+												<div class="text-muted small">People</div>
+												<div class="fw-bold">Live</div>
 											</div>
 											<div class="flex-fill p-2 rounded-3 bg-white border">
-												<div class="text-muted small">Attendance</div>
-												<div class="fw-bold">—</div>
+												<div class="text-muted small">Payroll</div>
+												<div class="fw-bold">Ready</div>
 											</div>
 										</div>
 									</div>
@@ -138,29 +193,29 @@
 								<div class="col-5">
 									<div class="p-3 rounded-3 bg-light landing-kpi h-100">
 										<div class="d-flex align-items-center justify-content-between">
-											<div class="fw-semibold">Aktivitas terbaru</div>
+											<div class="fw-semibold">Queue terbaru</div>
 											<i class="ti ti-bell-ringing text-warning"></i>
 										</div>
 										<div class="landing-activity mt-2">
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-primary-subtle text-primary"><i class="ti ti-user-plus"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Employee ditambahkan</div>
+													<div class="fw-semibold">Struktur tim diperbarui</div>
 													<div class="text-muted">Directory update</div>
 												</div>
 											</div>
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-success-subtle text-success"><i class="ti ti-calendar-check"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Leave request</div>
-													<div class="text-muted">Approval flow</div>
+													<div class="fw-semibold">Approval menunggu review</div>
+													<div class="text-muted">Leave workflow</div>
 												</div>
 											</div>
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-warning-subtle text-warning"><i class="ti ti-receipt-2"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Payroll draft</div>
-													<div class="text-muted">Ready to finalize</div>
+													<div class="fw-semibold">Invoice siap dikirim</div>
+													<div class="text-muted">Billing automation</div>
 												</div>
 											</div>
 										</div>
@@ -174,12 +229,12 @@
 							<div class="mt-3 p-3 rounded-3 border bg-white landing-next">
 								<div class="d-flex align-items-center justify-content-between">
 									<div>
-										<div class="small text-muted">Next step</div>
-										<div class="fw-semibold">Mulai onboarding</div>
-										<div class="text-muted small">Buat company + owner, pilih trial / subscribe.</div>
+										<div class="small text-muted">Next move</div>
+										<div class="fw-semibold">Aktifkan workspace perusahaan</div>
+										<div class="text-muted small">Pilih paket, buat company, dan teruskan ke owner login.</div>
 									</div>
 									<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
-										<i class="ti ti-rocket me-1"></i> Mulai
+										<i class="ti ti-rocket me-1"></i> Start
 									</a>
 								</div>
 							</div>
@@ -190,12 +245,13 @@
 		</div>
 	</section>
 
-	<section class="py-5">
+	<section class="py-5 landing-section landing-section-soft">
 		<div class="container">
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">Apa yang tim kamu rasakan</h2>
-					<p class="text-muted mb-0">Bukan janji kosong—ini ringkasan outcome yang biasanya dicari tim HR & finance.</p>
+					<span class="landing-section-kicker">Experience</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Apa yang tim kamu rasakan setelah implementasi</h2>
+					<p class="text-muted mb-0 landing-section-copy">Outcome nyata untuk HR, finance, dan owner yang butuh operasional lebih tenang.</p>
 				</div>
 			</div>
 
@@ -251,12 +307,13 @@
 		</div>
 	</section>
 
-	<section id="features" class="py-5">
+	<section id="features" class="py-5 landing-section">
 		<div class="container">
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">Fitur lengkap, bukan sekadar landing</h2>
-					<p class="text-muted mb-0">Ini modul nyata yang sudah ada di sistem—bukan janji kosong.</p>
+					<span class="landing-section-kicker">Features</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Semua modul penting tetap utuh, sekarang dibungkus lebih modern</h2>
+					<p class="text-muted mb-0 landing-section-copy">Konsep UI baru dari referensi tetap terasa, tapi struktur konten dan fungsionalitas landing kita tidak diputus.</p>
 				</div>
 			</div>
 
@@ -331,16 +388,17 @@
 		</div>
 	</section>
 
-	<section id="solutions" class="py-5">
+	<section id="solutions" class="py-5 landing-section">
 		<div class="container">
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">Solusi per role</h2>
-					<p class="text-muted mb-0">Biar jelas: admin HR, karyawan, dan finance punya kebutuhan berbeda.</p>
+					<span class="landing-section-kicker">Solutions</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Solusi berbeda untuk role yang berbeda</h2>
+					<p class="text-muted mb-0 landing-section-copy">Admin HR, karyawan, dan finance tetap masuk ke jalur kerja yang relevan tanpa noise yang tidak perlu.</p>
 				</div>
 			</div>
 
-			<div class="card border-0 shadow-sm" data-reveal>
+			<div class="card border-0 shadow-sm landing-surface" data-reveal>
 				<div class="card-body p-4 p-lg-5">
 					<ul class="nav nav-pills gap-2" id="roleTabs" role="tablist">
 						<li class="nav-item" role="presentation">
@@ -453,12 +511,13 @@
 		</div>
 	</section>
 
-	<section id="how" class="py-5 bg-light">
+	<section id="how" class="py-5 bg-light landing-section landing-section-soft">
 		<div class="container">
 			<div class="row g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">Cara kerja (end-to-end)</h2>
-					<p class="text-muted mb-0">Dari pilih paket sampai siap dipakai—tanpa ribet.</p>
+					<span class="landing-section-kicker">How it works</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Flow tetap sederhana: pilih, aktifkan, login, jalan</h2>
+					<p class="text-muted mb-0 landing-section-copy">Kami pertahankan alur yang sudah terbukti: tidak ada langkah tambahan yang bikin onboarding berat.</p>
 				</div>
 			</div>
 
@@ -503,15 +562,16 @@
 		</div>
 	</section>
 
-	<section id="pricing" class="py-5">
+	<section id="pricing" class="py-5 landing-section">
 		<div class="container">
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">Pilih paket</h2>
-					<p class="text-muted mb-0">Pilih plan yang aktif, lalu lanjut ke form onboarding company dengan paket yang sudah terpilih.</p>
+					<span class="landing-section-kicker">Pricing</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Pilih paket yang cocok, lalu lanjutkan onboarding tanpa putus flow</h2>
+					<p class="text-muted mb-0 landing-section-copy">Paket tetap dinamis dari sistem. Kami hanya memperjelas hierarki visual dan pengambilan keputusan di depan user.</p>
 				</div>
 				<div class="col-lg-4 text-lg-end" data-reveal>
-					<div class="d-inline-flex align-items-center gap-2 p-2 rounded-3 bg-light border">
+					<div class="d-inline-flex align-items-center gap-2 p-2 rounded-3 bg-light border landing-cycle-toggle">
 						<span class="small text-muted">Monthly</span>
 						<div class="form-check form-switch m-0">
 							<input class="form-check-input" type="checkbox" role="switch" id="billingToggle" data-billing-toggle>
@@ -524,12 +584,18 @@
 	<div class="row g-3" data-packages-grid data-packages='@json($packages)'>
 		@forelse ($packages as $package)
 			<div class="col-md-6 col-lg-4">
-				<div class="card h-100 border-0 shadow-sm landing-card" data-reveal>
+				@php
+					$packageHighlights = $package->features
+						->filter(fn ($feature) => method_exists($feature, 'isIncluded') ? $feature->isIncluded() : true)
+						->take(4);
+					$packageAccent = $package->color ?: '#2D7FF9';
+				@endphp
+				<div class="card h-100 border-0 shadow-sm landing-card landing-package-card" data-reveal style="--package-accent: {{ $packageAccent }};">
 					<div class="card-body p-4">
 						<div class="d-flex align-items-start justify-content-between">
 							<div>
-								<div class="fw-bold">{{ $package->name }}</div>
-								<div class="text-muted small">{{ $package->code }}</div>
+								<div class="fw-bold fs-5">{{ $package->name }}</div>
+								<div class="text-muted small text-uppercase">{{ $package->code }}</div>
 							</div>
 							<span class="badge bg-success-subtle text-success">Active</span>
 						</div>
@@ -541,10 +607,14 @@
 						@endif
 
 						<div class="d-flex flex-wrap gap-2 mb-3">
-							<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Dashboard</span>
-							<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Employees</span>
-							<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Attendance</span>
-							<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Leave</span>
+							@forelse ($packageHighlights as $feature)
+								<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>{{ $feature->feature_name ?: $feature->feature_code }}</span>
+							@empty
+								<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Dashboard</span>
+								<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Employees</span>
+								<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Attendance</span>
+								<span class="badge bg-light text-dark border"><i class="ti ti-check me-1"></i>Leave</span>
+							@endforelse
 						</div>
 
 						<div class="d-flex align-items-end justify-content-between mt-3">
@@ -571,7 +641,7 @@
 
 						<div class="mt-3 small text-muted">
 							<span class="me-2">Tahunan: Rp {{ number_format((float) $package->yearly_price, 0, ',', '.') }}</span>
-							<span class="badge bg-primary-subtle text-primary">Hemat</span>
+							<span class="badge bg-primary-subtle text-primary">Lebih efisien</span>
 						</div>
 					</div>
 				</div>
@@ -680,12 +750,13 @@
 		</div>
 	</section>
 
-	<section id="faq" class="py-5 bg-light">
+	<section id="faq" class="py-5 bg-light landing-section landing-section-soft">
 		<div class="container">
 			<div class="row g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
-					<h2 class="h3 fw-bold mb-2">FAQ</h2>
-					<p class="text-muted mb-0">Jawaban cepat biar nggak bolak-balik nanya.</p>
+					<span class="landing-section-kicker">FAQ</span>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Jawaban cepat sebelum user masuk ke flow trial</h2>
+					<p class="text-muted mb-0 landing-section-copy">FAQ tetap langsung ke kebutuhan onboarding dan login, tanpa copy yang berputar-putar.</p>
 				</div>
 			</div>
 
@@ -884,48 +955,747 @@
 </div>
 
 <style>
-	.landing-shell { background: radial-gradient(1200px 600px at 20% 10%, rgba(45,127,249,.18), transparent 60%), radial-gradient(900px 500px at 80% 0%, rgba(0,167,111,.16), transparent 55%), #ffffff; }
-	.landing-nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px); background: rgba(255,255,255,.75); border-bottom: 1px solid rgba(0,0,0,.06); }
-	.landing-hero { position: relative; }
-	.landing-title { letter-spacing: -0.02em; }
+	.landing-shell {
+		--landing-primary: var(--bs-primary);
+		--landing-primary-rgb: var(--bs-primary-rgb);
+		--landing-accent: #0ea5a4;
+		--landing-ink: #0f172a;
+		--landing-muted: #5b6474;
+		position: relative;
+		isolation: isolate;
+		overflow: clip;
+		background:
+			.landing-shell {
+				--landing-primary: var(--bs-primary);
+				--landing-primary-rgb: var(--bs-primary-rgb);
+				--landing-accent: #0ea5a4;
+				--landing-ink: #0f172a;
+				--landing-muted: #5b6474;
+				position: relative;
+				isolation: isolate;
+				overflow: clip;
+				background:
+					radial-gradient(1200px 620px at 12% 8%, rgba(var(--landing-primary-rgb), .20), transparent 60%),
+					radial-gradient(860px 520px at 88% 6%, rgba(14,165,164,.16), transparent 55%),
+					linear-gradient(180deg, #fbfdff 0%, #f4f8fc 54%, #ffffff 100%);
+			}
+			.landing-grid {
+				position: absolute;
+				inset: 0;
+				background-image: linear-gradient(rgba(15, 23, 42, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, .035) 1px, transparent 1px);
+				background-size: 64px 64px;
+				mask-image: linear-gradient(180deg, rgba(255,255,255,.85), transparent 82%);
+				pointer-events: none;
+				z-index: -3;
+			}
+			.landing-orb {
+				position: absolute;
+				border-radius: 999px;
+				filter: blur(10px);
+				pointer-events: none;
+				z-index: -2;
+			}
+			.landing-orb-one {
+				width: 28rem;
+				height: 28rem;
+				top: -8rem;
+				left: -7rem;
+				background: radial-gradient(circle, rgba(var(--landing-primary-rgb), .28) 0%, rgba(var(--landing-primary-rgb), 0) 70%);
+			}
+			.landing-orb-two {
+				width: 26rem;
+				height: 26rem;
+				top: 12rem;
+				right: -7rem;
+				background: radial-gradient(circle, rgba(14,165,164,.20) 0%, rgba(14,165,164,0) 70%);
+			}
+			.landing-nav {
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				backdrop-filter: blur(18px);
+				background: rgba(255,255,255,.72);
+				border-bottom: 1px solid rgba(15,23,42,.08);
+			}
+			.landing-brand small {
+				font-size: .64rem;
+				letter-spacing: .18em;
+				color: rgba(15,23,42,.5);
+				margin-bottom: .2rem;
+			}
+			.landing-brand-mark {
+				width: 2.8rem;
+				height: 2.8rem;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 1rem;
+				background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .94), rgba(14,165,164,.96));
+				color: #fff;
+				box-shadow: 0 1rem 2rem rgba(var(--landing-primary-rgb), .18);
+			}
+			.landing-nav-ghost,
+			.landing-nav-cta {
+				border-radius: 999px;
+				padding-inline: 1rem;
+			}
+			.landing-nav-cta {
+				box-shadow: 0 .9rem 2rem rgba(var(--landing-primary-rgb), .18);
+			}
+			.landing-pill {
+				background: linear-gradient(90deg, rgba(var(--landing-primary-rgb), .10), rgba(14,165,164,.12));
+				color: var(--landing-primary);
+				border: 1px solid rgba(var(--landing-primary-rgb), .12);
+				border-radius: 999px;
+			}
+			.landing-hero {
+				position: relative;
+				padding-top: 4rem !important;
+				padding-bottom: 4rem !important;
+			}
+			.landing-title {
+				letter-spacing: -0.04em;
+				line-height: 1.02;
+				max-width: 12ch;
+				color: var(--landing-ink);
+			}
+			.landing-proof-list span {
+				display: inline-flex;
+				align-items: center;
+				padding: .72rem 1rem;
+				border-radius: 999px;
+				background: rgba(255,255,255,.8);
+				border: 1px solid rgba(15,23,42,.08);
+				color: #334155;
+				font-size: .95rem;
+				box-shadow: 0 .8rem 2rem rgba(15,23,42,.06);
+			}
+			.landing-section {
+				position: relative;
+				padding-block: 5.5rem !important;
+			}
+			.landing-section-soft {
+				background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(248,250,252,.88));
+			}
+			.landing-section-kicker {
+				display: inline-flex;
+				align-items: center;
+				gap: .5rem;
+				padding: .45rem .9rem;
+				border-radius: 999px;
+				font-size: .72rem;
+				letter-spacing: .16em;
+				text-transform: uppercase;
+				font-weight: 700;
+				color: var(--landing-primary);
+				background: rgba(var(--landing-primary-rgb), .08);
+				margin-bottom: .9rem;
+			}
+			.landing-section-title {
+				letter-spacing: -.03em;
+				color: var(--landing-ink);
+				max-width: 18ch;
+			}
+			.landing-section-copy {
+				max-width: 60ch;
+				font-size: 1rem;
+				color: var(--landing-muted) !important;
+			}
+			.landing-surface,
+			.landing-mock,
+			.landing-card,
+			.landing-feature,
+			.landing-swiper .card,
+			#how .card,
+			#faq .accordion-item {
+				background: rgba(255,255,255,.82);
+				backdrop-filter: blur(18px);
+				border: 1px solid rgba(255,255,255,.65);
+				box-shadow: 0 1.2rem 3rem rgba(15,23,42,.08) !important;
+			}
+			.landing-mock { transform: translateY(0); transition: transform .35s ease, box-shadow .35s ease; }
+			.landing-mock:hover { transform: translateY(-6px); box-shadow: 0 1.4rem 3rem rgba(15,23,42,.14) !important; }
+			.landing-card { transform: translateY(0); transition: transform .25s ease, box-shadow .25s ease; }
+			.landing-card:hover { transform: translateY(-5px); box-shadow: 0 1.2rem 2.6rem rgba(15,23,42,.12) !important; }
+			.landing-feature { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+			.landing-feature:hover { transform: translateY(-4px); border-color: rgba(var(--landing-primary-rgb), .18); box-shadow: 0 1.1rem 2.6rem rgba(15,23,42,.10) !important; }
+			.landing-kpi { transition: transform .25s ease; background: linear-gradient(180deg, rgba(248,250,252,.96), rgba(255,255,255,.88)) !important; }
+			.landing-mock:hover .landing-kpi { transform: translateY(-1px); }
+			.landing-ico { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; font-size: 18px; }
+			.landing-ico-sm { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; }
+			.landing-stat { transition: transform .25s ease, box-shadow .25s ease; }
+			.landing-stat:hover { transform: translateY(-3px); box-shadow: 0 1rem 2rem rgba(15,23,42,.10) !important; }
+			.landing-swiper .swiper-pagination-bullet { background: rgba(15,23,42,.2); opacity: 1; }
+			.landing-swiper .swiper-pagination-bullet-active { background: var(--landing-primary); }
+			.landing-step {
+				width: 52px;
+				height: 52px;
+				border-radius: 18px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				font-weight: 800;
+				background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .14), rgba(14,165,164,.14));
+				color: var(--landing-primary);
+				margin-bottom: .95rem;
+			}
+			.landing-mock-head {
+				background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .12), rgba(14,165,164,.12));
+				border: 1px solid rgba(15,23,42,.06);
+			}
+			.landing-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(15,23,42,.18); }
+			.landing-mini-chart { height: 74px; display: flex; align-items: flex-end; gap: 6px; }
+			.landing-mini-chart span {
+				width: 10px;
+				border-radius: 999px;
+				background: linear-gradient(180deg, rgba(var(--landing-primary-rgb), .95), rgba(var(--landing-primary-rgb), .22));
+				box-shadow: 0 10px 18px rgba(var(--landing-primary-rgb), .16);
+			}
+			.landing-activity > div + div { border-top: 1px dashed rgba(15,23,42,.08); }
+			.landing-next { border: 1px solid rgba(15,23,42,.08) !important; }
+			.landing-cycle-toggle {
+				background: rgba(255,255,255,.82) !important;
+				box-shadow: 0 .8rem 1.6rem rgba(15,23,42,.06);
+			}
+			.landing-package-card {
+				position: relative;
+				overflow: hidden;
+			}
+			.landing-package-card::before {
+				content: "";
+				position: absolute;
+				left: 1.25rem;
+				right: 1.25rem;
+				top: 0;
+				height: 4px;
+				border-radius: 999px;
+				background: linear-gradient(90deg, var(--package-accent), rgba(var(--landing-primary-rgb), .85));
+			}
+			.landing-package-card .btn-primary {
+				box-shadow: 0 .8rem 1.8rem rgba(var(--landing-primary-rgb), .16);
+			}
+			#faq .accordion-item {
+				border-radius: 1rem;
+				overflow: hidden;
+				margin-bottom: .85rem;
+			}
+			#faq .accordion-button {
+				background: transparent;
+				font-weight: 600;
+			}
+			#faq .accordion-button:not(.collapsed) {
+				color: var(--landing-primary);
+				box-shadow: none;
+			}
+		background: radial-gradient(circle, rgba(var(--landing-primary-rgb), .28) 0%, rgba(var(--landing-primary-rgb), 0) 70%);
+	}
+	.landing-orb-two {
+		width: 26rem;
+			[data-parallax] { will-change: transform; }
+
+			@media (max-width: 991.98px) {
+				.landing-title { max-width: none; }
+				.landing-brand small { display: none !important; }
+				.landing-section { padding-block: 4rem !important; }
+			}
+
+			@media (max-width: 575.98px) {
+				.landing-proof-list span {
+					width: 100%;
+					justify-content: flex-start;
+				}
+				.landing-brand-mark {
+					width: 2.5rem;
+					height: 2.5rem;
+				}
+			}
+
+		height: 26rem;
+		top: 12rem;
+				[data-parallax] { transform: none !important; }
+				.landing-card, .landing-feature, .landing-mock, .landing-stat { transition: none; }
+		background: radial-gradient(circle, rgba(14,165,164,.20) 0%, rgba(14,165,164,0) 70%);
+	}
+	.landing-nav {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		backdrop-filter: blur(18px);
+		background: rgba(255,255,255,.72);
+		border-bottom: 1px solid rgba(15,23,42,.08);
+	}
+	.landing-nav .container {
+		gap: 1rem;
+	}
+	.landing-nav .navbar-toggler {
+		border: 1px solid rgba(15,23,42,.12);
+		border-radius: 1rem;
+		padding: .7rem .85rem;
+		box-shadow: none;
+	}
+	.landing-nav .navbar-toggler:focus {
+		box-shadow: 0 0 0 .2rem rgba(var(--landing-primary-rgb), .14);
+	}
+	.landing-nav-panel {
+		transition: opacity .2s ease, transform .2s ease;
+	}
+	.landing-brand small {
+		font-size: .64rem;
+		letter-spacing: .18em;
+		color: rgba(15,23,42,.5);
+		margin-bottom: .2rem;
+	}
+	.landing-brand-mark {
+		width: 2.8rem;
+		height: 2.8rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 1rem;
+		background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .94), rgba(14,165,164,.96));
+		color: #fff;
+		box-shadow: 0 1rem 2rem rgba(var(--landing-primary-rgb), .18);
+	}
+	.landing-nav-ghost,
+	.landing-nav-cta {
+		border-radius: 999px;
+		padding-inline: 1rem;
+	}
+	.landing-nav-cta {
+		box-shadow: 0 .9rem 2rem rgba(var(--landing-primary-rgb), .18);
+	}
+	.landing-pill {
+		background: linear-gradient(90deg, rgba(var(--landing-primary-rgb), .10), rgba(14,165,164,.12));
+		color: var(--landing-primary);
+		border: 1px solid rgba(var(--landing-primary-rgb), .12);
+		border-radius: 999px;
+	}
+	.landing-hero {
+		position: relative;
+		padding-top: 4rem !important;
+		padding-bottom: 4rem !important;
+	}
+	.landing-title {
+		letter-spacing: -0.04em;
+		line-height: 1.02;
+		max-width: 12ch;
+		color: var(--landing-ink);
+	}
+	.landing-proof-list span {
+		display: inline-flex;
+		align-items: center;
+		padding: .72rem 1rem;
+		border-radius: 999px;
+		background: rgba(255,255,255,.8);
+		border: 1px solid rgba(15,23,42,.08);
+		color: #334155;
+		font-size: .95rem;
+		box-shadow: 0 .8rem 2rem rgba(15,23,42,.06);
+	}
+	.landing-gradient-text {
+		background: linear-gradient(90deg, rgba(var(--landing-primary-rgb), 1), rgba(14,165,164,.95));
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+	.landing-hero-actions .btn {
+		padding-inline: 1.35rem;
+	}
+	.landing-trust-strip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: .85rem 1.25rem;
+		align-items: center;
+		color: #475569;
+		font-size: .95rem;
+	}
+	.landing-trust-strip span {
+		display: inline-flex;
+		align-items: center;
+	}
+	.landing-mock-stage {
+		position: relative;
+	}
+	.landing-mock-aura {
+		position: absolute;
+		inset: -1rem;
+		border-radius: 2rem;
+		background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .18), rgba(14,165,164,.16), rgba(var(--landing-primary-rgb), .08));
+		filter: blur(28px);
+		opacity: .9;
+		pointer-events: none;
+	}
+	.landing-float-card {
+		position: absolute;
+		z-index: 3;
+		align-items: center;
+		gap: .85rem;
+		padding: .95rem 1rem;
+		border-radius: 1.1rem;
+		background: rgba(255,255,255,.92);
+		border: 1px solid rgba(255,255,255,.72);
+		box-shadow: 0 1rem 2rem rgba(15,23,42,.12);
+		backdrop-filter: blur(18px);
+	}
+	.landing-float-card-top {
+		top: 2rem;
+		left: -2.4rem;
+	}
+	.landing-float-card-bottom {
+		right: -2.2rem;
+		bottom: 2rem;
+	}
+	.landing-section {
+		position: relative;
+		padding-block: 5.5rem !important;
+	}
+	.landing-section-soft {
+		background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(248,250,252,.88));
+	}
+	.landing-section-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: .5rem;
+		padding: .45rem .9rem;
+		border-radius: 999px;
+		font-size: .72rem;
+		letter-spacing: .16em;
+		text-transform: uppercase;
+		font-weight: 700;
+		color: var(--landing-primary);
+		background: rgba(var(--landing-primary-rgb), .08);
+		margin-bottom: .9rem;
+	}
+	.landing-section-title {
+		letter-spacing: -.03em;
+		color: var(--landing-ink);
+		max-width: 18ch;
+	}
+	.landing-section-copy {
+		max-width: 60ch;
+		font-size: 1rem;
+		color: var(--landing-muted) !important;
+	}
+	.landing-surface,
+	.landing-mock,
+	.landing-card,
+	.landing-feature,
+	.landing-swiper .card,
+	#how .card,
+	#faq .accordion-item {
+		background: rgba(255,255,255,.82);
+		backdrop-filter: blur(18px);
+		border: 1px solid rgba(255,255,255,.65);
+		box-shadow: 0 1.2rem 3rem rgba(15,23,42,.08) !important;
+	}
 	.landing-mock { transform: translateY(0); transition: transform .35s ease, box-shadow .35s ease; }
-	.landing-mock:hover { transform: translateY(-4px); box-shadow: 0 1rem 2.5rem rgba(0,0,0,.14) !important; }
+	.landing-mock:hover { transform: translateY(-6px); box-shadow: 0 1.4rem 3rem rgba(15,23,42,.14) !important; }
 	.landing-card { transform: translateY(0); transition: transform .25s ease, box-shadow .25s ease; }
-	.landing-card:hover { transform: translateY(-3px); box-shadow: 0 1rem 2rem rgba(0,0,0,.12) !important; }
-	.landing-feature { transition: transform .25s ease, box-shadow .25s ease; }
-	.landing-feature:hover { transform: translateY(-2px); box-shadow: 0 1rem 2rem rgba(0,0,0,.10) !important; }
-	.landing-kpi { transition: transform .25s ease; }
+	.landing-card:hover { transform: translateY(-5px); box-shadow: 0 1.2rem 2.6rem rgba(15,23,42,.12) !important; }
+	.landing-feature { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+	.landing-feature:hover { transform: translateY(-4px); border-color: rgba(var(--landing-primary-rgb), .18); box-shadow: 0 1.1rem 2.6rem rgba(15,23,42,.10) !important; }
+	.landing-kpi { transition: transform .25s ease; background: linear-gradient(180deg, rgba(248,250,252,.96), rgba(255,255,255,.88)) !important; }
 	.landing-mock:hover .landing-kpi { transform: translateY(-1px); }
-	.landing-ico { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 18px; }
+	.landing-ico { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; font-size: 18px; }
 	.landing-ico-sm { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 16px; }
 	.landing-stat { transition: transform .25s ease, box-shadow .25s ease; }
-	.landing-stat:hover { transform: translateY(-2px); box-shadow: 0 1rem 2rem rgba(0,0,0,.10) !important; }
-	.landing-swiper .swiper-pagination-bullet { background: rgba(0,0,0,.25); opacity: 1; }
-	.landing-swiper .swiper-pagination-bullet-active { background: #2D7FF9; }
-	.landing-step { width: 44px; height: 44px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; background: rgba(45,127,249,.12); color: #2D7FF9; margin-bottom: .75rem; }
-	.landing-mock-head { background: linear-gradient(135deg, rgba(45,127,249,.14), rgba(0,167,111,.10)); border: 1px solid rgba(0,0,0,.06); }
-	.landing-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(0,0,0,.18); }
+	.landing-stat:hover { transform: translateY(-3px); box-shadow: 0 1rem 2rem rgba(15,23,42,.10) !important; }
+	.landing-swiper .swiper-pagination-bullet { background: rgba(15,23,42,.2); opacity: 1; }
+	.landing-swiper .swiper-pagination-bullet-active { background: var(--landing-primary); }
+	.landing-step {
+		width: 52px;
+		height: 52px;
+		border-radius: 18px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 800;
+		background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .14), rgba(14,165,164,.14));
+		color: var(--landing-primary);
+		margin-bottom: .95rem;
+	}
+	.landing-mock-head {
+		background: linear-gradient(135deg, rgba(var(--landing-primary-rgb), .12), rgba(14,165,164,.12));
+		border: 1px solid rgba(15,23,42,.06);
+	}
+	.landing-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(15,23,42,.18); }
 	.landing-mini-chart { height: 74px; display: flex; align-items: flex-end; gap: 6px; }
-	.landing-mini-chart span { width: 10px; border-radius: 999px; background: linear-gradient(180deg, rgba(45,127,249,.95), rgba(45,127,249,.25)); box-shadow: 0 10px 18px rgba(45,127,249,.18); }
-	.landing-activity > div + div { border-top: 1px dashed rgba(0,0,0,.08); }
-	.landing-next { border: 1px solid rgba(0,0,0,.08) !important; }
+	.landing-mini-chart span {
+		width: 10px;
+		border-radius: 999px;
+		background: linear-gradient(180deg, rgba(var(--landing-primary-rgb), .95), rgba(var(--landing-primary-rgb), .22));
+		box-shadow: 0 10px 18px rgba(var(--landing-primary-rgb), .16);
+	}
+	.landing-activity > div + div { border-top: 1px dashed rgba(15,23,42,.08); }
+	.landing-next { border: 1px solid rgba(15,23,42,.08) !important; }
+	.landing-cycle-toggle {
+		background: rgba(255,255,255,.82) !important;
+		box-shadow: 0 .8rem 1.6rem rgba(15,23,42,.06);
+	}
+	.landing-package-card {
+		position: relative;
+		overflow: hidden;
+	}
+	.landing-package-card.is-recommended {
+		transform: translateY(-12px) scale(1.02);
+		border: 1px solid rgba(var(--landing-primary-rgb), .26) !important;
+		box-shadow: 0 1.6rem 3.8rem rgba(var(--landing-primary-rgb), .16) !important;
+	}
+	.landing-package-card::before {
+		content: "";
+		position: absolute;
+		left: 1.25rem;
+		right: 1.25rem;
+		top: 0;
+		height: 4px;
+		border-radius: 999px;
+		background: linear-gradient(90deg, var(--package-accent), rgba(var(--landing-primary-rgb), .85));
+	}
+	.landing-package-card .btn-primary {
+		box-shadow: 0 .8rem 1.8rem rgba(var(--landing-primary-rgb), .16);
+	}
+	.landing-package-badge {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		z-index: 2;
+		padding: .4rem .75rem;
+		border-radius: 999px;
+		font-size: .72rem;
+		font-weight: 700;
+		letter-spacing: .08em;
+		text-transform: uppercase;
+		color: #fff;
+		background: linear-gradient(90deg, var(--landing-accent), var(--landing-primary));
+		box-shadow: 0 .6rem 1.3rem rgba(var(--landing-primary-rgb), .22);
+	}
+	.landing-pricing-caption {
+		max-width: 42rem;
+		font-size: .92rem;
+		color: #64748b;
+	}
+	.landing-final-cta {
+		border: 1px solid rgba(var(--landing-primary-rgb), .18) !important;
+		background: linear-gradient(135deg, rgba(255,255,255,.95), rgba(247,250,252,.92), rgba(239,246,255,.92));
+	}
+	.landing-final-cta-orb {
+		position: absolute;
+		border-radius: 999px;
+		filter: blur(10px);
+		pointer-events: none;
+	}
+	.landing-final-cta-orb-one {
+		width: 14rem;
+		height: 14rem;
+		top: -5rem;
+		right: 4rem;
+		background: radial-gradient(circle, rgba(var(--landing-primary-rgb), .18), rgba(var(--landing-primary-rgb), 0) 72%);
+	}
+	.landing-final-cta-orb-two {
+		width: 12rem;
+		height: 12rem;
+		bottom: -4rem;
+		left: 2rem;
+		background: radial-gradient(circle, rgba(14,165,164,.16), rgba(14,165,164,0) 72%);
+	}
+	.landing-final-checks {
+		display: flex;
+		flex-wrap: wrap;
+		gap: .85rem 1.1rem;
+		color: #475569;
+		font-size: .92rem;
+	}
+	.landing-final-checks span {
+		display: inline-flex;
+		align-items: center;
+	}
+	#faq .accordion-item {
+		border-radius: 1rem;
+		overflow: hidden;
+		margin-bottom: .85rem;
+	}
+	#faq .accordion-button {
+		background: transparent;
+		font-weight: 600;
+	}
+	#faq .accordion-button:not(.collapsed) {
+		color: var(--landing-primary);
+		box-shadow: none;
+	}
 
 	/* Reveal animation */
 	[data-reveal] { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
 	[data-reveal].is-visible { opacity: 1; transform: translateY(0); }
+	[data-parallax] { will-change: transform; }
+
+	@media (max-width: 991.98px) {
+		.landing-nav {
+			padding-block: .75rem;
+		}
+		.landing-nav .container {
+			align-items: center;
+		}
+		.landing-nav-panel {
+			width: 100%;
+		}
+		.landing-nav .navbar-collapse:not(.show) {
+			display: none !important;
+		}
+		.landing-nav .navbar-collapse.show {
+			display: block;
+			margin-top: 1rem;
+			padding: 1rem;
+			border-radius: 1.25rem;
+			background: rgba(255,255,255,.94);
+			border: 1px solid rgba(15,23,42,.08);
+			box-shadow: 0 1rem 2.4rem rgba(15,23,42,.10);
+			backdrop-filter: blur(16px);
+		}
+		.landing-nav .navbar-nav {
+			align-items: stretch !important;
+			gap: .35rem;
+		}
+		.landing-nav .nav-link {
+			padding: .8rem .25rem;
+			font-weight: 600;
+		}
+		.landing-nav .nav-item.ms-lg-2 {
+			margin-left: 0 !important;
+		}
+		.landing-nav-ghost,
+		.landing-nav-cta {
+			width: 100%;
+			justify-content: center;
+			padding-block: .78rem;
+		}
+		.landing-hero {
+			padding-top: 2.25rem !important;
+			padding-bottom: 3rem !important;
+		}
+		.landing-title { max-width: none; }
+		.landing-brand small { display: none !important; }
+		.landing-section { padding-block: 4rem !important; }
+		.landing-package-card.is-recommended { transform: none; }
+	}
+
+	@media (max-width: 575.98px) {
+		.landing-nav .container {
+			gap: .75rem;
+		}
+		.landing-brand {
+			max-width: calc(100% - 5rem);
+		}
+		.landing-brand > span:last-child {
+			min-width: 0;
+		}
+		.landing-brand > span:last-child > span:last-child {
+			display: block;
+			font-size: 1rem;
+			line-height: 1.2;
+			word-break: break-word;
+		}
+		.landing-nav .navbar-toggler {
+			padding: .65rem .8rem;
+		}
+		.landing-nav .navbar-collapse.show {
+			padding: .9rem;
+			border-radius: 1rem;
+		}
+		.landing-hero {
+			padding-top: 1.5rem !important;
+		}
+		.landing-title {
+			font-size: clamp(2.35rem, 12vw, 3.4rem);
+			line-height: .98;
+		}
+		.landing-hero-actions .btn {
+			width: 100%;
+			justify-content: center;
+		}
+		.landing-proof-list span {
+			width: 100%;
+			justify-content: flex-start;
+		}
+		.landing-trust-strip {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+		.landing-final-checks {
+			flex-direction: column;
+		}
+		.landing-brand-mark {
+			width: 2.5rem;
+			height: 2.5rem;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		[data-reveal] { opacity: 1; transform: none; transition: none; }
-		.landing-card, .landing-feature, .landing-mock { transition: none; }
+		[data-parallax] { transform: none !important; }
+		.landing-card, .landing-feature, .landing-mock, .landing-stat { transition: none; }
+	}
+
+	.landing-react-root {
+		display: none;
+	}
+
+	.landing-react-loading {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: .9rem;
+		padding: 7rem 1.5rem 3rem;
+		text-align: center;
+		background: linear-gradient(180deg, rgba(251,252,255,.96), rgba(245,248,252,.98));
+		color: #111827;
+	}
+
+	.landing-react-loading__mark {
+		width: 3rem;
+		height: 3rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 1rem;
+		background: linear-gradient(135deg, #2563eb, #4f46e5 60%, #f97316);
+		color: #fff;
+		box-shadow: 0 1rem 2rem rgba(37,99,235,.20);
+	}
+
+	.landing-react-loading__eyebrow {
+		font-size: .76rem;
+		font-weight: 700;
+		letter-spacing: .14em;
+		text-transform: uppercase;
+		color: #2563eb;
+	}
+
+	.landing-react-loading__title {
+		font-size: clamp(1.5rem, 4vw, 2.25rem);
+		font-weight: 700;
+		letter-spacing: -.03em;
+	}
+
+	.landing-react-ready .landing-react-root {
+		display: block;
+	}
+
+	.landing-react-ready [data-landing-fallback] {
+		display: none !important;
 	}
 </style>
 
 <script src="{{ url('build/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url('build/js/api-client.js') }}"></script>
 <script src="{{ url('build/js/arcav-validation.js') }}"></script>
+<link rel="stylesheet" href="{{ url('build/css/public-landing-react.min.css') }}?v={{ file_exists(public_path('build/css/public-landing-react.min.css')) ? filemtime(public_path('build/css/public-landing-react.min.css')) : time() }}">
 <link rel="stylesheet" href="{{ url('build/vendor/swiper-bundle.min.css') }}?v={{ file_exists(public_path('build/vendor/swiper-bundle.min.css')) ? filemtime(public_path('build/vendor/swiper-bundle.min.css')) : time() }}">
 <script src="{{ url('build/vendor/swiper-bundle.min.js') }}?v={{ file_exists(public_path('build/vendor/swiper-bundle.min.js')) ? filemtime(public_path('build/vendor/swiper-bundle.min.js')) : time() }}"></script>
 <script src="{{ url('build/vendor/countUp.umd.js') }}?v={{ file_exists(public_path('build/vendor/countUp.umd.js')) ? filemtime(public_path('build/vendor/countUp.umd.js')) : time() }}"></script>
 <script src="{{ url('build/js/landing-vendor-init.js') }}?v={{ file_exists(public_path('build/js/landing-vendor-init.js')) ? filemtime(public_path('build/js/landing-vendor-init.js')) : time() }}"></script>
 <script src="{{ url('build/js/public-landing-onboarding.js') }}?v={{ file_exists(public_path('build/js/public-landing-onboarding.js')) ? filemtime(public_path('build/js/public-landing-onboarding.js')) : time() }}"></script>
+<script type="module" src="{{ url('build/js/public-landing-react.js') }}?v={{ file_exists(public_path('build/js/public-landing-react.js')) ? filemtime(public_path('build/js/public-landing-react.js')) : time() }}"></script>
 @endsection
 

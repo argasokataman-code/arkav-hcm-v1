@@ -38,7 +38,11 @@ return new class extends Migration
         }
 
         if (Schema::hasColumn('hcm_role_permissions', 'company_id')) {
-            DB::statement('UPDATE hcm_role_permissions rp JOIN hcm_roles r ON r.id = rp.role_id SET rp.company_id = r.company_id WHERE rp.company_id IS NULL');
+            if (DB::getDriverName() === 'sqlite') {
+                DB::statement('UPDATE hcm_role_permissions SET company_id = (SELECT company_id FROM hcm_roles WHERE hcm_roles.id = hcm_role_permissions.role_id) WHERE company_id IS NULL');
+            } else {
+                DB::statement('UPDATE hcm_role_permissions rp JOIN hcm_roles r ON r.id = rp.role_id SET rp.company_id = r.company_id WHERE rp.company_id IS NULL');
+            }
         }
 
         $this->tryAddCompanyIdForeignKey();
@@ -105,6 +109,18 @@ return new class extends Migration
 
     private function indexExists(string $table, string $indexName): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            $rows = DB::select(sprintf('PRAGMA index_list(%s)', DB::getPdo()->quote($table)));
+
+            foreach ($rows as $row) {
+                if (($row->name ?? null) === $indexName) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         $database = DB::getDatabaseName();
         $rows = DB::select(
             'SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1',

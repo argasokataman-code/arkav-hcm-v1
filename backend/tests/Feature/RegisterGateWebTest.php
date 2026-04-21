@@ -10,20 +10,16 @@ class RegisterGateWebTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_register_gate_page_directs_guest_to_company_onboarding_flow(): void
+    public function test_register_route_redirects_guest_directly_to_company_onboarding_form(): void
     {
         $this->get('/register')
-            ->assertOk()
-            ->assertSee('Daftarkan company Anda dari landing page')
-            ->assertSee('/landing#pricing', false)
-            ->assertSee(route('trial'), false)
-            ->assertDontSee('Please enter your details to sign up');
+            ->assertRedirect(route('trial', ['startMode' => 'pending_payment']));
     }
 
-    public function test_legacy_register_variants_redirect_to_single_register_gate(): void
+    public function test_legacy_register_variants_redirect_directly_to_company_onboarding_form(): void
     {
-        $this->get('/register-2')->assertRedirect(route('register'));
-        $this->get('/register-3')->assertRedirect(route('register'));
+        $this->get('/register-2')->assertRedirect(route('trial', ['startMode' => 'pending_payment']));
+        $this->get('/register-3')->assertRedirect(route('trial', ['startMode' => 'pending_payment']));
     }
 
     public function test_landing_pricing_guides_guest_to_select_plan_before_company_onboarding(): void
@@ -36,7 +32,7 @@ class RegisterGateWebTest extends TestCase
 
         $this->get('/landing')
             ->assertOk()
-            ->assertSee('Pilih plan yang aktif, lalu lanjut ke form onboarding company dengan paket yang sudah terpilih.')
+            ->assertSee('Pilih paket yang cocok')
             ->assertSee('Pilih plan')
             ->assertSee('/trial?packageId='.$package->uuid, false)
             ->assertSee('Daftarkan company');
@@ -58,9 +54,32 @@ class RegisterGateWebTest extends TestCase
 
         $this->get('/trial?packageId='.$selectedPackage->uuid)
             ->assertOk()
-            ->assertSee('Pilih plan lalu buat company & owner', false)
+            ->assertSeeText('Pilih plan lalu buat company & owner')
             ->assertSee('Plan yang kamu pilih dari landing akan otomatis terbawa ke form ini.')
             ->assertSee('value="'.$selectedPackage->uuid.'" selected', false)
             ->assertSee('Daftarkan company');
+    }
+
+    public function test_register_mode_uses_paid_onboarding_copy_and_hides_trial_wording(): void
+    {
+        Package::factory()->create([
+            'code' => 'trial',
+            'name' => 'Trial',
+            'status' => 'active',
+        ]);
+
+        Package::factory()->create([
+            'code' => 'starter',
+            'name' => 'Starter',
+            'status' => 'active',
+        ]);
+
+        $this->get('/trial?startMode=pending_payment')
+            ->assertOk()
+            ->assertSee('Registrasi Resmi Company')
+            ->assertSee('Pilih paket berlangganan lalu buat company & owner')
+            ->assertSee('value="pending_payment"', false)
+            ->assertDontSee('Coba Trial Gratis')
+            ->assertDontSee('value="trial" selected', false);
     }
 }

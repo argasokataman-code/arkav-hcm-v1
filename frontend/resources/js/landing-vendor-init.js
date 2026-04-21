@@ -76,9 +76,51 @@
         });
     }
 
+    function initParallax() {
+        var nodes = qsa("[data-parallax]");
+        if (!nodes.length) return;
+
+        var reduceMotion = false;
+        try {
+            reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        } catch (_e) {}
+
+        if (reduceMotion) {
+            nodes.forEach(function (node) {
+                node.style.transform = "translate3d(0, 0, 0)";
+            });
+            return;
+        }
+
+        var ticking = false;
+
+        function update() {
+            var viewportHeight = window.innerHeight || 0;
+            nodes.forEach(function (node) {
+                var speed = Number(node.getAttribute("data-parallax") || 0.1);
+                var rect = node.getBoundingClientRect();
+                var centerOffset = rect.top + rect.height / 2 - viewportHeight / 2;
+                var translateY = centerOffset * speed * -0.18;
+                node.style.transform = "translate3d(0, " + translateY.toFixed(2) + "px, 0)";
+            });
+            ticking = false;
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+            window.requestAnimationFrame(update);
+        }
+
+        window.addEventListener("scroll", requestUpdate, { passive: true });
+        window.addEventListener("resize", requestUpdate);
+        requestUpdate();
+    }
+
     function init() {
         initSwiper();
         initCountUp();
+        initParallax();
     }
 
     if (document.readyState === "loading") {

@@ -30,7 +30,9 @@ Jika Context7 tidak tersedia di environment (mis. agen GitHub tertentu tidak pun
 
 - Jalankan migrasi dulu sebelum validasi akhir:
 	- `cd backend && php artisan migrate --force`
-- Lalu test ulang minimal suite terdampak; untuk area tenant/RBAC/API kritikal, jalankan suite lintas modul terkait.
-- Bukti completion harus menyebut hasil migrate (`Nothing to migrate` atau migration applied) dan ringkasan hasil test.
+- Lalu test ulang minimal suite terdampak; untuk fixing atau fitur baru, `php artisan test <suite-terdampak>` wajib disebut eksplisit dalam evidence.
+- Jika perubahan juga menyentuh Blade ter-wire ke JS/TS atau asset frontend yang mempengaruhi runtime, jalankan juga `cd backend && npm run test -- <scope>` atau `cd backend && npx vitest run <scope>`.
+- Untuk area tenant/RBAC/API kritikal atau perubahan lintas FE+BE, perluas ke suite lintas modul terkait dan jalankan PHPUnit + Vitest bila relevan.
+- Bukti completion harus menyebut hasil migrate (`Nothing to migrate` atau migration applied) dan ringkasan hasil PHPUnit/Vitest yang relevan.
 
-**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-16 (Context7 fallback note).
+**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-21 (mandatory PHPUnit + Vitest gate for fixes/features).

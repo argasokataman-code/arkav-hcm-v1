@@ -48,32 +48,50 @@ class PublicLandingController extends Controller
             return redirect()->route('index');
         }
 
+        $startMode = trim((string) $request->query('startMode', 'trial'));
+        if (! in_array($startMode, ['trial', 'pending_payment'], true)) {
+            $startMode = 'trial';
+        }
+
+        $isPendingPaymentMode = $startMode === 'pending_payment';
+
         try {
-            $packages = Package::query()
+            $packagesQuery = Package::query()
                 ->where('status', 'active')
                 ->orderBy('sort_order')
-                ->orderBy('monthly_price')
-                ->get(['uuid', 'code', 'name', 'monthly_price', 'yearly_price']);
+                ->orderBy('monthly_price');
+
+            if ($isPendingPaymentMode) {
+                $packagesQuery->where('code', '!=', 'trial');
+            }
+
+            $packages = $packagesQuery->get(['uuid', 'code', 'name', 'monthly_price', 'yearly_price']);
         } catch (\Throwable $e) {
             $packages = collect();
         }
 
         $selectedPackageId = trim((string) $request->query('packageId', ''));
         if ($selectedPackageId === '') {
-            try {
-                $selectedPackageId = (string) (Package::query()
-                    ->where('status', 'active')
-                    ->where('code', 'trial')
-                    ->value('uuid') ?? '');
-            } catch (\Throwable $e) {
-                $selectedPackageId = '';
+            if ($isPendingPaymentMode) {
+                $selectedPackageId = (string) ($packages->first()->uuid ?? '');
+            } else {
+                try {
+                    $selectedPackageId = (string) (Package::query()
+                        ->where('status', 'active')
+                        ->where('code', 'trial')
+                        ->value('uuid') ?? '');
+                } catch (\Throwable $e) {
+                    $selectedPackageId = '';
+                }
             }
+
             $selectedPackageId = $selectedPackageId !== '' ? $selectedPackageId : null;
         }
 
         return view('public.trial', [
             'packages' => $packages,
             'selectedPackageId' => $selectedPackageId,
+            'startMode' => $startMode,
         ]);
     }
 }

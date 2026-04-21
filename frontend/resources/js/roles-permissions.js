@@ -10,6 +10,7 @@
       editingRoleId: null,
       syncingRoleId: null,
       rolePermissionsMap: {},
+      selectedPermissionCodes: [],
     },
 
     init: function () {
@@ -85,6 +86,17 @@
         });
       }
 
+      var openCreateSecondary = document.getElementById("rp_open_create_modal_secondary");
+      if (openCreateSecondary) {
+        openCreateSecondary.addEventListener("click", function () {
+          self.openCreateModal();
+          var modalEl = document.getElementById("rp_role_modal");
+          if (window.bootstrap && modalEl) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          }
+        });
+      }
+
       var roleForm = document.getElementById("rp_role_form");
       if (roleForm) {
         if (!self.canManageRoles) {
@@ -115,6 +127,48 @@
           self.exportCsv();
         });
       }
+
+      var permissionSearchEl = document.getElementById("rp_form_permission_search");
+      if (permissionSearchEl) {
+        permissionSearchEl.addEventListener("input", function () {
+          self.renderFormPermissionCatalog();
+        });
+      }
+
+      var selectVisibleBtn = document.getElementById("rp_form_select_visible");
+      if (selectVisibleBtn) {
+        selectVisibleBtn.addEventListener("click", function () {
+          self.selectVisiblePermissions();
+        });
+      }
+
+      var clearAllBtn = document.getElementById("rp_form_clear_all");
+      if (clearAllBtn) {
+        clearAllBtn.addEventListener("click", function () {
+          self.setSelectedPermissionCodes([]);
+        });
+      }
+
+      document.addEventListener("change", function (e) {
+        var permissionInput = e.target.closest("[data-rp-form-permission-code]");
+        if (!permissionInput) {
+          return;
+        }
+
+        var selectedMap = self.toCodeLookup(self.state.selectedPermissionCodes);
+        var permissionCode = String(permissionInput.getAttribute("data-rp-form-permission-code") || "").trim();
+        if (!permissionCode) {
+          return;
+        }
+
+        if (permissionInput.checked) {
+          selectedMap[permissionCode] = true;
+        } else {
+          delete selectedMap[permissionCode];
+        }
+
+        self.setSelectedPermissionCodes(Object.keys(selectedMap));
+      });
 
       document.addEventListener("click", function (e) {
         var editBtn = e.target.closest("[data-rp-edit]");
@@ -216,9 +270,14 @@
       this.api("GET", "/hcm/user-management/permissions")
         .then(function (resp) {
           self.state.permissions = Array.isArray(resp.data) ? resp.data : [];
+          self.renderPermissionBlueprint();
+          self.renderFormPermissionCatalog();
         })
         .catch(function (err) {
           self.showAlert(err.message || "Failed to load permissions", "danger");
+          self.state.permissions = [];
+          self.renderPermissionBlueprint();
+          self.renderFormPermissionCatalog();
         });
     },
 
@@ -226,9 +285,223 @@
       var role = this.state.roles.find(function (item) {
         return Number(item.id) === Number(roleId);
       });
-      var permissionCodes = role && Array.isArray(role.permissionCodes) ? role.permissionCodes : [];
+      var permissionCodes = this.getRolePermissionCodes(role);
       this.state.rolePermissionsMap[Number(roleId)] = permissionCodes;
       return Promise.resolve(permissionCodes);
+    },
+
+    getRolePermissionCodes: function (role) {
+      if (!role || typeof role !== "object") {
+        return [];
+      }
+
+      if (Array.isArray(role.permissionCodes)) {
+        return role.permissionCodes.slice();
+      }
+
+      if (Array.isArray(role.permissions)) {
+        return role.permissions.slice();
+      }
+
+      return [];
+    },
+
+    toCodeLookup: function (codes) {
+      return (codes || []).reduce(function (lookup, code) {
+        var value = String(code || "").trim();
+        if (value) {
+          lookup[value] = true;
+        }
+        return lookup;
+      }, {});
+    },
+
+    setSelectedPermissionCodes: function (codes) {
+      this.state.selectedPermissionCodes = (codes || [])
+        .map(function (code) {
+          return String(code || "").trim();
+        })
+        .filter(Boolean)
+        .filter(function (code, index, values) {
+          return values.indexOf(code) === index;
+        })
+        .sort();
+
+      this.renderFormPermissionCatalog();
+      this.renderSelectedPermissionSummary();
+    },
+
+    getFilteredPermissionCatalog: function () {
+      var query = String((document.getElementById("rp_form_permission_search") || {}).value || "").trim().toLowerCase();
+      return this.state.permissions.filter(function (permission) {
+        if (!query) {
+          return true;
+        }
+
+        return [permission.code, permission.name, permission.module, permission.resource, permission.action, permission.description]
+          .some(function (part) {
+            return String(part || "").toLowerCase().indexOf(query) >= 0;
+          });
+      });
+    },
+
+    groupPermissionsByModule: function (permissions) {
+      return (permissions || []).reduce(function (groups, permission) {
+        var moduleName = String(permission.module || "general").trim() || "general";
+        if (!groups[moduleName]) {
+          groups[moduleName] = [];
+        }
+        groups[moduleName].push(permission);
+        return groups;
+      }, {});
+    },
+
+    renderPermissionBlueprint: function () {
+      var summaryEl = document.getElementById("rp_permission_summary");
+      var modulesEl = document.getElementById("rp_permission_summary_modules");
+      var emptyEl = document.getElementById("rp_permission_catalog_empty");
+      var permissions = this.state.permissions || [];
+      var grouped = this.groupPermissionsByModule(permissions);
+      var moduleNames = Object.keys(grouped).sort();
+
+      if (summaryEl) {
+        summaryEl.textContent = permissions.length + " permissions";
+      }
+
+      if (modulesEl) {
+        modulesEl.innerHTML = moduleNames.map(function (moduleName) {
+          return '<span class="badge badge-soft-primary text-primary">' +
+            RolesPermissions.escape(moduleName) + ' · ' + grouped[moduleName].length +
+            '</span>';
+        }).join("");
+      }
+
+      if (emptyEl) {
+        emptyEl.classList.toggle("d-none", permissions.length > 0);
+      }
+    },
+
+    renderSelectedPermissionSummary: function () {
+      var countEl = document.getElementById("rp_form_permission_summary");
+      var previewEl = document.getElementById("rp_form_permission_preview");
+      var selectedCodes = this.state.selectedPermissionCodes || [];
+
+      if (countEl) {
+        countEl.textContent = String(selectedCodes.length);
+      }
+
+      if (!previewEl) {
+        return;
+      }
+
+      if (!selectedCodes.length) {
+        previewEl.innerHTML = '<span class="text-muted small">Belum ada permission dipilih</span>';
+        return;
+      }
+
+      previewEl.innerHTML = selectedCodes.slice(0, 12).map(function (code) {
+        return '<span class="badge badge-light text-dark">' + RolesPermissions.escape(code) + '</span>';
+      }).join("");
+
+      if (selectedCodes.length > 12) {
+        previewEl.innerHTML += '<span class="badge badge-soft-secondary text-secondary">+' + (selectedCodes.length - 12) + ' lainnya</span>';
+      }
+    },
+
+    renderFormPermissionCatalog: function () {
+      var listEl = document.getElementById("rp_form_permission_list");
+      var emptyEl = document.getElementById("rp_form_permission_empty");
+      if (!listEl) {
+        this.renderSelectedPermissionSummary();
+        return;
+      }
+
+      var selectedMap = this.toCodeLookup(this.state.selectedPermissionCodes);
+      var permissions = this.getFilteredPermissionCatalog();
+      var grouped = this.groupPermissionsByModule(permissions);
+      var moduleNames = Object.keys(grouped).sort();
+
+      if (!permissions.length) {
+        listEl.innerHTML = "";
+        if (emptyEl) {
+          emptyEl.classList.remove("d-none");
+        }
+        this.renderSelectedPermissionSummary();
+        return;
+      }
+
+      if (emptyEl) {
+        emptyEl.classList.add("d-none");
+      }
+
+      listEl.innerHTML = moduleNames.map(function (moduleName) {
+        var items = grouped[moduleName].map(function (permission) {
+          var code = String(permission.code || "");
+          var checked = selectedMap[code] ? " checked" : "";
+          var subtitle = [permission.resource, permission.action].filter(Boolean).join(" / ");
+
+          return [
+            '<div class="col-md-6 col-xl-4">',
+            '<div class="rp-permission-item">',
+            '<div class="form-check mb-0">',
+            '<input class="form-check-input" type="checkbox" id="rp_perm_' + RolesPermissions.escape(code) + '" data-rp-form-permission-code="' + RolesPermissions.escape(code) + '"' + checked + '>',
+            '<label class="form-check-label" for="rp_perm_' + RolesPermissions.escape(code) + '">',
+            '<span class="rp-permission-item-title">' + RolesPermissions.escape(permission.name || code) + '</span>',
+            '<span class="text-muted small">' + RolesPermissions.escape(code) + '</span>',
+            subtitle ? '<span class="text-muted small">' + RolesPermissions.escape(subtitle) + '</span>' : '',
+            permission.description ? '<span class="text-muted small">' + RolesPermissions.escape(permission.description) + '</span>' : '',
+            '</label>',
+            '</div>',
+            '</div>',
+            '</div>'
+          ].join("");
+        }).join("");
+
+        return [
+          '<section class="rp-permission-group">',
+          '<div class="d-flex align-items-center justify-content-between mb-3">',
+          '<div>',
+          '<h6 class="mb-1 text-capitalize">' + RolesPermissions.escape(moduleName) + '</h6>',
+          '<p class="text-muted small mb-0">' + grouped[moduleName].length + ' permission tersedia</p>',
+          '</div>',
+          '</div>',
+          '<div class="row g-3">',
+          items,
+          '</div>',
+          '</section>'
+        ].join("");
+      }).join("");
+
+      this.renderSelectedPermissionSummary();
+    },
+
+    selectVisiblePermissions: function () {
+      var visibleCodes = this.getFilteredPermissionCatalog().map(function (permission) {
+        return String(permission.code || "").trim();
+      }).filter(Boolean);
+
+      this.setSelectedPermissionCodes(visibleCodes.concat(this.state.selectedPermissionCodes || []));
+    },
+
+    syncRolePermissionSelection: function (roleId) {
+      var self = this;
+      var selectedCodes = (this.state.selectedPermissionCodes || []).slice();
+      if (!selectedCodes.length) {
+        return Promise.resolve();
+      }
+
+      return this.api("POST", "/hcm/user-management/roles/" + Number(roleId) + "/permissions:sync", {
+        permissionCodes: selectedCodes,
+      }).then(function () {
+        var role = self.state.roles.find(function (item) {
+          return Number(item.id) === Number(roleId);
+        });
+
+        if (role) {
+          role.permissionCodes = selectedCodes.slice();
+        }
+        self.state.rolePermissionsMap[Number(roleId)] = selectedCodes.slice();
+      });
     },
 
     filteredRoles: function () {
@@ -261,7 +534,7 @@
         var status = String(role.status || "inactive");
         var statusClass = status === "active" ? "badge-success" : (status === "archived" ? "badge-warning" : "badge-danger");
         var statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-        var permCount = Array.isArray(role.permissionCodes) ? role.permissionCodes.length : 0;
+        var permCount = RolesPermissions.getRolePermissionCodes(role).length;
 
         return [
           "<tr>",
@@ -289,6 +562,11 @@
       document.getElementById("rp_description").value = "";
       document.getElementById("rp_role_status").value = "active";
       document.getElementById("rp_code_wrap").classList.remove("d-none");
+      var searchEl = document.getElementById("rp_form_permission_search");
+      if (searchEl) {
+        searchEl.value = "";
+      }
+      this.setSelectedPermissionCodes([]);
     },
 
     openEditModal: function (roleId) {
@@ -306,6 +584,7 @@
       document.getElementById("rp_description").value = role.description || "";
       document.getElementById("rp_role_status").value = role.status || "active";
       document.getElementById("rp_code_wrap").classList.add("d-none");
+      this.setSelectedPermissionCodes(this.getRolePermissionCodes(role));
 
       var modalEl = document.getElementById("rp_role_modal");
       if (window.bootstrap && modalEl) {
@@ -326,6 +605,9 @@
 
         this.api("PUT", "/hcm/user-management/roles/" + Number(roleId), updatePayload)
           .then(function () {
+            return self.syncRolePermissionSelection(roleId);
+          })
+          .then(function () {
             self.hideRoleModal();
             self.showAlert("Role updated successfully.", "success");
             self.loadRoles();
@@ -345,6 +627,14 @@
       };
 
       this.api("POST", "/hcm/user-management/roles", createPayload)
+        .then(function (resp) {
+          var createdRoleId = resp && resp.data ? resp.data.id : null;
+          if (!createdRoleId) {
+            return null;
+          }
+
+          return self.syncRolePermissionSelection(createdRoleId);
+        })
         .then(function () {
           self.hideRoleModal();
           self.showAlert("Role created successfully.", "success");

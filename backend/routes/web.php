@@ -631,7 +631,7 @@ Route::get('/blog-2', function () {
 
 Route::get('/currencies', function () {
     return view(view: 'currencies');
-})->middleware('hcm.web.admin')->name('currencies');
+})->middleware('hcm.web.global-admin')->name('currencies');
 
 Route::get('/email-reply', function ()       {
     return view(view: 'email-reply');
@@ -1058,19 +1058,19 @@ Route::get('/connected-apps', function () {
 
 Route::get('/bussiness-settings', function () {
     return view('bussiness-settings');
-})->middleware('hcm.web.admin')->name('bussiness-settings');
+})->middleware('hcm.web.global-admin')->name('bussiness-settings');
 
 Route::get('/business-settings', function () {
     return redirect()->route('bussiness-settings');
-})->middleware('hcm.web.admin')->name('business-settings');
+})->middleware('hcm.web.global-admin')->name('business-settings');
 
 Route::get('/seo-settings', function () {
     return view('seo-settings');
-})->middleware('hcm.web.admin')->name('seo-settings');
+})->middleware('hcm.web.global-admin')->name('seo-settings');
 
 Route::get('/localization-settings', function () {
     return view('localization-settings');
-})->middleware('hcm.web.admin')->name('localization-settings');
+})->middleware('hcm.web.global-admin')->name('localization-settings');
 
 Route::middleware('hcm.web.admin')->group(function (): void {
     Route::get('/expenses-report', function () {

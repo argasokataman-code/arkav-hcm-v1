@@ -24,6 +24,9 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 
 ## Evidence Log
 
+- 2026-04-21 (global-only hardening pass 2): Platform-only Website Settings (`/business-settings`, `/bussiness-settings`, `/seo-settings`, `/localization-settings`) and Financial Settings platform items (`/currencies`, `/payment-gateways`) now use middleware `hcm.web.global-admin` and the corresponding menu entries are wrapped in `@if ($isGlobalHcmAdmin)` across all sidebar layouts + header. `/tax-rates` remains tenant-admin.
+  - `WebHcmRouteGuardTest::test_tenant_hcm_admin_without_global_signal_is_redirected_from_super_admin_dashboard` extended to include the 5 new redirect targets.
+  - `SidebarAssetMenuVisibilityTest::test_secondary_hcm_admin_sees_hcm_menus_without_global_super_admin_hub` now asserts tenant HCM admin no longer sees business/seo/localization/currencies/payment-gateways links, while `test_qa_super_admin_still_sees_asset_menu_when_feature_disabled` asserts global admin still sees `business-settings` and `currencies`.
 - 2026-04-21 (global-only visibility hardening): Role setup and platform governance pages were aligned so tenant admins no longer see platform-only controls.
   - `HcmUserManagementController::permissions()` now excludes `module=system` unless `User::isGlobalHcmAdmin()` is true.
   - Global-only web pages (dashboard SaaS, billing overview, transactions, companies, packages, domain, purchase transaction, and system-settings pages) now use `hcm.web.global-admin`.

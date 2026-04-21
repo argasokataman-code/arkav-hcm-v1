@@ -366,6 +366,11 @@ class WebHcmRouteGuardTest extends TestCase
             '/purchase-transaction',
             '/email-settings',
             '/cronjob-schedule',
+            '/business-settings',
+            '/bussiness-settings',
+            '/seo-settings',
+            '/localization-settings',
+            '/currencies',
         ] as $path) {
             $this->actingAs($user)
                 ->withHeader('X-Company-Code', $company->code)

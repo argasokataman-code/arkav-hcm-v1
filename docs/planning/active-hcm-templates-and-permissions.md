@@ -35,6 +35,8 @@ Dokumen ini menjadi **peta tunggal** untuk tim: halaman Blade mana yang dianggap
 
 Sejak 2026-04-18, route web admin kritikal untuk **Reports** dan **Administration Settings** (contoh: `/expenses-report`, `/daily-report`, `/business-settings`, `/payment-gateways`, `/cronjob`, `/clear-cache`) dikunci dengan middleware `hcm.web.admin` agar tidak hanya bergantung pada visibilitas menu.
 
+Sejak 2026-04-21 (hardening lanjutan), **Website Settings platform** (`/business-settings` ≡ `/bussiness-settings`, `/seo-settings`, `/localization-settings`) dan **Financial Settings platform** (`/currencies`, `/payment-gateways`) dipindah ke middleware **`hcm.web.global-admin`**. Link menu Website Settings/Financial Settings yang mengarah ke item platform ini dibungkus `@if ($isGlobalHcmAdmin)` di semua layout sidebar + header. `/tax-rates` tetap tenant-admin karena dipakai payroll Indonesia.
+
 ---
 
 ## 3. Matriks halaman aktif HCM (menu & wiring utama)

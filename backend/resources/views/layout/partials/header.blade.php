@@ -517,9 +517,11 @@
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">Website Settings<span class="menu-arrow"></span></a>
                                                     <ul>
+                                                        @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('business-settings')}}" class="{{ Request::is('business-settings') ? 'active' : '' }}">Business Settings</a></li>
                                         <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
                                         <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
+                                        @endif
                                         <li><a href="{{url('prefixes')}}" class="{{ Request::is('prefixes') ? 'active' : '' }}">Prefixes</a></li>
                                         <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
                                         <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
@@ -556,9 +558,13 @@
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
                                                     <ul>
+                                                        @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
+                                                        @endif
                                                         <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                                        @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
+                                                        @endif
                                                     </ul>
                                                 </li>
                                                 <li class="submenu">
@@ -1354,7 +1360,7 @@
                                     <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile')}}">
                                         <i class="ti ti-user-circle me-1"></i>My Profile
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('business-settings')}}">
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
                                         <i class="ti ti-settings me-1"></i>Settings
                                     </a>
                                     <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('security-settings')}}">

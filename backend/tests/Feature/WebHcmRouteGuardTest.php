@@ -214,6 +214,15 @@ class WebHcmRouteGuardTest extends TestCase
         $this->get('/up')->assertSuccessful();
     }
 
+    public function test_api_docs_swagger_uses_same_origin_spec_path(): void
+    {
+        $response = $this->get('/api-docs');
+
+        $response->assertOk();
+        $response->assertSee('api-docs\/openapi.yaml', false);
+        $response->assertDontSee('http://arkav.puree.id/api-docs/openapi.yaml', false);
+    }
+
     public function test_hcm_admin_api_cookie_can_open_promotion_resignation_termination(): void
     {
         $this->postJson('/v1/identity/auth/register', [

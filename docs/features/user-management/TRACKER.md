@@ -13,6 +13,7 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 - Multi-tenant RBAC: verified through integration/regression tests
 - Tenant isolation: verified, no known cross-tenant access issue in latest audit
 - UI alignment: follows active template patterns for list/export/modal CRUD flows
+- Role setup governance: verified. `GET /v1/hcm/user-management/permissions` now hides `module=system` for non-global admins, and the sidebar/header no longer expose System Settings to tenant HCM admins.
 - **Global Super Admin (Developer)**: persisted via `users.is_super_admin` (BOOLEAN, indexed). Primary source of truth for `User::isGlobalHcmAdmin()` + `HcmRbacService::isGlobalAdmin()`. One developer account (`qa.login@example.com`) backfilled on migration. Email config retained only as bootstrap fallback.
 - **Tenant Super Admin**: unchanged contract — `company_users.role='owner'` membership + `hcm_user_roles` role assignment per company.
 
@@ -23,6 +24,12 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 
 ## Evidence Log
 
+- 2026-04-21 (global-only visibility hardening): Role setup and platform governance pages were aligned so tenant admins no longer see platform-only controls.
+  - `HcmUserManagementController::permissions()` now excludes `module=system` unless `User::isGlobalHcmAdmin()` is true.
+  - Global-only web pages (dashboard SaaS, billing overview, transactions, companies, packages, domain, purchase transaction, and system-settings pages) now use `hcm.web.global-admin`.
+  - Header/sidebar now hide Super Admin hub and System Settings for non-global HCM admins; sidebar regression confirms tenant HCM admin cannot see `email-settings` while global admin still can.
+  - New regression coverage: `HcmUserManagementApiTest`, `WebHcmRouteGuardTest`, `HcmActivityFeedApiTest`, and `SidebarAssetMenuVisibilityTest` for this slice.
+  - PHPUnit: `tests/Feature/HcmUserManagementApiTest.php tests/Feature/WebHcmRouteGuardTest.php tests/Feature/HcmActivityFeedApiTest.php` => 27 passed (1560 assertions); `tests/Feature/SidebarAssetMenuVisibilityTest.php` => 3 passed (30 assertions).
 - 2026-04-21 (global-admin bypass fix): Wired `is_super_admin` flag across the rest of the tenant plumbing so the developer account really bypasses tenant scoping + subscription feature gates.
   - `TenantContextResolver::resolve()` now returns a virtual membership for global admins when the requested (or default) company has no `company_users` row, so the developer account can target any tenant.
   - All 8 controller-level `applyTenantScope()` methods (HcmLeaveRequest, HcmPayrollRun, HcmEmployee, Attendance, HcmPayrollItem, HcmShift, HcmPayrollPeriod, HcmPayrollItemAssignment) now short-circuit for global admins, returning the unscoped builder.

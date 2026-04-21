@@ -342,6 +342,7 @@ paths:
     get:
       tags: [HCM]
       summary: Get tenant activity feed for /activity page (global admin can filter by company)
+      description: Global HCM admins can read cross-tenant activity. When companyId is omitted, the feed spans all active companies visible to the global admin.
       security:
         - bearerAuth: []
       parameters:
@@ -1747,7 +1748,8 @@ paths:
   /v1/hcm/user-management/permissions:
     get:
       tags: [User Management]
-      summary: List permissions (admin only)
+      summary: List permissions visible to the current admin context
+      description: Returns the active permission catalog for the role builder. Non-global admins never receive permissions with module=system; global HCM admins receive the full catalog.
       security:
         - bearerAuth: []
       parameters:

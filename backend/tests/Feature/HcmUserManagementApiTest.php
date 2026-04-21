@@ -452,4 +452,78 @@ class HcmUserManagementApiTest extends TestCase
         ])->assertStatus(403)
             ->assertJsonPath('error.code', 'SUPER_USER_REQUIRED');
     }
+
+    public function test_tenant_admin_permissions_catalog_hides_system_module(): void
+    {
+        $company = Company::factory()->create(['code' => 'tenant_permission_catalog']);
+
+        $email = 'tenant-permission-catalog@example.com';
+        $password = 'StrongPass1';
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant Permission Catalog Admin',
+            'email' => $email,
+            'password' => $password,
+            'confirmPassword' => $password,
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+
+        CompanyUser::query()->where('user_id', $user->id)->delete();
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        foreach ([
+            ['code' => 'user_management.view', 'module' => 'user_management', 'resource' => 'user_management', 'action' => 'view', 'name' => 'View User Management'],
+            ['code' => 'settings.manage', 'module' => 'system', 'resource' => 'settings', 'action' => 'manage', 'name' => 'Manage Settings'],
+            ['code' => 'cron.manage', 'module' => 'system', 'resource' => 'cron', 'action' => 'manage', 'name' => 'Manage Cron Jobs'],
+        ] as $permissionData) {
+            HcmPermission::query()->updateOrCreate(
+                ['code' => $permissionData['code']],
+                $permissionData + ['description' => null, 'is_active' => true]
+            );
+        }
+
+        $role = HcmRole::query()->create([
+            'company_id' => $company->id,
+            'code' => 'TENANT_VIEWER',
+            'name' => 'Tenant Viewer',
+            'status' => 'active',
+            'is_system' => false,
+        ]);
+
+        $role->permissions()->sync(
+            HcmPermission::query()->where('code', 'user_management.view')->pluck('id')->all()
+        );
+
+        HcmUserRole::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role_id' => $role->id,
+            'status' => 'active',
+        ]);
+
+        $token = (string) $this->postJson('/v1/identity/auth/login', [
+            'email' => $email,
+            'password' => $password,
+            'companyCode' => $company->code,
+        ])->assertOk()->json('data.accessToken');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ])->getJson('/v1/hcm/user-management/permissions');
+
+        $response->assertOk();
+
+        $modules = collect($response->json('data'))->pluck('module')->unique()->values()->all();
+
+        $this->assertNotContains('system', $modules);
+        $this->assertContains('user_management', $modules);
+    }
 }

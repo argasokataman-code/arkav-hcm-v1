@@ -170,47 +170,47 @@ Route::get('/invoice-details', function () {
 
 Route::get('/dashboard', function () {
     return view('saas-dashboard');
-})->middleware('hcm.web.admin')->name('dashboard');
+})->middleware('hcm.web.global-admin')->name('dashboard');
 
 Route::get('/saas-dashboard', function () {
     return view('saas-dashboard');
-})->middleware('hcm.web.admin')->name('saas-dashboard');
+})->middleware('hcm.web.global-admin')->name('saas-dashboard');
 
 Route::get('/saas/packages', function () {
     return view('saas.packages');
-})->name('saas.packages');
+})->middleware('hcm.web.global-admin')->name('saas.packages');
 
 Route::get('/saas/subscriptions', function () {
     return view('saas.subscriptions');
-})->middleware('hcm.web.admin')->name('saas.subscriptions');
+})->middleware('hcm.web.global-admin')->name('saas.subscriptions');
 
 Route::get('/saas/billing-overview', function () {
     return view('saas.billing-overview');
-})->middleware('hcm.web.admin')->name('saas.billing-overview');
+})->middleware('hcm.web.global-admin')->name('saas.billing-overview');
 
 Route::get('/saas/domains', function () {
     return view('saas.domains');
-})->name('saas.domains');
+})->middleware('hcm.web.global-admin')->name('saas.domains');
 
 Route::get('/saas/transactions', function () {
     return view('saas.transactions');
-})->middleware('hcm.web.admin')->name('saas.transactions');
+})->middleware('hcm.web.global-admin')->name('saas.transactions');
 
 Route::get('/saas/invoices', function () {
     return view('saas.invoices');
-})->name('saas.invoices');
+})->middleware('hcm.web.global-admin')->name('saas.invoices');
 
 Route::get('/saas/payments', function () {
     return view('saas.payments');
-})->name('saas.payments');
+})->middleware('hcm.web.global-admin')->name('saas.payments');
 
 Route::get('/saas/reports', function () {
     return view('saas.reports');
-})->name('saas.reports');
+})->middleware('hcm.web.global-admin')->name('saas.reports');
 
 Route::get('/saas/reminders', function () {
     return view('saas.reminders');
-})->name('saas.reminders');
+})->middleware('hcm.web.global-admin')->name('saas.reminders');
 
 // Company views for billing
 Route::get('/company/invoices', function () {
@@ -221,7 +221,7 @@ Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getT
 
 Route::get('/companies', function () {
     return view('companies');
-})->name('companies');
+})->middleware('hcm.web.global-admin')->name('companies');
 
 Route::get('/subscription', function () {
     return view('saas.subscription-checkout');
@@ -229,19 +229,19 @@ Route::get('/subscription', function () {
 
 Route::get('/packages', function () {
     return view('saas.packages');
-})->name('packages');
+})->middleware('hcm.web.global-admin')->name('packages');
 
 Route::get('/packages-grid', function () {
     return view('packages-grid');
-})->name('packages-grid');
+})->middleware('hcm.web.global-admin')->name('packages-grid');
 
 Route::get('/domain', function () {
     return view('saas.domains');
-})->name('domain');
+})->middleware('hcm.web.global-admin')->name('domain');
 
 Route::get('/purchase-transaction', function () {
     return view('saas.transactions');
-})->middleware('hcm.web.admin')->name('purchase-transaction');
+})->middleware('hcm.web.global-admin')->name('purchase-transaction');
 
 Route::get('/layout-horizontal', function () {
     return view(view: 'layout-horizontal');
@@ -1229,35 +1229,35 @@ Route::get( '/custom-fields', function () {
 
 Route::get( '/email-settings', function () {
     return view('email-settings');
-})->middleware('hcm.web.admin')->name('email-settings');
+})->middleware('hcm.web.global-admin')->name('email-settings');
 
 Route::get( '/email-template', function () {
     return view('email-template');
-})->middleware('hcm.web.admin')->name('email-template');
+})->middleware('hcm.web.global-admin')->name('email-template');
 
 Route::get( '/sms-settings', function () {
     return view('sms-settings');
-})->middleware('hcm.web.admin')->name('sms-settings');
+})->middleware('hcm.web.global-admin')->name('sms-settings');
 
 Route::get( '/sms-template', function () {
     return view('sms-template');
-})->middleware('hcm.web.admin')->name('sms-template');
+})->middleware('hcm.web.global-admin')->name('sms-template');
 
 Route::get( '/otp-settings', function () {
     return view('otp-settings');
-})->middleware('hcm.web.admin')->name('otp-settings');
+})->middleware('hcm.web.global-admin')->name('otp-settings');
 
 Route::get( '/gdpr', function () {
     return view('gdpr');
-})->middleware('hcm.web.admin')->name('gdpr');
+})->middleware('hcm.web.global-admin')->name('gdpr');
 
 Route::get( '/maintenance-mode', function () {
     return view('maintenance-mode');
-})->middleware('hcm.web.admin')->name('maintenance-mode');
+})->middleware('hcm.web.global-admin')->name('maintenance-mode');
 
 Route::get( '/payment-gateways', function () {
     return view( 'payment-gateways');
-})->middleware('hcm.web.admin')->name( 'payment-gateways');
+})->middleware('hcm.web.global-admin')->name( 'payment-gateways');
 
 Route::get( '/tax-rates', function () {
     return view( 'tax-rates');
@@ -1377,34 +1377,34 @@ Route::get('/starter', function () {
 
 Route::get('/custom-css', function () {
     return view('custom-css');
-})->middleware('hcm.web.admin')->name('custom-css');
+})->middleware('hcm.web.global-admin')->name('custom-css');
 
 Route::get('/custom-js', function () {
     return view('custom-js');
-})->middleware('hcm.web.admin')->name('custom-js');
+})->middleware('hcm.web.global-admin')->name('custom-js');
 
-Route::get('/cronjob', [CronjobController::class, 'index'])->middleware('hcm.web.admin')->name('cronjob');
+Route::get('/cronjob', [CronjobController::class, 'index'])->middleware('hcm.web.global-admin')->name('cronjob');
 Route::post('/cronjob', [CronjobController::class, 'update'])->name('cronjob.update');
 
 Route::get('/cronjob-schedule', function () {
     return view('cronjob-schedule');
-})->middleware('hcm.web.admin')->name('cronjob-schedule');
+})->middleware('hcm.web.global-admin')->name('cronjob-schedule');
 
 Route::get('/storage-settings', function () {
     return view('storage-settings');
-})->middleware('hcm.web.admin')->name('storage-settings');
+})->middleware('hcm.web.global-admin')->name('storage-settings');
 
 Route::get('/ban-ip-address', function () {
     return view('ban-ip-address');
-})->middleware('hcm.web.admin')->name('ban-ip-address');
+})->middleware('hcm.web.global-admin')->name('ban-ip-address');
 
 Route::get('/backup', function () {
     return view('backup');
-})->middleware('hcm.web.admin')->name('backup');
+})->middleware('hcm.web.global-admin')->name('backup');
 
 Route::get('/clear-cache', function () {
     return view('clear-cache');
-})->middleware('hcm.web.admin')->name('clear-cache');
+})->middleware('hcm.web.global-admin')->name('clear-cache');
 
 Route::get('/success', function () {
     return view('success');

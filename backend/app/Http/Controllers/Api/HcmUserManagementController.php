@@ -751,6 +751,10 @@ class HcmUserManagementController extends Controller
             ->orderBy('module')
             ->orderBy('code');
 
+        if (! $request->user()?->isGlobalHcmAdmin()) {
+            $query->where('module', '!=', 'system');
+        }
+
         if ($module !== '') {
             $query->whereRaw('LOWER(module) = ?', [$module]);
         }

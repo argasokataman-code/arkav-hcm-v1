@@ -180,7 +180,7 @@
                                 <li><a href="{{url('dashboard')}}"  class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                                 <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
                                 <li><a href="{{url('saas/billing-overview')}}"  class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
-                                <li><a href="{{url('subscription')}}"  class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                                <li><a href="{{url('saas/subscriptions')}}"  class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                                 <li><a href="{{url('packages')}}"  class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                                 <li><a href="{{url('domain')}}"  class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                                 <li><a href="{{url('purchase-transaction')}}"  class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
@@ -636,6 +636,7 @@
                                         <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                     </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">System Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
@@ -648,6 +649,7 @@
                                         <li><a href="{{url('maintenance-mode')}}" class="{{ Request::is('maintenance-mode') ? 'active' : '' }}">Maintenance Mode</a></li>
                                     </ul>
                                 </li>
+                                @endif
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
@@ -1298,7 +1300,7 @@
                     <ul>
                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                         <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                        <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                        <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                         <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                         <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                         <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
@@ -1678,6 +1680,7 @@
                                         <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                     </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">System Settings<span class="menu-arrow"></span></a>
                                     <ul>
@@ -1690,6 +1693,7 @@
                                         <li><a href="{{url('maintenance-mode')}}" class="{{ Request::is('maintenance-mode') ? 'active' : '' }}">Maintenance Mode</a></li>
                                     </ul>
                                 </li>
+                                @endif
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
                                     <ul>
@@ -2303,6 +2307,7 @@
     </div>
 </div>
 <!-- /Horizontal Menu -->
+@endif
 
 <!-- Two Col Sidebar -->
 <div class="two-col-sidebar" id="two-col-sidebar">
@@ -2479,7 +2484,7 @@
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
                             <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                             <li><a href="{{url('companies')}}" class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                            <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                            <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                             <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                             <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                             <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
@@ -2778,6 +2783,7 @@
                                     <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                 </ul>
                             </li>
+                            @if ($isGlobalHcmAdmin)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">
                                     System Settings
@@ -2793,6 +2799,7 @@
                                     <li><a href="{{url('maintenance-mode')}}" class="{{ Request::is('maintenance-mode') ? 'active' : '' }}">Maintenance Mode</a></li>
                                 </ul>
                             </li>
+                            @endif
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">
                                     Financial Settings
@@ -3598,7 +3605,7 @@
                             <ul class="stack-submenu">
                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                         <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                        <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                        <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                         <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                         <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                         <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
@@ -3964,6 +3971,7 @@
                                         <li><a href="{{url('leave-type')}}" class="{{ Request::is('leave-type') ? 'active' : '' }}">Leave Type</a></li>
                                         <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>                                    </ul>
                                 </li>
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
                                     <a href="javascript:void(0);"  class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">
                                         System Settings
@@ -4000,9 +4008,10 @@
                                         <li><a href="{{url('storage-settings')}}" class="{{ Request::is('storage-settings') ? 'active' : '' }}">Storage</a></li>
                                         <li><a href="{{url('ban-ip-address')}}" class="{{ Request::is('ban-ip-address') ? 'active' : '' }}">Ban IP Address</a></li>
                                         <li><a href="{{url('backup')}}" class="{{ Request::is('backup') ? 'active' : '' }}">Backup</a></li>
-                                        <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>                                    </ul>
-                               
-@endif
+                                        <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
+                                    </ul>
+                                </li>
+                                @endif
                             </ul>
                         </div>
                         <div class="tab-pane fade {{ Request::is('blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" id="menu-content">
@@ -4112,31 +4121,7 @@
                                 'ui-grid',
                                 'ui-images',
                                 'ui-lightbox',
-                                'ui-media',
-                                'ui-modals',
-                                'ui-offcanvas',
-                                'ui-pagination',
-                                'ui-popovers',
-                                'ui-progress',
-                                'ui-placeholders',
-                                'ui-spinner',
-                                'ui-sweetalerts',
-                                'ui-nav-tabs',
-                                'ui-toasts',
-                                'ui-tooltips',
-                                'ui-typography',
-                                'ui-video',
-                                'ui-sortable',
-                                'ui-swiperjs',
-                                'ui-ribbon','ui-clipboard','ui-drag-drop',
-                                'ui-rangeslider','ui-rating','ui-text-editor','ui-counter','ui-scrollbar','ui-stickynote','ui-timeline',
-                                'form-basic-inputs',
-                                'form-checkbox-radios',
-                                'form-input-groups',
-                                'form-grid-gutters',
-                                'form-select',
                                 'form-mask',
-                                'form-fileupload',
                                 'form-horizontal',
                                 'form-vertical',
                                 'form-floating-labels',

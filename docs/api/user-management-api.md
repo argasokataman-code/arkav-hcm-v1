@@ -3,7 +3,7 @@
 Status: Implemented (UUID transition compatible)
 Base path: `/v1/hcm/user-management`
 
-Last updated: 2026-04-19
+Last updated: 2026-04-21
 
 ## Contract Notes
 
@@ -18,6 +18,7 @@ Last updated: 2026-04-19
 - View endpoints: butuh salah satu permission `user.view`, `role.view`, atau `user_management.view`.
 - Manage endpoints: butuh salah satu permission `user.create|user.update|user.assign_role|role.create|role.update|role.delete|role.sync_permission|user_management.manage`.
 - Setup role/permission (`create role`, `update role`, `delete role`, `sync role permissions`) juga butuh application super user (`SUPER_USER_REQUIRED`) selain permission manage.
+- `GET /permissions` tetap bisa dipakai tenant admin untuk builder role tenant, tetapi response sekarang otomatis menyembunyikan semua permission dengan `module = system` kecuali pemanggil adalah **global HCM admin** (`users.is_super_admin` / `User::isGlobalHcmAdmin()`).
 
 ## Endpoints
 
@@ -78,6 +79,9 @@ Last updated: 2026-04-19
 
 - `GET /permissions`
   - Query: `module`, `search`
+  - Visibility rule:
+    - Global HCM admin melihat seluruh katalog permission aktif.
+    - Tenant admin tidak menerima permission `module=system`, meskipun query `module=system` dikirim dari UI.
 
 - `POST /roles/{id}/permissions:sync`
   - `{id}`: UUID role atau numeric legacy id

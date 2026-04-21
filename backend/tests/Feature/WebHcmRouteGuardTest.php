@@ -354,15 +354,29 @@ class WebHcmRouteGuardTest extends TestCase
             'joined_at' => now()->subDay(),
         ]);
 
-        $this->actingAs($user)
-            ->withHeader('X-Company-Code', $company->code)
-            ->get('/dashboard')
-            ->assertRedirect(url('employee-dashboard'));
+        foreach ([
+            '/dashboard',
+            '/saas-dashboard',
+            '/saas/subscriptions',
+            '/saas/billing-overview',
+            '/saas/transactions',
+            '/companies',
+            '/packages',
+            '/domain',
+            '/purchase-transaction',
+            '/email-settings',
+            '/cronjob-schedule',
+        ] as $path) {
+            $this->actingAs($user)
+                ->withHeader('X-Company-Code', $company->code)
+                ->get($path)
+                ->assertRedirect(url('employee-dashboard'));
+        }
 
         $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
-            ->get('/saas-dashboard')
-            ->assertRedirect(url('employee-dashboard'));
+            ->get('/subscription')
+            ->assertOk();
     }
 
     public function test_authenticated_api_cookie_can_open_sample_hcm_pages(): void

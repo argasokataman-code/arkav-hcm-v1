@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\EmployeeProfile;
 use App\Models\HcmPermission;
 use App\Models\HcmRole;
+use App\Models\HcmManualActivity;
 use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
 use App\Models\Company;
@@ -238,6 +239,62 @@ class HcmActivityFeedApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_global_admin_can_view_cross_tenant_activity_and_company_filter_options(): void
+    {
+        $token = $this->adminToken();
+
+        $companyA = Company::factory()->create([
+            'code' => 'ACTGLOBALA',
+            'name' => 'Activity Global A',
+            'status' => 'active',
+        ]);
+        $companyB = Company::factory()->create([
+            'code' => 'ACTGLOBALB',
+            'name' => 'Activity Global B',
+            'status' => 'active',
+        ]);
+
+        HcmManualActivity::query()->create([
+            'company_id' => $companyA->id,
+            'title' => 'Audit trail company A',
+            'activity_kind' => 'note',
+            'status' => 'planned',
+            'created_by_user_id' => null,
+            'updated_by_user_id' => null,
+        ]);
+
+        HcmManualActivity::query()->create([
+            'company_id' => $companyB->id,
+            'title' => 'Audit trail company B',
+            'activity_kind' => 'note',
+            'status' => 'planned',
+            'created_by_user_id' => null,
+            'updated_by_user_id' => null,
+        ]);
+
+        $feed = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/v1/hcm/activity-feed?type=manual&perPage=50')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $titles = collect($feed->json('data'))->pluck('title')->all();
+        $companyCodes = collect($feed->json('data'))->pluck('companyCode')->unique()->values()->all();
+
+        $this->assertContains('Audit trail company A', $titles);
+        $this->assertContains('Audit trail company B', $titles);
+        $this->assertContains('ACTGLOBALA', $companyCodes);
+        $this->assertContains('ACTGLOBALB', $companyCodes);
+
+        $companies = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/v1/hcm/activity-feed-companies')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $listedCodes = collect($companies->json('data'))->pluck('code')->all();
+        $this->assertContains('ACTGLOBALA', $listedCodes);
+        $this->assertContains('ACTGLOBALB', $listedCodes);
     }
 
     public function test_tenant_owner_can_crud_manual_activity_for_active_company_context(): void

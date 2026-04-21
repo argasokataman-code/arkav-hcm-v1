@@ -24,6 +24,10 @@ Fitur ini memusatkan pengelolaan user, role, dan permission untuk aplikasi HCM/S
 4. Admin melakukan assignment role ke user dalam scope company aktif.
 5. Audit trail perubahan akses tersimpan agar perubahan role/permission bisa ditelusuri.
 
+Khusus untuk global platform governance:
+- Global Super Admin dapat melihat permission katalog lengkap termasuk modul `system`, untuk mengontrol halaman/platform setting yang tidak boleh didelegasikan ke tenant.
+- Tenant HCM Admin tetap mengelola role tenant, tetapi builder permission mereka otomatis menyembunyikan modul `system` agar tidak muncul ekspektasi palsu terhadap akses yang memang global-only.
+
 ## Lifecycle Dan Keputusan Bisnis
 
 - Ada dua layer super-admin yang **tidak boleh tertukar**:
@@ -58,9 +62,9 @@ Target fase awal:
 
 Status: Implemented (Backend API v1 + Authorization Pattern v1)
 Version: 1.0
-Last updated: 2026-04-19
+Last updated: 2026-04-21
 
-**Latest:** 2026-04-19 - User Management audit completed. All wiring tests pass (39/39), multi-tenant RBAC tests pass (16/16), tenant isolation verified. No cross-tenant access vulnerabilities found. UI follows active template patterns with consistent breadcrumb navigation, export functionality, and modal-based CRUD operations. Cross-module integration verified - no integration issues with other HCM features.
+**Latest:** 2026-04-21 - Global-only governance hardening completed for role setup and platform hub visibility. Permission catalog `GET /permissions` now hides `module=system` from tenant admins, while global super admin keeps full visibility for system-level permissions and cross-tenant platform oversight. Web guard + header/sidebar visibility for platform billing/revenue pages are now aligned to `isGlobalHcmAdmin`, and tenant billing self-service (`/subscription`, `/company/invoices`) remains available to tenant admins.
 
 **Validation note:** The FE auth client and tenant-context flow used by user-management were also revalidated through `backend/tests/ui/auth-api.wiring.test.js`, so export/list pages now share the same verified auth contract as the rest of the HCM UI.
 
@@ -133,6 +137,7 @@ Tanpa fondasi user-role-permission yang rapi, modul lain cenderung pakai rule ad
 - backend API v1 user-management sudah aktif dengan list, export, detail, CRUD role, sync permission, dan assignment role;
 - export/list pages sudah memakai auth + tenant headers yang tervalidasi;
 - multi-tenant RBAC tests dan wiring tests sudah menutup tenant isolation utama;
+- permission catalog role setup sekarang menyembunyikan modul `system` untuk non-global admin, sehingga tenant admin hanya melihat permission yang benar-benar bisa mereka kelola;
 - UI mengikuti pola template HCM aktif dengan breadcrumb, export, dan modal-based CRUD.
 
 ### Gap yang masih terbuka

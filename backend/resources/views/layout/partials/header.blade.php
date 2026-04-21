@@ -146,7 +146,7 @@
                                         <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>
 @endif                                    </ul>
                                 </li>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Super Admin</span>
@@ -155,7 +155,7 @@
                                     <ul>
                                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                         <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                        <li><a href="{{url('subscription')}}" class="{{ Request::is('subscription','saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                        <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                         <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                         <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                         <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
@@ -538,6 +538,7 @@
                                         <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                                     </ul>
                                                 </li>
+                                                @if ($isGlobalHcmAdmin)
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">System Settings<span class="menu-arrow"></span></a>
                                                     <ul>
@@ -551,6 +552,7 @@
                 
                                                     </ul>
                                                 </li>
+                                                @endif
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
                                                     <ul>

@@ -6,6 +6,8 @@ Prefix: `/v1/hcm` · middleware `api.token` + `tenant.context` · envelope `{ su
 
 Endpoint ini memberi feed aktivitas tenant yang dipakai halaman web `/activity`.
 
+Sejak hardening global-governance 2026-04-21, global HCM admin juga memakai endpoint yang sama untuk audit lintas tenant dari satu akun, termasuk dropdown filter company lintas seluruh tenant aktif.
+
 Sumber event saat ini:
 - `asset_logs` (aktivitas lifecycle asset)
 - `hcm_user_role_audits` (aktivitas role/akses user)
@@ -17,6 +19,7 @@ Feed digabung, diurutkan descending berdasarkan waktu event, lalu dipaginasi.
 
 - **View feed (`GET /activity-feed`)**:
   - Global HCM admin/super admin selalu boleh akses.
+  - Jika global admin tidak mengirim `companyId`, feed otomatis berjalan dalam scope **semua company aktif**.
   - Owner/admin tenant boleh akses sesuai tenant aktif.
   - Employee/member harus punya permission tenant yang sesuai.
 - **Mutasi manual activity (`POST/PUT/DELETE /activity-manual*`)**:
@@ -80,6 +83,7 @@ Error:
 List company aktif untuk dropdown filter activity feed.
 
 - Hanya global HCM admin/super admin.
+- Dipakai oleh halaman audit/activity global untuk memilih tenant tertentu, tetapi global admin juga boleh membiarkan filter kosong agar melihat feed lintas tenant.
 - Non-admin: `403 AUTH_FORBIDDEN`.
 - Response berisi list `{ id, code, name, status, createdAt }`.
 

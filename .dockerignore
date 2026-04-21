@@ -5,6 +5,9 @@
 
 # Documentation
 docs/
+!docs/
+!docs/api/
+!docs/api/openapi.yaml
 *.md
 !README.md
 

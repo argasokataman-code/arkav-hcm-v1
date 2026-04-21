@@ -5,6 +5,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 workflow_file="$root_dir/.github/workflows/auto-deploy.yml"
 run_file="$root_dir/run.sh"
 production_doc="$root_dir/PRODUCTION-SETUP.md"
+dockerignore_file="$root_dir/.dockerignore"
 
 required_workflow_strings=(
   "mkdir -p /data/code/storage/logs"
@@ -37,6 +38,12 @@ required_doc_strings=(
   'host mount akan menimpa isi `storage` bawaan image'
 )
 
+required_dockerignore_strings=(
+  "!docs/"
+  "!docs/api/"
+  "!docs/api/openapi.yaml"
+)
+
 assert_contains() {
   local file="$1"
   local expected="$2"
@@ -48,7 +55,7 @@ assert_contains() {
   fi
 }
 
-for file in "$workflow_file" "$run_file" "$production_doc"; do
+for file in "$workflow_file" "$run_file" "$production_doc" "$dockerignore_file"; do
   if [[ ! -f "$file" ]]; then
     echo "ERROR: required file not found: $file"
     exit 1
@@ -65,6 +72,10 @@ done
 
 for expected in "${required_doc_strings[@]}"; do
   assert_contains "$production_doc" "$expected"
+done
+
+for expected in "${required_dockerignore_strings[@]}"; do
+  assert_contains "$dockerignore_file" "$expected"
 done
 
 echo "check-deploy-runtime-guard: OK"

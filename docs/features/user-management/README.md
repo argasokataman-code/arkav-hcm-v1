@@ -6,8 +6,10 @@ Fitur ini memusatkan pengelolaan user, role, dan permission untuk aplikasi HCM/S
 
 ## Akses
 
-- HCM Admin / admin yang memiliki permission user management: mengelola user, role, permission, dan assignment role.
-- Non-admin atau user tanpa permission yang sesuai: tidak boleh memutasi data user-management; backend tetap menjadi sumber kebenaran otorisasi.
+- **Global Super Admin (Developer / Platform Maintainer)** — satu akun khusus dengan penanda `users.is_super_admin = 1` di database. Akun ini menguasai seluruh aplikasi tanpa batas: lintas tenant, lintas modul, lintas feature gate. Tidak tunduk pada RBAC tenant maupun package feature gating.
+- **Tenant Super Admin (Owner Company)** — admin internal company/tenant. Akses penuh hanya di scope company miliknya, tunduk pada package feature gating dan tenant isolation. Kontrak via `company_users.role = 'owner'` plus role `OWNER`/`ADMIN` di `hcm_user_roles`.
+- **HCM Admin / admin dengan permission user management**: mengelola user, role, permission, dan assignment role **di scope tenant aktifnya**.
+- **Non-admin atau user tanpa permission yang sesuai**: tidak boleh memutasi data user-management; backend tetap menjadi sumber kebenaran otorisasi.
 
 ## UI Aktif
 
@@ -24,6 +26,9 @@ Fitur ini memusatkan pengelolaan user, role, dan permission untuk aplikasi HCM/S
 
 ## Lifecycle Dan Keputusan Bisnis
 
+- Ada dua layer super-admin yang **tidak boleh tertukar**:
+  1. Global Super Admin: 1 akun developer/platform, disimpan via kolom `users.is_super_admin` (sumber kebenaran tunggal). Tidak tunduk feature gate, RBAC tenant, maupun tenant isolation.
+  2. Tenant Super Admin (Owner / HCM Admin): per company, via RBAC (`hcm_user_roles` + `hcm_roles`) dan membership (`company_users.role`). Tunduk feature gate + tenant isolation.
 - Permission UI hanya bersifat petunjuk; otorisasi final harus tetap diputuskan backend.
 - Assignment role wajib tenant-aware untuk mencegah kebocoran akses lintas company.
 - Fondasi RBAC ini diprioritaskan lebih dulu karena semua modul admin lain bergantung padanya.
@@ -124,6 +129,7 @@ Tanpa fondasi user-role-permission yang rapi, modul lain cenderung pakai rule ad
 
 ### Existing runtime yang sudah aktif
 
+- Global Super Admin sudah punya penanda persisten di DB (`users.is_super_admin`, boolean, indexed). Satu akun developer cukup di-set flag=1 untuk akses tak terbatas; tidak perlu env email di runtime (email di `hcm.admin_email` hanya dipakai seeder awal dan sebagai bootstrap fallback saat flag belum ter-backfill).
 - backend API v1 user-management sudah aktif dengan list, export, detail, CRUD role, sync permission, dan assignment role;
 - export/list pages sudah memakai auth + tenant headers yang tervalidasi;
 - multi-tenant RBAC tests dan wiring tests sudah menutup tenant isolation utama;
@@ -131,7 +137,7 @@ Tanpa fondasi user-role-permission yang rapi, modul lain cenderung pakai rule ad
 
 ### Gap yang masih terbuka
 
-- README ini sebelumnya belum menyajikan flow bisnis dan integrasi antar fitur sejelas modul operasional lain seperti resignation;
+- `hcm_roles` saat ini belum memiliki row platform-scoped (`company_id IS NULL`) seperti yang sempat dijanjikan di versi awal dokumen; untuk saat ini kebutuhan "global super admin" sudah ditutup oleh flag `users.is_super_admin`, bukan lewat RBAC platform role.
 - dokumentasi hubungan permission catalog dengan modul-modul turunan masih perlu dirujuk konsisten lintas README modul lain.
 
 ### Keputusan kompromi sementara

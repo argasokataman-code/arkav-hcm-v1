@@ -15,20 +15,42 @@ This document describes the complete implementation of a **strict multi-tenant R
 - **No cross-tenant access** - impossible to access data from other companies
 - **Permission mappings scoped by company** - role-permission relationships are tenant-specific
 
-### 2. **Dual Role Layer Architecture**
-- **Platform Roles**: `super_admin`, `internal_support` (global, no company_id)
-- **Tenant Roles**: HR Manager, Payroll Admin, Employee (company-scoped)
+### 2. **Dua Layer Super-Admin (WAJIB DIPAHAMI)**
 
-### 3. **Permission-Driven Access Control**
-- **Global permissions**: `employee.view`, `payroll.run`, etc.
-- **Tenant-scoped role assignments**
-- **Super-admin bypass** for all permissions
+1. **Global Super Admin (Developer / Platform Maintainer)**
+   - Disimpan via kolom `users.is_super_admin` (BOOLEAN, indexed). Satu baris flag = satu sumber kebenaran.
+   - Akses **tanpa batas**: lintas tenant, lintas modul, bypass package feature gate, bypass tenant isolation, bypass permission check.
+   - Bukan bagian dari `hcm_roles`. Bukan “platform role” RBAC. Satu layer persisten yang berdiri sendiri.
+   - Fallback bootstrap: jika flag belum ter-backfill, `config('hcm.admin_email')` dipakai sebagai sinyal sementara (seeder + legacy test fixtures). Runtime production setelah migrasi selalu pakai flag.
+2. **Tenant Super Admin (Owner Company / HCM Admin)**
+   - Via `hcm_user_roles` (tenant-scoped assignment) + role `OWNER`/`ADMIN`/`HCM_ADMIN` di `hcm_roles` (company-scoped).
+   - Juga via `company_users.role = 'owner'` sebagai membership signal.
+   - Tunduk pada package feature gating, tenant isolation, dan permission check granular.
+
+### 3. **Permission-Driven Access Control (Tenant Scope)**
+- **Global permissions catalog**: `employee.view`, `payroll.run`, dst.
+- **Tenant-scoped role assignments** via `hcm_user_roles`.
+- **Global super-admin bypass** untuk semua permission (via `users.is_super_admin`).
 
 ---
 
 ## Database Schema (Updated)
 
 ### Core Tables
+
+#### `users` (UPDATED 2026-04-21 — Global Super Admin Flag)
+```sql
+-- Persisted global super-admin flag (developer / platform maintainer).
+-- Primary source of truth for `User::isGlobalHcmAdmin()` across API,
+-- middleware, and SaaS controllers.
+ALTER TABLE users
+  ADD COLUMN is_super_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER password,
+  ADD INDEX users_is_super_admin_idx (is_super_admin);
+
+-- Data backfill on migration: set is_super_admin = 1 for the user whose
+-- email matches config('hcm.admin_email'). One dev/platform account.
+```
+Migration: `database/migrations/2026_04_30_070000_add_is_super_admin_to_users_table.php`.
 
 #### `hcm_role_permissions` (UPDATED - Multi-Tenant)
 ```sql
@@ -48,8 +70,8 @@ ALTER TABLE users ADD COLUMN company_id BIGINT UNSIGNED NULL AFTER id;
 ALTER TABLE users ADD INDEX users_company_id_idx (company_id);
 ```
 
-#### `hcm_roles` (Tenant-Aware)
-- `company_id` nullable: NULL = platform role, NOT NULL = tenant role
+#### `hcm_roles` (Tenant-Scoped)
+- `company_id` wajib saat runtime (semua role di-seed per company). Kolom nullable secara schema, tetapi seeder saat ini mengisi `company_id` untuk setiap row. Tidak ada platform-scoped role (`company_id IS NULL`) di runtime saat ini — global super-admin ditangani via `users.is_super_admin`, bukan via RBAC.
 - Unique constraint: `(company_id, code)` ensures role codes are unique per tenant
 
 #### `hcm_user_roles` (Tenant-Scoped Assignments)
@@ -75,7 +97,10 @@ public function assignRoleToUser(User $user, HcmRole $role, int $companyId): Hcm
 // Permission synchronization per tenant
 public function syncRolePermissions(HcmRole $role, array $permissions, int $companyId): void
 
-// Global admin detection
+// Global admin detection — single source of truth delegated to
+// User::isGlobalHcmAdmin(), which returns true when `users.is_super_admin`
+// flag is set (primary) or when email matches `hcm.admin_email` config
+// (bootstrap fallback only).
 public function isGlobalAdmin(User $user): bool
 ```
 

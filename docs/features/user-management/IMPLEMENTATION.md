@@ -1,15 +1,32 @@
 # User Management - Implementation
 
-Status: Implemented (Backend API v1 + Authorization Pattern v1)
-Updated: 2026-04-18
+Status: Implemented (Backend API v1 + Authorization Pattern v1 + Global Super Admin Flag v1)
+Updated: 2026-04-21
 
 Tracker: [TRACKER.md](TRACKER.md)
 
 ## 1. Objective
 
-Menyediakan fondasi akses berbasis role-permission yang tenant-aware, tetap kompatibel dengan model existing (`company_users.role`) selama masa transisi.
+Menyediakan fondasi akses berbasis role-permission yang tenant-aware, tetap kompatibel dengan model existing (`company_users.role`) selama masa transisi, dengan satu akun Global Super Admin yang dipersistensi di DB untuk maintenance platform.
 
 ## 2. Database Schema (Implemented)
+
+### 2.0 `users.is_super_admin` (2026-04-21)
+
+Purpose:
+- Penanda Global Super Admin (developer / platform maintainer). Satu akun khusus yang menguasai seluruh aplikasi tanpa batas tenant / feature gate.
+
+Column:
+- `is_super_admin` TINYINT(1) NOT NULL DEFAULT 0, after `password`.
+
+Index:
+- `users_is_super_admin_idx` on (`is_super_admin`).
+
+Runtime contract:
+- `User::isGlobalHcmAdminSignal()` reads this flag first. `hcm.admin_email` config is kept only as bootstrap fallback for fresh installs / legacy fixtures before the backfill runs.
+- `HcmRbacService::isGlobalAdmin()` delegates to `User::isGlobalHcmAdmin()` — single source of truth.
+
+Migration: `database/migrations/2026_04_30_070000_add_is_super_admin_to_users_table.php` (includes data backfill for the user whose email matches `config('hcm.admin_email')`).
 
 ### 2.1 `hcm_roles`
 

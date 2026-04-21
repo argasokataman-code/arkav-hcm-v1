@@ -95,14 +95,10 @@ class HcmRbacService
      */
     public function isGlobalAdmin(User $user): bool
     {
-        // Check by email (configured super admin)
-        $superAdminEmails = config('hcm.super_admin_emails', []);
-        if (in_array($user->email, $superAdminEmails)) {
-            return true;
-        }
-
-        // Check by flag
-        return $user->is_super_admin ?? false;
+        // Single source of truth: persisted `users.is_super_admin` flag,
+        // mirrored by {@see \App\Models\User::isGlobalHcmAdmin()} so that
+        // controllers, middlewares, and service-layer checks stay aligned.
+        return $user->isGlobalHcmAdmin();
     }
 
     /**

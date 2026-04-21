@@ -28,6 +28,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_super_admin',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -154,18 +156,28 @@ class User extends Authenticatable
 
     private function isGlobalHcmAdminSignal(): bool
     {
-        $email = strtolower(trim((string) ($this->email ?? '')));
-        // NOTE: Only `hcm.admin_email` is treated as the global super-admin
-        // signal. `hcm.secondary_admin_email` is intentionally a *tenant*
-        // admin seed (see SidebarAssetMenuVisibilityTest::test_secondary_hcm_admin_…)
-        // and must NOT escalate to global super-admin, otherwise sidebar
-        // super-admin menus and SaaS dashboard guards regress.
-        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
-        if ($email !== '' && $email === $adminEmail) {
+        // Primary source of truth: persisted `users.is_super_admin` flag.
+        // One global super-admin account is the developer/platform maintainer
+        // with unrestricted access across ALL tenants and ALL features. This
+        // role is NOT governed by tenant RBAC or package feature gates.
+        if ((bool) ($this->is_super_admin ?? false)) {
             return true;
         }
 
-        return (bool) ($this->is_super_admin ?? false);
+        // Fallback bootstrap signal: the `hcm.admin_email` configuration is
+        // only used when the schema column is not yet present (fresh install
+        // before the migration runs) or during phpunit runtimes that seed
+        // super users via email before the flag backfill executes. The
+        // secondary admin email (`hcm.secondary_admin_email`) is intentionally
+        // a *tenant* admin seed and MUST NOT escalate to global super-admin.
+        $email = strtolower(trim((string) ($this->email ?? '')));
+        if ($email === '') {
+            return false;
+        }
+
+        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+
+        return $email === $adminEmail;
     }
 
     private function isTestingDesignationAdmin(): bool

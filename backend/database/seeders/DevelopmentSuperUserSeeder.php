@@ -23,7 +23,8 @@ class DevelopmentSuperUserSeeder extends Seeder
             password: (string) config('hcm.admin_password', 'StrongPass1'),
             name: 'Super User 1',
             team: 'HR',
-            designation: 'Super Admin'
+            designation: 'Super Admin',
+            isGlobalSuperAdmin: true,
         );
 
         $this->seedSuperUser(
@@ -31,18 +32,25 @@ class DevelopmentSuperUserSeeder extends Seeder
             password: (string) config('hcm.secondary_admin_password', 'StrongPass1'),
             name: 'Super User 2',
             team: 'HCM',
-            designation: 'HCM Admin'
+            designation: 'HCM Admin',
+            isGlobalSuperAdmin: false,
         );
     }
 
-    private function seedSuperUser(string $email, string $password, string $name, string $team, string $designation): User
+    private function seedSuperUser(string $email, string $password, string $name, string $team, string $designation, bool $isGlobalSuperAdmin = false): User
     {
+        $attributes = [
+            'name' => $name,
+            'password' => Hash::make($password),
+        ];
+
+        if (Schema::hasColumn('users', 'is_super_admin')) {
+            $attributes['is_super_admin'] = $isGlobalSuperAdmin;
+        }
+
         $superUser = User::query()->updateOrCreate(
             ['email' => strtolower(trim($email))],
-            [
-                'name' => $name,
-                'password' => Hash::make($password),
-            ]
+            $attributes
         );
 
         $companyId = $this->ensureDefaultCompanyMembership($superUser);

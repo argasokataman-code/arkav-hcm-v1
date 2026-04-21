@@ -17,7 +17,7 @@ class HcmEmailSettingsControllerTest extends TestCase
         config()->set('services.mailtrap.account_id', 3229);
 
         $user = new class {
-            public function isGlobalHcmAdmin(): bool
+            public function isHcmAdmin(): bool
             {
                 return true;
             }
@@ -49,7 +49,7 @@ class HcmEmailSettingsControllerTest extends TestCase
     public function test_mailtrap_status_returns_forbidden_for_non_admin(): void
     {
         $user = new class {
-            public function isGlobalHcmAdmin(): bool
+            public function isHcmAdmin(): bool
             {
                 return false;
             }
@@ -74,7 +74,7 @@ class HcmEmailSettingsControllerTest extends TestCase
         config()->set('services.mailtrap.account_id', 3229);
 
         $user = new class {
-            public function isGlobalHcmAdmin(): bool
+            public function isHcmAdmin(): bool
             {
                 return true;
             }

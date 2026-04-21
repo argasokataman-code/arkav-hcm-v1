@@ -4544,10 +4544,17 @@ paths:
       description: |
         Download file selfie yang disimpan di storage private untuk satu attendance record.
         **HCM Admin only** dan tenant-scoped.
+        Path `{id}` pada runtime aktif masih memakai numeric attendance record id.
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Numeric attendance record id pada tenant aktif.
       responses:
         '200':
           description: Binary image file

@@ -407,6 +407,28 @@ class AttendanceApiTest extends TestCase
             ->assertJsonFragment(['userId' => $user->id]);
     }
 
+    public function test_attendance_admin_selfie_download_returns_not_found_when_selfie_missing(): void
+    {
+        $token = $this->bearerToken(true, 'att-selfie-admin@example.com');
+        $user = User::factory()->create();
+        $this->attachUserToActiveCompany($user);
+
+        $record = \App\Models\AttendanceRecord::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $user->id,
+            'work_date' => '2026-04-02',
+            'status' => 'present',
+            'check_in_at' => now()->setTime(9, 5, 0),
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/attendance/admin/records/'.$record->id.'/selfie/download')
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'SELFIE_NOT_FOUND');
+    }
+
     public function test_attendance_admin_upsert_rejects_checkout_before_checkin(): void
     {
         $token = $this->bearerToken();

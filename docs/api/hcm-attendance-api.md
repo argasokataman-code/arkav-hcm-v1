@@ -10,6 +10,7 @@ Tenant context:
 - Endpoint attendance membaca `activeCompany` dari middleware tenant context.
 - Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
 - Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
+- Path parameter attendance/schedule pada runtime aktif tetap `numeric-only` (legacy integer id), termasuk `{id}` pada selfie download admin dan `{userId}` pada schedule timing.
 - `PUT /attendance/admin/record` — lookup record + create menggunakan `company_id` aktif; admin dari company lain tidak dapat menulis record employee company lain. Jika `userId` bukan member company aktif, API mengembalikan `404 USER_NOT_IN_COMPANY`.
 - `GET /timesheets` — query `attendance_records` di-scope ke `company_id` aktif.
 
@@ -160,6 +161,9 @@ Success `200`:
 RBAC:
 - HCM Admin only
 
+Path:
+- `{id}` adalah numeric attendance record id pada tenant aktif
+
 Behavior:
 - Wajib punya active company context
 - Attendance record di-resolve di dalam tenant aktif; admin tidak bisa mengunduh selfie dari tenant lain
@@ -202,6 +206,9 @@ Query:
 RBAC:
 - HCM Admin only
 
+Path:
+- `{userId}` adalah numeric user id pada tenant aktif
+
 Body:
 - `shiftId` optional int exists `hcm_shifts.id` (must be active)
 - `startTime` required_without:shiftId, `H:i`
@@ -216,6 +223,9 @@ Validasi tambahan:
 
 RBAC:
 - HCM Admin only
+
+Path:
+- `{userId}` adalah numeric user id pada tenant aktif
 
 Errors:
 - `404 USER_NOT_IN_COMPANY` jika target user bukan member company aktif

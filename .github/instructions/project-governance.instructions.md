@@ -18,7 +18,11 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 3. **OpenAPI** — jika kontrak API berubah, `docs/api/openapi.yaml`; rujuk `.cursor/rules/openapi-collection-sync.mdc`.
 4. **HCM role** — matriks di `docs/planning/active-hcm-templates-and-permissions.md` + `.cursor/rules/role-permissions-with-features.mdc`.
 5. **Kualitas** — cek anomali singkat: `.cursor/rules/quality-anomaly-pass.mdc`.
-6. **Library/framework** — Context7 sebelum mengandalkan sintaks: `.cursor/rules/context7-usage.mdc`.
+6. **Deploy/runtime** — jika menyentuh `.github/workflows/*.yml`, `Dockerfile`, `run.sh`, `PRODUCTION-SETUP.md`, atau script deploy, ikuti `.cursor/rules/deployment-runtime-guard.mdc`.
+	- Jangan ubah setup deploy sembarangan atau menambah file deploy alternatif tanpa konfirmasi eksplisit.
+	- Host mount `backend/storage` wajib tetap aman untuk Laravel runtime dir: `storage/logs`, `storage/framework/cache/data`, `storage/framework/sessions`, `storage/framework/views`, `storage/app/public`, `storage/app/private`, dan `bootstrap/cache`.
+	- Sebelum `php artisan config:cache` / `view:cache`, runtime dir wajib dibuat dulu; validasi dengan `bash scripts/check-deploy-runtime-guard.sh`.
+7. **Library/framework** — Context7 sebelum mengandalkan sintaks: `.cursor/rules/context7-usage.mdc`.
 
 ## Rule eksekusi pasca-fixing (wajib)
 
@@ -42,4 +46,4 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 
 Konflik instruksi user vs rule proyek: sebutkan konflik dan minta konfirmasi; jangan mengabaikan rule tanpa persetujuan eksplisit.
 
-**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-21 (mandatory PHPUnit + Vitest gate for fixes/features).
+**Terakhir diselaraskan dengan:** isi `.cursor/rules` pada 2026-04-21 (mandatory PHPUnit + Vitest gate + deploy runtime guard).

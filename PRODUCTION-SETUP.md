@@ -124,7 +124,12 @@ cp backend/env.txt backend/.env
 # (edit .env with production settings)
 
 # 3. Siapkan persistent storage di host
-mkdir -p /data/code/storage
+mkdir -p /data/code/storage/logs
+mkdir -p /data/code/storage/framework/cache/data
+mkdir -p /data/code/storage/framework/sessions
+mkdir -p /data/code/storage/framework/views
+mkdir -p /data/code/storage/app/public
+mkdir -p /data/code/storage/app/private
 
 # 4. Build and run Docker image
 docker build -t arkav-hcm .
@@ -137,10 +142,7 @@ docker run -d --name arkav-hcm \
   arkav-hcm
 
 # 5. Run caches + migrations
-docker exec arkav-hcm php artisan config:cache
-docker exec arkav-hcm php artisan route:cache
-docker exec arkav-hcm php artisan view:cache
-docker exec arkav-hcm php artisan migrate --force
+docker exec arkav-hcm bash -c "cd /app/backend && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
 
 # 6. Check logs
 docker logs -f arkav-hcm
@@ -150,4 +152,5 @@ docker logs -f arkav-hcm
 
 - Jangan jalankan `php artisan key:generate` pada setiap deploy staging/production. `APP_KEY` harus stabil di file `.env` yang persistent; mengganti key tiap deploy akan menginvalidasi session/login yang sedang aktif dan bisa merusak data terenkripsi.
 - Data yang disimpan di filesystem container akan hilang saat container di-`rm -f` dan dibuat ulang. Karena workflow auto deploy memang recreate container, direktori `backend/storage` wajib dimount ke host atau persistent volume.
+- Karena host mount akan menimpa isi `storage` bawaan image, subdirektori Laravel seperti `storage/framework/views`, `storage/framework/sessions`, `storage/framework/cache/data`, `storage/logs`, `storage/app/public`, dan `storage/app/private` harus dibuat ulang sebelum menjalankan `php artisan config:cache` atau `php artisan view:cache`.
 - Database staging/production harus tetap memakai MySQL eksternal/persisten. Jika suatu saat container dijalankan tanpa `.env` yang benar atau tanpa DB persisten, gejalanya akan terlihat seperti "data hilang setelah push".

@@ -1,0 +1,64 @@
+---
+description: Wajib — setiap perubahan deploy Docker/Laravel harus menjaga persistent storage, runtime cache dirs, dan urutan cache artisan agar staging/prod tidak regress ke invalid cache path
+alwaysApply: true
+---
+
+# Deployment runtime guard — jangan ubah setup deploy sembarangan
+
+Rule ini berlaku saat menyentuh salah satu area berikut:
+
+- `.github/workflows/*.yml`
+- `Dockerfile`
+- `run.sh`
+- `PRODUCTION-SETUP.md`
+- script deploy / validasi di `scripts/*.sh`
+
+## Prinsip wajib
+
+1. **Gunakan topology deploy yang sudah ada sebagai sumber kebenaran**
+	- Jangan menambah Dockerfile/compose/deploy manifest alternatif hanya untuk workaround cepat tanpa persetujuan eksplisit user.
+	- Jika memang perlu mengubah alur deploy, jelaskan alasan teknis dan impact operasionalnya di patch yang sama.
+
+2. **Persistent storage Laravel tidak boleh hilang saat container recreate**
+	- Jika `backend/storage` di-mount ke host/volume, agent wajib menjaga bahwa runtime subdirectory berikut tetap dibuat sebelum cache Laravel dijalankan:
+		- `storage/logs`
+		- `storage/framework/cache/data`
+		- `storage/framework/sessions`
+		- `storage/framework/views`
+		- `storage/app/public`
+		- `storage/app/private`
+		- `bootstrap/cache`
+	- Jangan asumsi isi image tetap ada setelah host mount menimpa path tersebut.
+
+3. **Urutan artisan pasca-deploy tidak boleh diacak**
+	- Sebelum `php artisan config:cache` dan `php artisan view:cache`, runtime dirs di atas harus sudah ada dan writable.
+	- Jika deploy melakukan cache rebuild, minimal gunakan urutan aman berikut:
+		1. `mkdir -p ...runtime dirs...`
+		2. `chmod -R ug+rwX storage bootstrap/cache` (atau ekivalen aman)
+		3. `php artisan config:clear`
+		4. `php artisan view:clear`
+		5. `php artisan config:cache`
+		6. `php artisan route:cache`
+		7. `php artisan view:cache`
+		8. `php artisan migrate --force`
+
+4. **Perubahan deploy harus punya guard executable**
+	- Jika file deploy diubah, agent wajib menjalankan `bash scripts/check-deploy-runtime-guard.sh` sebelum menutup task.
+	- Jangan klaim setup deploy aman hanya dari pembacaan diff.
+
+5. **Dokumentasi deploy wajib tetap sinkron**
+	- Jika workflow atau startup command berubah, sinkronkan `PRODUCTION-SETUP.md` pada patch yang sama.
+	- Jika ringkasan instruksi GitHub berubah, sinkronkan `.github/instructions/*.instructions.md` yang relevan.
+
+## Failure mode yang harus dianggap regresi
+
+- Host mount hanya membuat `/data/code/storage` root tanpa subdirectory framework/views.
+- `config:cache` dijalankan saat `realpath(storage_path('framework/views'))` masih gagal.
+- Workflow deploy menghapus mount persistent storage atau menggantinya tanpa dokumentasi/approval.
+- Setup deploy dipecah ke file baru tanpa menjaga parity dengan workflow existing.
+
+## Validasi minimum saat menyentuh deploy
+
+- `bash scripts/check-deploy-runtime-guard.sh`
+- `bash -n run.sh` jika `run.sh` disentuh
+- `php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache` bila command Laravel deploy disentuh dan environment tersedia

@@ -57,6 +57,19 @@ is_port_in_use() {
   lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
 }
 
+ensure_laravel_runtime_dirs() {
+  mkdir -p \
+    "$BACKEND_DIR/storage/logs" \
+    "$BACKEND_DIR/storage/framework/cache/data" \
+    "$BACKEND_DIR/storage/framework/sessions" \
+    "$BACKEND_DIR/storage/framework/views" \
+    "$BACKEND_DIR/storage/app/public" \
+    "$BACKEND_DIR/storage/app/private" \
+    "$BACKEND_DIR/bootstrap/cache"
+
+  chmod -R ug+rwX "$BACKEND_DIR/storage" "$BACKEND_DIR/bootstrap/cache" 2>/dev/null || true
+}
+
 ensure_storage_symlink() {
   local expected_target="$BACKEND_DIR/storage/app/public"
   local current_target=""
@@ -101,6 +114,7 @@ trap cleanup INT TERM EXIT
 
 cd "$BACKEND_DIR"
 
+ensure_laravel_runtime_dirs
 ensure_storage_symlink
 
 BACKEND_PORT=8007

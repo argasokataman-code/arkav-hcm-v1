@@ -44,6 +44,11 @@ class AttendanceController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin bypasses tenant scoping on attendance queries.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         if (! $companyId) {
             return $query;
         }

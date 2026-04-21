@@ -10,6 +10,7 @@ Tenant context:
 - Endpoint shift/schedule membaca `activeCompany` dari middleware tenant context.
 - Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
 - Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
+- **Global Super Admin bypass:** user dengan `users.is_super_admin = 1` melewati `company_id` scoping (lihat `applyTenantScope`) dan dapat mengakses shift/schedule lintas tenant tanpa membership eksplisit.
 
 ## Shifts (Master)
 

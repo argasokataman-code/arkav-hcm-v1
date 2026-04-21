@@ -251,6 +251,11 @@ class HcmShiftController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin bypasses tenant scoping on shift queries.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         if (! $companyId) {
             return $query;
         }

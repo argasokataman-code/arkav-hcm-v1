@@ -253,6 +253,11 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
 
+        // Global Super Admin sees employees across ALL tenants; tenant admins
+        // stay scoped to their active company.
+        $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
+        $scopeCompanyId = $isGlobalAdmin ? null : $activeCompanyId;
+
         $query = User::query()
             ->with([
                 'employeeProfile' => function ($q) {
@@ -278,7 +283,13 @@ class HcmEmployeeController extends Controller
                     ]);
                 },
             ])
-            ->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId))
+            ->when(! $isGlobalAdmin, function ($q) use ($scopeCompanyId): void {
+                $q->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $scopeCompanyId));
+            })
+            ->when($isGlobalAdmin, function ($q): void {
+                // Global admin still requires an employee profile record.
+                $q->whereHas('employeeProfile');
+            })
             ->select(['id', 'name', 'email', 'created_at']);
 
         if ($search) {
@@ -286,7 +297,7 @@ class HcmEmployeeController extends Controller
             $useFulltext = strlen($term) >= 3
                 && DB::connection()->getDriverName() === 'mysql';
 
-            $query->where(function ($outer) use ($term, $useFulltext, $activeCompanyId): void {
+            $query->where(function ($outer) use ($term, $useFulltext, $scopeCompanyId, $isGlobalAdmin): void {
                 if ($useFulltext) {
                     $outer->whereRaw('MATCH(users.name, users.email) AGAINST(? IN NATURAL LANGUAGE MODE)', [$term]);
                 } else {
@@ -294,34 +305,43 @@ class HcmEmployeeController extends Controller
                         ->orWhere('email', 'like', '%'.$term.'%');
                 }
 
-                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term, $activeCompanyId): void {
-                    $profileQuery->where('company_id', $activeCompanyId)
-                        ->where(function ($p) use ($term): void {
-                            $p->where('phone', 'like', '%'.$term.'%')
-                        ->orWhere('nik', 'like', '%'.$term.'%');
-                        });
+                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term, $scopeCompanyId, $isGlobalAdmin): void {
+                    if (! $isGlobalAdmin && $scopeCompanyId) {
+                        $profileQuery->where('company_id', $scopeCompanyId);
+                    }
+                    $profileQuery->where(function ($p) use ($term): void {
+                        $p->where('phone', 'like', '%'.$term.'%')
+                            ->orWhere('nik', 'like', '%'.$term.'%');
+                    });
                 });
             });
         }
 
+        $statusScope = function ($p) use ($scopeCompanyId, $isGlobalAdmin) {
+            if (! $isGlobalAdmin && $scopeCompanyId) {
+                $p->where('company_id', $scopeCompanyId);
+            }
+            return $p;
+        };
+
         if ($statusFilter === 'active') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'active'));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('employment_status', 'active'));
         } elseif ($statusFilter === 'inactive') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'inactive'));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('employment_status', 'inactive'));
         } elseif ($statusFilter === 'probation') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'probation'));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('employment_status', 'probation'));
         } elseif ($statusFilter === 'resigned') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'resigned'));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('employment_status', 'resigned'));
         } elseif ($statusFilter === 'terminated') {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('employment_status', 'terminated'));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('employment_status', 'terminated'));
         }
 
         if ($departmentId) {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('department_id', (int) $departmentId));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('department_id', (int) $departmentId));
         }
 
         if ($designationId) {
-            $query->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId)->where('designation_id', (int) $designationId));
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('designation_id', (int) $designationId));
         }
 
         $paginator = $query->orderByDesc('id')->paginate($perPage);
@@ -2269,6 +2289,11 @@ class HcmEmployeeController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin bypasses tenant scoping across employee queries.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         if (! $companyId) {
             return $query;
         }

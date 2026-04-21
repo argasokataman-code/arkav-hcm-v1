@@ -403,6 +403,11 @@ class HcmPayrollPeriodController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin bypasses tenant scoping on payroll period queries.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         if ($companyId === null) {
             return $query;
         }

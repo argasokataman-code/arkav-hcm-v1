@@ -31,6 +31,12 @@ class AssetService
 
     public function companyHasFeature(int $companyId, string $featureCode): bool
     {
+        // Global Super Admin (developer / platform maintainer) always has
+        // feature access across every tenant, bypassing subscription gating.
+        if (request()?->user()?->isGlobalHcmAdmin()) {
+            return true;
+        }
+
         $subscription = Subscription::query()
             ->with(['package.features'])
             ->where('company_id', $companyId)

@@ -23,6 +23,14 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 
 ## Evidence Log
 
+- 2026-04-21 (global-admin bypass fix): Wired `is_super_admin` flag across the rest of the tenant plumbing so the developer account really bypasses tenant scoping + subscription feature gates.
+  - `TenantContextResolver::resolve()` now returns a virtual membership for global admins when the requested (or default) company has no `company_users` row, so the developer account can target any tenant.
+  - All 8 controller-level `applyTenantScope()` methods (HcmLeaveRequest, HcmPayrollRun, HcmEmployee, Attendance, HcmPayrollItem, HcmShift, HcmPayrollPeriod, HcmPayrollItemAssignment) now short-circuit for global admins, returning the unscoped builder.
+  - `HcmEmployeeController::index()` no longer filters by `company_id` for global admins (they still require an employee profile record, but across any tenant).
+  - `HcmTicketController::ensureTicketsFeatureOrFail()` and `AssetService::companyHasFeature()` bypass subscription feature gates for global admins.
+  - `mainlayout.blade.php` feature flags (`hasPayrollFeature`, `hasPerformanceFeature`, `hasAssetManagementFeature`) also unlock for global admins for consistent menu visibility.
+  - New regression: `tests/Feature/GlobalSuperAdminBypassTest.php` locks (a) virtual-membership resolution on a foreign company, (b) cross-tenant employee listing, (c) ticket feature-gate bypass.
+  - PHPUnit: 554 passed, 0 failed, 1 skipped (5420 assertions). Vitest wiring (tickets + checkout + profile-settings + company-invoices): 12 passed.
 - 2026-04-21: Added `users.is_super_admin` column (migration `2026_04_30_070000_add_is_super_admin_to_users_table.php`). Data backfill promoted `qa.login@example.com` user to `is_super_admin=1`. `User::isGlobalHcmAdminSignal()` now reads flag first, email config as fallback only. `HcmRbacService::isGlobalAdmin()` delegates to `User::isGlobalHcmAdmin()`. `DevelopmentSuperUserSeeder` sets the flag for the primary super user. `UserGlobalAdminEmailTest` now locks the flag-first contract. PHPUnit: 551 passed, 0 failed, 1 skipped. Vitest wiring (tickets + checkout + profile-settings + company-invoices): 12 passed.
 - 2026-04-19: wiring tests pass, RBAC tests pass, tenant isolation verified.
 - 2026-04-19: FE auth client and tenant-context flow revalidated against backend auth contract.

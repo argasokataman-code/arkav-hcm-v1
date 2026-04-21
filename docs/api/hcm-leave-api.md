@@ -10,6 +10,7 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/H
 
 - `leave_requests.company_id` — kolom tenant ditambahkan via migrasi; backfill ke `default_company`.
 - Semua query `LeaveRequest` di-scope ketat ke `company_id` aktif (`WHERE company_id = ?`).
+- **Global Super Admin bypass:** user dengan `users.is_super_admin = 1` melewati scope `company_id` di `applyTenantScope` dan melihat leave request lintas tenant.
 - `GET /leave-requests`, `POST /leave-requests`, `PUT /leave-requests/:id`, `DELETE /leave-requests/:id`, `GET /leave-requests/export` — semua mem-filter by active company.
 - Admin dari company A tidak dapat approve/decline leave request milik company B.
 - Admin juga tidak dapat create/filter/balance-check untuk `userId` yang bukan anggota tenant aktif.

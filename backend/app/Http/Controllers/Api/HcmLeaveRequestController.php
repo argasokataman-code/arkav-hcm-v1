@@ -68,6 +68,12 @@ class HcmLeaveRequestController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin (developer / platform maintainer) bypasses tenant
+        // scoping and sees data across all tenants.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         if (! $companyId) {
             return $query;
         }

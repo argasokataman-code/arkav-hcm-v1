@@ -6,6 +6,23 @@ info:
     Microservice-style contract for Identity, Core HCM, and Leave domains.
     Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.
     Lihat `backend/routes/api.php` dan `docs/planning/implementation-status.md` bila path di bawah belum tercantum di file ini.
+
+    ## Global Super Admin bypass
+
+    Pengguna dengan `users.is_super_admin = 1` (Global Developer / Platform
+    Maintainer) melewati:
+    - tenant scoping `company_id` di seluruh endpoint `/v1/hcm/*`
+      (`HcmLeaveRequest`, `HcmPayrollRun`, `HcmPayrollItem`, `HcmPayrollPeriod`,
+      `HcmPayrollItemAssignment`, `HcmShift`, `HcmEmployee`, `Attendance`);
+    - subscription feature gate `SUBSCRIPTION_REQUIRED` pada ticket dan asset
+      management;
+    - requirement membership `company_users` di `TenantContextResolver`
+      (membership virtual dibuat ad-hoc untuk konteks request, tidak dipersist).
+
+    Akun ini mengakses seluruh tenant tanpa perlu `X-Company-Id` header
+    tertentu; header tetap dihormati untuk memilih tenant aktif. Fallback
+    bootstrap `config('hcm.admin_email')` tetap ada untuk fresh-install
+    sebelum backfill migrasi selesai.
 servers:
   # Local backend (Laravel artisan serve via ./run.sh)
   - url: http://127.0.0.1:8007

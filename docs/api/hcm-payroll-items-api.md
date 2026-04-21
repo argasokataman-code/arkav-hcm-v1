@@ -2,6 +2,11 @@
 
 Prefix: `/v1/hcm` · middleware **`api.token`** · envelope `{ success, data?, error? }`.
 
+## Tenant context
+
+- Semua endpoint di-scope ke `activeCompany`; `applyTenantScope` mengikat `company_id` atau fallback ke template global (`company_id IS NULL`).
+- **Global Super Admin bypass:** user dengan `users.is_super_admin = 1` melewati filter `company_id` sehingga melihat seluruh payroll item + assignment lintas tenant.
+
 ## Tujuan
 
 Sumber utama **admin** untuk mendefinisikan baris yang dipakai konteks payroll (katalog `hcm_payroll_items`): **kustom** atau **taut ke** baris existing `hcm_salary_components` (seed). Halaman web: **`/payroll`**.

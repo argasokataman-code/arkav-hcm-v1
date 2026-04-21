@@ -16,9 +16,10 @@
 	$displayCompanySubscription = $activeCompanySubscription ?: $latestCompanySubscription;
 	$activePackage = $activeCompanySubscription?->package;
 	$canUseTemplateLayouts = (bool) $isPrimarySuperAdmin;
-	$hasPayrollFeature = (bool) ($activePackage?->hasFeature('payroll') ?? false);
-	$hasPerformanceFeature = (bool) ($activePackage?->hasFeature('performance') ?? false);
-	$hasAssetManagementFeature = (bool) ($activePackage?->hasFeature('asset_management') ?? false);
+	$isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin());
+	$hasPayrollFeature = (bool) ($activePackage?->hasFeature('payroll') ?? false) || $isGlobalHcmAdmin;
+	$hasPerformanceFeature = (bool) ($activePackage?->hasFeature('performance') ?? false) || $isGlobalHcmAdmin;
+	$hasAssetManagementFeature = (bool) ($activePackage?->hasFeature('asset_management') ?? false) || $isGlobalHcmAdmin;
 	$companyCode = (string) ($activeCompany->code ?? '');
 	$isPendingPaymentLockShell = request()->routeIs('subscription')
 		&& (($latestCompanySubscription?->status ?? null) === 'pending_payment');

@@ -2,6 +2,10 @@
 
 Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/HcmTicketController.php`.
 
+## Global Super Admin bypass
+
+Pengguna dengan `users.is_super_admin = 1` (Global Developer / Platform Maintainer) melewati pengecekan feature gate `SUBSCRIPTION_REQUIRED` dan tenant scoping `company_id`. Akun ini melihat seluruh ticket lintas tenant meski company aktif tidak punya subscription paket `tickets`.
+
 ## Base path
 
 `/v1/hcm`

@@ -8,6 +8,7 @@ Tenant context:
 - Jika company tidak dimiliki user maka request ditolak `403` dengan `error.code = TENANT_FORBIDDEN`.
 - Scope ini berlaku untuk endpoint payroll period/run, payroll items, THR settings/batch, dan PKWT compensation preview/posting.
 - Untuk payroll run, alur finalize/disburse/reset juga mempertahankan tenant scope pada fetch period/run lanjutan di dalam transaksi.
+- **Global Super Admin bypass:** user dengan `users.is_super_admin = 1` melewati scope `company_id` pada payroll period/run/item queries di controller API. Service-level calculators (THR, PKWT, monthly payslip) tetap per-tenant scoped karena kalkulasinya memang per-company.
 
 ## Ringkasan
 

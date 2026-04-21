@@ -10,6 +10,7 @@ Tenant context:
 - Endpoint attendance membaca `activeCompany` dari middleware tenant context.
 - Header opsional untuk override company aktif: `X-Company-Id` atau `X-Company-Code`.
 - Jika company yang dipilih bukan membership aktif user, API mengembalikan `403 TENANT_FORBIDDEN`.
+- **Global Super Admin bypass:** user dengan `users.is_super_admin = 1` melewati scope `company_id` pada attendance queries (lintas tenant).
 - Path parameter attendance/schedule pada runtime aktif tetap `numeric-only` (legacy integer id), termasuk `{id}` pada selfie download admin dan `{userId}` pada schedule timing.
 - `PUT /attendance/admin/record` — lookup record + create menggunakan `company_id` aktif; admin dari company lain tidak dapat menulis record employee company lain. Jika `userId` bukan member company aktif, API mengembalikan `404 USER_NOT_IN_COMPANY`.
 - `GET /timesheets` — query `attendance_records` di-scope ke `company_id` aktif.

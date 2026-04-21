@@ -237,6 +237,11 @@ class HcmPayrollItemAssignmentController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
+        // Global Super Admin bypasses tenant scoping on assignment queries.
+        if (auth()->user()?->isGlobalHcmAdmin()) {
+            return $query;
+        }
+
         return $query->where(function (Builder $inner) use ($companyId): void {
             if ($companyId !== null) {
                 $inner->where('company_id', $companyId)->orWhereNull('company_id');

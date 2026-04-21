@@ -50,6 +50,12 @@ class HcmTicketController extends Controller
      */
     private function ensureTicketsFeatureOrFail(int $companyId): ?JsonResponse
     {
+        // Global Super Admin always has access; subscription-level feature
+        // gating does not apply to the platform maintainer.
+        if (request()?->user()?->isGlobalHcmAdmin()) {
+            return null;
+        }
+
         if ($companyId <= 0) {
             return null;
         }

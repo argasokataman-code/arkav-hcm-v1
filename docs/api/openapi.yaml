@@ -1163,6 +1163,18 @@ paths:
                   payment:
                     type: object
                     nullable: true
+                    properties:
+                      id: { type: integer }
+                      gateway: { type: string }
+                      gatewayReference: { type: string, nullable: true }
+                      paymentMethod: { type: string }
+                      status: { type: string }
+                      amount: { type: number }
+                      paidAt: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
   /v1/mock/payments/create:
     post:
@@ -1389,18 +1401,6 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
-                    properties:
-                      id: { type: integer }
-                      gateway: { type: string }
-                      gatewayReference: { type: string, nullable: true }
-                      paymentMethod: { type: string }
-                      status: { type: string }
-                      amount: { type: number }
-                      paidAt: { type: string, format: date-time, nullable: true }
-        '401': { $ref: '#/components/responses/UnauthorizedError' }
-        '403': { $ref: '#/components/responses/ForbiddenError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFoundError' }
 
   # -------------------------
   # User Management (implemented under /v1/hcm/user-management)
@@ -1779,6 +1779,17 @@ paths:
                   data:
                     type: object
                     properties:
+                      id: { type: integer, example: 12 }
+                      fileType: { type: string, enum: [csv, excel, pdf], example: csv }
+                      fileUrl: { type: string, example: /storage/report-exports/company_1/snapshot_8/employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
+                      fileName: { type: string, example: employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
+                      generatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { description: Export generation failed }
+
   /v1/saas/reports/revenue:
     get:
       tags: [Reporting]
@@ -1866,16 +1877,6 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
-                      id: { type: integer, example: 12 }
-                      fileType: { type: string, enum: [csv, excel, pdf], example: csv }
-                      fileUrl: { type: string, example: /storage/report-exports/company_1/snapshot_8/employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
-                      fileName: { type: string, example: employee_2026-03-01_to_2026-03-31_20260413_221530.csv }
-                      generatedAt: { type: string, format: date-time }
-        '401': { $ref: '#/components/responses/UnauthorizedError' }
-        '403': { $ref: '#/components/responses/ForbiddenError' }
-        '404': { $ref: '#/components/responses/NotFoundError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-        '500': { description: Export generation failed }
 
   # -------------------------
   # Tickets (implemented under /v1/hcm)

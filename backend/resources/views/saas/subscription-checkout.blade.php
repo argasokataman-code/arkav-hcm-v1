@@ -331,7 +331,8 @@
                             <div class="checkout-section-title mb-2" style="font-size:1rem;">Catatan</div>
                             <ul class="checkout-notes mb-0 ps-3">
                                 <li>Invoice dibuat untuk company yang sedang aktif (tenant context).</li>
-                                <li>Jika sudah ada invoice pending, sistem memakai invoice itu — tidak akan dobel.</li>
+                                <li>Jika sudah ada invoice pending yang belum dibayar, form di-lock — selesaikan pembayaran terlebih dulu.</li>
+                                <li>Setelah pembayaran berhasil, kamu bisa kembali ke halaman ini untuk upgrade atau perpanjang paket.</li>
                             </ul>
                         </div>
                     </div>

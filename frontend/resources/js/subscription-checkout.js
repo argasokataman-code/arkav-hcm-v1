@@ -186,9 +186,9 @@
         }
         updateInvoiceActions(currentInvoice);
 
-        // When tenant is pending_payment lock and a pending invoice already exists,
-        // hide the "Buat invoice baru" form so user doesn't see two competing CTAs.
-        if (isPendingLock && currentInvoice && !currentInvoice.isPaid && upgradeForm) {
+        // When a pending (unpaid) invoice exists, hide the upgrade form to prevent
+        // creating another invoice — applies in both pending-lock and upgrade modes.
+        if (currentInvoice && !currentInvoice.isPaid && upgradeForm) {
             upgradeForm.classList.add("d-none");
         }
     }
@@ -215,7 +215,7 @@
             if (!pendingInvoice) return null;
             renderInvoice({ invoice: pendingInvoice }, true);
             if (!isPendingLock) {
-                showFeedback("info", "Invoice pending ditemukan.");
+                showFeedback("warning", "Ada invoice pending yang belum dibayar. Selesaikan pembayaran ini sebelum membuat invoice baru.");
             } else {
                 clearFeedback();
             }
@@ -395,6 +395,7 @@
 
             showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice berhasil dibuat. Silakan lanjut bayar.");
             renderInvoice(body.data, !!(body.data && body.data.reused));
+            // Lock the form after invoice is shown — user must pay, not create another.
         } catch (e) {
             showFeedback("danger", e && e.message ? e.message : "Gagal membuat invoice.");
         } finally {

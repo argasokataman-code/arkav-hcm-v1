@@ -323,3 +323,55 @@ Missing or invalid authentication token:
   }
 }
 ```
+
+---
+
+## Tenant Checkout Endpoint
+
+### POST /v1/hcm/billing/checkout
+
+Tenant self-service checkout: create or **reuse** a pending subscription + invoice for the active company context.
+
+**Auth**: Bearer token + HCM admin role. `activeCompanyId` must be set in request context (middleware).
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `package_uuid` | uuid | Yes | UUID of an active Package (not `trial`). |
+| `billing_cycle` | string | Yes | `monthly` or `yearly`. |
+| `billingEmail` | string | No | Optional billing e-mail override. |
+
+**Global Dedup Guard (added 2025)**
+
+If the company has **any** unpaid invoice (`status` in `draft`/`sent`, `is_paid=false`), the endpoint returns that existing invoice with `reused: true` — **no new invoice or subscription is created**. This prevents double-billing when a user navigates back to the checkout page after payment is already pending.
+
+**Success Response (200)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "invoice": {
+      "id": 55,
+      "invoiceNumber": "INV-2025-00055",
+      "issueDate": "2025-06-01",
+      "dueDate": "2025-06-08",
+      "amountDue": 99000,
+      "isPaid": false,
+      "status": "sent"
+    },
+    "reused": true
+  }
+}
+```
+
+When `reused: true`, the client must display the existing invoice and lock the creation form — user must pay first.
+
+**Error Codes**
+
+| Code | HTTP | When |
+|---|---|---|
+| `TENANT_CONTEXT_REQUIRED` | 422 | Missing `activeCompanyId` in request context. |
+| `VALIDATION_ERROR` | 422 | Trial package submitted, or invalid `billing_cycle`. |
+| `NOT_FOUND` | 404 | `package_uuid` not found or inactive. |

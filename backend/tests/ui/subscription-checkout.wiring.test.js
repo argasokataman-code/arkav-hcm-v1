@@ -11,7 +11,7 @@ describe('subscription checkout wiring', () => {
     document.body.innerHTML = `
       <div data-subscription-checkout-page data-checkout-mock-pay-enabled="1"></div>
       <div class="alert d-none" data-checkout-feedback></div>
-      <form data-checkout-form>
+      <form data-checkout-form class="checkout-upgrade-form">
         <input data-checkout-company-name />
         <input data-checkout-company-id />
         <input data-checkout-company-code />
@@ -144,12 +144,16 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice pending ditemukan');
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(false);
 
+    // Form must be locked (hidden) when a pending invoice exists — prevents double invoice creation.
+    expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);
+    // Feedback must warn, not just info.
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Ada invoice pending');
+
     document.querySelector('[data-checkout-pay-now]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flush();
 
     expect(window.AuthApi.request).toHaveBeenCalledWith('post', '/hcm/billing/invoices/55/mock-hosted-checkout', {});
     expect(window.__ARCAV_LAST_REDIRECT__).toContain('/mock-hosted-payment.html?payment_uuid=pay-55');
-    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toBe('');
   });
 
   it('restores paid invoice state after returning from hosted gateway', async () => {

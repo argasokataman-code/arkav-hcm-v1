@@ -1099,7 +1099,16 @@ paths:
   /v1/hcm/billing/checkout:
     post:
       tags: [SaaS, HCM]
-      summary: Tenant subscription checkout (create invoice)
+      summary: Tenant subscription checkout (create or reuse invoice)
+      description: |
+        Creates a new pending subscription + invoice for the active company, or returns an
+        existing unpaid invoice with `reused: true` if one already exists.
+
+        **Global dedup guard**: if the company has ANY unpaid invoice (`status` in `draft`/`sent`,
+        `is_paid=false`), the endpoint reuses it and returns immediately — no new invoice or
+        subscription is created. This prevents double-billing when a user revisits the checkout
+        page after payment is already in progress. The client must hide the checkout form and
+        prompt the user to pay the existing invoice.
       security:
         - bearerAuth: []
       requestBody:

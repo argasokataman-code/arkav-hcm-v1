@@ -73,6 +73,34 @@ class HcmSubscriptionCheckoutController
         $dueDate = now()->addDays(7)->toDateString();
 
         return DB::transaction(function () use ($company, $package, $billingCycle, $amount, $dueDate, $validated): JsonResponse {
+            // Global guard: if there is ANY unpaid invoice for this company, reuse it and
+            // never create a duplicate — regardless of subscription status.
+            $anyUnpaid = Invoice::query()
+                ->where('company_id', $company->id)
+                ->where('is_paid', false)
+                ->whereIn('status', ['draft', 'sent'])
+                ->lockForUpdate()
+                ->latest('id')
+                ->first();
+
+            if ($anyUnpaid) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invoice' => [
+                            'id' => $anyUnpaid->id,
+                            'invoiceNumber' => $anyUnpaid->invoice_number,
+                            'issueDate' => $anyUnpaid->issue_date?->toDateString(),
+                            'dueDate' => $anyUnpaid->due_date?->toDateString(),
+                            'amountDue' => (float) $anyUnpaid->amount_due,
+                            'isPaid' => (bool) $anyUnpaid->is_paid,
+                            'status' => (string) $anyUnpaid->status,
+                        ],
+                        'reused' => true,
+                    ],
+                ]);
+            }
+
             // Reuse an existing unpaid invoice for an existing pending_payment subscription (if still valid).
             $existingPending = Subscription::query()
                 ->where('company_id', $company->id)

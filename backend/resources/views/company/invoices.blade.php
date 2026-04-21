@@ -119,6 +119,8 @@
             </div>
         </div>
 
+        <div class="alert alert-danger d-none" role="alert" data-company-invoices-feedback></div>
+
         <!-- Invoices List Container -->
         <div data-company-invoices-list-container>
             <div class="card"><div class="card-body text-center text-muted py-4">
@@ -194,6 +196,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" data-company-invoice-download>
+                    <i class="ti ti-download me-2"></i>Download PDF
+                </button>
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     <i class="ti ti-printer me-2"></i>Print
                 </button>

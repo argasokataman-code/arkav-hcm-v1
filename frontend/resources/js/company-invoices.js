@@ -5,8 +5,20 @@
     if (!root) return;
 
     var listContainer = document.querySelector("[data-company-invoices-list-container]");
+    var feedback = document.querySelector("[data-company-invoices-feedback]");
     var modalEl = document.querySelector("[data-company-invoice-modal]");
+    var searchInput = document.getElementById("search_invoices");
+    var statusFilter = document.getElementById("filter_invoice_status");
+    var paidFilter = document.getElementById("filter_invoice_paid");
+    var resetFiltersBtn = document.getElementById("btn_reset_invoice_filters");
+    var totalDueNode = document.getElementById("total_due");
+    var countUnpaidNode = document.getElementById("count_unpaid");
+    var countOverdueNode = document.getElementById("count_overdue");
+    var paidThisMonthNode = document.getElementById("paid_this_month");
+    var downloadBtn = document.querySelector("[data-company-invoice-download]");
     var modal = null;
+    var currentInvoice = null;
+    var searchTimer = null;
     try {
         if (modalEl && window.bootstrap) {
             modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -35,6 +47,77 @@
         var s = String(status || "").toLowerCase();
         var map = { draft: "secondary", sent: "info", viewed: "info", paid: "success", expired: "danger" };
         return '<span class="badge bg-' + (map[s] || "secondary") + '">' + esc(s || "-") + "</span>";
+    }
+
+    function showFeedback(message) {
+        if (!feedback) return;
+        feedback.textContent = message;
+        feedback.classList.remove("d-none");
+    }
+
+    function clearFeedback() {
+        if (!feedback) return;
+        feedback.textContent = "";
+        feedback.classList.add("d-none");
+    }
+
+    function parseError(err) {
+        if (err && err.response && err.response.data && err.response.data.error && err.response.data.error.message) {
+            return String(err.response.data.error.message);
+        }
+        if (err && err.data && err.data.error && err.data.error.message) {
+            return String(err.data.error.message);
+        }
+        if (err && err.message) {
+            return String(err.message);
+        }
+        return "Gagal memuat invoice company.";
+    }
+
+    function isSameMonth(dateValue) {
+        if (!dateValue) return false;
+        var date = new Date(dateValue);
+        var now = new Date();
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }
+
+    function isPastDue(dateValue) {
+        if (!dateValue) return false;
+        return new Date(dateValue) < new Date();
+    }
+
+    function applySummary(rows) {
+        var items = Array.isArray(rows) ? rows : [];
+        var totalDue = 0;
+        var unpaidCount = 0;
+        var overdueCount = 0;
+        var paidThisMonth = 0;
+
+        items.forEach(function (row) {
+            var amount = Number(row && row.amountDue ? row.amountDue : 0);
+            if (!row || row.isPaid) {
+                if (row && row.isPaid && isSameMonth(row.paidDate || row.updatedAt)) {
+                    paidThisMonth += amount;
+                }
+                return;
+            }
+
+            totalDue += amount;
+            unpaidCount += 1;
+            if (isPastDue(row.dueDate)) {
+                overdueCount += 1;
+            }
+        });
+
+        if (totalDueNode) totalDueNode.textContent = fmtMoney(totalDue);
+        if (countUnpaidNode) countUnpaidNode.textContent = String(unpaidCount);
+        if (countOverdueNode) countOverdueNode.textContent = String(overdueCount);
+        if (paidThisMonthNode) paidThisMonthNode.textContent = fmtMoney(paidThisMonth);
+    }
+
+    function renderState(message) {
+        if (!listContainer) return;
+        listContainer.innerHTML = '<div class="card"><div class="card-body text-center text-muted py-4">' + esc(message) + '</div></div>';
     }
 
     function api(method, path, payload) {
@@ -83,9 +166,9 @@
                           <td class="text-end">
                             <div class="d-inline-flex gap-2">
                               <button class="btn btn-sm btn-white" data-invoice-view="${esc(r.id)}"><i class="ti ti-eye"></i></button>
-                              <a class="btn btn-sm btn-white" href="/v1/hcm/billing/invoices/${esc(r.id)}/download" target="_blank" rel="noopener noreferrer" title="Download PDF">
+                                                            <button class="btn btn-sm btn-white" type="button" data-invoice-download="${esc(r.id)}" title="Download PDF">
                                 <i class="ti ti-download"></i>
-                              </a>
+                                                            </button>
                               ${r.isPaid ? "" : `<button class="btn btn-sm btn-primary" data-invoice-mock-pay="${esc(r.id)}">Mock Pay</button>`}
                             </div>
                           </td>
@@ -98,9 +181,11 @@
           </div>
         `;
         listContainer.innerHTML = html;
+        applySummary(rows);
     }
 
     function fillModal(inv) {
+        currentInvoice = inv || null;
         function set(sel, val) {
             var el = document.querySelector(sel);
             if (el) el.textContent = val;
@@ -117,6 +202,37 @@
         set("[data-invoice-modal-due-date]", inv.dueDate || "-");
         set("[data-invoice-modal-amount]", fmtMoney(inv.amountDue));
         set("[data-invoice-modal-notes]", inv.notes || "—");
+        if (downloadBtn) {
+            downloadBtn.disabled = !inv || !inv.id;
+        }
+    }
+
+    function buildQuery() {
+        var query = { perPage: 50 };
+        if (searchInput && searchInput.value.trim()) {
+            query.search = searchInput.value.trim();
+        }
+        if (statusFilter && statusFilter.value) {
+            query.status = statusFilter.value;
+        }
+        if (paidFilter && paidFilter.value !== "") {
+            query.is_paid = paidFilter.value;
+        }
+        return query;
+    }
+
+    function triggerDownload(inv) {
+        if (!inv || !inv.id) return;
+        if (window.AuthApi && typeof window.AuthApi.downloadV1Binary === "function") {
+            window.AuthApi.downloadV1Binary(
+                "/hcm/billing/invoices/" + encodeURIComponent(inv.id) + "/download",
+                (inv.invoiceNumber || ("invoice-" + inv.id)) + ".pdf"
+            ).catch(function (err) {
+                showFeedback(parseError(err));
+            });
+            return;
+        }
+        window.open("/v1/hcm/billing/invoices/" + encodeURIComponent(inv.id) + "/download", "_blank", "noopener");
     }
 
     function bindActions() {
@@ -132,6 +248,13 @@
                 });
                 return;
             }
+            var downloadActionBtn = e.target.closest("[data-invoice-download]");
+            if (downloadActionBtn) {
+                var idDownload = downloadActionBtn.getAttribute("data-invoice-download");
+                var invoiceNumber = downloadActionBtn.closest("tr")?.querySelector(".fw-semibold")?.textContent || ("invoice-" + idDownload);
+                triggerDownload({ id: idDownload, invoiceNumber: invoiceNumber });
+                return;
+            }
             var payBtn = e.target.closest("[data-invoice-mock-pay]");
             if (payBtn) {
                 var id2 = payBtn.getAttribute("data-invoice-mock-pay");
@@ -141,18 +264,50 @@
                 return;
             }
         });
+
+        if (downloadBtn) {
+            downloadBtn.addEventListener("click", function () {
+                triggerDownload(currentInvoice);
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener("input", function () {
+                window.clearTimeout(searchTimer);
+                searchTimer = window.setTimeout(load, 250);
+            });
+        }
+        if (statusFilter) {
+            statusFilter.addEventListener("change", load);
+        }
+        if (paidFilter) {
+            paidFilter.addEventListener("change", load);
+        }
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener("click", function () {
+                if (searchInput) searchInput.value = "";
+                if (statusFilter) statusFilter.value = "";
+                if (paidFilter) paidFilter.value = "";
+                load();
+            });
+        }
     }
 
     function load() {
+        clearFeedback();
         if (listContainer) {
             listContainer.innerHTML = '<div class="card"><div class="card-body text-center text-muted py-4"><i class="ti ti-loader-quarter fs-1 spin"></i> Loading invoices...</div></div>';
         }
-        api("get", "/hcm/billing/invoices?perPage=50").then(function (payload) {
+        api("get", "/hcm/billing/invoices", buildQuery()).then(function (payload) {
             if (!payload || payload.success !== true) {
                 renderTable([]);
                 return;
             }
             renderTable(payload.data || []);
+        }).catch(function (err) {
+            renderState("Invoice belum tersedia atau gagal dimuat.");
+            applySummary([]);
+            showFeedback(parseError(err));
         });
     }
 

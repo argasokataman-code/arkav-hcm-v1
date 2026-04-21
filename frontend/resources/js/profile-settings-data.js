@@ -18,6 +18,13 @@
     var companyIdNode = document.querySelector('[data-company-id]');
     var companyCodeNode = document.querySelector('[data-company-code]');
     var copyCompanyCodeBtn = document.querySelector('[data-copy-company-code]');
+    var subscriptionCardNode = document.querySelector('[data-subscription-summary-card]');
+    var subscriptionStatusNode = document.querySelector('[data-subscription-status]');
+    var subscriptionPackageNode = document.querySelector('[data-subscription-package]');
+    var subscriptionBillingCycleNode = document.querySelector('[data-subscription-billing-cycle]');
+    var subscriptionPeriodNode = document.querySelector('[data-subscription-period]');
+    var subscriptionNextPaymentDateNode = document.querySelector('[data-subscription-next-payment-date]');
+    var subscriptionNextPaymentAmountNode = document.querySelector('[data-subscription-next-payment-amount]');
     var snapshot = {};
 
     function normalize(value) {
@@ -52,6 +59,40 @@
             Object.keys(extra).forEach(function (k) { headers[k] = extra[k]; });
         }
         return headers;
+    }
+
+    function formatDate(value) {
+        var raw = normalize(value);
+        if (!raw) {
+            return '—';
+        }
+
+        try {
+            return new Intl.DateTimeFormat('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }).format(new Date(raw));
+        } catch (_e) {
+            return raw;
+        }
+    }
+
+    function formatMoney(value) {
+        var amount = Number(value || 0);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return '—';
+        }
+
+        try {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0
+            }).format(amount);
+        } catch (_e) {
+            return 'Rp ' + String(amount);
+        }
     }
 
     function renderCompanyContext(mePayload) {
@@ -89,6 +130,46 @@
                     showFeedback('warning', 'Gagal menyalin otomatis. Salin manual company code di atas.');
                 }
             };
+        }
+    }
+
+    function renderSubscriptionSummary(mePayload) {
+        if (!subscriptionCardNode) {
+            return;
+        }
+
+        var subscription = mePayload && mePayload.data ? (mePayload.data.subscription || null) : null;
+        if (!subscription) {
+            subscriptionCardNode.classList.add('d-none');
+            return;
+        }
+
+        subscriptionCardNode.classList.remove('d-none');
+
+        if (subscriptionStatusNode) {
+            subscriptionStatusNode.textContent = normalize(subscription.status).replace(/_/g, ' ') || '—';
+        }
+        if (subscriptionPackageNode) {
+            var packageLabel = normalize(subscription.packageName) || normalize(subscription.packageCode) || normalize(subscription.planCode);
+            subscriptionPackageNode.textContent = packageLabel || '—';
+        }
+        if (subscriptionBillingCycleNode) {
+            subscriptionBillingCycleNode.textContent = normalize(subscription.billingCycle) || '—';
+        }
+        if (subscriptionPeriodNode) {
+            subscriptionPeriodNode.textContent = formatDate(subscription.startsAt) + ' - ' + formatDate(subscription.endsAt);
+        }
+
+        var nextPayment = subscription.nextPayment || {};
+        if (subscriptionNextPaymentDateNode) {
+            subscriptionNextPaymentDateNode.textContent = formatDate(nextPayment.date);
+        }
+        if (subscriptionNextPaymentAmountNode) {
+            var amountLabel = formatMoney(nextPayment.amount);
+            if (nextPayment.invoiceNumber) {
+                amountLabel = amountLabel + ' • ' + String(nextPayment.invoiceNumber);
+            }
+            subscriptionNextPaymentAmountNode.textContent = amountLabel;
         }
     }
 
@@ -268,11 +349,9 @@
 
         var identityResponse = await fetch('/v1/identity/auth/profile', {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: buildHeaders({
+                'Content-Type': 'application/json'
+            }),
             credentials: 'same-origin',
             body: JSON.stringify(identityPayload)
         });
@@ -329,6 +408,7 @@
         var mePayload = await meResponse.json().catch(function () { return null; });
         if (meResponse.ok && mePayload && mePayload.success && mePayload.data) {
             renderCompanyContext(mePayload);
+            renderSubscriptionSummary(mePayload);
             merged.identityEmail = normalize(mePayload.data.email || '');
             if (!merged.general_name && mePayload.data.name) {
                 merged.general_name = mePayload.data.name;
@@ -347,9 +427,6 @@
         }
 
         applyData(merged);
-        if (!settingsAvailable) {
-            showFeedback('warning', 'Profile dimuat dari data akun. Akses settings admin dibatasi untuk role tertentu.');
-        }
     }
 
     async function saveSettings(event) {

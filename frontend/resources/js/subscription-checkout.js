@@ -214,7 +214,11 @@
             var pendingInvoice = pickPendingInvoice(payload.data || []);
             if (!pendingInvoice) return null;
             renderInvoice({ invoice: pendingInvoice }, true);
-            showFeedback("info", "Invoice pending ditemukan. Lanjutkan pembayaran untuk mengaktifkan layanan.");
+            if (!isPendingLock) {
+                showFeedback("info", "Invoice pending ditemukan.");
+            } else {
+                clearFeedback();
+            }
             return pendingInvoice;
         } catch (_e) {
             return null;
@@ -247,17 +251,17 @@
         }
 
         if (status === "completed") {
-            await loadInvoiceById(invoiceId, "Pembayaran berhasil lewat hosted payment gateway mock.", "success");
+            await loadInvoiceById(invoiceId, "Pembayaran berhasil.", "success");
             return true;
         }
 
         if (status === "failed") {
-            await loadInvoiceById(invoiceId, "Pembayaran dibatalkan atau gagal. Kamu bisa coba lagi dari checkout.", "warning");
+            await loadInvoiceById(invoiceId, "Pembayaran belum berhasil. Coba lagi.", "warning");
             return true;
         }
 
         if (status === "pending") {
-            await loadInvoiceById(invoiceId, "Hosted payment belum diselesaikan. Lanjutkan pembayaran saat siap.", "info");
+            await loadInvoiceById(invoiceId, "Pembayaran belum selesai.", "info");
             return true;
         }
 
@@ -277,7 +281,7 @@
             if (!payload || payload.success !== true || !hostedCheckoutUrl) {
                 throw new Error("Gagal membuka hosted payment gateway.");
             }
-            showFeedback("info", "Membuka hosted payment gateway mock...");
+            clearFeedback();
             redirectTo(hostedCheckoutUrl);
         } catch (err) {
             var msg = err && err.data && err.data.error && err.data.error.message

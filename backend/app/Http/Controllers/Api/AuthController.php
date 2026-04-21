@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuthToken;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Invoice;
 use App\Models\HcmPermission;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -175,7 +177,7 @@ class AuthController extends Controller
         /** @var User|null $user */
         $user = $request->user();
         $activeCompany = $request->attributes->get('activeCompany');
-        $activeCompanyRole = $request->attributes->get('activeCompanyRole');
+        $activeCompanyRole = (string) ($request->attributes->get('activeCompanyRole') ?? '');
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         if (! $user) {
@@ -184,7 +186,11 @@ class AuthController extends Controller
 
         $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
         $profile = $user->employeeProfile;
-        [$firstName, $lastName] = $this->splitName((string) ($user->name ?? ''));
+        $resolvedActiveCompany = $activeCompanyId > 0
+            ? Company::query()->with('latestSubscription.package')->find($activeCompanyId)
+            : ($activeCompany instanceof Company ? $activeCompany : null);
+        $profileData = $this->buildProfilePayload($user, $profile, $resolvedActiveCompany, $activeCompanyRole);
+        $currentUserRole = $this->resolveCurrentUserRole($activeCompanyRole, $profile);
 
         // `hcmAdmin` is used widely by HCM web modules to decide whether to allow "admin pages".
         // For self-serve trial: the company owner should be treated as tenant-admin for their own company.
@@ -204,21 +210,14 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'profile' => [
-                    'firstName' => $firstName,
-                    'lastName' => $lastName,
-                    'phone' => $profile?->phone,
-                    'address' => $profile?->address,
-                    'addressDetail' => $profile?->address_detail,
-                    'designation' => $profile?->designation,
-                    'team' => $profile?->team,
-                    'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
-                ],
-                'roles' => ['employee'],
+                'profile' => $profileData,
+                'roles' => [$currentUserRole],
+                'currentUserRole' => $currentUserRole,
                 'hcmAdmin' => $isTenantHcmAdmin,
                 'hcmGlobalAdmin' => $isGlobalHcmAdmin,
                 'permissions' => $permissions,
                 'permissionCodes' => array_keys($permissions),
+                'subscription' => $this->buildSubscriptionSummary($resolvedActiveCompany),
                 'activeCompany' => $activeCompany ? [
                     'id' => $activeCompany->id,
                     'uuid' => $activeCompany->uuid,
@@ -671,17 +670,36 @@ class AuthController extends Controller
         $user->save();
 
         $activeCompany = $request->attributes->get('activeCompany');
-        $profile = EmployeeProfile::query()->firstOrNew(['user_id' => $user->id]);
-        if (! $profile->exists && $activeCompany instanceof Company) {
-            $profile->company_id = $activeCompany->id;
+        $activeCompanyRole = (string) ($request->attributes->get('activeCompanyRole') ?? '');
+        $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
+
+        if ($profile) {
+            $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
+            $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
+            $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
+            $profile->save();
+        } elseif ($activeCompany instanceof Company && $activeCompanyRole === 'owner') {
+            $this->storeOwnerProfileSettings(
+                $activeCompany,
+                trim((string) $request->input('phone', '')) ?: null,
+                trim((string) $request->input('address', '')) ?: null,
+                trim((string) $request->input('addressDetail', '')) ?: null,
+            );
+        } else {
+            $profile = EmployeeProfile::query()->firstOrNew(['user_id' => $user->id]);
+            if (! $profile->exists && $activeCompany instanceof Company) {
+                $profile->company_id = $activeCompany->id;
+            }
+            $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
+            $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
+            $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
+            $profile->save();
         }
-        $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
-        $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
-        $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
-        $profile->save();
 
         $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
-        [$firstName, $lastName] = $this->splitName((string) $user->name);
+        $resolvedActiveCompany = $activeCompany instanceof Company
+            ? Company::query()->with('latestSubscription.package')->find($activeCompany->id)
+            : null;
 
         return response()->json([
             'success' => true,
@@ -689,18 +707,129 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'profile' => [
-                    'firstName' => $firstName,
-                    'lastName' => $lastName,
-                    'phone' => $user->employeeProfile?->phone,
-                    'address' => $user->employeeProfile?->address,
-                    'addressDetail' => $user->employeeProfile?->address_detail,
-                    'designation' => $user->employeeProfile?->designation,
-                    'team' => $user->employeeProfile?->team,
-                    'profilePhotoUrl' => $this->profilePhotoUrl($user->employeeProfile?->profile_photo_path),
-                ],
+                'profile' => $this->buildProfilePayload($user, $user->employeeProfile, $resolvedActiveCompany, $activeCompanyRole),
+                'currentUserRole' => $this->resolveCurrentUserRole($activeCompanyRole, $user->employeeProfile),
+                'subscription' => $this->buildSubscriptionSummary($resolvedActiveCompany),
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildProfilePayload(User $user, ?EmployeeProfile $profile, ?Company $activeCompany, string $activeCompanyRole): array
+    {
+        [$firstName, $lastName] = $this->splitName((string) ($user->name ?? ''));
+        $ownerProfile = $this->resolveOwnerProfileSettings($activeCompany, $activeCompanyRole);
+
+        return [
+            'firstName' => $firstName,
+            'lastName' => $lastName,
+            'phone' => $profile?->phone ?? ($ownerProfile['phone'] ?? null),
+            'address' => $profile?->address ?? ($ownerProfile['address'] ?? null),
+            'addressDetail' => $profile?->address_detail ?? ($ownerProfile['addressDetail'] ?? null),
+            'designation' => $profile?->designation,
+            'team' => $profile?->team,
+            'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
+            'source' => $profile ? 'employee_profile' : (! empty($ownerProfile) ? 'company_owner_profile' : 'account'),
+        ];
+    }
+
+    private function resolveCurrentUserRole(string $activeCompanyRole, ?EmployeeProfile $profile): string
+    {
+        $normalizedRole = strtolower(trim($activeCompanyRole));
+        if ($normalizedRole !== '') {
+            return $normalizedRole;
+        }
+
+        return $profile ? 'employee' : 'user';
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function resolveOwnerProfileSettings(?Company $activeCompany, string $activeCompanyRole): array
+    {
+        if (! $activeCompany || strtolower(trim($activeCompanyRole)) !== 'owner') {
+            return [];
+        }
+
+        $settings = CompanySetting::query()
+            ->where('company_id', $activeCompany->id)
+            ->whereIn('key', ['owner_phone', 'owner_address', 'owner_address_detail'])
+            ->pluck('value', 'key');
+
+        return [
+            'phone' => $settings->get('owner_phone'),
+            'address' => $settings->get('owner_address'),
+            'addressDetail' => $settings->get('owner_address_detail'),
+        ];
+    }
+
+    private function storeOwnerProfileSettings(Company $company, ?string $phone, ?string $address, ?string $addressDetail): void
+    {
+        $settings = [
+            'owner_phone' => $phone,
+            'owner_address' => $address,
+            'owner_address_detail' => $addressDetail,
+        ];
+
+        foreach ($settings as $key => $value) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $company->id, 'key' => $key],
+                ['value' => $value, 'type' => 'string']
+            );
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildSubscriptionSummary(?Company $activeCompany): ?array
+    {
+        if (! $activeCompany) {
+            return null;
+        }
+
+        $subscription = $activeCompany->latestSubscription;
+        if (! $subscription) {
+            return null;
+        }
+
+        $nextInvoice = Invoice::query()
+            ->where('company_id', $activeCompany->id)
+            ->where('subscription_id', $subscription->id)
+            ->where('is_paid', false)
+            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+            ->latest('due_date')
+            ->latest('issue_date')
+            ->first();
+
+        $nextPaymentDate = $nextInvoice?->due_date?->toDateString()
+            ?? $subscription->ends_at?->toDateString();
+        $nextPaymentAmount = $nextInvoice ? (float) $nextInvoice->amount_due : (float) ($subscription->amount ?? 0);
+
+        return [
+            'id' => $subscription->id,
+            'status' => (string) $subscription->status,
+            'planCode' => (string) ($subscription->plan_code ?? ''),
+            'packageCode' => (string) ($subscription->package?->code ?? $subscription->plan_code ?? ''),
+            'packageName' => (string) ($subscription->package?->name ?? ''),
+            'billingCycle' => (string) ($subscription->billing_cycle ?? ''),
+            'startsAt' => $subscription->starts_at?->toIso8601String(),
+            'endsAt' => $subscription->ends_at?->toIso8601String(),
+            'trialEndsAt' => $subscription->trial_ends_at?->toIso8601String(),
+            'amount' => (float) ($subscription->amount ?? 0),
+            'autoRenew' => (bool) $subscription->auto_renew,
+            'nextPayment' => [
+                'date' => $nextPaymentDate,
+                'amount' => $nextPaymentAmount,
+                'source' => $nextInvoice ? 'invoice' : 'subscription_cycle',
+                'invoiceId' => $nextInvoice?->id,
+                'invoiceNumber' => $nextInvoice?->invoice_number,
+                'invoiceStatus' => $nextInvoice?->status,
+            ],
+        ];
     }
 
     private function splitName(string $name): array

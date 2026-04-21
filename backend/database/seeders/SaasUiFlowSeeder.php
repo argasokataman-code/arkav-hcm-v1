@@ -175,14 +175,15 @@ class SaasUiFlowSeeder extends Seeder
             'asset_depreciation' => 'Asset Depreciation',
             'api_access' => 'API Access',
             'priority_support' => 'Priority Support',
+            'tickets' => 'Tickets',
         ];
 
         $featureLimitsByPackage = [
-            'starter' => [50, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            'growth' => [150, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0],
-            'business' => [500, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0],
-            'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            'ultimate' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'starter' => [50, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            'growth' => [150, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+            'business' => [500, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
+            'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'ultimate' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ];
 
         $result = [];

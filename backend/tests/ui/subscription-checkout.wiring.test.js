@@ -149,7 +149,7 @@ describe('subscription checkout wiring', () => {
 
     expect(window.AuthApi.request).toHaveBeenCalledWith('post', '/hcm/billing/invoices/55/mock-hosted-checkout', {});
     expect(window.__ARCAV_LAST_REDIRECT__).toContain('/mock-hosted-payment.html?payment_uuid=pay-55');
-    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Membuka hosted payment gateway mock');
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toBe('');
   });
 
   it('restores paid invoice state after returning from hosted gateway', async () => {
@@ -161,6 +161,6 @@ describe('subscription checkout wiring', () => {
     expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices/55', undefined);
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice sudah dibayar');
     expect(document.querySelector('[data-checkout-go-dashboard]')?.classList.contains('d-none')).toBe(false);
-    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil lewat hosted payment gateway mock');
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil.');
   });
 });

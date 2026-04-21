@@ -428,18 +428,18 @@ Route::get('/tickets-admin', function () {
         'ticketMode' => 'admin',
         'ticketTitle' => 'Tickets (Admin)',
     ]);
-})->middleware('hcm.web.admin')->name('tickets-admin');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:tickets'])->name('tickets-admin');
 
 Route::get('/tickets-employee', function () {
     return view(view: 'tickets', data: [
         'ticketMode' => 'employee',
         'ticketTitle' => 'Tickets (Employee)',
     ]);
-})->name('tickets-employee');
+})->middleware('hcm.web.feature:tickets')->name('tickets-employee');
 
 Route::get('/ticket-master', function () {
     return view(view: 'ticket-master');
-})->middleware('hcm.web.admin')->name('ticket-master');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:tickets'])->name('ticket-master');
 
 Route::get('/tickets-grid', function () {
     return view(view: 'tickets-grid');
@@ -523,15 +523,15 @@ Route::get('/goal-type', function () {
 
 Route::get('/training', function () {
     return view(view: 'training');
-})->middleware('hcm.web.admin')->name('training');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:training'])->name('training');
 
 Route::get('/trainers', function () {
     return view(view: 'trainers');
-})->middleware('hcm.web.admin')->name('trainers');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:training'])->name('trainers');
 
 Route::get('/training-type', function () {
     return view(view: 'training-type');
-})->middleware('hcm.web.admin')->name('training-type');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:training'])->name('training-type');
 
 Route::middleware('hcm.web.admin')->group(function (): void {
     Route::get('/promotion', function () {
@@ -546,41 +546,43 @@ Route::middleware('hcm.web.admin')->group(function (): void {
         return view(view: 'termination');
     })->name('termination');
 
-    Route::get('/salary-component-master', function () {
-        return view('salary-component-master');
-    })->name('salary-component-master');
+    Route::middleware('hcm.web.feature:payroll')->group(function (): void {
+        Route::get('/salary-component-master', function () {
+            return view('salary-component-master');
+        })->name('salary-component-master');
 
-    Route::get('/employee-salary', function () {
-        return view('employee-salary');
-    })->name('employee-salary');
+        Route::get('/employee-salary', function () {
+            return view('employee-salary');
+        })->name('employee-salary');
 
-    Route::get('/payroll', function () {
-        return view('payroll');
-    })->name('payroll');
+        Route::get('/payroll', function () {
+            return view('payroll');
+        })->name('payroll');
 
-    Route::get('/payroll-overtime', function () {
-        return view('payroll-overtime');
-    })->name('payroll-overtime');
+        Route::get('/payroll-overtime', function () {
+            return view('payroll-overtime');
+        })->name('payroll-overtime');
 
-    Route::get('/payroll-deduction', function () {
-        return view('payroll-deduction');
-    })->name('payroll-deduction');
+        Route::get('/payroll-deduction', function () {
+            return view('payroll-deduction');
+        })->name('payroll-deduction');
 
-    Route::get('/payroll-thr', function () {
-        return view('payroll-thr');
-    })->name('payroll-thr');
+        Route::get('/payroll-thr', function () {
+            return view('payroll-thr');
+        })->name('payroll-thr');
 
-    Route::get('/payroll-pkwt-compensation', function () {
-        return view('payroll-pkwt-compensation');
-    })->name('payroll-pkwt-compensation');
+        Route::get('/payroll-pkwt-compensation', function () {
+            return view('payroll-pkwt-compensation');
+        })->name('payroll-pkwt-compensation');
 
-    Route::get('/payroll-run', function () {
-        return view('payroll-run');
-    })->name('payroll-run');
+        Route::get('/payroll-run', function () {
+            return view('payroll-run');
+        })->name('payroll-run');
 
-    Route::get('/payroll-run-history', function () {
-        return view('payroll-run-history');
-    })->name('payroll-run-history');
+        Route::get('/payroll-run-history', function () {
+            return view('payroll-run-history');
+        })->name('payroll-run-history');
+    });
 });
 
 Route::get('/job-grid', function () {

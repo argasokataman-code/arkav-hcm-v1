@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\Package;
+use App\Models\PackageFeature;
+use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\CompanyUser;
@@ -332,5 +335,112 @@ class TicketApiTest extends TestCase
         ])->assertStatus(422)->assertInvalid([
             'assigneeUserId' => 'active company',
         ]);
+    }
+
+    public function test_ticket_endpoints_are_subscription_feature_gated(): void
+    {
+        $admin = $this->loginWithRole(true, 'ticket-feature-gate@example.com');
+        $companyId = (int) $admin['company']->id;
+        $headers = [
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
+
+        // Attach a paid subscription whose package does NOT include `tickets`.
+        $package = Package::query()->create([
+            'code' => 'no-ticket-plan',
+            'name' => 'No Ticket Plan',
+            'monthly_price' => 99000,
+            'yearly_price' => 990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => 10,
+        ]);
+        Subscription::query()->create([
+            'company_id' => $companyId,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        // Pre-create a ticket directly to exercise read/update/delete paths
+        // even though the controller will reject due to feature gate.
+        $ticket = Ticket::query()->create([
+            'company_id' => $companyId,
+            'user_id' => $admin['user']->id,
+            'code' => 'TIC-FG-001',
+            'subject' => 'Feature gate probe',
+            'description' => 'should not be accessible',
+            'priority' => 'low',
+            'status' => 'open',
+        ]);
+
+        $expect = function ($response) {
+            $response->assertStatus(403)
+                ->assertJsonPath('error.code', 'SUBSCRIPTION_REQUIRED');
+        };
+
+        $expect($this->withHeaders($headers)->getJson('/v1/hcm/tickets'));
+        $expect($this->withHeaders($headers)->getJson("/v1/hcm/tickets/{$ticket->id}"));
+        $expect($this->withHeaders($headers)->postJson('/v1/hcm/tickets', [
+            'subject' => 'Blocked',
+            'description' => 'Blocked',
+            'priority' => 'low',
+        ]));
+        $expect($this->withHeaders($headers)->putJson("/v1/hcm/tickets/{$ticket->id}", [
+            'subject' => 'Blocked update',
+        ]));
+        $expect($this->withHeaders($headers)->postJson("/v1/hcm/tickets/{$ticket->id}/comments", [
+            'body' => 'Blocked comment',
+        ]));
+        $expect($this->withHeaders($headers)->deleteJson("/v1/hcm/tickets/{$ticket->id}"));
+    }
+
+    public function test_ticket_endpoints_pass_when_subscription_includes_tickets_feature(): void
+    {
+        $admin = $this->loginWithRole(true, 'ticket-feature-allow@example.com');
+        $companyId = (int) $admin['company']->id;
+        $headers = [
+            'Authorization' => 'Bearer '.$admin['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
+
+        $package = Package::query()->create([
+            'code' => 'with-ticket-plan',
+            'name' => 'With Ticket Plan',
+            'monthly_price' => 199000,
+            'yearly_price' => 1990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'tickets',
+            'feature_name' => 'Tickets',
+            'limit' => 1,
+        ]);
+        Subscription::query()->create([
+            'company_id' => $companyId,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 199000,
+        ]);
+
+        $this->withHeaders($headers)->getJson('/v1/hcm/tickets')
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 }

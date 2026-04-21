@@ -42,6 +42,32 @@ class HcmTicketController extends Controller
             || $user->hasPermissionForCompany('ticket.admin', $companyId);
     }
 
+    /**
+     * Block tenants whose active subscription does not include the `tickets`
+     * feature. Tenants without an active subscription are allowed to pass
+     * through so trial / pending_payment flows remain intact (the page-level
+     * middleware already redirects pending_payment companies to /subscription).
+     */
+    private function ensureTicketsFeatureOrFail(int $companyId): ?JsonResponse
+    {
+        if ($companyId <= 0) {
+            return null;
+        }
+
+        $subscription = \App\Models\Subscription::activeForCompany($companyId);
+        if ($subscription && ! $subscription->package?->hasFeature('tickets')) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SUBSCRIPTION_REQUIRED',
+                    'message' => 'Ticket feature requires an active subscription. Please upgrade your plan.',
+                ],
+            ], 403);
+        }
+
+        return null;
+    }
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -55,6 +81,10 @@ class HcmTicketController extends Controller
                     'message' => 'Active company context is required.',
                 ],
             ], 422);
+        }
+
+        if ($block = $this->ensureTicketsFeatureOrFail($activeCompanyId)) {
+            return $block;
         }
 
         $validated = $request->validate([
@@ -142,19 +172,8 @@ class HcmTicketController extends Controller
             return $this->forbidden();
         }
 
-        // SECURITY: Check subscription includes 'tickets' feature
-        if ($activeCompanyId > 0) {
-            $subscription = \App\Models\Subscription::activeForCompany($activeCompanyId);
-            
-            if ($subscription && ! $subscription->package?->hasFeature('tickets')) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'SUBSCRIPTION_REQUIRED',
-                        'message' => 'Ticket feature requires an active subscription. Please upgrade your plan.',
-                    ],
-                ], 403);
-            }
+        if ($block = $this->ensureTicketsFeatureOrFail($activeCompanyId)) {
+            return $block;
         }
 
         $resolvedCategory = $this->resolveCategoryInput($validated);
@@ -189,6 +208,9 @@ class HcmTicketController extends Controller
 
     public function show(Request $request, string $id): JsonResponse
     {
+        if ($block = $this->ensureTicketsFeatureOrFail((int) $this->activeCompanyId($request))) {
+            return $block;
+        }
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
@@ -212,6 +234,9 @@ class HcmTicketController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
+        if ($block = $this->ensureTicketsFeatureOrFail((int) $this->activeCompanyId($request))) {
+            return $block;
+        }
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
@@ -297,6 +322,9 @@ class HcmTicketController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
+        if ($block = $this->ensureTicketsFeatureOrFail((int) $this->activeCompanyId($request))) {
+            return $block;
+        }
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
@@ -313,6 +341,9 @@ class HcmTicketController extends Controller
 
     public function addComment(Request $request, string $id): JsonResponse
     {
+        if ($block = $this->ensureTicketsFeatureOrFail((int) $this->activeCompanyId($request))) {
+            return $block;
+        }
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();
@@ -334,6 +365,9 @@ class HcmTicketController extends Controller
 
     public function addAttachment(Request $request, string $id): JsonResponse
     {
+        if ($block = $this->ensureTicketsFeatureOrFail((int) $this->activeCompanyId($request))) {
+            return $block;
+        }
         $ticket = $this->authorizedTicket($request, $id);
         if (! $ticket) {
             return $this->forbidden();

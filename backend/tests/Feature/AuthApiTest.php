@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Invoice;
+use App\Models\Package;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -152,7 +156,100 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.email', 'trial.owner@example.com')
             ->assertJsonPath('data.activeCompany.code', 'default_company')
             ->assertJsonPath('data.activeCompany.role', 'owner')
+            ->assertJsonPath('data.currentUserRole', 'owner')
             ->assertJsonPath('data.hcmAdmin', true);
+    }
+
+    public function test_company_owner_me_returns_subscription_summary_without_employee_role_snapshot(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'professional',
+            'name' => 'Professional',
+            'monthly_price' => 250000,
+            'yearly_price' => 2400000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Owner Snapshot',
+            'email' => 'owner.snapshot@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_snapshot_co',
+            'name' => 'Owner Snapshot Co',
+            'legal_name' => 'Owner Snapshot Co LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        CompanySetting::query()->create([
+            'company_id' => $company->id,
+            'key' => 'owner_phone',
+            'value' => '081234567890',
+            'type' => 'string',
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => 'professional',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'yearly',
+            'amount' => 2400000,
+        ]);
+
+        $invoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'amount_due' => 2400000,
+            'status' => 'draft',
+            'is_paid' => false,
+            'notes' => 'Professional plan invoice',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.snapshot@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'owner_snapshot_co',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.currentUserRole', 'owner')
+            ->assertJsonPath('data.roles.0', 'owner')
+            ->assertJsonPath('data.profile.source', 'company_owner_profile')
+            ->assertJsonPath('data.profile.phone', '081234567890')
+            ->assertJsonPath('data.subscription.packageCode', 'professional')
+            ->assertJsonPath('data.subscription.packageName', 'Professional')
+            ->assertJsonPath('data.subscription.billingCycle', 'yearly')
+            ->assertJsonPath('data.subscription.nextPayment.invoiceId', $invoice->id)
+            ->assertJsonPath('data.subscription.nextPayment.invoiceNumber', $invoice->invoice_number)
+                ->assertJsonPath('data.subscription.nextPayment.amount', 2400000);
     }
 
     public function test_remember_me_login_has_longer_expiry_than_regular_login(): void
@@ -275,6 +372,79 @@ class AuthApiTest extends TestCase
         $this->assertSame('08123456789', $profile->phone);
         $this->assertSame('Jl. Merdeka 1', $profile->address);
         $this->assertSame('Jakarta', $profile->address_detail);
+    }
+
+    public function test_owner_profile_update_uses_company_settings_without_creating_employee_profile(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Profile',
+            'email' => 'owner.profile@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_profile_company',
+            'name' => 'Owner Profile Company',
+            'legal_name' => 'Owner Profile Company LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.profile@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'owner_profile_company',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Owner Profile Updated',
+                'email' => 'owner.profile.updated@example.com',
+                'phone' => '081111111111',
+                'address' => 'Jl. Owner 1',
+                'addressDetail' => 'Bandung',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Owner Profile Updated')
+            ->assertJsonPath('data.currentUserRole', 'owner')
+            ->assertJsonPath('data.profile.source', 'company_owner_profile')
+            ->assertJsonPath('data.profile.phone', '081111111111')
+            ->assertJsonPath('data.profile.address', 'Jl. Owner 1')
+            ->assertJsonPath('data.profile.addressDetail', 'Bandung');
+
+        $updatedUser = User::query()->where('email', 'owner.profile.updated@example.com')->first();
+        $this->assertNotNull($updatedUser);
+        $this->assertFalse(EmployeeProfile::query()->where('user_id', $updatedUser->id)->exists());
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'owner_phone',
+            'value' => '081111111111',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'owner_address',
+            'value' => 'Jl. Owner 1',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'owner_address_detail',
+            'value' => 'Bandung',
+        ]);
     }
 
     public function test_profile_password_update_requires_valid_current_password(): void

@@ -106,6 +106,34 @@
                                 Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login Company</em>.
                             </div>
                         </div>
+                        <div class="border rounded-3 p-3 mb-3 d-none" data-subscription-summary-card>
+                            <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+                                <div>
+                                    <div class="fw-semibold mb-1">Subscription Summary</div>
+                                    <div class="text-muted fs-12">Ringkasan paket aktif dan pembayaran berikutnya untuk company ini.</div>
+                                </div>
+                                <span class="badge bg-primary-subtle text-primary" data-subscription-status>—</span>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6 col-xl-3">
+                                    <div class="small text-muted">Package</div>
+                                    <div class="fw-medium" data-subscription-package>—</div>
+                                </div>
+                                <div class="col-md-6 col-xl-3">
+                                    <div class="small text-muted">Billing Cycle</div>
+                                    <div class="fw-medium" data-subscription-billing-cycle>—</div>
+                                </div>
+                                <div class="col-md-6 col-xl-3">
+                                    <div class="small text-muted">Current Period</div>
+                                    <div class="fw-medium" data-subscription-period>—</div>
+                                </div>
+                                <div class="col-md-6 col-xl-3">
+                                    <div class="small text-muted">Next Payment</div>
+                                    <div class="fw-medium" data-subscription-next-payment-date>—</div>
+                                    <div class="text-muted fs-12" data-subscription-next-payment-amount>—</div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="alert d-none" data-profile-settings-feedback></div>
                         <form action="javascript:void(0);" data-profile-settings-form>
                             <div class="border-bottom mb-3">

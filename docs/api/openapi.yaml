@@ -8362,10 +8362,15 @@ components:
                 profilePhotoUrl:
                   type: string
                   nullable: true
+                source:
+                  type: string
+                  enum: [employee_profile, company_owner_profile, account]
             roles:
               type: array
               items:
                 type: string
+            currentUserRole:
+              type: string
             hcmAdmin:
               type: boolean
             hcmGlobalAdmin:
@@ -8378,6 +8383,57 @@ components:
               type: array
               items:
                 type: string
+            subscription:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                status:
+                  type: string
+                planCode:
+                  type: string
+                packageCode:
+                  type: string
+                packageName:
+                  type: string
+                billingCycle:
+                  type: string
+                startsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                endsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                trialEndsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                amount:
+                  type: number
+                autoRenew:
+                  type: boolean
+                nextPayment:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      nullable: true
+                    amount:
+                      type: number
+                    source:
+                      type: string
+                    invoiceId:
+                      type: integer
+                      nullable: true
+                    invoiceNumber:
+                      type: string
+                      nullable: true
+                    invoiceStatus:
+                      type: string
+                      nullable: true
             activeCompany:
               type: object
               nullable: true
@@ -8471,6 +8527,62 @@ components:
                 profilePhotoUrl:
                   type: string
                   nullable: true
+                source:
+                  type: string
+                  enum: [employee_profile, company_owner_profile, account]
+            currentUserRole:
+              type: string
+            subscription:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                status:
+                  type: string
+                planCode:
+                  type: string
+                packageCode:
+                  type: string
+                packageName:
+                  type: string
+                billingCycle:
+                  type: string
+                startsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                endsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                trialEndsAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                amount:
+                  type: number
+                autoRenew:
+                  type: boolean
+                nextPayment:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      nullable: true
+                    amount:
+                      type: number
+                    source:
+                      type: string
+                    invoiceId:
+                      type: integer
+                      nullable: true
+                    invoiceNumber:
+                      type: string
+                      nullable: true
+                    invoiceStatus:
+                      type: string
+                      nullable: true
     DepartmentListResponse:
       type: object
       properties:

@@ -122,15 +122,38 @@ Success `200`:
       "addressDetail": "Jakarta",
       "designation": "Staff",
       "team": "HR",
-      "profilePhotoUrl": "/storage/profile-photos/1.jpg"
+      "profilePhotoUrl": "/storage/profile-photos/1.jpg",
+      "source": "employee_profile"
     },
-    "roles": ["employee"],
+    "roles": ["owner"],
+    "currentUserRole": "owner",
     "hcmAdmin": false,
     "hcmGlobalAdmin": false,
     "permissions": {
       "training.view": true
     },
     "permissionCodes": ["training.view"],
+    "subscription": {
+      "id": 9,
+      "status": "active",
+      "planCode": "professional",
+      "packageCode": "professional",
+      "packageName": "Professional",
+      "billingCycle": "yearly",
+      "startsAt": "2026-04-01T00:00:00+00:00",
+      "endsAt": "2027-04-01T00:00:00+00:00",
+      "trialEndsAt": null,
+      "amount": 2400000,
+      "autoRenew": false,
+      "nextPayment": {
+        "date": "2027-04-01",
+        "amount": 2400000,
+        "source": "invoice",
+        "invoiceId": 15,
+        "invoiceNumber": "INV202604-0001",
+        "invoiceStatus": "draft"
+      }
+    },
     "activeCompany": {
       "id": 1,
       "uuid": "11111111-2222-3333-4444-555555555555",
@@ -150,6 +173,8 @@ Errors:
 Frontend hardening note:
 - Login form menyimpan tenant context hanya dari `activeCompany` hasil backend.
 - Jika payload sukses login company tidak menyertakan tenant aktif yang valid, FE membatalkan redirect dan menampilkan error.
+- `roles` dan `currentUserRole` sekarang mengikuti role tenant aktif. Owner/admin tidak lagi dipaksa tampil sebagai `employee` di snapshot identitas.
+- `subscription` memberi ringkasan paket aktif, billing cycle, dan pembayaran berikutnya untuk halaman profile/account tanpa perlu memanggil endpoint billing terpisah.
 
 ### PUT `/auth/profile` (protected)
 
@@ -183,11 +208,28 @@ Success `200`:
       "addressDetail": "Jakarta",
       "designation": "Staff",
       "team": "HR",
-      "profilePhotoUrl": "/storage/profile-photos/1.jpg"
+      "profilePhotoUrl": "/storage/profile-photos/1.jpg",
+      "source": "company_owner_profile"
+    },
+    "currentUserRole": "owner",
+    "subscription": {
+      "status": "active",
+      "packageCode": "professional",
+      "packageName": "Professional",
+      "billingCycle": "yearly",
+      "nextPayment": {
+        "date": "2027-04-01",
+        "amount": 2400000,
+        "invoiceNumber": "INV202604-0001"
+      }
     }
   }
 }
 ```
+
+Catatan owner tenant:
+- Jika user login sebagai `owner` company dan belum punya `EmployeeProfile`, update profile tidak lagi membuat baris employee baru secara implisit.
+- Data kontak owner disimpan di `company_settings` owner profile keys dan tetap tampil lewat `/auth/me`.
 
 Errors:
 - `401 AUTH_UNAUTHORIZED`

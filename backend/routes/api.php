@@ -346,11 +346,11 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
 
     Route::prefix('resignations')->group(function () {
         Route::get('/', [HcmResignationController::class, 'index']);
-        Route::get('/users/{userId}/resignations', [HcmResignationController::class, 'resignationsForUser'])->whereNumber('userId');
+        Route::get('/users/{userId}/resignations', [HcmResignationController::class, 'resignationsForUser'])->where('userId', '[0-9a-fA-F\-]+');
         Route::post('/', [HcmResignationController::class, 'store']);
-        Route::get('/{id}', [HcmResignationController::class, 'show'])->whereNumber('id');
-        Route::put('/{id}', [HcmResignationController::class, 'update'])->whereNumber('id');
-        Route::delete('/{id}', [HcmResignationController::class, 'destroy'])->whereNumber('id');
+        Route::get('/{id}', [HcmResignationController::class, 'show'])->where('id', '[0-9a-fA-F\-]+');
+        Route::put('/{id}', [HcmResignationController::class, 'update'])->where('id', '[0-9a-fA-F\-]+');
+        Route::delete('/{id}', [HcmResignationController::class, 'destroy'])->where('id', '[0-9a-fA-F\-]+');
     });
 
     Route::prefix('terminations')->group(function () {
@@ -406,8 +406,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::prefix('snapshots')->group(function () {
             Route::post('/', [ReportSnapshotController::class, 'generate']);
             Route::get('/', [ReportSnapshotController::class, 'list']);
-            Route::get('/{id}', [ReportSnapshotController::class, 'show'])->whereNumber('id');
-            Route::post('/{id}/export', [ReportSnapshotController::class, 'export'])->whereNumber('id');
+            Route::get('/{id}', [ReportSnapshotController::class, 'show'])->where('id', '[0-9a-fA-F\-]+');
+            Route::post('/{id}/export', [ReportSnapshotController::class, 'export'])->where('id', '[0-9a-fA-F\-]+');
         });
     });
 });

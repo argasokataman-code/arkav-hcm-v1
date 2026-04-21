@@ -155,6 +155,11 @@ class User extends Authenticatable
     private function isGlobalHcmAdminSignal(): bool
     {
         $email = strtolower(trim((string) ($this->email ?? '')));
+        // NOTE: Only `hcm.admin_email` is treated as the global super-admin
+        // signal. `hcm.secondary_admin_email` is intentionally a *tenant*
+        // admin seed (see SidebarAssetMenuVisibilityTest::test_secondary_hcm_admin_…)
+        // and must NOT escalate to global super-admin, otherwise sidebar
+        // super-admin menus and SaaS dashboard guards regress.
         $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
         if ($email !== '' && $email === $adminEmail) {
             return true;

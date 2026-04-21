@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\ApplyLocalizationSettings;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
+use App\Http\Middleware\EnsureCompanyFeatureForWebPage;
 use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hcm.web.admin' => EnsureHcmWebAdminPage::class,
             'hcm.web.global-admin' => EnsureGlobalHcmWebAdminPage::class,
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
+            'hcm.web.feature' => EnsureCompanyFeatureForWebPage::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

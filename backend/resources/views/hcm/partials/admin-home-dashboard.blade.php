@@ -1,14 +1,12 @@
 <div class="admin-home-dashboard">
     <style>
         .admin-home-dashboard {
-            --ahd-bg: #f7f9fc;
             --ahd-surface: #ffffff;
             --ahd-text: #0f172a;
             --ahd-muted: #64748b;
             --ahd-border: #e2e8f0;
             --ahd-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-            --ahd-shadow-hover: 0 14px 30px rgba(15, 23, 42, 0.1);
-            --ahd-accent: #0f766e;
+            --ahd-shadow-hover: 0 12px 28px rgba(15, 23, 42, 0.1);
         }
 
         .admin-home-dashboard .card {
@@ -35,8 +33,19 @@
             letter-spacing: 0.2px;
         }
 
+        .admin-home-dashboard .metric-value {
+            color: var(--ahd-text);
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        .admin-home-dashboard .metric-label {
+            color: var(--ahd-muted);
+            font-size: 12px;
+        }
+
         .admin-home-dashboard .metric-card .card-body {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
+            background: #fff;
             border-radius: 16px;
         }
 
@@ -65,7 +74,7 @@
             gap: 12px;
             border: 1px solid var(--ahd-border);
             border-radius: 12px;
-            padding: 11px 14px;
+            padding: 11px 12px;
             text-decoration: none;
             color: var(--ahd-text);
             background: #fff;
@@ -73,9 +82,8 @@
         }
 
         .admin-home-dashboard .quick-action-item:hover {
-            transform: translateY(-1px);
             border-color: #cbd5e1;
-            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
             color: var(--ahd-text);
         }
 
@@ -94,6 +102,8 @@
             align-items: center;
             justify-content: center;
             font-size: 16px;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .quick-action-item .qa-title {
@@ -115,28 +125,28 @@
         }
 
         .admin-home-dashboard .qa-tone-1 .qa-icon {
-            background: #fff7ed;
-            color: #ea580c;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .qa-tone-2 .qa-icon {
-            background: #f0f9ff;
-            color: #0284c7;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .qa-tone-3 .qa-icon {
-            background: #ecfdf5;
-            color: #16a34a;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .qa-tone-4 .qa-icon {
-            background: #eff6ff;
-            color: #2563eb;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .qa-tone-5 .qa-icon {
-            background: #fefce8;
-            color: #ca8a04;
+            background: #f8fafc;
+            color: #334155;
         }
 
         .admin-home-dashboard .qa-tone-6 .qa-icon {

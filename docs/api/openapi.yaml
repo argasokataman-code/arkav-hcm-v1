@@ -1163,6 +1163,232 @@ paths:
                   payment:
                     type: object
                     nullable: true
+
+  /v1/mock/payments/create:
+    post:
+      tags: [Development, Billing]
+      summary: Create a mock payment for an existing invoice
+      description: Development-only helper endpoint. Requires active tenant context and an invoice UUID.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoice_id, amount]
+              properties:
+                invoice_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  minimum: 0.01
+                payment_method:
+                  type: string
+                  enum: [mock_card, mock_bank, mock_ewallet]
+                simulate_failure:
+                  type: boolean
+      responses:
+        '201':
+          description: Mock payment completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      payment:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          gateway_reference: { type: string }
+                          status: { type: string }
+                          amount: { type: number }
+                          paid_at: { type: string, format: date-time, nullable: true }
+                      invoice:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          status: { type: string }
+                          paid_at: { type: string, format: date-time, nullable: true }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/mock/invoices/create-and-pay:
+    post:
+      tags: [Development, Billing]
+      summary: Create an invoice and pay it immediately via mock gateway
+      description: Development-only shortcut endpoint for billing smoke tests. Supports instant shortcut mode and hosted local simulation mode.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  minimum: 0.01
+                description:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+                currency:
+                  type: string
+                  enum: [IDR, USD]
+                simulate_failure:
+                  type: boolean
+                flow_mode:
+                  type: string
+                  enum: [instant, hosted]
+                success_url:
+                  type: string
+                  format: uri
+                  nullable: true
+                failure_url:
+                  type: string
+                  format: uri
+                  nullable: true
+      responses:
+        '201':
+          description: Mock invoice and payment created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      invoice:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          number: { type: string }
+                          amount: { type: number }
+                          status: { type: string }
+                      payment:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          gateway_reference: { type: string }
+                          status: { type: string }
+                          amount: { type: number }
+                          callback_token: { type: string, nullable: true }
+                          hosted_checkout_url: { type: string, format: uri, nullable: true }
+                      subscription:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: integer }
+                          status: { type: string }
+                          activated: { type: boolean }
+                      flow:
+                        type: object
+                        properties:
+                          mode: { type: string }
+                          hosted_checkout_url: { type: string, format: uri, nullable: true }
+                          success_redirect_url: { type: string, format: uri, nullable: true }
+                          failure_redirect_url: { type: string, format: uri, nullable: true }
+                          callback_token: { type: string, nullable: true }
+                          webhook:
+                            type: object
+                            properties:
+                              simulate_success_url: { type: string, format: uri }
+                              requires_callback_token: { type: boolean }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/mock/test-cards:
+    get:
+      tags: [Development, Billing]
+      summary: Get mock payment test card presets
+      description: Development-only helper endpoint for manual testing.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Test cards list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        number: { type: string }
+                        name: { type: string }
+                        result: { type: string }
+                        description: { type: string }
+                  note: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/mock/webhook/charge-succeeded:
+    post:
+      tags: [Development, Billing]
+      summary: Simulate a successful mock payment webhook
+      description: Development-only helper endpoint for marking a pending mock payment as completed via payment UUID.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_id]
+              properties:
+                payment_id:
+                  type: string
+                  format: uuid
+                callback_token:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Webhook simulated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      payment_id: { type: integer }
+                      payment_uuid: { type: string, format: uuid }
+                      invoice_uuid: { type: string, format: uuid, nullable: true }
+                      status: { type: string }
+                      paid_at: { type: string, format: date-time, nullable: true }
+                      callback_token: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
                     properties:
                       id: { type: integer }
                       gateway: { type: string }

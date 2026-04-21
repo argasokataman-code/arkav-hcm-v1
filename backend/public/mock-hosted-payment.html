@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Hosted Payment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at top, #0f172a, #111827 60%, #1e293b 100%);
+            color: #e5eefc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .hosted-shell {
+            width: 100%;
+            max-width: 720px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+        }
+        .hosted-shell code {
+            color: #facc15;
+        }
+        .detail-row {
+            background: rgba(30, 41, 59, 0.85);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="hosted-shell">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+            <div>
+                <p class="text-uppercase small mb-2 text-info">Mock Hosted Checkout</p>
+                <h2 class="h3 mb-2">Hosted payment simulation</h2>
+                <p class="text-white-50 mb-0">Halaman ini meniru hosted invoice URL, settlement webhook, callback token, dan browser redirect balik ke helper dev.</p>
+            </div>
+            <button type="button" class="btn btn-outline-light btn-sm" id="copyHostedCallbackToken">Copy Callback Token</button>
+        </div>
+
+        <div class="detail-row"><strong>Invoice UUID</strong><br><code id="invoiceUuidValue">-</code></div>
+        <div class="detail-row"><strong>Payment UUID</strong><br><code id="paymentUuidValue">-</code></div>
+        <div class="detail-row"><strong>Invoice Number</strong><br><span id="invoiceNumberValue">-</span></div>
+        <div class="detail-row"><strong>Amount</strong><br><span id="amountValue">-</span></div>
+        <div class="detail-row"><strong>Callback Token</strong><br><code id="callbackTokenValue">-</code></div>
+
+        <div id="hostedStatus" class="alert d-none mt-4" role="alert"></div>
+
+        <div class="d-flex gap-3 flex-wrap mt-4">
+            <button type="button" class="btn btn-success" id="settleSuccessBtn">Simulate Success + Webhook</button>
+            <button type="button" class="btn btn-warning" id="settleFailureBtn">Simulate Failure Redirect</button>
+            <button type="button" class="btn btn-outline-light" id="backToHelperBtn">Back To Helper</button>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const paymentUuid = params.get('payment_uuid') || '';
+        const invoiceUuid = params.get('invoice_uuid') || '';
+        const invoiceNumber = params.get('invoice_number') || '';
+        const amount = params.get('amount') || '';
+        const callbackToken = params.get('callback_token') || '';
+        const successUrl = params.get('success_url') || `${window.location.origin}/mock-payment-tester.html`;
+        const failureUrl = params.get('failure_url') || `${window.location.origin}/mock-payment-tester.html`;
+
+        const setText = (id, value) => {
+            document.getElementById(id).textContent = value || '-';
+        };
+
+        const getHeaders = () => {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('arcav_access_token');
+            const tenantRaw = localStorage.getItem('arcav_active_tenant');
+            const finalHeaders = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            };
+
+            if (tenantRaw) {
+                try {
+                    const tenant = JSON.parse(tenantRaw);
+                    if (tenant.companyCode) finalHeaders['X-Company-Code'] = String(tenant.companyCode);
+                    if (tenant.companyId) finalHeaders['X-Company-Id'] = String(tenant.companyId);
+                    if (tenant.companyUuid) finalHeaders['X-Company-UUID'] = String(tenant.companyUuid);
+                } catch (_error) {}
+            }
+
+            return finalHeaders;
+        };
+
+        const redirectWithState = (baseUrl, status, extra = {}) => {
+            const target = new URL(baseUrl, window.location.origin);
+            target.searchParams.set('mock_payment_status', status);
+            target.searchParams.set('payment_uuid', paymentUuid);
+            target.searchParams.set('invoice_uuid', invoiceUuid);
+            target.searchParams.set('callback_token', callbackToken);
+
+            Object.entries(extra).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    target.searchParams.set(key, value);
+                }
+            });
+
+            window.location.assign(target.toString());
+        };
+
+        const showStatus = (kind, message) => {
+            const alert = document.getElementById('hostedStatus');
+            alert.className = `alert alert-${kind}`;
+            alert.classList.remove('d-none');
+            alert.textContent = message;
+        };
+
+        document.getElementById('copyHostedCallbackToken').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(callbackToken);
+                showStatus('info', 'Callback token copied.');
+            } catch (_error) {
+                showStatus('danger', 'Callback token copy failed.');
+            }
+        });
+
+        document.getElementById('backToHelperBtn').addEventListener('click', () => {
+            redirectWithState(failureUrl, 'pending');
+        });
+
+        document.getElementById('settleFailureBtn').addEventListener('click', () => {
+            redirectWithState(failureUrl, 'failed');
+        });
+
+        document.getElementById('settleSuccessBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${window.location.origin}/v1/mock/webhook/charge-succeeded`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        payment_id: paymentUuid,
+                        callback_token: callbackToken,
+                    }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    showStatus('danger', payload?.error?.message || 'Failed to settle payment.');
+                    return;
+                }
+
+                redirectWithState(successUrl, 'completed', {
+                    settled_at: payload?.data?.paid_at || '',
+                });
+            } catch (error) {
+                showStatus('danger', error.message || 'Unexpected error.');
+            }
+        });
+
+        setText('invoiceUuidValue', invoiceUuid);
+        setText('paymentUuidValue', paymentUuid);
+        setText('invoiceNumberValue', invoiceNumber);
+        setText('amountValue', amount ? `IDR ${amount}` : '-');
+        setText('callbackTokenValue', callbackToken);
+    </script>
+</body>
+</html>

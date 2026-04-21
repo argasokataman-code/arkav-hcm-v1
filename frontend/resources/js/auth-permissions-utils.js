@@ -14,20 +14,73 @@
 (function (window) {
     "use strict";
 
+    function normalizePermissionCodes(user) {
+        if (!user || typeof user !== "object") {
+            return [];
+        }
+
+        if (Array.isArray(user.permissions)) {
+            return user.permissions.slice();
+        }
+
+        if (Array.isArray(user.permissionCodes)) {
+            return user.permissionCodes.slice();
+        }
+
+        if (user.permissions && typeof user.permissions === "object") {
+            return Object.keys(user.permissions).filter(function (code) {
+                return user.permissions[code] === true;
+            });
+        }
+
+        return [];
+    }
+
+    function normalizeUserContext(user) {
+        if (!user || typeof user !== "object") {
+            return null;
+        }
+
+        var permissionCodes = normalizePermissionCodes(user);
+        return Object.assign({}, user, {
+            permissions: permissionCodes,
+            permissionCodes: Array.isArray(user.permissionCodes) ? user.permissionCodes.slice() : permissionCodes,
+        });
+    }
+
+    function expandPermissionAliases(permission) {
+        var value = typeof permission === "string" ? permission.trim() : "";
+        if (!value) {
+            return [];
+        }
+
+        var variants = [value];
+        if (value.indexOf(":") !== -1) {
+            variants.push(value.replace(/:/g, "."));
+        }
+        if (value.indexOf(".") !== -1) {
+            variants.push(value.replace(/\./g, ":"));
+        }
+
+        return variants.filter(function (candidate, index) {
+            return candidate && variants.indexOf(candidate) === index;
+        });
+    }
+
     /**
      * Get current user context from window or localStorage
      */
     function getUserContext() {
         // Try to get from window first (injected by server)
         if (window.AuthUser) {
-            return window.AuthUser;
+            return normalizeUserContext(window.AuthUser);
         }
 
         // Try localStorage as fallback
         try {
             const stored = localStorage.getItem("auth_user");
             if (stored) {
-                return JSON.parse(stored);
+                return normalizeUserContext(JSON.parse(stored));
             }
         } catch (_e) {}
 
@@ -85,8 +138,11 @@
         if (!user) return false;
 
         // Check against user role/permissions (if server provides them)
-        if (user.permissions && Array.isArray(user.permissions)) {
-            return user.permissions.includes(permission);
+        const permissionCodes = normalizePermissionCodes(user);
+        if (permissionCodes.length) {
+            return expandPermissionAliases(permission).some(function (candidate) {
+                return permissionCodes.includes(candidate);
+            });
         }
 
         // Check against server-provided permission in contextData

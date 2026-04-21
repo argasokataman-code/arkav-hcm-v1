@@ -45,7 +45,9 @@ class MockPaymentController extends Controller
             'simulate_failure' => 'nullable|boolean',
         ]);
 
-        $invoice = Invoice::find($validated['invoice_id']);
+        $invoice = Invoice::query()
+            ->where('uuid', $validated['invoice_id'])
+            ->firstOrFail();
 
         // Check authorization
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
@@ -57,6 +59,12 @@ class MockPaymentController extends Controller
         }
 
         $service = new MockPaymentGatewayService();
+        $paymentMethod = (string) ($validated['payment_method'] ?? 'mock_card');
+        $storedPaymentMethod = match ($paymentMethod) {
+            'mock_bank' => 'bank_transfer',
+            'mock_ewallet' => 'e_wallet',
+            default => 'credit_card',
+        };
 
         // Simulate failure if requested
         if ($validated['simulate_failure'] ?? false) {
@@ -81,9 +89,9 @@ class MockPaymentController extends Controller
         // Create successful payment
         $result = $service->createPayment([
             'amount' => $validated['amount'],
-            'payment_method' => $validated['payment_method'] ?? 'mock_card',
+            'payment_method' => $paymentMethod,
             'invoice_id' => $validated['invoice_id'],
-            'currency' => $invoice->currency,
+            'currency' => $invoice->company?->currency ?: 'IDR',
         ]);
 
         // Create payment record
@@ -91,20 +99,18 @@ class MockPaymentController extends Controller
             'company_id' => $invoice->company_id,
             'invoice_id' => $invoice->id,
             'amount' => $validated['amount'],
-            'currency' => $invoice->currency,
-            'payment_method' => $validated['payment_method'] ?? 'mock_card',
+            'currency' => $invoice->company?->currency ?: 'IDR',
+            'payment_method' => $storedPaymentMethod,
             'gateway' => 'mock',
             'gateway_reference' => $result['charge_id'],
             'status' => 'completed',
             'paid_at' => now(),
+            'verified_at' => now(),
         ]);
 
-        // Mark invoice as paid
-        $invoice->update([
-            'status' => 'paid',
-            'is_paid' => true,
-            'paid_date' => now(),
-        ]);
+        // Mark invoice as paid and trigger subscription activation if eligible.
+        $invoice->markAsPaid();
+        $invoice->refresh();
 
         Log::info('Mock payment created successfully', [
             'payment_id' => $payment->id,
@@ -118,15 +124,17 @@ class MockPaymentController extends Controller
             'data' => [
                 'payment' => [
                     'id' => $payment->id,
+                    'uuid' => $payment->uuid,
                     'gateway_reference' => $payment->gateway_reference,
                     'status' => $payment->status,
                     'amount' => $payment->amount,
-                    'paid_date' => $payment->paid_date?->toIso8601String(),
+                    'paid_at' => $payment->paid_at?->toIso8601String(),
                 ],
                 'invoice' => [
                     'id' => $invoice->id,
+                    'uuid' => $invoice->uuid,
                     'status' => $invoice->status,
-                    'paid_date' => $invoice->paid_date?->toIso8601String(),
+                    'paid_at' => $invoice->paid_date?->toIso8601String(),
                 ],
             ],
         ], 201);
@@ -158,6 +166,9 @@ class MockPaymentController extends Controller
             'description' => 'nullable|string|max:255',
             'currency' => 'nullable|string|in:IDR,USD',
             'simulate_failure' => 'nullable|boolean',
+            'flow_mode' => 'nullable|string|in:instant,hosted',
+            'success_url' => 'nullable|url|max:2048',
+            'failure_url' => 'nullable|url|max:2048',
         ]);
 
         $service = new MockPaymentGatewayService();
@@ -168,11 +179,15 @@ class MockPaymentController extends Controller
             'description' => $validated['description'] ?? 'Test Invoice',
             'currency' => $validated['currency'] ?? 'IDR',
             'simulate_failure' => $validated['simulate_failure'] ?? false,
+            'flow_mode' => $validated['flow_mode'] ?? 'instant',
+            'success_url' => $validated['success_url'] ?? null,
+            'failure_url' => $validated['failure_url'] ?? null,
         ]);
 
         Log::info('Mock invoice and payment created', [
             'company_id' => $activeCompanyId,
             'invoice_id' => $result['invoice']['id'],
+            'invoice_uuid' => $result['invoice']['uuid'] ?? null,
             'amount' => $validated['amount'],
         ]);
 
@@ -218,20 +233,36 @@ class MockPaymentController extends Controller
 
         $validated = $request->validate([
             'payment_id' => 'required|uuid|exists:payments,uuid',
+            'callback_token' => 'nullable|string|min:16',
         ]);
 
-        $payment = Payment::find($validated['payment_id']);
+        $payment = Payment::query()
+            ->where('uuid', $validated['payment_id'])
+            ->firstOrFail();
+
+        $callbackToken = (string) data_get($payment->metadata, 'callback_token', '');
+        if ($callbackToken !== '') {
+            if (($validated['callback_token'] ?? null) !== $callbackToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'CALLBACK_TOKEN_INVALID',
+                        'message' => 'Valid callback token is required for hosted mock settlement.',
+                    ],
+                ], 403);
+            }
+        }
         
         // Mark as completed if pending
         if ($payment->status === 'pending') {
-            $payment->update(['status' => 'completed', 'paid_date' => now()]);
+            $payment->update([
+                'status' => 'completed',
+                'paid_at' => now(),
+                'verified_at' => now(),
+            ]);
             
             if ($payment->invoice) {
-                $payment->invoice->update([
-                    'status' => 'paid',
-                    'is_paid' => true,
-                    'paid_date' => now(),
-                ]);
+                $payment->invoice->markAsPaid();
             }
         }
 
@@ -245,8 +276,11 @@ class MockPaymentController extends Controller
             'message' => 'Webhook simulated',
             'data' => [
                 'payment_id' => $payment->id,
+                'payment_uuid' => $payment->uuid,
+                'invoice_uuid' => $payment->invoice?->uuid,
                 'status' => $payment->status,
-                'paid_date' => $payment->paid_date?->toIso8601String(),
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+                'callback_token' => $callbackToken !== '' ? $callbackToken : null,
             ],
         ]);
     }

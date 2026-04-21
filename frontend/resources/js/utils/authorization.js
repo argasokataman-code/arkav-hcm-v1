@@ -35,6 +35,58 @@
 
 import { ref, computed, watch } from 'vue';
 
+function normalizePermissionCodes(userContext) {
+  if (!userContext || typeof userContext !== 'object') {
+    return [];
+  }
+
+  if (Array.isArray(userContext.permissions)) {
+    return userContext.permissions.slice();
+  }
+
+  if (Array.isArray(userContext.permissionCodes)) {
+    return userContext.permissionCodes.slice();
+  }
+
+  if (userContext.permissions && typeof userContext.permissions === 'object') {
+    return Object.keys(userContext.permissions).filter((code) => userContext.permissions[code] === true);
+  }
+
+  return [];
+}
+
+function normalizeUserContext(userContext) {
+  if (!userContext || typeof userContext !== 'object') {
+    return null;
+  }
+
+  const permissionCodes = normalizePermissionCodes(userContext);
+  return {
+    ...userContext,
+    permissions: permissionCodes,
+    permissionCodes: Array.isArray(userContext.permissionCodes)
+      ? userContext.permissionCodes.slice()
+      : permissionCodes,
+  };
+}
+
+function expandPermissionAliases(permissionCode) {
+  const value = typeof permissionCode === 'string' ? permissionCode.trim() : '';
+  if (!value) {
+    return [];
+  }
+
+  const variants = [value];
+  if (value.includes(':')) {
+    variants.push(value.replace(/:/g, '.'));
+  }
+  if (value.includes('.')) {
+    variants.push(value.replace(/\./g, ':'));
+  }
+
+  return variants.filter((candidate, index) => candidate && variants.indexOf(candidate) === index);
+}
+
 /**
  * Authorization Store
  * Singleton instance holding user context and permissions
@@ -52,7 +104,7 @@ class AuthorizationStore {
    * @param {UserContext} userContext
    */
   initialize(userContext) {
-    this._userContext.value = userContext || null;
+    this._userContext.value = normalizeUserContext(userContext);
     this._permissionCache.clear();
   }
 
@@ -126,7 +178,7 @@ class AuthorizationStore {
       };
     }
 
-    const permissions = this._userContext.value.permissions || [];
+    const permissions = normalizePermissionCodes(this._userContext.value);
     const cacheKey = `${permissionCode}`;
 
     // Check cache
@@ -139,16 +191,19 @@ class AuthorizationStore {
 
     let result;
     if (Array.isArray(permissionCode)) {
+      const requestedPermissions = permissionCode.flatMap((code) => expandPermissionAliases(code));
       result = {
-        allowed: permissionCode.some(p => permissions.includes(p)),
+        allowed: requestedPermissions.some((code) => permissions.includes(code)),
         reason: result?.allowed ? null : `Missing one of: ${permissionCode.join(', ')}`,
         errorCode: result?.allowed ? null : 'PERMISSION_DENIED'
       };
     } else {
+      const requestedPermissions = expandPermissionAliases(permissionCode);
+      const isAllowed = requestedPermissions.some((code) => permissions.includes(code));
       result = {
-        allowed: permissions.includes(permissionCode),
-        reason: permissions.includes(permissionCode) ? null : `Permission required: ${permissionCode}`,
-        errorCode: permissions.includes(permissionCode) ? null : 'PERMISSION_DENIED'
+        allowed: isAllowed,
+        reason: isAllowed ? null : `Permission required: ${permissionCode}`,
+        errorCode: isAllowed ? null : 'PERMISSION_DENIED'
       };
     }
 

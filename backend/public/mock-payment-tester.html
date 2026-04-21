@@ -12,13 +12,13 @@
             padding: 20px;
         }
         .container {
-            max-width: 800px;
+            max-width: 960px;
             margin-top: 30px;
         }
         .card {
             border: none;
             border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
         .card-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -43,13 +43,6 @@
         }
         .btn-success:hover {
             background: #059669;
-        }
-        .btn-danger {
-            background: #ef4444;
-            border: none;
-        }
-        .btn-danger:hover {
-            background: #dc2626;
         }
         .result-box {
             background: #f3f4f6;
@@ -84,6 +77,26 @@
             font-size: 12px;
             margin-bottom: 15px;
         }
+        .utility-card {
+            background: #f8fafc;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .token-output {
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .helper-actions {
+            display: none;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .helper-actions.show {
+            display: flex;
+        }
         pre {
             background: #1f2937;
             color: #10b981;
@@ -104,7 +117,47 @@
                 <small class="text-white-50">Development only - untuk testing payment flow tanpa Stripe/Xendit</small>
             </div>
             <div class="card-body">
-                <!-- Navigation Tabs -->
+                <div id="redirectStatus" class="alert d-none" role="alert"></div>
+
+                <div class="utility-card">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                        <div>
+                            <h5 class="mb-1">Auth Token Utility</h5>
+                            <small class="text-muted">Generate bearer token tenant langsung dari halaman ini, simpan ke localStorage, lalu copy sekali klik.</small>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="useStoredToken">Use Stored Token</button>
+                    </div>
+
+                    <form id="tokenGeneratorForm">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="tokenEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="tokenEmail" placeholder="owner@company.test" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="tokenPassword" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="tokenPassword" placeholder="StrongPass1" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="tokenCompanyCode" class="form-label">Company Code</label>
+                                <input type="text" class="form-control" id="tokenCompanyCode" placeholder="demo_co_01" required>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap mt-3">
+                            <button type="submit" class="btn btn-primary" id="generateTokenBtn">Generate Token</button>
+                            <button type="button" class="btn btn-outline-primary" id="copyGeneratedToken">Copy Token</button>
+                        </div>
+
+                        <div class="mt-3">
+                            <label for="generatedToken" class="form-label">Bearer Token</label>
+                            <textarea class="form-control token-output" id="generatedToken" rows="3" readonly placeholder="Token akan muncul di sini"></textarea>
+                        </div>
+                    </form>
+
+                    <div id="tokenGeneratorResult" class="result-box"></div>
+                </div>
+
                 <ul class="nav nav-tabs mb-4" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" data-bs-toggle="tab" href="#tab-quick" role="tab">Quick Pay</a>
@@ -117,12 +170,10 @@
                     </li>
                 </ul>
 
-                <!-- Tab Content -->
                 <div class="tab-content">
-                    <!-- TAB 1: Quick Pay -->
                     <div id="tab-quick" class="tab-pane fade show active" role="tabpanel">
                         <div class="badge-info mb-3">
-                            ⚡ Create invoice & pay in satu langkah (paling cepat)
+                            ⚡ Create invoice cepat atau buka hosted simulation lengkap dengan redirect, callback token, dan settlement webhook.
                         </div>
 
                         <form id="quickPayForm">
@@ -137,12 +188,22 @@
                             </div>
 
                             <div class="mb-3">
+                                <label for="quickFlowMode" class="form-label">Flow Mode</label>
+                                <select class="form-select" id="quickFlowMode">
+                                    <option value="instant">Instant shortcut</option>
+                                    <option value="hosted">Hosted simulation (redirect + webhook)</option>
+                                </select>
+                                <small class="text-muted">Hosted simulation membuat payment pending dan memberi hosted URL seperti payment gateway real.</small>
+                            </div>
+
+                            <div class="mb-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="simulateFailure">
                                     <label class="form-check-label" for="simulateFailure">
                                         Simulasi Payment Failure
                                     </label>
                                 </div>
+                                <small class="text-muted">Dipakai untuk instant shortcut. Pada hosted mode, hasil gagal disimulasikan dari halaman hosted checkout.</small>
                             </div>
 
                             <button type="submit" class="btn btn-success w-100">
@@ -154,19 +215,23 @@
                         </form>
 
                         <div id="quickResult" class="result-box"></div>
+                        <div id="quickActions" class="helper-actions">
+                            <button type="button" class="btn btn-outline-success" id="openHostedCheckout">Open Hosted Checkout</button>
+                            <button type="button" class="btn btn-outline-primary" id="copyHostedUrl">Copy Hosted URL</button>
+                            <button type="button" class="btn btn-outline-secondary" id="copyCallbackToken">Copy Callback Token</button>
+                        </div>
                     </div>
 
-                    <!-- TAB 2: Pay Invoice -->
                     <div id="tab-invoice" class="tab-pane fade" role="tabpanel">
                         <div class="badge-info mb-3">
-                            🧾 Bayar invoice yang sudah ada (kalo sudah punya invoice ID)
+                            🧾 Bayar invoice yang sudah ada (kalo sudah punya invoice UUID)
                         </div>
 
                         <form id="payInvoiceForm">
                             <div class="mb-3">
-                                <label for="invoiceId" class="form-label">Invoice ID</label>
-                                <input type="number" class="form-control" id="invoiceId" placeholder="e.g., 123" required>
-                                <small class="text-muted">Cari ID di halaman invoices</small>
+                                <label for="invoiceId" class="form-label">Invoice UUID</label>
+                                <input type="text" class="form-control" id="invoiceId" placeholder="e.g., 550e8400-e29b-41d4-a716-446655440000" required>
+                                <small class="text-muted">Gunakan UUID invoice dari response API atau halaman invoices tenant</small>
                             </div>
 
                             <div class="mb-3">
@@ -191,22 +256,20 @@
                         <div id="invoiceResult" class="result-box"></div>
                     </div>
 
-                    <!-- TAB 3: Test Cards -->
                     <div id="tab-test-cards" class="tab-pane fade" role="tabpanel">
                         <div class="badge-info mb-3">
                             🎴 Contoh card numbers untuk testing
                         </div>
-                        
+
                         <button class="btn btn-info w-100 mb-3" id="loadTestCards">Load Test Cards</button>
                         <div id="testCardsResult"></div>
                     </div>
                 </div>
 
-                <!-- Status -->
                 <div class="mt-4 pt-3 border-top">
                     <small class="text-muted">
-                        <strong>📝 Note:</strong> Semua transaksi disimpan di database seperti real payment. 
-                        Bisa didelete kalo mau testing lagi. Mock mode hanya aktif di development (APP_ENV=local).
+                        <strong>📝 Note:</strong> Semua transaksi disimpan di database seperti real payment.
+                        Hosted mode akan membuat payment pending lalu menyelesaikannya lewat webhook simulation di halaman hosted mock.
                     </small>
                 </div>
             </div>
@@ -215,13 +278,18 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Get CSRF token and auth token from localStorage/session
+        const API_BASE = window.location.origin + '/v1';
+        const IDENTITY_BASE = window.location.origin + '/v1/identity';
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        };
+        let lastHostedFlow = null;
+
         const getAuthToken = () => {
-            // Try to get from localStorage
-            const stored = localStorage.getItem('auth_token');
+            const stored = localStorage.getItem('auth_token') || localStorage.getItem('arcav_access_token');
             if (stored) return stored;
 
-            // Fallback: prompt user
             const token = prompt('Masukkan Bearer Token (dari login response):');
             if (token) {
                 localStorage.setItem('auth_token', token);
@@ -230,21 +298,76 @@
             return null;
         };
 
-        const API_BASE = window.location.origin + '/v1';
-        const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
+        const getTenantContext = () => {
+            const raw = localStorage.getItem('arcav_active_tenant');
+            if (!raw) return null;
+
+            try {
+                return JSON.parse(raw);
+            } catch (_error) {
+                return null;
+            }
+        };
+
+        const persistTenantContext = (activeCompany) => {
+            if (!activeCompany || !activeCompany.code || !activeCompany.id) return;
+
+            localStorage.setItem('arcav_active_tenant', JSON.stringify({
+                companyCode: activeCompany.code,
+                companyId: activeCompany.id,
+                companyUuid: activeCompany.uuid || undefined,
+            }));
         };
 
         const getHeaders = () => {
             const token = getAuthToken();
-            return {
+            const tenant = getTenantContext();
+            const finalHeaders = {
                 ...headers,
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
             };
+
+            if (tenant && tenant.companyCode) finalHeaders['X-Company-Code'] = String(tenant.companyCode);
+            if (tenant && tenant.companyId) finalHeaders['X-Company-Id'] = String(tenant.companyId);
+            if (tenant && tenant.companyUuid) finalHeaders['X-Company-UUID'] = String(tenant.companyUuid);
+
+            return finalHeaders;
         };
 
-        // Helper to display results
+        const copyText = async (value) => {
+            if (!value) return false;
+
+            try {
+                await navigator.clipboard.writeText(String(value));
+                return true;
+            } catch (_error) {
+                const area = document.createElement('textarea');
+                area.value = String(value);
+                area.setAttribute('readonly', 'readonly');
+                area.style.position = 'absolute';
+                area.style.left = '-9999px';
+                document.body.appendChild(area);
+                area.select();
+                const copied = document.execCommand('copy');
+                document.body.removeChild(area);
+                return copied;
+            }
+        };
+
+        const setGeneratedToken = (token) => {
+            document.getElementById('generatedToken').value = token || '';
+        };
+
+        const populateInvoicePaymentForm = (invoice, payment) => {
+            const invoiceUuid = String(invoice?.uuid || '').trim();
+            if (!invoiceUuid) return;
+
+            document.getElementById('invoiceId').value = invoiceUuid;
+            if (payment?.amount) {
+                document.getElementById('payAmount').value = payment.amount;
+            }
+        };
+
         const showResult = (elementId, success, data) => {
             const el = document.getElementById(elementId);
             el.className = `result-box ${success ? 'success' : 'error'}`;
@@ -256,13 +379,106 @@
             el.scrollIntoView({ behavior: 'smooth' });
         };
 
-        // Tab 1: Quick Pay
+        const showQuickActions = (flow) => {
+            const box = document.getElementById('quickActions');
+            if (!flow || flow.mode !== 'hosted' || !flow.hosted_checkout_url) {
+                lastHostedFlow = null;
+                box.classList.remove('show');
+                return;
+            }
+
+            lastHostedFlow = flow;
+            box.classList.add('show');
+        };
+
+        const showRedirectStatus = () => {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('mock_payment_status');
+            if (!status) return;
+
+            const alert = document.getElementById('redirectStatus');
+            const isSuccess = status === 'completed';
+            alert.className = `alert ${isSuccess ? 'alert-success' : 'alert-warning'}`;
+            alert.classList.remove('d-none');
+            alert.innerHTML = `
+                <strong>${isSuccess ? 'Hosted payment selesai.' : 'Hosted payment belum selesai.'}</strong><br>
+                Payment UUID: <code>${params.get('payment_uuid') || '-'}</code><br>
+                Invoice UUID: <code>${params.get('invoice_uuid') || '-'}</code><br>
+                Callback token: <code>${params.get('callback_token') || '-'}</code><br>
+                Settled at: <code>${params.get('settled_at') || '-'}</code>
+            `;
+        };
+
+        document.getElementById('tokenGeneratorForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const email = document.getElementById('tokenEmail').value.trim();
+            const password = document.getElementById('tokenPassword').value;
+            const companyCode = document.getElementById('tokenCompanyCode').value.trim();
+            const button = document.getElementById('generateTokenBtn');
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`${IDENTITY_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ email, password, companyCode }),
+                });
+
+                const payload = await response.json();
+                showResult('tokenGeneratorResult', response.ok, payload);
+
+                if (response.ok && payload?.success && payload?.data?.accessToken) {
+                    localStorage.setItem('auth_token', payload.data.accessToken);
+                    localStorage.setItem('arcav_access_token', payload.data.accessToken);
+                    persistTenantContext(payload.data.activeCompany || null);
+                    setGeneratedToken(payload.data.accessToken);
+                }
+            } catch (error) {
+                showResult('tokenGeneratorResult', false, { error: error.message });
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById('copyGeneratedToken').addEventListener('click', async () => {
+            const token = document.getElementById('generatedToken').value.trim();
+            const copied = await copyText(token);
+            showResult('tokenGeneratorResult', copied, copied ? { message: 'Token copied to clipboard.' } : { error: 'Token copy failed.' });
+        });
+
+        document.getElementById('useStoredToken').addEventListener('click', () => {
+            const token = localStorage.getItem('arcav_access_token') || localStorage.getItem('auth_token') || '';
+            if (token) {
+                localStorage.setItem('auth_token', token);
+            }
+            setGeneratedToken(token);
+            showResult('tokenGeneratorResult', !!token, token ? { message: 'Stored token synced to helper.' } : { error: 'No stored token found.' });
+        });
+
+        document.getElementById('openHostedCheckout').addEventListener('click', () => {
+            if (lastHostedFlow?.hosted_checkout_url) {
+                window.location.assign(lastHostedFlow.hosted_checkout_url);
+            }
+        });
+
+        document.getElementById('copyHostedUrl').addEventListener('click', async () => {
+            const copied = await copyText(lastHostedFlow?.hosted_checkout_url || '');
+            showResult('quickResult', copied, copied ? { message: 'Hosted checkout URL copied.', hosted_checkout_url: lastHostedFlow?.hosted_checkout_url } : { error: 'Hosted checkout URL copy failed.' });
+        });
+
+        document.getElementById('copyCallbackToken').addEventListener('click', async () => {
+            const copied = await copyText(lastHostedFlow?.callback_token || '');
+            showResult('quickResult', copied, copied ? { message: 'Callback token copied.', callback_token: lastHostedFlow?.callback_token } : { error: 'Callback token copy failed.' });
+        });
+
         document.getElementById('quickPayForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const amount = parseFloat(document.getElementById('amount').value);
             const description = document.getElementById('description').value;
             const simulateFailure = document.getElementById('simulateFailure').checked;
+            const flowMode = document.getElementById('quickFlowMode').value;
 
             const btn = document.querySelector('#quickPayForm button[type="submit"]');
             btn.disabled = true;
@@ -277,7 +493,10 @@
                         amount,
                         description,
                         currency: 'IDR',
-                        simulate_failure: simulateFailure
+                        simulate_failure: flowMode === 'instant' ? simulateFailure : false,
+                        flow_mode: flowMode,
+                        success_url: `${window.location.origin}/mock-payment-tester.html`,
+                        failure_url: `${window.location.origin}/mock-payment-tester.html`
                     })
                 });
 
@@ -285,10 +504,16 @@
                 showResult('quickResult', response.ok, data);
 
                 if (response.ok) {
+                    populateInvoicePaymentForm(data?.data?.invoice, data?.data?.payment);
+                    showQuickActions(data?.data?.flow || null);
                     document.getElementById('quickPayForm').reset();
+                    document.getElementById('quickFlowMode').value = flowMode;
+                } else {
+                    showQuickActions(null);
                 }
             } catch (error) {
                 showResult('quickResult', false, { error: error.message });
+                showQuickActions(null);
             } finally {
                 btn.disabled = false;
                 document.getElementById('btn-text').style.display = 'inline';
@@ -296,11 +521,10 @@
             }
         });
 
-        // Tab 2: Pay Invoice
         document.getElementById('payInvoiceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const invoiceId = parseInt(document.getElementById('invoiceId').value);
+            const invoiceId = document.getElementById('invoiceId').value.trim();
             const amount = parseFloat(document.getElementById('payAmount').value);
             const simulateFailure = document.getElementById('paymentFailure').checked;
 
@@ -332,7 +556,6 @@
             }
         });
 
-        // Tab 3: Test Cards
         document.getElementById('loadTestCards').addEventListener('click', async () => {
             const btn = document.getElementById('loadTestCards');
             btn.disabled = true;
@@ -343,10 +566,9 @@
                 });
 
                 const data = await response.json();
-                
+
                 if (response.ok && data.data) {
-                    const cards = data.data;
-                    const html = cards.map(card => `
+                    document.getElementById('testCardsResult').innerHTML = data.data.map((card) => `
                         <div class="card mb-2">
                             <div class="card-body">
                                 <div class="row">
@@ -356,39 +578,24 @@
                                         <small class="text-muted">${card.description}</small>
                                     </div>
                                     <div class="col-md-6 text-end">
-                                        <span class="badge ${card.result === 'success' ? 'bg-success' : 'bg-danger'}">
-                                            ${card.result.toUpperCase()}
-                                        </span>
+                                        <span class="badge ${card.result === 'success' ? 'bg-success' : 'bg-danger'}">${card.result.toUpperCase()}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     `).join('');
-
-                    document.getElementById('testCardsResult').innerHTML = html;
                 } else {
-                    document.getElementById('testCardsResult').innerHTML = `
-                        <div class="alert alert-warning">Failed to load test cards: ${data.error?.message || 'Unknown error'}</div>
-                    `;
+                    document.getElementById('testCardsResult').innerHTML = `<div class="alert alert-warning">Failed to load test cards: ${data.error?.message || 'Unknown error'}</div>`;
                 }
             } catch (error) {
-                document.getElementById('testCardsResult').innerHTML = `
-                    <div class="alert alert-danger">Error: ${error.message}</div>
-                `;
+                document.getElementById('testCardsResult').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
             } finally {
                 btn.disabled = false;
             }
         });
 
-        // Check if token is available on page load
-        window.addEventListener('load', () => {
-            if (!localStorage.getItem('auth_token')) {
-                const token = prompt('🔑 Paste Bearer Token dari login response:\n\n(Biasanya ada di response setelah login)');
-                if (token) {
-                    localStorage.setItem('auth_token', token);
-                }
-            }
-        });
+        showRedirectStatus();
+        setGeneratedToken(localStorage.getItem('auth_token') || localStorage.getItem('arcav_access_token') || '');
     </script>
 </body>
 </html>

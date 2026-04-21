@@ -1,0 +1,166 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const flush = async () => {
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+};
+
+describe('subscription checkout wiring', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    document.body.innerHTML = `
+      <div data-subscription-checkout-page data-checkout-mock-pay-enabled="1"></div>
+      <div class="alert d-none" data-checkout-feedback></div>
+      <form data-checkout-form>
+        <input data-checkout-company-name />
+        <input data-checkout-company-id />
+        <input data-checkout-company-code />
+        <button type="button" data-checkout-copy-code></button>
+        <select data-checkout-package-select></select>
+        <input data-checkout-billing-email />
+        <button type="submit" data-checkout-submit>submit</button>
+      </form>
+      <span data-checkout-company-badge></span>
+      <span class="d-none" data-checkout-trial-badge></span>
+      <input type="radio" name="billing_cycle" value="monthly" checked />
+      <div class="d-none" data-checkout-invoice-box></div>
+      <div data-checkout-invoice-hint></div>
+      <div data-checkout-invoice-title></div>
+      <div data-checkout-invoice-subtitle></div>
+      <div data-checkout-invoice-amount></div>
+      <div data-checkout-invoice-due></div>
+      <a data-checkout-open-invoices href="/company/invoices"></a>
+      <button type="button" class="d-none" data-checkout-pay-now>Bayar sekarang</button>
+      <a class="d-none" data-checkout-go-dashboard href="/index">Masuk dashboard</a>
+    `;
+
+    window.AuthApi = {
+      request: vi.fn((method, path) => {
+        if (method === 'get' && path === '/hcm/billing/invoices?perPage=20&is_paid=0') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: [{
+                id: 55,
+                invoiceNumber: 'INV-55',
+                amountDue: 1200000,
+                dueDate: '2026-05-01',
+                status: 'draft',
+                isPaid: false,
+                createdAt: '2026-04-21T10:00:00Z',
+                updatedAt: '2026-04-21T10:00:00Z',
+              }],
+            },
+          });
+        }
+
+        if (method === 'post' && path === '/hcm/billing/invoices/55/mock-hosted-checkout') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                id: 55,
+                invoiceNumber: 'INV-55',
+                amountDue: 1200000,
+                dueDate: '2026-05-01',
+                status: 'draft',
+                isPaid: false,
+              },
+              flow: {
+                hostedCheckoutUrl: '/mock-hosted-payment.html?payment_uuid=pay-55',
+              },
+            },
+          });
+        }
+
+        if (method === 'get' && path === '/hcm/billing/invoices/55') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                id: 55,
+                invoiceNumber: 'INV-55',
+                amountDue: 1200000,
+                dueDate: '2026-05-01',
+                paidDate: '2026-04-21',
+                status: 'paid',
+                isPaid: true,
+              },
+            },
+          });
+        }
+
+        return Promise.reject(new Error(`Unexpected AuthApi call: ${method} ${path}`));
+      }),
+      getTenantContext: vi.fn(() => ({ companyCode: 'demo_co_01', companyId: 42 })),
+    };
+
+    global.fetch = vi.fn((input) => {
+      const url = String(input);
+
+      if (url === '/v1/identity/auth/me') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              email: 'owner@example.com',
+              activeCompany: {
+                id: 42,
+                code: 'demo_co_01',
+                name: 'Demo Company',
+              },
+            },
+          }),
+        });
+      }
+
+      if (url === '/v1/saas/packages?status=active&per_page=100') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: [
+              { id: 'pkg-starter', code: 'starter', name: 'Starter' },
+              { id: 'pkg-trial', code: 'trial', name: 'Trial' },
+            ],
+          }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+    });
+
+    window.__ARCAV_DISABLE_REDIRECTS__ = true;
+    window.__ARCAV_LAST_REDIRECT__ = '';
+    window.history.replaceState({}, '', '/subscription');
+  });
+
+  it('loads pending invoice on boot and opens hosted mock checkout', async () => {
+    await import('../../../frontend/resources/js/subscription-checkout.js');
+    await flush();
+
+    expect(document.querySelector('[data-checkout-invoice-box]')?.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice pending ditemukan');
+    expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(false);
+
+    document.querySelector('[data-checkout-pay-now]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    expect(window.AuthApi.request).toHaveBeenCalledWith('post', '/hcm/billing/invoices/55/mock-hosted-checkout', {});
+    expect(window.__ARCAV_LAST_REDIRECT__).toContain('/mock-hosted-payment.html?payment_uuid=pay-55');
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Membuka hosted payment gateway mock');
+  });
+
+  it('restores paid invoice state after returning from hosted gateway', async () => {
+    window.history.replaceState({}, '', '/subscription?mock_payment_status=completed&invoice_id=55');
+
+    await import('../../../frontend/resources/js/subscription-checkout.js');
+    await flush();
+
+    expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices/55', undefined);
+    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice sudah dibayar');
+    expect(document.querySelector('[data-checkout-go-dashboard]')?.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil lewat hosted payment gateway mock');
+  });
+});

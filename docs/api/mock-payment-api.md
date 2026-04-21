@@ -9,6 +9,7 @@ Dokumen ini hanya mencakup endpoint utilitas development-only di `/v1/mock/*`.
 Untuk flow tenant invoice yang paling mendekati payment real, lihat juga:
 
 - `POST /v1/hcm/billing/invoices/{id}/mock-pay`
+- `POST /v1/hcm/billing/invoices/{id}/mock-hosted-checkout`
 - `docs/api/openapi.yaml`
 - `docs/features/mock-payment/README.md`
 
@@ -147,6 +148,67 @@ Jika `flow_mode=hosted`, contract berubah pada bagian berikut:
 - Endpoint ini tetap shortcut dev, tetapi sekarang mendukung hosted simulation lokal lewat `flow_mode=hosted`.
 - Response menyediakan `invoice.uuid`, `payment.uuid`, hosted checkout URL, callback token, dan webhook simulation metadata agar helper dev bisa lanjut ke action berikutnya tanpa menebak identifier.
 
+## POST `/v1/hcm/billing/invoices/{id}/mock-hosted-checkout`
+
+Membuka atau me-reuse hosted checkout URL mock untuk invoice tenant yang masih unpaid.
+
+### Otorisasi dan identifier
+
+- Memakai bearer token + tenant context seperti endpoint tenant billing lain.
+- Parameter path `{id}` mengikuti numeric invoice id runtime tenant billing, bukan UUID.
+- Endpoint ini hanya aktif di local environment atau saat `app.mock_payments_enabled=true`.
+
+### Request body
+
+Body kosong. Runtime cukup menerima `POST` tanpa payload tambahan.
+
+### Success response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "invoiceNumber": "INV-000123",
+    "issueDate": "2026-04-21",
+    "dueDate": "2026-04-28",
+    "amountDue": 1200000,
+    "isPaid": false,
+    "status": "draft"
+  },
+  "payment": {
+    "id": 456,
+    "uuid": "11111111-2222-4333-8444-555555555555",
+    "gateway": "mock",
+    "gatewayReference": "mock_123_1713633123",
+    "paymentMethod": "credit_card",
+    "status": "pending",
+    "amount": 1200000
+  },
+  "flow": {
+    "mode": "hosted",
+    "hostedCheckoutUrl": "http://localhost:8000/mock-hosted-payment.html?payment_uuid=11111111-2222-4333-8444-555555555555",
+    "callbackToken": "generated-callback-token",
+    "successRedirectUrl": "http://localhost:8000/subscription?mock_payment_status=completed&invoice_id=123",
+    "failureRedirectUrl": "http://localhost:8000/subscription?mock_payment_status=failed&invoice_id=123"
+  }
+}
+```
+
+### Catatan kontrak
+
+- Jika invoice sudah punya payment `pending` dengan `hosted_checkout_url`, runtime mengembalikan URL yang sama agar checkout tidak dobel.
+- Jika invoice sudah `paid`, runtime menolak request dengan `422 INVOICE_ALREADY_PAID`.
+- Hosted page mock memakai `payment.uuid` + `callbackToken`, lalu settlement tetap terjadi lewat `POST /v1/mock/webhook/charge-succeeded`.
+
+### Error utama
+
+- `403 MOCK_DISABLED`
+- `403 FORBIDDEN` bila invoice bukan milik company aktif atau caller tidak lolos gate tenant admin/owner
+- `422 TENANT_CONTEXT_REQUIRED` bila company aktif tidak ada
+- `422 INVOICE_ALREADY_PAID` bila invoice sudah lunas
+- `404 NOT_FOUND` bila invoice id tidak ditemukan pada tenant aktif
+
 ## GET `/v1/mock/test-cards`
 
 Mengambil daftar kartu uji mock untuk UI helper atau smoke test manual.
@@ -201,4 +263,4 @@ Mensimulasikan webhook sukses untuk payment yang sudah ada.
 - `/mock-payment-tester.html` sekarang seharusnya memakai UUID invoice untuk tab `Pay Invoice`.
 - `/mock-payment-tester.html` sekarang juga punya token generator tenant dan tombol copy token.
 - `/mock-hosted-payment.html` dipakai helper untuk mensimulasikan hosted invoice URL, callback token, redirect balik, dan settlement webhook lokal.
-- Jika tujuanmu adalah memvalidasi flow yang paling dekat ke payment real, utamakan endpoint tenant invoice `POST /v1/hcm/billing/invoices/{id}/mock-pay` dibanding shortcut `/v1/mock/invoices/create-and-pay`.
+- Jika tujuanmu adalah memvalidasi flow yang paling dekat ke payment real, utamakan endpoint tenant invoice `POST /v1/hcm/billing/invoices/{id}/mock-hosted-checkout` lalu selesaikan webhook settlement, atau minimal `POST /v1/hcm/billing/invoices/{id}/mock-pay` untuk shortcut instant pay.

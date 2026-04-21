@@ -1192,7 +1192,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - $ref: '#/components/parameters/InvoiceNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1206,7 +1206,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - $ref: '#/components/parameters/InvoiceNumericIdPath'
       responses:
         '200':
           description: PDF file
@@ -1226,7 +1226,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - $ref: '#/components/parameters/InvoiceNumericIdPath'
       requestBody:
         required: false
         content:
@@ -1271,6 +1271,58 @@ paths:
                       status: { type: string }
                       amount: { type: number }
                       paidAt: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/billing/invoices/{id}/mock-hosted-checkout:
+    post:
+      tags: [SaaS, HCM]
+      summary: Create or reuse a hosted mock checkout URL for a tenant invoice
+      description: Development-only hosted payment helper for pending tenant invoices. Reuses the latest pending mock payment when available.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceNumericIdPath'
+      responses:
+        '200':
+          description: Hosted mock checkout payload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, payment, flow]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      invoiceNumber: { type: string, nullable: true }
+                      issueDate: { type: string, nullable: true }
+                      dueDate: { type: string, nullable: true }
+                      amountDue: { type: number }
+                      isPaid: { type: boolean }
+                      status: { type: string }
+                  payment:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      uuid: { type: string, format: uuid }
+                      gateway: { type: string }
+                      gatewayReference: { type: string, nullable: true }
+                      paymentMethod: { type: string }
+                      status: { type: string, enum: [pending, completed, failed] }
+                      amount: { type: number }
+                  flow:
+                    type: object
+                    properties:
+                      mode: { type: string, enum: [hosted] }
+                      hostedCheckoutUrl: { type: string, format: uri }
+                      callbackToken: { type: string }
+                      successRedirectUrl: { type: string, format: uri }
+                      failureRedirectUrl: { type: string, format: uri }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -7253,6 +7305,14 @@ components:
       schema:
         type: string
         format: uuid
+    InvoiceNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric invoice id for tenant billing endpoints.
     PackageUuidPath:
       name: package
       in: path

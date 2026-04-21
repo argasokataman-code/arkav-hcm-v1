@@ -39,18 +39,19 @@ export async function loginViaUi(page, user, options = {}) {
   await page.locator("#login-submit").click();
 
   const homeRegex = /\/(index|dashboard|employee-dashboard)(\?.*)?$/;
-  const reachedHomeAfterFirstTry = await page.waitForURL(homeRegex, { timeout: 5000 }).then(() => true).catch(() => false);
+  const expectedUrlRegex = options.expectedUrlRegex || homeRegex;
+  const reachedExpectedPageAfterFirstTry = await page.waitForURL(expectedUrlRegex, { timeout: 5000 }).then(() => true).catch(() => false);
 
   const invalidCredentials = page.locator("#login-error:not(.d-none)");
-  if (!reachedHomeAfterFirstTry && !options.companyMode && (await invalidCredentials.isVisible().catch(() => false))) {
+  if (!reachedExpectedPageAfterFirstTry && !options.companyMode && (await invalidCredentials.isVisible().catch(() => false))) {
     await ensureRegularUserExists(page, user);
     await page.locator("#login-email").fill(user.email);
     await page.locator("#login-password").fill(user.password);
     await page.locator("#login-submit").click();
   }
 
-  await page.waitForURL(homeRegex, { timeout: 20000 });
-  await expect(page).toHaveURL(homeRegex);
+  await page.waitForURL(expectedUrlRegex, { timeout: 20000 });
+  await expect(page).toHaveURL(expectedUrlRegex);
 }
 
 export async function logoutIfNeeded(page) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView, useScroll, useTransform } from 'framer-motion';
 import {
     ArrowRight,
@@ -19,6 +19,18 @@ import {
 } from '@phosphor-icons/react';
 
 import { buildLandingOnboardingPayload, formatIdr, isTrialPackage } from '../public-landing-contract.js';
+
+function sanitizePostalCode(value) {
+    return String(value ?? '').replace(/\D+/g, '').slice(0, 12);
+}
+
+function getE2ETurnstileToken() {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return String(window.__ARCAV_E2E_TURNSTILE_TOKEN || '').trim();
+}
 
 const featureCards = [
     {
@@ -430,6 +442,9 @@ function PackageCard({ isHighlighted, onOpenOnboarding, packageItem, trialUrl })
             transition={{ type: 'spring', stiffness: 300 }}
             className={`mpl-price-card ${isHighlighted ? 'is-highlighted' : ''}`}
             style={{ '--mpl-price-accent': packageItem.color || '#2563eb' }}
+            data-package-card
+            data-package-code={String(packageItem.code || '').toLowerCase()}
+            data-package-uuid={packageItem.uuid}
         >
             {isHighlighted ? <span className="mpl-price-badge">Popular</span> : null}
             <div className="mpl-price-emoji" aria-hidden="true">{getPackageEmoji(packageItem)}</div>
@@ -457,7 +472,7 @@ function PackageCard({ isHighlighted, onOpenOnboarding, packageItem, trialUrl })
                 <button type="button" className="mpl-btn" onClick={() => onOpenOnboarding(packageItem.uuid)}>
                     {trialPackage ? 'Mulai Trial' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                 </button>
-                <a className="mpl-btn-outline" href={`${trialUrl}?packageId=${encodeURIComponent(packageItem.uuid)}`}>
+                <a className="mpl-btn-outline" href={`${trialUrl}?packageId=${encodeURIComponent(packageItem.uuid)}`} data-package-plan-link>
                     Pilih plan
                 </a>
             </div>
@@ -510,9 +525,84 @@ function DemoOverlay({ onClose, onOpenOnboarding, packageUuid }) {
     );
 }
 
-function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packages, submitting }) {
+export function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packages, submitting, turnstileEnabled, turnstileSiteKey, onTurnstileTokenChange }) {
     const selectedPackage = packages.find((packageItem) => packageItem.uuid === formState.packageUuid) || null;
-    const lockBillingCycle = isTrialPackage(selectedPackage);
+    const isTrialSelected = isTrialPackage(selectedPackage);
+    const lockBillingCycle = isTrialSelected;
+    const turnstileContainerRef = useRef(null);
+    const turnstileWidgetIdRef = useRef(null);
+    const e2eTurnstileToken = getE2ETurnstileToken();
+    const emitTurnstileTokenChange = useEffectEvent((token) => {
+        onTurnstileTokenChange(String(token || '').trim());
+    });
+
+    useEffect(() => {
+        if (!turnstileEnabled || !turnstileSiteKey || !turnstileContainerRef.current) {
+            return undefined;
+        }
+
+        if (e2eTurnstileToken) {
+            emitTurnstileTokenChange(e2eTurnstileToken);
+            return () => {
+                emitTurnstileTokenChange('');
+            };
+        }
+
+        let cancelled = false;
+        let attempts = 0;
+
+        const mountWidget = () => {
+            if (cancelled) {
+                return;
+            }
+
+            if (!window.turnstile || typeof window.turnstile.render !== 'function') {
+                if (attempts >= 40) {
+                    return;
+                }
+
+                attempts += 1;
+                window.setTimeout(mountWidget, 250);
+                return;
+            }
+
+            turnstileContainerRef.current.innerHTML = '';
+            turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                sitekey: turnstileSiteKey,
+                callback: (token) => {
+                    emitTurnstileTokenChange(token || '');
+                },
+                'expired-callback': () => {
+                    emitTurnstileTokenChange('');
+                },
+                'error-callback': () => {
+                    emitTurnstileTokenChange('');
+                },
+            });
+        };
+
+        mountWidget();
+
+        return () => {
+            cancelled = true;
+            emitTurnstileTokenChange('');
+
+            if (turnstileWidgetIdRef.current != null && window.turnstile && typeof window.turnstile.remove === 'function') {
+                try {
+                    window.turnstile.remove(turnstileWidgetIdRef.current);
+                } catch (_error) {
+                    if (turnstileContainerRef.current) {
+                        turnstileContainerRef.current.innerHTML = '';
+                    }
+                }
+            }
+
+            turnstileWidgetIdRef.current = null;
+            if (turnstileContainerRef.current) {
+                turnstileContainerRef.current.innerHTML = '';
+            }
+        };
+    }, [e2eTurnstileToken, turnstileEnabled, turnstileSiteKey]);
 
     return (
         <>
@@ -564,16 +654,19 @@ function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packag
                                                 </div>
                                                 <div className="col-md-3">
                                                     <label className="form-label fw-semibold">Mulai sebagai</label>
-                                                    <select className="form-select" name="startMode" value={formState.startMode} onChange={onChange} disabled={lockBillingCycle}>
-                                                        <option value="trial">Trial</option>
-                                                        <option value="subscribe">Langsung subscribe</option>
+                                                    <select className="form-select" name="startMode" value={formState.startMode} onChange={onChange} disabled>
+                                                        {isTrialSelected ? (
+                                                            <option value="trial">Trial</option>
+                                                        ) : (
+                                                            <option value="pending_payment">Langsung subscribe</option>
+                                                        )}
                                                     </select>
                                                 </div>
                                                 <div className="col-12">
                                                     <div className="small text-muted">
-                                                        {lockBillingCycle
-                                                            ? 'Paket trial dipaksa ke monthly dan mode trial untuk menjaga flow tetap jelas.'
-                                                            : 'Untuk paket berbayar, kamu bisa mulai dari trial dulu atau lanjut subscribe.'}
+                                                        {isTrialSelected
+                                                            ? 'Paket trial dipaksa ke billing monthly dan mode trial.'
+                                                            : 'Paket berbayar langsung subscribe (pending payment). Untuk mencoba trial dulu, pilih paket Trial.'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -614,7 +707,7 @@ function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packag
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Kode pos</label>
-                                                    <input className="form-control" name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} />
+                                                    <input className="form-control" name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} inputMode="numeric" maxLength="12" />
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Country code</label>
@@ -664,6 +757,14 @@ function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packag
                                                     <label className="form-label">Website</label>
                                                     <input className="form-control" name="website" value={formState.website} onChange={onChange} tabIndex="-1" autoComplete="off" />
                                                 </div>
+
+                                                {turnstileEnabled && turnstileSiteKey ? (
+                                                    <div className="col-12">
+                                                        <label className="form-label">Verifikasi keamanan</label>
+                                                        <div ref={turnstileContainerRef}></div>
+                                                        <div className="form-text">Selesaikan captcha sebelum submit onboarding.</div>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
                                     </div>
@@ -689,12 +790,39 @@ export function PublicLandingReferenceApp({ bootstrap }) {
     const packages = useMemo(() => Array.isArray(bootstrap?.packages) ? bootstrap.packages : [], [bootstrap]);
     const defaultPackage = packages[0] || null;
     const recommendedPackageUuid = useMemo(() => getRecommendedPackageUuid(packages), [packages]);
+    const autoOpenSpec = useMemo(() => {
+        if (typeof window === 'undefined') return null;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('openOnboarding') !== '1') return null;
+        const requestedStartMode = params.get('startMode') === 'pending_payment' ? 'pending_payment' : null;
+        const requestedPackageUuid = String(params.get('package') || '').trim();
+        const picked =
+            (requestedPackageUuid && packages.find((item) => item.uuid === requestedPackageUuid)) ||
+            (requestedStartMode === 'pending_payment'
+                ? (packages.find((item) => !isTrialPackage(item)) || null)
+                : null) ||
+            defaultPackage ||
+            packages[0] ||
+            null;
+        return { requestedStartMode, pickedPackage: picked };
+    }, [packages, defaultPackage]);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const [showDemo, setShowDemo] = useState(false);
-    const [onboardingOpen, setOnboardingOpen] = useState(false);
+    const [onboardingOpen, setOnboardingOpen] = useState(() => Boolean(autoOpenSpec));
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState(null);
-    const [formState, setFormState] = useState(() => getInitialFormState(defaultPackage));
+    const [formState, setFormState] = useState(() => {
+        const base = getInitialFormState(defaultPackage);
+        if (!autoOpenSpec) return base;
+        const { pickedPackage, requestedStartMode } = autoOpenSpec;
+        const trialPackage = isTrialPackage(pickedPackage);
+        return {
+            ...base,
+            packageUuid: pickedPackage?.uuid || base.packageUuid,
+            billingCycle: trialPackage ? 'monthly' : base.billingCycle,
+            startMode: trialPackage ? 'trial' : (requestedStartMode || base.startMode),
+        };
+    });
     const containerRef = useRef(null);
     const heroRef = useRef(null);
 
@@ -717,6 +845,12 @@ export function PublicLandingReferenceApp({ bootstrap }) {
         };
     }, []);
 
+    const autoOpenAppliedRef = useRef(Boolean(autoOpenSpec));
+    useEffect(() => {
+        if (!autoOpenSpec) return;
+        setShowDemo(false);
+    }, [autoOpenSpec]);
+
     useEffect(() => {
         if (!onboardingOpen && !showDemo) {
             document.body.classList.remove('modal-open');
@@ -734,15 +868,16 @@ export function PublicLandingReferenceApp({ bootstrap }) {
     }, [onboardingOpen, showDemo]);
 
     useEffect(() => {
-        if (!selectedPackage || !isTrialPackage(selectedPackage)) {
-            return;
-        }
-
-        setFormState((current) => ({
-            ...current,
-            billingCycle: 'monthly',
-            startMode: 'trial',
-        }));
+        if (!selectedPackage) return;
+        const trialPackage = isTrialPackage(selectedPackage);
+        setFormState((current) => {
+            if (trialPackage) {
+                if (current.billingCycle === 'monthly' && current.startMode === 'trial') return current;
+                return { ...current, billingCycle: 'monthly', startMode: 'trial' };
+            }
+            if (current.startMode === 'pending_payment') return current;
+            return { ...current, startMode: 'pending_payment' };
+        });
     }, [selectedPackage]);
 
     const handleAnchorClick = () => {
@@ -775,7 +910,14 @@ export function PublicLandingReferenceApp({ bootstrap }) {
         const { name, value } = event.target;
         setFormState((current) => ({
             ...current,
-            [name]: value,
+            [name]: name === 'companyPostalCode' ? sanitizePostalCode(value) : value,
+        }));
+    };
+
+    const handleTurnstileTokenChange = (token) => {
+        setFormState((current) => ({
+            ...current,
+            turnstileToken: String(token || '').trim(),
         }));
     };
 
@@ -802,6 +944,20 @@ export function PublicLandingReferenceApp({ bootstrap }) {
 
             const companyCode = data?.data?.company?.code || null;
             const ownerEmail = data?.data?.owner?.email || null;
+            const subscriptionStatus = String(data?.data?.subscription?.status || '').trim();
+            const isPendingPayment = subscriptionStatus === 'pending_payment';
+
+            const loginBase = String(bootstrap.loginUrl || '/login');
+            const separator = loginBase.includes('?') ? '&' : '?';
+            const pendingPaymentUrl = `${loginBase}${separator}mode=company&next=%2Fsubscription&companyCode=${encodeURIComponent(String(companyCode || ''))}`;
+
+            setOnboardingOpen(false);
+
+            if (isPendingPayment) {
+                window.location.href = pendingPaymentUrl;
+                return;
+            }
+
             let message = 'Onboarding berhasil.';
 
             if (companyCode) {
@@ -813,16 +969,19 @@ export function PublicLandingReferenceApp({ bootstrap }) {
             }
 
             message += '\n\nKlik "Login sekarang" untuk masuk.';
-            setOnboardingOpen(false);
 
-            if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
-                await window.ArcavUi.selectOption({
-                    title: 'Onboarding berhasil',
-                    message,
-                    options: [{ value: 'login', label: 'Login sekarang' }],
-                });
-            } else {
-                window.alert(message);
+            try {
+                if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
+                    await window.ArcavUi.selectOption({
+                        title: 'Onboarding berhasil',
+                        message,
+                        options: [{ value: 'login', label: 'Login sekarang' }],
+                    });
+                } else {
+                    window.alert(message);
+                }
+            } catch (_uiError) {
+                // Fall through: never treat a post-success UI helper failure as a submit error.
             }
 
             window.location.href = bootstrap.loginUrl;
@@ -1043,7 +1202,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     </FadeInSection>
 
                     {packages.length ? (
-                        <div className="mpl-pricing-grid">
+                        <div className="mpl-pricing-grid" data-react-packages-grid>
                             {packages.map((packageItem) => (
                                 <FadeInSection key={packageItem.uuid}>
                                     <PackageCard
@@ -1136,8 +1295,11 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     onChange={handleChange}
                     onClose={() => setOnboardingOpen(false)}
                     onSubmit={handleSubmit}
+                    onTurnstileTokenChange={handleTurnstileTokenChange}
                     packages={packages}
                     submitting={submitting}
+                    turnstileEnabled={Boolean(bootstrap?.turnstileEnabled && bootstrap?.turnstileSiteKey)}
+                    turnstileSiteKey={String(bootstrap?.turnstileSiteKey || '').trim()}
                 />
             ) : null}
         </div>

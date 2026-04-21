@@ -22,11 +22,29 @@ function compactObject(input) {
     }, {});
 }
 
+function normalizeStartMode(value) {
+    const normalized = String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+    if (!normalized || normalized === 'trial') {
+        return 'trial';
+    }
+
+    if (['pending_payment', 'pendingpayment', 'paid', 'subscribe', 'subscription'].includes(normalized)) {
+        return 'pending_payment';
+    }
+
+    return 'trial';
+}
+
+function sanitizePostalCode(value) {
+    return String(value ?? '').replace(/\D+/g, '').slice(0, 12);
+}
+
 export function buildLandingOnboardingPayload(formState) {
     const payload = {
         package_uuid: String(formState.packageUuid || '').trim(),
         billing_cycle: String(formState.billingCycle || 'monthly'),
-        start_mode: String(formState.startMode || 'trial'),
+        start_mode: normalizeStartMode(formState.startMode || 'trial'),
         company: compactObject({
             name: String(formState.companyName || '').trim(),
             legal_name: String(formState.companyLegalName || '').trim(),
@@ -38,7 +56,7 @@ export function buildLandingOnboardingPayload(formState) {
             contact_person_role: String(formState.companyContactPersonRole || '').trim(),
             address: String(formState.companyAddress || '').trim(),
             city: String(formState.companyCity || '').trim(),
-            postal_code: String(formState.companyPostalCode || '').trim(),
+            postal_code: sanitizePostalCode(formState.companyPostalCode || ''),
         }),
         owner: compactObject({
             name: String(formState.ownerName || '').trim(),

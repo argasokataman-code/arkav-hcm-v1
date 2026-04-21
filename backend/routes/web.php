@@ -21,8 +21,24 @@ Route::get('/', [PublicLandingController::class, 'index'])->name('root');
 // Public marketing landing page (explicit path)
 Route::get('/landing', [PublicLandingController::class, 'index'])->name('landing');
 
-// Public onboarding (trial) - dedicated form page
-Route::get('/trial', [PublicLandingController::class, 'trial'])->name('trial');
+// Public onboarding (trial/pending payment) - unified to landing React modal.
+// /trial is kept as a redirect alias so legacy links still work, forwarding
+// relevant query params (packageId -> package, startMode) to /landing.
+Route::get('/trial', function (Request $request) {
+    $query = ['openOnboarding' => 1];
+
+    $packageId = trim((string) $request->query('packageId', ''));
+    if ($packageId !== '') {
+        $query['package'] = $packageId;
+    }
+
+    $startMode = trim((string) $request->query('startMode', ''));
+    if (in_array($startMode, ['trial', 'pending_payment'], true)) {
+        $query['startMode'] = $startMode;
+    }
+
+    return redirect()->route('landing', $query);
+})->name('trial');
 
 Route::get('/api-docs', function () {
     return view('api-docs.swagger');
@@ -953,13 +969,13 @@ Route::get('/login-3', function () {
     return view('login-3');
 })->name('login-3');
 Route::get('/register', function () {
-    return redirect()->route('trial', ['startMode' => 'pending_payment']);
+    return redirect()->route('landing', ['openOnboarding' => 1, 'startMode' => 'pending_payment']);
 })->name('register');
 Route::get('/register-2', function () {
-    return redirect()->route('trial', ['startMode' => 'pending_payment']);
+    return redirect()->route('landing', ['openOnboarding' => 1, 'startMode' => 'pending_payment']);
 })->name('register-2');
 Route::get('/register-3', function () {
-    return redirect()->route('trial', ['startMode' => 'pending_payment']);
+    return redirect()->route('landing', ['openOnboarding' => 1, 'startMode' => 'pending_payment']);
 })->name('register-3');
 Route::get('/forgot-password', function () {
     return view('forgot-password');

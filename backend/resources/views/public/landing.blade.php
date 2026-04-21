@@ -12,6 +12,8 @@
 		'landingUrl' => url('/landing'),
 		'loginUrl' => url('/login'),
 		'trialUrl' => url('/trial'),
+		'turnstileEnabled' => (bool) config('turnstile.enabled'),
+		'turnstileSiteKey' => (string) config('turnstile.site_key'),
 		'packages' => $packages->map(function ($package) {
 			$featureHighlights = $package->features
 				->filter(fn ($feature) => method_exists($feature, 'isIncluded') ? $feature->isIncluded() : true)
@@ -39,6 +41,9 @@
 
 <script id="landing-app-data" type="application/json">@json($landingBootstrap)</script>
 <script>document.documentElement.classList.add('landing-react-ready');</script>
+@if (config('turnstile.enabled') && config('turnstile.site_key'))
+	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+@endif
 <div id="landing-react-root" class="landing-react-root" aria-live="polite">
 	<div class="landing-react-loading" aria-hidden="true">
 		<div class="landing-react-loading__mark"><i class="ti ti-bolt"></i></div>
@@ -937,7 +942,7 @@
 					</div>
 					@if (config('turnstile.enabled') && config('turnstile.site_key'))
 						<div class="mt-3">
-							<div class="cf-turnstile" data-sitekey="{{ config('turnstile.site_key') }}"></div>
+							<div data-turnstile-container data-sitekey="{{ config('turnstile.site_key') }}"></div>
 							<div class="form-text">Verifikasi keamanan untuk mencegah spam/bot.</div>
 						</div>
 					@endif
@@ -948,7 +953,7 @@
 				</div>
 			</form>
 			@if (config('turnstile.enabled') && config('turnstile.site_key'))
-				<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+				<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 			@endif
 		</div>
 	</div>

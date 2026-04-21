@@ -16,6 +16,26 @@
         }
     }
 
+    function searchParams() {
+        try {
+            return new URLSearchParams(window.location.search || "");
+        } catch (_e) {
+            return new URLSearchParams();
+        }
+    }
+
+    function sanitizeNextRedirect(rawPath) {
+        var value = String(rawPath || "").trim();
+        if (!value || value.charAt(0) !== "/" || value.slice(0, 2) === "//") {
+            return "/index";
+        }
+        if (value === "/login" || value.indexOf("/login?") === 0) {
+            return "/index";
+        }
+
+        return value;
+    }
+
     function init() {
         var form = document.getElementById("api-login-form");
         if (!form || !window.AuthApi || form.dataset.authBound === "1") {
@@ -33,6 +53,7 @@
         var companyCodeInput = document.getElementById("login-company-code");
         var errorNode = document.getElementById("login-error");
         var submitButton = document.getElementById("login-submit");
+        var params = searchParams();
 
         function setError(message) {
             errorNode.textContent = message || "";
@@ -59,6 +80,19 @@
         }
         if (companyModeInput) {
             companyModeInput.addEventListener("change", syncModeUi);
+        }
+
+        var companyCodeFromQuery = String(params.get("companyCode") || "").trim();
+        if (companyCodeInput && companyCodeFromQuery) {
+            companyCodeInput.value = companyCodeFromQuery;
+        }
+
+        if (companyModeInput && regularModeInput) {
+            var requestedMode = String(params.get("mode") || "").trim().toLowerCase();
+            if (requestedMode === "company" || companyCodeFromQuery) {
+                regularModeInput.checked = false;
+                companyModeInput.checked = true;
+            }
         }
         syncModeUi();
 
@@ -106,7 +140,7 @@
                     });
                 }
 
-                safeRedirect("/index");
+                safeRedirect(sanitizeNextRedirect(params.get("next")));
             } catch (error) {
                 var apiMessage = error?.response?.data?.error?.message;
                 setError(apiMessage || error.message || "Login gagal. Periksa email/password.");

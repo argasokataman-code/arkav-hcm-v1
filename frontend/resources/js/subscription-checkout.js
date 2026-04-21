@@ -21,6 +21,40 @@
     var invoiceSubtitle = document.querySelector("[data-checkout-invoice-subtitle]");
     var invoiceAmount = document.querySelector("[data-checkout-invoice-amount]");
     var invoiceDue = document.querySelector("[data-checkout-invoice-due]");
+    var openInvoicesBtn = document.querySelector("[data-checkout-open-invoices]");
+    var payNowBtn = document.querySelector("[data-checkout-pay-now]");
+    var goDashboardBtn = document.querySelector("[data-checkout-go-dashboard]");
+    var mockPayEnabled = String(root.getAttribute("data-checkout-mock-pay-enabled") || "0") === "1";
+    var isPendingLock = String(root.getAttribute("data-checkout-pending-lock") || "0") === "1";
+    var upgradeForm = document.querySelector("[data-checkout-form].checkout-upgrade-form") || form;
+    var currentInvoice = null;
+
+    function setFieldValue(el, value) {
+        if (!el) return;
+        var tag = String(el.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") {
+            el.value = value == null ? "" : value;
+        } else {
+            el.textContent = value == null || value === "" ? "—" : value;
+        }
+    }
+
+    function searchParams() {
+        try {
+            return new URLSearchParams(window.location.search || "");
+        } catch (_e) {
+            return new URLSearchParams();
+        }
+    }
+
+    function redirectTo(url) {
+        if (!url) return;
+        if (window.__ARCAV_DISABLE_REDIRECTS__) {
+            window.__ARCAV_LAST_REDIRECT__ = String(url);
+            return;
+        }
+        window.location.assign(String(url));
+    }
 
     function getTenantContext() {
         try {
@@ -61,6 +95,11 @@
         submitBtn.disabled = isLoading;
     }
 
+    function setPaying(isPaying) {
+        if (!payNowBtn) return;
+        payNowBtn.disabled = isPaying;
+    }
+
     function formatRupiah(num) {
         var n = Number(num || 0);
         try {
@@ -75,16 +114,179 @@
         return checked ? String(checked.value || "monthly") : "monthly";
     }
 
+    function api(method, path, payload) {
+        if (window.AuthApi && typeof window.AuthApi.request === "function") {
+            return window.AuthApi.request(method, path, payload).then(function (res) {
+                return res && res.data ? res.data : res;
+            });
+        }
+
+        var options = {
+            method: String(method || "GET").toUpperCase(),
+            headers: buildHeaders({ Accept: "application/json" }),
+            credentials: "same-origin",
+        };
+
+        if (payload != null) {
+            options.headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(payload);
+        }
+
+        return fetch("/v1" + path, options).then(async function (res) {
+            var body = await res.json().catch(function () { return null; });
+            if (!res.ok) {
+                throw { status: res.status, data: body };
+            }
+            return body;
+        });
+    }
+
+    function invoiceLabel(invoice) {
+        if (!invoice) return "—";
+        return invoice.invoiceNumber || invoice.id || "—";
+    }
+
+    function updateInvoiceActions(invoice) {
+        var unpaid = !!(invoice && !invoice.isPaid);
+
+        if (openInvoicesBtn) {
+            openInvoicesBtn.classList.remove("d-none");
+        }
+
+        if (payNowBtn) {
+            payNowBtn.classList.toggle("d-none", !unpaid || !mockPayEnabled);
+            payNowBtn.textContent = unpaid ? "Bayar sekarang" : "Sudah dibayar";
+        }
+
+        if (goDashboardBtn) {
+            goDashboardBtn.classList.toggle("d-none", !(invoice && invoice.isPaid));
+        }
+    }
+
     function renderInvoice(data, reused) {
         if (!data || !data.invoice) return;
+        currentInvoice = data.invoice;
         if (invoiceHint) invoiceHint.classList.add("d-none");
         if (invoiceBox) invoiceBox.classList.remove("d-none");
-        if (invoiceTitle) invoiceTitle.textContent = reused ? "Invoice pending ditemukan" : "Invoice dibuat";
-        if (invoiceSubtitle) {
-            invoiceSubtitle.textContent = "Invoice #" + (data.invoice.invoiceNumber || data.invoice.id);
+        if (invoiceTitle) {
+            if (currentInvoice.isPaid) {
+                invoiceTitle.textContent = "Invoice sudah dibayar";
+            } else {
+                invoiceTitle.textContent = reused ? "Invoice pending ditemukan" : "Invoice dibuat";
+            }
         }
-        if (invoiceAmount) invoiceAmount.textContent = formatRupiah(data.invoice.amountDue);
-        if (invoiceDue) invoiceDue.textContent = data.invoice.dueDate ? ("Jatuh tempo: " + data.invoice.dueDate) : "—";
+        if (invoiceSubtitle) {
+            invoiceSubtitle.textContent = "Invoice #" + invoiceLabel(currentInvoice);
+        }
+        if (invoiceAmount) invoiceAmount.textContent = formatRupiah(currentInvoice.amountDue);
+        if (invoiceDue) {
+            invoiceDue.textContent = currentInvoice.isPaid
+                ? (currentInvoice.paidDate ? ("Dibayar: " + currentInvoice.paidDate) : "Status: paid")
+                : (currentInvoice.dueDate ? ("Jatuh tempo: " + currentInvoice.dueDate) : "—");
+        }
+        updateInvoiceActions(currentInvoice);
+
+        // When tenant is pending_payment lock and a pending invoice already exists,
+        // hide the "Buat invoice baru" form so user doesn't see two competing CTAs.
+        if (isPendingLock && currentInvoice && !currentInvoice.isPaid && upgradeForm) {
+            upgradeForm.classList.add("d-none");
+        }
+    }
+
+    function toTimestamp(value) {
+        if (!value) return 0;
+        var time = new Date(value).getTime();
+        return Number.isFinite(time) ? time : 0;
+    }
+
+    function pickPendingInvoice(rows) {
+        return (Array.isArray(rows) ? rows : [])
+            .filter(function (invoice) { return invoice && !invoice.isPaid; })
+            .sort(function (left, right) {
+                return toTimestamp(right && (right.updatedAt || right.createdAt || right.issueDate)) - toTimestamp(left && (left.updatedAt || left.createdAt || left.issueDate));
+            })[0] || null;
+    }
+
+    async function loadPendingInvoice() {
+        try {
+            var payload = await api("get", "/hcm/billing/invoices?perPage=20&is_paid=0");
+            if (!payload || payload.success !== true) return null;
+            var pendingInvoice = pickPendingInvoice(payload.data || []);
+            if (!pendingInvoice) return null;
+            renderInvoice({ invoice: pendingInvoice }, true);
+            showFeedback("info", "Invoice pending ditemukan. Lanjutkan pembayaran untuk mengaktifkan layanan.");
+            return pendingInvoice;
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    async function loadInvoiceById(invoiceId, feedbackMessage, feedbackType) {
+        if (!invoiceId) return null;
+        try {
+            var payload = await api("get", "/hcm/billing/invoices/" + encodeURIComponent(invoiceId));
+            if (!payload || payload.success !== true || !payload.data) {
+                return null;
+            }
+            renderInvoice({ invoice: payload.data }, true);
+            if (feedbackMessage) {
+                showFeedback(feedbackType || "info", feedbackMessage);
+            }
+            return payload.data;
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    async function handleHostedReturn() {
+        var params = searchParams();
+        var status = String(params.get("mock_payment_status") || "").trim().toLowerCase();
+        var invoiceId = String(params.get("invoice_id") || "").trim();
+        if (!status || !invoiceId) {
+            return false;
+        }
+
+        if (status === "completed") {
+            await loadInvoiceById(invoiceId, "Pembayaran berhasil lewat hosted payment gateway mock.", "success");
+            return true;
+        }
+
+        if (status === "failed") {
+            await loadInvoiceById(invoiceId, "Pembayaran dibatalkan atau gagal. Kamu bisa coba lagi dari checkout.", "warning");
+            return true;
+        }
+
+        if (status === "pending") {
+            await loadInvoiceById(invoiceId, "Hosted payment belum diselesaikan. Lanjutkan pembayaran saat siap.", "info");
+            return true;
+        }
+
+        return false;
+    }
+
+    async function payCurrentInvoice() {
+        if (!currentInvoice || !currentInvoice.id) {
+            showFeedback("warning", "Belum ada invoice yang bisa dibayar.");
+            return;
+        }
+
+        try {
+            setPaying(true);
+            var payload = await api("post", "/hcm/billing/invoices/" + encodeURIComponent(currentInvoice.id) + "/mock-hosted-checkout", {});
+            var hostedCheckoutUrl = payload && payload.flow ? String(payload.flow.hostedCheckoutUrl || "").trim() : "";
+            if (!payload || payload.success !== true || !hostedCheckoutUrl) {
+                throw new Error("Gagal membuka hosted payment gateway.");
+            }
+            showFeedback("info", "Membuka hosted payment gateway mock...");
+            redirectTo(hostedCheckoutUrl);
+        } catch (err) {
+            var msg = err && err.data && err.data.error && err.data.error.message
+                ? err.data.error.message
+                : (err && err.message ? err.message : "Gagal membuka hosted payment gateway.");
+            showFeedback("danger", msg);
+        } finally {
+            setPaying(false);
+        }
     }
 
     async function loadMeAndRenderContext() {
@@ -99,9 +301,9 @@
             throw new Error("Company context belum aktif. Login ulang dengan mode Login as Company (company code).");
         }
 
-        if (companyNameInput) companyNameInput.value = activeCompany.name || "";
-        if (companyIdInput) companyIdInput.value = String(activeCompany.id || "");
-        if (companyCodeInput) companyCodeInput.value = String(activeCompany.code || "");
+        if (companyNameInput) setFieldValue(companyNameInput, activeCompany.name || "");
+        if (companyIdInput) setFieldValue(companyIdInput, String(activeCompany.id || ""));
+        if (companyCodeInput) setFieldValue(companyCodeInput, String(activeCompany.code || ""));
         if (companyBadge) companyBadge.textContent = String(activeCompany.code || activeCompany.name || "Company");
 
         // Best-effort: show trial badge if shell dataset says trial.
@@ -201,6 +403,11 @@
             await loadMeAndRenderContext();
             await loadPackages();
             if (form) form.addEventListener("submit", submitCheckout);
+            if (payNowBtn) payNowBtn.addEventListener("click", payCurrentInvoice);
+            var handledHostedReturn = await handleHostedReturn();
+            if (!handledHostedReturn) {
+                await loadPendingInvoice();
+            }
         } catch (e) {
             showFeedback("danger", e && e.message ? e.message : "Gagal memuat halaman checkout.");
         }

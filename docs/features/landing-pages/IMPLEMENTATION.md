@@ -185,14 +185,16 @@ Jika kontrak onboarding memperkenalkan regex baru (mis. untuk `company.name`), h
 Perilaku runtime aktif saat ini:
 
 - CTA pricing/trial di landing membuka onboarding public langsung, bukan memaksa guest login dulu.
-- CTA registrasi pada halaman `/login` mengarah ke `/register`, lalu route itu langsung redirect ke `/trial?startMode=pending_payment`.
-- View `/trial` membaca `startMode` dan mengubah copy, hidden `start_mode`, filter package, dan default package sesuai mode bisnis.
+- CTA registrasi pada halaman `/login` mengarah ke `/register`, lalu route itu redirect ke `/landing?openOnboarding=1&startMode=pending_payment`.
+- Route `/trial` sekarang tinggal alias redirect ke `/landing?openOnboarding=1`, sambil meneruskan `packageId` lama sebagai `package` dan tetap menjaga `startMode=pending_payment` bila ada link legacy.
+- Modal onboarding React di landing menjadi satu-satunya form onboarding yang aktif, baik untuk trial maupun pending payment.
 
 Implikasi keamanan dan UX:
 
 - Registrasi resmi dari login tidak boleh diam-diam kembali ke trial package.
 - Mode `pending_payment` harus tetap mengecualikan package trial dari daftar pilihan agar intent bisnisnya tidak rancu.
-- Karena flow aktif tidak memakai query `next` dari landing, catatan anti open-redirect untuk landing CTA tidak lagi menjadi jalur utama pada fitur ini.
+- Setelah onboarding `pending_payment`, login company memakai query `next=/subscription` yang harus disanitasi agar tidak membuka open redirect ke host/path asing.
+- Tenant `pending_payment` harus dipaksa tetap berada di `/subscription` sampai invoice lunas; shell aplikasi penuh tidak boleh muncul selama status ini masih aktif.
 
 ## Animasi ringan (tanpa library baru)
 
@@ -213,7 +215,9 @@ Jika menambah file JS/CSS:
 ## Test plan (automation + manual)
 
 - Tambah regression test: guest bisa akses `/` landing tanpa redirect `lock-screen`.
-- Tambah regression test: `/register` redirect ke `/trial?startMode=pending_payment`.
-- Tambah regression test: mode `pending_payment` di `/trial` menampilkan copy registrasi resmi dan tidak memilih package trial.
+- Tambah regression test: `/register` dan alias legacy mengarah ke `/landing?openOnboarding=1&startMode=pending_payment`.
+- Tambah regression test: link legacy `/trial` tetap redirect ke landing unified onboarding sambil meneruskan package/start mode lama.
+- Tambah regression test: tenant `pending_payment` login sebagai company lalu terkunci di `/subscription` sampai invoice dibayar.
+- Tambah regression test: hosted mock checkout mengembalikan user ke `/subscription` dengan state invoice terbaru.
 - Manual: lihat `E2E-TESTING.md`.
 

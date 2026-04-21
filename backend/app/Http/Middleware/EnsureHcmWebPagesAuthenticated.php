@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\ArcavAccessTokenResolver;
 use App\Support\TenantContextResolver;
@@ -27,6 +28,10 @@ class EnsureHcmWebPagesAuthenticated
             $request->setUserResolver(fn () => $token->user);
             $this->resolveTenantContext($request, $token->user);
 
+            if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
+                return $redirect;
+            }
+
             return $next($request);
         }
 
@@ -36,6 +41,10 @@ class EnsureHcmWebPagesAuthenticated
             if ($sessionUser instanceof User) {
                 $request->setUserResolver(fn () => $sessionUser);
                 $this->resolveTenantContext($request, $sessionUser);
+
+                if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
+                    return $redirect;
+                }
             }
 
             return $next($request);
@@ -120,5 +129,35 @@ class EnsureHcmWebPagesAuthenticated
         $request->attributes->set('activeCompanyUuid', $company->uuid);
         $request->attributes->set('activeCompanyCode', $company->code);
         $request->attributes->set('activeCompanyRole', $membership->role);
+    }
+
+    private function pendingPaymentRedirectResponse(Request $request): ?Response
+    {
+        if ($request->expectsJson() || $request->ajax()) {
+            return null;
+        }
+
+        $path = trim($request->path(), '/');
+        if ($path === 'subscription') {
+            return null;
+        }
+
+        $company = $request->attributes->get('activeCompany');
+        if (! $company) {
+            return null;
+        }
+
+        $latestSubscription = Subscription::query()
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->first(['id', 'company_id', 'status']);
+
+        if (($latestSubscription?->status ?? null) !== 'pending_payment') {
+            return null;
+        }
+
+        return redirect()
+            ->to(url('subscription'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 }

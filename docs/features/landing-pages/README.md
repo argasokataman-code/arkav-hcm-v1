@@ -26,18 +26,22 @@ Fitur **Landing Pages** adalah halaman marketing yang bisa diakses publik (guest
 - Runtime aktif memakai React entry `frontend/resources/js/public-landing-react.jsx` dengan komponen utama `frontend/resources/js/components/public-landing-reference-app.jsx`.
 - Styling aktif memakai stylesheet khusus `frontend/resources/js/styles/public-landing-reference.css` agar layout mengikuti repo referensi `Pureesocial/modern-parallax-land` tanpa bentrok dengan CSS Blade lama.
 - Halaman `/login` sudah memakai auth shell baru yang diselaraskan visualnya dengan landing, tetapi tetap mempertahankan DOM hook login lama (`api-login-form`, `login-email`, `login-password`, mode employee/company, dan company code).
-- Route `/register` tidak lagi merender gate informatif lama; route ini sekarang langsung redirect ke onboarding resmi `/trial?startMode=pending_payment`.
-- Halaman `/trial` sekarang melayani dua mode bisnis pada view yang sama: `trial` untuk CTA trial dan `pending_payment` untuk registrasi resmi company tanpa trial.
+- Route `/register` (dan alias `/register-2`, `/register-3`) tidak lagi merender halaman tersendiri; semuanya redirect ke `/landing?openOnboarding=1&startMode=pending_payment` agar memakai modal onboarding React yang sama dengan landing.
+- Route `/trial` juga sekarang hanya redirect ke `/landing?openOnboarding=1` (dengan `package=<uuid>` / `startMode=pending_payment` di-forward bila ada) supaya hanya ada satu form onboarding yang dipelihara: modal React di landing page.
 
 ## Flow Bisnis End-to-End
 
 1. Guest membuka landing page.
 2. Guest membaca hero, dashboard preview, feature cards, step-by-step setup, dan pricing tier untuk membandingkan paket aktif.
 3. Guest memilih CTA yang relevan dari hero, pricing, preview, atau final CTA.
-4. Jika guest memulai dari CTA trial/plan di landing, sistem membuka onboarding publik dengan package pilihan yang sudah diprefill dan `start_mode=trial`.
-5. Jika guest memulai dari CTA “Daftarkan company di sini” pada halaman login, sistem masuk ke route `/register` lalu langsung diarahkan ke `/trial?startMode=pending_payment` untuk registrasi resmi tanpa trial.
+4. Jika guest memulai dari CTA trial/plan di landing, sistem membuka modal onboarding React (di halaman landing itu juga) dengan package pilihan yang sudah diprefill dan `start_mode=trial`.
+5. Jika guest memulai dari CTA "Daftarkan company di sini" pada halaman login, sistem masuk ke route `/register` lalu diarahkan ke `/landing?openOnboarding=1&startMode=pending_payment`; modal onboarding React yang sama auto-terbuka dengan paket berbayar dan `start_mode=pending_payment` — tidak ada form Blade terpisah lagi.
 6. Guest mengisi data company dan owner.
-7. Sistem membuat entity onboarding yang diperlukan lalu mengarahkan ke flow login owner atau invoice/payment sesuai mode yang dipilih.
+7. Sistem membuat entity onboarding yang diperlukan.
+8. Jika mode `trial`, owner diarahkan ke login untuk masuk ke workspace.
+9. Jika mode `pending_payment`, owner diarahkan ke login company dengan tujuan akhir checkout `/subscription`; halaman checkout harus langsung menampilkan invoice pending yang sudah dibuat saat onboarding dan menyediakan aksi bayar yang membuka hosted payment gateway mock/dev.
+10. Selama status tenant masih `pending_payment`, halaman `/subscription` menjadi billing-only lock screen: sidebar, header aplikasi, dan menu operasional tidak boleh muncul, dan setiap upaya membuka route HCM lain harus dipaksa kembali ke checkout billing.
+11. Jika mode `trial`, owner boleh langsung masuk ke workspace HCM. Header aplikasi harus menampilkan badge trial beserta sisa hari aktif agar status tenant terlihat jelas sejak awal.
 
 ## Lifecycle Dan Keputusan Bisnis
 
@@ -46,6 +50,8 @@ Fitur **Landing Pages** adalah halaman marketing yang bisa diakses publik (guest
 - Validasi FE/BE harus tetap parity dengan kontrak identity/company yang aktif.
 - Reference visual boleh berubah, tetapi package aktif, billing cycle, start mode, dan owner/company onboarding tetap mengikuti source of truth backend.
 - Registrasi resmi dari login tidak boleh jatuh ke paket trial atau copy trial; source of truth-nya adalah `startMode=pending_payment` di controller/view onboarding.
+- Runtime yang sehat untuk `pending_payment` adalah: buat company + invoice, login company, masuk ke checkout payment, invoice pending auto-muncul, buka hosted payment gateway, lalu bayar hingga subscription aktif. Redirect ke dashboard HCM atau menampilkan shell/menu aplikasi penuh sebelum payment dianggap bug flow.
+- Runtime yang sehat untuk `trial` adalah: owner masuk ke app tanpa blok billing, tetapi badge trial dengan sisa hari harus tetap terlihat agar transisi ke billing berikutnya tidak mengejutkan tenant.
 
 ## Integrasi
 

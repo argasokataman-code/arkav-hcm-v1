@@ -266,6 +266,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/billing/invoices/{id}', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'show']);
     Route::get('/billing/invoices/{id}/download', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'download']);
     // Dev-only mock payment flow (keeps UX testable before gateway is integrated)
+    Route::post('/billing/invoices/{id}/mock-hosted-checkout', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'mockHostedCheckout']);
     Route::post('/billing/invoices/{id}/mock-pay', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'mockPay']);
 
     // Performance (Phase 1)

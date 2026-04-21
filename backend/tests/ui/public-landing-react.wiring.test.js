@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import React, { act, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildLandingOnboardingPayload, isTrialPackage, readLandingBootstrapData } from '../../../frontend/resources/js/public-landing-contract.js';
+import { OnboardingModal } from '../../public/build/js/components/public-landing-reference-app.jsx';
 
 describe('public landing react wiring', () => {
   it('reads bootstrap data from the server rendered JSON node', () => {
@@ -64,5 +67,112 @@ describe('public landing react wiring', () => {
       },
       billingEmail: 'billing@example.com',
     });
+  });
+
+  it('normalizes onboarding values to the backend runtime contract', () => {
+    expect(buildLandingOnboardingPayload({
+      packageUuid: 'pkg-1',
+      billingCycle: 'monthly',
+      startMode: 'Pending Payment',
+      companyName: 'PT Arcav',
+      companyTimezone: 'Asia/Jakarta',
+      companyCurrency: 'IDR',
+      companyCountryCode: 'ID',
+      companyAddress: 'Jl. Sudirman',
+      companyCity: 'Jakarta',
+      companyPostalCode: '12-190A99999999',
+      ownerName: 'Ayu',
+      ownerEmail: 'ayu@example.com',
+      ownerPassword: 'StrongPass1',
+      ownerConfirmPassword: 'StrongPass1',
+    })).toMatchObject({
+      start_mode: 'pending_payment',
+      company: {
+        postal_code: '121909999999',
+      },
+    });
+  });
+
+  it('does not remount turnstile on every onboarding keystroke', async () => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    const renderSpy = vi.fn(() => 'widget-1');
+    const removeSpy = vi.fn();
+    window.turnstile = {
+      render: renderSpy,
+      remove: removeSpy,
+    };
+
+    const rootNode = document.createElement('div');
+    document.body.appendChild(rootNode);
+    const root = createRoot(rootNode);
+
+    function Harness() {
+      const [formState, setFormState] = useState({
+        packageUuid: 'pkg-1',
+        billingCycle: 'monthly',
+        startMode: 'pending_payment',
+        companyName: '',
+        companyLegalName: '',
+        companyContactPersonName: '',
+        companyContactPersonRole: '',
+        companyContactPhone: '',
+        companyAddress: 'Jl. Sudirman',
+        companyCity: 'Jakarta',
+        companyPostalCode: '',
+        companyCountryCode: 'ID',
+        companyTimezone: 'Asia/Jakarta',
+        companyCurrency: 'IDR',
+        ownerName: 'Ayu',
+        ownerEmail: 'ayu@example.com',
+        ownerPhone: '',
+        ownerPassword: 'StrongPass1',
+        ownerConfirmPassword: 'StrongPass1',
+        billingEmail: '',
+        website: '',
+      });
+
+      return React.createElement(OnboardingModal, {
+        error: null,
+        formState,
+        onChange: (event) => {
+          const { name, value } = event.target;
+          setFormState((current) => ({
+            ...current,
+            [name]: value,
+          }));
+        },
+        onClose: () => {},
+        onSubmit: (event) => event.preventDefault(),
+        packages: [{ uuid: 'pkg-1', code: 'basic', name: 'Basic' }],
+        submitting: false,
+        turnstileEnabled: true,
+        turnstileSiteKey: 'site-key',
+        onTurnstileTokenChange: () => {},
+      });
+    }
+
+    await act(async () => {
+      root.render(React.createElement(Harness));
+    });
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+
+    const companyNameInput = rootNode.querySelector('input[name="companyName"]');
+    expect(companyNameInput).not.toBeNull();
+
+    await act(async () => {
+      companyNameInput.value = 'PT Arcav Baru';
+      companyNameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+
+    expect(removeSpy).toHaveBeenCalledTimes(1);
+    delete window.turnstile;
   });
 });

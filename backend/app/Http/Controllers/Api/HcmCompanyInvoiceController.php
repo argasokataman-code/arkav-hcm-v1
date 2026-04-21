@@ -245,5 +245,153 @@ class HcmCompanyInvoiceController
             ],
         ]);
     }
+
+    public function mockHostedCheckout(Request $request, int $id): JsonResponse
+    {
+        if (! app()->isLocal() && ! config('app.mock_payments_enabled')) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'MOCK_DISABLED', 'message' => 'Mock payments are disabled.'],
+            ], 403);
+        }
+
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
+            return $forbidden;
+        }
+
+        $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($companyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.'],
+            ], 422);
+        }
+
+        $invoice = Invoice::query()
+            ->where('company_id', $companyId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        if ($invoice->is_paid) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'INVOICE_ALREADY_PAID', 'message' => 'Invoice already paid.'],
+            ], 422);
+        }
+
+        $successUrl = url('/subscription').'?'.http_build_query([
+            'mock_payment_status' => 'completed',
+            'invoice_id' => $invoice->id,
+        ]);
+        $failureUrl = url('/subscription').'?'.http_build_query([
+            'mock_payment_status' => 'failed',
+            'invoice_id' => $invoice->id,
+        ]);
+
+        $existingPendingPayment = Payment::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('status', 'pending')
+            ->latest('id')
+            ->first();
+
+        if ($existingPendingPayment && data_get($existingPendingPayment->metadata, 'hosted_checkout_url')) {
+            return response()->json([
+                'success' => true,
+                'data' => $this->invoiceService->formatInvoice($invoice),
+                'payment' => [
+                    'id' => $existingPendingPayment->id,
+                    'uuid' => $existingPendingPayment->uuid,
+                    'gateway' => $existingPendingPayment->gateway,
+                    'gatewayReference' => $existingPendingPayment->gateway_reference,
+                    'paymentMethod' => $existingPendingPayment->payment_method,
+                    'status' => $existingPendingPayment->status,
+                    'amount' => (float) $existingPendingPayment->amount,
+                ],
+                'flow' => [
+                    'mode' => 'hosted',
+                    'hostedCheckoutUrl' => (string) data_get($existingPendingPayment->metadata, 'hosted_checkout_url', ''),
+                    'callbackToken' => (string) data_get($existingPendingPayment->metadata, 'callback_token', ''),
+                    'successRedirectUrl' => $successUrl,
+                    'failureRedirectUrl' => $failureUrl,
+                ],
+            ]);
+        }
+
+        $mockGateway = new MockPaymentGatewayService();
+        $callbackToken = (string) \Illuminate\Support\Str::random(40);
+        $result = $mockGateway->createPayment([
+            'invoice_id' => $invoice->id,
+            'amount' => (float) $invoice->amount_due,
+            'currency' => 'IDR',
+            'payment_method' => 'mock_card',
+        ]);
+
+        $hostedCheckoutUrl = url('/mock-hosted-payment.html').'?'.http_build_query([
+            'payment_uuid' => null,
+            'invoice_uuid' => $invoice->uuid,
+            'invoice_number' => $invoice->invoice_number,
+            'amount' => (float) $invoice->amount_due,
+            'callback_token' => $callbackToken,
+            'success_url' => $successUrl,
+            'failure_url' => $failureUrl,
+        ]);
+
+        $payment = Payment::query()->create([
+            'company_id' => $companyId,
+            'subscription_id' => $invoice->subscription_id,
+            'invoice_id' => $invoice->id,
+            'amount' => (float) $invoice->amount_due,
+            'currency' => 'IDR',
+            'status' => 'pending',
+            'payment_method' => 'credit_card',
+            'gateway' => 'mock',
+            'gateway_reference' => (string) ($result['charge_id'] ?? ('mock_'.$invoice->id.'_'.now()->timestamp)),
+            'metadata' => [
+                'mock_flow_mode' => 'hosted',
+                'callback_token' => $callbackToken,
+                'success_redirect_url' => $successUrl,
+                'failure_redirect_url' => $failureUrl,
+                'webhook_url' => url('/v1/mock/webhook/charge-succeeded'),
+            ],
+        ]);
+
+        $hostedCheckoutUrl = url('/mock-hosted-payment.html').'?'.http_build_query([
+            'payment_uuid' => $payment->uuid,
+            'invoice_uuid' => $invoice->uuid,
+            'invoice_number' => $invoice->invoice_number,
+            'amount' => (float) $payment->amount,
+            'callback_token' => $callbackToken,
+            'success_url' => $successUrl,
+            'failure_url' => $failureUrl,
+        ]);
+
+        $payment->update([
+            'metadata' => array_merge($payment->metadata ?? [], [
+                'hosted_checkout_url' => $hostedCheckoutUrl,
+            ]),
+        ]);
+        $payment->refresh();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->invoiceService->formatInvoice($invoice),
+            'payment' => [
+                'id' => $payment->id,
+                'uuid' => $payment->uuid,
+                'gateway' => $payment->gateway,
+                'gatewayReference' => $payment->gateway_reference,
+                'paymentMethod' => $payment->payment_method,
+                'status' => $payment->status,
+                'amount' => (float) $payment->amount,
+            ],
+            'flow' => [
+                'mode' => 'hosted',
+                'hostedCheckoutUrl' => $hostedCheckoutUrl,
+                'callbackToken' => $callbackToken,
+                'successRedirectUrl' => $successUrl,
+                'failureRedirectUrl' => $failureUrl,
+            ],
+        ]);
+    }
 }
 

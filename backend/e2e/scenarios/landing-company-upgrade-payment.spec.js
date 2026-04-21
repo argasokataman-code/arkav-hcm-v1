@@ -16,23 +16,39 @@ function seedLandingPackages() {
     });
 }
 
+async function solveTurnstileIfPresent(page) {
+    const challengeFrame = page
+        .frameLocator('iframe[src*="challenges.cloudflare.com"]')
+        .first();
+    const verifyCheckbox = challengeFrame.getByRole("checkbox", { name: /verify you are human/i });
+
+    if (!(await verifyCheckbox.count())) {
+        return;
+    }
+
+    await expect(verifyCheckbox).toBeVisible();
+    await verifyCheckbox.click();
+    await expect(verifyCheckbox).toBeChecked();
+}
+
 async function goToTrialPackageFromLanding(page) {
     await page.goto("/landing", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-packages-grid]")).toBeVisible();
+    await expect(page.locator("[data-react-packages-grid]")).toBeVisible();
 
-    const trialCard = page.locator(".landing-card", { hasText: /Trial/ }).first();
+    const trialCard = page.locator('[data-package-card][data-package-code="trial"]').first();
     await expect(trialCard).toBeVisible();
 
-    const trialStartLink = trialCard.getByRole("link", { name: "Pilih plan" });
-    await expect(trialStartLink).toBeVisible();
-    const trialHref = await trialStartLink.getAttribute("href");
-    const trialPackageId = trialHref ? new URL(trialHref).searchParams.get("packageId") : null;
-    await trialStartLink.click();
+    const trialStartButton = trialCard.getByRole("button", { name: "Mulai Trial" });
+    await expect(trialStartButton).toBeVisible();
+    const trialPackageId = await trialCard.getAttribute("data-package-uuid");
+    await trialStartButton.click();
 
-    await expect(page).toHaveURL(/\/trial\?packageId=/);
-    await expect(page.locator("[data-onboarding-form]")).toBeVisible();
+    const onboardingDialog = page.locator('[role="dialog"]', {
+        has: page.getByRole("heading", { name: "Aktifkan workspace perusahaan" }),
+    });
+    await expect(onboardingDialog).toBeVisible();
     if (trialPackageId) {
-        await expect(page.locator("[data-onboarding-package]")).toHaveValue(trialPackageId);
+        await expect(onboardingDialog.locator('[name="packageUuid"]')).toHaveValue(trialPackageId);
     }
 }
 
@@ -159,8 +175,16 @@ test.describe.serial("Landing to paid member flow", () => {
         seedLandingPackages();
     });
 
-    test("creates a company from landing pages, upgrades to starter, and pays the invoice", async ({ page }) => {
-        const runId = Date.now().toString(36);
+    test("creates a company from landing pages, upgrades to starter, and pays the invoice", async ({ page }, testInfo) => {
+        await page.addInitScript(() => {
+            window.__ARCAV_E2E_TURNSTILE_TOKEN = "test-turnstile-token";
+        });
+
+        const runId = [
+            testInfo.project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
+            Date.now().toString(36),
+            Math.random().toString(36).slice(2, 8),
+        ].join("-");
         const ownerEmail = `company.owner.${runId}@example.com`;
         const ownerPassword = "StrongPass1";
         const companyName = `QA Company ${runId}`;
@@ -177,37 +201,28 @@ test.describe.serial("Landing to paid member flow", () => {
             await page.evaluate(() => {
                 window.ArcavUi = null;
             });
-            await page.evaluate(() => {
-                const form = document.querySelector("#onboardingForm");
-                if (!form) return;
-
-                let tokenInput = form.querySelector('[name="cf-turnstile-response"]');
-                if (!tokenInput) {
-                    tokenInput = document.createElement("input");
-                    tokenInput.type = "hidden";
-                    tokenInput.name = "cf-turnstile-response";
-                    form.appendChild(tokenInput);
-                }
-
-                tokenInput.value = "test-turnstile-token";
+            const onboardingDialog = page.locator('[role="dialog"]', {
+                has: page.getByRole("heading", { name: "Aktifkan workspace perusahaan" }),
             });
+            await expect(onboardingDialog).toBeVisible();
             page.on("dialog", async (dialog) => {
                 await dialog.accept();
             });
 
-            await page.locator('[name="company_name"]').fill(companyName);
-            await page.locator('[name="company_address"]').fill(companyAddress);
-            await page.locator('[name="company_city"]').fill(companyCity);
-            await page.locator('[name="owner_name"]').fill(ownerName);
-            await page.locator('[name="owner_email"]').fill(ownerEmail);
-            await page.locator('[name="owner_password"]').fill(ownerPassword);
-            await page.locator('[name="owner_confirm_password"]').fill(ownerPassword);
+            await onboardingDialog.locator('[name="companyName"]').fill(companyName);
+            await onboardingDialog.locator('[name="companyAddress"]').fill(companyAddress);
+            await onboardingDialog.locator('[name="companyCity"]').fill(companyCity);
+            await onboardingDialog.locator('[name="ownerName"]').fill(ownerName);
+            await onboardingDialog.locator('[name="ownerEmail"]').fill(ownerEmail);
+            await onboardingDialog.locator('[name="ownerPassword"]').fill(ownerPassword);
+            await onboardingDialog.locator('[name="ownerConfirmPassword"]').fill(ownerPassword);
+            await solveTurnstileIfPresent(page);
 
             const onboardingResponsePromise = page.waitForResponse((response) => {
                 return response.url().includes("/v1/public/onboarding") && response.request().method() === "POST";
             });
 
-            await page.getByRole("button", { name: "Daftarkan company" }).click();
+            await onboardingDialog.getByRole("button", { name: "Proses onboarding" }).click();
 
             const onboardingResponse = await onboardingResponsePromise;
             const onboardingBody = await onboardingResponse.json();
@@ -243,7 +258,7 @@ test.describe.serial("Landing to paid member flow", () => {
         await test.step("4. Navigate to subscription and upgrade to starter", async () => {
             await page.goto("/subscription", { waitUntil: "domcontentloaded" });
             await expect(page.locator("[data-subscription-checkout-page]")).toBeVisible();
-            await expect(page.locator("[data-checkout-company-code]")).toHaveValue(companyCode);
+            await expect(page.locator("[data-checkout-company-code]")).toHaveText(companyCode);
             await expect(page.locator('[data-checkout-package-select] option[data-code="starter"]')).toHaveCount(1);
 
             await page.locator("[data-checkout-package-select]").selectOption({ label: "Starter" });
@@ -281,7 +296,8 @@ test.describe.serial("Landing to paid member flow", () => {
 
         await test.step("5. Verify invoice before payment", async () => {
             await page.goto("/company/invoices", { waitUntil: "domcontentloaded" });
-            await expect(page.locator("[data-company-invoices-page]")).toBeVisible();
+            await page.waitForURL(/\/subscription(\?.*)?$/, { timeout: 15000 });
+            await expect(page.locator("[data-subscription-checkout-page]")).toBeVisible();
 
             const invoiceListBeforePay = await authApiCall(page, "get", "/hcm/billing/invoices?perPage=50");
             expect(invoiceListBeforePay.ok, JSON.stringify(invoiceListBeforePay, null, 2)).toBe(true);
@@ -300,8 +316,6 @@ test.describe.serial("Landing to paid member flow", () => {
             console.log("   Package Code BEFORE:", subBeforePayment.data?.data?.subscription?.packageCode);
             
             console.log("\nStep 6: Mock payment - checking invoice status BEFORE payment");
-            await page.goto("/company/invoices", { waitUntil: "domcontentloaded" });
-            await page.waitForTimeout(2000);
             
             // Get invoice status BEFORE payment
             const invoiceBeforeList = await authApiCall(page, "get", `/hcm/billing/invoices?perPage=50`);

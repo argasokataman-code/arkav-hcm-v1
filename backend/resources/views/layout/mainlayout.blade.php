@@ -10,12 +10,18 @@
 	$activeCompanySubscription = $activeCompany instanceof \App\Models\Company
 		? $activeCompany->activeSubscription()
 		: null;
+	$latestCompanySubscription = $activeCompany instanceof \App\Models\Company
+		? $activeCompany->latestSubscription()->first()
+		: null;
+	$displayCompanySubscription = $activeCompanySubscription ?: $latestCompanySubscription;
 	$activePackage = $activeCompanySubscription?->package;
 	$canUseTemplateLayouts = (bool) $isPrimarySuperAdmin;
 	$hasPayrollFeature = (bool) ($activePackage?->hasFeature('payroll') ?? false);
 	$hasPerformanceFeature = (bool) ($activePackage?->hasFeature('performance') ?? false);
 	$hasAssetManagementFeature = (bool) ($activePackage?->hasFeature('asset_management') ?? false);
 	$companyCode = (string) ($activeCompany->code ?? '');
+	$isPendingPaymentLockShell = request()->routeIs('subscription')
+		&& (($latestCompanySubscription?->status ?? null) === 'pending_payment');
 
 	$authRouteNames = [
 		'login',
@@ -95,7 +101,7 @@
     @include('layout.partials.head')
 </head>
 
-@if (! $isAuthPage)
+@if (! $isAuthPage && ! $isPendingPaymentLockShell)
 <body>
 @endif
 
@@ -156,14 +162,14 @@
 	data-primary-super-admin="{{ $isPrimarySuperAdmin ? '1' : '0' }}"
 	data-template-layouts-enabled="{{ $canUseTemplateLayouts ? '1' : '0' }}"
 	data-company-code="{{ $companyCode }}"
-	data-subscription-status="{{ $activeCompanySubscription?->status ?? '' }}"
-	data-subscription-plan="{{ $activeCompanySubscription?->plan_code ?? '' }}"
+	data-subscription-status="{{ $displayCompanySubscription?->status ?? '' }}"
+	data-subscription-plan="{{ $displayCompanySubscription?->plan_code ?? '' }}"
 	data-feature-payroll="{{ $hasPayrollFeature ? '1' : '0' }}"
 	data-feature-performance="{{ $hasPerformanceFeature ? '1' : '0' }}"
 	data-feature-asset-management="{{ $hasAssetManagementFeature ? '1' : '0' }}"
 >
 
-	@if (! $isAuthPage)
+	@if (! $isAuthPage && ! $isPendingPaymentLockShell)
         @include('layout.partials.header')
         @include('layout.partials.sidebar')
         @include('hcm.partials.hcm-confirm-delete-modal')

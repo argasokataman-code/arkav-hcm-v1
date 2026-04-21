@@ -30,6 +30,7 @@ describe('Auth login wiring', () => {
   beforeEach(() => {
     buildLoginDom();
     window.__ARCAV_DISABLE_REDIRECTS__ = true;
+    window.history.replaceState({}, '', '/login');
   });
 
   it('clears stale tenant context before regular login and redirects on success', async () => {
@@ -131,6 +132,41 @@ describe('Auth login wiring', () => {
       companyUuid: '11111111-2222-3333-4444-555555555555',
     });
     expect(window.__ARCAV_LAST_REDIRECT__).toBe('/index');
+  });
+
+  it('prefills company mode from query params and redirects to sanitized next path', async () => {
+    const login = vi.fn().mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          activeCompany: {
+            id: 44,
+            uuid: '11111111-2222-3333-4444-555555555555',
+            code: 'ACME',
+          },
+        },
+      },
+    });
+
+    window.AuthApi = {
+      login,
+      clearTenantContext: vi.fn(),
+      setTenantContext: vi.fn(),
+    };
+
+    window.history.replaceState({}, '', '/login?mode=company&companyCode=ACME&next=%2Fsubscription');
+
+    await loadAuthLoginModule();
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+
+    expect(document.getElementById('login_mode_company').checked).toBe(true);
+    expect(document.getElementById('login-company-code').value).toBe('ACME');
+    expect(document.getElementById('company-code-wrapper').classList.contains('d-none')).toBe(false);
+
+    document.getElementById('api-login-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/subscription');
   });
 
   it('shows error when company login succeeds without active tenant payload', async () => {

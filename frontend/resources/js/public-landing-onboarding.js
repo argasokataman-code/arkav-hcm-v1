@@ -24,6 +24,189 @@
         el.classList.add("d-none");
     }
 
+    function normalizeStartMode(value) {
+        var normalized = String(value == null ? "" : value).trim().toLowerCase();
+        normalized = normalized.replace(/[\s-]+/g, "_");
+
+        if (!normalized || normalized === "trial") {
+            return "trial";
+        }
+
+        if (
+            normalized === "pending_payment" ||
+            normalized === "pendingpayment" ||
+            normalized === "paid" ||
+            normalized === "subscribe" ||
+            normalized === "subscription"
+        ) {
+            return "pending_payment";
+        }
+
+        return "trial";
+    }
+
+    function sanitizePostalCode(value) {
+        return String(value == null ? "" : value)
+            .replace(/\D+/g, "")
+            .slice(0, 12);
+    }
+
+    function ensureTurnstileInput(form) {
+        if (!form) return null;
+
+        var input = form.querySelector("input[name='cf-turnstile-response']");
+        if (input) {
+            return input;
+        }
+
+        input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "cf-turnstile-response";
+        form.appendChild(input);
+        return input;
+    }
+
+    function syncTurnstileToken(form) {
+        var hiddenInput = ensureTurnstileInput(form);
+        if (!hiddenInput) return "";
+
+        var container = qs("[data-turnstile-container]", form);
+        if (!container) {
+            return String(hiddenInput.value || "").trim();
+        }
+
+        var widgetId = container.getAttribute("data-turnstile-widget-id");
+        if (widgetId && window.turnstile && typeof window.turnstile.getResponse === "function") {
+            try {
+                hiddenInput.value = window.turnstile.getResponse(widgetId) || "";
+            } catch (_e) {}
+        }
+
+        return String(hiddenInput.value || "").trim();
+    }
+
+    function renderTurnstileWidgets(root) {
+        if (!root || !window.turnstile || typeof window.turnstile.render !== "function") {
+            return;
+        }
+
+        qsa("[data-turnstile-container]", root).forEach(function (container) {
+            var siteKey = String(container.getAttribute("data-sitekey") || "").trim();
+            if (!siteKey) return;
+
+            var form = container.closest("form");
+            var hiddenInput = ensureTurnstileInput(form);
+            var widgetId = container.getAttribute("data-turnstile-widget-id");
+            if (widgetId) {
+                if (hiddenInput) {
+                    hiddenInput.value = "";
+                }
+                try {
+                    window.turnstile.reset(widgetId);
+                } catch (_e) {}
+                return;
+            }
+
+            try {
+                var renderedId = window.turnstile.render(container, {
+                    sitekey: siteKey,
+                    callback: function (token) {
+                        if (hiddenInput) {
+                            hiddenInput.value = token || "";
+                        }
+                    },
+                    "expired-callback": function () {
+                        if (hiddenInput) {
+                            hiddenInput.value = "";
+                        }
+                    },
+                    "error-callback": function () {
+                        if (hiddenInput) {
+                            hiddenInput.value = "";
+                        }
+                    },
+                });
+                container.setAttribute("data-turnstile-widget-id", String(renderedId));
+            } catch (_e) {}
+        });
+    }
+
+    function removeTurnstileWidgets(root) {
+        if (!root || !window.turnstile || typeof window.turnstile.remove !== "function") {
+            return;
+        }
+
+        qsa("[data-turnstile-container]", root).forEach(function (container) {
+            var widgetId = container.getAttribute("data-turnstile-widget-id");
+            if (!widgetId) {
+                container.innerHTML = "";
+                return;
+            }
+
+            try {
+                window.turnstile.remove(widgetId);
+            } catch (_e) {
+                container.innerHTML = "";
+            }
+
+            container.removeAttribute("data-turnstile-widget-id");
+
+            var form = container.closest("form");
+            var hiddenInput = ensureTurnstileInput(form);
+            if (hiddenInput) {
+                hiddenInput.value = "";
+            }
+        });
+    }
+
+    function whenTurnstileReady(callback, attempt) {
+        if (window.turnstile && typeof window.turnstile.render === "function") {
+            callback();
+            return;
+        }
+
+        if ((attempt || 0) >= 40) {
+            return;
+        }
+
+        window.setTimeout(function () {
+            whenTurnstileReady(callback, (attempt || 0) + 1);
+        }, 250);
+    }
+
+    function showInlineError(errorBox, message) {
+        if (!errorBox) {
+            window.alert(message);
+            return;
+        }
+
+        setText(errorBox, message);
+        show(errorBox);
+    }
+
+    function formatIdr(amount) {
+        var numericAmount = Number(amount || 0);
+        try {
+            return new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                maximumFractionDigits: 0,
+            }).format(numericAmount);
+        } catch (_e) {
+            return "Rp " + String(Math.round(numericAmount || 0));
+        }
+    }
+
+    function buildPendingPaymentLoginUrl(companyCode) {
+        var params = new URLSearchParams();
+        params.set("mode", "company");
+        params.set("next", "/subscription");
+        if (companyCode) {
+            params.set("companyCode", String(companyCode));
+        }
+        return "/login?" + params.toString();
+    }
+
     function formatApiError(err) {
         try {
             if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
@@ -107,12 +290,14 @@
 
     function buildPayload(form) {
         var fd = new FormData(form);
+        var postalCode = sanitizePostalCode(fd.get("company_postal_code") || "");
+        var turnstileToken = syncTurnstileToken(form);
 
         var payload = {
             package_uuid: String(fd.get("package_uuid") || "").trim(),
-            billing_cycle: String(fd.get("billing_cycle") || "monthly"),
-            start_mode: String(fd.get("start_mode") || "trial"),
-            turnstile_token: String(fd.get("cf-turnstile-response") || "").trim() || null,
+            billing_cycle: String(fd.get("billing_cycle") || "monthly").trim(),
+            start_mode: normalizeStartMode(fd.get("start_mode") || "trial"),
+            turnstile_token: turnstileToken || null,
             website: String(fd.get("website") || "").trim() || null,
             company: {
                 name: String(fd.get("company_name") || "").trim(),
@@ -125,7 +310,7 @@
                 contact_person_role: String(fd.get("company_contact_person_role") || "").trim() || null,
                 address: String(fd.get("company_address") || "").trim(),
                 city: String(fd.get("company_city") || "").trim(),
-                postal_code: String(fd.get("company_postal_code") || "").trim() || null,
+                postal_code: postalCode || null,
             },
             owner: {
                 name: String(fd.get("owner_name") || "").trim(),
@@ -163,6 +348,39 @@
         }
 
         return payload;
+    }
+
+    function validateClientState(form, errorBox) {
+        var postalInput = form.querySelector("[name='company_postal_code']");
+        if (postalInput) {
+            var cleanedPostalCode = sanitizePostalCode(postalInput.value);
+            if (postalInput.value !== cleanedPostalCode) {
+                postalInput.value = cleanedPostalCode;
+            }
+
+            if (cleanedPostalCode && cleanedPostalCode.length < 3) {
+                postalInput.setCustomValidity("Kode pos harus terdiri dari 3 sampai 12 digit.");
+            } else {
+                postalInput.setCustomValidity("");
+            }
+        }
+
+        var startModeField = form.querySelector("[name='start_mode']");
+        if (startModeField) {
+            startModeField.value = normalizeStartMode(startModeField.value);
+        }
+
+        if (typeof form.reportValidity === "function" && !form.reportValidity()) {
+            return false;
+        }
+
+        var turnstileContainer = qs("[data-turnstile-container]", form);
+        if (turnstileContainer && !syncTurnstileToken(form)) {
+            showInlineError(errorBox, "Verifikasi captcha wajib diselesaikan sebelum submit.");
+            return false;
+        }
+
+        return true;
     }
 
     function init() {
@@ -259,6 +477,7 @@
         var billingCycleWrapper = billingCycleSelect ? billingCycleSelect.closest(".col-md-6") : null;
         var billingCycleHelp = form ? form.querySelector("[data-billing-cycle-help]") : null;
         var billingCycleTrialHelp = form ? form.querySelector("[data-billing-cycle-trial-help]") : null;
+        var startModeField = form ? form.querySelector("[name='start_mode']") : null;
 
         var modal = null;
         if (modalEl && window.bootstrap && window.bootstrap.Modal) {
@@ -271,18 +490,38 @@
             packageSelect.innerHTML = "";
             packages.forEach(function (p) {
                 var opt = document.createElement("option");
-                opt.value = String(p.id || p.uuid || "");
+                opt.value = String(p.uuid || p.id || "");
                 opt.textContent = p.name + " (" + p.code + ")";
+                opt.setAttribute("data-package-code", String(p.code || ""));
                 packageSelect.appendChild(opt);
             });
         }
 
         // Handle billing cycle disable state based on package selection
         if (packageSelect && billingCycleSelect) {
-            var updateBillingCycleState = function () {
+            var getSelectedPackageMeta = function () {
+                var selectedValue = String(packageSelect.value || "");
+                for (var index = 0; index < packages.length; index += 1) {
+                    var candidate = packages[index] || {};
+                    if (String(candidate.uuid || candidate.id || "") === selectedValue) {
+                        return candidate;
+                    }
+                }
+
                 var selectedOption = packageSelect.options[packageSelect.selectedIndex];
-                var packageText = selectedOption ? selectedOption.text : "";
-                var isTrialPackage = packageText.toLowerCase().includes("(trial)");
+                if (!selectedOption) {
+                    return null;
+                }
+
+                return {
+                    code: selectedOption.getAttribute("data-package-code") || selectedOption.text || "",
+                };
+            };
+
+            var updateBillingCycleState = function () {
+                var selectedPackage = getSelectedPackageMeta();
+                var packageCode = String(selectedPackage && selectedPackage.code ? selectedPackage.code : "").toLowerCase();
+                var isTrialPackage = packageCode === "trial" || packageCode.indexOf("trial") !== -1;
 
                 if (isTrialPackage) {
                     // For trial: disable and set to monthly
@@ -298,6 +537,12 @@
                     if (billingCycleTrialHelp) {
                         billingCycleTrialHelp.classList.remove("d-none");
                     }
+                    if (startModeField) {
+                        startModeField.value = "trial";
+                        if (String(startModeField.tagName || "").toLowerCase() === "select") {
+                            startModeField.disabled = true;
+                        }
+                    }
                 } else {
                     // For paid packages: enable
                     billingCycleSelect.disabled = false;
@@ -310,6 +555,9 @@
                     }
                     if (billingCycleTrialHelp) {
                         billingCycleTrialHelp.classList.add("d-none");
+                    }
+                    if (startModeField && String(startModeField.tagName || "").toLowerCase() === "select") {
+                        startModeField.disabled = false;
                     }
                 }
             };
@@ -324,6 +572,8 @@
             hide(errorBox);
             if (packageSelect && packageId) {
                 packageSelect.value = String(packageId);
+                var changeEvent = new window.Event("change", { bubbles: true });
+                packageSelect.dispatchEvent(changeEvent);
             }
             modal.show();
         }
@@ -344,9 +594,45 @@
 
         if (!form) return;
 
+        if (modalEl) {
+            modalEl.addEventListener("shown.bs.modal", function () {
+                whenTurnstileReady(function () {
+                    removeTurnstileWidgets(modalEl);
+                    renderTurnstileWidgets(modalEl);
+                });
+            });
+
+            modalEl.addEventListener("hidden.bs.modal", function () {
+                whenTurnstileReady(function () {
+                    removeTurnstileWidgets(modalEl);
+                });
+            });
+        } else {
+            whenTurnstileReady(function () {
+                renderTurnstileWidgets(form);
+            });
+        }
+
+        var postalInput = form.querySelector("[name='company_postal_code']");
+        if (postalInput) {
+            postalInput.addEventListener("input", function () {
+                var cleanedPostalCode = sanitizePostalCode(postalInput.value);
+                if (postalInput.value !== cleanedPostalCode) {
+                    postalInput.value = cleanedPostalCode;
+                }
+                if (!cleanedPostalCode || cleanedPostalCode.length >= 3) {
+                    postalInput.setCustomValidity("");
+                }
+            });
+        }
+
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             hide(errorBox);
+
+            if (!validateClientState(form, errorBox)) {
+                return;
+            }
 
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -381,36 +667,69 @@
                 }
 
                 if (modal) {
-                    modal.hide();
+                    try {
+                        modal.hide();
+                    } catch (_modalHideError) {}
                 }
                 var companyCode = data && data.data && data.data.company ? data.data.company.code : null;
                 var ownerEmail = data && data.data && data.data.owner ? data.data.owner.email : null;
+                var subscription = data && data.data ? data.data.subscription : null;
+                var invoice = data && data.data ? data.data.invoice : null;
+                var isPendingPayment = !!subscription && subscription.status === "pending_payment";
+                var redirectUrl = isPendingPayment ? buildPendingPaymentLoginUrl(companyCode) : "/login";
+                var actionLabel = isPendingPayment ? "Login untuk lanjut bayar" : "Login sekarang";
 
-                var message = "Onboarding berhasil.";
+                if (isPendingPayment) {
+                    window.location.href = redirectUrl;
+                    return;
+                }
+
+                var message = isPendingPayment
+                    ? "Registrasi company berhasil, tetapi subscription masih menunggu pembayaran."
+                    : "Onboarding berhasil.";
                 if (companyCode) {
                     message += "\n\nCompany code: " + String(companyCode);
                 }
                 if (ownerEmail) {
                     message += "\nLogin email: " + String(ownerEmail);
                 }
-                message += "\n\nKlik “Login sekarang” untuk masuk.";
+                if (invoice) {
+                    if (invoice.invoiceNumber) {
+                        message += "\nInvoice: " + String(invoice.invoiceNumber);
+                    }
+                    if (invoice.amountDue != null) {
+                        message += "\nAmount due: " + formatIdr(invoice.amountDue);
+                    }
+                    if (invoice.dueDate) {
+                        message += "\nDue date: " + String(invoice.dueDate);
+                    }
+                }
+                message += isPendingPayment
+                    ? "\n\nLanjutkan dengan Login Company untuk membuka checkout payment."
+                    : "\n\nKlik “Login sekarang” untuk masuk.";
 
                 if (window.ArcavUi && typeof window.ArcavUi.selectOption === "function") {
-                    window.ArcavUi.selectOption({
-                        title: "Onboarding berhasil",
-                        message: message,
-                        options: [{ value: "login", label: "Login sekarang" }],
-                    }).then(function () {
-                        window.location.href = "/login";
-                    });
+                    Promise.resolve()
+                        .then(function () {
+                            return window.ArcavUi.selectOption({
+                                title: "Onboarding berhasil",
+                                message: message,
+                                options: [{ value: "login", label: actionLabel }],
+                            });
+                        })
+                        .catch(function (_modalError) {
+                            return null;
+                        })
+                        .finally(function () {
+                            window.location.href = redirectUrl;
+                        });
                     return;
                 }
 
-                // Fallback: minimal UX if modal helper isn't available
                 try {
                     window.alert(message);
                 } catch (_e) {}
-                window.location.href = "/login";
+                window.location.href = redirectUrl;
             }).catch(function (err) {
                 showErrorModal(err);
             }).finally(function () {

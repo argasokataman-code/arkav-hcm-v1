@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\AssetFlowValidationException;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\AssetAttachment;
@@ -15,6 +16,7 @@ use App\Support\WebsiteSettings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 
 class AssetService
@@ -127,11 +129,11 @@ class AssetService
             $asset = Asset::query()->whereKey($asset->id)->lockForUpdate()->firstOrFail();
 
             if ($asset->status !== 'available') {
-                throw new RuntimeException('Asset is not available for assignment.');
+                throw new AssetFlowValidationException('ASSET_NOT_AVAILABLE', 'Asset is not available for assignment.');
             }
 
             if ((int) $employeeProfile->company_id !== (int) $asset->company_id) {
-                throw new RuntimeException('Employee does not belong to this company.');
+                throw new AssetFlowValidationException('ASSET_EMPLOYEE_SCOPE_INVALID', 'Employee does not belong to this company.');
             }
 
             $existingActive = AssetAssignment::query()
@@ -142,7 +144,7 @@ class AssetService
                 ->first();
 
             if ($existingActive) {
-                throw new RuntimeException('Asset already has an active assignment.');
+                throw new AssetFlowValidationException('ASSET_ALREADY_ASSIGNED', 'Asset already has an active assignment.');
             }
 
             $assignment = AssetAssignment::query()->create([
@@ -181,11 +183,20 @@ class AssetService
                 ->first();
 
             if (! $assignment) {
-                throw new RuntimeException('Asset is not currently assigned.');
+                throw new AssetFlowValidationException('ASSET_NOT_ASSIGNED', 'Asset is not currently assigned.');
+            }
+
+            $returnedDate = array_key_exists('returned_date', $payload) && $payload['returned_date'] !== null
+                ? Carbon::parse((string) $payload['returned_date'])->startOfDay()
+                : now()->startOfDay();
+            $assignedDate = ($assignment->assigned_date ?? now())->copy()->startOfDay();
+
+            if ($returnedDate->lt($assignedDate)) {
+                throw new AssetFlowValidationException('ASSET_RETURN_DATE_INVALID', 'Returned date cannot be earlier than assigned date.');
             }
 
             $assignment->update([
-                'returned_date' => $payload['returned_date'] ?? now(),
+                'returned_date' => $returnedDate->toDateString(),
                 'condition_at_return' => $payload['condition_at_return'] ?? $asset->condition,
                 'active_token' => null,
                 'notes' => $payload['notes'] ?? $assignment->notes,
@@ -215,9 +226,10 @@ class AssetService
         return DB::transaction(function () use ($asset, $performedBy, $description): Asset {
             $asset = Asset::query()->whereKey($asset->id)->lockForUpdate()->firstOrFail();
             $asset->update(['status' => 'retired']);
-            $asset->delete();
 
             $this->logAssetAction($asset, 'retired', $performedBy, $description, null);
+
+            $asset->delete();
 
             return $asset->fresh();
         });

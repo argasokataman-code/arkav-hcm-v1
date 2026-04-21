@@ -265,4 +265,36 @@ class CustomDomainServiceTest extends TestCase
         $this->assertCount(1, $response->json('data'));
         $this->assertStringContainsString('staging', $response->json('data.0.domainName'));
     }
+
+    public function test_can_filter_domains_by_company_id(): void
+    {
+        $otherCompany = Company::create([
+            'code' => 'TEST002',
+            'name' => 'Other Company',
+            'email' => 'other@company.com',
+            'country' => 'US',
+            'industry' => 'Technology',
+            'currency' => 'USD',
+        ]);
+
+        Domain::create([
+            'company_id' => $this->company->id,
+            'domain_name' => 'tenant-a.example.com',
+            'verification_type' => 'dns',
+            'status' => 'verified',
+        ]);
+
+        Domain::create([
+            'company_id' => $otherCompany->id,
+            'domain_name' => 'tenant-b.example.com',
+            'verification_type' => 'file',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->adminRequest()->getJson('/v1/saas/domains?company_id='.$otherCompany->id);
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('tenant-b.example.com', $response->json('data.0.domainName'));
+    }
 }

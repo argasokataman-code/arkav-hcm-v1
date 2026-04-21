@@ -86,7 +86,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Domain Name *</label>
-                            <input type="text" class="form-control" id="input_domain_name" placeholder="example.com" required>
+                            <input type="text" class="form-control" id="input_domain_name" placeholder="example.com" inputmode="url" autocapitalize="off" spellcheck="false" pattern="^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$" required>
+                            <div class="form-text">Gunakan host/domain tanpa <span class="fw-medium">http://</span>, slash, atau path.</div>
                         </div>
                     </div>
                     <div class="mb-3">

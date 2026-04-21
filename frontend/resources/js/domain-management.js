@@ -4,7 +4,52 @@
   const API_BASE = "/v1/saas/domains";
   const COMPANY_API = "/v1/company";
   const PAGE_SIZE = 10;
+  const DOMAIN_NAME_REGEX = /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
   let apiToken = null;
+
+  function normalizeDomainName(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function validateDomainPayload(payload) {
+    const errors = [];
+    const companyId = String(payload?.company_id || "").trim();
+    const domainName = normalizeDomainName(payload?.domain_name);
+    const verificationType = String(payload?.verification_type || "").trim();
+
+    if (!companyId) {
+      errors.push("Company wajib dipilih.");
+    }
+
+    if (!domainName) {
+      errors.push("Domain name wajib diisi.");
+    } else if (!DOMAIN_NAME_REGEX.test(domainName)) {
+      errors.push("Domain name harus berupa host/domain valid tanpa http:// atau path.");
+    }
+
+    if (verificationType !== "dns" && verificationType !== "file") {
+      errors.push("Verification type wajib dipilih.");
+    }
+
+    return errors;
+  }
+
+  function formatApiError(err, fallback) {
+    const data = err?.data || {};
+    const validationErrors = data?.errors;
+
+    if (validationErrors && typeof validationErrors === "object") {
+      const firstField = Object.keys(validationErrors)[0];
+      const firstMessage = firstField && Array.isArray(validationErrors[firstField])
+        ? validationErrors[firstField][0]
+        : null;
+      if (firstMessage) {
+        return firstMessage;
+      }
+    }
+
+    return data?.message || data?.error?.message || fallback;
+  }
 
   function getApiToken() {
     if (apiToken) {
@@ -111,6 +156,15 @@
     pendingVerifyDomainId: null,
     domainModalInstance: null,
     verificationModalInstance: null,
+
+    getCompanyByIdentifier: function (identifier) {
+      const raw = String(identifier || "").trim();
+      if (!raw) return null;
+
+      return this.companies.find(function (company) {
+        return String(company.uuid || "") === raw || String(company.id || "") === raw;
+      }) || null;
+    },
 
     init: function () {
       if (this.isInitialized) return;
@@ -233,7 +287,7 @@
 
     loadCompanies: function () {
       const self = this;
-      apiRequest("GET", COMPANY_API + "?page=1&per_page=200", null)
+      return apiRequest("GET", COMPANY_API + "?page=1&per_page=200", null)
         .then(function (response) {
           const list =
             response?.data?.companies ||
@@ -254,9 +308,9 @@
 
       const options = this.companies
         .map(function (company) {
-          const id = company.id;
-          const name = company.name || ("Company #" + id);
-          return '<option value="' + esc(id) + '">' + esc(name) + "</option>";
+          const optionValue = company.uuid || company.id;
+          const name = company.name || ("Company #" + (company.id || ""));
+          return '<option value="' + esc(optionValue) + '">' + esc(name) + "</option>";
         })
         .join("");
 
@@ -430,7 +484,8 @@
           const company = document.getElementById("input_domain_company");
           const name = document.getElementById("input_domain_name");
           const notes = document.getElementById("input_domain_notes");
-          if (company) company.value = String(domain.companyId || "");
+          const matchedCompany = self.getCompanyByIdentifier(domain.companyUuid || domain.companyId);
+          if (company) company.value = String(matchedCompany?.uuid || domain.companyUuid || "");
           if (name) name.value = domain.domainName || "";
           if (notes) notes.value = domain.notes || "";
 
@@ -464,11 +519,17 @@
       }
 
       const payload = {
-        company_id: Number(companyId),
-        domain_name: domainName,
+        company_id: companyId,
+        domain_name: normalizeDomainName(domainName),
         verification_type: verificationType,
         notes: notes || null,
       };
+
+      const validationErrors = validateDomainPayload(payload);
+      if (validationErrors.length) {
+        self.showError(validationErrors[0]);
+        return;
+      }
 
       const isEdit = !!this.currentEditId;
       const method = isEdit ? "PUT" : "POST";
@@ -483,7 +544,7 @@
           self.loadDomains();
         })
         .catch(function (err) {
-          const message = err?.data?.message || err?.data?.error?.message || "Failed to save domain";
+          const message = formatApiError(err, "Failed to save domain");
           self.showError(message);
         });
     },
@@ -510,7 +571,7 @@
           self.loadDomains();
         })
         .catch(function (err) {
-          const message = err?.data?.message || err?.data?.error?.message || "Failed to delete domain";
+          const message = formatApiError(err, "Failed to delete domain");
           self.showError(message);
         });
     },
@@ -563,7 +624,7 @@
           self.loadDomains();
         })
         .catch(function (err) {
-          const message = err?.data?.message || err?.data?.error?.message || "Failed to verify domain";
+          const message = formatApiError(err, "Failed to verify domain");
           self.showError(message);
         });
     },
@@ -602,4 +663,9 @@
   }
 
   window.DomainManager = DomainManager;
+  window.DomainManagementRules = {
+    normalizeDomainName: normalizeDomainName,
+    validateDomainPayload: validateDomainPayload,
+    formatApiError: formatApiError,
+  };
 })(window, document);

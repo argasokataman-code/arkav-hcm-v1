@@ -7,9 +7,13 @@ use App\Models\Domain;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class DomainController extends Controller
 {
+    private const DOMAIN_NAME_REGEX = '/^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/';
+
     /**
      * GET /v1/saas/domains
      * List all domains (admin only)
@@ -120,8 +124,16 @@ class DomainController extends Controller
             ], 403);
         }
 
+        $request = $this->normalizeDomainRequest($request);
+
         $validated = $request->validate([
-            'domain_name' => 'required|string|unique:domains|max:255',
+            'domain_name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:'.self::DOMAIN_NAME_REGEX,
+                Rule::unique('domains', 'domain_name'),
+            ],
             'company_id' => 'required|uuid|exists:companies,uuid',
             'verification_type' => 'required|in:dns,file',
             'notes' => 'nullable|string',
@@ -166,8 +178,16 @@ class DomainController extends Controller
             ], 403);
         }
 
+        $request = $this->normalizeDomainRequest($request);
+
         $validated = $request->validate([
-            'domain_name' => 'sometimes|string|unique:domains,domain_name,' . $domain->id . '|max:255',
+            'domain_name' => [
+                'sometimes',
+                'string',
+                'max:255',
+                'regex:'.self::DOMAIN_NAME_REGEX,
+                Rule::unique('domains', 'domain_name')->ignore($domain->id),
+            ],
             'company_id' => 'sometimes|uuid|exists:companies,uuid',
             'verification_type' => 'sometimes|in:dns,file',
             'notes' => 'nullable|string',
@@ -305,5 +325,26 @@ class DomainController extends Controller
         }
 
         return $user->isGlobalHcmAdmin();
+    }
+
+    private function normalizeDomainRequest(Request $request): Request
+    {
+        $normalized = [];
+
+        if ($request->exists('domain_name')) {
+            $domainName = $request->input('domain_name');
+            $normalized['domain_name'] = is_string($domainName) ? Str::lower(trim($domainName)) : $domainName;
+        }
+
+        if ($request->exists('notes')) {
+            $notes = $request->input('notes');
+            $normalized['notes'] = is_string($notes) ? trim($notes) : $notes;
+        }
+
+        if ($normalized !== []) {
+            $request->merge($normalized);
+        }
+
+        return $request;
     }
 }

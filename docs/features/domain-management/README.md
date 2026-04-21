@@ -14,11 +14,14 @@ Modul ini mengelola custom domain tenant SaaS, mulai dari registrasi domain, ins
 
 - Entry points: `/saas/domains` dan `/domain`.
 - Manager script aktif: `frontend/resources/js/domain-management.js`.
+- Sumber kebenaran API aktif: `backend/app/Http/Controllers/Api/DomainController.php` dan `docs/api/custom-domain-api.md`.
 - Detail teknis dan QA flow ada di [IMPLEMENTATION.md](IMPLEMENTATION.md) dan [E2E-TESTING.md](E2E-TESTING.md).
+- Tracker status audit dan evidence terbaru ada di [STATUS-TRACKER.md](STATUS-TRACKER.md).
 
 ## Flow Bisnis End-to-End
 
 1. Admin mendaftarkan custom domain tenant.
+2. Form memilih company dari hasil `GET /v1/company`; UI menyimpan UUID company untuk create/update, sementara filter list tetap memakai numeric `company.id` yang dikembalikan endpoint company.
 2. Sistem menghasilkan instruksi verifikasi DNS atau file sesuai metode yang dipilih.
 3. Admin menjalankan verifikasi manual melalui UI atau endpoint verify.
 4. Status domain diperbarui menjadi `verified`, `pending`, atau `failed`.
@@ -27,6 +30,7 @@ Modul ini mengelola custom domain tenant SaaS, mulai dari registrasi domain, ins
 
 - Verification type membedakan mekanisme DNS dan file verification.
 - Hanya admin yang boleh mengubah domain karena perubahan domain berdampak ke akses tenant dan operasional platform.
+- Input domain name aktif hanya menerima host/domain valid, tanpa `http://`, slash, path, atau whitespace di awal/akhir. Input akan dinormalisasi ke lowercase sebelum disimpan.
 - SSL automation dan health monitor masih di luar scope fase ini.
 
 ## Integrasi
@@ -36,6 +40,11 @@ Modul ini mengelola custom domain tenant SaaS, mulai dari registrasi domain, ins
 - Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
 
 ## Kontrak API
+
+- Path identifier domain aktif memakai **UUID route binding** (`domains.uuid`) karena model `Domain` memakai trait `AssignsUuid`.
+- Request body create/update memakai `company_id` sebagai **UUID perusahaan**.
+- Filter list `company_id` tetap memakai **numeric internal company id** dari `GET /v1/company`, karena runtime list domain saat ini memang memfilter kolom FK integer `domains.company_id`.
+- Response detail/list mengembalikan `companyId` numeric internal dan `companyName`; frontend memetakan ulang ke `company.uuid` dari company list saat membuka modal edit.
 
 ## Documentation Structure
 
@@ -52,7 +61,7 @@ Checklist dan skenario end-to-end UI untuk Super User/HCM Admin.
 
 ## Existing Vs Target
 
-- Existing: domain CRUD, manual verify, verification details, dan admin guard sudah aktif.
+- Existing: domain CRUD, manual verify, verification details, admin guard, filter company/status/search, dan validasi host-only domain sudah aktif.
 - Target: SSL issuing/renew automation, domain health monitor periodik, dan flow purchase domain masih out of scope.
 
 ## Scope Singkat
@@ -63,6 +72,8 @@ Fitur utama modul saat ini:
 - ✅ Verifikasi domain manual (`verify now`)
 - ✅ Endpoint instruksi verifikasi DNS/File
 - ✅ Guard admin untuk seluruh endpoint domain
+- ✅ Create/update form sudah sinkron dengan kontrak UUID company di backend
+- ✅ Negative flow invalid domain format sudah ditangani di FE dan BE
 
 Out of scope saat ini:
 - ⏳ SSL issuing/renew automation
@@ -113,7 +124,7 @@ Halaman memakai manager script `frontend/resources/js/domain-management.js`.
 ## Status
 
 Module version: `1.0`
-Status: `Production-ready baseline`
-Last updated: `2026-04-13`
+Status: `Production-ready baseline audited`
+Last updated: `2026-04-21`
 
-Lanjutkan ke [IMPLEMENTATION.md](IMPLEMENTATION.md) untuk detail teknis dan [E2E-TESTING.md](E2E-TESTING.md) untuk QA flow.
+Lanjutkan ke [IMPLEMENTATION.md](IMPLEMENTATION.md) untuk detail teknis, [E2E-TESTING.md](E2E-TESTING.md) untuk QA flow, dan [STATUS-TRACKER.md](STATUS-TRACKER.md) untuk snapshot audit terbaru.

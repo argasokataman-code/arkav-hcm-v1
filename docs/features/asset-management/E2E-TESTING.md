@@ -108,6 +108,63 @@ Memastikan alur asset management berjalan end-to-end untuk admin: kategori, asse
    - Aksi mutasi tidak tersedia atau ditolak
    - API mutasi tetap mengembalikan `403`
 
+## Scenario 9 - Negative: user hanya punya permission view
+
+1. Login sebagai user yang hanya punya permission `asset.view` tanpa `asset.manage`.
+2. Panggil `GET /v1/hcm/assets`.
+3. Expected:
+   - Response `200`
+   - Data asset tetap bisa dibaca.
+4. Panggil `POST /v1/hcm/assets` atau `POST /v1/hcm/asset-categories`.
+5. Expected:
+   - Response `403 AUTH_FORBIDDEN`
+   - Tidak ada asset/category baru yang tercipta.
+   - Untuk web page `/assets` dan `/asset-categories`, user non-admin tetap diarahkan ke dashboard karyawan karena halaman ini admin-only.
+
+## Scenario 10 - Negative: category tenant lain tidak boleh dipakai
+
+1. Ambil `asset_category_id` dari company tenant lain.
+2. Panggil `POST /v1/hcm/assets` memakai `asset_category_id` tersebut.
+3. Expected:
+   - Response `422`
+   - Error validation pada `asset_category_id`
+   - Asset tidak tercipta.
+
+## Scenario 11 - Negative: returned date lebih awal dari assigned date
+
+1. Assign asset pada tanggal `2026-04-10`.
+2. Coba return asset dengan `returned_date=2026-04-01`.
+3. Expected:
+   - Response `422`
+   - Error code `ASSET_RETURN_DATE_INVALID`
+   - Assignment tetap aktif dan asset tidak berubah ke `available`.
+
+## Scenario 12 - Issue report dan attachment dari halaman asset
+
+1. Login sebagai admin tenant yang punya `asset.manage`.
+2. Dari halaman `/assets`, buka action `Report issue` pada salah satu asset.
+3. Submit issue type dan description.
+4. Expected:
+   - Response `201`
+   - Ticket baru tercipta di tenant yang sama.
+5. Dari row asset yang sama, buka action `Upload attachment`.
+6. Upload file valid dengan ukuran di bawah 10 MB.
+7. Expected:
+   - Response `201`
+   - Attachment counter/list bertambah di modal.
+
+## Browser Automation
+
+- Playwright scenario aktif: `backend/e2e/scenarios/asset-management-ui-flow.spec.js`
+- Seed helper untuk data browser flow: `backend/e2e/helpers/seed-asset-ui-flow.php`
+- Run command dari folder `backend`:
+   - `npx playwright test e2e/scenarios/asset-management-ui-flow.spec.js --project=chromium`
+- Flow yang diverifikasi:
+   - login company admin tenant khusus test
+   - buka `/assets`
+   - issue-report dari action row dan verifikasi ticket detail lewat API tenant aktif
+   - upload attachment dari action row dan verifikasi attachment muncul di detail asset
+
 ## Exit Criteria
 
 - Semua request admin pass.

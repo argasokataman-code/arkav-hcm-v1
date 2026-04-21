@@ -1,6 +1,93 @@
 (function (window, document) {
     "use strict";
 
+    function toDayValue(input) {
+        if (!input) {
+            return "";
+        }
+
+        var date = new Date(String(input).slice(0, 10) + "T00:00:00");
+        if (isNaN(date.getTime())) {
+            return "";
+        }
+
+        return date.toISOString().slice(0, 10);
+    }
+
+    function validateAssetPayload(payload) {
+        var errors = [];
+        var purchaseDate = toDayValue(payload && payload.purchase_date);
+        var warrantyStartDate = toDayValue(payload && payload.warranty_start_date);
+        var warrantyEndDate = toDayValue(payload && payload.warranty_end_date);
+
+        if (!payload || !payload.asset_category_id) {
+            errors.push("Pilih category asset yang valid.");
+        }
+
+        if (!payload || !String(payload.name || "").trim()) {
+            errors.push("Nama asset wajib diisi.");
+        }
+
+        if (!purchaseDate) {
+            errors.push("Purchase date wajib diisi.");
+        }
+
+        if (warrantyStartDate && purchaseDate && warrantyStartDate < purchaseDate) {
+            errors.push("Warranty start date tidak boleh lebih awal dari purchase date.");
+        }
+
+        if (warrantyEndDate && warrantyStartDate && warrantyEndDate < warrantyStartDate) {
+            errors.push("Warranty end date tidak boleh lebih awal dari warranty start date.");
+        } else if (warrantyEndDate && purchaseDate && warrantyEndDate < purchaseDate) {
+            errors.push("Warranty end date tidak boleh lebih awal dari purchase date.");
+        }
+
+        return errors;
+    }
+
+    function validateReturnPayload(payload, currentAssignment) {
+        var errors = [];
+        var returnedDate = toDayValue(payload && payload.returned_date);
+        var assignedDate = toDayValue(currentAssignment && currentAssignment.assignedDate);
+
+        if (returnedDate && assignedDate && returnedDate < assignedDate) {
+            errors.push("Returned date tidak boleh lebih awal dari assigned date.");
+        }
+
+        return errors;
+    }
+
+    function formatAssetApiError(data, status) {
+        var code = data && data.error ? data.error.code : "";
+
+        if (code === "ASSET_NOT_AVAILABLE") {
+            return "Asset tidak tersedia untuk assignment.";
+        }
+        if (code === "ASSET_ALREADY_ASSIGNED") {
+            return "Asset ini sudah memiliki assignment aktif.";
+        }
+        if (code === "ASSET_NOT_ASSIGNED") {
+            return "Asset ini belum memiliki assignment aktif.";
+        }
+        if (code === "ASSET_RETURN_DATE_INVALID") {
+            return "Returned date tidak boleh lebih awal dari assigned date.";
+        }
+
+        if (data && data.error && data.error.message) {
+            return data.error.message;
+        }
+
+        return status ? "Error " + status : "Request failed";
+    }
+
+    window.AssetManagementRules = {
+        validateAssetPayload: validateAssetPayload,
+        validateReturnPayload: validateReturnPayload,
+        formatAssetApiError: formatAssetApiError,
+        buildAssetActionMarkup: buildAssetActionMarkup,
+        buildCategoryActionMarkup: buildCategoryActionMarkup,
+    };
+
     var assetState = {
         page: 1,
         perPage: 20,
@@ -24,6 +111,24 @@
     };
 
     var searchTimer = null;
+
+    function buildAssetActionMarkup(row) {
+        var lifecycleAction = row.status === "assigned"
+            ? '<a href="#" class="me-2" data-hcm-asset-return="' + esc(row.id) + '" title="Return asset"><i class="ti ti-logout"></i></a>'
+            : '<a href="#" class="me-2" data-hcm-asset-assign="' + esc(row.id) + '" title="Assign asset"><i class="ti ti-user-plus"></i></a>';
+
+        return '<div class="action-icon d-inline-flex align-items-center">'
+            + lifecycleAction
+            + '<a href="#" class="me-2" data-hcm-asset-issue="' + esc(row.id) + '" title="Report issue"><i class="ti ti-alert-circle"></i></a>'
+            + '<a href="#" class="me-2" data-hcm-asset-attach="' + esc(row.id) + '" title="Upload attachment"><i class="ti ti-paperclip"></i></a>'
+            + '<a href="#" class="me-2" data-hcm-asset-edit="' + esc(row.id) + '" title="Edit asset"><i class="ti ti-edit"></i></a>'
+            + '<a href="#" data-hcm-asset-delete="' + esc(row.id) + '" title="Retire asset"><i class="ti ti-trash"></i></a>'
+            + '</div>';
+    }
+
+    function buildCategoryActionMarkup(row) {
+        return '<div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-asset-category-edit="' + esc(row.id) + '"><i class="ti ti-edit"></i></a><a href="#" data-hcm-asset-category-delete="' + esc(row.id) + '"><i class="ti ti-trash"></i></a></div>';
+    }
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -100,6 +205,9 @@
     }
 
     function formatApiError(data, status) {
+        if (window.AssetManagementRules && typeof window.AssetManagementRules.formatAssetApiError === "function") {
+            return window.AssetManagementRules.formatAssetApiError(data, status);
+        }
         if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
             return window.ApiErrorHelper.format(data, status);
         }
@@ -336,19 +444,16 @@
         var html = "";
         rows.forEach(function (row) {
             var assignmentName = row.currentAssignment && row.currentAssignment.employeeName ? row.currentAssignment.employeeName : "-";
-            var lifecycleAction = row.status === "assigned"
-                ? '<a href="#" class="me-2" data-hcm-asset-return="' + esc(row.id) + '"><i class="ti ti-logout"></i></a>'
-                : '<a href="#" class="me-2" data-hcm-asset-assign="' + esc(row.id) + '"><i class="ti ti-user-plus"></i></a>';
             html += "<tr>" +
                 "<td><span class=\"fw-medium\">" + esc(row.assetCode || "-") + "</span></td>" +
-                "<td><div class=\"fw-medium\">" + esc(row.name || "-") + "</div><div class=\"small text-muted\">" + esc(row.serialNumber || "-") + "</div></td>" +
+                "<td><div class=\"fw-medium\">" + esc(row.name || "-") + "</div><div class=\"small text-muted\">" + esc(row.serialNumber || "-") + "</div><div class=\"small text-muted\">Attachments: " + esc(row.attachmentsCount || 0) + "</div></td>" +
                 "<td>" + esc(row.category && row.category.name ? row.category.name : "-") + "</td>" +
                 "<td>" + esc(assignmentName) + "</td>" +
                 "<td>" + formatDate(row.purchaseDate) + "</td>" +
                 "<td class=\"text-nowrap\">" + formatCurrency(row.purchasePrice || 0) + "</td>" +
                 "<td>" + formatDate(row.warrantyEndDate) + "</td>" +
                 "<td>" + statusBadge(row.status) + "</td>" +
-                '<td><div class="action-icon d-inline-flex">' + lifecycleAction + '<a href="#" class="me-2" data-hcm-asset-edit="' + esc(row.id) + '"><i class="ti ti-edit"></i></a><a href="#" data-hcm-asset-delete="' + esc(row.id) + '"><i class="ti ti-trash"></i></a></div></td>' +
+                '<td>' + buildAssetActionMarkup(row) + '</td>' +
                 "</tr>";
         });
 
@@ -389,6 +494,93 @@
         setFormValue(form, "notes", "");
 
         var modal = getModal("asset_return_modal");
+        if (modal) {
+            modal.show();
+        }
+    }
+
+    function loadAssetDetail(assetId) {
+        return apiRequest("get", "/v1/hcm/assets/" + encodeURIComponent(String(assetId)))
+            .then(function (payload) {
+                if (!payload || !payload.success) {
+                    return null;
+                }
+
+                if (payload.data && payload.data.id) {
+                    assetState.map[String(payload.data.id)] = Object.assign({}, assetState.map[String(payload.data.id)] || {}, payload.data);
+                }
+
+                return payload.data || null;
+            });
+    }
+
+    function renderAttachmentList(asset) {
+        var container = document.querySelector("[data-hcm-asset-attachment-list]");
+        if (!container) {
+            return;
+        }
+
+        var attachments = asset && Array.isArray(asset.attachments) ? asset.attachments : [];
+        if (!attachments.length) {
+            container.innerHTML = "No attachments uploaded yet.";
+            return;
+        }
+
+        var html = "<ul class=\"mb-0 ps-3\">";
+        attachments.forEach(function (attachment) {
+            html += "<li>" + esc(attachment.originalName || attachment.filePath || ("Attachment #" + attachment.id)) + "</li>";
+        });
+        html += "</ul>";
+        container.innerHTML = html;
+    }
+
+    function openIssueModal(assetId) {
+        var row = assetState.map[String(assetId)];
+        var form = document.querySelector('[data-hcm-asset-issue-form]');
+        if (!row || !form) {
+            return;
+        }
+
+        setFormValue(form, "asset_id", row.id);
+        setFormValue(form, "asset_name", row.name || row.assetCode || "");
+        setFormValue(form, "issue_type", row.status === "maintenance" ? "maintenance" : "damaged");
+        setFormValue(form, "priority", "medium");
+        setFormValue(form, "description", row.notes || "");
+
+        var modal = getModal("asset_issue_modal");
+        if (modal) {
+            modal.show();
+        }
+    }
+
+    function openAttachmentModal(assetId) {
+        var row = assetState.map[String(assetId)];
+        var form = document.querySelector('[data-hcm-asset-attachment-form]');
+        if (!row || !form) {
+            return;
+        }
+
+        setFormValue(form, "asset_id", row.id);
+        setFormValue(form, "asset_name", row.name || row.assetCode || "");
+
+        var fileInput = form.querySelector('[data-hcm-field="file"]');
+        if (fileInput) {
+            fileInput.value = "";
+        }
+
+        renderAttachmentList(row);
+        loadAssetDetail(row.id)
+            .then(function (detail) {
+                if (detail) {
+                    renderAttachmentList(detail);
+                }
+            })
+            .catch(function (err) {
+                renderAttachmentList(row);
+                notify(formatApiError(err && err.data, err && err.status), true);
+            });
+
+        var modal = getModal("asset_attachment_modal");
         if (modal) {
             modal.show();
         }
@@ -552,6 +744,11 @@
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
                 var payload = extractAssetPayload(addForm);
+                var validationErrors = validateAssetPayload(payload);
+                if (validationErrors.length) {
+                    notify(validationErrors[0], true);
+                    return;
+                }
                 setButtonLoading(addForm, true);
                 apiRequest("post", "/v1/hcm/assets", payload)
                     .then(function (resp) {
@@ -585,6 +782,11 @@
                 }
 
                 var payload = extractAssetPayload(editForm);
+                var validationErrors = validateAssetPayload(payload);
+                if (validationErrors.length) {
+                    notify(validationErrors[0], true);
+                    return;
+                }
                 setButtonLoading(editForm, true);
                 apiRequest("put", "/v1/hcm/assets/" + encodeURIComponent(String(id)), payload)
                     .then(function (resp) {
@@ -665,6 +867,13 @@
                     notes: getFormValue(returnForm, "notes") || null,
                 };
 
+                var currentAsset = assetState.map[String(assetId)] || {};
+                var returnValidationErrors = validateReturnPayload(payload, currentAsset.currentAssignment || null);
+                if (returnValidationErrors.length) {
+                    notify(returnValidationErrors[0], true);
+                    return;
+                }
+
                 setButtonLoading(returnForm, true);
                 apiRequest("post", "/v1/hcm/assets/" + encodeURIComponent(String(assetId)) + "/return", payload)
                     .then(function (resp) {
@@ -683,6 +892,81 @@
                     })
                     .finally(function () {
                         setButtonLoading(returnForm, false);
+                    });
+            });
+        }
+
+        var issueForm = document.querySelector('[data-hcm-asset-issue-form]');
+        if (issueForm) {
+            issueForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                var assetId = getFormValue(issueForm, "asset_id");
+                if (!assetId) {
+                    return;
+                }
+
+                var payload = {
+                    issue_type: getFormValue(issueForm, "issue_type") || "maintenance",
+                    priority: getFormValue(issueForm, "priority") || "medium",
+                    description: getFormValue(issueForm, "description") || null,
+                };
+
+                setButtonLoading(issueForm, true);
+                apiRequest("post", "/v1/hcm/assets/" + encodeURIComponent(String(assetId)) + "/issue-report", payload)
+                    .then(function (resp) {
+                        if (!resp || !resp.success) {
+                            return;
+                        }
+                        notify("Issue asset berhasil dikirim ke ticketing.", false);
+                        var modal = getModal("asset_issue_modal");
+                        if (modal) {
+                            modal.hide();
+                        }
+                        fetchAssets();
+                    })
+                    .catch(function (err) {
+                        notify(formatApiError(err && err.data, err && err.status), true);
+                    })
+                    .finally(function () {
+                        setButtonLoading(issueForm, false);
+                    });
+            });
+        }
+
+        var attachmentForm = document.querySelector('[data-hcm-asset-attachment-form]');
+        if (attachmentForm) {
+            attachmentForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                var assetId = getFormValue(attachmentForm, "asset_id");
+                var fileInput = attachmentForm.querySelector('[data-hcm-field="file"]');
+                var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+                if (!assetId || !file) {
+                    notify("Pilih file attachment terlebih dulu.", true);
+                    return;
+                }
+
+                var formData = new FormData();
+                formData.append("file", file);
+
+                setButtonLoading(attachmentForm, true);
+                apiRequest("post", "/v1/hcm/assets/" + encodeURIComponent(String(assetId)) + "/attachments", formData)
+                    .then(function (resp) {
+                        if (!resp || !resp.success) {
+                            return;
+                        }
+                        notify("Attachment asset berhasil diupload.", false);
+                        return loadAssetDetail(assetId).then(function (detail) {
+                            renderAttachmentList(detail || assetState.map[String(assetId)] || null);
+                            fetchAssets();
+                        });
+                    })
+                    .catch(function (err) {
+                        notify(formatApiError(err && err.data, err && err.status), true);
+                    })
+                    .finally(function () {
+                        setButtonLoading(attachmentForm, false);
                     });
             });
         }
@@ -706,6 +990,20 @@
             if (returnBtn) {
                 e.preventDefault();
                 openReturnModal(returnBtn.getAttribute("data-hcm-asset-return"));
+                return;
+            }
+
+            var issueBtn = e.target.closest("[data-hcm-asset-issue]");
+            if (issueBtn) {
+                e.preventDefault();
+                openIssueModal(issueBtn.getAttribute("data-hcm-asset-issue"));
+                return;
+            }
+
+            var attachBtn = e.target.closest("[data-hcm-asset-attach]");
+            if (attachBtn) {
+                e.preventDefault();
+                openAttachmentModal(attachBtn.getAttribute("data-hcm-asset-attach"));
                 return;
             }
 
@@ -786,7 +1084,7 @@
                 "<td><div class=\"fw-medium\">" + esc(row.name || "-") + "</div><div class=\"small text-muted\">" + esc(row.description || "-") + "</div></td>" +
                 "<td>" + esc(row.assetsCount || 0) + "</td>" +
                 "<td>" + status + "</td>" +
-                '<td><div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-asset-category-edit="' + esc(row.id) + '"><i class="ti ti-edit"></i></a><a href="#" data-hcm-asset-category-delete="' + esc(row.id) + '"><i class="ti ti-trash"></i></a></div></td>' +
+                '<td>' + buildCategoryActionMarkup(row) + '</td>' +
                 "</tr>";
         });
 

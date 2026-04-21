@@ -11,6 +11,7 @@ use App\Models\EmployeeProfile;
 use App\Services\AssetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class HcmAssetController extends Controller
 {
@@ -35,39 +36,40 @@ class HcmAssetController extends Controller
             return $this->errorResponse('FEATURE_DISABLED', 'Asset Management is not enabled for this company.', 403);
         }
 
-            $validated = $request->validate([
-                'status' => ['nullable', 'in:available,assigned,maintenance,retired'],
-                'condition' => ['nullable', 'in:good,damaged,lost'],
-                'categoryId' => ['nullable', 'integer', 'exists:asset_categories,id'],
-                'q' => ['nullable', 'string', 'max:120'],
-                'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
-            ]);
+        $validated = $request->validate([
+            'status' => ['nullable', 'in:available,assigned,maintenance,retired'],
+            'condition' => ['nullable', 'in:good,damaged,lost'],
+            'categoryId' => ['nullable', 'integer', Rule::exists('asset_categories', 'id')->where(fn ($query) => $query->where('company_id', $companyId))],
+            'q' => ['nullable', 'string', 'max:120'],
+            'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
 
-            $query = Asset::query()
-                ->with(['category', 'currentAssignment.employeeProfile.user'])
-                ->where('company_id', $companyId);
+        $query = Asset::query()
+            ->withTrashed()
+            ->with(['category', 'currentAssignment.employeeProfile.user'])
+            ->where('company_id', $companyId);
 
-            if (! empty($validated['status'])) {
-                $query->where('status', $validated['status']);
-            }
-            if (! empty($validated['condition'])) {
-                $query->where('condition', $validated['condition']);
-            }
-            if (! empty($validated['categoryId'])) {
-                $query->where('asset_category_id', $validated['categoryId']);
-            }
-            if (! empty($validated['q'])) {
-                $q = trim((string) $validated['q']);
-                $query->where(function ($builder) use ($q): void {
-                    $builder->where('asset_code', 'like', "%{$q}%")
-                        ->orWhere('name', 'like', "%{$q}%")
-                        ->orWhere('brand', 'like', "%{$q}%")
-                        ->orWhere('model', 'like', "%{$q}%")
-                        ->orWhere('serial_number', 'like', "%{$q}%");
-                });
-            }
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+        if (! empty($validated['condition'])) {
+            $query->where('condition', $validated['condition']);
+        }
+        if (! empty($validated['categoryId'])) {
+            $query->where('asset_category_id', $validated['categoryId']);
+        }
+        if (! empty($validated['q'])) {
+            $q = trim((string) $validated['q']);
+            $query->where(function ($builder) use ($q): void {
+                $builder->where('asset_code', 'like', "%{$q}%")
+                    ->orWhere('name', 'like', "%{$q}%")
+                    ->orWhere('brand', 'like', "%{$q}%")
+                    ->orWhere('model', 'like', "%{$q}%")
+                    ->orWhere('serial_number', 'like', "%{$q}%");
+            });
+        }
 
-            $rows = $query->orderByDesc('updated_at')->paginate((int) ($validated['perPage'] ?? 20));
+        $rows = $query->orderByDesc('updated_at')->paginate((int) ($validated['perPage'] ?? 20));
 
         return response()->json([
             'success' => true,
@@ -83,7 +85,7 @@ class HcmAssetController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -96,7 +98,7 @@ class HcmAssetController extends Controller
             return $this->errorResponse('FEATURE_DISABLED', 'Asset Management is not enabled for this company.', 403);
         }
 
-        $validated = $this->validateAssetPayload($request, false);
+        $validated = $this->validateAssetPayload($request, false, $companyId);
         $asset = $this->assetService->createAsset($companyId, $validated, (int) $request->user()->id);
 
         return response()->json(['success' => true, 'data' => $this->formatAsset($asset)], 201);
@@ -117,15 +119,17 @@ class HcmAssetController extends Controller
 
     public function update(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
+
+        $companyId = $this->activeCompanyId($request);
 
         if (! $this->assetBelongsToActiveCompany($request, $asset)) {
             return $this->errorResponse('NOT_FOUND', 'Asset not found.', 404);
         }
 
-        $validated = $this->validateAssetPayload($request, true);
+        $validated = $this->validateAssetPayload($request, true, $companyId);
         $updated = $this->assetService->updateAsset($asset, $validated, (int) $request->user()->id);
 
         return response()->json(['success' => true, 'data' => $this->formatAsset($updated)]);
@@ -133,7 +137,7 @@ class HcmAssetController extends Controller
 
     public function destroy(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -148,7 +152,7 @@ class HcmAssetController extends Controller
 
     public function assign(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -175,7 +179,7 @@ class HcmAssetController extends Controller
 
     public function returnAsset(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -196,7 +200,7 @@ class HcmAssetController extends Controller
 
     public function reportIssue(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -217,7 +221,7 @@ class HcmAssetController extends Controller
 
     public function attach(Request $request, Asset $asset): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'asset.view')) {
+        if ($response = $this->ensurePermission($request, 'asset.manage')) {
             return $response;
         }
 
@@ -238,10 +242,14 @@ class HcmAssetController extends Controller
         return response()->json(['success' => true, 'data' => $this->formatAttachment($attachment)], 201);
     }
 
-    private function validateAssetPayload(Request $request, bool $isUpdate): array
+    private function validateAssetPayload(Request $request, bool $isUpdate, ?int $companyId): array
     {
         $rules = [
-            'asset_category_id' => [$isUpdate ? 'sometimes' : 'required', 'integer', 'exists:asset_categories,id'],
+            'asset_category_id' => [
+                $isUpdate ? 'sometimes' : 'required',
+                'integer',
+                Rule::exists('asset_categories', 'id')->where(fn ($query) => $query->where('company_id', $companyId ?? 0)),
+            ],
             'name' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:150'],
             'brand' => ['nullable', 'string', 'max:120'],
             'model' => ['nullable', 'string', 'max:120'],
@@ -252,8 +260,8 @@ class HcmAssetController extends Controller
             'status' => ['nullable', 'in:available,assigned,maintenance,retired'],
             'location' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:10000'],
-            'warranty_start_date' => ['nullable', 'date'],
-            'warranty_end_date' => ['nullable', 'date'],
+            'warranty_start_date' => ['nullable', 'date', 'after_or_equal:purchase_date'],
+            'warranty_end_date' => ['nullable', 'date', 'after_or_equal:warranty_start_date', 'after_or_equal:purchase_date'],
         ];
 
         $validated = $request->validate($rules);
@@ -313,6 +321,9 @@ class HcmAssetController extends Controller
                 'code' => $asset->category->code,
             ] : null,
             'currentAssignment' => $asset->relationLoaded('currentAssignment') && $asset->currentAssignment ? $this->formatAssignment($asset->currentAssignment) : null,
+            'attachments' => $asset->relationLoaded('attachments')
+                ? $asset->attachments->map(fn (AssetAttachment $attachment) => $this->formatAttachment($attachment))->values()->all()
+                : null,
             'attachmentsCount' => $asset->attachments()->count(),
             'logsCount' => $asset->logs()->count(),
             'createdAt' => $asset->created_at?->toIso8601String(),

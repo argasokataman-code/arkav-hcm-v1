@@ -21,7 +21,7 @@
                         <i class="ti ti-category me-1"></i>Manage Categories
                     </a>
                     <button type="button" class="btn btn-primary d-flex align-items-center mb-2" data-bs-toggle="modal"
-                        data-bs-target="#asset_add_modal">
+                        data-bs-target="#asset_add_modal" id="asset_open_add_modal">
                         <i class="ti ti-circle-plus me-2"></i>Add Asset
                     </button>
                     <div class="ms-2 head-icons">
@@ -338,6 +338,88 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Return Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="asset_issue_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Report Asset Issue</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-issue-form>
+                    <input type="hidden" data-hcm-field="asset_id" value="">
+                    <div class="modal-body pb-0">
+                        <div class="mb-3">
+                            <label class="form-label">Asset</label>
+                            <input type="text" class="form-control" data-hcm-field="asset_name" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Issue Type</label>
+                            <select class="form-select" data-hcm-field="issue_type" required>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="damaged">Damaged</option>
+                                <option value="lost">Lost</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" data-hcm-field="priority">
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" rows="4" data-hcm-field="description" maxlength="10000" placeholder="Jelaskan issue asset untuk eskalasi ticket."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Report Issue</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="asset_attachment_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Upload Asset Attachment</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form data-hcm-asset-attachment-form>
+                    <input type="hidden" data-hcm-field="asset_id" value="">
+                    <div class="modal-body pb-0">
+                        <div class="mb-3">
+                            <label class="form-label">Asset</label>
+                            <input type="text" class="form-control" data-hcm-field="asset_name" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Attachment File</label>
+                            <input type="file" class="form-control" data-hcm-field="file" required>
+                            <div class="form-text">Maksimum 10 MB per file.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Existing Attachments</label>
+                            <div class="border rounded p-2 bg-light small" data-hcm-asset-attachment-list>No attachments loaded.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-hcm-submit-btn>Upload Attachment</button>
                     </div>
                 </form>
             </div>

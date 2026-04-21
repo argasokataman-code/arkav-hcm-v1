@@ -136,4 +136,27 @@ class DomainControllerTest extends TestCase
             ->assertJsonStructure(['success', 'data' => ['domainName', 'verificationType', 'instructions', 'token']])
             ->assertJsonFragment(['verificationType' => 'dns']);
     }
+
+    public function test_create_domain_normalizes_host_and_rejects_invalid_domain_format(): void
+    {
+        $this->adminRequest()->postJson('/v1/saas/domains', [
+            'domain_name' => '  HR-Demo.Example.Com ',
+            'company_id' => $this->company->uuid,
+            'verification_type' => 'dns',
+            'notes' => '  Production domain  ',
+        ])->assertCreated()
+            ->assertJsonPath('data.domainName', 'hr-demo.example.com');
+
+        $this->assertDatabaseHas('domains', [
+            'domain_name' => 'hr-demo.example.com',
+            'notes' => 'Production domain',
+        ]);
+
+        $this->adminRequest()->postJson('/v1/saas/domains', [
+            'domain_name' => 'https://bad.example.com/path',
+            'company_id' => $this->company->uuid,
+            'verification_type' => 'dns',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['domain_name']);
+    }
 }

@@ -21,7 +21,7 @@
                         <i class="ti ti-device-laptop me-1"></i>View Assets
                     </a>
                     <button type="button" class="btn btn-primary d-flex align-items-center mb-2" data-bs-toggle="modal"
-                        data-bs-target="#asset_category_add_modal">
+                        data-bs-target="#asset_category_add_modal" id="asset_category_open_add_modal">
                         <i class="ti ti-circle-plus me-2"></i>Add Category
                     </button>
                     <div class="ms-2 head-icons">

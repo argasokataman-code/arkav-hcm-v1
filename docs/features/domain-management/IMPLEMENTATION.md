@@ -27,7 +27,7 @@ Web routes:
 
 Filters:
 - `status`
-- `company_id`
+- `company_id` (numeric internal `companies.id`)
 - `search` (domain_name)
 
 Response:
@@ -46,8 +46,8 @@ Return payload domain + company info.
 `POST /v1/saas/domains`
 
 Validation:
-- `domain_name` required, unique
-- `company_id` required, exists companies
+- `domain_name` required, unique, host-only valid, otomatis di-trim dan di-lowercase
+- `company_id` required UUID, exists `companies.uuid`
 - `verification_type` required (`dns|file`)
 - `notes` optional
 
@@ -60,8 +60,8 @@ Behavior:
 `PUT /v1/saas/domains/{domain}`
 
 Validation:
-- `domain_name` unique except current id
-- `company_id` exists
+- `domain_name` unique except current id, host-only valid, otomatis di-trim dan di-lowercase bila field dikirim
+- `company_id` UUID exists bila field dikirim
 - `verification_type` in `dns|file`
 - `status` in `pending|verified|failed`
 
@@ -89,6 +89,13 @@ Return:
 - `instructions` (step-by-step)
 - `token`
 
+## Identifier Dan Data Mapping
+
+- Route `{domain}` aktif memakai `domains.uuid` via `AssignsUuid::getRouteKeyName()`.
+- Response list/detail masih mengembalikan `companyId` numeric internal dan `companyName`.
+- Frontend mengambil company list dari `GET /v1/company`, lalu memakai `company.uuid` untuk payload create/update dan `company.id` untuk filter list.
+- Modal edit memetakan `domain.companyId` numeric ke `company.uuid` yang sudah dimuat frontend.
+
 ## Access Control
 
 Semua endpoint domain memakai guard admin di level controller:
@@ -107,18 +114,22 @@ Alur utama:
 5. `editDomain()` dan `handleEditDomain()` proses update.
 6. `verifyDomain()` trigger endpoint verify.
 7. `showVerificationDetails()` menampilkan instruksi verifikasi.
+8. `validateDomainPayload()` menolak host invalid di client sebelum request dikirim.
+9. `formatApiError()` mengangkat pesan validation error Laravel pertama ke toast UI.
 
 ## Known Gaps
 
-- Mapping field di frontend belum konsisten dengan response backend untuk beberapa key (contoh `domain` vs `domainName`, `verificationMethod` vs `verificationType`) dan perlu harmonisasi pada task lanjutan.
-- Filter UI (`search/status/company`) sudah ada di blade, namun sebagian belum terhubung penuh di manager script.
 - Verifikasi domain saat ini masih simulasi (mark verified) belum cek DNS/file real.
+- API list/detail belum mengembalikan `companyUuid`; frontend masih perlu melakukan map ulang dari company list saat edit.
+- Dokumen lama `docs/api/custom-domain-api.md` sebelumnya mengacu ke controller/model `custom_domains`; audit 2026-04-21 menyelaraskannya ke runtime aktif `domains`.
 
 ## Verification Checklist
 
 Manual minimum:
 - Open `/saas/domains` dan list tampil.
 - Add domain baru sukses dan status awal pending.
+- Add domain dengan uppercase/whitespace -> backend simpan lowercase-trimmed.
+- Coba input `https://bad.example.com/path` -> FE blok, dan BE juga return `422` bila payload dipaksa lewat API.
 - Klik verify pada domain pending -> status jadi verified.
 - Buka verification details -> instruksi DNS/File tampil.
 - Coba aksi mutasi dengan user non-admin -> `403 ADMIN_REQUIRED`.

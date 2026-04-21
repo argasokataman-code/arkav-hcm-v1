@@ -36,17 +36,22 @@ Modul asset management menambahkan kategori asset, asset master, assignment hist
 
 ## Access Control
 
-- Semua endpoint mutasi memakai `isHcmAdmin()`.
-- List/view asset masih dibatasi ke admin pada implementasi saat ini.
+- Endpoint read memakai permission `asset.view`.
+- Endpoint mutasi category/asset/assign/return/issue-report/attachment memakai permission `asset.manage`.
+- Semua endpoint tetap tenant-scoped via `activeCompanyId` dari `ResolveTenantContext`.
 - Active company diambil dari `ResolveTenantContext`.
 
 ## Validation / Testing
 
 - Feature test: `backend/tests/Feature/HcmAssetApiTest.php`
+- Vitest wiring: `backend/tests/ui/asset-management.wiring.test.js`
 - Validasi syntax: migration, controller, service, test, dan OpenAPI YAML sudah dicek.
 
 ## Notes
 
 - Endpoint return asset memakai `POST /v1/hcm/assets/{asset}/return`.
 - Endpoint issue reporting memakai `POST /v1/hcm/assets/{asset}/issue-report`.
-- Frontend placeholder masih perlu dihubungkan bila page asset admin ingin benar-benar live.
+- Page `/assets` dan `/asset-categories` sudah live ke API melalui `frontend/resources/js/asset-management-data.js`.
+- Halaman asset sekarang punya surface admin untuk issue-report dan upload attachment langsung dari daftar asset.
+- Halaman web asset/category tetap admin-only lewat `hcm.web.admin`; permission `asset.view` relevan untuk API read access, bukan membuka Blade admin page.
+- Validasi penting yang aktif sekarang: `asset_category_id` wajib berasal dari company aktif, warranty date tidak boleh mundur dari purchase date, dan `returned_date` tidak boleh lebih awal dari `assigned_date`.

@@ -475,6 +475,160 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/domains:
+    get:
+      tags: [SaaS]
+      summary: List custom domains (HCM admin)
+      description: |
+        Runtime aktif memakai `App\Http\Controllers\Api\DomainController`.
+        Filter `company_id` di list memakai numeric internal `companies.id`, sedangkan create/update body memakai UUID company.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, verified, failed] }
+        - name: company_id
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 255 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [SaaS]
+      summary: Create custom domain (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain_name, company_id, verification_type]
+              properties:
+                domain_name:
+                  type: string
+                  maxLength: 255
+                  description: Host/domain only; no protocol, path, or slash.
+                company_id:
+                  type: string
+                  format: uuid
+                verification_type:
+                  type: string
+                  enum: [dns, file]
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/domains/{domain}:
+    parameters:
+      - name: domain
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [SaaS]
+      summary: Get custom domain detail (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [SaaS]
+      summary: Update custom domain (HCM admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                domain_name:
+                  type: string
+                  maxLength: 255
+                  description: Host/domain only; no protocol, path, or slash.
+                company_id:
+                  type: string
+                  format: uuid
+                verification_type:
+                  type: string
+                  enum: [dns, file]
+                status:
+                  type: string
+                  enum: [pending, verified, failed]
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [SaaS]
+      summary: Delete custom domain (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/domains/{domain}/verify:
+    parameters:
+      - name: domain
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [SaaS]
+      summary: Verify custom domain manually (HCM admin)
+      description: If current status is `pending`, runtime sets it to `verified`; otherwise returns success with the existing status unchanged.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/domains/{domain}/verification-details:
+    parameters:
+      - name: domain
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [SaaS]
+      summary: Get custom domain verification instructions (HCM admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
     delete:
       tags: [HCM]
       summary: Delete manual activity record (global admin or tenant owner/admin)
@@ -1980,7 +2134,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidCategoryPath'
+        - $ref: '#/components/parameters/AssetCategoryNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -1993,7 +2147,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidCategoryPath'
+        - $ref: '#/components/parameters/AssetCategoryNumericIdPath'
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -2106,7 +2260,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidAssetPath'
+        - $ref: '#/components/parameters/AssetNumericIdPath'
       responses:
         '201': { description: Created }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -7202,6 +7356,12 @@ components:
         format: uuid
     AssetNumericIdPath:
       name: asset
+      in: path
+      required: true
+      schema:
+        type: integer
+    AssetCategoryNumericIdPath:
+      name: category
       in: path
       required: true
       schema:

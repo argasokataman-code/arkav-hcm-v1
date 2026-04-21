@@ -7,13 +7,19 @@ use App\Models\AssetCategory;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\HcmPermission;
+use App\Models\HcmRole;
+use App\Models\HcmUserRole;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class HcmAssetApiTest extends TestCase
@@ -51,6 +57,13 @@ class HcmAssetApiTest extends TestCase
             'package_uuid' => $package->uuid,
             'feature_code' => 'asset_management',
             'feature_name' => 'Asset Management',
+            'limit' => null,
+        ]);
+
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'asset_attachments',
+            'feature_name' => 'Asset Attachments',
             'limit' => null,
         ]);
 
@@ -110,6 +123,108 @@ class HcmAssetApiTest extends TestCase
     {
         return [
             'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Code' => $this->company->code,
+        ];
+    }
+
+    private function createCategory(string $code = 'laptop', string $name = 'Laptop'): AssetCategory
+    {
+        return AssetCategory::query()->create([
+            'company_id' => $this->company->id,
+            'code' => strtoupper($code),
+            'name' => $name,
+            'description' => $name.' assets',
+            'is_active' => true,
+        ]);
+    }
+
+    private function createAsset(AssetCategory $category, array $overrides = []): Asset
+    {
+        return Asset::query()->create(array_merge([
+            'company_id' => $this->company->id,
+            'asset_category_id' => $category->id,
+            'asset_code' => 'AST-TEST-001',
+            'name' => 'Test Asset',
+            'brand' => 'Brand',
+            'model' => 'Model',
+            'serial_number' => 'SN-001',
+            'purchase_date' => now()->subMonth()->toDateString(),
+            'purchase_price' => 1500000,
+            'condition' => 'good',
+            'status' => 'available',
+            'location' => 'Jakarta',
+        ], $overrides));
+    }
+
+    private function viewOnlyHeaders(): array
+    {
+        $viewer = User::query()->create([
+            'name' => 'Asset Viewer',
+            'email' => 'asset.viewer@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $viewer->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Operations',
+            'nik' => 'EMP-004',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $viewer->id,
+            'role' => 'member',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $permission = HcmPermission::query()->create([
+            'code' => 'asset.view',
+            'module' => 'asset_management',
+            'resource' => 'asset',
+            'action' => 'view',
+            'name' => 'View Assets',
+            'is_active' => true,
+        ]);
+
+        $role = HcmRole::query()->create([
+            'company_id' => $this->company->id,
+            'code' => 'ASSET_VIEWER',
+            'name' => 'Asset Viewer',
+            'status' => 'active',
+            'is_system' => false,
+        ]);
+
+        DB::table('hcm_role_permissions')->insert([
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+            'company_id' => $this->company->id,
+            'company_uuid' => $this->company->uuid,
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        ]);
+
+        HcmUserRole::query()->create([
+            'user_id' => $viewer->id,
+            'company_id' => $this->company->id,
+            'role_id' => $role->id,
+            'status' => 'active',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => $viewer->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
+        ]);
+
+        $loginResponse->assertOk();
+
+        return [
+            'Authorization' => 'Bearer '.(string) $loginResponse->json('data.accessToken'),
             'X-Company-Code' => $this->company->code,
         ];
     }
@@ -311,27 +426,16 @@ class HcmAssetApiTest extends TestCase
 
     public function test_reporting_asset_issue_creates_ticket_in_same_company(): void
     {
-        $category = AssetCategory::query()->create([
-            'company_id' => $this->company->id,
-            'code' => 'device',
-            'name' => 'Device',
-            'description' => 'Device assets',
-            'is_active' => true,
-        ]);
+        $category = $this->createCategory('device', 'Device');
 
-        $asset = Asset::query()->create([
-            'company_id' => $this->company->id,
-            'asset_category_id' => $category->id,
+        $asset = $this->createAsset($category, [
             'asset_code' => 'AST-ISSUE-001',
             'name' => 'Work Laptop',
             'brand' => 'Lenovo',
             'model' => 'T14',
             'serial_number' => 'SN-ISSUE-001',
-            'purchase_date' => now()->subMonth()->toDateString(),
             'purchase_price' => 18000000,
-            'condition' => 'good',
             'status' => 'assigned',
-            'location' => 'Jakarta',
         ]);
 
         $response = $this->withHeaders($this->headers())
@@ -358,5 +462,130 @@ class HcmAssetApiTest extends TestCase
         $ticket = Ticket::query()->findOrFail($ticketId);
         $this->assertStringContainsString('AST-ISSUE-001', $ticket->subject);
         $this->assertStringContainsString('Battery health dropping quickly.', (string) $ticket->description);
+    }
+
+    public function test_asset_detail_returns_uploaded_attachments(): void
+    {
+        Storage::fake('public');
+
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category, [
+            'asset_code' => 'AST-ATTACH-001',
+            'name' => 'Attachment Asset',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/attachments', [
+                'file' => UploadedFile::fake()->create('asset-note.txt', 12, 'text/plain'),
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.originalName', 'asset-note.txt');
+
+        $this->withHeaders($this->headers())
+            ->getJson('/v1/hcm/assets/'.$asset->id)
+            ->assertOk()
+            ->assertJsonPath('data.attachments.0.originalName', 'asset-note.txt')
+            ->assertJsonPath('data.attachmentsCount', 1);
+    }
+
+    public function test_view_only_permission_can_list_assets_but_cannot_mutate_assets_or_categories(): void
+    {
+        $category = $this->createCategory();
+        $viewerHeaders = $this->viewOnlyHeaders();
+
+        $this->withHeaders($viewerHeaders)
+            ->getJson('/v1/hcm/assets')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders($viewerHeaders)
+            ->postJson('/v1/hcm/assets', [
+                'asset_category_id' => $category->id,
+                'name' => 'Viewer Cannot Create',
+                'purchase_date' => now()->toDateString(),
+                'purchase_price' => 200000,
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($viewerHeaders)
+            ->postJson('/v1/hcm/asset-categories', [
+                'name' => 'Viewer Category',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_asset_create_rejects_category_from_other_company(): void
+    {
+        $otherCompany = Company::query()->create([
+            'code' => 'other_asset_co',
+            'name' => 'Other Asset Company',
+            'legal_name' => 'Other Asset Company Ltd',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $foreignCategory = AssetCategory::query()->create([
+            'company_id' => $otherCompany->id,
+            'code' => 'FOREIGN',
+            'name' => 'Foreign Category',
+            'description' => 'Category from another tenant',
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets', [
+                'asset_category_id' => $foreignCategory->id,
+                'name' => 'Cross Tenant Asset',
+                'purchase_date' => now()->toDateString(),
+                'purchase_price' => 500000,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['asset_category_id']);
+    }
+
+    public function test_return_rejects_date_before_assignment_date(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => '2026-04-10',
+                'condition_at_assign' => 'good',
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/return', [
+                'returned_date' => '2026-04-01',
+                'condition_at_return' => 'good',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ASSET_RETURN_DATE_INVALID');
+    }
+
+    public function test_retired_assets_remain_visible_in_asset_list(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category, [
+            'asset_code' => 'AST-RET-001',
+            'name' => 'Retired Asset',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->deleteJson('/v1/hcm/assets/'.$asset->id)
+            ->assertOk();
+
+        $this->withHeaders($this->headers())
+            ->getJson('/v1/hcm/assets?status=retired')
+            ->assertOk()
+            ->assertJsonPath('data.0.assetCode', 'AST-RET-001')
+            ->assertJsonPath('data.0.status', 'retired');
     }
 }

@@ -33,6 +33,7 @@ Memastikan alur UI Domain Management berjalan end-to-end dari sisi Super User/HC
    - Toast sukses muncul.
    - Domain baru tampil di list.
    - Status awal `pending`.
+   - Domain tersimpan dalam lowercase walau input user memakai uppercase/whitespace.
 
 ## Scenario 3 - Admin View Verification Details
 
@@ -74,12 +75,40 @@ Memastikan alur UI Domain Management berjalan end-to-end dari sisi Super User/HC
 3. Expected:
    - API menolak dengan `403 ADMIN_REQUIRED`.
 
+## Scenario 8 - Negative: invalid host format
+
+1. Klik `Add Domain`.
+2. Isi domain dengan `https://bad.example.com/path`.
+3. Expected:
+   - FE menolak submit dan menampilkan error bahwa domain harus berupa host/domain valid tanpa protocol atau path.
+4. Paksa request API langsung dengan payload invalid yang sama.
+5. Expected:
+   - API return `422` pada `domain_name`.
+
+## Scenario 9 - Negative: verify domain non-pending
+
+1. Pilih domain dengan status `verified`.
+2. Trigger `POST /v1/saas/domains/{domain}/verify` lewat API/testing tool.
+3. Expected:
+   - Response tetap `200 success`.
+   - Status existing tidak berubah ke nilai lain.
+
+## Scenario 10 - Multi-company filter consistency
+
+1. Pastikan ada domain dari minimal dua company berbeda.
+2. Ganti filter company pada halaman domain.
+3. Expected:
+   - List hanya menampilkan row untuk `companies.id` yang dipilih.
+   - Edit modal pada row hasil filter tetap bisa submit karena frontend mengirim `company.uuid`, bukan numeric id.
+
 ## UI Regression Checklist
 
 - Table responsive di desktop/mobile.
 - Status badge tampil konsisten (`pending|verified|failed`).
 - Modal Add/Edit/Verification bisa dibuka-tutup stabil.
 - Pagination bekerja saat data lebih dari 1 halaman.
+- Select company di modal create/edit tersambung ke UUID company write contract backend.
+- Toast error menampilkan pesan validation Laravel pertama saat backend menolak payload.
 
 ## Exit Criteria
 

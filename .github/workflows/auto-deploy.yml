@@ -73,23 +73,33 @@ jobs:
 
             cd "$DEPLOY_DIR"
 
+            # --- Compose command compatibility: plugin vs legacy binary ---
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD="docker-compose"
+            else
+              echo "[deploy] ERROR: docker compose/docker-compose not found on server." >&2
+              exit 1
+            fi
+
             # --- 3. PHP deps ke named volume (cepat: hanya download package baru) ---
             echo "[deploy] composer install (diff only)..."
-            docker-compose run --rm --no-deps arkav-hcm \
+            $COMPOSE_CMD run --rm --no-deps arkav-hcm \
               bash -c "cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts && php artisan package:discover --ansi"
 
             # --- 4. Node deps + Vite build ke named volume (cepat: npm ci diff) ---
             echo "[deploy] npm ci + npm run build..."
-            docker-compose run --rm --no-deps arkav-hcm \
+            $COMPOSE_CMD run --rm --no-deps arkav-hcm \
               bash -c "cd /app/backend && npm ci && npm run build"
 
             # --- 5. Restart container (kode baru terbaca via volume, no image rebuild) ---
             echo "[deploy] docker-compose up -d..."
-            docker-compose up -d --force-recreate arkav-hcm
+            $COMPOSE_CMD up -d --force-recreate arkav-hcm
 
             # --- 6. Runtime dirs + artisan commands ---
             sleep 5
-            docker-compose exec -T arkav-hcm bash -c "cd /app/backend \
+            $COMPOSE_CMD exec -T arkav-hcm bash -c "cd /app/backend \
               && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache \
               && chmod -R ug+rwX storage bootstrap/cache \
               && php artisan config:clear \
@@ -111,7 +121,7 @@ jobs:
 
             if [[ "$backend_ok" != true || "$frontend_ok" != true ]]; then
               echo "[deploy] Health check FAILED: backend=$backend_ok frontend=$frontend_ok" >&2
-              docker-compose logs --tail 300 arkav-hcm || true
+              $COMPOSE_CMD logs --tail 300 arkav-hcm || true
               exit 1
             fi
 

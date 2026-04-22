@@ -11,6 +11,11 @@ FROM tyomboreinz/php-npm
 
 WORKDIR /app
 
+# Install dependency PHP saat docker build agar deploy tidak menjalankan composer install lagi.
+COPY backend/composer.json backend/composer.lock /app/backend/
+RUN cd /app/backend \
+    && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts
+
 # Buat runtime directory Laravel agar container bisa start tanpa error permission
 # bahkan sebelum storage bind-mount dari host ter-attach.
 RUN mkdir -p backend/storage/logs \

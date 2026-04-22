@@ -2,20 +2,17 @@ FROM tyomboreinz/php-npm
 
 WORKDIR /app
 
-COPY backend/composer.json backend/composer.lock backend/
-COPY backend/package.json backend/package-lock.json backend/
-
-RUN cd /app/backend \
-    && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts \
-    && npm install
-
 COPY . .
 
-RUN cd /app/backend \
-    && cp env.txt .env \
-    # && php artisan package:discover --ansi \
-    && php artisan key:generate \
-    && npm run build
+RUN chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache && \
+    cd /app/backend && mv env.txt .env && \
+    composer install --no-dev --optimize-autoloader --ignore-platform-req=php && \
+    npm install && \
+    php artisan key:generate && \
+    npm run build
+
+RUN chown -R www-data:www-data /app
 
 EXPOSE 8007
+
 CMD ["bash", "run.sh"]

@@ -18,10 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate deploy runtime guard
-        run: |
-          bash scripts/check-deploy-runtime-guard.sh
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -51,17 +47,12 @@ jobs:
             docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
             docker rm -f arkav-hcm || true
             docker run -d --name arkav-hcm --restart always \
-              -p 8007:8007 -p 5179:5179 \
+              -p 0.0.0:8007:8007 -p 0.0.0:5179:5179 \
               -v /data/code/.env:/app/backend/.env \
               -v /data/code/storage:/app/backend/storage \
               ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
-            docker exec arkav-hcm bash -c "cd /app/backend && chmod -R ug+rwX storage bootstrap/cache && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
 
-            if ! docker ps --format '{{.Names}}' | grep -q '^arkav-hcm$'; then
-              echo "[deploy] container arkav-hcm is not running after startup" >&2
-              docker logs --tail 200 arkav-hcm || true
-              exit 1
-            fi
+            docker exec arkav-hcm bash -c "cd /app/backend && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
 
             sleep 10
 

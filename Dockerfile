@@ -23,7 +23,7 @@ RUN cd /app/backend \
                bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \
     && cp env.txt .env \
-    && php artisan package:discover --ansi \
+    # && php artisan package:discover --ansi \
     && php artisan key:generate \
     && npm run build
 

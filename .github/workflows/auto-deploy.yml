@@ -32,13 +32,11 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            -t ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest \
-            -t ghcr.io/${{ github.repository_owner }}/arkav-hcm:${{ github.sha }} .
+            -t ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
 
       - name: Push Docker image to GHCR
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
-          docker push ghcr.io/${{ github.repository_owner }}/arkav-hcm:${{ github.sha }}
 
   deploy-server:
     needs: build-and-push
@@ -49,28 +47,23 @@ jobs:
           echo "${{ secrets.VPS_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
           ssh -o StrictHostKeyChecking=no -i private_key.pem -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} << 'EOF'
-            set -euo pipefail
-
-            mkdir -p /data/code/storage/logs
-            mkdir -p /data/code/storage/framework/cache/data
-            mkdir -p /data/code/storage/framework/sessions
-            mkdir -p /data/code/storage/framework/views
-            mkdir -p /data/code/storage/app/public
-            mkdir -p /data/code/storage/app/private
-            docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:${{ github.sha }}
+            
+            docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
             docker rm -f arkav-hcm || true
             docker run -d --name arkav-hcm --restart always \
               -p 8007:8007 -p 5179:5179 \
               -v /data/code/.env:/app/backend/.env \
               -v /data/code/storage:/app/backend/storage \
-              ghcr.io/${{ github.repository_owner }}/arkav-hcm:${{ github.sha }}
-            docker exec arkav-hcm bash -c "cd /app/backend && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
+              ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+            docker exec arkav-hcm bash -c "cd /app/backend && chmod -R ug+rwX storage bootstrap/cache && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
 
             if ! docker ps --format '{{.Names}}' | grep -q '^arkav-hcm$'; then
               echo "[deploy] container arkav-hcm is not running after startup" >&2
               docker logs --tail 200 arkav-hcm || true
               exit 1
             fi
+
+            sleep 10
 
             backend_ok=false
             frontend_ok=false

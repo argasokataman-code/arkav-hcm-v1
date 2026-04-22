@@ -1,0 +1,64 @@
+# docker-compose.yml – Production (volume-based deploy)
+#
+# Pendekatan: kode di-deploy via git pull di server, bukan lewat image build.
+# - Source code: bind mount dari /data/code → container membaca langsung dari disk server
+# - Dependencies: named volume (vendor, node_modules) — persist antar deploy,
+#   composer install / npm ci hanya download diff-nya saja
+# - Vite build output: named volume vite_build — persist, rebuild hanya jika asset berubah
+# - .env & storage: bind mount eksplisit (backward compat dengan path lama /data/code/...)
+#
+# Server prerequisites (one-time):
+#   git clone <repo> /data/code
+#   cp /data/code/backend/env.txt /data/code/.env   # lalu isi nilai production
+#   mkdir -p /data/code/storage/logs /data/code/storage/framework/{cache/data,sessions,views}
+#   mkdir -p /data/code/storage/app/{public,private}
+#   docker-compose run --rm --no-deps arkav-hcm bash -c \
+#     "cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts"
+#   docker-compose run --rm --no-deps arkav-hcm bash -c \
+#     "cd /app/backend && npm ci && npm run build"
+#   docker-compose up -d
+
+version: "3.9"
+
+services:
+  arkav-hcm:
+    image: tyomboreinz/php-npm
+    container_name: arkav-hcm
+    restart: always
+    working_dir: /app
+    ports:
+      - "8007:8007"
+      - "5179:5179"
+    volumes:
+      # ---------- Source code: bind mount (git pull → langsung terbaca tanpa rebuild) ----------
+      - /data/code/backend:/app/backend
+      - /data/code/frontend:/app/frontend
+      - /data/code/run.sh:/app/run.sh:ro
+
+      # ---------- Secrets & runtime storage (backward compat: path lama /data/code/) ----------
+      # .env: disimpan terpisah dari kode repo (tidak di-commit ke git)
+      - /data/code/.env:/app/backend/.env
+      # storage: logs, sessions, uploads, cache runtime — override path dalam backend bind
+      - /data/code/storage:/app/backend/storage
+
+      # ---------- Dependency named volumes (overlay di atas backend bind mount) ----------
+      # Persist antar deploy; hanya download package baru saat lock file berubah
+      - vendor_data:/app/backend/vendor
+      - npm_modules:/app/backend/node_modules
+      # Vite build output — persist; npm run build hanya re-run jika ada perubahan asset
+      - vite_build:/app/backend/public/build
+
+    command: ["bash", "/app/run.sh"]
+
+volumes:
+  # PHP Composer vendor — persist, tidak perlu full reinstall setiap deploy
+  vendor_data:
+    driver: local
+
+  # Node modules — persist, npm ci hanya install diff dari lock file
+  npm_modules:
+    driver: local
+
+  # Vite/npm build output (public/build/) — persist antar deploy
+  vite_build:
+    driver: local

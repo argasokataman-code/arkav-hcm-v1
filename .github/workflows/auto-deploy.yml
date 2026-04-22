@@ -83,6 +83,14 @@ jobs:
               -v arkav_vite_build:/app/backend/public/build \
               ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
 
+            # Hard check: pastikan container benar-benar running sebelum lanjut.
+            running_state=$(docker inspect -f '{{.State.Running}}' arkav-hcm 2>/dev/null || echo "false")
+            if [[ "$running_state" != "true" ]]; then
+              echo "[deploy] container arkav-hcm tidak running setelah docker run" >&2
+              docker logs --tail 300 arkav-hcm || true
+              exit 1
+            fi
+
             changed() { [ -z "$PREV" ] || git diff --name-only "$PREV" "$CURR" | grep -qE "$1"; }
 
             if changed "backend/composer\\.lock" || [ ! -d backend/vendor ]; then
@@ -121,6 +129,15 @@ jobs:
 
             if [[ "$backend_ok" != true || "$frontend_ok" != true ]]; then
               echo "[deploy] health check GAGAL: backend=$backend_ok frontend=$frontend_ok" >&2
+              docker logs --tail 300 arkav-hcm || true
+              exit 1
+            fi
+
+            # Hard check kedua: validasi status akhir container setelah inisialisasi.
+            final_running_state=$(docker inspect -f '{{.State.Running}}' arkav-hcm 2>/dev/null || echo "false")
+            restart_count=$(docker inspect -f '{{.RestartCount}}' arkav-hcm 2>/dev/null || echo "unknown")
+            if [[ "$final_running_state" != "true" ]]; then
+              echo "[deploy] container arkav-hcm tidak running setelah init (restart_count=$restart_count)" >&2
               docker logs --tail 300 arkav-hcm || true
               exit 1
             fi

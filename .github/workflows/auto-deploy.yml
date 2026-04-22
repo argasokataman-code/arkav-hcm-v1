@@ -95,5 +95,5 @@ jobs:
               exit 1
             fi
 
-            docker image prune -f || true
+            docker image prune -a -f
           EOF

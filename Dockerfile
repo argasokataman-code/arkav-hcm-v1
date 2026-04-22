@@ -8,6 +8,8 @@
 #   DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 .
 
 FROM tyomboreinz/php-npm
+LABEL org.opencontainers.image.title="arkav-hcm-runtime"
+LABEL org.opencontainers.image.description="Runtime image with composer dependencies prepared at build time"
 
 WORKDIR /app
 

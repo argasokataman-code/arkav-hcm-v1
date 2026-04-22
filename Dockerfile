@@ -30,5 +30,6 @@ RUN cd /app/backend \
 # 5. Fix ownership
 RUN chown -R www-data:www-data /app \
     && chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache
+
 EXPOSE 8007
 CMD ["bash", "run.sh"]

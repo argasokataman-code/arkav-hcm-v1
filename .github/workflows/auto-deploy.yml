@@ -43,17 +43,25 @@ jobs:
             mkdir -p /data/code/storage/app/public
             mkdir -p /data/code/storage/app/private
 
-            # --- 2. Clone jika belum ada, pull jika sudah ada ---
+            # --- 2. Clone jika belum ada, init in-place jika dir ada tapi bukan repo, pull jika sudah repo ---
             if [ ! -d /data/code/.git ]; then
-              echo "[deploy] First deploy: git clone..."
-              git clone "$REPO_URL" /data/code
+              if [ -d /data/code ] && [ "$(ls -A /data/code 2>/dev/null)" ]; then
+                echo "[deploy] /data/code exists but is not a git repo — initializing in-place..."
+                cd /data/code
+                git init
+                git remote add origin "$REPO_URL"
+              else
+                echo "[deploy] First deploy: git clone..."
+                git clone "$REPO_URL" /data/code
+                cd /data/code
+              fi
             else
-              echo "[deploy] git pull origin main..."
               cd /data/code
               git remote set-url origin "$REPO_URL"
-              git fetch origin main
-              git reset --hard origin/main
             fi
+            # Sync ke latest main (berlaku untuk semua kasus di atas)
+            git fetch origin main
+            git reset --hard origin/main
 
             cd /data/code
 

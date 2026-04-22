@@ -69,14 +69,7 @@ jobs:
             mkdir -p /data/code/storage/app/private
 
             docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
-            changed() { [ -z "$PREV" ] || git diff --name-only "$PREV" "$CURR" | grep -qE "$1"; }
-
-            frontend_needed=false
-            if changed "backend/package-lock\\.json|backend/resources|backend/vite\\.config\\.js|backend/tailwind"; then
-              frontend_needed=true
-            fi
-
-            echo "[deploy] jalankan init container (deps/build/cache/migrate)"
+            echo "[deploy] jalankan init container (cache/migrate)"
             docker rm -f arkav-hcm-init || true
             docker run --rm --name arkav-hcm-init \
               -v /data/code/backend:/app/backend \
@@ -87,22 +80,10 @@ jobs:
               -v arkav_vendor_data:/app/backend/vendor \
               -v arkav_npm_modules:/app/backend/node_modules \
               -v arkav_vite_build:/app/backend/public/build \
-              -e FRONTEND_NEEDED="$frontend_needed" \
               ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest bash -c '
                 set -euo pipefail
                 cd /app/backend
                 mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache
-
-                if [[ "$FRONTEND_NEEDED" == "true" || ! -f public/build/manifest.json ]]; then
-                  echo "[deploy] install frontend deps && npm run build"
-                  if [[ -f package-lock.json ]]; then
-                    npm ci
-                  else
-                    npm install
-                  fi
-                  npm run build
-                fi
-
                 chmod -R ug+rwX storage bootstrap/cache
                 php artisan config:clear
                 php artisan view:clear

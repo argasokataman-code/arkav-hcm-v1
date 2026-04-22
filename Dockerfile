@@ -19,7 +19,7 @@ COPY backend/package.json backend/package-lock.json backend/
 
 RUN cd /app/backend \
     && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts \
-    && npm install
+    && npm ci
 
 # Copy seluruh project
 COPY . .

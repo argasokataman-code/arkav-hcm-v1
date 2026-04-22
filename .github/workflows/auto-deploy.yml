@@ -1,8 +1,7 @@
-# Arsitektur deploy: volume-based (tidak ada image build/push per commit)
-# Kode di-deploy via git clone/pull di server. Vendor & node_modules persist di named volume.
-# Estimasi waktu deploy: ~2-4 menit (vs ~15-20 menit sebelumnya).
-
 name: Deploy Arkav HCM
+
+# Strategi deploy dipertahankan: build -> push -> pull -> run.
+# Optimasi: gunakan Buildx cache agar build image jauh lebih cepat.
 
 on:
   push:
@@ -11,11 +10,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -24,141 +24,107 @@ jobs:
       - name: Validate deploy runtime guard
         run: bash scripts/check-deploy-runtime-guard.sh
 
-      - name: Deploy to server via SSH
-        env:
-          REPO_URL: "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-server:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
         run: |
           echo "${{ secrets.VPS_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} \
-            REPO_URL="$REPO_URL" \
-            bash << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem \
+              -p ${{ secrets.VPS_PORT }} \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} << 'SSHEOF'
             set -euo pipefail
-            DEPLOY_DIR="${DEPLOY_DIR:-$HOME/arkav-hcm}"
+            cd /data/code
 
-            # --- 1. Pastikan host storage dirs ada (runtime guard wajib) ---
-            mkdir -p /data/code/storage/logs || true
-            mkdir -p /data/code/storage/framework/cache/data || true
-            mkdir -p /data/code/storage/framework/sessions || true
-            mkdir -p /data/code/storage/framework/views || true
-            mkdir -p /data/code/storage/app/public || true
-            mkdir -p /data/code/storage/app/private || true
+            PREV=$(git rev-parse HEAD 2>/dev/null || echo "")
+            git pull origin main
+            CURR=$(git rev-parse HEAD)
 
-            # --- 2. Pastikan deploy dir writable oleh user SSH saat ini ---
-            mkdir -p "$DEPLOY_DIR"
-            if [ ! -w "$DEPLOY_DIR" ]; then
-              echo "[deploy] ERROR: DEPLOY_DIR is not writable: $DEPLOY_DIR"
-              exit 1
+            mkdir -p /data/code/storage/logs
+            mkdir -p /data/code/storage/framework/cache/data
+            mkdir -p /data/code/storage/framework/sessions
+            mkdir -p /data/code/storage/framework/views
+            mkdir -p /data/code/storage/app/public
+            mkdir -p /data/code/storage/app/private
+
+            docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+            docker rm -f arkav-hcm || true
+            docker run -d --name arkav-hcm --restart always \
+              -p 8007:8007 -p 5179:5179 \
+              -v /data/code/backend:/app/backend \
+              -v /data/code/frontend:/app/frontend \
+              -v /data/code/run.sh:/app/run.sh:ro \
+              -v /data/code/.env:/app/backend/.env \
+              -v /data/code/storage:/app/backend/storage \
+              -v arkav_vendor_data:/app/backend/vendor \
+              -v arkav_npm_modules:/app/backend/node_modules \
+              -v arkav_vite_build:/app/backend/public/build \
+              ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+
+            changed() { [ -z "$PREV" ] || git diff --name-only "$PREV" "$CURR" | grep -qE "$1"; }
+
+            if changed "backend/composer\\.lock" || [ ! -d backend/vendor ]; then
+              echo "[deploy] composer.lock berubah, jalankan composer install"
+              docker exec arkav-hcm bash -c \
+                "cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts"
             fi
 
-            # --- 3. Clone jika belum ada, init in-place jika dir ada tapi bukan repo, pull jika sudah repo ---
-            if [ ! -d "$DEPLOY_DIR/.git" ]; then
-              if [ -d "$DEPLOY_DIR" ] && [ "$(ls -A "$DEPLOY_DIR" 2>/dev/null)" ]; then
-                echo "[deploy] $DEPLOY_DIR exists but is not a git repo — initializing in-place..."
-                cd "$DEPLOY_DIR"
-                git init
-                git remote add origin "$REPO_URL"
-              else
-                echo "[deploy] First deploy: git clone..."
-                git clone "$REPO_URL" "$DEPLOY_DIR"
-                cd "$DEPLOY_DIR"
-              fi
-            else
-              cd "$DEPLOY_DIR"
-              git remote set-url origin "$REPO_URL"
-            fi
-            # Sync ke latest main (berlaku untuk semua kasus di atas)
-            git fetch origin main
-            git reset --hard origin/main
-
-            cd "$DEPLOY_DIR"
-
-            # --- Compose command compatibility: plugin vs legacy binary ---
-            if docker compose version >/dev/null 2>&1; then
-              COMPOSE_CMD="docker compose"
-            elif command -v docker-compose >/dev/null 2>&1; then
-              COMPOSE_CMD="docker-compose"
-            else
-              echo "[deploy] ERROR: docker compose/docker-compose not found on server." >&2
-              exit 1
+            if changed "backend/package-lock\\.json|backend/resources|backend/vite\\.config\\.js|backend/tailwind" \
+               || [ ! -d backend/public/build ]; then
+              echo "[deploy] frontend berubah, jalankan npm ci && npm run build"
+              docker exec arkav-hcm bash -c \
+                "cd /app/backend && npm ci && npm run build"
             fi
 
-            # --- 3. PHP deps ke named volume (cepat: hanya download package baru) ---
-            echo "[deploy] composer install (diff only)..."
-            $COMPOSE_CMD run --rm --no-deps arkav-hcm \
-              bash -c "cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts && php artisan package:discover --ansi"
+            docker exec arkav-hcm bash -c "
+              cd /app/backend
+              mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache
+              chmod -R ug+rwX storage bootstrap/cache
+              php artisan config:clear
+              php artisan view:clear
+              php artisan config:cache
+              php artisan route:cache
+              php artisan view:cache
+              php artisan migrate --force
+            "
 
-            # --- 4. Node deps + Vite build ke named volume (cepat: npm ci diff) ---
-            echo "[deploy] npm ci + npm run build..."
-            $COMPOSE_CMD run --rm --no-deps arkav-hcm \
-              bash -c "cd /app/backend && npm ci && npm run build"
-
-            # --- 5. Restart container (kode baru terbaca via volume, no image rebuild) ---
-            echo "[deploy] docker-compose up -d..."
-            $COMPOSE_CMD up -d --force-recreate arkav-hcm
-
-            # --- 6. Runtime dirs + artisan commands ---
-            sleep 5
-            $COMPOSE_CMD exec -T arkav-hcm bash -c "cd /app/backend \
-              && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache \
-              && chmod -R ug+rwX storage bootstrap/cache \
-              && php artisan config:clear \
-              && php artisan view:clear \
-              && php artisan config:cache \
-              && php artisan route:cache \
-              && php artisan view:cache \
-              && php artisan migrate --force"
-
-            # --- 7. Health check (backend + frontend) ---
             backend_ok=false
             frontend_ok=false
             for i in $(seq 1 30); do
               curl -fsS http://127.0.0.1:8007/health >/dev/null 2>&1 && backend_ok=true
-              curl -fsS http://127.0.0.1:5179/ >/dev/null 2>&1 && frontend_ok=true
+              curl -fsS http://127.0.0.1:5179/       >/dev/null 2>&1 && frontend_ok=true
               [[ "$backend_ok" == true && "$frontend_ok" == true ]] && break
               sleep 2
             done
 
             if [[ "$backend_ok" != true || "$frontend_ok" != true ]]; then
-              echo "[deploy] Health check FAILED: backend=$backend_ok frontend=$frontend_ok" >&2
-              $COMPOSE_CMD logs --tail 300 arkav-hcm || true
+              echo "[deploy] health check GAGAL: backend=$backend_ok frontend=$frontend_ok" >&2
+              docker logs --tail 300 arkav-hcm || true
               exit 1
             fi
 
-            # --- 8. Edge proxy check (hindari 502 setelah deploy selesai) ---
-            if command -v nginx >/dev/null 2>&1; then
-              echo "[deploy] validating nginx and edge endpoint..."
-
-              if sudo -n true >/dev/null 2>&1; then
-                sudo -n nginx -t || true
-                sudo -n systemctl reload nginx || sudo -n nginx -s reload || true
-              else
-                nginx -t || true
-                systemctl reload nginx || nginx -s reload || true
-              fi
-
-              edge_ok=false
-              for i in $(seq 1 15); do
-                if curl -fsS http://127.0.0.1/ >/dev/null 2>&1; then
-                  edge_ok=true
-                  break
-                fi
-                sleep 2
-              done
-
-              if [[ "$edge_ok" != true ]]; then
-                echo "[deploy] Edge check FAILED (127.0.0.1 returned non-2xx/timeout). Potential 502." >&2
-                if sudo -n true >/dev/null 2>&1; then
-                  sudo -n tail -n 200 /var/log/nginx/error.log || true
-                else
-                  tail -n 200 /var/log/nginx/error.log || true
-                fi
-                $COMPOSE_CMD logs --tail 300 arkav-hcm || true
-                exit 1
-              fi
-            else
-              echo "[deploy] nginx not found on server; skipping edge proxy check."
-            fi
-
-            echo "[deploy] Deploy successful!"
-          EOF
+            docker image prune -a -f
+            echo "[deploy] selesai"
+          SSHEOF

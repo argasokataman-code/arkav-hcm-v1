@@ -18,6 +18,11 @@ COPY backend/composer.json backend/composer.lock /app/backend/
 RUN cd /app/backend \
     && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts
 
+# Install dependency Node.js saat docker build.
+COPY backend/package*.json /app/backend/
+RUN cd /app/backend \
+    && if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
 # Buat runtime directory Laravel agar container bisa start tanpa error permission
 # bahkan sebelum storage bind-mount dari host ter-attach.
 RUN mkdir -p backend/storage/logs \

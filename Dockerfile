@@ -1,19 +1,17 @@
+# Dockerfile – Minimal runtime image
+#
+# Deploy primer pakai docker-compose.yml + volume (lihat docker-compose.yml).
+# Image ini hanya dipakai sebagai base runtime; source code, vendor, dan
+# node_modules datang dari volume — tidak perlu COPY atau install di sini.
+#
+# Untuk custom image build (opsional), uncomment bagian yang diperlukan.
+
 FROM tyomboreinz/php-npm
 
 WORKDIR /app
 
-COPY . .
+# Tidak ada COPY source atau RUN composer/npm install di sini.
+# Semua itu ditangani di CI/CD via docker-compose run + named volumes.
 
-RUN mkdir -p /app/backend/bootstrap/cache && \
-    chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache && \
-    cd /app/backend && mv env.txt .env && \
-    composer install --no-dev --optimize-autoloader --ignore-platform-req=php && \
-    npm install && \
-    php artisan key:generate && \
-    npm run build
-
-RUN chown -R www-data:www-data /app
-
-EXPOSE 8007
-
-CMD ["bash", "run.sh"]
+EXPOSE 8007 5179
+CMD ["bash", "/app/run.sh"]

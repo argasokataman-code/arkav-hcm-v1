@@ -1,5 +1,5 @@
-# Arsitektur deploy baru: volume-based (tidak ada image build/push per commit)
-# Kode di-deploy via git pull di server. Vendor & node_modules persist di named volume.
+# Arsitektur deploy: volume-based (tidak ada image build/push per commit)
+# Kode di-deploy via git clone/pull di server. Vendor & node_modules persist di named volume.
 # Estimasi waktu deploy: ~2-4 menit (vs ~15-20 menit sebelumnya).
 
 name: Deploy Arkav HCM
@@ -25,10 +25,14 @@ jobs:
         run: bash scripts/check-deploy-runtime-guard.sh
 
       - name: Deploy to server via SSH
+        env:
+          REPO_URL: "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
         run: |
           echo "${{ secrets.VPS_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} \
+            REPO_URL="$REPO_URL" \
+            bash << 'EOF'
             set -euo pipefail
 
             # --- 1. Pastikan host storage dirs ada (runtime guard wajib) ---
@@ -39,11 +43,19 @@ jobs:
             mkdir -p /data/code/storage/app/public
             mkdir -p /data/code/storage/app/private
 
-            cd /data/code
+            # --- 2. Clone jika belum ada, pull jika sudah ada ---
+            if [ ! -d /data/code/.git ]; then
+              echo "[deploy] First deploy: git clone..."
+              git clone "$REPO_URL" /data/code
+            else
+              echo "[deploy] git pull origin main..."
+              cd /data/code
+              git remote set-url origin "$REPO_URL"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
 
-            # --- 2. Pull latest code (tidak ada image rebuild) ---
-            echo "[deploy] git pull origin main..."
-            git pull origin main
+            cd /data/code
 
             # --- 3. PHP deps ke named volume (cepat: hanya download package baru) ---
             echo "[deploy] composer install (diff only)..."
@@ -55,13 +67,21 @@ jobs:
             docker-compose run --rm --no-deps arkav-hcm \
               bash -c "cd /app/backend && npm ci && npm run build"
 
-            # --- 5. Restart container (kode baru sudah terbaca via volume, no rebuild) ---
+            # --- 5. Restart container (kode baru terbaca via volume, no image rebuild) ---
             echo "[deploy] docker-compose up -d..."
             docker-compose up -d --force-recreate arkav-hcm
 
             # --- 6. Runtime dirs + artisan commands ---
             sleep 5
-            docker-compose exec -T arkav-hcm bash -c "cd /app/backend && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache && chmod -R ug+rwX storage bootstrap/cache && php artisan config:clear && php artisan view:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force"
+            docker-compose exec -T arkav-hcm bash -c "cd /app/backend \
+              && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache \
+              && chmod -R ug+rwX storage bootstrap/cache \
+              && php artisan config:clear \
+              && php artisan view:clear \
+              && php artisan config:cache \
+              && php artisan route:cache \
+              && php artisan view:cache \
+              && php artisan migrate --force"
 
             # --- 7. Health check (backend + frontend) ---
             backend_ok=false
@@ -79,17 +99,5 @@ jobs:
               exit 1
             fi
 
-            echo "[deploy] Deploy successful!"            if [[ "$backend_ok" == true && "$frontend_ok" == true ]]; then
-                break
-              fi
-              sleep 2
-            done
-
-            if [[ "$backend_ok" != true || "$frontend_ok" != true ]]; then
-              echo "[deploy] health check failed: backend_ok=$backend_ok frontend_ok=$frontend_ok" >&2
-              docker logs --tail 300 arkav-hcm || true
-              exit 1
-            fi
-
-            docker image prune -f || true
+            echo "[deploy] Deploy successful!"
           EOF

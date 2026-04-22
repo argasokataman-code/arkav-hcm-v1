@@ -500,7 +500,7 @@ class HcmTicketController extends Controller
             return $this->forbidden();
         }
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120', 'unique:ticket_categories,name'],
+            'name' => ['required', 'string', 'max:120', Rule::unique('ticket_categories', 'name')],
             'isActive' => ['nullable', 'boolean'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:100000'],
         ]);
@@ -519,7 +519,7 @@ class HcmTicketController extends Controller
         }
         $row = TicketCategory::query()->findOrFail($id);
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:120', 'unique:ticket_categories,name,'.$id],
+            'name' => ['required', 'string', 'max:120', Rule::unique('ticket_categories', 'name')->ignore($id)],
             'isActive' => ['nullable', 'boolean'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:100000'],
         ]);

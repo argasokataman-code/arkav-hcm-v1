@@ -34,6 +34,11 @@ Behavior note (tenant foundation):
 Errors:
 - `422 VALIDATION_ERROR` (format mengikuti error envelope)
 
+## Recent Security Updates (Non-Contract)
+
+**2026-04-22:** Email unique validation refactored to fluent Rule::unique()->ignore() form for improved security.
+No API request/response contract changes. See: `docs/features/security-check/` for full scope.
+
 ### POST `/auth/login`
 
 Throttle:

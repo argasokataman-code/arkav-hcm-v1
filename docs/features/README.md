@@ -56,6 +56,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 35 | Landing Pages (Marketing) | 🚧 In Progress | [→](landing-pages/) | [📘 Implementation](landing-pages/IMPLEMENTATION.md) | [🧪 E2E Testing](landing-pages/E2E-TESTING.md) |
 | 36 | Trial & Billing Dashboard | 🚧 Planning | [→](trial-billing-dashboard/) | [📘 Implementation](trial-billing-dashboard/IMPLEMENTATION.md) | [🧪 E2E Testing](trial-billing-dashboard/E2E-TESTING.md) |
 | 37 | Mock Payment (Dev) | ✅ Dev Ready | [→](mock-payment/) | [📘 Implementation](mock-payment/IMPLEMENTATION.md) | [🧭 Tracker](mock-payment/tracker.md), [⚡ Quick Guide](../MOCK-PAYMENT-GATEWAY-GUIDE.md) |
+| **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
 

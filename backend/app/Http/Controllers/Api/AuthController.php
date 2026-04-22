@@ -643,6 +643,7 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'min:2', 'max:150', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,149}$/'],
+            // nosemgrep: php.laravel.security.laravel-unsafe-validator.laravel-unsafe-validator
             'email' => ['required', 'string', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],

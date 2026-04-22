@@ -220,7 +220,7 @@ class PackageController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'required|string|unique:packages|max:50',
+            'code' => ['required', 'string', Rule::unique('packages', 'code'), 'max:50'],
             'name' => 'required|string|max:100',
             'description' => 'nullable|string',
             'monthly_price' => 'required|numeric|min:0',
@@ -264,7 +264,7 @@ class PackageController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'sometimes|string|unique:packages,code,' . $package->uuid . ',uuid|max:50',
+            'code' => ['sometimes', 'string', Rule::unique('packages', 'code')->ignore($package->uuid, 'uuid'), 'max:50'],
             'name' => 'sometimes|string|max:100',
             'description' => 'nullable|string',
             'monthly_price' => 'sometimes|numeric|min:0',

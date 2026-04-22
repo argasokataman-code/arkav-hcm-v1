@@ -193,7 +193,7 @@ class CompanyController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'required|string|unique:companies,code|max:100',
+            'code' => ['required', 'string', Rule::unique('companies', 'code'), 'max:100'],
             'name' => 'required|string|max:255',
             'legal_name' => 'nullable|string|max:255',
             'status' => 'required|in:active,inactive',
@@ -244,7 +244,7 @@ class CompanyController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'sometimes|string|unique:companies,code,' . $id . '|max:100',
+            'code' => ['sometimes', 'string', Rule::unique('companies', 'code')->ignore($id), 'max:100'],
             'name' => 'sometimes|string|max:255',
             'legal_name' => 'nullable|string|max:255',
             'status' => 'sometimes|in:active,inactive',

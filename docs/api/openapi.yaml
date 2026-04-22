@@ -23,6 +23,11 @@ info:
     tertentu; header tetap dihormati untuk memilih tenant aktif. Fallback
     bootstrap `config('hcm.admin_email')` tetap ada untuk fresh-install
     sebelum backfill migrasi selesai.
+
+    ## Recent Security Updates (Non-Contract)
+
+    **2026-04-22 (Cycles 0-4):** Security hardening via unique validation refactoring, secret containment, dependency remediation (npm audit 0), SAST gate enforcement.
+    No API contract/response shape changes. See: `docs/features/security-check/` for full scope.
 servers:
   # Local backend (Laravel artisan serve via ./run.sh)
   - url: http://127.0.0.1:8007

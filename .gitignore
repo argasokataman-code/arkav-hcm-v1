@@ -42,6 +42,9 @@ backend/public/storage
 backend/.env
 backend/.env.*
 
+# Sensitive key material
+backend/fileconfig/key.pem
+
 # Test / coverage
 coverage/
 backend/coverage/

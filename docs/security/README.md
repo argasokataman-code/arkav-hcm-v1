@@ -10,6 +10,7 @@ Folder ini mengumpulkan **inventaris permukaan serangan**, **kebijakan guard**, 
 | [hcm-web-route-guard.md](./hcm-web-route-guard.md) | Middleware web, whitelist publik tunggal, 404 tamu |
 | [hardening-recommendations.md](./hardening-recommendations.md) | Langkah lanjutan (WAF, rate limit, secret, CSP, dll.) |
 | [headers-and-client-hardening.md](./headers-and-client-hardening.md) | Security headers global + catatan geolocation / iframe |
+| **[Security Check SOP](../features/security-check/)** | **3-tier gate system:** pre-push (manual), pre-merge (CI), pre-release (DAST). Cycles 0-4 complete: secret containment, validation hardening, npm audit → 0, SAST gates. |
 
 ## Checklist kesadaran develop (ringkas)
 

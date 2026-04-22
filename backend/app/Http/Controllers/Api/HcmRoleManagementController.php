@@ -64,7 +64,7 @@ class HcmRoleManagementController extends Controller
 
         $validated = $request->validate([
             'company_id' => 'nullable|uuid|exists:companies,uuid',
-            'code' => 'required|string|max:80|unique:hcm_roles,code,NULL,id,company_id,' . $request->company_id,
+            'code' => ['required', 'string', 'max:80', Rule::unique('hcm_roles', 'code')->where('company_id', $request->company_id)],
             'name' => 'required|string|max:150',
             'description' => 'nullable|string|max:2000',
             'permission_codes' => 'array',

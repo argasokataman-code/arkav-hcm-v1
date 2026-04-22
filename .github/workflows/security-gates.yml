@@ -1,0 +1,48 @@
+name: Security Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          source: .
+          redact: true
+          verbose: true
+
+      - name: Run Semgrep (ERROR severity)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+            p/cwe-top-25
+          generateSarif: false
+          args: --severity ERROR backend/app/Http/Controllers/ backend/routes/ frontend/resources/js/ frontend/resources/ts/ --exclude=vendor --exclude=node_modules --exclude=public/build
+        env:
+          SEMGREP_BASELINE_COMMIT: origin/main
+
+      - name: Run Composer audit
+        run: |
+          cd backend
+          if [ -f composer.lock ]; then
+            composer install --no-interaction
+            composer audit --locked
+          fi
+
+      - name: Run npm audit
+        run: |
+          cd backend
+          npm audit --audit-level=high

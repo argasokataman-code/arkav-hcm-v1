@@ -43,9 +43,18 @@ jobs:
             mkdir -p /data/code/storage/app/public
             mkdir -p /data/code/storage/app/private
 
-            # --- 2. Pastikan /data/code dimiliki user SSH saat ini ---
-            sudo mkdir -p /data/code
-            sudo chown -R "$(whoami):$(whoami)" /data/code
+            # --- 2. Pastikan /data/code dapat ditulis oleh user SSH saat ini ---
+            mkdir -p /data/code || {
+              echo "[deploy] ERROR: Cannot create /data/code. Run once on server as root:"
+              echo "  sudo mkdir -p /data/code && sudo chown -R \$USER:\$USER /data/code"
+              exit 1
+            }
+            # Jika dir ada tapi tidak bisa ditulis, beri hint tanpa sudo
+            if [ ! -w /data/code ]; then
+              echo "[deploy] ERROR: /data/code is not writable by $(whoami). Run once on server as root:"
+              echo "  sudo chown -R $(whoami):$(whoami) /data/code"
+              exit 1
+            fi
 
             # --- 3. Clone jika belum ada, init in-place jika dir ada tapi bukan repo, pull jika sudah repo ---
             if [ ! -d /data/code/.git ]; then

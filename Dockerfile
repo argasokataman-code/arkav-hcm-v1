@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache && \
+RUN mkdir -p /app/backend/bootstrap/cache && \
+    chmod -R 755 /app/backend/storage /app/backend/bootstrap/cache && \
     cd /app/backend && mv env.txt .env && \
     composer install --no-dev --optimize-autoloader --ignore-platform-req=php && \
     npm install && \

@@ -59,8 +59,7 @@ jobs:
             cd /data/code
 
             PREV=$(git rev-parse HEAD 2>/dev/null || echo "")
-            git pull origin main
-            CURR=$(git rev-parse HEAD)
+            CURR=$(git rev-parse HEAD 2>/dev/null || echo "")
 
             mkdir -p /data/code/storage/logs
             mkdir -p /data/code/storage/framework/cache/data

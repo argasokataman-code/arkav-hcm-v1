@@ -69,6 +69,55 @@ jobs:
             mkdir -p /data/code/storage/app/private
 
             docker pull ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest
+            changed() { [ -z "$PREV" ] || git diff --name-only "$PREV" "$CURR" | grep -qE "$1"; }
+
+            composer_needed=false
+            if changed "backend/composer\\.lock"; then
+              composer_needed=true
+            fi
+
+            frontend_needed=false
+            if changed "backend/package-lock\\.json|backend/resources|backend/vite\\.config\\.js|backend/tailwind"; then
+              frontend_needed=true
+            fi
+
+            echo "[deploy] jalankan init container (deps/build/cache/migrate)"
+            docker run --rm --name arkav-hcm-init \
+              -v /data/code/backend:/app/backend \
+              -v /data/code/frontend:/app/frontend \
+              -v /data/code/run.sh:/app/run.sh:ro \
+              -v /data/code/.env:/app/backend/.env \
+              -v /data/code/storage:/app/backend/storage \
+              -v arkav_vendor_data:/app/backend/vendor \
+              -v arkav_npm_modules:/app/backend/node_modules \
+              -v arkav_vite_build:/app/backend/public/build \
+              -e COMPOSER_NEEDED="$composer_needed" \
+              -e FRONTEND_NEEDED="$frontend_needed" \
+              ghcr.io/${{ github.repository_owner }}/arkav-hcm:latest bash -c '
+                set -euo pipefail
+                cd /app/backend
+                mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache
+
+                if [[ "$COMPOSER_NEEDED" == "true" || ! -f vendor/autoload.php ]]; then
+                  echo "[deploy] composer install"
+                  composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts
+                fi
+
+                if [[ "$FRONTEND_NEEDED" == "true" || ! -f public/build/manifest.json ]]; then
+                  echo "[deploy] npm ci && npm run build"
+                  npm ci
+                  npm run build
+                fi
+
+                chmod -R ug+rwX storage bootstrap/cache
+                php artisan config:clear
+                php artisan view:clear
+                php artisan config:cache
+                php artisan route:cache
+                php artisan view:cache
+                php artisan migrate --force
+              '
+
             docker rm -f arkav-hcm || true
             docker run -d --name arkav-hcm --restart always \
               -p 8007:8007 -p 5179:5179 \
@@ -89,33 +138,6 @@ jobs:
               docker logs --tail 300 arkav-hcm || true
               exit 1
             fi
-
-            changed() { [ -z "$PREV" ] || git diff --name-only "$PREV" "$CURR" | grep -qE "$1"; }
-
-            if changed "backend/composer\\.lock" || [ ! -d backend/vendor ]; then
-              echo "[deploy] composer.lock berubah, jalankan composer install"
-              docker exec arkav-hcm bash -c \
-                "cd /app/backend && composer install --no-dev --optimize-autoloader --ignore-platform-req=php --no-scripts"
-            fi
-
-            if changed "backend/package-lock\\.json|backend/resources|backend/vite\\.config\\.js|backend/tailwind" \
-               || [ ! -d backend/public/build ]; then
-              echo "[deploy] frontend berubah, jalankan npm ci && npm run build"
-              docker exec arkav-hcm bash -c \
-                "cd /app/backend && npm ci && npm run build"
-            fi
-
-            docker exec arkav-hcm bash -c "
-              cd /app/backend
-              mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache
-              chmod -R ug+rwX storage bootstrap/cache
-              php artisan config:clear
-              php artisan view:clear
-              php artisan config:cache
-              php artisan route:cache
-              php artisan view:cache
-              php artisan migrate --force
-            "
 
             backend_ok=false
             frontend_ok=false

@@ -43,7 +43,11 @@ jobs:
             mkdir -p /data/code/storage/app/public
             mkdir -p /data/code/storage/app/private
 
-            # --- 2. Clone jika belum ada, init in-place jika dir ada tapi bukan repo, pull jika sudah repo ---
+            # --- 2. Pastikan /data/code dimiliki user SSH saat ini ---
+            sudo mkdir -p /data/code
+            sudo chown -R "$(whoami):$(whoami)" /data/code
+
+            # --- 3. Clone jika belum ada, init in-place jika dir ada tapi bukan repo, pull jika sudah repo ---
             if [ ! -d /data/code/.git ]; then
               if [ -d /data/code ] && [ "$(ls -A /data/code 2>/dev/null)" ]; then
                 echo "[deploy] /data/code exists but is not a git repo — initializing in-place..."

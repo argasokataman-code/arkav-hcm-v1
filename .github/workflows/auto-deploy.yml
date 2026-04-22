@@ -94,8 +94,12 @@ jobs:
                 mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views storage/app/public storage/app/private bootstrap/cache
 
                 if [[ "$FRONTEND_NEEDED" == "true" || ! -f public/build/manifest.json ]]; then
-                  echo "[deploy] npm ci && npm run build"
-                  npm ci
+                  echo "[deploy] install frontend deps && npm run build"
+                  if [[ -f package-lock.json ]]; then
+                    npm ci
+                  else
+                    npm install
+                  fi
                   npm run build
                 fi
 

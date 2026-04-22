@@ -71,8 +71,8 @@ describe('SaaS billing overview wiring', () => {
                 detailUrl: '/saas/billing-overview/invoices/99999999-2222-3333-4444-555555555555',
               },
               email: {
-                status: 'sent',
-                sentAt: '2026-04-16T12:00:00.000000Z',
+                status: 'not_sent',
+                sentAt: null,
                 lastError: null,
               },
               stateBadges: [
@@ -116,6 +116,78 @@ describe('SaaS billing overview wiring', () => {
 
     await vi.waitFor(() => {
       expect(requestMock).toHaveBeenCalledWith('post', '/saas/invoices/99999999-2222-3333-4444-555555555555/send-email', {});
+    });
+  });
+
+  it('hides send-email action when latest email is already sent', async () => {
+    document.body.innerHTML = `
+      <div class="page-wrapper">
+        <div class="content" data-saas-billing-overview-page>
+          <input data-billing-search value="" />
+          <select data-billing-tab>
+            <option value="subscribed" selected>Subscribed</option>
+          </select>
+          <select data-billing-per-page>
+            <option value="15" selected>15</option>
+          </select>
+          <button data-billing-refresh type="button"></button>
+          <button data-billing-prev type="button"></button>
+          <button data-billing-next type="button"></button>
+          <div data-billing-error class="d-none"></div>
+          <div data-billing-pagination-info></div>
+          <table><tbody data-billing-tbody></tbody></table>
+        </div>
+      </div>
+    `;
+
+    const requestMock = window.AuthApi.request;
+    requestMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            company: { id: 3, code: 'SENT01', name: 'Sent Co' },
+            subscription: {
+              id: 13,
+              status: 'active',
+              billingCycle: 'monthly',
+              startsAt: '2026-04-01T00:00:00.000000Z',
+              endsAt: '2026-05-01T00:00:00.000000Z',
+              trialEndsAt: null,
+              planCode: 'pro',
+              packageId: '11111111-2222-3333-4444-555555555555',
+              packageName: 'Pro Plan',
+              amount: 200000,
+            },
+            latestInvoice: {
+              id: 98,
+              uuid: '88888888-2222-3333-4444-555555555555',
+              invoiceNumber: 'INV-000098',
+              issueDate: '2026-04-15',
+              dueDate: '2026-04-22',
+              amountDue: 200000,
+              isPaid: false,
+              status: 'sent',
+              detailUrl: '/saas/billing-overview/invoices/88888888-2222-3333-4444-555555555555',
+            },
+            email: {
+              status: 'sent',
+              sentAt: '2026-04-15T12:00:00.000000Z',
+              lastError: null,
+            },
+            stateBadges: [],
+          },
+        ],
+        pagination: { total: 1, per_page: 15, current_page: 1, last_page: 1 },
+      },
+    });
+
+    await loadBillingOverview();
+    window.SaaSBillingOverview.init();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-billing-tbody]').innerHTML).toContain('Sent Co');
+      expect(document.querySelector('[data-action="resend"]')).toBeNull();
     });
   });
 

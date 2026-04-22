@@ -4,10 +4,12 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Support\CronjobSettings;
 use App\Support\PayrollDraftBuilder;
+use App\Jobs\SendPaymentReminder;
 use App\Jobs\TerminateExpiredSubscriptionsJob;
 use App\Jobs\SuspendServicesForOverdueInvoicesJob;
 use App\Jobs\CheckEmployeeCountLimitsJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
+use App\Jobs\ProcessRecurringSubscriptionBilling;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -17,6 +19,26 @@ Artisan::command('inspire', function () {
     /** @var ClosureCommand $this */
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+$paymentReminder = CronjobSettings::get('payment_reminder');
+$paymentReminderTask = Schedule::job(new SendPaymentReminder())
+    ->name('cronjob-send-payment-reminder')
+    ->description('Dispatch SendPaymentReminder job.')
+    ->timezone((string) ($paymentReminder['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($paymentReminder['time'] ?? '08:00'));
+if (($paymentReminder['enabled'] ?? true) !== true) {
+    $paymentReminderTask->skip(fn (): bool => true);
+}
+
+$wilayahSync = CronjobSettings::get('wilayah_sync');
+$wilayahSyncTask = Schedule::command('wilayah:sync')
+    ->name('cronjob-wilayah-sync')
+    ->description('Sync wilayah.id master data to local DB.')
+    ->timezone((string) ($wilayahSync['timezone'] ?? 'Asia/Jakarta'))
+    ->monthlyOn((int) ($wilayahSync['dayOfMonth'] ?? 1), (string) ($wilayahSync['time'] ?? '01:00'));
+if (($wilayahSync['enabled'] ?? true) !== true) {
+    $wilayahSyncTask->skip(fn (): bool => true);
+}
 
 $payrollRefresh = CronjobSettings::get('payroll_refresh_open_period');
 
@@ -83,43 +105,60 @@ if (($leaveDailyExpire['enabled'] ?? true) !== true) {
 // ============ SAAS SUBSCRIPTION MANAGEMENT ============
 
 // Convert ended trials into pending_payment + invoice
+$convertTrials = CronjobSettings::get('saas_convert_ended_trials');
 $convertTrialsTask = Schedule::call(function () {
     dispatch(new ConvertExpiredTrialsToPendingPaymentJob());
 })->name('saas-convert-ended-trials')
     ->description('Convert ended trials into pending_payment and generate invoices')
-    ->timezone('Asia/Jakarta')
-    ->dailyAt('00:20');
+    ->timezone((string) ($convertTrials['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($convertTrials['time'] ?? '00:20'));
+if (($convertTrials['enabled'] ?? true) !== true) {
+    $convertTrialsTask->skip(fn (): bool => true);
+}
 
 // Auto-terminate subscriptions whose end_date has passed
+$terminateExpired = CronjobSettings::get('saas_terminate_expired_subscriptions');
 $terminateExpiredTask = Schedule::call(function () {
     dispatch(new TerminateExpiredSubscriptionsJob());
 })->name('saas-terminate-expired-subscriptions')
     ->description('Auto-terminate subscriptions with expired end_date')
-    ->timezone('Asia/Jakarta')
-    ->dailyAt('00:30');
-if (!(config('app.saas.auto_termination_enabled', true))) {
+    ->timezone((string) ($terminateExpired['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($terminateExpired['time'] ?? '00:30'));
+if (!(config('app.saas.auto_termination_enabled', true)) || (($terminateExpired['enabled'] ?? true) !== true)) {
     $terminateExpiredTask->skip(fn (): bool => true);
 }
 
-// Suspend services for overdue invoices (7+ days past due)
-// Run twice daily to catch new violations
+// Suspend services for overdue invoices (grace window in job)
+$suspendOverdue = CronjobSettings::get('saas_suspend_overdue_services');
 $suspendOverdueTask = Schedule::call(function () {
     dispatch(new SuspendServicesForOverdueInvoicesJob());
 })->name('saas-suspend-overdue-services')
-    ->description('Auto-suspend services with invoices 7+ days overdue')
-    ->timezone('Asia/Jakarta')
-    ->twiceDaily(6, 18); // 6 AM and 6 PM
-if (!(config('app.saas.auto_suspension_enabled', true))) {
+    ->description('Auto-suspend services with overdue unpaid invoices')
+    ->timezone((string) ($suspendOverdue['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($suspendOverdue['time'] ?? '06:00'));
+if (!(config('app.saas.auto_suspension_enabled', true)) || (($suspendOverdue['enabled'] ?? true) !== true)) {
     $suspendOverdueTask->skip(fn (): bool => true);
 }
 
 // Monitor employee count violations against plan limits
+$checkEmployeeCount = CronjobSettings::get('saas_check_employee_count_limits');
 $checkEmployeeCountTask = Schedule::call(function () {
     dispatch(new CheckEmployeeCountLimitsJob());
 })->name('saas-check-employee-count-limits')
     ->description('Monitor and enforce employee count limits against subscription plans')
-    ->timezone('Asia/Jakarta')
-    ->dailyAt('01:00');
-if (!(config('app.saas.employee_limit_enforcement_enabled', true))) {
+    ->timezone((string) ($checkEmployeeCount['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($checkEmployeeCount['time'] ?? '01:00'));
+if (!(config('app.saas.employee_limit_enforcement_enabled', true)) || (($checkEmployeeCount['enabled'] ?? true) !== true)) {
     $checkEmployeeCountTask->skip(fn (): bool => true);
+}
+
+$recurringBilling = CronjobSettings::get('saas_recurring_billing');
+$recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling())
+    ->name('saas-recurring-billing')
+    ->description('Process subscription renewals and recurring billing tasks')
+    ->timezone((string) ($recurringBilling['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($recurringBilling['time'] ?? '06:00'))
+    ->withoutOverlapping(60);
+if (($recurringBilling['enabled'] ?? true) !== true) {
+    $recurringBillingTask->skip(fn (): bool => true);
 }

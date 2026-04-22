@@ -55,6 +55,16 @@ class Company extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function latestInvoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class)->latestOfMany('id');
+    }
+
     public function activeSubscription(): ?Subscription
     {
         return $this->subscriptions()

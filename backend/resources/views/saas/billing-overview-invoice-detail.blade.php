@@ -20,10 +20,10 @@
 			</div>
 			<div class="d-flex gap-2">
 				<a href="{{ route('saas.billing-overview') }}" class="btn btn-outline-secondary">
-					<i class="ti ti-arrow-left"></i> Kembali ke overview
+					<i class="ti ti-arrow-left"></i> Kembali ke Ringkasan
 				</a>
 				<button type="button" class="btn btn-primary" data-billing-detail-resend>
-					<i class="ti ti-mail-forward"></i> Resend email
+					<i class="ti ti-mail-forward"></i> Kirim Ulang Email
 				</button>
 			</div>
 		</div>

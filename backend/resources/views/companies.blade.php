@@ -135,85 +135,45 @@
                     <h5>Companies List</h5>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                         <div class="me-3">
+                            <input type="text" id="company_search" class="form-control" placeholder="Search name / code / owner email...">
+                        </div>
+                        <div class="me-3">
                             <select id="status_filter" class="form-select">
-                                <input type="text" class="form-control date-range bookingrange" placeholder="dd/mm/yyyy - dd/mm/yyyy">
-                                <span class="input-icon-addon">
-                                    <i class="ti ti-chevron-down"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="dropdown me-3">
-                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                Select Plan
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Advanced</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Basic</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Enterprise</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class=\"me-3\">
-                            <select id=\"status_filter\" class=\"form-select\">
-                                <option value=\"\">All Status</option>
-                                <option value=\"active\">Active</option>
-                                <option value=\"inactive\">Inactive</option>
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
                             </select>
                         </div>
-                        <div class="dropdown">
-                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                Sort By : Last 7 Days
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Recently Added</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Ascending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Desending</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last Month</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1">Last 7 Days</a>
-                                </li>
-                            </ul>
+                        <div>
+                            <button type="button" id="companies_refresh" class="btn btn-white d-inline-flex align-items-center">
+                                <i class="ti ti-refresh me-1"></i>Refresh
+                            </button>
                         </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table">
+                        <table class="table table-hover align-middle mb-0">
                             <thead class="thead-light">
                                 <tr>
-                                    <th class="no-sort">
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox" id="select-all">
-                                        </div>
-                                    </th>
-                                    <th>Company Name</th>
-                                    <th>Email</th>
+                                    <th>Company</th>
+                                    <th>Company Code</th>
+                                    <th>Owner</th>
                                     <th>Legal Name</th>
-									<th>Subscription</th>
+                                    <th>Subscription</th>
+                                    <th>Region & Currency</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="companies_table_body">
-								<tr><td colspan="8" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>
+                                <tr><td colspan="9" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="card-footer d-flex align-items-center justify-content-between">
+                    <div class="card-footer d-flex align-items-center justify-content-between flex-wrap row-gap-2">
+                        <div class="text-muted small" id="companies_table_info">-</div>
                         <div id="companies_pagination"></div>
                     </div>
                 </div>

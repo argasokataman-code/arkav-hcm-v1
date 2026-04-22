@@ -41,13 +41,30 @@ echo "[run.sh] Running pending migrations..."
 cd "$BACKEND_DIR"
 php artisan migrate --force || echo "[run.sh] Migrations already applied or errored"
 
-# Ensure local/dev bootstrap accounts still exist after local DB resets/imports.
-echo "[run.sh] Ensuring development super users are seeded..."
-php artisan db:seed --class=DevelopmentSuperUserSeeder --force
+APP_ENV_RESOLVED="$(php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); echo (string) app()->environment();')"
+DEV_BOOTSTRAP_FLAG="${RUN_DEV_BOOTSTRAP:-auto}"
 
-if ! php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); exit((int) ! App\Models\User::query()->where("email", config("hcm.admin_email"))->exists());' >/dev/null; then
-  echo "[run.sh] configured development super user is missing after seeding." >&2
-  exit 1
+should_run_dev_bootstrap="false"
+if [[ "$DEV_BOOTSTRAP_FLAG" == "true" ]]; then
+  should_run_dev_bootstrap="true"
+elif [[ "$DEV_BOOTSTRAP_FLAG" == "auto" ]]; then
+  case "$APP_ENV_RESOLVED" in
+    local|development|testing)
+      should_run_dev_bootstrap="true"
+      ;;
+  esac
+fi
+
+if [[ "$should_run_dev_bootstrap" == "true" ]]; then
+  echo "[run.sh] Running development bootstrap seeders (APP_ENV=$APP_ENV_RESOLVED)..."
+  php artisan db:seed --class=DevelopmentSuperUserSeeder --force
+
+  if ! php -r 'require "vendor/autoload.php"; $app = require "bootstrap/app.php"; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); $adminEmail = strtolower(trim((string) config("hcm.admin_email"))); if (! Illuminate\Support\Facades\Schema::hasColumn("users", "is_super_admin")) { exit(3); } $user = App\Models\User::query()->whereRaw("LOWER(email) = ?", [$adminEmail])->first(); if (! $user) { exit(1); } exit((int) ! ((bool) ($user->is_super_admin ?? false)));' >/dev/null; then
+    echo "[run.sh] configured development super user must exist and be type-1 (users.is_super_admin=1) after seeding." >&2
+    exit 1
+  fi
+else
+  echo "[run.sh] Skipping development bootstrap seeders (APP_ENV=$APP_ENV_RESOLVED, RUN_DEV_BOOTSTRAP=$DEV_BOOTSTRAP_FLAG)."
 fi
 
 pids=()
@@ -152,6 +169,14 @@ else
   echo "[run.sh] backend health check: FAILED (GET /health)" >&2
   exit 1
 fi
+
+if wait_for_health "http://127.0.0.1:$FRONTEND_PORT/"; then
+  echo "[run.sh] frontend health check: OK"
+else
+  echo "[run.sh] frontend health check: FAILED (GET /)" >&2
+  exit 1
+fi
+
 echo "[run.sh] running in foreground. Press Ctrl+C to stop."
 
 wait

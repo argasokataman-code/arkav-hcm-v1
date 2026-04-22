@@ -29,6 +29,16 @@ class CronjobSettingsWebTest extends TestCase
                         'time' => '09:30',
                         'timezone' => 'UTC',
                     ],
+                    'saas_terminate_expired_subscriptions' => [
+                        'enabled' => '1',
+                        'time' => '02:30',
+                        'timezone' => 'Asia/Jakarta',
+                    ],
+                    'saas_recurring_billing' => [
+                        'enabled' => '1',
+                        'time' => '06:15',
+                        'timezone' => 'UTC',
+                    ],
                     'wilayah_sync' => [
                         'time' => '02:15',
                         'dayOfMonth' => 12,
@@ -39,12 +49,24 @@ class CronjobSettingsWebTest extends TestCase
             ->assertRedirect(route('cronjob'));
 
         $paymentReminder = Setting::get('cronjob_payment_reminder');
+        $saasTerminate = Setting::get('cronjob_saas_terminate_expired_subscriptions');
+        $saasRecurring = Setting::get('cronjob_saas_recurring_billing');
         $wilayahSync = Setting::get('cronjob_wilayah_sync');
 
         $this->assertIsArray($paymentReminder);
         $this->assertSame(true, $paymentReminder['enabled']);
         $this->assertSame('09:30', $paymentReminder['time']);
         $this->assertSame('UTC', $paymentReminder['timezone']);
+
+        $this->assertIsArray($saasTerminate);
+        $this->assertSame(true, $saasTerminate['enabled']);
+        $this->assertSame('02:30', $saasTerminate['time']);
+        $this->assertSame('Asia/Jakarta', $saasTerminate['timezone']);
+
+        $this->assertIsArray($saasRecurring);
+        $this->assertSame(true, $saasRecurring['enabled']);
+        $this->assertSame('06:15', $saasRecurring['time']);
+        $this->assertSame('UTC', $saasRecurring['timezone']);
 
         $this->assertIsArray($wilayahSync);
         $this->assertSame(false, $wilayahSync['enabled']);
@@ -72,7 +94,7 @@ class CronjobSettingsWebTest extends TestCase
                     ],
                 ],
             ])
-            ->assertRedirect(url('lock-screen'));
+            ->assertRedirect(url('employee-dashboard'));
 
         $this->assertNull(Setting::get('cronjob_payment_reminder'));
     }

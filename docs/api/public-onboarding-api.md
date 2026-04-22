@@ -18,6 +18,10 @@ Membuat tenant/company baru beserta owner, lalu memulai subscription:
 - `start_mode=trial` (default): buat subscription `trial`
 - `start_mode=pending_payment`: buat subscription `pending_payment` + buat invoice `draft` dan kirim email invoice async (best-effort)
 
+Catatan window billing:
+- Mode `pending_payment` memakai window pembayaran default **24 jam** sejak registrasi.
+- Invoice awal mode `pending_payment` default `due_date` = **H+1** (tanggal berikutnya).
+
 ### Anti-bruteforce (captcha)
 
 Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:

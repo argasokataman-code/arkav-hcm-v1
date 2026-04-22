@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Carbon\Carbon;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
@@ -288,6 +289,25 @@ class PublicOnboardingApiTest extends TestCase
         $company = Company::query()->where('code', $companyCode)->firstOrFail();
         $this->assertDatabaseHas('subscriptions', ['company_id' => $company->id, 'status' => 'pending_payment']);
         $this->assertDatabaseHas('invoices', ['company_id' => $company->id]);
+
+        $subscription = \App\Models\Subscription::query()
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertTrue(
+            $subscription->ends_at->betweenIncluded(now()->addHours(23), now()->addHours(25)),
+            'Pending payment window should default to around 24 hours after onboarding.'
+        );
+
+        $invoice = Invoice::query()
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame(
+            now()->addDay()->toDateString(),
+            Carbon::parse($invoice->due_date)->toDateString(),
+            'Pending payment invoice due date should default to next day.'
+        );
     }
 
     public function test_duplicate_company_code_is_rejected(): void

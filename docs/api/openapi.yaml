@@ -6360,7 +6360,7 @@ paths:
                         email:
                           type: object
                           properties:
-                            status: { type: string }
+                            status: { type: string, enum: [no_invoice, not_sent, sent, failed] }
                             sentAt: { type: string, format: date-time, nullable: true }
                             lastError: { type: string, nullable: true }
                         stateBadges:

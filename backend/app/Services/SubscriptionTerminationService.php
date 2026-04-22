@@ -168,10 +168,10 @@ class SubscriptionTerminationService
     }
 
     /**
-     * Get subscriptions with overdue invoices (7+ days past due).
+     * Get subscriptions with overdue invoices (1+ day past due by default).
      * Returns array of [subscription, invoice] pairs.
      */
-    public function getSubscriptionsWithOverdueInvoices(int $graceDays = 7): array
+    public function getSubscriptionsWithOverdueInvoices(int $graceDays = 1): array
     {
         $invoices = Invoice::query()
             ->where('is_paid', false)

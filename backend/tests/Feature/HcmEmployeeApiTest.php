@@ -759,6 +759,30 @@ class HcmEmployeeApiTest extends TestCase
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
+    public function test_policies_list_returns_data_with_tenant_context(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $department = Department::query()->firstOrCreate(
+            ['code' => 'POL_DEPT'],
+            ['name' => 'Policy Department', 'is_active' => true],
+        );
+
+        Policy::query()->create([
+            'name' => 'Policy List Record',
+            'description' => 'Policy listing regression check',
+            'department_id' => $department->id,
+            'effective_date' => now()->toDateString(),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
+            ->getJson('/v1/hcm/policies?page=1&perPage=20')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('meta.page', 1)
+            ->assertJsonPath('meta.perPage', 20);
+    }
+
     public function test_bulk_template_and_upload_requires_hcm_admin(): void
     {
         $token = $this->bearerToken(false);

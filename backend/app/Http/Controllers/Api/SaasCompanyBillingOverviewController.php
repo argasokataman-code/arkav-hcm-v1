@@ -32,19 +32,33 @@ class SaasCompanyBillingOverviewController extends Controller
         $tab = $validated['tab'];
         $search = trim((string) ($validated['search'] ?? ''));
 
+        $subscriptionStatusesForTab = $tab === 'trial'
+            ? ['trial']
+            : ['active', 'pending_payment', 'inactive', 'expired', 'cancelled', 'suspended'];
+
         $query = Company::query()
             ->with([
-                'latestSubscription.package',
-                'latestSubscription.latestInvoice.latestEmailLog',
+                'subscriptions' => function ($subQuery) use ($subscriptionStatusesForTab): void {
+                    $subQuery->whereIn('status', $subscriptionStatusesForTab)
+                        ->with(['package', 'latestInvoice.latestEmailLog'])
+                        ->orderByDesc('created_at')
+                        ->orderByDesc('id');
+                },
+                'latestInvoice.latestEmailLog',
             ]);
 
         if ($tab === 'trial') {
-            $query->whereHas('latestSubscription', function ($subQuery): void {
-                $subQuery->where('status', 'trial');
+            $query->whereHas('subscriptions', function ($subQuery) use ($subscriptionStatusesForTab): void {
+                $subQuery->whereIn('status', $subscriptionStatusesForTab);
             });
         } else {
-            $query->whereHas('latestSubscription', function ($subQuery): void {
-                $subQuery->whereIn('status', ['active', 'pending_payment']);
+            $query->where(function ($companyQuery) use ($subscriptionStatusesForTab): void {
+                $companyQuery->whereHas('subscriptions', function ($subQuery) use ($subscriptionStatusesForTab): void {
+                    $subQuery->whereIn('status', $subscriptionStatusesForTab);
+                })->orWhere(function ($legacyCompanyQuery): void {
+                    $legacyCompanyQuery->whereHas('invoices')
+                        ->whereDoesntHave('subscriptions');
+                });
             });
         }
 
@@ -60,12 +74,15 @@ class SaasCompanyBillingOverviewController extends Controller
 
         $rows = collect($companies->items())
             ->map(function (Company $company): array {
-                $subscription = $company->latestSubscription;
+                $subscription = $company->subscriptions->first();
                 $package = $subscription?->package;
-                $invoice = $subscription?->latestInvoice;
+                $invoice = $subscription?->latestInvoice ?? $company->latestInvoice;
                 $emailLog = $invoice?->latestEmailLog;
 
-                $emailStatus = 'not_sent';
+                $emailStatus = 'no_invoice';
+                if ($invoice) {
+                    $emailStatus = 'not_sent';
+                }
                 if ($emailLog) {
                     $emailStatus = $emailLog->status === 'sent' ? 'sent' : 'failed';
                 }
@@ -94,11 +111,13 @@ class SaasCompanyBillingOverviewController extends Controller
                 return [
                     'company' => [
                         'id' => $company?->id,
+                        'uuid' => $company?->uuid,
                         'code' => (string) ($company?->code ?? ''),
                         'name' => (string) ($company?->name ?? ''),
                     ],
                     'subscription' => [
                         'id' => $subscription?->id,
+                        'uuid' => $subscription?->uuid,
                         'status' => (string) ($subscription?->status ?? ''),
                         'billingCycle' => (string) ($subscription?->billing_cycle ?? ''),
                         'startsAt' => $subscription?->starts_at,

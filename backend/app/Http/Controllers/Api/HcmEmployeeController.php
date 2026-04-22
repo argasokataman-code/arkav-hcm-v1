@@ -32,6 +32,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -2061,8 +2062,9 @@ class HcmEmployeeController extends Controller
         $search = $validated['search'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
 
-        $paginator = Policy::query()
-            ->where('company_id', $activeCompanyId)
+        $hasPolicyCompanyColumn = $this->tableHasColumn('policies', 'company_id');
+
+        $policyQuery = Policy::query()
             ->with('department:id,name')
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%')
@@ -2071,8 +2073,13 @@ class HcmEmployeeController extends Controller
             ->when($departmentId, function ($query) use ($departmentId) {
                 $query->where('department_id', (int) $departmentId);
             })
-            ->orderByDesc('id')
-            ->paginate($perPage);
+            ->orderByDesc('id');
+
+        if ($hasPolicyCompanyColumn) {
+            $policyQuery->where('company_id', $activeCompanyId);
+        }
+
+        $paginator = $policyQuery->paginate($perPage);
 
         $rows = $paginator->getCollection()
             ->map(function (Policy $policy) {
@@ -2126,13 +2133,18 @@ class HcmEmployeeController extends Controller
             'attachment' => ['nullable', 'file', 'max:12288', 'mimetypes:application/pdf,image/jpeg,image/png,image/gif,image/webp'],
         ]);
 
-        $policy = Policy::query()->create([
-            'company_id' => $activeCompanyId,
+        $payload = [
             'name' => $validated['name'],
             'description' => $validated['description'],
             'department_id' => $validated['departmentId'] ?? null,
             'effective_date' => $validated['effectiveDate'] ?? now()->toDateString(),
-        ]);
+        ];
+
+        if ($this->tableHasColumn('policies', 'company_id')) {
+            $payload['company_id'] = $activeCompanyId;
+        }
+
+        $policy = Policy::query()->create($payload);
 
         if ($request->hasFile('attachment')) {
             try {
@@ -2168,8 +2180,23 @@ class HcmEmployeeController extends Controller
         $search = $validated['search'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
 
-        $rows = Policy::query()
-            ->with('department:id,name')
+        $policyQuery = Policy::query()->with('department:id,name');
+        if ($this->tableHasColumn('policies', 'company_id')) {
+            $activeCompanyId = $this->activeCompanyId($request);
+            if (! $activeCompanyId) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'TENANT_CONTEXT_REQUIRED',
+                        'message' => 'Active company context is required to export policies.',
+                    ],
+                ], 422);
+            }
+
+            $policyQuery->where('company_id', $activeCompanyId);
+        }
+
+        $rows = $policyQuery
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%')
                     ->orWhere('description', 'like', '%' . $search . '%');
@@ -2208,7 +2235,10 @@ class HcmEmployeeController extends Controller
             ], 422);
         }
 
-        $policyQuery = Policy::query()->where('company_id', $activeCompanyId);
+        $policyQuery = Policy::query();
+        if ($this->tableHasColumn('policies', 'company_id')) {
+            $policyQuery->where('company_id', $activeCompanyId);
+        }
         $this->applyIdentifierScope($policyQuery, $id);
         $policy = $policyQuery->firstOrFail();
         $this->mergePolicyMultipartFields($request);
@@ -2294,6 +2324,11 @@ class HcmEmployeeController extends Controller
             return $query;
         }
 
+        $table = $query->getModel()->getTable();
+        if (! $this->tableHasColumn($table, 'company_id')) {
+            return $query;
+        }
+
         if (! $companyId) {
             return $query;
         }
@@ -2316,6 +2351,15 @@ class HcmEmployeeController extends Controller
         return $query->where('uuid', $identifier);
     }
 
+    private function tableHasColumn(string $table, string $column): bool
+    {
+        try {
+            return Schema::hasColumn($table, $column);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     public function destroyPolicy(Request $request, string $id): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
@@ -2333,7 +2377,10 @@ class HcmEmployeeController extends Controller
             ], 422);
         }
 
-        $policyQuery = Policy::query()->where('company_id', $activeCompanyId);
+        $policyQuery = Policy::query();
+        if ($this->tableHasColumn('policies', 'company_id')) {
+            $policyQuery->where('company_id', $activeCompanyId);
+        }
         $this->applyIdentifierScope($policyQuery, $id);
         $policy = $policyQuery->firstOrFail();
         $this->mediaFileDeleter->delete($policy->attachment_path);

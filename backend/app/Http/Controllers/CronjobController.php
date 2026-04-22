@@ -18,7 +18,8 @@ class CronjobController extends Controller
 
         return view('cronjob', [
             'cronjobs' => CronjobSettings::all(),
-            'availableTimezones' => ['Asia/Jakarta', 'UTC'],
+            'availableTimezones' => $this->availableTimezones(),
+            'runtimeFlagStates' => $this->runtimeFlagStates(),
         ]);
     }
 
@@ -82,6 +83,35 @@ class CronjobController extends Controller
     {
         $user = $request->user() ?: Auth::user();
 
-        return (bool) ($user && $user->isHcmAdmin());
+        return (bool) ($user && $user->isGlobalHcmAdmin());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function availableTimezones(): array
+    {
+        return array_values(array_unique(array_merge(['Asia/Jakarta', 'UTC'], timezone_identifiers_list())));
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function runtimeFlagStates(): array
+    {
+        return [
+            'saas_terminate_expired_subscriptions' => [
+                'flag' => 'app.saas.auto_termination_enabled',
+                'enabled' => (bool) config('app.saas.auto_termination_enabled', true),
+            ],
+            'saas_suspend_overdue_services' => [
+                'flag' => 'app.saas.auto_suspension_enabled',
+                'enabled' => (bool) config('app.saas.auto_suspension_enabled', true),
+            ],
+            'saas_check_employee_count_limits' => [
+                'flag' => 'app.saas.employee_limit_enforcement_enabled',
+                'enabled' => (bool) config('app.saas.employee_limit_enforcement_enabled', true),
+            ],
+        ];
     }
 }

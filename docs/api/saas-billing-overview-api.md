@@ -30,10 +30,11 @@ Hanya **HCM Admin**.
 ### Catatan perilaku
 
 - Satu company hanya muncul sekali per tab, mengikuti subscription terbaru miliknya.
-- `subscribed` mencakup status `active` dan `pending_payment` pada subscription terbaru.
-- `email.status` adalah status log email terakhir untuk invoice terakhir (`sent`, `failed`, atau `not_sent`).
+- `subscribed` mencakup status non-trial (`active`, `pending_payment`, `inactive`, `expired`, `cancelled`, `suspended`) pada subscription terbaru, ditambah company legacy yang sudah punya invoice tetapi belum punya subscription aktif.
+- `email.status` adalah status log email terakhir untuk invoice terakhir (`sent`, `failed`, `not_sent`). Jika company belum punya invoice pada context tab tersebut, nilai menjadi `no_invoice`.
 - `stateBadges` menandai mismatch penting pada row, misalnya `STATE_MISMATCH` dan `INVOICE_MISSING`.
 - Jika `latestInvoice` ada, row juga membawa `uuid` dan `detailUrl` untuk membuka halaman detail invoice.
+- Aksi pada overview dibatasi ke audit/detail invoice dan kirim ulang email invoice saat `email.status = not_sent`; tidak ada aksi manual mark paid dari layar overview.
 
 ### Response (200 OK)
 

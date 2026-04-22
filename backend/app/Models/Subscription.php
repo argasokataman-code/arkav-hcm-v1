@@ -64,7 +64,7 @@ class Subscription extends Model
 
     public function latestInvoice(): HasOne
     {
-        return $this->hasOne(Invoice::class)->latestOfMany('issue_date');
+        return $this->hasOne(Invoice::class)->latestOfMany('id');
     }
 
     /**

@@ -58,7 +58,7 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                         'subscription_id' => $subscription->id,
                         'purchase_transaction_id' => null,
                         'issue_date' => $now->toDateString(),
-                        'due_date' => $now->copy()->addDays(7)->toDateString(),
+                        'due_date' => $now->copy()->addDay()->toDateString(),
                         'amount_due' => $amountDue,
                         'status' => 'draft',
                         'notes' => 'Auto-generated after trial ended.',
@@ -71,7 +71,7 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                 // Flip to pending_payment. Set a provisioning window end (ends_at) if missing or already past.
                 $provisionEndsAt = $subscription->ends_at && $subscription->ends_at->isFuture()
                     ? $subscription->ends_at
-                    : $now->copy()->addDays(7);
+                    : $now->copy()->addHours(24);
 
                 $subscription->update([
                     'status' => 'pending_payment',

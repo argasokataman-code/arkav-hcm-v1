@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
  *
  * This job runs on a schedule and suspends services when:
  * - Invoice is not paid
- * - Invoice due_date is 7+ days in the past
+ * - Invoice due_date is 1+ day in the past
  *
  * Companies are notified and have opportunity to pay to reactivate.
  *
@@ -22,7 +22,7 @@ class SuspendServicesForOverdueInvoicesJob implements ShouldQueue
 {
     use Queueable;
 
-    private const GRACE_PERIOD_DAYS = 7;
+    private const GRACE_PERIOD_DAYS = 1;
 
     public function handle(): void
     {

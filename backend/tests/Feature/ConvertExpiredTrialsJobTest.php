@@ -60,6 +60,9 @@ class ConvertExpiredTrialsJobTest extends TestCase
             'subscription_id' => $sub->id,
             'is_paid' => 0,
         ]);
+
+        $invoice = Invoice::query()->where('subscription_id', $sub->id)->firstOrFail();
+        $this->assertSame(now()->addDay()->toDateString(), $invoice->due_date->toDateString());
     }
 
     public function test_job_is_idempotent_for_existing_unpaid_invoice(): void

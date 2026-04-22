@@ -13,6 +13,10 @@ Fitur ini menyediakan satu layar operasional untuk memantau semua company/tenant
 
 - Halaman overview: `/saas/billing-overview`.
 - Halaman detail invoice: `/saas/billing-overview/invoices/{invoice}`.
+- Overview memakai filter card template aktif (search, tab Trial/Subscribed, per-page, refresh, reset), legend panduan status, tabel desktop, dan card list khusus mobile.
+- Status operasional dipisah jelas antara: status subscription, status invoice terbaru, dan status email invoice terakhir agar keputusan aksi tidak rancu.
+- Ringkasan invoice di overview menampilkan **periode paket** (start/end subscription) agar perbedaan bulanan vs tahunan langsung terbaca; `due_date` invoice tetap dipakai sebagai jatuh tempo payment, bukan penentu periode paket.
+- Timestamp email pada overview/detail dirender konsisten ke zona waktu **Asia/Jakarta (WIB)** agar tidak tampil sebagai timestamp sistem mentah.
 
 ## Flow Bisnis End-to-End
 

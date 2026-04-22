@@ -259,7 +259,7 @@ class PublicOnboardingController
             $trialEndsAt = (clone $startsAt)->addDays(30);
 
             // When starting as pending_payment, ends_at becomes a provisioning/payment window.
-            $provisioningEndsAt = (clone $startsAt)->addDays(7);
+            $provisioningEndsAt = now()->addHours(24);
 
             $subscription = Subscription::query()->create([
                 'company_id' => $company->id,
@@ -284,7 +284,7 @@ class PublicOnboardingController
                     'subscription_id' => $subscription->id,
                     'purchase_transaction_id' => null,
                     'issue_date' => now()->toDateString(),
-                    'due_date' => now()->addDays(7)->toDateString(),
+                    'due_date' => now()->addDay()->toDateString(),
                     'amount_due' => $amountDue,
                     'status' => 'draft',
                     'notes' => 'Created from public onboarding.',

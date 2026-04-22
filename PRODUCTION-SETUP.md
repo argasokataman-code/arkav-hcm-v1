@@ -46,6 +46,8 @@ MAIL_FROM_ADDRESS=noreply@arkav.puree.id
 # Additional configs
 QUEUE_CONNECTION=database
 FILESYSTEM_DISK=local
+# Keep dev bootstrap disabled in production startup
+RUN_DEV_BOOTSTRAP=false
 ```
 
 ### Docker Deployment
@@ -113,6 +115,28 @@ curl -i https://arkav.puree.id/v1/identity/auth/me
 | CORS errors | Verify APP_URL matches domain |
 | Mixed content warnings | Ensure APP_URL uses https:// |
 
+### 502 Recovery Checklist (Cloudflare)
+
+Jalankan dari server VPS setelah deploy:
+
+```bash
+# 1) Pastikan container hidup
+docker ps --format '{{.Names}}' | grep '^arkav-hcm$'
+
+# 2) Lihat startup error terakhir
+docker logs --tail 300 arkav-hcm
+
+# 3) Cek health backend + frontend proxy internal
+curl -i http://127.0.0.1:8007/health
+curl -i http://127.0.0.1:5179/
+
+# 4) Pastikan Nginx upstream ke Node proxy
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Jika langkah 3 gagal, fokus ke log container dulu (biasanya APP_ENV/.env, DB connect, atau permission storage/cache). Jika langkah 3 sukses tapi domain masih 502, fokus ke Nginx/Cloudflare routing.
+
 ### Deployment Steps
 
 ```bash
@@ -151,6 +175,7 @@ docker logs -f arkav-hcm
 ### Important Deploy Notes
 
 - Jangan jalankan `php artisan key:generate` pada setiap deploy staging/production. `APP_KEY` harus stabil di file `.env` yang persistent; mengganti key tiap deploy akan menginvalidasi session/login yang sedang aktif dan bisa merusak data terenkripsi.
+- `run.sh` akan skip seeder development otomatis saat `APP_ENV=production` (atau saat `RUN_DEV_BOOTSTRAP` bukan `true`). Ini mencegah startup gagal karena validasi akun dev yang memang tidak relevan untuk production.
 - Data yang disimpan di filesystem container akan hilang saat container di-`rm -f` dan dibuat ulang. Karena workflow auto deploy memang recreate container, direktori `backend/storage` wajib dimount ke host atau persistent volume.
 - Karena host mount akan menimpa isi `storage` bawaan image, subdirektori Laravel seperti `storage/framework/views`, `storage/framework/sessions`, `storage/framework/cache/data`, `storage/logs`, `storage/app/public`, dan `storage/app/private` harus dibuat ulang sebelum menjalankan `php artisan config:cache` atau `php artisan view:cache`.
 - Database staging/production harus tetap memakai MySQL eksternal/persisten. Jika suatu saat container dijalankan tanpa `.env` yang benar atau tanpa DB persisten, gejalanya akan terlihat seperti "data hilang setelah push".

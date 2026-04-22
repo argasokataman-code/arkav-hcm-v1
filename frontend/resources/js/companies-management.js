@@ -2,7 +2,7 @@
   "use strict";
 
   const API_BASE = "/v1/company";
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 25;
   let apiToken = null;
 
   /**
@@ -132,6 +132,8 @@
 
     currentPage: 1,
     currentStatus: null,
+    currentSearch: "",
+    searchDebounceTimer: null,
     companies: [],
 
     /**
@@ -175,27 +177,78 @@
         });
       }
 
+      const searchInput = document.getElementById("company_search");
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          const nextValue = (this.value || "").trim();
+          if (self.searchDebounceTimer) {
+            clearTimeout(self.searchDebounceTimer);
+          }
+
+          self.searchDebounceTimer = setTimeout(function () {
+            self.currentSearch = nextValue;
+            self.loadCompanies();
+          }, 250);
+        });
+      }
+
+      const refreshButton = document.getElementById("companies_refresh");
+      if (refreshButton) {
+        refreshButton.addEventListener("click", function () {
+          self.loadCompanies();
+        });
+      }
+
       // Delete confirmation
       document.addEventListener("click", function (e) {
-        if (e.target.classList.contains("btn-delete-company")) {
-          const id = e.target.dataset.id;
+        const deleteButton = e.target.closest(".btn-delete-company");
+        if (deleteButton) {
+          const id = deleteButton.dataset.id;
           self.showDeleteConfirm(id);
         }
       });
 
       // Pagination
       document.addEventListener("click", function (e) {
-        if (e.target.classList.contains("btn-page")) {
-          self.currentPage = parseInt(e.target.dataset.page, 10);
+        const pageButton = e.target.closest(".btn-page");
+        if (pageButton) {
+          self.currentPage = parseInt(pageButton.dataset.page, 10);
           self.loadCompanies();
         }
       });
 
       // Edit button: populate form
       document.addEventListener("click", function (e) {
-        if (e.target.classList.contains("btn-edit-company")) {
-          const id = e.target.dataset.id;
+        const editButton = e.target.closest(".btn-edit-company");
+        if (editButton) {
+          const id = editButton.dataset.id;
           self.loadCompanyForEdit(id);
+        }
+      });
+
+      // Copy company code helper for support workflow
+      document.addEventListener("click", function (e) {
+        const copyButton = e.target.closest(".btn-copy-code");
+        if (!copyButton) {
+          return;
+        }
+
+        const code = copyButton.dataset.code || "";
+        if (!code) {
+          self.toast("Company code is empty", "warning");
+          return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code)
+            .then(function () {
+              self.toast("Company code copied: " + code, "success");
+            })
+            .catch(function () {
+              self.toast("Failed to copy company code", "danger");
+            });
+        } else {
+          self.toast("Clipboard is not available on this browser", "warning");
         }
       });
     },
@@ -217,16 +270,18 @@
       const tableBody = document.getElementById("companies_table_body");
       if (tableBody) {
         tableBody.innerHTML =
-          '<tr><td colspan="8" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>';
+          '<tr><td colspan="9" class="text-center"><i class="ti ti-loader"></i> Loading...</td></tr>';
       }
 
       apiRequest("GET", API_BASE + "?" + params.toString(), null)
         .then(function (response) {
           if (response.success && response.data) {
             self.companies = response.data.companies || [];
+            const filteredCompanies = self.applyClientFilters(self.companies);
             self.renderSummaryStats(response.data.stats || {});
-            self.renderTable(response.data.companies || []);
+            self.renderTable(filteredCompanies);
             self.renderPagination(response.data.pagination || {});
+            self.renderTableInfo(response.data.pagination || {}, filteredCompanies.length);
           } else {
             throw new Error(
               "Invalid API response " +
@@ -238,9 +293,36 @@
           console.error("Failed to load companies:", err);
           if (tableBody) {
             tableBody.innerHTML =
-              '<tr><td colspan="8" class="text-center text-danger">Failed to load companies</td></tr>';
+              '<tr><td colspan="9" class="text-center text-danger">Failed to load companies</td></tr>';
           }
+          self.renderTableInfo({}, 0);
         });
+    },
+
+    /**
+     * Filter loaded companies in-browser for support use-cases
+     */
+    applyClientFilters: function (companies) {
+      const query = (this.currentSearch || "").toLowerCase();
+      if (!query) {
+        return companies;
+      }
+
+      return companies.filter(function (company) {
+        const owner = company.owner || {};
+        const haystack = [
+          company.name,
+          company.code,
+          company.legal_name,
+          owner.name,
+          owner.email,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(query);
+      });
     },
 
     /**
@@ -268,7 +350,7 @@
 
       if (companies.length === 0) {
         tableBody.innerHTML =
-          '<tr><td colspan="8" class="text-center">No companies found</td></tr>';
+          '<tr><td colspan="9" class="text-center">No companies found</td></tr>';
         return;
       }
 
@@ -292,38 +374,61 @@
                 : "secondary";
         const subLabel = subStatus ? subStatus.replace(/_/g, " ") : "none";
         const subBadge = `<span class="badge bg-${subTone} badge-xs text-uppercase">${esc(subLabel)}</span>`;
+        const countryCode = company.country_code ? String(company.country_code).toUpperCase() : "-";
+        const timezone = company.timezone || "-";
+        const currency = company.currency ? String(company.currency).toUpperCase() : "-";
+        const ownerName = owner.name || "-";
+        const ownerEmail = owner.email || "-";
 
         html += `
           <tr>
             <td>
-              <div class="form-check form-check-md">
-                <input class="form-check-input" type="checkbox">
+              <div class="d-flex flex-column">
+                <h6 class="fw-medium mb-1">${esc(company.name)}</h6>
+                <span class="text-muted fs-12">ID: ${esc(company.uuid || "-")}</span>
               </div>
             </td>
             <td>
-              <div class="d-flex align-items-center file-name-icon">
-                <div class="ms-2">
-                  <h6 class="fw-medium">${esc(company.name)}</h6>
-                  <p class="fs-12 fw-normal text-muted">${esc(company.code)}</p>
-                </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark border">${esc(company.code || "-")}</span>
+                <button type="button" class="btn btn-sm btn-icon btn-light btn-copy-code" data-code="${esc(company.code || "")}" title="Copy company code">
+                  <i class="ti ti-copy"></i>
+                </button>
               </div>
             </td>
-            <td>${esc(owner.email || "-")}</td>
-            <td>${esc(company.legal_name || "-")}</td>
+            <td>
+              <div class="d-flex flex-column">
+                <span class="fw-medium">${esc(ownerName)}</span>
+                <span class="text-muted fs-12">${esc(ownerEmail)}</span>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-column">
+                <span>${esc(company.legal_name || "-")}</span>
+                <span class="text-muted fs-12">TZ: ${esc(timezone)}</span>
+              </div>
+            </td>
             <td>
               <div class="d-flex flex-column gap-1">
                 <div class="fw-medium">${esc(subscription.planCode || "-")}</div>
                 <div>${subBadge}</div>
+                <div class="text-muted fs-12">Ends: ${formatDate(subscription.endsAt)}</div>
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-column">
+                <span class="fw-medium">${esc(countryCode)}</span>
+                <span class="text-muted fs-12">${esc(currency)}</span>
               </div>
             </td>
             <td>${formatDate(company.created_at)}</td>
             <td>${statusBadge}</td>
             <td>
               <div class="action-icon d-inline-flex">
-                <button class="btn-edit-company me-2" data-id="${company.id}" data-bs-toggle="modal" data-bs-target="#edit_company">
+                <button type="button" class="btn-edit-company me-2" data-id="${company.id}" data-bs-toggle="modal" data-bs-target="#edit_company" title="Edit company">
                   <i class="ti ti-edit"></i>
                 </button>
-                <button class="btn-delete-company" data-id="${company.id}">
+                <button type="button" class="btn-delete-company" data-id="${company.id}" title="Delete company">
                   <i class="ti ti-trash"></i>
                 </button>
               </div>
@@ -333,6 +438,29 @@
       });
 
       tableBody.innerHTML = html;
+    },
+
+    /**
+     * Render table information summary
+     */
+    renderTableInfo: function (pagination, visibleCount) {
+      const infoEl = document.getElementById("companies_table_info");
+      if (!infoEl) {
+        return;
+      }
+
+      const total = Number(pagination.total || 0);
+      const page = Number(pagination.page || this.currentPage || 1);
+      const perPage = Number(pagination.per_page || PAGE_SIZE);
+      const start = total > 0 ? ((page - 1) * perPage) + 1 : 0;
+      const end = total > 0 ? Math.min(page * perPage, total) : 0;
+
+      if (this.currentSearch) {
+        infoEl.textContent = "Showing " + visibleCount + " matched result(s) on this page (" + start + "-" + end + " of " + total + " total companies).";
+        return;
+      }
+
+      infoEl.textContent = "Showing " + start + "-" + end + " of " + total + " companies.";
     },
 
     /**

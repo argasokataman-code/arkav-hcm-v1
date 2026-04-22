@@ -69,8 +69,8 @@ class HcmSubscriptionCheckoutController
         $billingCycle = (string) $validated['billing_cycle'];
         $amount = $billingCycle === 'yearly' ? (float) $package->yearly_price : (float) $package->monthly_price;
 
-        // 7 days payment window by default.
-        $dueDate = now()->addDays(7)->toDateString();
+        // 24-hour payment window by default.
+        $dueDate = now()->addDay()->toDateString();
 
         return DB::transaction(function () use ($company, $package, $billingCycle, $amount, $dueDate, $validated): JsonResponse {
             // Global guard: if there is ANY unpaid invoice for this company, reuse it and
@@ -154,7 +154,7 @@ class HcmSubscriptionCheckoutController
             $subscription = $trialSub ?: new Subscription();
             if (! $subscription->exists) {
                 $subscription->company_id = $company->id;
-                $subscription->starts_at = now()->startOfDay();
+                $subscription->starts_at = now();
                 $subscription->auto_renew = false;
             }
 
@@ -164,7 +164,7 @@ class HcmSubscriptionCheckoutController
             $subscription->billing_cycle = $billingCycle;
             $subscription->amount = $amount;
             $subscription->trial_ends_at = null;
-            $subscription->ends_at = now()->startOfDay()->addDays(7);
+            $subscription->ends_at = now()->addHours(24);
             $subscription->save();
 
             $invoice = Invoice::query()->create([

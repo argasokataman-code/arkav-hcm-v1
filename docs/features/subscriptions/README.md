@@ -23,6 +23,7 @@ Modul ini mengelola hubungan langganan company ke package SaaS, termasuk lifecyc
 3. Selama lifecycle berjalan, company dapat berada di status trial, pending payment, active, suspended, expired, atau cancelled.
 4. Renewal dapat dipicu dari baris tabel atau deep link renew-by-id.
 5. Saat invoice terkait ditandai paid, subscription `pending_payment` diaktifkan menjadi `active`.
+6. Default window `pending_payment` untuk flow onboarding/checkout adalah **24 jam** sejak proses billing dimulai.
 
 ## Lifecycle Dan Keputusan Bisnis
 
@@ -78,6 +79,7 @@ Fitur utama modul saat ini:
 - ✅ Auto-management (terminate expired, suspend overdue invoice, suspend employee violation)
 - ✅ Employee limit enforcement pada create/bulk employee (HCM API)
 - ✅ Status **`pending_payment`** + aktivasi otomatis ke **`active`** saat invoice terkait **mark paid** (kolom `invoices.subscription_id`)
+- ✅ Default timeout `pending_payment` flow onboarding/checkout: **24 jam** (invoice due date default H+1)
 - ✅ Gate paket: `active|trial|pending_payment` hanya boleh memakai package **`packages.status=active`**
 - ✅ Deep link dari **Packages** → **Subscriptions** (`/subscription?packageId=&status=pending_payment`)
 

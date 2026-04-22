@@ -48,12 +48,27 @@
                                 <h4>Cronjob Scheduler Configuration</h4>
                             </div>
                             <div class="col-md-6 col-sm-8 text-sm-end">
+                                <button type="button" class="btn btn-outline-secondary me-2" data-bs-toggle="collapse" data-bs-target="#cronjobGuide" aria-expanded="false" aria-controls="cronjobGuide">
+                                    <i class="ti ti-info-circle me-1"></i>Panduan
+                                </button>
                                 <a href="{{ url('cronjob-schedule') }}" class="btn btn-dark"><i class="ti ti-clock-hour-4 me-2"></i>Cron Schedule</a>
                             </div>
                         </div>
                     </div>
 
                     <div class="card-body">
+                        <div class="collapse mb-3" id="cronjobGuide">
+                            <div class="alert alert-info mb-0">
+                                <div class="fw-semibold mb-1">Panduan Penggunaan Cronjob</div>
+                                <ul class="mb-0 ps-3">
+                                    <li>Halaman ini khusus global super admin (type-1) untuk mengatur jadwal automation lintas modul.</li>
+                                    <li>Kolom <strong>Type</strong> menunjukkan frekuensi scheduler (<em>daily</em> = dievaluasi setiap hari, <em>monthly</em> = dievaluasi tiap bulan di hari yang dipilih).</li>
+                                    <li>Kolom <strong>Panduan &amp; Tujuan</strong> menjelaskan detail maksud bisnis tiap cronjob: apa yang dicek, kenapa dijalankan, dan outcome yang diharapkan.</li>
+                                    <li>Jika ada peringatan runtime override, artinya job tetap di-skip walau status Enabled aktif.</li>
+                                </ul>
+                            </div>
+                        </div>
+
                         @if (session('cronjobStatus'))
                             <div class="alert alert-{{ session('cronjobStatus.type') === 'success' ? 'success' : 'danger' }} mb-3">
                                 {{ session('cronjobStatus.message') }}
@@ -69,6 +84,7 @@
                                         <tr>
                                             <th>Enabled</th>
                                             <th>Job</th>
+                                            <th>Panduan &amp; Tujuan</th>
                                             <th>Type</th>
                                             <th>Time</th>
                                             <th>Day</th>
@@ -78,7 +94,8 @@
                                     <tbody>
                                         @foreach ($cronjobs as $key => $job)
                                             @php($config = $job['config'])
-                                            <tr>
+                                            @php($runtimeFlag = $runtimeFlagStates[$key] ?? null)
+                                            <tr class="{{ is_array($runtimeFlag) && (($runtimeFlag['enabled'] ?? true) !== true) ? 'table-warning' : '' }}">
                                                 <td>
                                                     <div class="form-check form-switch">
                                                         <input
@@ -94,6 +111,16 @@
                                                 <td>
                                                     <h6 class="fw-medium mb-1">{{ $job['label'] }}</h6>
                                                     <small class="text-muted">{{ $job['description'] }}</small>
+                                                    @if (is_array($runtimeFlag) && (($runtimeFlag['enabled'] ?? true) !== true))
+                                                        <div class="small text-warning mt-1">
+                                                            Runtime override aktif: <code>{{ $runtimeFlag['flag'] }}</code> = false, jadi scheduler akan di-skip walau row ini enabled.
+                                                        </div>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <div class="small mb-1"><strong>Frekuensi:</strong> {{ $job['frequencyExplanation'] ?? '-' }}</div>
+                                                    <div class="small mb-1"><strong>Tujuan:</strong> {{ $job['businessPurpose'] ?? '-' }}</div>
+                                                    <div class="small text-muted"><strong>Output:</strong> {{ $job['expectedOutcome'] ?? '-' }}</div>
                                                 </td>
                                                 <td class="text-capitalize">{{ $job['scheduleType'] }}</td>
                                                 <td>

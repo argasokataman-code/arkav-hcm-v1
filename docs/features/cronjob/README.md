@@ -2,70 +2,66 @@
 
 ## Ringkasan
 
-Feature ini mengelola konfigurasi scheduler internal melalui halaman `/cronjob`, dengan persistence ke `settings` table dan konsumsi runtime oleh kernel scheduler. Cronjob menjadi titik kontrol operasional untuk job lintas modul seperti payment reminder, wilayah sync, payroll refresh, dan leave accrual.
+Fitur ini adalah pusat kontrol jadwal otomatis sistem melalui halaman `/cronjob`.
+Admin yang berwenang dapat mengatur kapan job berjalan, timezone, dan status aktif/non-aktif per job. Semua konfigurasi disimpan ke tabel `settings` (group `cronjob`) lalu dipakai langsung oleh scheduler runtime.
 
-## Akses
+## Akses Dan Otorisasi
 
 - Halaman aktif: `/cronjob`.
-- Hanya HCM Admin yang boleh mengakses; non-admin diarahkan ke `lock-screen`.
-
-## UI Aktif
-
-- Halaman `/cronjob` untuk mengelola scheduler settings per job key.
-- Perubahan disimpan di `settings` table (`group = cronjob`).
+- Hanya **global super admin (type-1 / `users.is_super_admin=1`)** yang boleh mengakses.
+- Route GET dan POST sama-sama dijaga middleware global-admin.
+- Controller juga menerapkan guard global-admin sebagai defense-in-depth.
+- User non-global-admin diarahkan ke `employee-dashboard`.
 
 ## Flow Bisnis End-to-End
 
-1. Admin membuka halaman cronjob.
-2. Admin mengatur apakah job aktif, waktu eksekusi, timezone, dan hari bulanan bila relevan.
-3. Setting disimpan ke database.
-4. Kernel scheduler dan consumer runtime membaca konfigurasi itu saat menjadwalkan job.
+1. Global super admin membuka halaman `/cronjob`.
+2. Admin dapat membuka tombol **Panduan** untuk membaca arti frekuensi scheduler dan maksud bisnis tiap job.
+3. Admin memilih job yang ingin diaktifkan/nonaktifkan, mengisi waktu, timezone, dan `dayOfMonth` untuk job bulanan.
+4. Admin membaca kolom **Panduan & Tujuan** pada setiap baris untuk memahami apa yang dicek/diproses job tersebut.
+5. Sistem menyimpan payload ke `settings` dengan key `cronjob_<job_key>`.
+6. Scheduler runtime membaca konfigurasi tersebut dari source of truth tunggal (`routes/console.php`).
+7. Saat scheduler server (`php artisan schedule:run`) berjalan, job due akan dieksekusi sesuai setting.
 
 ## Lifecycle Dan Keputusan Bisnis
 
-- Disabled jobs tidak dihapus dinamis; runtime hanya melewati job tersebut.
-- Fallback default tetap tersedia agar scheduler tidak kosong saat setting DB belum ada.
-- Halaman ini adalah kontrol operasional, bukan executor manual job business flow.
+- Job yang disabled tidak dihapus; scheduler akan skip job tersebut.
+- Bila data setting belum ada, sistem fallback ke default di `App\Support\CronjobSettings`.
+- Beberapa job SaaS punya runtime feature flag tambahan dari config aplikasi; meskipun row UI enabled, job tetap bisa di-skip jika flag runtime mati.
+- Halaman ini bukan eksekusi manual job, melainkan pengaturan orkestrasi jadwal.
+- Kolom deskripsi detail per job menjelaskan tiga hal: arti frekuensi, tujuan bisnis, dan output yang diharapkan.
 
-## Integrasi
+## Managed Jobs (Current)
 
-- Locations: job `Wilayah Sync` dijadwalkan dari modul cronjob. Lihat `docs/features/locations/README.md`.
-- Leave And Holidays: leave monthly accrual, yearly carry, dan daily expire bergantung pada scheduler ini. Lihat `docs/features/leave-and-holidays/README.md`.
-- Payroll dan billing reminders: payroll refresh open period dan payment reminder juga dikelola dari sini. Lihat `docs/features/payroll-runs/README.md`, `docs/features/trial-billing-dashboard/README.md`, dan `docs/features/purchase-transaction/README.md`.
-- Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
-
-## Kontrak API
-
-## Scope
-- Web page: `/cronjob`
-- Persist scheduler settings via `settings` table (`group = cronjob`).
-- Scheduler consumer:
-  - `app/Console/Kernel.php`
-  - `routes/console.php`
-
-## Access Policy
-- **HCM Admin only**.
-- Non-admin is redirected to `lock-screen`.
-
-## Managed Jobs
 - Payment Reminder (daily)
-- Wilayah Sync (monthly day + time)
+- Wilayah Sync (monthly)
 - Payroll Refresh Open Period (daily)
 - Leave Monthly Accrual (daily)
 - Leave Yearly Carry (daily)
 - Leave Daily Expire (daily)
+- SaaS Convert Ended Trials (daily)
+- SaaS Terminate Expired Subscriptions (daily)
+- SaaS Suspend Overdue Services (daily)
+- SaaS Check Employee Limits (daily)
+- SaaS Recurring Billing (daily)
 
-## Data Contract (stored per job key)
-- `enabled` (bool)
+## Data Konfigurasi Per Job
+
+- `enabled` (boolean)
 - `time` (`HH:MM`)
 - `timezone` (IANA timezone)
-- `dayOfMonth` (1-28, monthly jobs only)
+- `dayOfMonth` (`1..28`, khusus schedule bulanan)
 
-## Notes
-- Fallback defaults are hardcoded in `App\Support\CronjobSettings` and used when DB setting is missing.
-- Scheduler jobs are not deleted dynamically; disabled jobs are skipped in runtime.
+## Integrasi Modul
+
+- Locations (`wilayah:sync`): lihat `docs/features/locations/README.md`
+- Leave & Holidays: lihat `docs/features/leave-and-holidays/README.md`
+- Payroll Runs: lihat `docs/features/payroll-runs/README.md`
+- Trial/Billing/Subscription automation: lihat `docs/features/trial-billing-dashboard/README.md` dan `docs/features/subscriptions/README.md`
+- Peta lintas fitur: `docs/features/INTEGRATION-MAP.md`
 
 ## Existing Vs Target
 
-- Existing: scheduler setting sudah persisted di DB dan dibaca consumer runtime utama.
-- Target: dokumentasi job-level ownership dan evidence operasional per schedule bisa dibuat lebih rinci.
+- Existing: konfigurasi cronjob sudah persisted dan dipakai scheduler runtime.
+- Existing: scheduler source sekarang tunggal di `routes/console.php` agar tidak split-brain.
+- Target: menambah observability operasional (run history + success/failure trend) sebagai backlog terpisah.

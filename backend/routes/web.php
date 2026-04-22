@@ -188,6 +188,10 @@ Route::get('/saas/billing-overview', function () {
     return view('saas.billing-overview');
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview');
 
+Route::get('/saas/billing-overview/invoices/{invoice}', function (\App\Models\Invoice $invoice) {
+    return view('saas.billing-overview-invoice-detail', ['invoice' => $invoice]);
+})->middleware('hcm.web.global-admin')->name('saas.billing-overview.invoice-detail');
+
 Route::get('/saas/domains', function () {
     return view('saas.domains');
 })->middleware('hcm.web.global-admin')->name('saas.domains');
@@ -1384,7 +1388,7 @@ Route::get('/custom-js', function () {
 })->middleware('hcm.web.global-admin')->name('custom-js');
 
 Route::get('/cronjob', [CronjobController::class, 'index'])->middleware('hcm.web.global-admin')->name('cronjob');
-Route::post('/cronjob', [CronjobController::class, 'update'])->name('cronjob.update');
+Route::post('/cronjob', [CronjobController::class, 'update'])->middleware('hcm.web.global-admin')->name('cronjob.update');
 
 Route::get('/cronjob-schedule', function () {
     return view('cronjob-schedule');

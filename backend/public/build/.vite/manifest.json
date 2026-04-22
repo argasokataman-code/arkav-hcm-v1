@@ -1,0 +1,142 @@
+{
+  "../frontend/resources/css/style.css": {
+    "file": "css/style.min.css",
+    "src": "../frontend/resources/css/style.css",
+    "isEntry": true
+  },
+  "../frontend/resources/img/bg/bg-black-le.svg": {
+    "file": "icons/bg-black-le.svg",
+    "src": "../frontend/resources/img/bg/bg-black-le.svg"
+  },
+  "../frontend/resources/img/bg/bg-blue-01.svg": {
+    "file": "icons/bg-blue-01.svg",
+    "src": "../frontend/resources/img/bg/bg-blue-01.svg"
+  },
+  "../frontend/resources/img/bg/bg-blue-le.svg": {
+    "file": "icons/bg-blue-le.svg",
+    "src": "../frontend/resources/img/bg/bg-blue-le.svg"
+  },
+  "../frontend/resources/img/bg/bg-green-01.svg": {
+    "file": "icons/bg-green-01.svg",
+    "src": "../frontend/resources/img/bg/bg-green-01.svg"
+  },
+  "../frontend/resources/img/bg/bg-pink-01.svg": {
+    "file": "icons/bg-pink-01.svg",
+    "src": "../frontend/resources/img/bg/bg-pink-01.svg"
+  },
+  "../frontend/resources/img/bg/bg-pink-le.svg": {
+    "file": "icons/bg-pink-le.svg",
+    "src": "../frontend/resources/img/bg/bg-pink-le.svg"
+  },
+  "../frontend/resources/img/bg/bg-purple-le.svg": {
+    "file": "icons/bg-purple-le.svg",
+    "src": "../frontend/resources/img/bg/bg-purple-le.svg"
+  },
+  "../frontend/resources/img/bg/bg-yellow-01.svg": {
+    "file": "icons/bg-yellow-01.svg",
+    "src": "../frontend/resources/img/bg/bg-yellow-01.svg"
+  },
+  "../frontend/resources/img/bg/card-bg-02.png": {
+    "file": "icons/card-bg-02.png",
+    "src": "../frontend/resources/img/bg/card-bg-02.png"
+  },
+  "../frontend/resources/img/bg/card-bg-03.png": {
+    "file": "icons/card-bg-03.png",
+    "src": "../frontend/resources/img/bg/card-bg-03.png"
+  },
+  "../frontend/resources/img/bg/card-bg-05.png": {
+    "file": "icons/card-bg-05.png",
+    "src": "../frontend/resources/img/bg/card-bg-05.png"
+  },
+  "../frontend/resources/img/bg/card-bg.png": {
+    "file": "icons/card-bg.png",
+    "src": "../frontend/resources/img/bg/card-bg.png"
+  },
+  "../frontend/resources/img/bg/modern-bg.png": {
+    "file": "icons/modern-bg.png",
+    "src": "../frontend/resources/img/bg/modern-bg.png"
+  },
+  "../frontend/resources/img/bg/overlay-bg.png": {
+    "file": "icons/overlay-bg.png",
+    "src": "../frontend/resources/img/bg/overlay-bg.png"
+  },
+  "../frontend/resources/img/bg/theme-bg.svg": {
+    "file": "icons/theme-bg.svg",
+    "src": "../frontend/resources/img/bg/theme-bg.svg"
+  },
+  "../frontend/resources/img/bg/upgrade-bg.svg": {
+    "file": "icons/upgrade-bg.svg",
+    "src": "../frontend/resources/img/bg/upgrade-bg.svg"
+  },
+  "../frontend/resources/img/icons/check.svg": {
+    "file": "icons/check.svg",
+    "src": "../frontend/resources/img/icons/check.svg"
+  },
+  "../frontend/resources/img/icons/dropdown.svg": {
+    "file": "icons/dropdown.svg",
+    "src": "../frontend/resources/img/icons/dropdown.svg"
+  },
+  "../frontend/resources/img/profiles/mail-user.jpg": {
+    "file": "icons/mail-user.jpg",
+    "src": "../frontend/resources/img/profiles/mail-user.jpg"
+  },
+  "../frontend/resources/img/theme/bg-01.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/bg-02.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/bg-03.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/bg-04.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/bg-05.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/bg-06.jpg": {
+    "file": "icons/bg-01.jpg",
+    "src": "../frontend/resources/img/theme/bg-01.jpg"
+  },
+  "../frontend/resources/img/theme/pattern-01.png": {
+    "file": "icons/pattern-01.png",
+    "src": "../frontend/resources/img/theme/pattern-01.png"
+  },
+  "../frontend/resources/img/theme/pattern-03.png": {
+    "file": "icons/pattern-03.png",
+    "src": "../frontend/resources/img/theme/pattern-03.png"
+  },
+  "../frontend/resources/js/public-landing-react.jsx": {
+    "file": "js/public-landing-react.js",
+    "name": "public-landing-react",
+    "src": "../frontend/resources/js/public-landing-react.jsx",
+    "isEntry": true,
+    "css": [
+      "css/public-landing-react.min.css"
+    ]
+  },
+  "../frontend/resources/js/script.js": {
+    "file": "js/script.js",
+    "name": "script",
+    "src": "../frontend/resources/js/script.js",
+    "isEntry": true
+  },
+  "../frontend/resources/ts/payroll-run.ts": {
+    "file": "js/payroll-run.js",
+    "name": "payroll-run",
+    "src": "../frontend/resources/ts/payroll-run.ts",
+    "isEntry": true
+  },
+  "../frontend/resources/ts/thr-payroll-batch.ts": {
+    "file": "js/thr-payroll-batch.js",
+    "name": "thr-payroll-batch",
+    "src": "../frontend/resources/ts/thr-payroll-batch.ts",
+    "isEntry": true
+  }
+}

@@ -11,25 +11,25 @@ call_*.txt
 *.bak
 
 # Node / frontend
-node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+# node_modules/
+# frontend/node_modules/
+# frontend/dist/
+# frontend/.vite/
 
 # Laravel backend
-backend/vendor/
-backend/node_modules/
-backend/public/build/
+# backend/vendor/
+# backend/node_modules/
+# backend/public/build/
 backend/playwright-report/
 backend/test-results/
 backend/.playwright/
-backend/storage/*.key
-backend/storage/logs/*.log
-backend/storage/framework/cache/*
-backend/storage/framework/sessions/*
-backend/storage/framework/views/*
-backend/bootstrap/cache/*.php
-backend/public/storage
+# backend/storage/*.key
+# backend/storage/logs/*.log
+# backend/storage/framework/cache/*
+# backend/storage/framework/sessions/*
+# backend/storage/framework/views/*
+# backend/bootstrap/cache/*.php
+# backend/public/storage
 
 # Keep Laravel placeholder files tracked
 !backend/storage/framework/cache/.gitignore

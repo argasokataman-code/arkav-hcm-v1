@@ -125,5 +125,40 @@ jobs:
               exit 1
             fi
 
+            # --- 8. Edge proxy check (hindari 502 setelah deploy selesai) ---
+            if command -v nginx >/dev/null 2>&1; then
+              echo "[deploy] validating nginx and edge endpoint..."
+
+              if sudo -n true >/dev/null 2>&1; then
+                sudo -n nginx -t || true
+                sudo -n systemctl reload nginx || sudo -n nginx -s reload || true
+              else
+                nginx -t || true
+                systemctl reload nginx || nginx -s reload || true
+              fi
+
+              edge_ok=false
+              for i in $(seq 1 15); do
+                if curl -fsS http://127.0.0.1/ >/dev/null 2>&1; then
+                  edge_ok=true
+                  break
+                fi
+                sleep 2
+              done
+
+              if [[ "$edge_ok" != true ]]; then
+                echo "[deploy] Edge check FAILED (127.0.0.1 returned non-2xx/timeout). Potential 502." >&2
+                if sudo -n true >/dev/null 2>&1; then
+                  sudo -n tail -n 200 /var/log/nginx/error.log || true
+                else
+                  tail -n 200 /var/log/nginx/error.log || true
+                fi
+                $COMPOSE_CMD logs --tail 300 arkav-hcm || true
+                exit 1
+              fi
+            else
+              echo "[deploy] nginx not found on server; skipping edge proxy check."
+            fi
+
             echo "[deploy] Deploy successful!"
           EOF

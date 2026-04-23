@@ -37,6 +37,10 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Build frontend assets
+        working-directory: backend
+        run: npm run build
+
       - name: Run database migration
         working-directory: backend
         run: php artisan migrate --force --env=testing

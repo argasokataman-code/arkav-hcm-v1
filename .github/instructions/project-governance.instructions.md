@@ -24,30 +24,42 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 	- Sebelum `php artisan config:cache` / `view:cache`, runtime dir wajib dibuat dulu; validasi dengan `bash scripts/check-deploy-runtime-guard.sh`.
 7. **Library/framework** — Context7 sebelum mengandalkan sintaks: `.cursor/rules/context7-usage.mdc`.
 
-## Rule eksekusi pasca-fixing (wajib)
+## Rule eksekusi pasca-fixing (wajib) — LOCAL-FIRST WORKFLOW
 
-- Setiap selesai fixing code (BE/FE yang menyentuh behavior runtime), jalankan migrasi lebih dulu:
-	- `cd backend && php artisan migrate --force`
-- Setelah migrate, fixing atau fitur baru wajib test ulang minimal scope terdampak (dan perluas ke suite lintas modul bila area kritikal):
-	- backend/PHP/API: `cd backend && php artisan test <suite-terdampak>`
-	- frontend JS/TS/Blade ter-wire atau asset Vite: `cd backend && npm run test -- <scope>` atau `cd backend && npx vitest run <scope>`
-	- jika perubahan lintas FE+BE, PHPUnit dan Vitest keduanya wajib
-- Jangan klaim selesai tanpa evidence hasil migrate + hasil PHPUnit + hasil Vitest yang relevan.
-- Jika `Nothing to migrate`, tetap lanjut ke test ulang dan laporkan status tersebut.
+**MANDATORY:** Jalankan local test gate SEBELUM commit/push:
+
+```bash
+bash scripts/local-test-gate.sh
+```
+
+Gate ini secara otomatis:
+1. `composer install --no-dev`
+2. `npm ci && npm run build`
+3. `php artisan migrate --force --env=testing`
+4. `php artisan test` (PHPUnit)
+5. `npx vitest run` (Vitest)
+
+Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertugas verifikasi artifact + deploy.
+
+- Jangan klaim selesai tanpa evidence hasil local test gate yang success.
 - Jika ada `Status` di dokumentasi fitur, update tracker terkait sebelum claim status final.
 
-### Profil sementara: Shared-hosting auto deploy (aktif saat diminta user)
+### Shared-hosting auto deploy (lokal-first)
 
-- Untuk workflow sementara deployment ke shared hosting, setelah seluruh gate pasca-fixing di atas terpenuhi, lanjutkan build/package/deploy dengan urutan berikut:
-	1. Build artifact lokal:
-		- `bash scripts/shared-hosting-package-local.sh`
-	2. Upload artifact ke host target:
-		- `scp -P <SSH_PORT> release/shared-hosting/shared-hosting-artifact-<timestamp>.tar.gz <SSH_USER>@<SSH_HOST>:/home/<SSH_USER>/public_html/hr.<PRIMARY_DOMAIN>/`
-	3. Eksekusi deploy di server (extract + deploy script):
-		- `ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> 'cd /home/<SSH_USER>/public_html/hr.<PRIMARY_DOMAIN> && tar -xzf shared-hosting-artifact-<timestamp>.tar.gz && bash scripts/shared-hosting-deploy-easy.sh'`
-- Gunakan path deploy existing dan jangan membuat varian script deploy baru tanpa konfirmasi eksplisit.
-- Jika SSH session tidak bisa diambil alih agent, gunakan mode "single-command remote execution" dari mesin lokal (heredoc/inline ssh command) agar tetap end-to-end.
-- Tetap laporkan evidence hasil migrate/test/build/deploy pada penutupan task.
+**Workflow**:
+1. **Lokal** — `bash scripts/local-test-gate.sh` (tester saja, gate mandatory)
+2. **Lokal** — Jika pass, build artifact: `bash scripts/shared-hosting-package-local.sh`
+3. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
+4. **GitHub Actions** — Auto: cek artifact ada → SCP upload → SSH deploy → verify status
+
+**GitHub workflow** (`.github/workflows/shared-hosting-deploy.yml`):
+- Trigger: push ke main dengan perubahan di `backend/**` atau `release/shared-hosting/**`
+- Hanya task: cek artifact → setup SSH → SCP → SSH extract + deploy
+- ERROR jika artifact tidak ada (wajib build lokal dulu)
+
+**Deployment commands di server**:
+- `tar -xzf shared-hosting-artifact-<ts>.tar.gz`
+- `bash scripts/shared-hosting-deploy-easy.sh` (migrate --force, cache rebuild, storage:link)
 
 ## Guard kontrak API (wajib)
 

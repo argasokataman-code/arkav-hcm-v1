@@ -2,9 +2,31 @@
 
 Full agent notes live in [`.cursor/rules/AGENTS.md`](.cursor/rules/AGENTS.md). **Penutupan task:** ikuti [`development-closure-checklist.mdc`](.cursor/rules/development-closure-checklist.mdc) (security + docs + OpenAPI). Untuk file deploy/runtime, ikuti juga [`deployment-runtime-guard.mdc`](.cursor/rules/deployment-runtime-guard.mdc) agar mount storage, runtime cache dir Laravel, dan urutan artisan cache tidak regress.
 
-Untuk setiap fixing atau fitur baru yang menyentuh runtime, jangan tutup task tanpa evidence `php artisan migrate --force`, `php artisan test <suite-terdampak>`, dan `Vitest` untuk scope frontend yang relevan; perubahan lintas FE+BE wajib menjalankan keduanya.
+## LOCAL-FIRST WORKFLOW (mandatory untuk production)
 
-Profil sementara saat user meminta deploy shared hosting langsung setelah fixing: setelah gate migrate + test terpenuhi, lanjutkan `bash scripts/shared-hosting-package-local.sh` (lokal), upload artifact via `scp`, lalu jalankan `bash scripts/shared-hosting-deploy-easy.sh` di server target via SSH. Gunakan path deploy existing dan hindari membuat varian deploy script baru tanpa konfirmasi eksplisit.
+Setiap push ke main **WAJIB** lulus local test gate terlebih dulu:
+
+```bash
+bash scripts/local-test-gate.sh
+```
+
+Script ini menjalankan (otomatis):
+1. composer install --no-dev
+2. npm ci && npm run build
+3. php artisan migrate --force --env=testing
+4. php artisan test (PHPUnit)
+5. npx vitest run (Vitest)
+
+**Hanya commit/push jika semua pass.** GitHub Actions hanya cek artifact + deploy (bukan re-test).
+
+## Shared hosting deploy (lokal-first automated)
+
+1. Lokal: `bash scripts/local-test-gate.sh` (mandatory gate)
+2. Lokal: `bash scripts/shared-hosting-package-local.sh` (build artifact)
+3. Lokal: `git commit && git push origin main`
+4. **GitHub Actions auto-deploy**: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
+
+Artifact di-track di `release/shared-hosting/` agar GitHub dapat deploy tanpa re-build.
 
 README feature di [docs/features](docs/features) harus business-readable: flow end-to-end, keputusan/lifecycle, gap existing vs target, dan cross-check role/API permission tidak boleh hilang untuk fitur operasional.
 

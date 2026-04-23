@@ -45,22 +45,18 @@ jobs:
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy artifact to server
-        env:
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
           cd release/shared-hosting
           ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
           echo "📦 Uploading: $ARTIFACT"
-          scp -P "$SSH_PORT" -i ~/.ssh/deploy_key "$ARTIFACT" "$SSH_USER@$SSH_HOST:/home/$SSH_USER/public_html/hr.jogjatourdrive.com/"
+          scp -P ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key "$ARTIFACT" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com/
           
           echo "🚀 Extracting and deploying..."
-          ssh -p "$SSH_PORT" -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << EOF
+          ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -euo pipefail
-          cd /home/$SSH_USER/public_html/hr.jogjatourdrive.com
-          ARTIFACT=\$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
-          tar -xzf "\$ARTIFACT"
+          cd /home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com
+          ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
+          tar -xzf "$ARTIFACT"
           bash scripts/shared-hosting-deploy-easy.sh
           echo "✅ Deploy complete!"
           EOF

@@ -75,12 +75,12 @@
             </div>
             <!-- /Welcome Wrap -->
 
-            @php($showModernAdminDashboard = false)
+            @php($showModernAdminDashboard = true)
             @if($showModernAdminDashboard)
                 @include('hcm.partials.admin-home-dashboard')
             @endif
 
-            @php($showLegacyIndexWidgets = true)
+            @php($showLegacyIndexWidgets = false)
             @if($showLegacyIndexWidgets)
             <div class="row">
 

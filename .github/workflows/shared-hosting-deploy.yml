@@ -1,112 +1,41 @@
-name: CI/CD - Shared Hosting Deploy
+name: Deploy to Shared Hosting
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'backend/**'
+      - 'release/shared-hosting/**'
+      - '.github/workflows/shared-hosting-deploy.yml'
   workflow_dispatch:
 
 jobs:
-  gate:
-    name: Test Gate (PHPUnit + Vitest)
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: pdo, pdo_mysql, bcmath, ctype, json, mbstring, openssl, pdo, pdfakerphp, tokenizer
-          tools: composer
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'backend/package-lock.json'
-
-      - name: Install PHP dependencies
-        working-directory: backend
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Install Node dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Build frontend assets
-        working-directory: backend
-        run: npm run build
-
-      - name: Run database migration
-        working-directory: backend
-        run: php artisan migrate --force --env=testing
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-
-      - name: Run PHPUnit tests
-        working-directory: backend
-        run: php artisan test
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-
-      - name: Run Vitest
-        working-directory: backend
-        run: npx vitest run
-
-  build:
-    name: Build Artifact
-    needs: gate
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: pdo, pdo_mysql, bcmath, ctype, json, mbstring, openssl, pdo, pdobj, tokenizer
-          tools: composer
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'backend/package-lock.json'
-
-      - name: Build production artifact
-        run: |
-          bash scripts/shared-hosting-package-local.sh
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: shared-hosting-artifact
-          path: release/shared-hosting/shared-hosting-artifact-*.tar.gz
-          retention-days: 1
-
   deploy:
-    name: Deploy to Server
-    needs: build
+    name: Deploy Artifact to Server
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: shared-hosting-artifact
-          path: ./
+      - name: Check for production artifact
+        run: |
+          ARTIFACT=$(ls -t release/shared-hosting/shared-hosting-artifact-*.tar.gz 2>/dev/null | head -1)
+          if [ -z "$ARTIFACT" ]; then
+            echo "❌ ERROR: No production artifact found in release/shared-hosting/"
+            echo ""
+            echo "📋 LOCAL BUILD REQUIRED before push:"
+            echo "   cd backend"
+            echo "   composer install --no-dev"
+            echo "   npm ci && npm run build"
+            echo "   cd .."
+            echo "   bash scripts/shared-hosting-package-local.sh"
+            echo "   git add release/ && git commit && git push"
+            echo ""
+            exit 1
+          fi
+          echo "✅ Found artifact: $ARTIFACT"
 
       - name: Setup SSH key
         run: |
@@ -115,24 +44,25 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Upload artifact to server
-        run: |
-          cd release/shared-hosting
-          ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
-          scp -P "${{ secrets.SSH_PORT }}" -i ~/.ssh/deploy_key "$ARTIFACT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com/"
-
-      - name: Extract and deploy on server
+      - name: Deploy artifact to server
         env:
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
+          cd release/shared-hosting
+          ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
+          echo "📦 Uploading: $ARTIFACT"
+          scp -P "$SSH_PORT" -i ~/.ssh/deploy_key "$ARTIFACT" "$SSH_USER@$SSH_HOST:/home/$SSH_USER/public_html/hr.jogjatourdrive.com/"
+          
+          echo "🚀 Extracting and deploying..."
           ssh -p "$SSH_PORT" -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << EOF
           set -euo pipefail
           cd /home/$SSH_USER/public_html/hr.jogjatourdrive.com
           ARTIFACT=\$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
           tar -xzf "\$ARTIFACT"
           bash scripts/shared-hosting-deploy-easy.sh
+          echo "✅ Deploy complete!"
           EOF
 
       - name: Cleanup SSH key

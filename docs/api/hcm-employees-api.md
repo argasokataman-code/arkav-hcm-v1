@@ -65,6 +65,11 @@ Body:
 - `nik` / alias `ktpNo` **required** regex `^[0-9]{16}$` — satu sumber data untuk **NIK / nomor KTP**
 - `phone` **required** regex `^[0-9]{10,13}$`
 - `placeOfBirth`, `dateOfBirth`, `gender` (`male|female|other`), `maritalStatus` (`single|married|divorced|widowed`), `religion`, dan `address` **required**
+- `provinceId`, `regencyId`, `districtId`, `villageId` **required** integer (ID master wilayah) dengan relasi hirarki valid:
+  - `regencyId` harus milik `provinceId`
+  - `districtId` harus milik `regencyId`
+  - `villageId` harus milik `districtId`
+- Validasi lookup wilayah menggunakan kolom numeric `id` (bukan `uuid`) agar konsisten dengan payload UI/API yang mengirim ID integer.
 - `nationality` otomatis dinormalisasi ke **`Indonesia`** dan input selain Indonesia ditolak
 - `bankName`, `bankAccountNo`, `bankAccountHolderName` **required**; `bankIfscCode`, `bankBranch` optional
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo` optional

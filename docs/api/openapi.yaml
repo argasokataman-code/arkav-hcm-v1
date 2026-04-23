@@ -8171,22 +8171,22 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: Required for create; selected province id from wilayah hierarchy.
+          description: Required for create; selected province numeric id (wilayah_provinces.id) from wilayah hierarchy.
         regencyId:
           type: integer
           minimum: 1
           nullable: true
-          description: Required for create; must belong to selected province.
+          description: Required for create; selected regency numeric id (wilayah_regencies.id) and must belong to selected province.
         districtId:
           type: integer
           minimum: 1
           nullable: true
-          description: Required for create; must belong to selected regency.
+          description: Required for create; selected district numeric id (wilayah_districts.id) and must belong to selected regency.
         villageId:
           type: integer
           minimum: 1
           nullable: true
-          description: Required for create; must belong to selected district.
+          description: Required for create; selected village numeric id (wilayah_villages.id) and must belong to selected district.
         address:
           type: string
           maxLength: 2000
@@ -8360,18 +8360,22 @@ components:
           type: integer
           minimum: 1
           nullable: true
+          description: Province numeric id from wilayah_provinces.id.
         regencyId:
           type: integer
           minimum: 1
           nullable: true
+          description: Regency numeric id from wilayah_regencies.id; must match selected province.
         districtId:
           type: integer
           minimum: 1
           nullable: true
+          description: District numeric id from wilayah_districts.id; must match selected regency.
         villageId:
           type: integer
           minimum: 1
           nullable: true
+          description: Village numeric id from wilayah_villages.id; must match selected district.
         address:
           type: string
           maxLength: 2000

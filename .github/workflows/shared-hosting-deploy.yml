@@ -117,16 +117,21 @@ jobs:
 
       - name: Upload artifact to server
         run: |
+          cd release/shared-hosting
           ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
-          scp -P ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key "$ARTIFACT" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com/
+          scp -P "${{ secrets.SSH_PORT }}" -i ~/.ssh/deploy_key "$ARTIFACT" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com/"
 
       - name: Extract and deploy on server
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
-          ARTIFACT=$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
-          ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -p "$SSH_PORT" -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" << EOF
           set -euo pipefail
-          cd /home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com
-          tar -xzf $(basename "$ARTIFACT")
+          cd /home/$SSH_USER/public_html/hr.jogjatourdrive.com
+          ARTIFACT=\$(ls -t shared-hosting-artifact-*.tar.gz | head -1)
+          tar -xzf "\$ARTIFACT"
           bash scripts/shared-hosting-deploy-easy.sh
           EOF
 

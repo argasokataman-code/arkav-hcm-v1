@@ -21,9 +21,9 @@ NC='\033[0m' # No Color
 
 cd "$BACKEND_DIR"
 
-# Step 1: Install PHP dependencies
+# Step 1: Install PHP dependencies (with dev for testing)
 echo "${YELLOW}[1/6]${NC} Installing PHP dependencies..."
-if ! composer install --no-dev; then
+if ! composer install; then
   echo "${RED}✗ composer install failed${NC}"
   exit 1
 fi

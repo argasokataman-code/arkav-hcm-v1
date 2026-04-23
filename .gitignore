@@ -31,8 +31,11 @@ backend/storage/framework/views/*
 backend/bootstrap/cache/*.php
 backend/public/storage
 
-# Release artifacts
+# Release artifacts (allow shared-hosting artifacts for deploy)
 release/
+!release/shared-hosting/
+release/shared-hosting/*
+!release/shared-hosting/shared-hosting-artifact-*.tar.gz
 
 # Env / sensitive files
 backend/env.txt

@@ -800,13 +800,13 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
   /v1/hcm/departments/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DepartmentNumericIdPath'
     put:
       tags: [HCM]
       summary: Update department
       security:
         - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -826,6 +826,22 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '422':
           $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [HCM]
+      summary: Delete department
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
 
   /v1/hcm/designations:
     get:
@@ -865,13 +881,13 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
   /v1/hcm/designations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DesignationNumericIdPath'
     put:
       tags: [HCM]
       summary: Update designation
       security:
         - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/UuidPath'
       requestBody:
         required: true
         content:
@@ -891,6 +907,22 @@ paths:
           $ref: '#/components/responses/ConflictError'
         '422':
           $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [HCM]
+      summary: Delete designation
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
 
   /v1/hcm/employees:
     get:
@@ -980,13 +1012,13 @@ paths:
                       code: EMPLOYEE_COUNT_EXCEEDED
                       message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
   /v1/hcm/employees/{id}:
+    parameters:
+      - $ref: '#/components/parameters/EmployeeIdentifierPath'
     get:
       tags: [HCM]
       summary: Get employee detail
       security:
         - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/UuidPath'
       responses:
         '200':
           description: OK
@@ -2856,6 +2888,96 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/leave-settings/types/{code}:
+    parameters:
+      - $ref: '#/components/parameters/LeaveTypeCodePath'
+    put:
+      tags: [Leave]
+      summary: Update leave type setting (admin only)
+      description: Update configuration untuk satu leave type (enabled/default policy) pada company aktif.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                defaultQuota: { type: integer, minimum: 0, nullable: true }
+                carryOver: { type: boolean, nullable: true }
+                maxCarryOver: { type: integer, minimum: 0, nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-settings/custom-policies:
+    post:
+      tags: [Leave]
+      summary: Create custom leave policy (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, quota]
+              properties:
+                name: { type: string, maxLength: 150 }
+                code: { type: string, maxLength: 50, pattern: '^[a-z_]+$' }
+                quota: { type: integer, minimum: 0 }
+                carryOver: { type: boolean }
+                maxCarryOver: { type: integer, minimum: 0, nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/leave-settings/custom-policies/{id}:
+    parameters:
+      - $ref: '#/components/parameters/LeavePolicyNumericIdPath'
+    put:
+      tags: [Leave]
+      summary: Update custom leave policy (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 150 }
+                quota: { type: integer, minimum: 0 }
+                carryOver: { type: boolean }
+                maxCarryOver: { type: integer, minimum: 0, nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Leave]
+      summary: Delete custom leave policy (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
 
   # -------------------------
   # Payroll — salary component master (implemented under /v1/hcm)
@@ -4984,6 +5106,41 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/holidays/{id}:
+    parameters:
+      - $ref: '#/components/parameters/HolidayNumericIdPath'
+    put:
+      tags: [Holidays]
+      summary: Update holiday (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 150 }
+                date: { type: string, format: date }
+                type: { type: string, enum: [national, regional, manual] }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Holidays]
+      summary: Delete holiday (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/holidays/sync-indonesia:
     post:
       tags: [Holidays]
@@ -5318,7 +5475,10 @@ paths:
               type: object
               required: [userId, promotionDate]
               properties:
-                userId: { type: string, format: uuid }
+                userId:
+                  type: integer
+                  minimum: 1
+                  description: Numeric user id (legacy endpoint behavior, matches `whereNumber` on sibling `/promotions/users/{userId}/promotions`).
                 department: { type: string, maxLength: 150, nullable: true }
                 designationFrom: { type: string, maxLength: 150, nullable: true }
                 designationTo: { type: string, maxLength: 150, nullable: true }
@@ -6257,6 +6417,148 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/subscriptions/preview-change:
+    post:
+      tags: [HCM Billing]
+      summary: Preview tenant-initiated plan change (owner / tenant admin) — F4
+      description: |
+        Dry-run perhitungan selisih harga dan jadwal berlakunya untuk upgrade / downgrade / cancel.
+        Tidak menulis apa pun; aman dipanggil berulang dari UI `/upgrade`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [upgrade, downgrade, cancel] }
+                to_package_uuid:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Wajib untuk upgrade/downgrade; abaikan untuk cancel.
+      responses:
+        '200': { description: OK }
+        '400': { description: Active company context required }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/subscriptions/change-plan:
+    post:
+      tags: [HCM Billing]
+      summary: Submit plan change request (owner / tenant admin) — F4
+      description: |
+        Mencatat request status `pending` untuk disetujui super-admin. Hanya boleh ada satu request
+        pending per company (duplicate → `409 CHANGE_REQUEST_PENDING`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [upgrade, downgrade, cancel] }
+                to_package_uuid: { type: string, format: uuid, nullable: true }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '201': { description: Pending request created }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '409': { description: Pending request already exists }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/subscriptions/cancel-change:
+    post:
+      tags: [HCM Billing]
+      summary: Cancel a pending tenant plan change request — F4
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string, format: uuid }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Not found }
+        '422': { description: Not pending }
+
+  /v1/hcm/subscriptions/change-requests:
+    get:
+      tags: [HCM Billing]
+      summary: List plan change requests for active tenant — F4
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/subscription-change-requests:
+    get:
+      tags: [SaaS]
+      summary: List all tenant plan change requests (super-admin) — F4
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected, applied, cancelled] }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/subscription-change-requests/{id}/approve:
+    post:
+      tags: [SaaS]
+      summary: Approve + apply a pending tenant plan change (super-admin) — F4
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Applied }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Not found }
+        '422': { description: Not pending }
+
+  /v1/saas/subscription-change-requests/{id}/reject:
+    post:
+      tags: [SaaS]
+      summary: Reject a pending tenant plan change (super-admin) — F4
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string, maxLength: 500 }
+      responses:
+        '200': { description: Rejected }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Not found }
+        '422': { description: Not pending }
 
   /v1/saas/invoices:
     post:
@@ -7404,6 +7706,56 @@ components:
         type: integer
         minimum: 1
       description: Numeric ticket id.
+    DepartmentNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric department id (route enforces `whereNumber`).
+    DesignationNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric designation id (route enforces `whereNumber`).
+    EmployeeIdentifierPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric employee id (route enforces `whereNumber`). UUID fallback is tracked for a future identifier transition but is not accepted today.
+    HolidayNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric holiday id (route enforces `whereNumber`).
+    LeavePolicyNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Numeric custom leave policy id (route enforces `whereNumber`).
+    LeaveTypeCodePath:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^[a-z_]+$
+        maxLength: 50
+      description: Lowercase leave type code (route constraint `[a-z_]+`).
+      example: annual
     UserNumericIdPath:
       name: id
       in: path

@@ -1,5 +1,8 @@
 # Production Setup Checklist for arkav.puree.id
 
+For non-container shared hosting setup (direct Laravel web root, no Node proxy, local artifact build), use:
+- `docs/engineering/shared-hosting-setup.md`
+
 ## 🔧 Environment Configuration
 
 Before deploying to production at `https://arkav.puree.id/`, ensure these settings are in place:
@@ -48,7 +51,22 @@ QUEUE_CONNECTION=database
 FILESYSTEM_DISK=local
 # Keep dev bootstrap disabled in production startup
 RUN_DEV_BOOTSTRAP=false
+
+# HCM payroll feature flags (canonical source: backend/env.txt +
+# docs/features/payroll-runs/README.md). Defaults below match config/hcm.php.
+# HCM_PAYROLL_LEAVE_INTEGRATION=false
+# HCM_PAYROLL_HOLIDAY_WORK_MULTIPLIER=2.0
 ```
+
+#### HCM feature flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `HCM_PAYROLL_LEAVE_INTEGRATION` | `false` | Turn on the leave + holiday payroll adjuster pipeline. When enabled, unpaid leave becomes a payroll deduction and holiday work becomes an addition. |
+| `HCM_PAYROLL_HOLIDAY_WORK_MULTIPLIER` | `2.0` | Multiplier applied to the daily rate when an attendance record falls on an official holiday. |
+
+The canonical reference lives in [`backend/env.txt`](backend/env.txt) and [`docs/features/payroll-runs/README.md`](docs/features/payroll-runs/README.md). Keep those three (env.txt, PRODUCTION-SETUP.md, feature README) in sync when adding new HCM flags.
+
 
 ### Docker Deployment
 

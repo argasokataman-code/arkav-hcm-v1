@@ -234,6 +234,87 @@ Memperpanjang subscription: mengaktifkan kembali (`status` → `active`), `start
 }
 ```
 
+### Tenant Plan Change Preview (Owner / Tenant Admin)
+
+```
+POST /v1/hcm/subscriptions/preview-change
+```
+
+Dry-run perubahan paket tenant (upgrade / downgrade / cancel) untuk halaman `/upgrade`.
+Endpoint ini tidak menulis data request; hanya mengembalikan preview harga, aksi final,
+dan tanggal efektif.
+
+**Request**
+```json
+{
+  "action": "upgrade",
+  "to_package_uuid": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca"
+}
+```
+
+### Submit Plan Change Request (Owner / Tenant Admin)
+
+```
+POST /v1/hcm/subscriptions/change-plan
+```
+
+Mencatat request tenant ke tabel `hcm_subscription_change_requests` dengan status awal
+`pending`. Satu tenant hanya boleh memiliki **satu** request pending aktif; request kedua
+ditolak `409 CHANGE_REQUEST_PENDING`.
+
+**Request**
+```json
+{
+  "action": "upgrade",
+  "to_package_uuid": "d6f8f0e7-3b2e-4f59-9ff1-1d0b3b7c5aca",
+  "notes": "Need tickets feature"
+}
+```
+
+### Cancel Pending Plan Change Request (Owner / Tenant Admin)
+
+```
+POST /v1/hcm/subscriptions/cancel-change
+```
+
+Membatalkan request tenant yang masih `pending`.
+
+**Request**
+```json
+{
+  "id": "f87cf1ee-6649-4a38-ae77-ec0ff54be5ce"
+}
+```
+
+### List Tenant Plan Change Requests (Owner / Tenant Admin)
+
+```
+GET /v1/hcm/subscriptions/change-requests
+```
+
+Mengembalikan histori request perubahan paket untuk active company context tenant.
+
+### List All Tenant Plan Change Requests (Super Admin)
+
+```
+GET /v1/saas/subscription-change-requests?status=pending
+```
+
+List global untuk approval queue super-admin.
+
+### Approve / Reject Tenant Plan Change Request (Super Admin)
+
+```
+POST /v1/saas/subscription-change-requests/{id}/approve
+POST /v1/saas/subscription-change-requests/{id}/reject
+```
+
+Approve akan memindahkan status `pending -> approved` dan:
+- jika `effective_at <= now` langsung dijalankan lewat `ApplySubscriptionChangeJob`, atau
+- jika `effective_at > now` menunggu cron `saas-apply-subscription-plan-changes`.
+
+Reject akan memindahkan status `pending -> rejected`.
+
 ## Error Responses
 
 ### 403 Forbidden

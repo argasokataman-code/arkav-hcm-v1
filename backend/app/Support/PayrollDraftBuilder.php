@@ -13,6 +13,7 @@ use App\Models\OvertimeRequest;
 use App\Models\User;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\OvertimePayCalculator;
+use App\Services\Hcm\PayrollLeaveHolidayAdjuster;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -225,6 +226,7 @@ final class PayrollDraftBuilder
             $pph21Component = $pph21Query->first();
             $overtimeCalculator = app(OvertimePayCalculator::class);
             $snapshotService = app(EmployeeSnapshotService::class);
+            $leaveHolidayAdjuster = app(PayrollLeaveHolidayAdjuster::class);
             $asOf = Carbon::create($period->period_year, $period->period_month, 1)->endOfMonth();
 
             $resignedUserIds = HcmResignation::query()
@@ -439,6 +441,81 @@ final class PayrollDraftBuilder
                     }
                 }
 
+                // --- H3: Leave/Holiday integration (off by default via feature flag) ---
+                $leaveAdjustment = $leaveHolidayAdjuster->adjust($user, $period, $companyId, $base, $fixed);
+                if ($leaveAdjustment['enabled']) {
+                    if ($leaveAdjustment['unpaidLeaveAmount'] > 0) {
+                        $unpaidComponent = self::resolveOrCreateComponent(
+                            $companyId,
+                            'potongan_cuti_unpaid',
+                            'Potongan cuti tanpa gaji',
+                            'deduction',
+                            'other_deduction'
+                        );
+                        if ($unpaidComponent !== null) {
+                            HcmPayrollLine::query()->create([
+                                'company_id' => $companyId,
+                                'hcm_payroll_run_id' => $run->id,
+                                'user_id' => $user->id,
+                                'hcm_salary_component_id' => $unpaidComponent->id,
+                                'component_code' => $unpaidComponent->code,
+                                'component_name' => $unpaidComponent->name,
+                                'kind' => 'deduction',
+                                'category' => $unpaidComponent->category ?? 'other_deduction',
+                                'amount' => $leaveAdjustment['unpaidLeaveAmount'],
+                                'sort_order' => $sortOrder++,
+                                'meta' => [
+                                    'source' => 'leave_requests:unpaid',
+                                    'userName' => $user->name,
+                                    'affectsNetPay' => (bool) ($unpaidComponent->affects_net_pay ?? true),
+                                    'unpaidLeaveDays' => $leaveAdjustment['unpaidLeaveDays'],
+                                    'workingDaysInMonth' => $leaveAdjustment['workingDaysInMonth'],
+                                    'dailyRate' => $leaveAdjustment['dailyRate'],
+                                    'unpaidLeaveRequestIds' => $leaveAdjustment['unpaidLeaveRequestIds'],
+                                ],
+                            ]);
+                            // Unpaid leave menurunkan taxable gross (upah yang dibayar berkurang).
+                            $taxableGross = max(0.0, $taxableGross - $leaveAdjustment['unpaidLeaveAmount']);
+                        }
+                    }
+
+                    if ($leaveAdjustment['holidayWorkAmount'] > 0) {
+                        $holidayComponent = self::resolveOrCreateComponent(
+                            $companyId,
+                            'tunjangan_kerja_libur',
+                            'Tunjangan kerja hari libur',
+                            'addition',
+                            'irregular_allowance'
+                        );
+                        if ($holidayComponent !== null) {
+                            HcmPayrollLine::query()->create([
+                                'company_id' => $companyId,
+                                'hcm_payroll_run_id' => $run->id,
+                                'user_id' => $user->id,
+                                'hcm_salary_component_id' => $holidayComponent->id,
+                                'component_code' => $holidayComponent->code,
+                                'component_name' => $holidayComponent->name,
+                                'kind' => 'addition',
+                                'category' => $holidayComponent->category ?? 'irregular_allowance',
+                                'amount' => $leaveAdjustment['holidayWorkAmount'],
+                                'sort_order' => $sortOrder++,
+                                'meta' => [
+                                    'source' => 'attendance_records:holiday_work',
+                                    'userName' => $user->name,
+                                    'affectsNetPay' => (bool) ($holidayComponent->affects_net_pay ?? true),
+                                    'holidayWorkDays' => $leaveAdjustment['holidayWorkDays'],
+                                    'holidayDates' => $leaveAdjustment['holidayDates'],
+                                    'dailyRate' => $leaveAdjustment['dailyRate'],
+                                    'multiplier' => $leaveAdjustment['holidayWorkMultiplier'],
+                                ],
+                            ]);
+                            if ((bool) ($holidayComponent->include_pph21_ter_gross ?? true)) {
+                                $taxableGross += $leaveAdjustment['holidayWorkAmount'];
+                            }
+                        }
+                    }
+                }
+
                 $bpjsHealthBase = $base + $fixed;
                 $bpjsTkBase = $base + $fixed;
                 $taxProfile = $snapshotService->latestTaxProfile($profile, $asOf);
@@ -539,6 +616,46 @@ final class PayrollDraftBuilder
         $query->where(function ($q) use ($companyId): void {
             $q->where('company_id', $companyId)->orWhereNull('company_id');
         });
+    }
+
+    /**
+     * Cari komponen salary per tenant berdasarkan code; jika belum ada, buat
+     * baris master default. Dipakai oleh integrasi cuti/libur (H3) supaya tenant
+     * yang mengaktifkan flag tidak perlu provisioning manual terlebih dahulu.
+     */
+    private static function resolveOrCreateComponent(
+        ?int $companyId,
+        string $code,
+        string $name,
+        string $kind,
+        string $category
+    ): ?HcmSalaryComponent {
+        $query = HcmSalaryComponent::query()
+            ->where('code', $code)
+            ->where('is_active', true);
+        self::applyTenantScope($query, $companyId);
+        $existing = $query->first();
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        // Default flags: deduction cuti unpaid & addition tunjangan libur keduanya
+        // mempengaruhi net pay dan masuk basis PPh21 TER (gross).
+        return HcmSalaryComponent::query()->create([
+            'company_id' => $companyId,
+            'code' => $code,
+            'name' => $name,
+            'kind' => $kind,
+            'category' => $category,
+            'is_active' => true,
+            'affects_net_pay' => true,
+            'include_pph21_ter_gross' => true,
+            'include_bpjs_health_wage_base' => false,
+            'include_bpjs_tk_wage_base' => false,
+            'include_thr_calculation_base' => false,
+            'is_system_locked' => false,
+            'sort_order' => 9000,
+        ]);
     }
 
     private static function calculateMonthlyPph21(float $monthlyTaxableGross, string $taxStatus = 'TK0'): float

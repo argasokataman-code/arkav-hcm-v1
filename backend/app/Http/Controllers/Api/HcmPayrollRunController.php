@@ -9,6 +9,7 @@ use App\Mail\MonthlyPayslipMail;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\HcmTermination;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
@@ -172,6 +173,12 @@ class HcmPayrollRunController extends Controller
                     'message' => 'Cannot finalize a payroll run with no lines; recalculate draft or fix employee data.',
                 ],
             ], 422);
+        }
+
+        if ($purpose === HcmPayrollRun::PURPOSE_MONTHLY) {
+            if ($blocker = $this->unsettledTerminationBlocker($run, $companyId)) {
+                return $blocker;
+            }
         }
 
         $user = $request->user();
@@ -1629,6 +1636,59 @@ class HcmPayrollRunController extends Controller
     private function activeCompanyId(Request $request): ?int
     {
         return $request->attributes->get('activeCompanyId');
+    }
+
+    /**
+     * M4 — Guard: block finalizing a monthly payroll run when there are approved
+     * terminations whose termination_date falls on/before this period's end and
+     * they still have no settlement_payroll_period_id linked.
+     *
+     * This forces the HR flow to link/finalize the settlement period for any
+     * approved terminations before locking the monthly run for that period.
+     */
+    private function unsettledTerminationBlocker(HcmPayrollRun $run, ?int $companyId): ?JsonResponse
+    {
+        $period = HcmPayrollPeriod::query()->find($run->hcm_payroll_period_id);
+        if ($period === null) {
+            return null;
+        }
+
+        $year = (int) $period->period_year;
+        $month = (int) $period->period_month;
+        if ($year <= 0 || $month <= 0) {
+            return null;
+        }
+
+        $periodEnd = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+
+        $query = HcmTermination::query()
+            ->where('status', 'approved')
+            ->whereNull('settlement_payroll_period_id')
+            ->whereDate('termination_date', '<=', $periodEnd);
+
+        $scopeCompanyId = $companyId ?? $run->company_id;
+        if ($scopeCompanyId !== null) {
+            $query->where(function ($q) use ($scopeCompanyId): void {
+                $q->where('company_id', $scopeCompanyId)->orWhereNull('company_id');
+            });
+        }
+
+        $pendingCount = (int) $query->count();
+        if ($pendingCount === 0) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'PAYROLL_UNSETTLED_TERMINATIONS',
+                'message' => 'Cannot finalize monthly payroll: there are approved terminations without a linked settlement period.',
+                'meta' => [
+                    'pendingCount' => $pendingCount,
+                    'periodEnd' => $periodEnd,
+                ],
+            ],
+        ], 422);
     }
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder

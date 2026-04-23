@@ -82,7 +82,7 @@ Route::get('/api-docs/openapi.yaml', function (Request $request) {
 
 Route::get('/index', function () {
     return view('index');
-})->name('index');
+})->middleware('hcm.web.admin')->name('index');
 
 Route::get('/employee-dashboard', function () {
     return view('employee-dashboard');
@@ -216,10 +216,19 @@ Route::get('/saas/reminders', function () {
     return view('saas.reminders');
 })->middleware('hcm.web.global-admin')->name('saas.reminders');
 
-// Company views for billing
+// Company views for billing — tenant admin self-service (OWNER/HR_ADMIN/OPS_ADMIN/ADMIN
+// via RBAC). Non-admin karyawan dialihkan ke /employee-dashboard. Global super-admin tetap
+// bypass lewat EnsureHcmWebAdminPage.
 Route::get('/company/invoices', function () {
     return view('company.invoices');
-})->name('company.invoices');
+})->middleware('hcm.web.admin')->name('company.invoices');
+
+// Upgrade plan flow — reachable for any authenticated user whose tenant was
+// blocked by a feature gate. The page itself posts to /v1/hcm/subscriptions/*
+// endpoints which enforce owner/admin RBAC.
+Route::get('/upgrade', function () {
+    return view('upgrade');
+})->name('upgrade');
 
 Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
 
@@ -1132,7 +1141,7 @@ Route::get('roles-permissions', function() {
 
 Route::get('permission', function() {
     return view('permission');
-})->name('permission');
+})->middleware('hcm.web.admin')->name('permission');
 
 Route::get('knowledgebase', [KnowledgebaseController::class, 'index'])->name('knowledgebase');
 Route::get('knowledgebase/category/{slug}', [KnowledgebaseController::class, 'category'])->name('knowledgebase.category');

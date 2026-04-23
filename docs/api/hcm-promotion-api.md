@@ -15,7 +15,7 @@ Base path: `/v1/hcm`
 
 Promotion record menyimpan riwayat promosi employee.
 
-- `userId` (required, UUID): target employee (User) yang juga harus menjadi anggota company aktif
+- `userId` (required, integer legacy): target employee (User) yang juga harus menjadi anggota company aktif. Saat ini endpoint ini menerima `userId` numeric legacy (sesuai sibling `/promotions/users/{userId}/promotions` yang memakai `whereNumber`).
 - `department` (optional, string ≤ 150)
 - `designationFrom` (optional, string ≤ 150)
 - `designationTo` (optional, string ≤ 150)
@@ -88,7 +88,7 @@ Create a promotion record (**HCM admin only**).
 
 ```json
 {
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": 42,
   "department": "Finance",
   "designationFrom": "Accountant",
   "designationTo": "Sr Accountant",

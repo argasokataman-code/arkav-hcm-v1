@@ -209,4 +209,133 @@ class HcmPayrollItemAssignmentApiTest extends TestCase
             HcmPayrollItem::query()->where('code', 'allowance_assignment_included')->count(),
         );
     }
+
+    /**
+     * M7 — Two active assignments for the same (user, payroll item) whose
+     * effective ranges overlap must be rejected with PAYROLL_ITEM_ASSIGNMENT_OVERLAP.
+     */
+    public function test_overlapping_active_assignments_are_rejected(): void
+    {
+        $this->employeeToken('overlap-target@example.com', 5_000_000);
+        $adminToken = $this->adminToken();
+        $employee = User::query()->where('email', 'overlap-target@example.com')->firstOrFail();
+
+        $itemId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-items', [
+                'name' => 'Overlap Allowance',
+                'code' => 'overlap_allowance',
+                'kind' => 'addition',
+                'category' => 'other_addition',
+                'isActive' => true,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 100_000,
+                'effectiveStartDate' => '2027-01-01',
+                'effectiveEndDate' => '2027-06-30',
+            ])
+            ->assertStatus(201);
+
+        // Overlaps mid-range → reject
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 150_000,
+                'effectiveStartDate' => '2027-04-01',
+                'effectiveEndDate' => '2027-09-30',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PAYROLL_ITEM_ASSIGNMENT_OVERLAP');
+    }
+
+    /**
+     * M7 — Adjacent (non-overlapping) ranges are allowed: assignment 1 ends
+     * 2027-06-30, assignment 2 starts 2027-07-01 is valid.
+     */
+    public function test_adjacent_non_overlapping_assignments_are_accepted(): void
+    {
+        $this->employeeToken('adjacent-target@example.com', 5_000_000);
+        $adminToken = $this->adminToken();
+        $employee = User::query()->where('email', 'adjacent-target@example.com')->firstOrFail();
+
+        $itemId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-items', [
+                'name' => 'Adjacent Allowance',
+                'code' => 'adjacent_allowance',
+                'kind' => 'addition',
+                'category' => 'other_addition',
+                'isActive' => true,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 100_000,
+                'effectiveStartDate' => '2027-01-01',
+                'effectiveEndDate' => '2027-06-30',
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 150_000,
+                'effectiveStartDate' => '2027-07-01',
+                'effectiveEndDate' => '2027-12-31',
+            ])
+            ->assertStatus(201);
+    }
+
+    /**
+     * M7 — An open-ended existing assignment (end_date NULL) must block any
+     * new assignment whose start is >= its start.
+     */
+    public function test_open_ended_existing_blocks_future_assignment(): void
+    {
+        $this->employeeToken('open-target@example.com', 5_000_000);
+        $adminToken = $this->adminToken();
+        $employee = User::query()->where('email', 'open-target@example.com')->firstOrFail();
+
+        $itemId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-items', [
+                'name' => 'Open Ended Allowance',
+                'code' => 'open_ended_allowance',
+                'kind' => 'addition',
+                'category' => 'other_addition',
+                'isActive' => true,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 100_000,
+                'effectiveStartDate' => '2027-01-01',
+                // no end date
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/payroll-item-assignments', [
+                'userId' => $employee->uuid,
+                'payrollItemId' => $itemId,
+                'amount' => 200_000,
+                'effectiveStartDate' => '2027-05-01',
+                'effectiveEndDate' => '2027-08-31',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PAYROLL_ITEM_ASSIGNMENT_OVERLAP');
+    }
 }

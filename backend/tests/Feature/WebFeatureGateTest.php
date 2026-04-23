@@ -122,12 +122,12 @@ class WebFeatureGateTest extends TestCase
         $this->actingAs($tenant['user'])
             ->withHeader('X-Company-Code', $tenant['company']->code)
             ->get('/tickets-admin')
-            ->assertRedirect(url('employee-dashboard'));
+            ->assertRedirect(url('upgrade') . '?blocked=tickets');
 
         $this->actingAs($tenant['user'])
             ->withHeader('X-Company-Code', $tenant['company']->code)
             ->get('/ticket-master')
-            ->assertRedirect(url('employee-dashboard'));
+            ->assertRedirect(url('upgrade') . '?blocked=tickets');
     }
 
     public function test_payroll_web_pages_blocked_when_subscription_lacks_payroll_feature(): void
@@ -138,7 +138,7 @@ class WebFeatureGateTest extends TestCase
             $this->actingAs($tenant['user'])
                 ->withHeader('X-Company-Code', $tenant['company']->code)
                 ->get($path)
-                ->assertRedirect(url('employee-dashboard'));
+                ->assertRedirect(url('upgrade') . '?blocked=payroll');
         }
     }
 
@@ -150,7 +150,7 @@ class WebFeatureGateTest extends TestCase
             $this->actingAs($tenant['user'])
                 ->withHeader('X-Company-Code', $tenant['company']->code)
                 ->get($path)
-                ->assertRedirect(url('employee-dashboard'));
+                ->assertRedirect(url('upgrade') . '?blocked=training');
         }
     }
 

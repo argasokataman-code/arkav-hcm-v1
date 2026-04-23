@@ -133,6 +133,9 @@ class WebHcmRouteGuardTest extends TestCase
     private function criticalAdminWebPaths(): array
     {
         return [
+            '/index',
+            '/permission',
+            '/company/invoices',
             '/dashboard',
             '/saas-dashboard',
             '/saas/transactions',

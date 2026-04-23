@@ -36,6 +36,19 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 - Jika `Nothing to migrate`, tetap lanjut ke test ulang dan laporkan status tersebut.
 - Jika ada `Status` di dokumentasi fitur, update tracker terkait sebelum claim status final.
 
+### Profil sementara: Shared-hosting auto deploy (aktif saat diminta user)
+
+- Untuk workflow sementara deployment ke shared hosting, setelah seluruh gate pasca-fixing di atas terpenuhi, lanjutkan build/package/deploy dengan urutan berikut:
+	1. Build artifact lokal:
+		- `bash scripts/shared-hosting-package-local.sh`
+	2. Upload artifact ke host target:
+		- `scp -P <SSH_PORT> release/shared-hosting/shared-hosting-artifact-<timestamp>.tar.gz <SSH_USER>@<SSH_HOST>:/home/<SSH_USER>/public_html/hr.<PRIMARY_DOMAIN>/`
+	3. Eksekusi deploy di server (extract + deploy script):
+		- `ssh -p <SSH_PORT> <SSH_USER>@<SSH_HOST> 'cd /home/<SSH_USER>/public_html/hr.<PRIMARY_DOMAIN> && tar -xzf shared-hosting-artifact-<timestamp>.tar.gz && bash scripts/shared-hosting-deploy-easy.sh'`
+- Gunakan path deploy existing dan jangan membuat varian script deploy baru tanpa konfirmasi eksplisit.
+- Jika SSH session tidak bisa diambil alih agent, gunakan mode "single-command remote execution" dari mesin lokal (heredoc/inline ssh command) agar tetap end-to-end.
+- Tetap laporkan evidence hasil migrate/test/build/deploy pada penutupan task.
+
 ## Guard kontrak API (wajib)
 
 - Jangan ubah kontrak API aktif kecuali memang ada issue API nyata (bug/security/regression) atau kebutuhan fitur baru yang disetujui.

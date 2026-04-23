@@ -752,4 +752,89 @@ class HcmPayrollRunApiTest extends TestCase
         $this->assertNotContains($zeroNetUserId, (array) $response->json('data.selectedUserIds'));
         $this->assertContains($zeroNetUserId, (array) $response->json('data.ineligibleUserIds'));
     }
+
+    /**
+     * M4 — Finalize guard: block monthly finalize ketika ada approved termination
+     * tanpa settlement_payroll_period_id yang termination_date <= period end.
+     */
+    public function test_finalize_monthly_blocked_by_unsettled_approved_termination(): void
+    {
+        $this->employeeToken(); // ensure at least one employee exists so draft has lines
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
+
+        // Create an approved termination with date inside the period and no settlement link.
+        $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
+        \App\Models\HcmTermination::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $terminatedUser->id,
+            'termination_type' => 'resignation',
+            'reason' => 'Personal reasons',
+            'notice_date' => '2026-07-01',
+            'termination_date' => '2026-07-15',
+            'status' => 'approved',
+            'settlement_payroll_period_id' => null,
+        ]);
+
+        $res = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertStatus(422);
+        $this->assertSame('PAYROLL_UNSETTLED_TERMINATIONS', $res->json('error.code'));
+        $this->assertSame(1, (int) $res->json('error.meta.pendingCount'));
+    }
+
+    /**
+     * M4 — Finalize allowed when approved termination already has
+     * settlement_payroll_period_id linked (settlement flow done).
+     */
+    public function test_finalize_monthly_allowed_when_termination_has_settlement_period(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
+
+        $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
+        \App\Models\HcmTermination::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $terminatedUser->id,
+            'termination_type' => 'resignation',
+            'reason' => 'Personal reasons',
+            'notice_date' => '2026-08-01',
+            'termination_date' => '2026-08-10',
+            'status' => 'approved',
+            'settlement_payroll_period_id' => $data['periodId'],
+        ]);
+
+        $res = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+        $this->assertSame('finalized', $res->json('data.status'));
+    }
+
+    /**
+     * M4 — Future terminations (termination_date > period end) must not block
+     * finalizing this period's monthly run.
+     */
+    public function test_finalize_monthly_not_blocked_by_future_termination(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 9);
+
+        $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
+        \App\Models\HcmTermination::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $terminatedUser->id,
+            'termination_type' => 'resignation',
+            'reason' => 'Personal reasons',
+            'notice_date' => '2026-09-01',
+            'termination_date' => '2026-12-15',
+            'status' => 'approved',
+            'settlement_payroll_period_id' => null,
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+    }
 }

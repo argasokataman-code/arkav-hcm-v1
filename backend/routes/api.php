@@ -261,6 +261,12 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     // Tenant billing checkout (owner / tenant admin)
     Route::post('/billing/checkout', [\App\Http\Controllers\Api\HcmSubscriptionCheckoutController::class, 'checkout']);
 
+    // Tenant-initiated subscription plan change (F4)
+    Route::post('/subscriptions/preview-change', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'preview']);
+    Route::post('/subscriptions/change-plan', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'changePlan']);
+    Route::post('/subscriptions/cancel-change', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'cancelChange']);
+    Route::get('/subscriptions/change-requests', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'index']);
+
     // Tenant invoices (my billing)
     Route::get('/billing/invoices', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'index']);
     Route::get('/billing/invoices/{id}', [\App\Http\Controllers\Api\HcmCompanyInvoiceController::class, 'show']);
@@ -447,6 +453,11 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::put('/subscriptions/{subscription}', [SubscriptionController::class, 'update']);
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy']);
     Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
+
+    // Tenant subscription change requests — super-admin approval endpoints (F4)
+    Route::get('/subscription-change-requests', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'listAllForAdmin']);
+    Route::post('/subscription-change-requests/{id}/approve', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'approve']);
+    Route::post('/subscription-change-requests/{id}/reject', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'reject']);
 
     // Purchase Transactions
     Route::get('/transactions/export', [TransactionController::class, 'export']);

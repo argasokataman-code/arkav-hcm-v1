@@ -64,6 +64,25 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payroll — leave & holiday integration (H3)
+    |--------------------------------------------------------------------------
+    |
+    | Bila aktif, PayrollDraftBuilder menambahkan:
+    |   - line deduction `potongan_cuti_unpaid` (cuti approved dengan tipe
+    |     unpaid yang jatuh di bulan periode)
+    |   - line addition `tunjangan_kerja_libur` (attendance_records yang
+    |     bekerja di tanggal libur; multiplier default 2x daily rate)
+    |
+    | Default `false` agar tenant existing tidak berubah perilakunya. Per-tenant
+    | override lewat `company_settings` (key: `payroll.leave_integration_enabled`).
+    */
+    'payroll' => [
+        'leave_integration_enabled' => env('HCM_PAYROLL_LEAVE_INTEGRATION', false),
+        'holiday_work_multiplier' => (float) env('HCM_PAYROLL_HOLIDAY_WORK_MULTIPLIER', 2.0),
+    ],
+
     'employment_statuses' => ['probation', 'active', 'resigned', 'terminated', 'inactive'],
 
     'contract_types' => ['contract', 'permanent'],

@@ -102,6 +102,10 @@ Project rules live in `.cursor/rules/` (`*.mdc`). For agent behavior, **`alwaysA
 Project planning and API docs are centralized in `docs/`.
 Feature-level flow docs for team handoff live in `docs/features/` (start from `docs/features/README.md`). Role/permission per halaman HCM aktif (menu ter-wire): `docs/planning/active-hcm-templates-and-permissions.md`.
 
+Deployment references:
+- Docker/VPS flow: `PRODUCTION-SETUP.md`
+- Shared hosting artifact flow (local build, server no Composer/npm): `docs/engineering/shared-hosting-setup.md`
+
 
 untuk performaa https://github.com/upstash/context7
 

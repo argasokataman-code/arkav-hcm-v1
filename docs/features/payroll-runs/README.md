@@ -77,6 +77,17 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 - post-payroll controls lanjutan untuk reversal/adjustment lintas integrasi eksternal masih perlu diputuskan bila scope bisnis melewati flow void-before-paid yang sekarang aktif;
 - boundary dokumentasi monthly run vs THR run vs PKWT compensation tetap perlu dijaga sinkron saat modul payroll berkembang, walau runtime aktifnya sudah tersedia.
 
+### Integrasi cuti tanpa gaji & kerja hari libur (opt-in)
+
+Mulai audit H3, `PayrollDraftBuilder` dapat menghasilkan dua jenis line tambahan saat membangun draft:
+
+- `potongan_cuti_unpaid` (deduction): dihitung dari `LeaveRequest` berstatus `approved` dengan `leave_type` bertipe unpaid (`unpaid`, `unpaid_*`, atau mengandung `no_pay`/`tanpa_gaji`) yang overlap dengan periode. Basis hitung = `dailyRate * jumlah hari kerja unpaid` (hari kerja diambil dari `LeaveWorkingDayCalculator`).
+- `tunjangan_kerja_libur` (addition): dihitung dari `AttendanceRecord` dengan `check_in_at` terisi pada tanggal yang terdaftar di `holiday_calendars`/`holidays` dalam periode. Basis hitung = `dailyRate * jumlah hari * multiplier` (default `HCM_PAYROLL_HOLIDAY_WORK_MULTIPLIER=2`).
+
+Keduanya dikunci di belakang feature flag `payroll.leave_integration_enabled` (default `false`). Aktivasi dapat dilakukan secara global lewat env `HCM_PAYROLL_LEAVE_INTEGRATION=true`, atau per-tenant lewat `company_settings` (key `payroll.leave_integration_enabled`, value `1`, type `boolean`). Tenant yang belum opt-in tidak mengalami perubahan kontrak payroll.
+
+Komponen auto-provisioned via `resolveOrCreateComponent` di `PayrollDraftBuilder` bila belum ada di master `hcm_salary_components`. Deduction menurunkan `taxableGross`, addition menambah `taxableGross` sehingga kalkulasi PPh21 TER ikut menyesuaikan.
+
 ### Keputusan kompromi sementara
 
 - payroll run dianggap siap dipakai untuk lifecycle operasional inti yang saat ini dijual di produk: draft, finalize, void-before-paid, history, self-service slip, PDF, dan disburse bergate reconciliation;

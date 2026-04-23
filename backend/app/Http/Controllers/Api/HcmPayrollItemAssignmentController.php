@@ -91,14 +91,20 @@ class HcmPayrollItemAssignmentController extends Controller
 
         $existsQuery = HcmEmployeePayrollItemAssignment::query()
             ->where('user_id', $userId)
-            ->where('hcm_payroll_item_id', (int) $item->id);
+            ->where('hcm_payroll_item_id', (int) $item->id)
+            ->where('is_active', true);
         $this->applyTenantScope($existsQuery, $companyId);
+        $this->applyEffectiveRangeOverlap(
+            $existsQuery,
+            $validated['effectiveStartDate'] ?? null,
+            $validated['effectiveEndDate'] ?? null,
+        );
         if ($existsQuery->exists()) {
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'PAYROLL_ITEM_ASSIGNMENT_EXISTS',
-                    'message' => 'Payroll item ini sudah di-assign ke karyawan tersebut. Gunakan edit untuk update nominal.',
+                    'code' => 'PAYROLL_ITEM_ASSIGNMENT_OVERLAP',
+                    'message' => 'Payroll item ini sudah memiliki assignment aktif yang overlap dengan rentang efektif baru. Tutup assignment lama (set effectiveEndDate) sebelum menambah yang baru.',
                 ],
             ], 422);
         }
@@ -164,6 +170,42 @@ class HcmPayrollItemAssignmentController extends Controller
             $payload['notes'] = $validated['notes'];
         }
 
+        // M7 — Overlap guard: when the mutation touches the effective range or
+        // re-activates the assignment, make sure the new range does not overlap
+        // any *other* active assignment for the same user + payroll item.
+        $willBeActive = array_key_exists('is_active', $payload)
+            ? (bool) $payload['is_active']
+            : (bool) $assignment->is_active;
+        $touchesRange = array_key_exists('effective_start_date', $payload)
+            || array_key_exists('effective_end_date', $payload)
+            || array_key_exists('is_active', $payload);
+        if ($willBeActive && $touchesRange) {
+            $newStart = array_key_exists('effective_start_date', $payload)
+                ? $payload['effective_start_date']
+                : optional($assignment->effective_start_date)?->toDateString();
+            $newEnd = array_key_exists('effective_end_date', $payload)
+                ? $payload['effective_end_date']
+                : optional($assignment->effective_end_date)?->toDateString();
+
+            $overlapQuery = HcmEmployeePayrollItemAssignment::query()
+                ->where('user_id', $assignment->user_id)
+                ->where('hcm_payroll_item_id', (int) $assignment->hcm_payroll_item_id)
+                ->where('is_active', true)
+                ->where('id', '!=', $assignment->id);
+            $this->applyTenantScope($overlapQuery, $companyId);
+            $this->applyEffectiveRangeOverlap($overlapQuery, $newStart, $newEnd);
+
+            if ($overlapQuery->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'PAYROLL_ITEM_ASSIGNMENT_OVERLAP',
+                        'message' => 'Rentang efektif baru overlap dengan assignment aktif lain untuk payroll item yang sama.',
+                    ],
+                ], 422);
+            }
+        }
+
         if ($payload !== []) {
             $assignment->update($payload);
             $assignment->refresh();
@@ -198,6 +240,27 @@ class HcmPayrollItemAssignmentController extends Controller
             'success' => true,
             'data' => ['id' => $assignment->id],
         ]);
+    }
+
+    /**
+     * M7 — Narrow a builder to rows whose [effective_start_date, effective_end_date]
+     * overlaps [$newStart, $newEnd]. NULL ends are treated as open-ended (+∞) and
+     * NULL starts as -∞.
+     */
+    private function applyEffectiveRangeOverlap(Builder $query, ?string $newStart, ?string $newEnd): Builder
+    {
+        if ($newStart !== null) {
+            $query->where(function ($q) use ($newStart): void {
+                $q->whereNull('effective_end_date')->orWhere('effective_end_date', '>=', $newStart);
+            });
+        }
+        if ($newEnd !== null) {
+            $query->where(function ($q) use ($newEnd): void {
+                $q->whereNull('effective_start_date')->orWhere('effective_start_date', '<=', $newEnd);
+            });
+        }
+
+        return $query;
     }
 
     private function serializeAssignment(HcmEmployeePayrollItemAssignment $assignment): array

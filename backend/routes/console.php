@@ -10,6 +10,8 @@ use App\Jobs\SuspendServicesForOverdueInvoicesJob;
 use App\Jobs\CheckEmployeeCountLimitsJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
 use App\Jobs\ProcessRecurringSubscriptionBilling;
+use App\Jobs\ApplySubscriptionChangeJob;
+use App\Models\HcmSubscriptionChangeRequest;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -161,4 +163,27 @@ $recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling())
     ->withoutOverlapping(60);
 if (($recurringBilling['enabled'] ?? true) !== true) {
     $recurringBillingTask->skip(fn (): bool => true);
+}
+
+$applyPlanChanges = CronjobSettings::get('saas_apply_subscription_plan_changes');
+$applyPlanChangesTask = Schedule::call(function (): void {
+    HcmSubscriptionChangeRequest::query()
+        ->where('status', HcmSubscriptionChangeRequest::STATUS_APPROVED)
+        ->where(function ($query): void {
+            $query->whereNull('effective_at')
+                ->orWhere('effective_at', '<=', now());
+        })
+        ->orderBy('created_at')
+        ->limit(200)
+        ->pluck('id')
+        ->each(function (string $id): void {
+            dispatch(new ApplySubscriptionChangeJob($id));
+        });
+})->name('saas-apply-subscription-plan-changes')
+    ->description('Apply approved tenant subscription change requests whose effective time has arrived')
+    ->timezone((string) ($applyPlanChanges['timezone'] ?? 'Asia/Jakarta'))
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10);
+if (($applyPlanChanges['enabled'] ?? true) !== true) {
+    $applyPlanChangesTask->skip(fn (): bool => true);
 }

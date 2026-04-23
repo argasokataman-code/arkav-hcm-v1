@@ -65,6 +65,7 @@ Snapshot status audit, gap aktif, dan evidence validasi terbaru.
 
 - Existing: CRUD subscription, renew, auto-management, employee limit enforcement, dan pending-payment activation sudah aktif.
 - Existing: deep link dari packages ke subscription pending payment sudah tersedia.
+- Existing (F4, 2026-04-23): tenant-initiated plan change flow aktif via `/v1/hcm/subscriptions/preview-change`, `change-plan`, `cancel-change`, serta approval super-admin via `/v1/saas/subscription-change-requests/{id}/approve|reject`. Web page `/upgrade` dijadikan redirect target dari `EnsureCompanyFeatureForWebPage` saat gate fitur menolak akses.
 - Target: renewal notification automation, workflow upgrade/downgrade wizard, dan recurring invoice generator bulanan masih backlog.
 
 ## Scope Singkat

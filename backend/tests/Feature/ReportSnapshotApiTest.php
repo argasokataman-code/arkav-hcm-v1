@@ -293,4 +293,130 @@ class ReportSnapshotApiTest extends TestCase
             ->assertStatus(404)
             ->assertJsonPath('error.code', 'SNAPSHOT_NOT_FOUND');
     }
+
+    /**
+     * M5 — Parity test: a freshly generated employee snapshot's stored data blocks
+     * must match the live CompanyUser aggregation at generation time.
+     */
+    public function test_employee_snapshot_data_blocks_match_live_aggregation(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'snap_parity_co',
+            'name' => 'Snap Parity Co',
+            'legal_name' => 'Snap Parity Co Ltd',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->seedCompanyUser($company->id, 'active', 3);
+        $this->seedCompanyUser($company->id, 'inactive', 2);
+        $this->seedCompanyUser($company->id, 'pending', 1);
+
+        $generator = User::query()->create([
+            'name' => 'Snap Generator',
+            'email' => 'snap-gen@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        /** @var \App\Services\Reporting\ReportSnapshotService $service */
+        $service = app(\App\Services\Reporting\ReportSnapshotService::class);
+        $snapshot = $service->generateSnapshot(
+            reportType: 'employee',
+            periodStart: \Carbon\Carbon::parse('2027-01-01'),
+            periodEnd: \Carbon\Carbon::parse('2027-01-31'),
+            filters: [],
+            userId: $generator->id,
+            companyId: $company->id,
+        );
+
+        $this->assertSame('completed', $snapshot->status);
+
+        $summaryBlock = $snapshot->dataBlocks()->where('data_key', 'summary')->first();
+        $this->assertNotNull($summaryBlock, 'Summary block should exist.');
+
+        $summary = (array) $summaryBlock->data_value;
+        $this->assertSame(3, (int) $summary['total_active']);
+        $this->assertSame(2, (int) $summary['total_inactive']);
+        $this->assertSame(1, (int) $summary['total_pending']);
+        $this->assertSame(6, (int) $summary['total']);
+
+        $byStatusBlock = $snapshot->dataBlocks()->where('data_key', 'by_status')->first();
+        $this->assertNotNull($byStatusBlock);
+        $byStatus = (array) $byStatusBlock->data_value;
+        $this->assertSame(3, (int) $byStatus['active']['count']);
+        $this->assertSame(2, (int) $byStatus['inactive']['count']);
+        $this->assertSame(1, (int) $byStatus['pending']['count']);
+    }
+
+    /**
+     * M5 — Invariance test: once a snapshot is generated, mutating the source
+     * data (adding employees) must NOT change the stored blocks. The snapshot
+     * is an immutable point-in-time artifact.
+     */
+    public function test_snapshot_blocks_are_invariant_after_source_mutation(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'snap_invariance_co',
+            'name' => 'Snap Invariance Co',
+            'legal_name' => 'Snap Invariance Co Ltd',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $this->seedCompanyUser($company->id, 'active', 2);
+
+        $generator = User::query()->create([
+            'name' => 'Snap Invariance Gen',
+            'email' => 'snap-inv-gen@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        /** @var \App\Services\Reporting\ReportSnapshotService $service */
+        $service = app(\App\Services\Reporting\ReportSnapshotService::class);
+        $snapshot = $service->generateSnapshot(
+            reportType: 'employee',
+            periodStart: \Carbon\Carbon::parse('2027-02-01'),
+            periodEnd: \Carbon\Carbon::parse('2027-02-28'),
+            filters: [],
+            userId: $generator->id,
+            companyId: $company->id,
+        );
+
+        $storedBefore = (array) $snapshot->dataBlocks()->where('data_key', 'summary')->first()->data_value;
+        $this->assertSame(2, (int) $storedBefore['total_active']);
+
+        // Mutate the data source after snapshot is generated.
+        $this->seedCompanyUser($company->id, 'active', 5);
+
+        $snapshot->refresh()->load('dataBlocks');
+        $storedAfter = (array) $snapshot->dataBlocks()->where('data_key', 'summary')->first()->data_value;
+        $this->assertSame(2, (int) $storedAfter['total_active'], 'Stored snapshot must remain unchanged after source mutation.');
+        $this->assertSame($storedBefore, $storedAfter);
+
+        // But live query reflects the mutation.
+        $liveActive = CompanyUser::query()->where('company_id', $company->id)->where('status', 'active')->count();
+        $this->assertSame(7, $liveActive);
+    }
+
+    private function seedCompanyUser(int $companyId, string $status, int $count): void
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $user = User::query()->create([
+                'name' => 'Snap User '.$companyId.'-'.$status.'-'.$i.'-'.uniqid(),
+                'email' => 'snap-'.$companyId.'-'.$status.'-'.$i.'-'.uniqid().'@example.com',
+                'password' => bcrypt('StrongPass1'),
+            ]);
+            CompanyUser::query()->create([
+                'company_id' => $companyId,
+                'user_id' => $user->id,
+                'role' => 'member',
+                'status' => $status,
+                'joined_at' => now(),
+            ]);
+        }
+    }
 }

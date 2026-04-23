@@ -12,6 +12,8 @@ use App\Models\EmployeeProfile;
 use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Notifications\AssetAssignedNotification;
+use App\Notifications\AssetReturnedNotification;
 use App\Support\WebsiteSettings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -172,7 +174,15 @@ class AssetService
                 $employeeProfile->id
             ), (string) $assignment->id);
 
-            return $assignment->load(['employeeProfile.user', 'asset']);
+            $assignment->load(['employeeProfile.user', 'asset']);
+
+            // M6 — Notify the assignee (only when we have a notifiable user).
+            $notifiable = $assignment->employeeProfile?->user;
+            if ($notifiable !== null) {
+                $notifiable->notify(new AssetAssignedNotification($asset, $assignment));
+            }
+
+            return $assignment;
         });
     }
 
@@ -215,7 +225,15 @@ class AssetService
 
             $this->logAssetAction($asset, 'returned', $performedBy, 'Asset returned.', (string) $assignment->id);
 
-            return $assignment->load(['employeeProfile.user', 'asset']);
+            $assignment->load(['employeeProfile.user', 'asset']);
+
+            // M6 — Notify the employee that previously held the asset.
+            $notifiable = $assignment->employeeProfile?->user;
+            if ($notifiable !== null) {
+                $notifiable->notify(new AssetReturnedNotification($asset, $assignment));
+            }
+
+            return $assignment;
         });
     }
 

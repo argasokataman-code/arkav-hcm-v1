@@ -78,7 +78,7 @@ class EnsureCompanyFeatureForWebPage
         foreach ($codes as $code) {
             if (! $subscription->package?->hasFeature($code)) {
                 return redirect()
-                    ->to(url('employee-dashboard'))
+                    ->to(url('upgrade') . '?blocked=' . urlencode($code))
                     ->with('error', sprintf(
                         'Fitur "%s" belum termasuk dalam paket aktif Anda. Silakan upgrade paket.',
                         $code,

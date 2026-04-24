@@ -194,6 +194,7 @@ docker logs -f arkav-hcm
 
 - Jangan jalankan `php artisan key:generate` pada setiap deploy staging/production. `APP_KEY` harus stabil di file `.env` yang persistent; mengganti key tiap deploy akan menginvalidasi session/login yang sedang aktif dan bisa merusak data terenkripsi.
 - `run.sh` akan skip seeder development otomatis saat `APP_ENV=production` (atau saat `RUN_DEV_BOOTSTRAP` bukan `true`). Ini mencegah startup gagal karena validasi akun dev yang memang tidak relevan untuk production.
+- Workflow GitHub Actions deploy memaksa runtime JavaScript actions ke Node 24 (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`) untuk mencegah regresi saat deprecasi Node 20 di runner.
 - Data yang disimpan di filesystem container akan hilang saat container di-`rm -f` dan dibuat ulang. Karena workflow auto deploy memang recreate container, direktori `backend/storage` wajib dimount ke host atau persistent volume.
 - Karena host mount akan menimpa isi `storage` bawaan image, subdirektori Laravel seperti `storage/framework/views`, `storage/framework/sessions`, `storage/framework/cache/data`, `storage/logs`, `storage/app/public`, dan `storage/app/private` harus dibuat ulang sebelum menjalankan `php artisan config:cache` atau `php artisan view:cache`.
 - Database staging/production harus tetap memakai MySQL eksternal/persisten. Jika suatu saat container dijalankan tanpa `.env` yang benar atau tanpa DB persisten, gejalanya akan terlihat seperti "data hilang setelah push".

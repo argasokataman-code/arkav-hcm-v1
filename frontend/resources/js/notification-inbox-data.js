@@ -41,8 +41,11 @@
         try {
             var response = await fetch('/api-token', { credentials: 'include' });
             var payload = await response.json();
-            if (payload && payload.token) {
-                return payload.token;
+            var tokenFromPayload = payload && payload.data && payload.data.token
+                ? payload.data.token
+                : (payload && payload.token ? payload.token : null);
+            if (tokenFromPayload) {
+                return tokenFromPayload;
             }
         } catch (_e) {}
 

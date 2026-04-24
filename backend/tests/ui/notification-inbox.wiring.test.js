@@ -90,4 +90,59 @@ describe('notification inbox header wiring', () => {
     expect(markAllCall[1].headers['X-Company-Code']).toBe('inbox_company');
     expect(markAllCall[1].headers['X-Company-Id']).toBe('88');
   });
+
+  it('falls back to /api-token response data.token schema', async () => {
+    window.AuthApi = {
+      getTenantContext: vi.fn(() => ({ companyCode: 'inbox_company', companyId: 88, companyUuid: 'company-uuid-88' })),
+      getToken: vi.fn(() => null),
+    };
+
+    global.fetch = vi.fn((target, options = {}) => {
+      if (target === '/api-token') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: { token: 'fallback-token' } }),
+        });
+      }
+
+      if (target === '/v1/hcm/notifications/unread-count') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: { unreadCount: 1 } }),
+        });
+      }
+
+      if (String(target).startsWith('/v1/hcm/notifications?page=1&perPage=5')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              items: [],
+              meta: { unreadCount: 1 },
+            },
+          }),
+        });
+      }
+
+      if (target === '/v1/hcm/notifications/read-all' && options.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: { updated: 0 } }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch: ${target}`));
+    });
+
+    await import('../../../frontend/resources/js/notification-inbox-data.js');
+    await flush();
+
+    document.querySelector('[data-notification-mark-all]').dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+    await flush();
+
+    const markAllCall = global.fetch.mock.calls.find(([target, options]) => target === '/v1/hcm/notifications/read-all' && options?.method === 'POST');
+    expect(markAllCall).toBeTruthy();
+    expect(markAllCall[1].headers.Authorization).toBe('Bearer fallback-token');
+  });
 });

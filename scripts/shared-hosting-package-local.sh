@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 OUTPUT_DIR="$ROOT_DIR/release/shared-hosting"
+PRUNE_SCRIPT="$ROOT_DIR/scripts/prune-shared-hosting-artifacts.sh"
+ARTIFACT_KEEP_COUNT="${SHARED_HOSTING_ARTIFACT_KEEP_COUNT:-5}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 STAGING_DIR="$OUTPUT_DIR/staging-$TIMESTAMP"
 ARTIFACT="$OUTPUT_DIR/shared-hosting-artifact-$TIMESTAMP.tar.gz"
@@ -159,6 +161,11 @@ echo "[shared-hosting-package-local] creating artifact: $ARTIFACT"
 tar -C "$STAGING_DIR" -czf "$ARTIFACT" .
 
 rm -rf "$STAGING_DIR"
+
+if [[ -x "$PRUNE_SCRIPT" ]]; then
+  echo "[shared-hosting-package-local] pruning old artifacts (keep=$ARTIFACT_KEEP_COUNT)..."
+  "$PRUNE_SCRIPT" "$ARTIFACT_KEEP_COUNT"
+fi
 
 echo "[shared-hosting-package-local] done"
 echo "[shared-hosting-package-local] artifact: $ARTIFACT"

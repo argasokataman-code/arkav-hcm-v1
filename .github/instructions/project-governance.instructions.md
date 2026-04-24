@@ -49,6 +49,8 @@ Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertuga
 **Workflow**:
 1. **Lokal** — `bash scripts/local-test-gate.sh` (tester saja, gate mandatory)
 2. **Lokal** — Jika pass, build artifact: `bash scripts/shared-hosting-package-local.sh`
+	- Script ini otomatis melakukan rolling prune artifact lama (default simpan 5 terbaru).
+	- Override jumlah retention bila perlu: `SHARED_HOSTING_ARTIFACT_KEEP_COUNT=<n> bash scripts/shared-hosting-package-local.sh`.
 3. **Lokal** — Guard sinkronisasi artifact (wajib sebelum push):
 	- `bash scripts/check-shared-hosting-artifact-sync.sh`
 	- Guard ini wajib PASS; jika gagal berarti artifact stale terhadap commit aktif.

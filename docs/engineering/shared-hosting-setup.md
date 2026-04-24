@@ -61,6 +61,21 @@ bash scripts/shared-hosting-package-local.sh
 bash scripts/check-shared-hosting-artifact-sync.sh
 ```
 
+Artifact retention (rolling window):
+
+- `scripts/shared-hosting-package-local.sh` will automatically prune old artifacts and keep latest 5 files under `release/shared-hosting/`.
+- To keep a different amount for a specific run, set env var:
+
+```bash
+SHARED_HOSTING_ARTIFACT_KEEP_COUNT=8 bash scripts/shared-hosting-package-local.sh
+```
+
+- Stage both new artifact and removed old artifacts before commit:
+
+```bash
+git add -A release/shared-hosting
+```
+
 Output artifact:
 
 - `release/shared-hosting/shared-hosting-artifact-<timestamp>.tar.gz`

@@ -2495,7 +2495,9 @@
                     <div class="tab-pane fade {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}" id="dashboard">
                         <ul>
                             <li class="menu-title"><span>MAIN MENU</span></li>
+@if ($isHcmAdmin)
                             <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@endif
                             <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
                         </ul>
                     </div>
@@ -2591,11 +2593,15 @@
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('employees')}}" class="{{ Request::is('employees') ? 'active' : '' }}">Employee Lists</a></li>
+@endif
                                                                         <li><a href="{{url('employee-details')}}" class="{{ Request::is('employee-details') ? 'active' : '' }}">Employee Details</a></li>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('departments')}}" class="{{ Request::is('departments') ? 'active' : '' }}">Departments</a></li>
                                     <li><a href="{{url('designations')}}" class="{{ Request::is('designations') ? 'active' : '' }}">Designations</a></li>
                                     <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
+@endif
                                 </ul>
                             </li>
                             <li class="submenu">
@@ -2603,8 +2609,10 @@
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                     <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
+@endif
                                     <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
                                 </ul>
                             </li>
@@ -2619,22 +2627,32 @@
                                         <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings') ? 'active subdrop' : '' }}">Leaves<span
                                                 class="menu-arrow inside-submenu"></span></a>
                                         <ul>
+@if ($isHcmAdmin)
                                             <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}">Leaves (Admin)</a></li>
+@endif
                                             <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@if ($isHcmAdmin)
                                             <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>												
+@endif
                                         </ul>												
                                     </li>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
+@endif
                                     <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                     <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                     <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
+@endif
                                     <li class="submenu submenu-two">
                                         <a href="javascript:void(0);" class="{{ Request::is('overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}">Overtime<span
                                                 class="menu-arrow inside-submenu"></span></a>
                                         <ul>
+@if ($isHcmAdmin)
                                             <li><a href="{{url('overtime-master')}}" class="{{ Request::is('overtime-master') ? 'active' : '' }}">Master Overtime</a></li>
                                             <li><a href="{{url('overtime')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Overtime (Admin)</a></li>
+@endif
                                             <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
                                         </ul>
                                     </li>
@@ -2658,15 +2676,20 @@
                                 </a>
                                 <ul>
                                     <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
+@if ($isHcmAdmin)
                                     <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                     <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
+@endif
                                 </ul>
                             </li>
+@if ($isHcmAdmin)
                             <li><a href="{{url('promotion')}}" class="{{ Request::is('promotion') ? 'active' : '' }}"><span>Promotion</span></a></li>
                             <li><a href="{{url('resignation')}}" class="{{ Request::is('resignation') ? 'active' : '' }}"><span>Resignation</span></a></li>
                             <li><a href="{{url('termination')}}" class="{{ Request::is('termination') ? 'active' : '' }}"><span>Termination</span></a></li>
+@endif
                         </ul>
                     </div>
+@if ($isHcmAdmin || $superAdminUnlockedPayroll)
                     <div class="tab-pane fade {{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr') ? ' show active' : '' }}" id="finance">
                         <ul>
                             <li class="menu-title"><span>FINANCE & ACCOUNTS</span></li>
@@ -2720,6 +2743,7 @@
                             </li>									
                         </ul>
                     </div>
+@endif
                     <div class="tab-pane fade {{ Request::is('assets',
                     'asset-categories',
                     'knowledgebase','knowledgebase/*','activity',

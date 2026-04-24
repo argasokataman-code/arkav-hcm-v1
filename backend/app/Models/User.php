@@ -175,9 +175,18 @@ class User extends Authenticatable
             return false;
         }
 
-        $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $candidates = [
+            strtolower(trim((string) config('hcm.admin_email', ''))),
+            strtolower(trim((string) config('app.primary_hcm_admin_email', ''))),
+        ];
 
-        return $email === $adminEmail;
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && $email === $candidate) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isTestingDesignationAdmin(): bool

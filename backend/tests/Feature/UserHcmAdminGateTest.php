@@ -148,4 +148,31 @@ class UserHcmAdminGateTest extends TestCase
 
         $this->assertTrue($user->isHcmAdminForCompany($company->uuid));
     }
+
+    public function test_primary_hcm_admin_email_is_treated_as_global_admin_signal(): void
+    {
+        config()->set('hcm.admin_email', 'code1.platform@example.com');
+
+        $user = User::factory()->create([
+            'email' => 'code1.platform@example.com',
+            'is_super_admin' => false,
+        ]);
+
+        $this->assertTrue($user->isGlobalHcmAdmin());
+        $this->assertTrue($user->isHcmAdmin());
+    }
+
+    public function test_legacy_app_primary_admin_email_is_treated_as_global_admin_signal(): void
+    {
+        config()->set('hcm.admin_email', null);
+        config()->set('app.primary_hcm_admin_email', 'legacy.code1@example.com');
+
+        $user = User::factory()->create([
+            'email' => 'legacy.code1@example.com',
+            'is_super_admin' => false,
+        ]);
+
+        $this->assertTrue($user->isGlobalHcmAdmin());
+        $this->assertTrue($user->isHcmAdmin());
+    }
 }

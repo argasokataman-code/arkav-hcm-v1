@@ -27356,7 +27356,7 @@
     <!-- /Delete Modal -->
 @endif
 
-@if (Route::is(['employees', 'employees-grid']))
+@if (Route::is(['employees', 'employees-grid']) || request()->is('employees') || request()->is('employees-grid'))
     @include('hcm.partials.employee-stepper-modal', ['mode' => 'add'])
     {{-- Legacy add employee modal kept temporarily for reference.
     <div class="modal fade" id="add_employee">

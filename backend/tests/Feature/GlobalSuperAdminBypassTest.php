@@ -5,8 +5,14 @@ namespace Tests\Feature;
 use App\Models\AuthToken;
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\User;
+use App\Models\WilayahDistrict;
+use App\Models\WilayahProvince;
+use App\Models\WilayahRegency;
+use App\Models\WilayahVillage;
 use App\Support\TenantContextResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -107,6 +113,67 @@ class GlobalSuperAdminBypassTest extends TestCase
         $this->assertNotSame('SUBSCRIPTION_REQUIRED', $response->json('error.code'));
     }
 
+    public function test_global_admin_can_create_employee_without_active_subscription(): void
+    {
+        [, $company, $token] = $this->seedGlobalAdminWithToken();
+
+        [$department, $designation] = $this->seedEmployeeOrgCatalog();
+        $region = $this->seedWilayahSelection();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/v1/hcm/employees', array_merge([
+                'name' => 'Global Admin Hire',
+                'email' => 'global-admin-hire@example.com',
+                'password' => 'StrongPass1',
+                'confirmPassword' => 'StrongPass1',
+                'team' => 'Platform Ops',
+                'departmentId' => $department->id,
+                'designationId' => $designation->id,
+                'employeeType' => 'permanent',
+                'employmentStatus' => 'active',
+                'startDate' => '2026-04-25',
+                'phone' => '081234567890',
+                'nik' => '3174011708980001',
+                'placeOfBirth' => 'Jakarta',
+                'dateOfBirth' => '1998-08-17',
+                'gender' => 'female',
+                'maritalStatus' => 'single',
+                'religion' => 'Islam',
+                'nationality' => 'Indonesia',
+                'addressDetail' => 'Jl. Global Admin No. 1',
+                'baseSalary' => 6500000,
+                'fixedAllowance' => 500000,
+                'salaryType' => 'monthly',
+                'contractType' => 'permanent',
+                'contractStatus' => 'active',
+                'contractStartDate' => '2026-04-25',
+                'bankName' => 'BCA',
+                'bankAccountNo' => '1234567890',
+                'bankAccountHolderName' => 'Global Admin Hire',
+                'emergencyContacts' => [
+                    [
+                        'name' => 'Emergency Contact',
+                        'relationship' => 'Sibling',
+                        'phone' => '081234567891',
+                    ],
+                ],
+            ], $region));
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.email', 'global-admin-hire@example.com');
+
+        $userId = (int) $response->json('data.id');
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'company_id' => $company->id,
+            'user_id' => $userId,
+            'department_id' => $department->id,
+            'designation_id' => $designation->id,
+            'employment_status' => 'active',
+        ]);
+    }
+
     /**
      * @return array{0: User, 1: Company, 2: string}
      */
@@ -138,5 +205,68 @@ class GlobalSuperAdminBypassTest extends TestCase
         ]);
 
         return [$admin, $company, $rawToken];
+    }
+
+    /**
+     * @return array{0: Department, 1: Designation}
+     */
+    private function seedEmployeeOrgCatalog(): array
+    {
+        $department = Department::query()->create([
+            'name' => 'Engineering',
+            'code' => 'ENG',
+            'is_active' => true,
+        ]);
+
+        $designation = Designation::query()->create([
+            'department_id' => $department->id,
+            'name' => 'Senior Developer',
+            'code' => 'SRDEV',
+            'is_active' => true,
+        ]);
+
+        return [$department, $designation];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function seedWilayahSelection(): array
+    {
+        $province = WilayahProvince::query()->firstOrCreate(
+            ['code' => '31'],
+            ['name' => 'DKI Jakarta'],
+        );
+
+        $regency = WilayahRegency::query()->firstOrCreate(
+            ['code' => '31.74'],
+            [
+                'province_id' => $province->id,
+                'name' => 'Kota Administrasi Jakarta Selatan',
+            ],
+        );
+
+        $district = WilayahDistrict::query()->firstOrCreate(
+            ['code' => '31.74.09'],
+            [
+                'regency_id' => $regency->id,
+                'name' => 'Jagakarsa',
+            ],
+        );
+
+        $village = WilayahVillage::query()->firstOrCreate(
+            ['code' => '31.74.09.1001'],
+            [
+                'district_id' => $district->id,
+                'name' => 'Jagakarsa',
+            ],
+        );
+
+        return [
+            'provinceId' => $province->id,
+            'regencyId' => $regency->id,
+            'districtId' => $district->id,
+            'villageId' => $village->id,
+        ];
     }
 }

@@ -61,10 +61,10 @@ class EmployeeLimitEnforcementTest extends TestCase
             'employment_status' => 'active',
         ]);
 
-        // API auth (global admin)
+        // API auth (tenant admin only, not the global super admin bootstrap account)
         $admin = User::create([
             'name' => 'QA Admin',
-            'email' => 'qa.login@example.com',
+            'email' => 'tenant-owner@example.com',
             'password' => bcrypt('StrongPass1'),
         ]);
         CompanyUser::create([

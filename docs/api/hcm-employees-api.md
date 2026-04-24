@@ -18,6 +18,7 @@ Tenant context:
 
 RBAC:
 - HCM Admin only
+- Global Super Admin (`users.is_super_admin = 1`) tetap memerlukan tenant context aktif (`activeCompanyId`) tetapi **tidak diblok** oleh validasi limit employee berbasis subscription saat create employee lintas tenant.
 
 Query:
 - `page` optional int >= 1

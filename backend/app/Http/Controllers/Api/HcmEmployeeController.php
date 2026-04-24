@@ -403,6 +403,8 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
+
         $activeCompanyId = $this->activeCompanyId($request);
         if (! $activeCompanyId) {
             return response()->json([
@@ -416,7 +418,7 @@ class HcmEmployeeController extends Controller
 
         /** @var Company $company */
         $company = Company::query()->findOrFail($activeCompanyId);
-        if (! ((defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) && str_starts_with((string) $company->code, 'TST'))) {
+        if (! $isGlobalAdmin && ! ((defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) && str_starts_with((string) $company->code, 'TST'))) {
             app(EmployeeCountValidator::class)->validateCanAddEmployees($company, 1);
         }
 

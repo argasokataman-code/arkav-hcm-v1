@@ -300,4 +300,43 @@ class HcmSubscriptionChangeApiTest extends TestCase
         $this->assertSame('FORBIDDEN', $resp->json('error.code'));
         $this->assertSame(0, HcmSubscriptionChangeRequest::query()->count());
     }
+
+    public function test_non_primary_super_admin_cannot_access_global_change_request_queue(): void
+    {
+        config(['hcm.admin_email' => 'qa.login@example.com']);
+
+        $ctx = $this->bootstrapTenant('QueueGuard');
+
+        $this->withHeaders($this->tenantHeaders($ctx))
+            ->postJson('/v1/hcm/subscriptions/change-plan', [
+                'action' => 'upgrade',
+                'to_package_uuid' => $ctx['packagePro']->uuid,
+            ])->assertStatus(201);
+
+        $secondaryAdmin = User::query()->create([
+            'name' => 'Secondary Global Admin',
+            'email' => 'qa.hcm@example.com',
+            'password' => bcrypt('StrongPass1'),
+            'is_super_admin' => true,
+        ]);
+
+        $secondaryToken = 'tst-f4-secondary-admin';
+        AuthToken::query()->create([
+            'user_id' => $secondaryAdmin->id,
+            'token_hash' => hash('sha256', $secondaryToken),
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $secondaryToken])
+            ->getJson('/v1/saas/subscription-change-requests')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'PRIMARY_SUPER_ADMIN_REQUIRED');
+
+        $requestId = (string) HcmSubscriptionChangeRequest::query()->value('id');
+
+        $this->withHeaders(['Authorization' => 'Bearer ' . $secondaryToken])
+            ->postJson('/v1/saas/subscription-change-requests/' . $requestId . '/approve')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'PRIMARY_SUPER_ADMIN_REQUIRED');
+    }
 }

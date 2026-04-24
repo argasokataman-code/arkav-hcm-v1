@@ -12,6 +12,7 @@ use App\Http\Middleware\EnsureCompanyFeatureForWebPage;
 use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
+use App\Http\Middleware\EnsurePrimarySuperAdminCodeOnePage;
 use App\Http\Middleware\HandleCorsRequests;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Http\Middleware\SecurityHeadersMiddleware;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.context' => ResolveTenantContext::class,
             'hcm.web.admin' => EnsureHcmWebAdminPage::class,
             'hcm.web.global-admin' => EnsureGlobalHcmWebAdminPage::class,
+            'hcm.web.primary-super-admin' => EnsurePrimarySuperAdminCodeOnePage::class,
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
             'hcm.web.feature' => EnsureCompanyFeatureForWebPage::class,
         ]);

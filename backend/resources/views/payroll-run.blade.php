@@ -2,6 +2,13 @@
 @extends('layout.mainlayout')
 @section('content')
 
+    @php
+        $authUser = request()->user() ?: auth()->user();
+        $primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
+        $isPrimarySuperAdminCodeOne = (bool) ($authUser && $authUserEmail === $primarySuperAdminEmail);
+    @endphp
+
     <div class="page-wrapper">
         <div class="content">
 
@@ -82,7 +89,7 @@
                         <button type="button" class="btn btn-outline-warning" data-payroll-run-void disabled title="Hanya aktif untuk run finalized yang belum ada pembayaran.">Void Finalized Run</button>
                         <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh CSV → Pay via Gateway.">Export Reconciliation</button>
                         <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Pay via Gateway</button>
-                        @if (app()->environment(['local', 'development', 'testing']))
+                        @if (app()->environment(['local', 'development', 'testing']) && $isPrimarySuperAdminCodeOne)
                             <button type="button" class="btn btn-outline-danger" data-payroll-run-reset-payments>Reset Pembayaran (DEV)</button>
                         @endif
                     </div>

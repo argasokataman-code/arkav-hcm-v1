@@ -66,6 +66,8 @@ Snapshot status audit, gap aktif, dan evidence validasi terbaru.
 - Existing: CRUD subscription, renew, auto-management, employee limit enforcement, dan pending-payment activation sudah aktif.
 - Existing: deep link dari packages ke subscription pending payment sudah tersedia.
 - Existing (F4, 2026-04-23): tenant-initiated plan change flow aktif via `/v1/hcm/subscriptions/preview-change`, `change-plan`, `cancel-change`, serta approval super-admin via `/v1/saas/subscription-change-requests/{id}/approve|reject`. Web page `/upgrade` dijadikan redirect target dari `EnsureCompanyFeatureForWebPage` saat gate fitur menolak akses.
+- Existing (F4+, 2026-04-24): endpoint global queue approval (`GET /v1/saas/subscription-change-requests`, `POST approve/reject`) diperketat menjadi **primary super admin code-1 only** (`hcm.admin_email`) untuk mencegah approval dari akun super-admin sekunder.
+- Existing (F4+, 2026-04-24): halaman `/upgrade?blocked=<feature>` kini menampilkan rekomendasi target paket yang punya feature tersebut, plus daftar riwayat pengajuan tenant; admin code-1 juga mendapat panel queue pending request.
 - Target: renewal notification automation, workflow upgrade/downgrade wizard, dan recurring invoice generator bulanan masih backlog.
 
 ## Scope Singkat
@@ -136,7 +138,7 @@ Halaman memakai manager script `frontend/resources/js/subscriptions-management.j
 
 Module version: `1.1`
 Status: `Production-ready baseline`
-Last updated: `2026-04-19`
+Last updated: `2026-04-24`
 
 Mulai dari [SCENARIOS.md](SCENARIOS.md) untuk pemahaman flow + negative handling, lanjut ke [IMPLEMENTATION.md](IMPLEMENTATION.md) untuk detail teknis, [E2E-TESTING.md](E2E-TESTING.md) untuk QA flow, dan [tracker.md](tracker.md) untuk snapshot audit terakhir.
 

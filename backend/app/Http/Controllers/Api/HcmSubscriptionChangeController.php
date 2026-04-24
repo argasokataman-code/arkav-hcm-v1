@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\HcmSubscriptionChangeRequest;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,18 @@ use Illuminate\Support\Str;
  */
 class HcmSubscriptionChangeController extends Controller
 {
+    private function isPrimarySuperAdminCodeOne(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $primaryEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $userEmail = strtolower(trim((string) ($user->email ?? '')));
+
+        return $userEmail !== '' && $userEmail === $primaryEmail;
+    }
+
     private function activeCompanyId(Request $request): ?int
     {
         $value = $request->attributes->get('activeCompanyId');
@@ -330,10 +343,13 @@ class HcmSubscriptionChangeController extends Controller
 
     public function listAllForAdmin(Request $request): JsonResponse
     {
-        if (! $request->user()?->isGlobalHcmAdmin()) {
+        if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => [
+                    'code' => 'PRIMARY_SUPER_ADMIN_REQUIRED',
+                    'message' => 'Only primary super admin code 1 can access subscription change queue.',
+                ],
             ], 403);
         }
 
@@ -353,10 +369,13 @@ class HcmSubscriptionChangeController extends Controller
 
     public function approve(Request $request, string $id): JsonResponse
     {
-        if (! $request->user()?->isGlobalHcmAdmin()) {
+        if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => [
+                    'code' => 'PRIMARY_SUPER_ADMIN_REQUIRED',
+                    'message' => 'Only primary super admin code 1 can approve subscription changes.',
+                ],
             ], 403);
         }
 
@@ -401,10 +420,13 @@ class HcmSubscriptionChangeController extends Controller
 
     public function reject(Request $request, string $id): JsonResponse
     {
-        if (! $request->user()?->isGlobalHcmAdmin()) {
+        if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+                'error' => [
+                    'code' => 'PRIMARY_SUPER_ADMIN_REQUIRED',
+                    'message' => 'Only primary super admin code 1 can reject subscription changes.',
+                ],
             ], 403);
         }
 

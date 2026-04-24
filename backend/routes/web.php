@@ -1278,11 +1278,11 @@ Route::get( '/tax-rates', function () {
 
 Route::get( '/pages', function () {
     return view( 'pages');
-})->name( 'pages');
+})->middleware('hcm.web.primary-super-admin')->name( 'pages');
 
 Route::get( '/blogs', function () {
     return view( 'blogs');
-})->name( 'blogs');
+})->middleware('hcm.web.primary-super-admin')->name( 'blogs');
 
 Route::get( '/blog-categories', function () {
     return view( 'blog-categories');
@@ -1310,7 +1310,7 @@ Route::get('/villages', [WilayahLocationController::class, 'villages'])->name('v
 
 Route::get( '/testimonials', function () {
     return view( 'testimonials');
-})->name( 'testimonials');
+})->middleware('hcm.web.primary-super-admin')->name( 'testimonials');
 
 Route::get( '/faq', function () {
     return view( 'faq');

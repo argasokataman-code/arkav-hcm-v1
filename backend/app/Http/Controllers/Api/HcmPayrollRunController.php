@@ -545,6 +545,16 @@ class HcmPayrollRunController extends Controller
             return $forbidden;
         }
 
+        if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_RESET_PRIMARY_SUPER_ADMIN_ONLY',
+                    'message' => 'Reset pembayaran hanya untuk super admin code 1.',
+                ],
+            ], 403);
+        }
+
         if (! app()->environment(['local', 'development', 'testing'])) {
             return response()->json([
                 'success' => false,
@@ -607,6 +617,18 @@ class HcmPayrollRunController extends Controller
                 'payment' => $this->paymentSummary($run),
             ],
         ]);
+    }
+
+    private function isPrimarySuperAdminCodeOne(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $primaryEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $userEmail = strtolower(trim((string) ($user->email ?? '')));
+
+        return $userEmail !== '' && $userEmail === $primaryEmail;
     }
 
     public function mySlip(Request $request): JsonResponse

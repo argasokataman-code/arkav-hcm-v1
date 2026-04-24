@@ -33,6 +33,49 @@
             </div>
         @endif
 
+        @php
+            $authUser = request()->user() ?: auth()->user();
+            $primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+            $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
+            $isPrimarySuperAdminCodeOne = (bool) ($authUser && $authUserEmail === $primarySuperAdminEmail);
+
+            $normalizedBlockedFeature = strtolower(trim((string) $blocked));
+            $normalizedBlockedFeature = str_replace(['-', ' '], '_', $normalizedBlockedFeature);
+            $normalizedBlockedFeature = preg_replace('/[^a-z0-9_]/', '', $normalizedBlockedFeature) ?? '';
+
+            $recommendedPackages = collect();
+            if ($normalizedBlockedFeature !== '') {
+                $recommendedPackages = \App\Models\Package::query()
+                    ->where('status', 'active')
+                    ->whereHas('features', function ($featureQuery) use ($normalizedBlockedFeature): void {
+                        $featureQuery->where('feature_code', $normalizedBlockedFeature);
+                    })
+                    ->orderByRaw('COALESCE(monthly_price, 0) asc')
+                    ->get(['uuid', 'name', 'code', 'monthly_price', 'yearly_price']);
+            }
+        @endphp
+
+        <div id="upgrade-page-context"
+             data-blocked-feature="{{ $normalizedBlockedFeature }}"
+             data-is-primary-super-admin="{{ $isPrimarySuperAdminCodeOne ? '1' : '0' }}"
+             data-recommended-packages='@json($recommendedPackages)'>
+        </div>
+
+        @if ($blocked && $recommendedPackages->isNotEmpty())
+            <div class="alert alert-info" role="alert" data-upgrade-recommended-alert>
+                <div class="fw-semibold mb-1">Target paket yang mendukung fitur ini:</div>
+                <ul class="mb-0 ps-3 small">
+                    @foreach ($recommendedPackages as $package)
+                        <li>
+                            <span class="fw-semibold">{{ $package->name }}</span>
+                            ({{ $package->code }})
+                            - Bulanan Rp {{ number_format((float) ($package->monthly_price ?? 0), 0, ',', '.') }}
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if (session('error'))
             <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
         @endif
@@ -82,6 +125,18 @@
                 </div>
 
                 <div id="upgrade-status-pane" class="mt-3"></div>
+
+                <div class="mt-4">
+                    <h5 class="mb-2">Riwayat Pengajuan Saya</h5>
+                    <div id="upgrade-request-list" class="border rounded p-3 small text-muted">Memuat data...</div>
+                </div>
+
+                @if ($isPrimarySuperAdminCodeOne)
+                    <div class="mt-4">
+                        <h5 class="mb-2">Pengajuan Upgrade Baru (Admin Code 1)</h5>
+                        <div id="upgrade-admin-queue" class="border rounded p-3 small text-muted">Memuat data...</div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

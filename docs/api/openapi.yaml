@@ -6507,7 +6507,7 @@ paths:
   /v1/saas/subscription-change-requests:
     get:
       tags: [SaaS]
-      summary: List all tenant plan change requests (super-admin) — F4
+      summary: List all tenant plan change requests (primary super-admin code-1 only) — F4
       security:
         - bearerAuth: []
       parameters:
@@ -6521,7 +6521,7 @@ paths:
   /v1/saas/subscription-change-requests/{id}/approve:
     post:
       tags: [SaaS]
-      summary: Approve + apply a pending tenant plan change (super-admin) — F4
+      summary: Approve + apply a pending tenant plan change (primary super-admin code-1 only) — F4
       parameters:
         - name: id
           in: path
@@ -6538,7 +6538,7 @@ paths:
   /v1/saas/subscription-change-requests/{id}/reject:
     post:
       tags: [SaaS]
-      summary: Reject a pending tenant plan change (super-admin) — F4
+      summary: Reject a pending tenant plan change (primary super-admin code-1 only) — F4
       parameters:
         - name: id
           in: path

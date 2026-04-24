@@ -110,6 +110,23 @@
     );
   }
 
+  function formatDateTime(dateStr) {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return String(dateStr);
+    return (
+      ("0" + d.getDate()).slice(-2) +
+      "/" +
+      ("0" + (d.getMonth() + 1)).slice(-2) +
+      "/" +
+      d.getFullYear() +
+      " " +
+      ("0" + d.getHours()).slice(-2) +
+      ":" +
+      ("0" + d.getMinutes()).slice(-2)
+    );
+  }
+
   // Format currency
   function formatCurrency(amount) {
     if (!amount) return "Rp 0";
@@ -147,6 +164,7 @@
     companies: [],
     packages: [],
     currentEditId: null,
+    isPrimarySuperAdminCodeOne: false,
     subscriptionModalInstance: null,
     subscriptionRenewModalInstance: null,
     subscriptionRenewByIdModalInstance: null,
@@ -180,6 +198,9 @@
         });
       }
 
+      const shell = document.querySelector(".main-wrapper");
+      this.isPrimarySuperAdminCodeOne = String(shell?.dataset?.primarySuperAdmin || "0") === "1";
+
       this.bindEvents();
       this.loadCurrentUser()
         .then(() => {
@@ -187,7 +208,7 @@
 
           const tasks = [];
           if (this.canManageSubscriptions) {
-            tasks.push(this.loadCompanies(), this.loadPackages(), this.loadSubscriptions());
+            tasks.push(this.loadCompanies(), this.loadPackages(), this.loadSubscriptions(), this.loadChangeRequestQueue());
           } else {
             this.renderUnauthorizedState();
           }
@@ -251,6 +272,7 @@
     applyRoleUi: function () {
       const addButton = document.querySelector("[data-subscription-add-button]");
       const readOnlyNotice = document.querySelector("[data-subscription-readonly-notice]");
+      const queueCard = document.querySelector("[data-subscription-change-queue-card]");
 
       if (addButton) {
         addButton.classList.toggle("d-none", !this.canManageSubscriptions);
@@ -264,6 +286,63 @@
       if (renewByIdBtn) {
         renewByIdBtn.classList.toggle("d-none", !this.canManageSubscriptions);
       }
+
+      if (queueCard) {
+        queueCard.classList.toggle("d-none", !(this.canManageSubscriptions && this.isPrimarySuperAdminCodeOne));
+      }
+    },
+
+    loadChangeRequestQueue: function () {
+      const self = this;
+      const queueContent = document.querySelector("[data-subscription-change-queue-content]");
+      const queueCount = document.querySelector("[data-subscription-change-queue-count]");
+
+      if (!this.canManageSubscriptions || !this.isPrimarySuperAdminCodeOne) {
+        return Promise.resolve();
+      }
+
+      return apiRequest("GET", "/v1/saas/subscription-change-requests?status=pending", null)
+        .then(function (response) {
+          const rows = Array.isArray(response?.data) ? response.data : [];
+
+          if (queueCount) {
+            queueCount.textContent = rows.length + " pending";
+          }
+
+          if (!queueContent) {
+            return;
+          }
+
+          if (!rows.length) {
+            queueContent.innerHTML = '<div class="alert alert-success mb-0">Tidak ada pengajuan pending baru.</div>';
+            return;
+          }
+
+          queueContent.innerHTML =
+            '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
+            + '<thead><tr><th>Company UUID</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th></tr></thead><tbody>'
+            + rows.map(function (row) {
+              const preview = row?.preview || {};
+              const toPackage = preview?.to_package || null;
+              return '<tr>'
+                + '<td>' + esc(row.company_uuid || "-") + '</td>'
+                + '<td>' + esc(row.action || "-") + '</td>'
+                + '<td>' + esc(toPackage ? ((toPackage.name || "-") + " (" + (toPackage.code || "-") + ")") : "-") + '</td>'
+                + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'
+                + '<td><span class="badge badge-warning d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + esc(row.status || "pending") + '</span></td>'
+                + '</tr>';
+            }).join("")
+            + "</tbody></table></div>";
+        })
+        .catch(function () {
+          if (queueContent) {
+            queueContent.innerHTML = '<div class="alert alert-danger mb-0">Gagal memuat queue pengajuan subscription change.</div>';
+          }
+          if (queueCount) {
+            queueCount.textContent = "error";
+          }
+          return Promise.resolve();
+        });
     },
 
     renderUnauthorizedState: function () {

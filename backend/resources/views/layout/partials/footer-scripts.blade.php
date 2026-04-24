@@ -427,6 +427,10 @@
     <script src="{{ URL::asset('build/js/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas-billing-overview.js')) : time() }}"></script>
 @endif
 
+@if (Route::is(['upgrade']))
+    <script src="{{ URL::asset('build/js/upgrade-data.js') }}?v={{ file_exists(public_path('build/js/upgrade-data.js')) ? filemtime(public_path('build/js/upgrade-data.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['promotion', 'employee-details']))
     <script src="{{ URL::asset('build/js/promotion-data.js') }}"></script>
 @endif

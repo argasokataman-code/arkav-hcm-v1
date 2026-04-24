@@ -429,4 +429,64 @@ class WebHcmRouteGuardTest extends TestCase
                 ->assertOk("Dengan cookie API harus 200: {$path}");
         }
     }
+
+    public function test_pages_blogs_testimonials_only_primary_super_admin_code_one_can_access(): void
+    {
+        config(['hcm.admin_email' => 'qa.login@example.com']);
+
+        $company = Company::query()->create([
+            'name' => 'Route Guard Co',
+            'code' => 'RG1',
+            'email' => 'rg1@example.com',
+            'phone' => '0219990001',
+            'address' => 'Jakarta',
+            'city' => 'Jakarta',
+            'state' => 'DKI',
+            'country' => 'ID',
+            'postal_code' => '10110',
+            'status' => 'active',
+        ]);
+
+        $primary = User::query()->create([
+            'name' => 'Primary Admin',
+            'email' => 'qa.login@example.com',
+            'password' => bcrypt('password'),
+            'is_super_admin' => true,
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $primary->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $secondary = User::query()->create([
+            'name' => 'Secondary Admin',
+            'email' => 'secondary.guard@example.com',
+            'password' => bcrypt('password'),
+            'is_super_admin' => true,
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $secondary->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        foreach (['/pages', '/blogs', '/testimonials'] as $path) {
+            $this->actingAs($primary)
+                ->withHeader('X-Company-Code', $company->code)
+                ->get($path)
+                ->assertOk();
+
+            $this->actingAs($secondary)
+                ->withHeader('X-Company-Code', $company->code)
+                ->get($path)
+                ->assertRedirect(url('employee-dashboard'));
+        }
+    }
 }

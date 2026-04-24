@@ -40,6 +40,16 @@
             <strong>Read-only / Hanya baca</strong> — subscription changes require HCM admin access. Perubahan subscription memerlukan akses HCM admin.
         </div>
 
+        <div class="card d-none" data-subscription-change-queue-card>
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Queue Pengajuan Upgrade/Downgrade</h5>
+                <span class="badge bg-warning-subtle text-warning" data-subscription-change-queue-count>0 pending</span>
+            </div>
+            <div class="card-body" data-subscription-change-queue-content>
+                <div class="text-muted">Memuat queue pengajuan...</div>
+            </div>
+        </div>
+
         <!-- Filter Card -->
         <div class="card">
             <div class="card-body">

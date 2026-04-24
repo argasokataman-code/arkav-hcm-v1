@@ -28,6 +28,10 @@ class EnsureHcmWebPagesAuthenticated
             $request->setUserResolver(fn () => $token->user);
             $this->resolveTenantContext($request, $token->user);
 
+            if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $token->user)) {
+                return $redirect;
+            }
+
             if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
                 return $redirect;
             }
@@ -42,6 +46,10 @@ class EnsureHcmWebPagesAuthenticated
                 $request->setUserResolver(fn () => $sessionUser);
                 $this->resolveTenantContext($request, $sessionUser);
 
+                if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $sessionUser)) {
+                    return $redirect;
+                }
+
                 if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
                     return $redirect;
                 }
@@ -53,6 +61,27 @@ class EnsureHcmWebPagesAuthenticated
         return redirect()
             ->guest(url('lock-screen'))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    private function primarySuperAdminCodeOneGuard(Request $request, User $user): ?Response
+    {
+        if ($request->method() !== 'GET' && $request->method() !== 'HEAD') {
+            return null;
+        }
+
+        $path = trim($request->path(), '/');
+        if (! in_array($path, ['pages', 'blogs', 'testimonials'], true)) {
+            return null;
+        }
+
+        $primaryEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+        $userEmail = strtolower(trim((string) ($user->email ?? '')));
+
+        if ($userEmail !== '' && $userEmail === $primaryEmail) {
+            return null;
+        }
+
+        return redirect()->to(url('employee-dashboard'));
     }
 
     private function pathRequiresToken(Request $request): bool

@@ -61,6 +61,41 @@ class HcmPayrollRunApiTest extends TestCase
         return $result['token'];
     }
 
+    private function primarySuperAdminCodeOneToken(): string
+    {
+        $this->company ??= $this->payrollCompany();
+
+        config(['hcm.admin_email' => 'qa.login@example.com']);
+
+        $result = $this->createHcmAdminWithCompany([
+            'name' => 'Primary Payroll Admin',
+            'email' => 'qa.login@example.com',
+            'password' => 'StrongPass1',
+            'is_super_admin' => true,
+        ], $this->company);
+
+        $this->company = $result['company'];
+
+        $user = User::query()->where('email', 'qa.login@example.com')->firstOrFail();
+        $user->forceFill(['is_super_admin' => true])->save();
+
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_id' => $this->company->id,
+                'team' => 'HR',
+                'designation' => 'Super Admin',
+                'employment_status' => 'active',
+                'base_salary' => 0,
+                'fixed_allowance' => 0,
+            ],
+        );
+
+        $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
+
+        return $result['token'];
+    }
+
     private function employeeToken(string $email = 'employee@example.com', float $baseSalary = 4_000_000): string
     {
         if (! $this->company) {
@@ -437,7 +472,7 @@ class HcmPayrollRunApiTest extends TestCase
     public function test_admin_can_reset_payments(): void
     {
         $this->employeeToken();
-        $admin = $this->adminToken();
+        $admin = $this->primarySuperAdminCodeOneToken();
         $data = $this->createAndFinalizeDraft($admin, 2026, 10);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])

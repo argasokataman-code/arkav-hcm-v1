@@ -302,6 +302,10 @@ GET /v1/saas/subscription-change-requests?status=pending
 
 List global untuk approval queue super-admin.
 
+Catatan akses: endpoint ini sekarang **khusus primary super admin code-1**
+(email harus sama dengan `config('hcm.admin_email')`). Super-admin lain
+akan ditolak `403 PRIMARY_SUPER_ADMIN_REQUIRED`.
+
 ### Approve / Reject Tenant Plan Change Request (Super Admin)
 
 ```
@@ -314,6 +318,9 @@ Approve akan memindahkan status `pending -> approved` dan:
 - jika `effective_at > now` menunggu cron `saas-apply-subscription-plan-changes`.
 
 Reject akan memindahkan status `pending -> rejected`.
+
+Catatan akses: kedua endpoint ini juga **khusus primary super admin code-1**
+dan akan return `403 PRIMARY_SUPER_ADMIN_REQUIRED` untuk akun global admin lain.
 
 ## Error Responses
 

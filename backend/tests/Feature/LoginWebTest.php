@@ -133,4 +133,49 @@ class LoginWebTest extends TestCase
             ->assertSee('Trial')
             ->assertSee('30 hari lagi');
     }
+
+    public function test_authenticated_user_sees_notifications_entry_in_mobile_user_menu(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Mobile Notification',
+            'email' => 'owner.mobile.notification@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'mobile_notification_company',
+            'name' => 'Mobile Notification Company',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'trial',
+            'status' => 'trial',
+            'starts_at' => now()->startOfDay(),
+            'ends_at' => now()->addDays(30),
+            'trial_ends_at' => now()->addDays(30),
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 0,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/index')
+            ->assertOk()
+            ->assertSee('href="'.url('notification-settings').'"', false);
+    }
 }

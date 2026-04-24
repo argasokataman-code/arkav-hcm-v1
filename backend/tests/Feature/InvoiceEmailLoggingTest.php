@@ -90,7 +90,15 @@ class InvoiceEmailLoggingTest extends TestCase
         $this->assertDatabaseHas('invoice_email_logs', [
             'invoice_id' => $invoice->id,
             'to_email' => 'billing@example.com',
+            'event_key' => 'billing.invoice.email_sent',
             'status' => 'sent',
+        ]);
+
+        $this->assertDatabaseHas('notification_deliveries', [
+            'event_key' => 'billing.invoice.email_sent',
+            'channel' => 'mail',
+            'status' => 'sent',
+            'recipient' => 'billing@example.com',
         ]);
     }
 

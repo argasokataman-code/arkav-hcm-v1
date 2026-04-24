@@ -56,6 +56,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 35 | Landing Pages (Marketing) | 🚧 In Progress | [→](landing-pages/) | [📘 Implementation](landing-pages/IMPLEMENTATION.md) | [🧪 E2E Testing](landing-pages/E2E-TESTING.md) |
 | 36 | Trial & Billing Dashboard | 🚧 Planning | [→](trial-billing-dashboard/) | [📘 Implementation](trial-billing-dashboard/IMPLEMENTATION.md) | [🧪 E2E Testing](trial-billing-dashboard/E2E-TESTING.md) |
 | 37 | Mock Payment (Dev) | ✅ Dev Ready | [→](mock-payment/) | [📘 Implementation](mock-payment/IMPLEMENTATION.md) | [🧭 Tracker](mock-payment/tracker.md), [⚡ Quick Guide](../MOCK-PAYMENT-GATEWAY-GUIDE.md) |
+| 38 | Notifications & Alerts | 🚧 Planning (Design Ready) | [→](notifications/) | [📘 Implementation](notifications/IMPLEMENTATION.md) | [🧪 E2E Testing](notifications/E2E-TESTING.md), [🧭 Tracker](notifications/tracker.md), [🧩 API Contract](notifications/API-CONTRACT.md) |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -121,6 +122,11 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `recovery-vault/IMPLEMENTATION.md` - Arsitektur service, database terpisah, model event, retention 90 hari, dan hardening keamanan.
 - `recovery-vault/API-CONTRACT.md` - Draft kontrak endpoint internal/admin, payload, idempotency, dan error code.
 - `recovery-vault/E2E-TESTING.md` - Skenario verifikasi API internal, permission super admin, dan simulasi restore bencana.
+- `notifications/README.md` - **Notifications & Alerts:** blueprint pusat notifikasi lintas HCM/SaaS, lifecycle event, channel policy, dan business flow end-to-end.
+- `notifications/IMPLEMENTATION.md` - Arsitektur teknis event routing/delivery/reliability dengan stack free/open-source.
+- `notifications/API-CONTRACT.md` - Draft endpoint inbox, read status, preferences, dan admin template management.
+- `notifications/E2E-TESTING.md` - Skenario QA lintas tenant/role untuk notifikasi in-app + email.
+- `notifications/tracker.md` - Snapshot status, gap aktif, dan evidence runtime yang sudah terverifikasi.
 
 ---
 

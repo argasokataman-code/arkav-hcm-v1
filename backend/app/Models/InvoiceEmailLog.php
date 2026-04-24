@@ -14,6 +14,7 @@ class InvoiceEmailLog extends Model
     protected $fillable = [
         'invoice_id',
         'to_email',
+        'event_key',
         'status',
         'provider_message_id',
         'error_message',

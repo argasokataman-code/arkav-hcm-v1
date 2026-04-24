@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\Hcm\NotificationPayloadFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -30,5 +31,22 @@ class PasswordResetLinkNotification extends Notification
             ->line($this->resetUrl)
             ->line('This link will expire in 60 minutes.')
             ->line('If you did not request a password reset, no further action is required.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(object $notifiable): array
+    {
+        return NotificationPayloadFactory::make('auth.password_reset_link_requested', [
+            'severity' => 'critical',
+            'entityType' => 'user',
+            'entityUuid' => (string) ($notifiable->uuid ?? ''),
+            'title' => 'Password reset requested',
+            'message' => 'A password reset link was generated for this account.',
+        ], [
+            'event' => 'auth.password_reset_link_requested',
+            'email' => (string) ($notifiable->email ?? ''),
+        ]);
     }
 }

@@ -304,6 +304,7 @@
 <script src="{{ URL::asset('build/js/arcav-validation.js') }}"></script>
 <script src="{{ URL::asset('build/js/arcav-template-cleanup.js') }}"></script>
 <script src="{{ URL::asset('build/js/auth-logout.js') }}"></script>
+<script src="{{ URL::asset('build/js/notification-inbox-data.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees-view-toggle.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees-data.js')) ? filemtime(public_path('build/js/employees-data.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm-pages-data.js')) : time() }}"></script>
@@ -336,6 +337,14 @@
 
 @if (Route::is(['profile-settings']))
     <script src="{{ URL::asset('build/js/profile-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['notification-settings']))
+    <script src="{{ URL::asset('build/js/notification-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['notification-observability']))
+    <script src="{{ URL::asset('build/js/notification-observability-data.js') }}"></script>
 @endif
 
 @if (Route::is(['activity']))

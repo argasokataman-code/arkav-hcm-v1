@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\HcmSubscriptionChangeRequest;
+use App\Support\Hcm\NotificationPayloadFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -27,7 +28,16 @@ class SubscriptionChangeApprovalNeededNotification extends Notification
     {
         $preview = (array) ($this->record->preview ?? []);
 
-        return [
+        return NotificationPayloadFactory::make('subscription.change_approval_needed', [
+            'severity' => 'critical',
+            'companyUuid' => (string) $this->record->company_uuid,
+            'entityType' => 'subscription_change_request',
+            'entityUuid' => (string) $this->record->id,
+            'actorUserUuid' => (string) $this->record->user_uuid,
+            'title' => 'Subscription change approval needed',
+            'message' => (string) $this->record->action,
+            'occurredAt' => $this->record->created_at,
+        ], [
             'event' => 'subscription_change_approval_needed',
             'requestId' => $this->record->id,
             'companyUuid' => $this->record->company_uuid,
@@ -39,6 +49,6 @@ class SubscriptionChangeApprovalNeededNotification extends Notification
             'effectiveAt' => optional($this->record->effective_at)->toIso8601String(),
             'priceDelta' => $preview['price_delta'] ?? null,
             'requestedAt' => optional($this->record->created_at)->toIso8601String(),
-        ];
+        ]);
     }
 }

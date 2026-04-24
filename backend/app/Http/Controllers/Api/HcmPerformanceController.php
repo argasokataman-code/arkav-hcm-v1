@@ -14,6 +14,10 @@ use App\Models\PerformanceGoalType;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewScore;
 use App\Models\User;
+use App\Notifications\PerformanceReviewCreatedNotification;
+use App\Notifications\PerformanceReviewSubmittedNotification;
+use App\Notifications\PerformanceReviewManagerReviewedNotification;
+use App\Notifications\PerformanceReviewFinalizedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -766,6 +770,15 @@ class HcmPerformanceController extends Controller
             ]);
         }
 
+        // Fire notification to admin users
+        $adminEmail = config('app.primary_hcm_admin_email');
+        if ($adminEmail) {
+            $admin = User::query()->where('email', $adminEmail)->first();
+            if ($admin) {
+                $admin->notify(new PerformanceReviewCreatedNotification($review));
+            }
+        }
+
         return response()->json(['success' => true, 'data' => ['id' => $review->id]], 201);
     }
 
@@ -935,6 +948,16 @@ class HcmPerformanceController extends Controller
             return response()->json(['success' => false, 'error' => ['code' => 'PERF_CYCLE_NOT_ACTIVE', 'message' => 'Cycle is not active.']], 422);
         }
         $review->update(['status' => 'submitted']);
+
+        // Fire notification to admin users
+        $adminEmail = config('app.primary_hcm_admin_email');
+        if ($adminEmail) {
+            $admin = User::query()->where('email', $adminEmail)->first();
+            if ($admin) {
+                $admin->notify(new PerformanceReviewSubmittedNotification($review));
+            }
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -1003,6 +1026,16 @@ class HcmPerformanceController extends Controller
             return response()->json(['success' => false, 'error' => ['code' => 'PERF_REVIEW_LOCKED', 'message' => 'Review is not in submitted status.']], 422);
         }
         $review->update(['status' => 'manager_reviewed']);
+
+        // Fire notification to admin users
+        $adminEmail = config('app.primary_hcm_admin_email');
+        if ($adminEmail) {
+            $admin = User::query()->where('email', $adminEmail)->first();
+            if ($admin) {
+                $admin->notify(new PerformanceReviewManagerReviewedNotification($review));
+            }
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -1069,6 +1102,15 @@ class HcmPerformanceController extends Controller
             return response()->json(['success' => false, 'error' => ['code' => 'PERF_REVIEW_LOCKED', 'message' => 'Review is not manager reviewed.']], 422);
         }
         $review->update(['status' => 'finalized']);
+
+        // Fire notification to employee and manager
+        if ($review->employee) {
+            $review->employee->notify(new PerformanceReviewFinalizedNotification($review));
+        }
+        if ($review->manager) {
+            $review->manager->notify(new PerformanceReviewFinalizedNotification($review));
+        }
+
         return response()->json(['success' => true]);
     }
 

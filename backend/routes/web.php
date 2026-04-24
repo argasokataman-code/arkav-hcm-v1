@@ -1065,6 +1065,10 @@ Route::get('/notification-settings', function () {
     return view('notification-settings');
 })->name('notification-settings');
 
+Route::get('/notification-observability', function () {
+    return view('notification-observability');
+})->middleware('hcm.web.global-admin')->name('notification-observability');
+
 Route::get('/connected-apps', function () {
     return view('connected-apps');
 })->name('connected-apps');

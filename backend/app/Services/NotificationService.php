@@ -28,12 +28,14 @@ class NotificationService
                 });
 
                 \Log::info("Payment received notification sent", [
+                    'event_key' => 'billing.payment_received',
                     'payment_id' => $payment->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
             \Log::error("Failed to send payment received notification", [
+                'event_key' => 'billing.payment_received',
                 'error' => $e->getMessage(),
             ]);
         }
@@ -59,12 +61,14 @@ class NotificationService
                 });
 
                 \Log::info("Overdue invoice notification sent", [
+                    'event_key' => 'billing.invoice.overdue',
                     'invoice_id' => $invoice->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
             \Log::error("Failed to send overdue invoice notification", [
+                'event_key' => 'billing.invoice.overdue',
                 'error' => $e->getMessage(),
             ]);
         }
@@ -89,12 +93,14 @@ class NotificationService
                 });
 
                 \Log::info("Subscription cancelled notification sent", [
+                    'event_key' => 'billing.subscription.cancelled',
                     'subscription_id' => $subscription->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
             \Log::error("Failed to send subscription cancelled notification", [
+                'event_key' => 'billing.subscription.cancelled',
                 'error' => $e->getMessage(),
             ]);
         }
@@ -119,12 +125,14 @@ class NotificationService
                 });
 
                 \Log::info("Invoice sent notification sent", [
+                    'event_key' => 'billing.invoice.email_sent',
                     'invoice_id' => $invoice->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
             \Log::error("Failed to send invoice sent notification", [
+                'event_key' => 'billing.invoice.email_failed',
                 'error' => $e->getMessage(),
             ]);
         }
@@ -150,6 +158,7 @@ class NotificationService
             \Log::info("Bulk notification sent to " . $admins->count() . " admins");
         } catch (\Exception $e) {
             \Log::error("Failed to send bulk notifications", [
+                'event_key' => 'billing.bulk_admin_notification',
                 'error' => $e->getMessage(),
             ]);
         }
@@ -198,12 +207,14 @@ EOT;
             });
 
             \Log::info("Invoice issued notification sent", [
+                'event_key' => 'billing.invoice.issued',
                 'invoice_id' => $invoice->id,
                 'company_id' => $company->id,
                 'recipient_email' => $billingContact->email,
             ]);
         } catch (\Exception $e) {
             \Log::error("Failed to send invoice issued notification", [
+                'event_key' => 'billing.invoice.issued',
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
@@ -248,11 +259,13 @@ EOT;
             });
 
             \Log::info("Subscription expiration reminder sent", [
+                'event_key' => 'billing.subscription.expiring_in_7_days',
                 'subscription_id' => $subscription->id,
                 'company_id' => $company->id,
             ]);
         } catch (\Exception $e) {
             \Log::error("Failed to send subscription expiration notification", [
+                'event_key' => 'billing.subscription.expiring_in_7_days',
                 'subscription_id' => $subscription->id,
                 'error' => $e->getMessage(),
             ]);
@@ -310,11 +323,13 @@ EOT;
             }
 
             \Log::warning("Payment failure notification sent", [
+                'event_key' => 'billing.payment_failed',
                 'invoice_id' => $invoice->id,
                 'company_id' => $company->id,
             ]);
         } catch (\Exception $e) {
             \Log::error("Failed to send payment failure notification", [
+                'event_key' => 'billing.payment_failed',
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);

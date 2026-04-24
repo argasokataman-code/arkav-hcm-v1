@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Asset;
 use App\Models\AssetAssignment;
+use App\Support\Hcm\NotificationPayloadFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -31,7 +32,14 @@ class AssetAssignedNotification extends Notification
 
     public function toDatabase(object $notifiable): array
     {
-        return [
+        return NotificationPayloadFactory::make('asset.assigned', [
+            'companyUuid' => (string) ($this->asset->company_uuid ?? $this->assignment->company_uuid ?? ''),
+            'entityType' => 'asset',
+            'entityUuid' => (string) ($this->asset->uuid ?? ''),
+            'title' => 'Asset assigned',
+            'message' => (string) ($this->asset->asset_code ?? ''),
+            'occurredAt' => $this->assignment->created_at,
+        ], [
             'event' => 'asset.assigned',
             'assetId' => (int) $this->asset->id,
             'assetCode' => (string) ($this->asset->asset_code ?? ''),
@@ -40,6 +48,6 @@ class AssetAssignedNotification extends Notification
             'assignedDate' => optional($this->assignment->assigned_date)->toDateString(),
             'conditionAtAssign' => (string) ($this->assignment->condition_at_assign ?? ''),
             'notes' => (string) ($this->assignment->notes ?? ''),
-        ];
+        ]);
     }
 }

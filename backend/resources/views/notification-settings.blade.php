@@ -69,148 +69,104 @@
                         <div class="border-bottom mb-3 pb-3">
                             <h4>Notifications</h4>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th class="w-75 ps-2 border-0">Modules</th>
-                                        <th class="border-0">Push</th>
-                                        <th class="border-0">SMS</th>
-                                        <th class="pe-0 border-0">Email</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td class="ps-0">
-                                            <h5 class="mb-1 fw-medium">New Hire and Onboarding Notifications</h5>
-                                            <p>Alerts when a new hire is added to the system.</p>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-0">
-                                            <h5 class="mb-1 fw-medium">Time Off and Leave Requests</h5>
-                                            <p>Notifications when leave requests are approved or rejected.</p>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-0">
-                                            <h5 class="mb-1 fw-medium">Employee Performance and Review Updates</h5>
-                                            <p>Notifications when leave requests are approved or rejected.</p>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-0">
-                                            <h5 class="mb-1 fw-medium">Payroll and Compensation</h5>
-                                            <p>Alerts when payroll is processed or pending approval.</p>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-0">
-                                            <h5 class="mb-1 fw-medium">Job Applications and Recruitment</h5>
-                                            <p>Alerts when a new job application is submitted or a candidate moves to the next stage.</p>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="ps-0 border-0 pb-0">
-                                            <h5 class="mb-1 fw-medium">General System Alerts</h5>
-                                            <p>Alerts when a new job application is submitted or a candidate moves to the next stage.</p>
-                                        </td>
-                                        <td class="border-0 pb-0">
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="border-0 pb-0">
-                                            <div class="form-check form-check-md form-switch me-2">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                        <td class="pe-0 border-0 pb-0">
-                                            <div class="form-check form-check-md form-switch">
-                                                <input class="form-check-input me-2" type="checkbox" role="switch" checked>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <div class="alert d-none" data-notification-settings-feedback></div>
+                        <form action="javascript:void(0);" data-notification-settings-form>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th class="w-75 ps-2 border-0">Modules</th>
+                                            <th class="border-0">Push</th>
+                                            <th class="border-0">SMS</th>
+                                            <th class="pe-0 border-0">Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-notification-settings-rows></tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between gap-2 pt-2">
+                                <small class="text-muted" data-notification-settings-status>Loading notification preferences...</small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-light" data-notification-settings-reset>Reset</button>
+                                    <button type="submit" class="btn btn-primary" data-notification-settings-submit>Save Preferences</button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
+
+                @if ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin())
+                <div class="card">
+                    <div class="card-body" data-notification-observability-panel>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom mb-3 pb-3">
+                            <div>
+                                <h4 class="mb-1">Delivery Observability</h4>
+                                <p class="text-muted mb-0">Ringkasan status delivery notifikasi untuk monitoring operasional.</p>
+                                <a href="{{ url('notification-observability') }}" class="btn btn-sm btn-outline-primary mt-2">Open Full Dashboard</a>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <select class="form-select" data-notification-observability-hours>
+                                    <option value="24" selected>Last 24h</option>
+                                    <option value="72">Last 72h</option>
+                                    <option value="168">Last 7d</option>
+                                </select>
+                                <select class="form-select" data-notification-observability-channel>
+                                    <option value="">All channels</option>
+                                    <option value="database">Database</option>
+                                    <option value="mail">Mail</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="webhook">Webhook</option>
+                                </select>
+                                <button type="button" class="btn btn-light" data-notification-observability-refresh>Refresh</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 h-100">
+                                    <small class="text-muted d-block mb-1">Total Events</small>
+                                    <h4 class="mb-0" data-observability-total-all>0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 h-100">
+                                    <small class="text-muted d-block mb-1">Sent</small>
+                                    <h4 class="mb-0 text-success" data-observability-total-sent>0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 h-100">
+                                    <small class="text-muted d-block mb-1">Failed</small>
+                                    <h4 class="mb-0 text-danger" data-observability-total-failed>0</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3 h-100">
+                                    <small class="text-muted d-block mb-1">Dropped</small>
+                                    <h4 class="mb-0 text-warning" data-observability-total-dropped>0</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="mb-2">Breakdown by Status</h6>
+                                    <div data-observability-status-breakdown class="small text-muted">No data</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="mb-2">Top Failed Events</h6>
+                                    <div data-observability-top-failed class="small text-muted">No data</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <small class="text-muted d-block mt-3" data-observability-last-updated>Last updated: -</small>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>

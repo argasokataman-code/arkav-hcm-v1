@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Asset;
 use App\Models\AssetAssignment;
+use App\Support\Hcm\NotificationPayloadFactory;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -28,7 +29,14 @@ class AssetReturnedNotification extends Notification
 
     public function toDatabase(object $notifiable): array
     {
-        return [
+        return NotificationPayloadFactory::make('asset.returned', [
+            'companyUuid' => (string) ($this->asset->company_uuid ?? $this->assignment->company_uuid ?? ''),
+            'entityType' => 'asset',
+            'entityUuid' => (string) ($this->asset->uuid ?? ''),
+            'title' => 'Asset returned',
+            'message' => (string) ($this->asset->asset_code ?? ''),
+            'occurredAt' => $this->assignment->updated_at,
+        ], [
             'event' => 'asset.returned',
             'assetId' => (int) $this->asset->id,
             'assetCode' => (string) ($this->asset->asset_code ?? ''),
@@ -38,6 +46,6 @@ class AssetReturnedNotification extends Notification
             'returnedDate' => optional($this->assignment->returned_date)->toDateString(),
             'conditionAtReturn' => (string) ($this->assignment->condition_at_return ?? ''),
             'notes' => (string) ($this->assignment->notes ?? ''),
-        ];
+        ]);
     }
 }

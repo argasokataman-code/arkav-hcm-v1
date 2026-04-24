@@ -8,6 +8,7 @@ use App\Models\InvoiceEmailLog;
 use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Services\InvoiceService;
+use App\Services\NotificationDeliveryRecorder;
 use App\Services\NotificationService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
@@ -340,10 +341,30 @@ class InvoiceController extends Controller
         InvoiceEmailLog::query()->create([
             'invoice_id' => $invoice->id,
             'to_email' => (string) ($result['toEmail'] ?? ''),
+            'event_key' => $result['ok'] ? 'billing.invoice.email_sent' : 'billing.invoice.email_failed',
             'status' => $result['ok'] ? 'sent' : 'failed',
             'provider_message_id' => null,
             'error_message' => $result['error'],
         ]);
+
+        $eventKey = $result['ok'] ? 'billing.invoice.email_sent' : 'billing.invoice.email_failed';
+        $deliveryRecorder = app(NotificationDeliveryRecorder::class);
+        $context = [
+            'recipient' => (string) ($result['toEmail'] ?? ''),
+            'companyUuid' => (string) ($invoice->company?->uuid ?? ''),
+            'lastError' => $result['error'] ?? null,
+            'metadata' => [
+                'source' => 'invoice.send-email.endpoint',
+                'invoiceUuid' => (string) ($invoice->uuid ?? ''),
+                'invoiceNumber' => (string) ($invoice->invoice_number ?? ''),
+            ],
+        ];
+
+        if ($result['ok']) {
+            $deliveryRecorder->recordSent($eventKey, 'mail', $context);
+        } else {
+            $deliveryRecorder->recordFailed($eventKey, 'mail', $context);
+        }
 
         if ($result['ok']) {
             $notificationService->notifyInvoiceSent($invoice);

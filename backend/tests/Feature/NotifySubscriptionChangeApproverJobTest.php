@@ -71,7 +71,13 @@ class NotifySubscriptionChangeApproverJobTest extends TestCase
 
         (new NotifySubscriptionChangeApproverJob($record->id))->handle();
 
-        Notification::assertSentTo($primaryAdmin, SubscriptionChangeApprovalNeededNotification::class);
+        Notification::assertSentTo($primaryAdmin, SubscriptionChangeApprovalNeededNotification::class, function ($notification) use ($primaryAdmin): bool {
+            $data = $notification->toDatabase($primaryAdmin);
+
+            return ($data['event'] ?? null) === 'subscription_change_approval_needed'
+                && ($data['eventKey'] ?? null) === 'subscription.change_approval_needed'
+                && ($data['severity'] ?? null) === 'critical';
+        });
         Notification::assertNotSentTo($secondaryAdmin, SubscriptionChangeApprovalNeededNotification::class);
     }
 }

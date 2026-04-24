@@ -86,6 +86,8 @@ class AssetLifecycleNotificationTest extends TestCase
         Notification::assertSentTo($ctx['employeeUser'], AssetAssignedNotification::class, function ($notification) use ($ctx) {
             $data = $notification->toDatabase($ctx['employeeUser']);
             return $data['event'] === 'asset.assigned'
+                && $data['eventKey'] === 'asset.assigned'
+                && $data['severity'] === 'important'
                 && (int) $data['assetId'] === (int) $ctx['asset']->id
                 && $data['assetCode'] === 'LT-0001';
         });
@@ -114,6 +116,8 @@ class AssetLifecycleNotificationTest extends TestCase
         Notification::assertSentTo($ctx['employeeUser'], AssetReturnedNotification::class, function ($notification) use ($ctx) {
             $data = $notification->toDatabase($ctx['employeeUser']);
             return $data['event'] === 'asset.returned'
+                && $data['eventKey'] === 'asset.returned'
+                && $data['severity'] === 'important'
                 && (int) $data['assetId'] === (int) $ctx['asset']->id
                 && $data['returnedDate'] === '2027-03-20';
         });

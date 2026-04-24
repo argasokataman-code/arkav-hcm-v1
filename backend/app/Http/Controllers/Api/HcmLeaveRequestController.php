@@ -18,6 +18,10 @@ use App\Models\User;
 use App\Models\AttendanceRecord;
 use App\Services\Hcm\LeaveLedgerService;
 use App\Services\Hcm\LeaveWorkingDayCalculator;
+use App\Notifications\LeaveRequestedNotification;
+use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LeaveRejectedNotification;
+use App\Notifications\LeaveCancelledNotification;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -515,6 +519,17 @@ class HcmLeaveRequestController extends Controller
 
         $this->syncLeaveRequestBreakdowns($r->fresh());
 
+        // Emit leave.requested notification to approvers/admins
+        $adminUsers = User::query()
+            ->where(fn ($q) => $q->where('email', config('app.primary_hcm_admin_email'))
+                ->orWhere('email', config('app.secondary_hcm_admin_email')))
+            ->get();
+        foreach ($adminUsers as $admin) {
+            if ($admin) {
+                $admin->notify(new LeaveRequestedNotification($r->fresh()));
+            }
+        }
+
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
     }
 
@@ -556,11 +571,35 @@ class HcmLeaveRequestController extends Controller
                 if ($fromStatus !== 'approved' && $toStatus === 'approved') {
                     $this->syncApprovedLeaveBalance($r->fresh(), true);
                     $this->markAttendanceOnLeave($r->fresh(), true);
+                    // Emit leave.approved notification to requestor
+                    $requestor = $r->user;
+                    if ($requestor) {
+                        $requestor->notify(new LeaveApprovedNotification($r->fresh()));
+                    }
                 }
 
                 if ($fromStatus === 'approved' && $toStatus !== 'approved') {
                     $this->syncApprovedLeaveBalance($r->fresh(), false);
                     $this->markAttendanceOnLeave($r->fresh(), false);
+                    // Emit leave.cancelled notification if transitioning from approved
+                    if ($toStatus === 'pending') {
+                        $requestor = $r->user;
+                        if ($requestor) {
+                            $requestor->notify(new LeaveCancelledNotification($r->fresh()));
+                        }
+                    } elseif ($toStatus === 'declined') {
+                        // Emit leave.rejected notification
+                        $requestor = $r->user;
+                        if ($requestor) {
+                            $requestor->notify(new LeaveRejectedNotification($r->fresh()));
+                        }
+                    }
+                } elseif ($fromStatus === 'pending' && $toStatus === 'declined') {
+                    // Emit leave.rejected notification for pending -> declined transition
+                    $requestor = $r->user;
+                    if ($requestor) {
+                        $requestor->notify(new LeaveRejectedNotification($r->fresh()));
+                    }
                 }
             });
 

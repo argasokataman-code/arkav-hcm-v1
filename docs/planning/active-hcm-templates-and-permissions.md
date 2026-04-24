@@ -160,3 +160,4 @@ Jalankan berurutan (tidak boleh loncat):
 ## 6. Riwayat singkat
 
 - **2026-04:** Dokumen dibuat agar semua template HCM aktif punya pandangan role/permission terpusat; employee UC detail di `USE-CASES.md`.
+- **2026-04-24:** Ditambahkan kontrak API observability notifikasi `GET /v1/hcm/notifications/delivery-summary` sebagai endpoint internal **global HCM admin only** untuk ringkasan delivery channel (`sent/failed/dropped`).

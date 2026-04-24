@@ -36,6 +36,8 @@ use App\Http\Controllers\Api\HcmPayrollThrSettingsController;
 use App\Http\Controllers\Api\HcmPerformanceController;
 use App\Http\Controllers\Api\HcmAssetController;
 use App\Http\Controllers\Api\HcmAssetCategoryController;
+use App\Http\Controllers\Api\HcmNotificationController;
+use App\Http\Controllers\Api\HcmNotificationPreferenceController;
 use App\Http\Controllers\Api\HcmPromotionController;
 use App\Http\Controllers\Api\HcmResignationController;
 use App\Http\Controllers\Api\HcmTerminationController;
@@ -85,6 +87,17 @@ Route::prefix('v1/hcm/company')->middleware(['api.token', 'tenant.context'])->gr
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::get('/dashboard-summary', [HcmDashboardController::class, 'summary']);
     Route::get('/employee-dashboard-summary', [HcmDashboardController::class, 'employeeSummary']);
+    Route::get('/notifications', [HcmNotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [HcmNotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/{notification}/read', [HcmNotificationController::class, 'markAsRead']);
+    Route::get('/notifications/unread-count', [HcmNotificationController::class, 'unreadCount']);
+    Route::get('/notifications/delivery-summary', [HcmNotificationController::class, 'deliverySummary'])->middleware('throttle:100,1');
+    Route::get('/notifications/delivery-details', [HcmNotificationController::class, 'deliveryDetails'])->middleware('throttle:100,1');
+    Route::get('/notifications/delivery-export', [HcmNotificationController::class, 'exportDeliveries'])->middleware('throttle:50,1');
+    Route::post('/notifications/delivery/{id}/retry', [HcmNotificationController::class, 'retryDelivery'])->whereNumber('id')->middleware('throttle:30,1');
+    Route::get('/notifications/templates', [HcmNotificationController::class, 'templateCatalog'])->middleware('throttle:30,1');
+    Route::get('/notification-preferences', [HcmNotificationPreferenceController::class, 'index']);
+    Route::put('/notification-preferences', [HcmNotificationPreferenceController::class, 'update']);
     Route::get('/activity-feed', [HcmActivityController::class, 'index']);
     Route::get('/activity-feed-companies', [HcmActivityController::class, 'listCompanies']); // Super admin: list all companies for filtering
     Route::post('/activity-manual', [HcmActivityController::class, 'storeManual']);
@@ -523,7 +536,7 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 });
 
 // Mock Payments (Development only - for testing without Stripe/Xendit subscription)
-if (app()->isLocal() || config('app.mock_payments_enabled')) {
+if (app()->environment(['local', 'testing']) || config('app.mock_payments_enabled')) {
     Route::prefix('v1/mock')->middleware(['api.token', 'tenant.context'])->group(function () {
         Route::post('/payments/create', [MockPaymentController::class, 'createPayment']);
         Route::post('/invoices/create-and-pay', [MockPaymentController::class, 'createInvoiceAndPay']);

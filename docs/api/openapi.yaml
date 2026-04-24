@@ -343,6 +343,481 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/notifications:
+    get:
+      tags: [HCM]
+      summary: List notification inbox for authenticated user
+      description: Returns tenant-scoped notifications for regular users and cross-tenant notifications for global HCM admin.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: isRead
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: eventKey
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: channel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [database, mail, sms, webhook]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    required: [items, meta]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            uuid: { type: string, format: uuid }
+                            eventKey: { type: string }
+                            title: { type: string }
+                            body: { type: string }
+                            severity: { type: string }
+                            channel: { type: string }
+                            isRead: { type: boolean }
+                            readAt: { type: string, format: date-time, nullable: true }
+                            createdAt: { type: string, format: date-time, nullable: true }
+                            data:
+                              type: object
+                              additionalProperties: true
+                      meta:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          perPage: { type: integer }
+                          total: { type: integer }
+                          unreadCount: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /v1/hcm/notifications/read-all:
+    post:
+      tags: [HCM]
+      summary: Mark all unread notifications as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      updated: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /v1/hcm/notifications/{notification}/read:
+    post:
+      tags: [HCM]
+      summary: Mark a single notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notification
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/notifications/unread-count:
+    get:
+      tags: [HCM]
+      summary: Get unread notification count for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      unreadCount: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /v1/hcm/notifications/delivery-summary:
+    get:
+      tags: [HCM]
+      summary: Get notification delivery observability summary (global HCM admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 720
+        - name: channel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [database, mail, sms, webhook]
+        - name: eventKey
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      windowHours: { type: integer }
+                      from: { type: string, format: date-time }
+                      to: { type: string, format: date-time }
+                      totals:
+                        type: object
+                        properties:
+                          all: { type: integer }
+                          sent: { type: integer }
+                          failed: { type: integer }
+                          dropped: { type: integer }
+                      breakdown:
+                        type: object
+                        properties:
+                          byStatus:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                status: { type: string }
+                                total: { type: integer }
+                          byChannel:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                channel: { type: string }
+                                total: { type: integer }
+                      topFailedEvents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            eventKey: { type: string }
+                            total: { type: integer }
+
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/notifications/delivery-details:
+    get:
+      tags: [HCM]
+      summary: Get paginated failed delivery details with filters (global HCM admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: perPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [sent, failed, dropped, pending]
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 720
+            default: 24
+        - name: channel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [database, mail, sms, webhook]
+        - name: eventKey
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            eventKey: { type: string }
+                            channel: { type: string }
+                            status: { type: string }
+                            recipient: { type: string }
+                            attemptCount: { type: integer }
+                            lastError: { type: string }
+                            createdAt: { type: string, format: date-time }
+                            metadata: { type: object }
+                      meta:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          perPage: { type: integer }
+                          total: { type: integer }
+                          hasMore: { type: boolean }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/notifications/delivery-export:
+    get:
+      tags: [HCM]
+      summary: Export delivery records as CSV (global HCM admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [sent, failed, dropped]
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 720
+            default: 24
+        - name: channel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [database, mail, sms, webhook]
+        - name: eventKey
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: CSV file exported
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/notifications/delivery/{id}/retry:
+    post:
+      tags: [HCM]
+      summary: Manually retry a failed delivery (global HCM admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Delivery marked for retry
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      status: { type: string }
+                      attemptCount: { type: integer }
+                      message: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/notifications/templates:
+    get:
+      tags: [HCM]
+      summary: Get notification template catalog stub (global HCM admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            eventKey: { type: string }
+                            title: { type: string }
+                            description: { type: string }
+                            severity: { type: string }
+                            channels:
+                              type: array
+                              items: { type: string, enum: [database, mail, sms, webhook] }
+                            digestModes:
+                              type: array
+                              items: { type: string, enum: [instant, daily, weekly] }
+                            isEditable: { type: boolean }
+                      meta:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          mode: { type: string, enum: [stub] }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/notification-preferences:
+    get:
+      tags: [HCM]
+      summary: Get notification preferences for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            eventKey: { type: string }
+                            channel: { type: string, enum: [database, mail, sms, webhook] }
+                            enabled: { type: boolean }
+                            digestMode: { type: string, enum: [instant, daily, weekly] }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    put:
+      tags: [HCM]
+      summary: Create or update notification preferences for authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preferences]
+              properties:
+                preferences:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [eventKey, channel, enabled]
+                    properties:
+                      eventKey: { type: string }
+                      channel: { type: string, enum: [database, mail, sms, webhook] }
+                      enabled: { type: boolean }
+                      digestMode: { type: string, enum: [instant, daily, weekly] }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/hcm/activity-feed:
     get:
       tags: [HCM]

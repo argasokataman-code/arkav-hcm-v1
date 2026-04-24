@@ -36,7 +36,13 @@ class PasswordResetWebFlowTest extends TestCase
         $response->assertRedirect('/forgot-password');
         $response->assertSessionHas('status');
 
-        Notification::assertSentTo($user, PasswordResetLinkNotification::class);
+        Notification::assertSentTo($user, PasswordResetLinkNotification::class, function (PasswordResetLinkNotification $notification) use ($user): bool {
+            $payload = $notification->toArray($user);
+
+            return ($payload['eventKey'] ?? null) === 'auth.password_reset_link_requested'
+                && ($payload['severity'] ?? null) === 'critical'
+                && ($payload['entityUuid'] ?? null) === $user->uuid;
+        });
     }
 
     public function test_user_can_reset_password_from_web_flow(): void

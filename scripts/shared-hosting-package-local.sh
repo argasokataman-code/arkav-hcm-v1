@@ -8,6 +8,8 @@ OUTPUT_DIR="$ROOT_DIR/release/shared-hosting"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 STAGING_DIR="$OUTPUT_DIR/staging-$TIMESTAMP"
 ARTIFACT="$OUTPUT_DIR/shared-hosting-artifact-$TIMESTAMP.tar.gz"
+GIT_HEAD="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo UNKNOWN)"
+GIT_BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo UNKNOWN)"
 
 if [[ ! -d "$BACKEND_DIR" ]]; then
   echo "[shared-hosting-package-local] backend directory not found: $BACKEND_DIR" >&2
@@ -123,6 +125,21 @@ mkdir -p "$STAGING_DIR/scripts"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy.sh"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy-easy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy-easy.sh"
 cp "$ROOT_DIR/scripts/shared-hosting-queue-cron.sh" "$STAGING_DIR/scripts/shared-hosting-queue-cron.sh"
+
+cat > "$STAGING_DIR/RELEASE-METADATA.txt" <<EOF
+git_head=$GIT_HEAD
+git_branch=$GIT_BRANCH
+packaged_at=$TIMESTAMP
+artifact_name=$(basename "$ARTIFACT")
+EOF
+
+cp "$STAGING_DIR/RELEASE-METADATA.txt" "$STAGING_DIR/backend/RELEASE-METADATA.txt"
+
+# Ship OpenAPI spec for Swagger endpoint on shared-hosting runtime.
+if [[ -f "$ROOT_DIR/docs/api/openapi.yaml" ]]; then
+  mkdir -p "$STAGING_DIR/docs/api"
+  cp "$ROOT_DIR/docs/api/openapi.yaml" "$STAGING_DIR/docs/api/openapi.yaml"
+fi
 
 cat > "$STAGING_DIR/DEPLOY-README.txt" << 'EOF'
 1) Upload and extract this artifact to your hosting directory.

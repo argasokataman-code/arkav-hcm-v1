@@ -23,10 +23,18 @@ Script ini menjalankan (otomatis):
 
 1. Lokal: `bash scripts/local-test-gate.sh` (mandatory gate)
 2. Lokal: `bash scripts/shared-hosting-package-local.sh` (build artifact)
-3. Lokal: `git commit && git push origin main`
-4. **GitHub Actions auto-deploy**: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
+3. Lokal: parity pre-check `bash scripts/compare-local-staging.sh --user <user> --host <host> --port <port> --app-dir <remote_app_dir>`
+4. Lokal: `git commit && git push origin main`
+5. **GitHub Actions auto-deploy**: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
+6. Lokal: parity post-check dengan command yang sama, wajib pastikan hash critical sinkron.
 
 Artifact di-track di `release/shared-hosting/` agar GitHub dapat deploy tanpa re-build.
+
+### Anti-drift rule (mandatory)
+
+- Jangan lakukan deploy manual per-file ke staging (`scp backend/...`) kecuali emergency yang disetujui.
+- Setiap emergency patch di server harus diikuti commit repo + artifact deploy normal supaya parity local/staging kembali.
+- Artifact wajib menyertakan `RELEASE-METADATA.txt` untuk verifikasi commit runtime.
 
 README feature di [docs/features](docs/features) harus business-readable: flow end-to-end, keputusan/lifecycle, gap existing vs target, dan cross-check role/API permission tidak boleh hilang untuk fitur operasional.
 

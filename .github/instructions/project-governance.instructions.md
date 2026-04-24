@@ -49,8 +49,13 @@ Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertuga
 **Workflow**:
 1. **Lokal** — `bash scripts/local-test-gate.sh` (tester saja, gate mandatory)
 2. **Lokal** — Jika pass, build artifact: `bash scripts/shared-hosting-package-local.sh`
-3. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
-4. **GitHub Actions** — Auto: cek artifact ada → SCP upload → SSH deploy → verify status
+3. **Lokal** — Parity pre-check (wajib sebelum push):
+	- `bash scripts/compare-local-staging.sh --user <user> --host <host> --port <port> --app-dir <remote_app_dir>`
+	- Simpan evidence hash yang berbeda/sama sebelum deploy.
+4. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
+5. **GitHub Actions** — Auto: cek artifact ada → SCP upload → SSH deploy → verify status
+6. **Lokal** — Parity post-check (wajib setelah deploy):
+	- jalankan ulang `scripts/compare-local-staging.sh` dan pastikan file critical + release marker sinkron.
 
 **GitHub workflow** (`.github/workflows/shared-hosting-deploy.yml`):
 - Trigger: push ke main dengan perubahan di `backend/**` atau `release/shared-hosting/**`
@@ -60,6 +65,11 @@ Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertuga
 **Deployment commands di server**:
 - `tar -xzf shared-hosting-artifact-<ts>.tar.gz`
 - `bash scripts/shared-hosting-deploy-easy.sh` (migrate --force, cache rebuild, storage:link)
+
+**Larangan drift runtime (mandatory):**
+- Dilarang deploy manual per-file aplikasi ke staging (`scp backend/...` langsung) kecuali emergency approved.
+- Untuk emergency hotfix langsung server, wajib follow-up commit di repo + rebuild artifact + deploy normal agar parity kembali.
+- Artifact wajib membawa `RELEASE-METADATA.txt` dan diverifikasi lewat `scripts/compare-local-staging.sh`.
 
 ## Guard kontrak API (wajib)
 

@@ -56,7 +56,9 @@ RUN_DEV_BOOTSTRAP=false
 From repository root on your local machine:
 
 ```bash
+bash scripts/local-test-gate.sh
 bash scripts/shared-hosting-package-local.sh
+bash scripts/check-shared-hosting-artifact-sync.sh
 ```
 
 Output artifact:
@@ -70,6 +72,13 @@ What this local packaging script does:
 - installs npm dependencies and runs `npm run build`
 - prepares production-ready backend with `vendor` and `public/build`
 - creates deploy artifact for upload
+
+What the artifact sync guard does:
+
+- reads `RELEASE-METADATA.txt` from latest artifact
+- verifies `git_head` exists and is in current commit ancestry
+- fails if there are newer deploy-relevant changes after artifact build (backend, OpenAPI, shared-hosting deploy scripts)
+- prevents stale artifact from being deployed by GitHub Actions
 
 ## 4) Upload Artifact + Deploy on Hosting Server
 

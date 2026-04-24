@@ -49,12 +49,15 @@ Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertuga
 **Workflow**:
 1. **Lokal** — `bash scripts/local-test-gate.sh` (tester saja, gate mandatory)
 2. **Lokal** — Jika pass, build artifact: `bash scripts/shared-hosting-package-local.sh`
-3. **Lokal** — Parity pre-check (wajib sebelum push):
+3. **Lokal** — Guard sinkronisasi artifact (wajib sebelum push):
+	- `bash scripts/check-shared-hosting-artifact-sync.sh`
+	- Guard ini wajib PASS; jika gagal berarti artifact stale terhadap commit aktif.
+4. **Lokal** — Parity pre-check (wajib sebelum push):
 	- `bash scripts/compare-local-staging.sh --user <user> --host <host> --port <port> --app-dir <remote_app_dir>`
 	- Simpan evidence hash yang berbeda/sama sebelum deploy.
-4. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
-5. **GitHub Actions** — Auto: cek artifact ada → SCP upload → SSH deploy → verify status
-6. **Lokal** — Parity post-check (wajib setelah deploy):
+5. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
+6. **GitHub Actions** — Auto: cek artifact ada + cek sinkronisasi artifact vs commit → SCP upload → SSH deploy → verify status
+7. **Lokal** — Parity post-check (wajib setelah deploy):
 	- jalankan ulang `scripts/compare-local-staging.sh` dan pastikan file critical + release marker sinkron.
 
 **GitHub workflow** (`.github/workflows/shared-hosting-deploy.yml`):

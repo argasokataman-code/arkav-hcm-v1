@@ -37,6 +37,11 @@ jobs:
           fi
           echo "✅ Found artifact: $ARTIFACT"
 
+      - name: Guard artifact sync with commit
+        run: |
+          chmod +x scripts/check-shared-hosting-artifact-sync.sh
+          bash scripts/check-shared-hosting-artifact-sync.sh "${GITHUB_SHA}"
+
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh

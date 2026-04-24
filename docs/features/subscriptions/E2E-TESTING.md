@@ -114,6 +114,57 @@ Gunakan baseline berikut sebelum menjalankan test manual UI:
 3. Expected:
    - Request mutasi ditolak `403 ADMIN_REQUIRED`.
 
+## Scenario 9 - Trial Upgrade to Paid Package (Pre/Post Request Detail)
+
+Tujuan: memastikan tenant yang masih `trial` bisa upgrade ke paket berbayar lalu aktivasi subscription terjadi hanya setelah invoice dibayar.
+
+### Pre-request checklist (wajib)
+
+1. Company punya 1 subscription status `trial` yang masih valid (`ends_at` di masa depan).
+2. Paket target upgrade bukan paket trial dan status package `active`.
+3. Tidak ada unpaid invoice lain di company yang bisa memicu invoice reuse.
+4. User yang mengeksekusi adalah HCM admin/owner company yang sama.
+
+### Request sequence
+
+1. **Checkout upgrade**
+   - Endpoint: `POST /v1/hcm/billing/checkout`
+   - Header: `Authorization: Bearer <token>`, `X-Company-Id: <company_id>`
+   - Body:
+     - `package_uuid` (UUID paket berbayar)
+     - `billing_cycle` (`monthly|yearly`)
+     - `billingEmail` (opsional)
+2. **Open hosted checkout mock**
+   - Endpoint: `POST /v1/hcm/billing/invoices/{invoiceId}/mock-hosted-checkout`
+   - Header sama dengan langkah 1
+3. **Simulate payment webhook**
+   - Endpoint: `POST /v1/mock/webhook/charge-succeeded`
+   - Header sama dengan langkah 1
+   - Body:
+     - `payment_id` (UUID payment dari langkah 2)
+     - `callback_token` (dari response langkah 2)
+
+### Post-request assertions (wajib)
+
+1. Setelah langkah 1:
+   - `subscriptions.status = pending_payment`
+   - `subscriptions.package_uuid` berubah ke paket target
+   - `trial_ends_at = null`
+   - invoice baru status `draft`, `is_paid = false`
+2. Setelah langkah 2:
+   - payment dibuat status `pending`
+   - response punya `flow.mode = hosted`, `flow.callbackToken`, `flow.hostedCheckoutUrl`
+3. Setelah langkah 3:
+   - payment status `completed`
+   - invoice status `paid`, `is_paid = true`
+   - subscription berubah `pending_payment -> active`
+
+### Automation reference
+
+- Backend feature test: `backend/tests/Feature/TrialUpgradeToPaidFlowTest.php`
+- Run command:
+  - `cd backend && php artisan test tests/Feature/TrialUpgradeToPaidFlowTest.php`
+
 ## UI Regression Checklist
 
 - Table responsive desktop/mobile.

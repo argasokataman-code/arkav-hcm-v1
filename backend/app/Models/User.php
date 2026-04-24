@@ -5,10 +5,12 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Notifications\PasswordResetLinkNotification;
 use App\Models\Concerns\AssignsUuid;
+use App\Models\DatabaseNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
@@ -73,6 +75,21 @@ class User extends Authenticatable
     public function companyMemberships(): HasMany
     {
         return $this->hasMany(CompanyUser::class);
+    }
+
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(DatabaseNotification::class, 'notifiable')->latest();
+    }
+
+    public function readNotifications(): MorphMany
+    {
+        return $this->notifications()->read();
+    }
+
+    public function unreadNotifications(): MorphMany
+    {
+        return $this->notifications()->unread();
     }
 
     public function sendPasswordResetNotification($token): void

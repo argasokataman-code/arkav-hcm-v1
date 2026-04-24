@@ -50,4 +50,38 @@ class MailtrapAccountApiServiceTest extends TestCase
 
         (new MailtrapAccountApiService())->listApiTokens();
     }
+
+    public function test_test_connection_returns_connected_summary(): void
+    {
+        Http::fake([
+            'mailtrap.io/api/accounts/3229/api_tokens' => Http::response([
+                [
+                    'id' => 12345,
+                    'name' => 'Primary Token',
+                    'last_4_digits' => 'x7k9',
+                    'expires_at' => null,
+                ],
+            ], 200),
+        ]);
+
+        $result = (new MailtrapAccountApiService())->testConnection('mt_test_token', 3229, 5);
+
+        $this->assertTrue($result['connected']);
+        $this->assertSame(1, $result['visibleTokenCount']);
+        $this->assertNull($result['error']);
+    }
+
+    public function test_test_connection_normalizes_auth_failure(): void
+    {
+        Http::fake([
+            'mailtrap.io/api/accounts/3229/api_tokens' => Http::response([
+                'message' => 'Unauthorized',
+            ], 401),
+        ]);
+
+        $result = (new MailtrapAccountApiService())->testConnection('bad-token', 3229, 5);
+
+        $this->assertFalse($result['connected']);
+        $this->assertSame('AUTH_FAILED', $result['error']['code']);
+    }
 }

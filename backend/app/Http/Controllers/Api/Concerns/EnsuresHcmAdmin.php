@@ -52,4 +52,23 @@ trait EnsuresHcmAdmin
             ],
         ], 403);
     }
+
+    /**
+     * Ensure user is a global HCM admin only.
+     */
+    protected function ensureGlobalHcmAdmin(Request $request): ?JsonResponse
+    {
+        $user = $request->user();
+        if ($user && method_exists($user, 'isGlobalHcmAdmin') && $user->isGlobalHcmAdmin()) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'ADMIN_REQUIRED',
+                'message' => 'Global admin access required.',
+            ],
+        ], 403);
+    }
 }

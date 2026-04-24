@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\NotificationDelivery;
+use App\Models\DatabaseNotification;
 use App\Support\Hcm\NotificationEventCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 
 class HcmNotificationController extends Controller
@@ -184,7 +185,14 @@ class HcmNotificationController extends Controller
         }
 
         $updated = DB::table('notifications')
-            ->where('notifiable_id', $user->id)
+            ->where(function ($query) use ($user): void {
+                $query->where('user_uuid', $user->uuid)
+                    ->orWhere(function ($legacy) use ($user): void {
+                        $legacy->whereNull('user_uuid')
+                            ->where('notifiable_type', User::class)
+                            ->where('notifiable_id', (string) $user->id);
+                    });
+            })
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 

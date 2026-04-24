@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\HcmActivityController;
 use App\Http\Controllers\Api\HcmDashboardController;
+use App\Http\Controllers\Api\EmailDeliveryStatusWebhookController;
+use App\Http\Controllers\Api\EmailInboundWebhookController;
 use App\Http\Controllers\Api\HcmEmailSettingsController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -243,6 +245,10 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/leave-settings/custom-policies', [HcmLeaveSettingController::class, 'storeCustomPolicy']);
     Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy'])->whereNumber('id');
     Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy'])->whereNumber('id');
+    Route::get('/email-settings', [HcmEmailSettingsController::class, 'show']);
+    Route::put('/email-settings', [HcmEmailSettingsController::class, 'update']);
+    Route::post('/email-settings/compose', [HcmEmailSettingsController::class, 'sendCompose'])->middleware('throttle:10,1');
+    Route::post('/email-settings/test-connection', [HcmEmailSettingsController::class, 'testConnection']);
     Route::get('/email-settings/mailtrap-status', [HcmEmailSettingsController::class, 'mailtrapStatus']);
 
     Route::get('/overtime-requests', [HcmOvertimeRequestController::class, 'index']);
@@ -558,3 +564,5 @@ Route::get('/health', function () {
 // Webhooks (outside auth middleware, signature-validated instead)
 Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handleStripe']);
 Route::post('/webhooks/xendit', [\App\Http\Controllers\Api\PaymentWebhookController::class, 'handleXendit']);
+Route::post('/webhooks/email-inbound', [EmailInboundWebhookController::class, 'handle'])->middleware('throttle:60,1');
+Route::post('/webhooks/email-delivery-status', [EmailDeliveryStatusWebhookController::class, 'handle'])->middleware('throttle:60,1');

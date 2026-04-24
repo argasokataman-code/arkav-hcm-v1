@@ -21,7 +21,12 @@ class HcmNotificationPreferenceController extends Controller
         }
 
         $items = NotificationPreference::query()
-            ->where('user_id', $user->id)
+            ->where(function ($query) use ($user): void {
+                $query->where('user_uuid', $user->uuid)
+                    ->orWhere(function ($legacy) use ($user): void {
+                        $legacy->whereNull('user_uuid')->where('user_id', $user->id);
+                    });
+            })
             ->orderBy('event_key')
             ->orderBy('channel')
             ->get()
@@ -63,11 +68,12 @@ class HcmNotificationPreferenceController extends Controller
             foreach ((array) $validated['preferences'] as $item) {
                 NotificationPreference::query()->updateOrCreate(
                     [
-                        'user_id' => $user->id,
+                        'user_uuid' => $user->uuid,
                         'event_key' => (string) $item['eventKey'],
                         'channel' => (string) $item['channel'],
                     ],
                     [
+                        'user_id' => $user->id,
                         'enabled' => (bool) $item['enabled'],
                         'digest_mode' => (string) ($item['digestMode'] ?? 'instant'),
                     ],

@@ -35,6 +35,25 @@ return [
         'timeout' => (int) env('MAILTRAP_API_TIMEOUT', 10),
     ],
 
+    'email_inbound' => [
+        'provider' => env('EMAIL_INBOUND_PROVIDER', 'mailtrap'),
+        'webhook_token' => env('EMAIL_INBOUND_WEBHOOK_TOKEN', env('MAILTRAP_INBOUND_WEBHOOK_TOKEN')),
+        'imap' => [
+            'enabled' => filter_var(env('EMAIL_INBOUND_IMAP_ENABLED', false), FILTER_VALIDATE_BOOL),
+            'host' => env('EMAIL_INBOUND_IMAP_HOST'),
+            'port' => (int) env('EMAIL_INBOUND_IMAP_PORT', 993),
+            'encryption' => env('EMAIL_INBOUND_IMAP_ENCRYPTION', 'ssl'),
+            'username' => env('EMAIL_INBOUND_IMAP_USERNAME'),
+            'password' => env('EMAIL_INBOUND_IMAP_PASSWORD'),
+            'folder' => env('EMAIL_INBOUND_IMAP_FOLDER', 'INBOX'),
+        ],
+    ],
+
+    'email_delivery' => [
+        'provider' => env('EMAIL_DELIVERY_PROVIDER', env('EMAIL_INBOUND_PROVIDER', 'brevo')),
+        'webhook_token' => env('EMAIL_DELIVERY_WEBHOOK_TOKEN', env('EMAIL_INBOUND_WEBHOOK_TOKEN')),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

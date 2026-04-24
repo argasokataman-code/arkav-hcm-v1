@@ -57,6 +57,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 36 | Trial & Billing Dashboard | 🚧 Planning | [→](trial-billing-dashboard/) | [📘 Implementation](trial-billing-dashboard/IMPLEMENTATION.md) | [🧪 E2E Testing](trial-billing-dashboard/E2E-TESTING.md) |
 | 37 | Mock Payment (Dev) | ✅ Dev Ready | [→](mock-payment/) | [📘 Implementation](mock-payment/IMPLEMENTATION.md) | [🧭 Tracker](mock-payment/tracker.md), [⚡ Quick Guide](../MOCK-PAYMENT-GATEWAY-GUIDE.md) |
 | 38 | Notifications & Alerts | 🚧 Planning (Design Ready) | [→](notifications/) | [📘 Implementation](notifications/IMPLEMENTATION.md) | [🧪 E2E Testing](notifications/E2E-TESTING.md), [🧭 Tracker](notifications/tracker.md), [🧩 API Contract](notifications/API-CONTRACT.md) |
+| 39 | Email Settings & Templates | 🚧 In Progress (Observability Baseline) | [→](email-settings/) | [📘 Implementation](email-settings/IMPLEMENTATION.md) | [🧭 Tracker](email-settings/tracker.md), provider-agnostic roadmap |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -127,6 +128,9 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `notifications/API-CONTRACT.md` - Draft endpoint inbox, read status, preferences, dan admin template management.
 - `notifications/E2E-TESTING.md` - Skenario QA lintas tenant/role untuk notifikasi in-app + email.
 - `notifications/tracker.md` - Snapshot status, gap aktif, dan evidence runtime yang sudah terverifikasi.
+- `email-settings/README.md` - **Email Settings & Templates:** audit runtime fitur email, flow bisnis existing vs target, dan readiness untuk provider-agnostic subscription/email service.
+- `email-settings/IMPLEMENTATION.md` - Catatan implementasi teknis endpoint status Mailtrap, wiring route/view, gap persistence, dan roadmap bertahap.
+- `email-settings/tracker.md` - Snapshot status, evidence code surface, gap register, dan milestone implementasi berikutnya.
 
 ---
 

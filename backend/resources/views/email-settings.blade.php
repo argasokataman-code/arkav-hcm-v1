@@ -72,21 +72,22 @@
                             <div class="border-bottom mb-3 pb-3">
                                 <h4>Email Settings</h4>
                             </div>
-                            <div class="card border mb-3" id="mailtrapStatusCard">
+                            <div class="alert d-none" data-email-settings-feedback></div>
+                            <div class="card border mb-3" id="mailtrapStatusCard" data-mailtrap-status-card>
                                 <div class="card-body py-3">
                                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                                         <div>
                                             <h6 class="mb-1">Mailtrap API Status</h6>
-                                            <p class="text-muted mb-0" id="mailtrapStatusText">Checking configuration...</p>
+                                            <p class="text-muted mb-0" id="mailtrapStatusText" data-mailtrap-status-text>Checking configuration...</p>
                                         </div>
                                         <div class="d-flex align-items-center gap-2">
-                                            <span class="badge badge-secondary" id="mailtrapStatusBadge">Unknown</span>
-                                            <button type="button" class="btn btn-sm btn-outline-light border" id="refreshMailtrapStatus">Refresh</button>
+                                            <span class="badge badge-secondary" id="mailtrapStatusBadge" data-mailtrap-status-badge>Unknown</span>
+                                            <button type="button" class="btn btn-sm btn-outline-light border" id="refreshMailtrapStatus" data-mailtrap-status-refresh>Refresh</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <form action="{{url("email-settings")}}">
+                            <form action="javascript:void(0);" data-email-settings-shell>
                                 <div class="border-bottom mb-3">
                                     <div class="row">
                                         
@@ -104,16 +105,16 @@
                                                                 <h5>PHP Mailer</h5>
                                                             </div>
                                                             <div class="form-check form-switch">
-                                                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
+                                                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault" data-provider-switch="mailtrap">
                                                             </div>
                                                         </div>
                                                         <p>Used to send emails safely and easily via PHP code from a web server.</p>
                                                     </div>
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <span class="btn btn-sm d-inline-flex align-items-center btn-dark">
+                                                        <div class="d-flex align-items-center justify-content-between">
+                                                            <span class="btn btn-sm d-inline-flex align-items-center btn-dark" data-provider-status="mailtrap">
                                                             <i class="ti ti-checks me-1"></i>Connected
                                                         </span>
-                                                        <a href="#" data-bs-toggle="modal" data-bs-target="#phpmailersettings" class="btn btn-icon btn-sm text-gray-5 fs-20"><i class="ti ti-settings"></i></a>
+                                                            <a href="#" data-bs-toggle="modal" data-bs-target="#phpmailersettings" class="btn btn-icon btn-sm text-gray-5 fs-20" data-provider-modal-trigger="mailtrap"><i class="ti ti-settings"></i></a>
                                                     </div>
                                                 
                                                 </div>
@@ -131,16 +132,16 @@
                                                                 <h5>SMTP</h5>
                                                             </div>
                                                             <div class="form-check form-switch">
-                                                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault2">
+                                                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault2" data-provider-switch="smtp">
                                                             </div>
                                                         </div>
                                                         <p>SMTP is used to send, relay or forward messages from a mail client.</p>
                                                     </div>
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <span class="btn btn-sm d-inline-flex align-items-center btn-light">
+                                                        <div class="d-flex align-items-center justify-content-between">
+                                                            <span class="btn btn-sm d-inline-flex align-items-center btn-light" data-provider-status="smtp">
                                                             <i class="ti ti-checks me-1"></i>Connected
                                                         </span>
-                                                        <a href="#"  data-bs-toggle="modal" data-bs-target="#smtpsettings" class="btn btn-icon btn-sm text-gray-5 fs-20"><i class="ti ti-settings"></i></a>
+                                                            <a href="#"  data-bs-toggle="modal" data-bs-target="#smtpsettings" class="btn btn-icon btn-sm text-gray-5 fs-20" data-provider-modal-trigger="smtp"><i class="ti ti-settings"></i></a>
                                                     </div>
                                                 
                                                 </div>
@@ -151,8 +152,8 @@
                                 </div>
                                 
                                 <div class="d-flex align-items-center justify-content-end">
-                                    <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Save</button>
+                                    <button type="button" class="btn btn-outline-light border me-3" data-email-settings-cancel>Cancel</button>
+                                    <button type="submit" class="btn btn-primary" data-email-settings-save disabled>Save</button>
                                 </div>
                             </form>
                         </div>
@@ -167,84 +168,12 @@
     @component('components.modal-popup')
     @endcomponent
 
-    <script>
-        $(document).ready(function() {
-            function getAuthToken() {
-                return localStorage.getItem('arcav_access_token') ||
-                    sessionStorage.getItem('arcav_access_token') ||
-                    localStorage.getItem('token') ||
-                    sessionStorage.getItem('token') ||
-                    $('meta[name="api-token"]').attr('content') ||
-                    $('meta[name="auth-token"]').attr('content') ||
-                    null;
-            }
-
-            function applyStatus(connected, text) {
-                var badge = $('#mailtrapStatusBadge');
-                badge.removeClass('badge-success badge-danger badge-warning badge-secondary');
-                if (connected === true) {
-                    badge.addClass('badge-success').text('Connected');
-                } else if (connected === false) {
-                    badge.addClass('badge-warning').text('Not Connected');
-                } else {
-                    badge.addClass('badge-secondary').text('Unknown');
-                }
-                $('#mailtrapStatusText').text(text || 'No details.');
-            }
-
-            function loadMailtrapStatus() {
-                applyStatus(null, 'Checking configuration...');
-                var token = getAuthToken();
-                if (!token) {
-                    applyStatus(false, 'Auth token not found. Please login again.');
-                    return;
-                }
-
-                $.ajax({
-                    url: '/v1/hcm/email-settings/mailtrap-status',
-                    type: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                }).done(function(response) {
-                    var data = response && response.data ? response.data : {};
-                    if (!response || response.success !== true) {
-                        applyStatus(false, 'Failed reading Mailtrap status.');
-                        return;
-                    }
-
-                    if (!data.tokenConfigured || !data.accountId) {
-                        applyStatus(false, 'MAILTRAP_API_TOKEN / MAILTRAP_ACCOUNT_ID belum lengkap di env.');
-                        return;
-                    }
-
-                    if (data.connected) {
-                        applyStatus(true,
-                            'Account #' + data.accountId + ' connected. Visible tokens: ' + (data.visibleTokenCount || 0) + '. Token suffix: ' + (data.tokenLast4 || 'n/a')
-                        );
-                        return;
-                    }
-
-                    applyStatus(false, data.error || 'Unable to connect to Mailtrap API.');
-                }).fail(function(xhr) {
-                    if (xhr && xhr.status === 403) {
-                        applyStatus(false, 'Forbidden: hanya HCM Admin yang boleh lihat status Mailtrap.');
-                        return;
-                    }
-                    var msg = (xhr && xhr.responseJSON && xhr.responseJSON.error && xhr.responseJSON.error.message)
-                        ? xhr.responseJSON.error.message
-                        : 'Request failed while checking Mailtrap status.';
-                    applyStatus(false, msg);
-                });
-            }
-
-            $('#refreshMailtrapStatus').on('click', function() {
-                loadMailtrapStatus();
-            });
-
-            loadMailtrapStatus();
-        });
-    </script>
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+        <div class="toast align-items-center border-0" role="status" aria-live="polite" aria-atomic="true" data-email-settings-toast>
+            <div class="d-flex">
+                <div class="toast-body" data-email-settings-toast-message></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
 @endsection

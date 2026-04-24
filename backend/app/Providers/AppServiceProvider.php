@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\Hcm\ThrDisbursementGatewayInterface;
+use App\Services\EmailSettingsService;
 use App\Support\WebsiteSettings;
 use App\Services\Hcm\StubThrDisbursementGateway;
 use App\Services\Media\AvatarStorageService;
@@ -46,6 +47,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->applyRuntimeEmailTransportProfile();
+
         View::composer('*', function ($view): void {
             // Wrap database access in try-catch to handle connection failures gracefully
             // This prevents error pages from crashing when database is down
@@ -84,5 +87,49 @@ class AppServiceProvider extends ServiceProvider
             $view->with('runtimeLocalizationSettings', $localizationSettings);
             $view->with('runtimeBusinessSettings', $businessSettings);
         });
+    }
+
+    private function applyRuntimeEmailTransportProfile(): void
+    {
+        try {
+            /** @var EmailSettingsService $service */
+            $service = app(EmailSettingsService::class);
+            $profile = $service->getRuntimeTransportProfile();
+        } catch (\Throwable) {
+            return;
+        }
+
+        $fromAddress = trim((string) ($profile['fromAddress'] ?? ''));
+        $fromName = trim((string) ($profile['fromName'] ?? ''));
+        if ($fromAddress !== '' || $fromName !== '') {
+            config([
+                'mail.from.address' => $fromAddress !== '' ? $fromAddress : config('mail.from.address'),
+                'mail.from.name' => $fromName !== '' ? $fromName : config('mail.from.name'),
+            ]);
+        }
+
+        $transport = $service->resolveRuntimeSmtpTransport();
+        $configured = (bool) ($transport['configured'] ?? false);
+        if (! $configured) {
+            return;
+        }
+
+        $host = trim((string) ($transport['host'] ?? ''));
+        $username = trim((string) ($transport['username'] ?? ''));
+        $password = (string) ($transport['password'] ?? '');
+        if ($host === '' || $username === '' || $password === '') {
+            return;
+        }
+
+        $port = (int) ($transport['port'] ?? 587);
+        $encryption = $transport['encryption'] ?? null;
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => $host,
+            'mail.mailers.smtp.port' => $port > 0 ? $port : 587,
+            'mail.mailers.smtp.encryption' => $encryption,
+            'mail.mailers.smtp.username' => $username,
+            'mail.mailers.smtp.password' => $password,
+        ]);
     }
 }

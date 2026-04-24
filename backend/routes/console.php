@@ -191,3 +191,14 @@ $applyPlanChangesTask = Schedule::call(function (): void {
 if (($applyPlanChanges['enabled'] ?? true) !== true) {
     $applyPlanChangesTask->skip(fn (): bool => true);
 }
+
+$emailInboundPolling = CronjobSettings::get('email_inbound_polling');
+$emailInboundPollingTask = Schedule::command('email:poll-imap-inbox')
+    ->name('email-inbound-polling')
+    ->description('Poll IMAP inbox and persist inbound messages to runtime mailbox log')
+    ->timezone((string) ($emailInboundPolling['timezone'] ?? 'Asia/Jakarta'))
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10);
+if (($emailInboundPolling['enabled'] ?? true) !== true) {
+    $emailInboundPollingTask->skip(fn (): bool => true);
+}

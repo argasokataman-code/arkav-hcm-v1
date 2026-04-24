@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Notifications\DatabaseNotification;
+use App\Models\DatabaseNotification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -50,12 +51,18 @@ class NotificationInboxApiTest extends TestCase
     private function seedNotification(User $user, array $data, bool $isRead = false): string
     {
         $id = (string) Str::uuid();
+        $companyUuid = (string) ($data['companyUuid'] ?? '');
+        $resolvedCompanyUuid = $companyUuid !== ''
+            ? (string) (Company::query()->where('uuid', $companyUuid)->value('uuid') ?? '')
+            : '';
 
         DatabaseNotification::query()->create([
             'id' => $id,
             'type' => 'tests.notification',
             'notifiable_type' => User::class,
-            'notifiable_id' => $user->id,
+            'notifiable_id' => (string) $user->id,
+            'user_uuid' => $user->uuid,
+            'company_uuid' => $resolvedCompanyUuid !== '' ? $resolvedCompanyUuid : null,
             'data' => $data,
             'read_at' => $isRead ? now() : null,
             'created_at' => now(),

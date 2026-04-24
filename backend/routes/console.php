@@ -169,6 +169,10 @@ $applyPlanChanges = CronjobSettings::get('saas_apply_subscription_plan_changes')
 $applyPlanChangesTask = Schedule::call(function (): void {
     HcmSubscriptionChangeRequest::query()
         ->where('status', HcmSubscriptionChangeRequest::STATUS_APPROVED)
+        ->whereIn('action', [
+            HcmSubscriptionChangeRequest::ACTION_DOWNGRADE,
+            HcmSubscriptionChangeRequest::ACTION_CANCEL,
+        ])
         ->where(function ($query): void {
             $query->whereNull('effective_at')
                 ->orWhere('effective_at', '<=', now());

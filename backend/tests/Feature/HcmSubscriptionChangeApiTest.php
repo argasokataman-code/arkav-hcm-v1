@@ -25,7 +25,8 @@ use Tests\TestCase;
  *  - Change-plan membuat request pending dan menolak request kedua selagi
  *    ada yang masih pending.
  *  - Cancel-change hanya berlaku untuk request milik tenant & status pending.
- *  - Super-admin approve akan meng-apply paket baru ke subscription aktif.
+ *  - Super-admin approve untuk upgrade menandai approved (tanpa auto-apply),
+ *    sedangkan apply paket mengikuti alur checkout + invoice paid.
  *  - Middleware /upgrade redirect dibuktikan via WebFeatureGateTest.
  */
 class HcmSubscriptionChangeApiTest extends TestCase
@@ -226,7 +227,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
         $this->assertSame('cancelled', $resp->json('data.status'));
     }
 
-    public function test_super_admin_approve_applies_new_package_to_subscription(): void
+    public function test_super_admin_approve_upgrade_marks_request_approved_without_auto_applying_package(): void
     {
         $ctx = $this->bootstrapTenant('App');
 
@@ -255,12 +256,36 @@ class HcmSubscriptionChangeApiTest extends TestCase
             ->postJson('/v1/saas/subscription-change-requests/' . $pending->id . '/approve')
             ->assertOk();
 
-        $this->assertSame('applied', $resp->json('data.status'));
+        $this->assertSame('approved', $resp->json('data.status'));
 
         $subscription = Subscription::query()->where('company_id', $ctx['company']->id)->firstOrFail();
-        $this->assertSame($ctx['packagePro']->uuid, $subscription->package_uuid);
-        $this->assertSame($ctx['packagePro']->code, $subscription->plan_code);
-        $this->assertEqualsWithDelta(299000, (float) $subscription->amount, 0.01);
+        $this->assertSame('active', $subscription->status);
+        $this->assertSame($ctx['packageBasic']->uuid, $subscription->package_uuid);
+        $this->assertSame($ctx['packageBasic']->code, $subscription->plan_code);
+        $this->assertEqualsWithDelta(99000, (float) $subscription->amount, 0.01);
+    }
+
+    public function test_inactive_target_package_is_rejected_for_preview_and_change_plan(): void
+    {
+        $ctx = $this->bootstrapTenant('Inactive');
+
+        $ctx['packagePro']->forceFill(['status' => 'inactive'])->save();
+
+        $this->withHeaders($this->tenantHeaders($ctx))
+            ->postJson('/v1/hcm/subscriptions/preview-change', [
+                'action' => 'upgrade',
+                'to_package_uuid' => $ctx['packagePro']->uuid,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PACKAGE_NOT_ACTIVE');
+
+        $this->withHeaders($this->tenantHeaders($ctx))
+            ->postJson('/v1/hcm/subscriptions/change-plan', [
+                'action' => 'upgrade',
+                'to_package_uuid' => $ctx['packagePro']->uuid,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PACKAGE_NOT_ACTIVE');
     }
 
     public function test_non_admin_tenant_user_cannot_submit_change_request(): void

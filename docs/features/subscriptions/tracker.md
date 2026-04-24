@@ -3,13 +3,17 @@
 ## Status Snapshot
 
 - Tanggal: 2026-04-24
-- Status: code-1 guard + upgrade UX queue visibility
-- Scope audit: guard route web template sensitif, queue approval subscription change, dan clarity UX target paket blocked feature
+- Status: payment-safe hardening for subscription change flow
+- Scope audit: queue approval guard code-1, payment gate bypass prevention pada upgrade approval, validasi package aktif, dan scoping notifikasi approver
 
 ## Changes Closed In This Audit
 
 - Route web `/pages`, `/blogs`, `/testimonials` kini dibatasi middleware `hcm.web.primary-super-admin` (hanya admin code-1).
 - Endpoint queue approval global subscription change (`GET /v1/saas/subscription-change-requests`, `POST approve/reject`) kini menolak super-admin non-code-1 dengan `403 PRIMARY_SUPER_ADMIN_REQUIRED`.
+- Approval action `upgrade` tidak lagi auto-apply package agar tidak bypass payment gate; request berhenti di status `approved` sampai tenant menjalankan checkout/invoice payment flow.
+- Scheduler `saas-apply-subscription-plan-changes` kini hanya memproses action `downgrade` dan `cancel`.
+- Endpoint `preview-change` dan `change-plan` kini menolak target package non-active dengan `422 PACKAGE_NOT_ACTIVE`.
+- Notifikasi approval request kini dikirim hanya ke primary super admin code-1 (email `config('hcm.admin_email')`).
 - Halaman `/upgrade` kini menampilkan target paket rekomendasi saat redirect `?blocked=<feature>`, riwayat request tenant, dan queue pending untuk admin code-1.
 - Subscription list/detail API sekarang menolak non-admin dengan `403 ADMIN_REQUIRED`, termasuk direct bearer-token access.
 - `subscriptions-management.js` sekarang mengirim `company_id` sebagai UUID company dan `package_uuid` sebagai UUID package pada create flow.
@@ -24,14 +28,7 @@
 
 ## Evidence
 
-- `bash scripts/local-test-gate.sh` → **failed** karena existing regression di `Tests\Feature\HcmPayrollRunApiTest::admin can reset payments` (403 vs expected 200, bukan scope perubahan task ini).
-- `vendor/bin/phpunit --filter test_pages_blogs_testimonials_only_primary_super_admin_code_one_can_access tests/Feature/WebHcmRouteGuardTest.php` → `OK (1 test, 9 assertions)`.
-- `vendor/bin/phpunit tests/Feature/HcmSubscriptionChangeApiTest.php` → `OK (6 tests, 29 assertions)`.
-- `npx vitest run tests/ui/subscriptions-api-contract.test.js` → `6 passed`.
-- `npm run build` → success.
+- `vendor/bin/phpunit tests/Feature/HcmSubscriptionChangeApiTest.php tests/Feature/NotifySubscriptionChangeApproverJobTest.php` → `OK (8 tests, 36 assertions)`.
+- `vendor/bin/phpunit tests/Feature/ConsoleScheduleRegistrationTest.php` → `OK (2 tests, 17 assertions)`.
 - `bash scripts/check-api-docs-sync.sh` → `check-api-docs-sync: no changed files`.
-- `php artisan test tests/Feature/SubscriptionServiceTest.php tests/Feature/SaasSubscriptionsAdminOnlyTest.php tests/Feature/SubscriptionManagementTest.php tests/Feature/InvoicePaidActivatesSubscriptionTest.php tests/Feature/EmployeeLimitEnforcementTest.php tests/Feature/SaasCompanyBillingOverviewApiTest.php tests/Feature/ConvertExpiredTrialsJobTest.php tests/Feature/PublicOnboardingApiTest.php tests/Feature/WebHcmRouteGuardTest.php` → `61 passed (1572 assertions)`
-- `npm run test:ui -- tests/ui/subscriptions-api-contract.test.js` → `6 passed`
-- `npm run build` → success
-- `scripts/check-api-docs-sync.sh` → no backend API surface changes detected
 - Runtime source of truth: `backend/app/Http/Controllers/Api/HcmSubscriptionChangeController.php`, `backend/routes/web.php`, `frontend/resources/js/upgrade-data.js`, `frontend/resources/js/subscriptions-management.js`

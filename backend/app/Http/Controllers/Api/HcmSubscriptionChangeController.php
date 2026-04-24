@@ -80,6 +80,35 @@ class HcmSubscriptionChangeController extends Controller
         return Package::query()->where('uuid', $toPackageUuid)->first();
     }
 
+    private function ensureTargetPackageActive(?Package $target, string $action): ?JsonResponse
+    {
+        if ($action === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
+            return null;
+        }
+
+        if (! $target) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PACKAGE_NOT_FOUND',
+                    'message' => 'Target package not found.',
+                ],
+            ], 404);
+        }
+
+        if ((string) $target->status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PACKAGE_NOT_ACTIVE',
+                    'message' => 'Only active packages can be requested for subscription change.',
+                ],
+            ], 422);
+        }
+
+        return null;
+    }
+
     private function determineAction(?Package $current, ?Package $target, string $requested): string
     {
         if ($requested === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
@@ -167,6 +196,9 @@ class HcmSubscriptionChangeController extends Controller
 
         $subscription = Subscription::activeForCompany($companyId);
         $target = $this->resolveTargetPackage($validated['to_package_uuid'] ?? null);
+        if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
+            return $block;
+        }
         $action = $this->determineAction($subscription?->package, $target, $validated['action']);
         if ($action === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
             $target = null;
@@ -230,6 +262,9 @@ class HcmSubscriptionChangeController extends Controller
 
         $subscription = Subscription::activeForCompany($companyId);
         $target = $this->resolveTargetPackage($validated['to_package_uuid'] ?? null);
+        if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
+            return $block;
+        }
         $action = $this->determineAction($subscription?->package, $target, $validated['action']);
         if ($action === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
             $target = null;
@@ -406,6 +441,13 @@ class HcmSubscriptionChangeController extends Controller
         });
 
         $record = $record->refresh();
+
+        if ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatRequest($record),
+            ]);
+        }
 
         $effectiveAt = $record->effective_at ? Carbon::parse($record->effective_at) : now();
         if ($effectiveAt->lte(now())) {

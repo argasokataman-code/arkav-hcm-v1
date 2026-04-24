@@ -37,10 +37,7 @@ class NotifySubscriptionChangeApproverJob implements ShouldQueue
         $adminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
 
         $admins = User::query()
-            ->where(function ($query) use ($adminEmail): void {
-                $query->where('is_super_admin', true)
-                    ->orWhereRaw('LOWER(email) = ?', [$adminEmail]);
-            })
+            ->whereRaw('LOWER(email) = ?', [$adminEmail])
             ->get();
 
         foreach ($admins as $admin) {

@@ -43,10 +43,11 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                 return;
             }
 
-            if (! in_array($record->status, [
-                HcmSubscriptionChangeRequest::STATUS_APPROVED,
-                HcmSubscriptionChangeRequest::STATUS_PENDING,
-            ], true)) {
+            if ($record->status !== HcmSubscriptionChangeRequest::STATUS_APPROVED) {
+                return;
+            }
+
+            if ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
                 return;
             }
 
@@ -72,7 +73,7 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                 ]);
             } elseif ($record->to_package_uuid) {
                 $target = Package::query()->where('uuid', $record->to_package_uuid)->first();
-                if ($target) {
+                if ($target && (string) $target->status === 'active') {
                     $billingCycle = (string) ($subscription->billing_cycle ?? 'monthly');
                     $amount = (float) ($billingCycle === 'yearly' ? $target->yearly_price : $target->monthly_price);
 

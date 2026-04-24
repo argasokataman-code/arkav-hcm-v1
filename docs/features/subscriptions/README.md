@@ -68,6 +68,7 @@ Snapshot status audit, gap aktif, dan evidence validasi terbaru.
 - Existing (F4, 2026-04-23): tenant-initiated plan change flow aktif via `/v1/hcm/subscriptions/preview-change`, `change-plan`, `cancel-change`, serta approval super-admin via `/v1/saas/subscription-change-requests/{id}/approve|reject`. Web page `/upgrade` dijadikan redirect target dari `EnsureCompanyFeatureForWebPage` saat gate fitur menolak akses.
 - Existing (F4+, 2026-04-24): endpoint global queue approval (`GET /v1/saas/subscription-change-requests`, `POST approve/reject`) diperketat menjadi **primary super admin code-1 only** (`hcm.admin_email`) untuk mencegah approval dari akun super-admin sekunder.
 - Existing (F4+, 2026-04-24): halaman `/upgrade?blocked=<feature>` kini menampilkan rekomendasi target paket yang punya feature tersebut, plus daftar riwayat pengajuan tenant; admin code-1 juga mendapat panel queue pending request.
+- Existing (F4++, 2026-04-24): approve action `upgrade` tidak lagi auto-apply package untuk mencegah bypass payment gate; apply otomatis via scheduler hanya untuk action `downgrade` dan `cancel`, sedangkan target package non-active ditolak `422 PACKAGE_NOT_ACTIVE` pada `preview-change` dan `change-plan`.
 - Target: renewal notification automation, workflow upgrade/downgrade wizard, dan recurring invoice generator bulanan masih backlog.
 
 ## Scope Singkat

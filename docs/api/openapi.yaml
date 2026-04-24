@@ -6425,6 +6425,7 @@ paths:
       description: |
         Dry-run perhitungan selisih harga dan jadwal berlakunya untuk upgrade / downgrade / cancel.
         Tidak menulis apa pun; aman dipanggil berulang dari UI `/upgrade`.
+        `to_package_uuid` untuk upgrade/downgrade wajib mengarah ke package `status=active`.
       security:
         - bearerAuth: []
       requestBody:
@@ -6454,6 +6455,7 @@ paths:
       description: |
         Mencatat request status `pending` untuk disetujui super-admin. Hanya boleh ada satu request
         pending per company (duplicate → `409 CHANGE_REQUEST_PENDING`).
+        `to_package_uuid` untuk upgrade/downgrade wajib package aktif (`422 PACKAGE_NOT_ACTIVE`).
       security:
         - bearerAuth: []
       requestBody:
@@ -6521,7 +6523,12 @@ paths:
   /v1/saas/subscription-change-requests/{id}/approve:
     post:
       tags: [SaaS]
-      summary: Approve + apply a pending tenant plan change (primary super-admin code-1 only) — F4
+      summary: Approve a pending tenant plan change (primary super-admin code-1 only) — F4
+      description: |
+        Approve mengubah status request menjadi `approved`.
+        Untuk action `downgrade`/`cancel`, perubahan paket diterapkan via `ApplySubscriptionChangeJob`
+        sesuai `effective_at`.
+        Untuk action `upgrade`, approval tidak auto-apply paket agar tidak bypass payment gate.
       parameters:
         - name: id
           in: path
@@ -6530,7 +6537,7 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200': { description: Applied }
+        '200': { description: Approved }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { description: Not found }
         '422': { description: Not pending }

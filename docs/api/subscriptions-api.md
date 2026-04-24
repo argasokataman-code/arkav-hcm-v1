@@ -244,6 +244,9 @@ Dry-run perubahan paket tenant (upgrade / downgrade / cancel) untuk halaman `/up
 Endpoint ini tidak menulis data request; hanya mengembalikan preview harga, aksi final,
 dan tanggal efektif.
 
+Validasi keamanan: untuk action upgrade/downgrade, `to_package_uuid` harus package
+yang masih `status=active`; selain itu API akan return `422 PACKAGE_NOT_ACTIVE`.
+
 **Request**
 ```json
 {
@@ -261,6 +264,9 @@ POST /v1/hcm/subscriptions/change-plan
 Mencatat request tenant ke tabel `hcm_subscription_change_requests` dengan status awal
 `pending`. Satu tenant hanya boleh memiliki **satu** request pending aktif; request kedua
 ditolak `409 CHANGE_REQUEST_PENDING`.
+
+Validasi keamanan: action upgrade/downgrade hanya menerima package aktif
+(`422 PACKAGE_NOT_ACTIVE`).
 
 **Request**
 ```json
@@ -313,9 +319,11 @@ POST /v1/saas/subscription-change-requests/{id}/approve
 POST /v1/saas/subscription-change-requests/{id}/reject
 ```
 
-Approve akan memindahkan status `pending -> approved` dan:
-- jika `effective_at <= now` langsung dijalankan lewat `ApplySubscriptionChangeJob`, atau
-- jika `effective_at > now` menunggu cron `saas-apply-subscription-plan-changes`.
+Approve akan memindahkan status `pending -> approved`.
+
+Perilaku apply setelah approve:
+- action `downgrade` / `cancel`: diterapkan lewat `ApplySubscriptionChangeJob` (langsung jika `effective_at <= now`, atau menunggu cron jika `effective_at > now`).
+- action `upgrade`: **tidak auto-apply paket** untuk mencegah bypass payment gate; aktivasi paket upgrade mengikuti alur checkout/invoice payment.
 
 Reject akan memindahkan status `pending -> rejected`.
 

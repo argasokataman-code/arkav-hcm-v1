@@ -7,7 +7,11 @@ Fitur ini mendokumentasikan menu attendance admin yang berhubungan dengan master
 Dokumen teknis pendamping:
 - `IMPLEMENTATION.md` untuk route, identifier contract, data model, dan coverage test.
 - `tracker.md` untuk snapshot readiness, evidence, dan gap aktif.
+- `AI-WORKFORCE-AGENT-BLUEPRINT.md` untuk prompt core agent, split agent (scheduler/analyzer/insight/UI), input-output contract, dan guardrail.
+- `AI-WORKFORCE-OUTPUT-SCHEMA.json` untuk schema validasi output AI sebelum dipakai UI atau mutation flow admin.
 - `../attendance/README.md` untuk attendance core (employee/admin/report).
+
+Fitur ini juga mencakup endpoint smart planner backend (`POST /v1/hcm/smart-attendance-shifting/generate`) untuk membantu admin menyusun jadwal mingguan, mendeteksi anomali attendance, dan menghasilkan rekomendasi fairness/fatigue berbasis data runtime tenant.
 
 ## Akses
 
@@ -18,7 +22,10 @@ Dokumen teknis pendamping:
 ## UI Aktif
 
 - `/timesheets` — rekap jam kerja admin dengan filter tanggal, departemen, dan user.
-- `/schedule-timing` — assign shift master atau override manual jam kerja per user.
+- `/schedule-timing` — assign shift master atau override manual jam kerja per user, plus panel Smart Attendance Planner untuk generate rekomendasi jadwal mingguan.
+- `/schedule-timing` juga punya view `Calendar` untuk melihat draft planner (M/A/N/OFF) dan hari libur aktif dari menu Holidays dalam format kalender kerja.
+- Smart planner di `/schedule-timing` mendukung horizon `single week` dan `end of year` (rolling per minggu) agar admin bisa menyusun draft jadwal lebih panjang tanpa pindah halaman.
+- Smart planner calendar **tidak otomatis semua user**: event draft hanya mengikuti scope planner terakhir (`all`, `team`, atau `custom user IDs`).
 - Surface shift master admin — CRUD `hcm_shifts` dari JS shift master aktif.
 - JS aktif: `frontend/resources/js/attendance-data.js` dan `frontend/resources/js/shift-master-data.js`.
 
@@ -29,10 +36,19 @@ Dokumen teknis pendamping:
 3. Employee melakukan attendance harian dengan konteks jadwal aktif tersebut; backend kemudian menghitung keterlambatan dan status kerja berdasarkan data shift/schedule yang berlaku.
 4. Admin membuka `/timesheets` untuk memantau hasil kerja harian/range tanggal, menemukan anomali jam kerja, lalu kembali ke attendance admin atau schedule timing jika perlu koreksi.
 5. Reporting dan modul payroll/lembur membaca data attendance yang sudah dipengaruhi oleh shift/schedule ini.
+6. Admin dapat menjalankan smart planner untuk minggu tertentu agar sistem memberi draft jadwal + alert risiko sebelum mutasi jadwal manual dilakukan.
+7. Admin dapat beralih ke view kalender untuk melihat distribusi draft per tanggal, mengecek overlap dengan hari libur, dan melakukan review visual sebelum commit perubahan jadwal.
+8. Untuk seasonal planning, admin dapat pilih horizon `Generate sampai akhir tahun`; sistem mengeksekusi planner per minggu sampai 31 Desember, lalu menggabungkan hasilnya menjadi satu draft agregat untuk review kalender.
+9. Sebelum publish, admin meninjau `Preview Diff Dominant Shift (Before/After)` untuk melihat user mana yang benar-benar berubah dari schedule aktif ke dominant shift draft.
+10. Admin meninjau `Conflict Resolver (Pre-publish)`; jika ada conflict kritikal (misalnya unmet coverage, violation planner, overlap hari libur, rest-gap, night-to-morning), tombol publish dikunci sampai checkbox `Force apply` dicentang.
+11. Setelah draft dianggap cukup baik, admin dapat memilih publish mode:
+- `Apply Dominant Shift per User` untuk update baseline `schedule-timing` per user.
+- `Publish Roster Harian` untuk menulis roster bertanggal per user+tanggal ke `hcm_schedule_rosters`.
 
 ## Lifecycle Dan Keputusan Bisnis
 
 - Shift master menyimpan template jam kerja reusable di tenant aktif.
+- Shift master mendukung pola lintas hari (`overnight`) sehingga end time boleh lebih kecil dari start time selama tidak sama.
 - Template shift global (`company_id = null`) hanya boleh dimutasi global admin; tenant admin tidak boleh update/delete template global.
 - `schedule-timing` boleh mengacu ke `shiftId` atau override manual jam kerja; keduanya tidak boleh menarget user di luar tenant aktif.
 - Override `schedule-timing` disimpan per kombinasi company+user agar tidak saling menimpa antar tenant saat user yang sama aktif di lebih dari satu company.
@@ -60,6 +76,11 @@ API utama (`/v1/hcm`)
   - `PUT/DELETE /schedule-timing/{userId}` — `{userId}` memakai `users.id`, `shiftId` memakai `hcm_shifts.id`, dan write hanya boleh untuk member tenant aktif
 - Timesheets:
   - `GET /timesheets` — range tanggal admin, dengan guard `dateTo >= dateFrom`
+- Smart planner:
+  - `POST /smart-attendance-shifting/generate` — HCM admin only; output `schedule_generation`, `attendance_analysis`, `recommendation`, dan `explanation`
+  - `GET/PUT /smart-attendance-shifting/settings` — default rules + transition matrix per-tenant
+  - `POST /smart-attendance-shifting/publish-roster` — persist draft ke roster harian bertanggal
+  - `GET /schedule-rosters` — baca roster harian bertanggal untuk review/pagination
 
 Source of truth kontrak:
 - `docs/api/hcm-shift-schedule-api.md`
@@ -70,6 +91,21 @@ Source of truth kontrak:
 - Existing: shift master, schedule timing, dan timesheets admin sudah aktif dengan FE/BE contract numeric identifier yang seragam.
 - Existing: tenant guard write schedule aktif, sorting start-time schedule stabil terhadap pagination, dan non-global tidak bisa memutasi template shift global.
 - Existing: UI shift master sekarang menegakkan permission write agar user view-only tidak melihat aksi mutasi.
+- Existing: smart planner backend sudah tersedia untuk generate draft jadwal + analisis anomali attendance berbasis data tenant.
+- Existing: smart planner frontend sudah mendukung batch rolling per minggu sampai akhir tahun dan menggabungkan output ke satu draft agregat untuk review kalender.
+- Existing: stage 3 publish workflow tersedia dalam mode aman: apply dominant shift dari draft ke `schedule-timing` per user, dengan preview diff before/after dan conflict gate `force apply` untuk conflict kritikal.
+- Existing: stage 4 konfigurabilitas planner aktif dengan UI yang aman:
+  - Default rules + transition matrix tersimpan per-tenant (endpoint GET/PUT `/smart-attendance-shifting/settings`).
+  - Publish roster harian bertanggal tersedia (endpoint POST `/smart-attendance-shifting/publish-roster`).
+  - Roster index siap untuk pagination review (endpoint GET `/schedule-rosters`).
+  - Panel `📋 Planner Defaults & Transition Matrix` dengan edit mode UX:
+    - **View Mode** (default): Semua input disabled, hanya tampil konfigurasi yang tersimpan, tombol "Edit" aktif.
+    - **Edit Mode**: Ketika admin klik "Edit", semua input field & transition checkboxes enabled, tombol "Simpan", "Cancel", dan "Reset" tampil. Tombol Generate + Publish menjadi disabled untuk prevent accidental trigger.
+    - **State Indicator**: Badge menampilkan status "Viewing" (light) atau "Editing" (warning) untuk clarity.
+    - **Panduan Inline**: Alert box menjelaskan bahwa default ini hanya fallback ketika generate tanpa rule custom, dan bisa diubah kapan saja.
+    - **Card Descriptions**: Setiap card (Default Rules, Forbidden Transitions) punya subtitle yang jelaskan fungsi agar non-engineer admin juga mengerti.
+    - **Reset Button**: Dalam edit mode, admin bisa click "Reset" untuk reload dari DB tanpa save perubahan draft.
+- Existing: label shift pada kalender/draft sudah membaca metadata shift runtime (`/v1/hcm/shifts`) termasuk `shiftType`, bukan hardcode slot 07/15/23.
 - Target: audit trail perubahan jadwal yang lebih kaya dan evidence manual browser E2E masih bisa ditambah tanpa mengubah kontrak inti.
 
 ## Data model ringkas

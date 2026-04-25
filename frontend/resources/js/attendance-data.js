@@ -9,7 +9,22 @@
     var timesheetRowsCache = [];
     var timesheetPage = 1;
     var scheduleTimingRowsCache = [];
+    var scheduleTimingPaginationCache = null;
     var scheduleShiftsCache = [];
+    var smartPlannerLastResult = null;
+    var smartPlannerLastPayload = null;
+    var smartPlannerSettingsCache = null;
+    var smartPlannerTransitionCatalog = ["morning:afternoon", "morning:night", "afternoon:morning", "afternoon:night", "night:morning", "night:afternoon"];
+    var smartPlannerForbiddenTransitionKeys = ["night:morning"];
+    var smartPlannerAssignmentByUserId = {};
+    var smartPlannerConflictSummary = { total: 0, critical: 0 };
+    var smartPlannerEditMode = false;
+    var smartPlannerEditModeOriginalValues = {};
+    var scheduleTimingAiOnly = false;
+    var scheduleTimingView = "list";
+    var scheduleHolidayRowsCache = [];
+    var scheduleCalendar = null;
+    var smartPlannerScopeMeta = "";
     var correctionModalState = { open: false };
     var reportChart = null;
     var reportActiveDate = "";
@@ -3021,21 +3036,363 @@
         if (proj) proj.addEventListener("change", onChange);
     }
 
+    function scheduleDateIso(value) {
+        var raw = String(value || "").trim();
+        if (!raw) {
+            return "";
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            return raw;
+        }
+        var parsed = new Date(raw);
+        if (isNaN(parsed.getTime())) {
+            return "";
+        }
+        return parsed.toISOString().slice(0, 10);
+    }
+
+    function scheduleEventDateTime(dateIso, timeValue) {
+        var datePart = scheduleDateIso(dateIso);
+        var timePart = String(timeValue || "").trim();
+        if (!datePart || !timePart) {
+            return "";
+        }
+        if (/^\d{2}:\d{2}$/.test(timePart)) {
+            return datePart + "T" + timePart + ":00";
+        }
+        if (/^\d{2}:\d{2}:\d{2}$/.test(timePart)) {
+            return datePart + "T" + timePart;
+        }
+        return "";
+    }
+
+    function scheduleCalendarLoading(message, isError) {
+        var box = document.querySelector("[data-schedule-calendar-loading]");
+        var wrap = document.querySelector("[data-schedule-calendar-wrap]");
+        if (box) {
+            box.textContent = String(message || "");
+            box.classList.remove("d-none", "alert-light", "alert-danger");
+            box.classList.add(isError ? "alert-danger" : "alert-light");
+        }
+        if (wrap) {
+            if (isError) {
+                wrap.classList.add("d-none");
+                wrap.removeAttribute("data-hydrated");
+            }
+        }
+    }
+
+    function scheduleCalendarMeta(message) {
+        var meta = document.querySelector("[data-schedule-calendar-meta]");
+        if (meta) {
+            meta.textContent = String(message || "");
+        }
+    }
+
+    function shiftVisualConfig(label) {
+        if (label === "M") {
+            return { color: "#2563eb", textColor: "#ffffff", title: "Morning" };
+        }
+        if (label === "A") {
+            return { color: "#f59e0b", textColor: "#111827", title: "Afternoon" };
+        }
+        if (label === "N") {
+            return { color: "#111827", textColor: "#ffffff", title: "Night" };
+        }
+        return { color: "#6b7280", textColor: "#ffffff", title: "Shift" };
+    }
+
+    function buildScheduleCalendarEvents() {
+        var events = [];
+        var holidayCount = 0;
+        var draftCount = 0;
+
+        (Array.isArray(scheduleHolidayRowsCache) ? scheduleHolidayRowsCache : []).forEach(function (holiday) {
+            if (!holiday || holiday.isActive === false) {
+                return;
+            }
+            var holidayDate = scheduleDateIso(holiday.holidayDate);
+            if (!holidayDate) {
+                return;
+            }
+            holidayCount += 1;
+            events.push({
+                id: "holiday-bg-" + String(holiday.id || holidayDate),
+                start: holidayDate,
+                allDay: true,
+                display: "background",
+                backgroundColor: "rgba(220, 38, 38, 0.12)",
+                classNames: ["event-holiday-background"],
+            });
+            events.push({
+                id: "holiday-" + String(holiday.id || holidayDate),
+                title: "Holiday: " + String(holiday.title || "Holiday"),
+                start: holidayDate,
+                allDay: true,
+                color: "#dc2626",
+                textColor: "#ffffff",
+                extendedProps: {
+                    eventType: "holiday",
+                },
+            });
+        });
+
+        Object.keys(smartPlannerAssignmentByUserId).forEach(function (userId) {
+            var planner = smartPlannerAssignmentByUserId[userId];
+            if (!planner || !Array.isArray(planner.assignments)) {
+                return;
+            }
+            planner.assignments.forEach(function (assignment, idx) {
+                var dateIso = scheduleDateIso(assignment && assignment.date);
+                if (!dateIso) {
+                    return;
+                }
+
+                var shiftId = String(assignment && assignment.shift_id || "");
+                if (shiftId === "OFF") {
+                    draftCount += 1;
+                    events.push({
+                        id: "draft-off-" + String(userId) + "-" + String(idx),
+                        title: String(planner.employeeName || "Employee") + " OFF",
+                        start: dateIso,
+                        allDay: true,
+                        color: "#6b7280",
+                        textColor: "#ffffff",
+                        extendedProps: {
+                            eventType: "draft",
+                            shiftLabel: "OFF",
+                            employeeName: String(planner.employeeName || "Employee"),
+                        },
+                    });
+                    return;
+                }
+
+                var meta = plannerShiftMeta(assignment);
+                var startDateTime = scheduleEventDateTime(dateIso, assignment && assignment.start_time);
+                var endDateTime = scheduleEventDateTime(dateIso, assignment && assignment.end_time);
+                if (!startDateTime) {
+                    return;
+                }
+                if (endDateTime && endDateTime <= startDateTime) {
+                    var endDate = new Date(endDateTime);
+                    if (!isNaN(endDate.getTime())) {
+                        endDate.setDate(endDate.getDate() + 1);
+                        endDateTime = endDate.toISOString().slice(0, 19);
+                    }
+                }
+
+                draftCount += 1;
+                events.push({
+                    id: "draft-" + String(userId) + "-" + String(idx),
+                    title: String(planner.employeeName || "Employee") + " " + meta.title,
+                    start: startDateTime,
+                    end: endDateTime || undefined,
+                    allDay: false,
+                    color: meta.color,
+                    textColor: meta.textColor,
+                    extendedProps: {
+                        eventType: "draft",
+                        shiftLabel: meta.label,
+                        employeeName: String(planner.employeeName || "Employee"),
+                    },
+                });
+            });
+        });
+
+        return {
+            events: events,
+            holidayCount: holidayCount,
+            draftCount: draftCount,
+        };
+    }
+
+    function ensureScheduleCalendar() {
+        if (scheduleCalendar) {
+            return true;
+        }
+
+        var el = document.querySelector("[data-schedule-calendar]");
+        if (!el) {
+            return false;
+        }
+
+        if (!window.FullCalendar || !window.FullCalendar.Calendar) {
+            scheduleCalendarLoading("Calendar library belum tersedia di halaman ini.", true);
+            return false;
+        }
+
+        scheduleCalendar = new window.FullCalendar.Calendar(el, {
+            initialView: "dayGridMonth",
+            height: "auto",
+            locale: "id",
+            headerToolbar: {
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,listWeek",
+            },
+            dayMaxEventRows: 3,
+            eventDisplay: "block",
+            eventDidMount: function (info) {
+                var employee = info.event.extendedProps && info.event.extendedProps.employeeName
+                    ? String(info.event.extendedProps.employeeName)
+                    : "";
+                var label = info.event.extendedProps && info.event.extendedProps.shiftLabel
+                    ? " (" + String(info.event.extendedProps.shiftLabel) + ")"
+                    : "";
+                if (employee) {
+                    info.el.setAttribute("title", employee + label);
+                }
+            },
+        });
+        scheduleCalendar.render();
+
+        var loading = document.querySelector("[data-schedule-calendar-loading]");
+        var wrap = document.querySelector("[data-schedule-calendar-wrap]");
+        if (loading) {
+            loading.classList.add("d-none");
+        }
+        if (wrap) {
+            wrap.classList.remove("d-none");
+            wrap.setAttribute("data-hydrated", "1");
+        }
+
+        return true;
+    }
+
+    function renderScheduleCalendar() {
+        if (scheduleTimingView !== "calendar") {
+            return;
+        }
+        if (!ensureScheduleCalendar()) {
+            return;
+        }
+
+        var payload = buildScheduleCalendarEvents();
+        scheduleCalendar.removeAllEvents();
+        scheduleCalendar.addEventSource(payload.events);
+
+        var scopeMeta = smartPlannerScopeMeta
+            ? " Scope draft: " + smartPlannerScopeMeta
+            : " Scope draft mengikuti filter planner terakhir.";
+        scheduleCalendarMeta(
+            "Holiday aktif: " +
+            String(payload.holidayCount) +
+            " hari, Draft shift planner: " +
+            String(payload.draftCount) +
+            " event." +
+            scopeMeta
+        );
+        if (!payload.events.length) {
+            scheduleCalendarLoading("Belum ada data kalender. Generate planner dulu untuk melihat draft shift.", false);
+        }
+    }
+
+    function loadScheduleCalendarHolidays() {
+        var path = window.location.pathname || "";
+        if (path.indexOf("/schedule-timing") !== 0) {
+            return;
+        }
+        if (!document.querySelector("[data-schedule-calendar]") && !document.querySelector("[data-schedule-view-toggle]")) {
+            return;
+        }
+        apiGet("/v1/hcm/holidays")
+            .then(function (payload) {
+                if (!payload || payload.success !== true || !Array.isArray(payload.data)) {
+                    scheduleHolidayRowsCache = [];
+                    return;
+                }
+                scheduleHolidayRowsCache = payload.data;
+                renderScheduleCalendar();
+            })
+            .catch(function () {
+                scheduleHolidayRowsCache = [];
+            });
+    }
+
+    function setupScheduleViewMode() {
+        var path = window.location.pathname || "";
+        if (path.indexOf("/schedule-timing") !== 0) {
+            return;
+        }
+
+        var toggles = Array.prototype.slice.call(document.querySelectorAll("[data-schedule-view-toggle]"));
+        var listPanel = document.querySelector('[data-schedule-view-panel="list"]');
+        var calendarPanel = document.querySelector('[data-schedule-view-panel="calendar"]');
+        var pagination = document.querySelector("[data-schedule-timing-pagination]");
+        if (!toggles.length || !listPanel || !calendarPanel) {
+            return;
+        }
+
+        function applyView(view) {
+            scheduleTimingView = view === "calendar" ? "calendar" : "list";
+            toggles.forEach(function (btn) {
+                var isActive = String(btn.getAttribute("data-schedule-view-toggle") || "") === scheduleTimingView;
+                btn.classList.toggle("active", isActive);
+            });
+            listPanel.classList.toggle("d-none", scheduleTimingView !== "list");
+            calendarPanel.classList.toggle("d-none", scheduleTimingView !== "calendar");
+            if (pagination) {
+                if (scheduleTimingView === "calendar") {
+                    pagination.style.display = "none";
+                } else {
+                    renderScheduleTimingPagination(scheduleTimingPaginationCache);
+                }
+            }
+            if (scheduleTimingView === "calendar") {
+                renderScheduleCalendar();
+            }
+        }
+
+        toggles.forEach(function (btn) {
+            if (btn.getAttribute("data-bound") === "1") {
+                return;
+            }
+            btn.setAttribute("data-bound", "1");
+            btn.addEventListener("click", function () {
+                var view = String(btn.getAttribute("data-schedule-view-toggle") || "list");
+                applyView(view);
+            });
+        });
+
+        applyView("list");
+    }
+
     function renderScheduleTimingRows(rows) {
         var tbody = document.querySelector("[data-schedule-timing-body]");
         if (!tbody) return;
-        if (!rows.length) {
+        var sourceRows = Array.isArray(rows) ? rows : [];
+        if (scheduleTimingAiOnly) {
+            sourceRows = sourceRows.filter(function (r) {
+                return !!smartPlannerAssignmentByUserId[String(r && r.userId || "")];
+            });
+        }
+        if (!sourceRows.length) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No schedule timings found.</td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
-        tbody.innerHTML = rows.map(function (r) {
+        tbody.innerHTML = sourceRows.map(function (r) {
             var shiftBadge = r.shiftName
                 ? ' <span class="badge bg-light text-dark border ms-1">' + esc(r.shiftName) + "</span>"
                 : "";
             var sm = r.startMinutes != null ? String(r.startMinutes) : "0";
             var em = r.endMinutes != null ? String(r.endMinutes) : "0";
             var sid = r.shiftId != null && r.shiftId !== "" ? String(r.shiftId) : "";
+            var aiPlan = smartPlannerAssignmentByUserId[String(r.userId || "")];
+            var aiPlanBadge = "";
+            if (aiPlan) {
+                aiPlanBadge =
+                    ' <span class="badge badge-warning-transparent ms-1">AI Draft 24h</span>' +
+                    ' <span class="text-muted small d-block mt-1">M:' +
+                    esc(String(aiPlan.morningCount || 0)) +
+                    " A:" +
+                    esc(String(aiPlan.afternoonCount || 0)) +
+                    " N:" +
+                    esc(String(aiPlan.nightCount || 0)) +
+                    " OFF:" +
+                    esc(String(aiPlan.offDays || 0)) +
+                    "</span>";
+            }
             return (
                 "<tr>" +
                 '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td>' +
@@ -3045,6 +3402,7 @@
                 esc(r.availableTimings) +
                 shiftBadge +
                 (r.source === "manual" ? ' <span class="badge badge-info-transparent ms-1">Manual</span>' : "") +
+                aiPlanBadge +
                 "</td>" +
                 '<td><a href="#" data-schedule-timing-edit data-user-id="' +
                 esc(String(r.userId || "")) +
@@ -3063,6 +3421,7 @@
             );
         }).join("");
         tbody.setAttribute("data-hydrated", "1");
+        renderScheduleCalendar();
     }
 
     function renderScheduleTimingMessage(msg) {
@@ -3070,9 +3429,11 @@
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' + esc(msg) + "</td></tr>";
         tbody.setAttribute("data-hydrated", "1");
+        renderScheduleCalendar();
     }
 
     function renderScheduleTimingPagination(pagination) {
+        scheduleTimingPaginationCache = pagination || null;
         var foot = document.querySelector("[data-schedule-timing-pagination]");
         var info = document.querySelector("[data-schedule-timing-page-info]");
         if (!foot) {
@@ -3090,7 +3451,7 @@
             foot.style.display = "none";
             return;
         }
-        foot.style.display = "";
+        foot.style.display = scheduleTimingView === "calendar" ? "none" : "";
         if (info) {
             var from = total === 0 ? 0 : (page - 1) * perPage + 1;
             var to = Math.min(page * perPage, total);
@@ -3174,6 +3535,7 @@
     function setupScheduleTimingFilters() {
         var searchEl = document.querySelector("[data-schedule-timing-search]");
         var sortEl = document.querySelector("[data-schedule-timing-sort]");
+        var aiOnlyEl = document.querySelector("[data-schedule-timing-ai-only]");
         if (searchEl) {
             var timer = null;
             searchEl.addEventListener("input", function () {
@@ -3190,6 +3552,1574 @@
                 loadScheduleTiming();
             });
         }
+        if (aiOnlyEl && !aiOnlyEl.getAttribute("data-bound")) {
+            aiOnlyEl.setAttribute("data-bound", "1");
+            aiOnlyEl.addEventListener("change", function () {
+                scheduleTimingAiOnly = !!aiOnlyEl.checked;
+                renderScheduleTimingRows(scheduleTimingRowsCache);
+            });
+        }
+    }
+
+    function getCurrentWeekStartIso() {
+        var now = new Date();
+        var day = now.getDay();
+        var diff = day === 0 ? -6 : 1 - day;
+        now.setDate(now.getDate() + diff);
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, "0");
+        var d = String(now.getDate()).padStart(2, "0");
+        return y + "-" + m + "-" + d;
+    }
+
+    function setSmartPlannerFeedback(message, isError) {
+        var feedback = document.querySelector("[data-smart-planner-feedback]");
+        if (!feedback) {
+            return;
+        }
+        feedback.textContent = String(message || "");
+        feedback.classList.remove("d-none", "alert-light", "alert-danger", "alert-success");
+        feedback.classList.add(isError ? "alert-danger" : "alert-success");
+    }
+
+    function findScheduleShiftById(shiftId) {
+        var target = parseInt(String(shiftId || ""), 10);
+        if (!Number.isFinite(target)) {
+            return null;
+        }
+        for (var i = 0; i < scheduleShiftsCache.length; i++) {
+            var row = scheduleShiftsCache[i];
+            if (parseInt(String(row && row.id || ""), 10) === target) {
+                return row;
+            }
+        }
+        return null;
+    }
+
+    function plannerShiftMeta(assignment) {
+        var shiftIdRaw = String(assignment && assignment.shift_id || "");
+        if (shiftIdRaw.toUpperCase() === "OFF") {
+            return { label: "OFF", title: "Off", color: "#6b7280", textColor: "#ffffff", shiftName: "OFF" };
+        }
+
+        var shift = findScheduleShiftById(shiftIdRaw);
+        var shiftName = String((shift && shift.name) || "");
+        var shiftType = String((shift && shift.shiftType) || "").toLowerCase();
+        var start = String((assignment && assignment.start_time) || (shift && shift.startTime) || "");
+        var h = parseInt(start.slice(0, 2), 10);
+        var normalizedName = shiftName.toLowerCase();
+
+        var label = "S";
+        var title = shiftName || "Shift";
+
+        if (shiftType === "night" || normalizedName.indexOf("night") !== -1 || normalizedName.indexOf("malam") !== -1 || (Number.isFinite(h) && (h >= 20 || h < 5))) {
+            label = "N";
+            title = shiftName || "Night";
+        } else if (shiftType === "afternoon" || normalizedName.indexOf("afternoon") !== -1 || normalizedName.indexOf("siang") !== -1 || (Number.isFinite(h) && h >= 12 && h < 20)) {
+            label = "A";
+            title = shiftName || "Afternoon";
+        } else if (shiftType === "morning" || normalizedName.indexOf("morning") !== -1 || normalizedName.indexOf("pagi") !== -1 || Number.isFinite(h)) {
+            label = "M";
+            title = shiftName || "Morning";
+        }
+
+        var visual = shiftVisualConfig(label);
+        return {
+            label: label,
+            title: title,
+            color: visual.color,
+            textColor: visual.textColor,
+            shiftName: shiftName || (shiftIdRaw ? ("#" + shiftIdRaw) : "Shift"),
+        };
+    }
+
+    function formatPlannerPattern(assignments) {
+        if (!Array.isArray(assignments) || assignments.length === 0) {
+            return "-";
+        }
+        return assignments
+            .map(function (a) {
+                if (String(a && a.shift_id || "") === "OFF") {
+                    return "OFF";
+                }
+                return plannerShiftMeta(a).label;
+            })
+            .join(" | ");
+    }
+
+    function plannerDateFromIso(dateIso) {
+        var raw = String(dateIso || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            return null;
+        }
+        var parsed = new Date(raw + "T00:00:00");
+        if (isNaN(parsed.getTime())) {
+            return null;
+        }
+        return parsed;
+    }
+
+    function plannerIsoFromDate(dateObj) {
+        if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+            return "";
+        }
+        var y = dateObj.getFullYear();
+        var m = String(dateObj.getMonth() + 1).padStart(2, "0");
+        var d = String(dateObj.getDate()).padStart(2, "0");
+        return y + "-" + m + "-" + d;
+    }
+
+    function plannerEndOfYearIso(weekStartIso) {
+        var source = plannerDateFromIso(weekStartIso) || new Date();
+        return String(source.getFullYear()) + "-12-31";
+    }
+
+    function plannerBuildWeekStarts(weekStartIso, endIso) {
+        var startDate = plannerDateFromIso(weekStartIso);
+        var endDate = plannerDateFromIso(endIso);
+        if (!startDate || !endDate || endDate < startDate) {
+            return [];
+        }
+
+        var weeks = [];
+        var cursor = new Date(startDate.getTime());
+        while (cursor <= endDate) {
+            weeks.push(plannerIsoFromDate(cursor));
+            cursor.setDate(cursor.getDate() + 7);
+        }
+
+        return weeks;
+    }
+
+    function mergePlannerAssignmentRows(results) {
+        var byUser = {};
+
+        (Array.isArray(results) ? results : []).forEach(function (result) {
+            var rows = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
+                ? result.schedule_generation.weekly_schedule
+                : [];
+
+            rows.forEach(function (row) {
+                var userId = String(row && row.employee_id || "");
+                if (!userId) {
+                    return;
+                }
+
+                if (!byUser[userId]) {
+                    byUser[userId] = {
+                        employee_id: userId,
+                        employee_name: String(row && row.employee_name || "Employee"),
+                        assignments: [],
+                    };
+                }
+
+                var incoming = Array.isArray(row && row.assignments) ? row.assignments : [];
+                byUser[userId].assignments = byUser[userId].assignments.concat(incoming);
+            });
+        });
+
+        return Object.keys(byUser)
+            .map(function (userId) {
+                var item = byUser[userId];
+                item.assignments = item.assignments
+                    .slice()
+                    .sort(function (a, b) {
+                        return String(a && a.date || "").localeCompare(String(b && b.date || ""));
+                    });
+                return item;
+            })
+            .sort(function (a, b) {
+                return String(a.employee_name || "").localeCompare(String(b.employee_name || ""));
+            });
+    }
+
+    function plannerDominantShiftRows(result) {
+        var weeklySchedule = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
+            ? result.schedule_generation.weekly_schedule
+            : [];
+
+        return weeklySchedule
+            .map(function (row) {
+                var userId = parseInt(row && row.employee_id, 10);
+                var counts = {};
+                (Array.isArray(row && row.assignments) ? row.assignments : []).forEach(function (assignment) {
+                    var shiftId = String(assignment && assignment.shift_id || "");
+                    if (!shiftId || shiftId === "OFF") {
+                        return;
+                    }
+                    counts[shiftId] = (counts[shiftId] || 0) + 1;
+                });
+
+                var dominantShiftId = "";
+                var dominantCount = 0;
+                Object.keys(counts).forEach(function (shiftId) {
+                    if (counts[shiftId] > dominantCount) {
+                        dominantShiftId = shiftId;
+                        dominantCount = counts[shiftId];
+                    }
+                });
+
+                return {
+                    userId: userId,
+                    employeeName: String(row && row.employee_name || "Employee"),
+                    shiftId: parseInt(dominantShiftId, 10),
+                    assignmentCount: dominantCount,
+                };
+            })
+            .filter(function (row) {
+                return Number.isFinite(row.userId) && row.userId > 0 && Number.isFinite(row.shiftId) && row.shiftId > 0;
+            });
+    }
+
+    function scheduleTimingRowByUserId(userId) {
+        var target = parseInt(String(userId || ""), 10);
+        if (!Number.isFinite(target)) {
+            return null;
+        }
+        for (var i = 0; i < scheduleTimingRowsCache.length; i++) {
+            var row = scheduleTimingRowsCache[i];
+            if (parseInt(String(row && row.userId || ""), 10) === target) {
+                return row;
+            }
+        }
+        return null;
+    }
+
+    function renderPlannerDiffPreview(result) {
+        var tbody = document.querySelector("[data-smart-planner-diff-body]");
+        var meta = document.querySelector("[data-smart-planner-diff-meta]");
+        if (!tbody) {
+            return;
+        }
+
+        var rows = plannerDominantShiftRows(result);
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Tidak ada perubahan dominant shift untuk dipreview.</td></tr>';
+            if (meta) {
+                meta.textContent = "Belum ada preview diff.";
+            }
+            return;
+        }
+
+        var changedCount = 0;
+        tbody.innerHTML = rows.map(function (row) {
+            var beforeRow = scheduleTimingRowByUserId(row.userId);
+            var beforeShiftId = parseInt(String(beforeRow && beforeRow.shiftId || ""), 10);
+            var beforeShiftName = String(beforeRow && beforeRow.shiftName || "Custom / Auto");
+            var beforeTiming = String(beforeRow && beforeRow.availableTimings || "-");
+            var afterShift = findScheduleShiftById(row.shiftId);
+            var afterShiftName = String(afterShift && afterShift.name || ("Shift #" + String(row.shiftId)));
+            var afterSlot = String(afterShift && afterShift.slotLabel || "-");
+
+            var changed = !Number.isFinite(beforeShiftId) || beforeShiftId !== row.shiftId;
+            if (changed) {
+                changedCount += 1;
+            }
+
+            return (
+                "<tr>" +
+                "<td>" + esc(row.employeeName) + "</td>" +
+                "<td><span class=\"fw-semibold\">" + esc(beforeShiftName) + "</span><div class=\"text-muted small\">" + esc(beforeTiming) + "</div></td>" +
+                "<td><span class=\"fw-semibold\">" + esc(afterShiftName) + "</span><div class=\"text-muted small\">" + esc(afterSlot) + "</div></td>" +
+                "<td>" + (changed ? '<span class=\"badge bg-warning-subtle text-warning\">Changed</span>' : '<span class=\"badge bg-success-subtle text-success\">No change</span>') + "</td>" +
+                "</tr>"
+            );
+        }).join("");
+
+        if (meta) {
+            meta.textContent = "Dominant shift preview: " + String(changedCount) + " perubahan dari " + String(rows.length) + " user scope draft.";
+        }
+    }
+
+    function plannerHolidayDateMap() {
+        var map = {};
+        (Array.isArray(scheduleHolidayRowsCache) ? scheduleHolidayRowsCache : []).forEach(function (holiday) {
+            if (!holiday || holiday.isActive === false) {
+                return;
+            }
+            var iso = scheduleDateIso(holiday.holidayDate);
+            if (!iso) {
+                return;
+            }
+            if (!map[iso]) {
+                map[iso] = [];
+            }
+            map[iso].push(String(holiday.title || "Holiday"));
+        });
+        return map;
+    }
+
+    function plannerTransitionKeysFromLegacyRules(rules) {
+        var keys = [];
+        (Array.isArray(rules) ? rules : []).forEach(function (rule) {
+            var raw = String(rule || "").trim().toLowerCase();
+            if (!raw) {
+                return;
+            }
+            if (raw.indexOf(":") !== -1) {
+                keys.push(raw);
+                return;
+            }
+            var parts = raw.split("_to_");
+            if (parts.length === 2) {
+                keys.push(parts[0] + ":" + parts[1]);
+            }
+        });
+        return Array.from(new Set(keys));
+    }
+
+    function plannerLegacyRulesFromTransitionKeys(keys) {
+        var rules = [];
+        (Array.isArray(keys) ? keys : []).forEach(function (key) {
+            var parts = String(key || "").trim().toLowerCase().split(":");
+            if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                return;
+            }
+            rules.push(parts[0] + "_to_" + parts[1]);
+        });
+        return Array.from(new Set(rules));
+    }
+
+    function renderPlannerTransitionMatrix(catalog, selectedKeys) {
+        var holder = document.querySelector("[data-smart-planner-transition-matrix]");
+        if (!holder) {
+            return;
+        }
+        var rows = Array.isArray(catalog) && catalog.length ? catalog : smartPlannerTransitionCatalog;
+        var selectedSet = new Set(Array.isArray(selectedKeys) ? selectedKeys : []);
+        holder.innerHTML = rows.map(function (key) {
+            var parts = String(key || "").split(":");
+            var from = String(parts[0] || "").trim();
+            var to = String(parts[1] || "").trim();
+            if (!from || !to) {
+                return "";
+            }
+            var checked = selectedSet.has(from + ":" + to) ? ' checked' : '';
+            return (
+                '<label class="form-check form-check-md me-3 mb-2">' +
+                '<input class="form-check-input" type="checkbox" data-smart-planner-transition-key="' + esc(from + ":" + to) + '"' + checked + '>' +
+                '<span class="form-check-label text-capitalize">Block ' + esc(from) + ' -> ' + esc(to) + '</span>' +
+                '</label>'
+            );
+        }).join("") || '<div class="text-muted small">Tidak ada transition key tersedia.</div>';
+    }
+
+    function readPlannerTransitionSelection() {
+        return Array.prototype.slice.call(document.querySelectorAll("[data-smart-planner-transition-key]"))
+            .filter(function (el) { return !!el.checked; })
+            .map(function (el) { return String(el.getAttribute("data-smart-planner-transition-key") || "").trim().toLowerCase(); })
+            .filter(function (key) { return key.indexOf(":") > 0; });
+    }
+
+    function setPlannerSettingsFeedback(message, isError) {
+        var el = document.querySelector("[data-smart-planner-settings-feedback]");
+        if (!el) {
+            return;
+        }
+        el.textContent = String(message || "");
+        el.classList.remove("text-muted", "text-danger", "text-success");
+        el.classList.add(isError ? "text-danger" : "text-success");
+    }
+
+    function applyPlannerSettingsToForm(form, settings) {
+        if (!form || !settings || !settings.defaultRules) {
+            return;
+        }
+
+        var rules = settings.defaultRules;
+        var maxWorkDaysEl = form.querySelector("[data-smart-planner-max-work-days]");
+        var minDaysOffEl = form.querySelector("[data-smart-planner-min-days-off]");
+        var minRestEl = form.querySelector("[data-smart-planner-min-rest]");
+        var maxNightEl = form.querySelector("[data-smart-planner-max-night]");
+
+        if (maxWorkDaysEl && rules.max_work_days_per_week != null) {
+            maxWorkDaysEl.value = String(rules.max_work_days_per_week);
+        }
+        if (minDaysOffEl && rules.min_days_off_per_week != null) {
+            minDaysOffEl.value = String(rules.min_days_off_per_week);
+        }
+        if (minRestEl && rules.min_rest_hours_between_shifts != null) {
+            minRestEl.value = String(rules.min_rest_hours_between_shifts);
+        }
+        if (maxNightEl && rules.max_consecutive_night_shifts != null) {
+            maxNightEl.value = String(rules.max_consecutive_night_shifts);
+        }
+    }
+
+    function analyzePlannerConflicts(result, payload) {
+        var rules = payload && payload.rules ? payload.rules : {};
+        var minRest = parseInt(String(rules.min_rest_hours_between_shifts || 12), 10);
+        if (!Number.isFinite(minRest) || minRest < 1) {
+            minRest = 12;
+        }
+        var illegalTransitions = Array.isArray(rules.illegal_transition_rules) ? rules.illegal_transition_rules : [];
+        var transitionKeys = plannerTransitionKeysFromLegacyRules(illegalTransitions);
+        var blockNightToMorning = transitionKeys.indexOf("night:morning") !== -1;
+
+        var holidayMap = plannerHolidayDateMap();
+        var weeklySchedule = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
+            ? result.schedule_generation.weekly_schedule
+            : [];
+
+        var violationRows = result && result.schedule_generation && Array.isArray(result.schedule_generation.violations)
+            ? result.schedule_generation.violations
+            : [];
+        var unmetRows = result && result.schedule_generation && Array.isArray(result.schedule_generation.unmet_coverage)
+            ? result.schedule_generation.unmet_coverage
+            : [];
+
+        var holidayConflictCount = 0;
+        var restConflictCount = 0;
+        var transitionConflictCount = 0;
+
+        weeklySchedule.forEach(function (row) {
+            var assignments = (Array.isArray(row && row.assignments) ? row.assignments : [])
+                .filter(function (a) { return String(a && a.shift_id || "").toUpperCase() !== "OFF"; })
+                .slice()
+                .sort(function (a, b) {
+                    return String(a && a.date || "").localeCompare(String(b && b.date || ""));
+                });
+
+            assignments.forEach(function (assignment) {
+                var dateIso = scheduleDateIso(assignment && assignment.date);
+                if (dateIso && holidayMap[dateIso] && holidayMap[dateIso].length > 0) {
+                    holidayConflictCount += 1;
+                }
+            });
+
+            for (var i = 0; i < assignments.length - 1; i++) {
+                var current = assignments[i];
+                var next = assignments[i + 1];
+                var currentStart = scheduleEventDateTime(current && current.date, current && current.start_time);
+                var currentEnd = scheduleEventDateTime(current && current.date, current && current.end_time);
+                var nextStart = scheduleEventDateTime(next && next.date, next && next.start_time);
+
+                if (currentEnd && currentStart && currentEnd <= currentStart) {
+                    var currentEndDate = new Date(currentEnd);
+                    if (!isNaN(currentEndDate.getTime())) {
+                        currentEndDate.setDate(currentEndDate.getDate() + 1);
+                        currentEnd = currentEndDate.toISOString().slice(0, 19);
+                    }
+                }
+
+                var endDateObj = currentEnd ? new Date(currentEnd) : null;
+                var startDateObj = nextStart ? new Date(nextStart) : null;
+                if (endDateObj && startDateObj && !isNaN(endDateObj.getTime()) && !isNaN(startDateObj.getTime())) {
+                    var diffHours = (startDateObj.getTime() - endDateObj.getTime()) / (60 * 60 * 1000);
+                    if (diffHours < minRest) {
+                        restConflictCount += 1;
+                    }
+                }
+
+                if (blockNightToMorning) {
+                    var curMeta = plannerShiftMeta(current);
+                    var nextMeta = plannerShiftMeta(next);
+                    if (curMeta.label === "N" && nextMeta.label === "M") {
+                        transitionConflictCount += 1;
+                    }
+                }
+            }
+        });
+
+        return {
+            violationCount: violationRows.length,
+            unmetCoverageCount: unmetRows.length,
+            holidayConflictCount: holidayConflictCount,
+            restConflictCount: restConflictCount,
+            transitionConflictCount: transitionConflictCount,
+            criticalCount: violationRows.length + unmetRows.length + restConflictCount + transitionConflictCount,
+        };
+    }
+
+    function renderPlannerConflictPreview(result, payload) {
+        var meta = document.querySelector("[data-smart-planner-conflict-meta]");
+        var list = document.querySelector("[data-smart-planner-conflict-list]");
+        if (!list) {
+            return smartPlannerConflictSummary;
+        }
+
+        var summary = analyzePlannerConflicts(result, payload || {});
+        smartPlannerConflictSummary = {
+            total: summary.violationCount + summary.unmetCoverageCount + summary.holidayConflictCount + summary.restConflictCount + summary.transitionConflictCount,
+            critical: summary.criticalCount,
+        };
+
+        list.innerHTML = [
+            "Hard violations dari planner: " + String(summary.violationCount),
+            "Unmet coverage: " + String(summary.unmetCoverageCount),
+            "Holiday overlap (butuh review kebijakan): " + String(summary.holidayConflictCount),
+            "Rest gap < rule minimum: " + String(summary.restConflictCount),
+            "Illegal transition (night -> morning): " + String(summary.transitionConflictCount),
+        ].map(function (line) {
+            return "<li>" + esc(line) + "</li>";
+        }).join("");
+
+        if (meta) {
+            meta.textContent = summary.criticalCount > 0
+                ? "Terdeteksi " + String(summary.criticalCount) + " conflict kritikal. Force apply wajib dicentang jika tetap publish."
+                : "Tidak ada conflict kritikal. Publish dominant shift aman dilanjutkan.";
+        }
+
+        return smartPlannerConflictSummary;
+    }
+
+    function updatePlannerApplyState(result) {
+        var applyBtn = document.querySelector("[data-smart-planner-apply-dominant]");
+        var applyDailyBtn = document.querySelector("[data-smart-planner-apply-daily]");
+        var applyMeta = document.querySelector("[data-smart-planner-apply-meta]");
+        var forceApplyEl = document.querySelector("[data-smart-planner-force-apply]");
+        if ((!applyBtn && !applyDailyBtn) || !applyMeta) {
+            return;
+        }
+
+        var rows = plannerDominantShiftRows(result);
+        var hasDraftAssignments = !!(result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule) && result.schedule_generation.weekly_schedule.length);
+        if (!rows.length) {
+            if (applyBtn) {
+                applyBtn.disabled = true;
+            }
+            if (applyDailyBtn) {
+                applyDailyBtn.disabled = !hasDraftAssignments;
+            }
+            applyMeta.textContent = "Draft tidak punya shift dominan yang valid untuk dipublish.";
+            return;
+        }
+
+        var hasCriticalConflict = (smartPlannerConflictSummary.critical || 0) > 0;
+        var forceApply = !!(forceApplyEl && forceApplyEl.checked);
+
+        if (applyBtn) {
+            applyBtn.disabled = hasCriticalConflict && !forceApply;
+        }
+        if (applyDailyBtn) {
+            applyDailyBtn.disabled = hasCriticalConflict && !forceApply;
+        }
+        applyMeta.textContent =
+            "Siap publish " + String(rows.length) +
+            " user (dominant shift dari draft planner terakhir), atau publish roster harian per tanggal. Hanya user dalam scope planner yang diproses." +
+            (hasCriticalConflict && !forceApply ? " Conflict kritikal terdeteksi, centang Force apply jika tetap lanjut." : "");
+    }
+
+    function applyPlannerDominantShifts(result) {
+        var rows = plannerDominantShiftRows(result);
+        if (!rows.length) {
+            return Promise.reject({ plannerMessage: "Draft tidak punya shift dominan yang valid untuk dipublish." });
+        }
+
+        var successCount = 0;
+        var failed = [];
+
+        function runNext(index) {
+            if (index >= rows.length) {
+                return Promise.resolve({
+                    total: rows.length,
+                    success: successCount,
+                    failed: failed,
+                });
+            }
+
+            var row = rows[index];
+            setSmartPlannerFeedback(
+                "Publishing dominant shift " + String(index + 1) + "/" + String(rows.length) + " untuk " + row.employeeName + "...",
+                false
+            );
+
+            return apiPut("/v1/hcm/schedule-timing/" + encodeURIComponent(String(row.userId)), {
+                shiftId: row.shiftId,
+            }).then(function (response) {
+                if (!response || response.success !== true) {
+                    failed.push({
+                        userId: row.userId,
+                        employeeName: row.employeeName,
+                        reason: formatApiError(response, 0) || "Unknown error",
+                    });
+                } else {
+                    successCount += 1;
+                }
+                return runNext(index + 1);
+            }).catch(function (err) {
+                var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
+                var status = err && err.response ? err.response.status : err && err.status ? err.status : 0;
+                failed.push({
+                    userId: row.userId,
+                    employeeName: row.employeeName,
+                    reason: formatApiError(data, status) || "Request failed",
+                });
+                return runNext(index + 1);
+            });
+        }
+
+        return runNext(0);
+    }
+
+    function applyPlannerDailyRoster(result) {
+        var weeklySchedule = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
+            ? result.schedule_generation.weekly_schedule
+            : [];
+        if (!weeklySchedule.length) {
+            return Promise.reject({ plannerMessage: "Draft planner kosong, tidak ada roster harian untuk dipublish." });
+        }
+
+        return apiPost("/v1/hcm/smart-attendance-shifting/publish-roster", {
+            weeklySchedule: weeklySchedule,
+        }).then(function (response) {
+            if (!response || response.success !== true) {
+                return Promise.reject({ plannerMessage: formatApiError(response, 0) || "Gagal publish roster harian." });
+            }
+            return response.data || {};
+        });
+    }
+
+    function mergePlannerEmployeeSummaries(results) {
+        var byUser = {};
+
+        (Array.isArray(results) ? results : []).forEach(function (result) {
+            var rows = result && result.attendance_analysis && Array.isArray(result.attendance_analysis.employee_summaries)
+                ? result.attendance_analysis.employee_summaries
+                : [];
+
+            rows.forEach(function (row) {
+                var userId = String(row && row.employee_id || "");
+                if (!userId) {
+                    return;
+                }
+                if (!byUser[userId]) {
+                    byUser[userId] = {
+                        employee_id: userId,
+                        total_work_days: 0,
+                        late_count: 0,
+                        early_leave_count: 0,
+                        absent_count: 0,
+                        overtime_minutes: 0,
+                        compliance_score: 0,
+                        _scoreCount: 0,
+                    };
+                }
+
+                byUser[userId].total_work_days += Number(row && row.total_work_days || 0);
+                byUser[userId].late_count += Number(row && row.late_count || 0);
+                byUser[userId].early_leave_count += Number(row && row.early_leave_count || 0);
+                byUser[userId].absent_count += Number(row && row.absent_count || 0);
+                byUser[userId].overtime_minutes += Number(row && row.overtime_minutes || 0);
+                byUser[userId].compliance_score += Number(row && row.compliance_score || 0);
+                byUser[userId]._scoreCount += 1;
+            });
+        });
+
+        return Object.keys(byUser)
+            .map(function (userId) {
+                var item = byUser[userId];
+                var scoreCount = item._scoreCount || 1;
+                item.compliance_score = Number((item.compliance_score / scoreCount).toFixed(2));
+                delete item._scoreCount;
+                return item;
+            })
+            .sort(function (a, b) {
+                return String(a.employee_id || "").localeCompare(String(b.employee_id || ""));
+            });
+    }
+
+    function mergePlannerSuggestions(results) {
+        var seen = {};
+        var output = [];
+
+        (Array.isArray(results) ? results : []).forEach(function (result) {
+            var rows = result && result.recommendation && Array.isArray(result.recommendation.improvement_suggestions)
+                ? result.recommendation.improvement_suggestions
+                : [];
+
+            rows.forEach(function (row) {
+                var title = String(row && row.title || "Suggestion");
+                var reason = String(row && row.reason || "");
+                var key = (title + "|" + reason).toLowerCase();
+                if (seen[key]) {
+                    return;
+                }
+                seen[key] = true;
+                output.push(row);
+            });
+        });
+
+        return output;
+    }
+
+    function combinePlannerResults(results) {
+        var safeResults = Array.isArray(results) ? results : [];
+        var weeklySchedule = mergePlannerAssignmentRows(safeResults);
+        var summaries = mergePlannerEmployeeSummaries(safeResults);
+        var flags = [];
+        var violations = [];
+        var unmet = [];
+        var fairnessTotal = 0;
+        var fatigueTotal = 0;
+        var scoreCount = 0;
+        var hasInvalid = false;
+
+        safeResults.forEach(function (result) {
+            var schedule = result && result.schedule_generation ? result.schedule_generation : {};
+            var attendance = result && result.attendance_analysis ? result.attendance_analysis : {};
+            var recommendation = result && result.recommendation ? result.recommendation : {};
+
+            if (String(schedule.validation_status || "").toLowerCase() === "invalid") {
+                hasInvalid = true;
+            }
+
+            if (Array.isArray(schedule.violations)) {
+                violations = violations.concat(schedule.violations);
+            }
+            if (Array.isArray(schedule.unmet_coverage)) {
+                unmet = unmet.concat(schedule.unmet_coverage);
+            }
+            if (Array.isArray(attendance.flags)) {
+                flags = flags.concat(attendance.flags);
+            }
+
+            if (recommendation.fairness_score != null && !isNaN(Number(recommendation.fairness_score))) {
+                fairnessTotal += Number(recommendation.fairness_score);
+                scoreCount += 1;
+            }
+            if (recommendation.fatigue_risk_score != null && !isNaN(Number(recommendation.fatigue_risk_score))) {
+                fatigueTotal += Number(recommendation.fatigue_risk_score);
+            }
+        });
+
+        var fairnessScore = scoreCount > 0 ? Number((fairnessTotal / scoreCount).toFixed(2)) : null;
+        var fatigueScore = scoreCount > 0 ? Number((fatigueTotal / scoreCount).toFixed(2)) : null;
+        var totalWeeks = safeResults.length;
+
+        return {
+            schedule_generation: {
+                validation_status: (hasInvalid || violations.length > 0 || unmet.length > 0) ? "invalid" : "valid",
+                weekly_schedule: weeklySchedule,
+                violations: violations,
+                unmet_coverage: unmet,
+            },
+            attendance_analysis: {
+                employee_summaries: summaries,
+                flags: flags,
+            },
+            recommendation: {
+                fairness_score: fairnessScore,
+                fatigue_risk_score: fatigueScore,
+                improvement_suggestions: mergePlannerSuggestions(safeResults),
+            },
+            explanation: totalWeeks > 1
+                ? "Batch planner selesai untuk " + String(totalWeeks) + " minggu sampai akhir tahun. Hasil ringkas ditampilkan sebagai agregasi lintas minggu."
+                : String((safeResults[0] && safeResults[0].explanation) || "Schedule generated successfully."),
+        };
+    }
+
+    function executePlannerBatchRequests(basePayload, weekStarts, onProgress) {
+        var results = [];
+
+        function runNext(index) {
+            if (index >= weekStarts.length) {
+                return Promise.resolve(results);
+            }
+
+            var payload = JSON.parse(JSON.stringify(basePayload || {}));
+            payload.weekStart = weekStarts[index];
+            if (typeof onProgress === "function") {
+                onProgress(index, weekStarts.length, payload.weekStart);
+            }
+
+            return apiPost("/v1/hcm/smart-attendance-shifting/generate", payload)
+                .then(function (response) {
+                    if (!response || response.success !== true || !response.data) {
+                        var errorText = formatApiError(response, 0) || "Gagal generate smart planner.";
+                        return Promise.reject({ plannerMessage: errorText });
+                    }
+                    results.push(response.data);
+                    return runNext(index + 1);
+                });
+        }
+
+        return runNext(0);
+    }
+
+    function buildPlannerAssignmentIndex(weeklySchedule) {
+        var index = {};
+        (Array.isArray(weeklySchedule) ? weeklySchedule : []).forEach(function (row) {
+            var userId = String(row && row.employee_id || "");
+            if (!userId) {
+                return;
+            }
+
+            var assignments = Array.isArray(row && row.assignments) ? row.assignments : [];
+            var workDays = 0;
+            var offDays = 0;
+            var morningCount = 0;
+            var afternoonCount = 0;
+            var nightCount = 0;
+
+            assignments.forEach(function (a) {
+                var shiftId = String(a && a.shift_id || "");
+                if (shiftId === "OFF") {
+                    offDays += 1;
+                    return;
+                }
+                workDays += 1;
+                var label = plannerShiftMeta(a).label;
+                if (label === "M") {
+                    morningCount += 1;
+                } else if (label === "A") {
+                    afternoonCount += 1;
+                } else if (label === "N") {
+                    nightCount += 1;
+                }
+            });
+
+            index[userId] = {
+                employeeName: String(row && row.employee_name || "Employee"),
+                assignments: assignments,
+                workDays: workDays,
+                offDays: offDays,
+                morningCount: morningCount,
+                afternoonCount: afternoonCount,
+                nightCount: nightCount,
+            };
+        });
+
+        return index;
+    }
+
+    function renderSmartPlannerAssignmentPreview(result) {
+        var body = document.querySelector("[data-smart-planner-assignment-body]");
+        var meta = document.querySelector("[data-smart-planner-assignment-meta]");
+        if (!body) {
+            return;
+        }
+
+        var weeklySchedule = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
+            ? result.schedule_generation.weekly_schedule
+            : [];
+        smartPlannerAssignmentByUserId = buildPlannerAssignmentIndex(weeklySchedule);
+
+        var rows = Object.keys(smartPlannerAssignmentByUserId)
+            .map(function (userId) {
+                var item = smartPlannerAssignmentByUserId[userId];
+                return {
+                    userId: userId,
+                    employeeName: item.employeeName,
+                    workDays: item.workDays,
+                    offDays: item.offDays,
+                    nightCount: item.nightCount,
+                    morningCount: item.morningCount,
+                    afternoonCount: item.afternoonCount,
+                    pattern: formatPlannerPattern(item.assignments),
+                };
+            })
+            .sort(function (a, b) {
+                return String(a.employeeName).localeCompare(String(b.employeeName));
+            });
+
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Draft assignment tidak tersedia.</td></tr>';
+            if (meta) {
+                meta.textContent = "Belum ada draft assignment.";
+            }
+            return;
+        }
+
+        body.innerHTML = rows.map(function (row) {
+            return (
+                "<tr>" +
+                "<td>" + esc(row.employeeName) + "</td>" +
+                "<td><span class=\"badge bg-success-subtle text-success\">" + esc(String(row.workDays)) + "</span></td>" +
+                "<td><span class=\"badge bg-secondary-subtle text-secondary\">" + esc(String(row.offDays)) + "</span></td>" +
+                "<td><span class=\"badge bg-dark-subtle text-dark\">" + esc(String(row.nightCount)) + "</span></td>" +
+                "<td class=\"small text-muted\">" + esc(row.pattern) + "</td>" +
+                "</tr>"
+            );
+        }).join("");
+
+        if (meta) {
+            meta.textContent =
+                "Terjadwal " +
+                String(rows.length) +
+                " karyawan (M/A/N dihitung di tabel). Baris di Schedule Timing List yang punya badge AI Draft 24h berasal dari rekomendasi ini.";
+        }
+    }
+
+    function renderSimpleList(target, rows, formatter) {
+        if (!target) {
+            return;
+        }
+        while (target.firstChild) {
+            target.removeChild(target.firstChild);
+        }
+
+        if (!rows || !rows.length) {
+            var empty = document.createElement("li");
+            empty.className = "text-muted";
+            empty.textContent = "Tidak ada data.";
+            target.appendChild(empty);
+            return;
+        }
+
+        rows.forEach(function (row) {
+            var li = document.createElement("li");
+            li.textContent = String(formatter(row) || "");
+            target.appendChild(li);
+        });
+    }
+
+    function renderSmartPlannerResult(result) {
+        var wrap = document.querySelector("[data-smart-planner-result]");
+        if (!wrap || !result) {
+            return;
+        }
+        var schedule = result.schedule_generation || {};
+        var recommendation = result.recommendation || {};
+        var violations = Array.isArray(schedule.violations) ? schedule.violations : [];
+        var unmetCoverage = Array.isArray(schedule.unmet_coverage) ? schedule.unmet_coverage : [];
+        var suggestions = Array.isArray(recommendation.improvement_suggestions)
+            ? recommendation.improvement_suggestions
+            : [];
+
+        var validationEl = wrap.querySelector("[data-smart-planner-validation]");
+        var fairnessEl = wrap.querySelector("[data-smart-planner-fairness]");
+        var fatigueEl = wrap.querySelector("[data-smart-planner-fatigue]");
+        var unmetEl = wrap.querySelector("[data-smart-planner-unmet]");
+        var explanationEl = wrap.querySelector("[data-smart-planner-explanation]");
+        var violationsEl = wrap.querySelector("[data-smart-planner-violations]");
+        var suggestionsEl = wrap.querySelector("[data-smart-planner-suggestions]");
+
+        if (validationEl) {
+            validationEl.textContent = String(schedule.validation_status || "unknown").toUpperCase();
+        }
+        if (fairnessEl) {
+            fairnessEl.textContent = String(recommendation.fairness_score != null ? recommendation.fairness_score : "-");
+        }
+        if (fatigueEl) {
+            fatigueEl.textContent = String(recommendation.fatigue_risk_score != null ? recommendation.fatigue_risk_score : "-");
+        }
+        if (unmetEl) {
+            unmetEl.textContent = String(unmetCoverage.length);
+        }
+        if (explanationEl) {
+            explanationEl.textContent = String(result.explanation || "-");
+        }
+
+        renderSimpleList(violationsEl, violations, function (row) {
+            var code = row && row.code ? String(row.code) : "RULE";
+            var message = row && row.message ? String(row.message) : "Violation detected";
+            return code + ": " + message;
+        });
+
+        renderSimpleList(suggestionsEl, suggestions, function (row) {
+            var title = row && row.title ? String(row.title) : "Suggestion";
+            var reason = row && row.reason ? String(row.reason) : "";
+            return reason ? title + " - " + reason : title;
+        });
+
+        renderSmartPlannerAssignmentPreview(result);
+        renderPlannerDiffPreview(result);
+        renderPlannerConflictPreview(result, smartPlannerLastPayload || {});
+        if (Array.isArray(scheduleTimingRowsCache) && scheduleTimingRowsCache.length > 0) {
+            renderScheduleTimingRows(scheduleTimingRowsCache);
+        }
+        renderScheduleCalendar();
+        updatePlannerApplyState(result);
+
+        wrap.classList.remove("d-none");
+    }
+
+    function bindSmartPlanner() {
+        var path = window.location.pathname || "";
+        if (path.indexOf("/schedule-timing") !== 0) {
+            return;
+        }
+        var form = document.querySelector("[data-smart-planner-form]");
+        if (!form || form.getAttribute("data-bound") === "1") {
+            return;
+        }
+        form.setAttribute("data-bound", "1");
+
+        var weekStartEl = form.querySelector("[data-smart-planner-week-start]");
+        var horizonEl = form.querySelector("[data-smart-planner-horizon]");
+        var horizonHintEl = form.querySelector("[data-smart-planner-horizon-hint]");
+        var endDateWrap = form.querySelector('[data-smart-planner-field="horizon-end-date"]');
+        var endDateEl = form.querySelector("[data-smart-planner-end-date]");
+        var shiftCategoryEl = form.querySelector("[data-smart-planner-shift-category]");
+        var scopeEl = form.querySelector("[data-smart-planner-scope]");
+        var scopeHintEl = form.querySelector("[data-smart-planner-scope-hint]");
+        var scopeMetaEl = form.querySelector("[data-smart-planner-scope-meta]");
+        var teamQueryWrap = form.querySelector('[data-smart-planner-field="team-query"]');
+        var customIdsWrap = form.querySelector('[data-smart-planner-field="custom-ids"]');
+        var teamQueryEl = form.querySelector("[data-smart-planner-team-query]");
+        var customIdsEl = form.querySelector("[data-smart-planner-custom-ids]");
+        var modeHintEl = form.querySelector("[data-smart-planner-mode-hint]");
+        var maxWorkDaysEl = form.querySelector("[data-smart-planner-max-work-days]");
+        var minDaysOffEl = form.querySelector("[data-smart-planner-min-days-off]");
+        var minRestEl = form.querySelector("[data-smart-planner-min-rest]");
+        var maxNightEl = form.querySelector("[data-smart-planner-max-night]");
+        var saveSettingsBtn = document.querySelector("[data-smart-planner-save-settings]");
+        var submitBtn = form.querySelector("[data-smart-planner-submit]");
+        var applyDominantBtn = document.querySelector("[data-smart-planner-apply-dominant]");
+        var applyDailyBtn = document.querySelector("[data-smart-planner-apply-daily]");
+        var forceApplyEl = document.querySelector("[data-smart-planner-force-apply]");
+        var restRuleWrap = form.querySelector('[data-smart-planner-field="rest-rule"]');
+        var nightRuleWrap = form.querySelector('[data-smart-planner-field="night-rule"]');
+
+        ensureScheduleShiftsLoaded(function () {
+            if (smartPlannerLastResult) {
+                renderSmartPlannerResult(smartPlannerLastResult);
+            }
+        });
+
+        if (weekStartEl && !weekStartEl.value) {
+            weekStartEl.value = getCurrentWeekStartIso();
+        }
+        if (endDateEl) {
+            endDateEl.value = plannerEndOfYearIso(weekStartEl && weekStartEl.value ? weekStartEl.value : getCurrentWeekStartIso());
+        }
+
+        function loadPlannerSettings() {
+            return apiGet('/v1/hcm/smart-attendance-shifting/settings')
+                .then(function (payload) {
+                    if (!payload || payload.success !== true || !payload.data) {
+                        return;
+                    }
+                    smartPlannerSettingsCache = payload.data;
+                    smartPlannerTransitionCatalog = Array.isArray(payload.data.transitionCatalog) && payload.data.transitionCatalog.length
+                        ? payload.data.transitionCatalog.map(function (k) { return String(k || '').toLowerCase(); })
+                        : smartPlannerTransitionCatalog;
+                    smartPlannerForbiddenTransitionKeys = Array.isArray(payload.data.forbiddenTransitions) && payload.data.forbiddenTransitions.length
+                        ? payload.data.forbiddenTransitions.map(function (k) { return String(k || '').toLowerCase(); })
+                        : ['night:morning'];
+                    applyPlannerSettingsToForm(form, payload.data);
+                    renderPlannerTransitionMatrix(smartPlannerTransitionCatalog, smartPlannerForbiddenTransitionKeys);
+                    setPlannerSettingsFeedback('Default tenant berhasil dimuat.', false);
+                })
+                .catch(function () {
+                    renderPlannerTransitionMatrix(smartPlannerTransitionCatalog, smartPlannerForbiddenTransitionKeys);
+                    setPlannerSettingsFeedback('Gagal load planner defaults, gunakan fallback lokal.', true);
+                });
+        }
+
+        function currentCategory() {
+            return shiftCategoryEl && shiftCategoryEl.value ? String(shiftCategoryEl.value) : "office_hour";
+        }
+
+        function currentScope() {
+            return scopeEl && scopeEl.value ? String(scopeEl.value) : "legacy";
+        }
+
+        function currentHorizon() {
+            return horizonEl && horizonEl.value ? String(horizonEl.value) : "single_week";
+        }
+
+        function parseCustomIds(raw) {
+            return String(raw || "")
+                .split(/[\s,]+/)
+                .map(function (item) { return parseInt(item, 10); })
+                .filter(function (n) { return !isNaN(n) && n > 0; });
+        }
+
+        function resolvePlannerScope() {
+            var scope = currentScope();
+            if (scope === "legacy") {
+                return Promise.resolve({
+                    employeeIds: null,
+                    message: "Scope mengikuti perilaku default planner.",
+                });
+            }
+            if (scope === "custom") {
+                var customIds = parseCustomIds(customIdsEl && customIdsEl.value || "");
+                if (!customIds.length) {
+                    return Promise.reject({ plannerMessage: "Isi minimal satu user ID untuk custom scope." });
+                }
+                return Promise.resolve({
+                    employeeIds: customIds,
+                    message: "Scope custom aktif: " + String(customIds.length) + " karyawan.",
+                });
+            }
+
+            return apiGet("/v1/hcm/employees?perPage=100&page=1").then(function (payload) {
+                var rows = Array.isArray(payload && payload.data) ? payload.data : [];
+                if (!rows.length) {
+                    return Promise.reject({ plannerMessage: "Employee list kosong di tenant aktif." });
+                }
+
+                if (scope === "all") {
+                    var allIds = rows
+                        .map(function (row) { return parseInt(row && row.userId != null ? row.userId : row && row.id, 10); })
+                        .filter(function (id) { return !isNaN(id) && id > 0; });
+                    return {
+                        employeeIds: allIds,
+                        message: "Scope semua karyawan aktif: " + String(allIds.length) + " orang.",
+                    };
+                }
+
+                var keyword = String(teamQueryEl && teamQueryEl.value || "").trim().toLowerCase();
+                if (!keyword) {
+                    return Promise.reject({ plannerMessage: "Isi keyword team untuk filter scope team." });
+                }
+
+                var filteredIds = rows
+                    .filter(function (row) {
+                        var team = String(row && row.team || "").toLowerCase();
+                        return team.indexOf(keyword) !== -1;
+                    })
+                    .map(function (row) { return parseInt(row && row.userId != null ? row.userId : row && row.id, 10); })
+                    .filter(function (id) { return !isNaN(id) && id > 0; });
+
+                if (!filteredIds.length) {
+                    return Promise.reject({ plannerMessage: 'Tidak ada karyawan match keyword team "' + keyword + '".' });
+                }
+
+                return {
+                    employeeIds: filteredIds,
+                    message: "Scope team \"" + keyword + "\": " + String(filteredIds.length) + " karyawan.",
+                };
+            });
+        }
+
+        function syncModeUi() {
+            var mode = currentCategory();
+            var isOffice = mode === "office_hour";
+            var scope = currentScope();
+            var horizon = currentHorizon();
+            if (nightRuleWrap) {
+                nightRuleWrap.classList.toggle("d-none", isOffice);
+            }
+            if (restRuleWrap) {
+                restRuleWrap.classList.toggle("d-none", false);
+            }
+            if (teamQueryWrap) {
+                teamQueryWrap.classList.toggle("d-none", scope !== "team");
+            }
+            if (customIdsWrap) {
+                customIdsWrap.classList.toggle("d-none", scope !== "custom");
+            }
+            if (endDateWrap) {
+                endDateWrap.classList.toggle("d-none", horizon !== "end_of_year");
+            }
+            if (modeHintEl) {
+                if (mode === "shifting_24h") {
+                    modeHintEl.textContent = "Mode Shifting 24 Jam mengaktifkan kontrol kelelahan, distribusi shift malam, dan validasi transisi antar shift.";
+                } else if (mode === "hybrid") {
+                    modeHintEl.textContent = "Mode Hybrid menggabungkan pekerja office hour dan shift sehingga rule fairness/fatigue tetap dipakai tetapi lebih fleksibel.";
+                } else {
+                    modeHintEl.textContent = "Mode Office Hour fokus distribusi beban kerja harian normal tanpa optimasi shift malam.";
+                }
+            }
+            if (scopeHintEl) {
+                if (scope === "team") {
+                    scopeHintEl.textContent = "Isi team keyword sesuai unit operasional yang ingin dijadwalkan (mis: Customer Service).";
+                } else if (scope === "custom") {
+                    scopeHintEl.textContent = "Masukkan user ID dipisah koma. Contoh: 601, 602, 603";
+                } else {
+                    scopeHintEl.textContent = "Scope semua karyawan tenant aktif. Cocok untuk planning keseluruhan company.";
+                }
+            }
+            if (horizonHintEl) {
+                if (horizon === "end_of_year") {
+                    horizonHintEl.textContent = "Planner akan dieksekusi per minggu dari Week Start sampai 31 Desember dan hasilnya digabung untuk review kalender.";
+                } else {
+                    horizonHintEl.textContent = "Mode default: generate hanya untuk minggu yang dipilih.";
+                }
+            }
+            if (endDateEl) {
+                endDateEl.value = plannerEndOfYearIso(weekStartEl && weekStartEl.value ? weekStartEl.value : getCurrentWeekStartIso());
+            }
+        }
+
+        syncModeUi();
+        loadPlannerSettings();
+        if (shiftCategoryEl && !shiftCategoryEl.getAttribute("data-bound")) {
+            shiftCategoryEl.setAttribute("data-bound", "1");
+            shiftCategoryEl.addEventListener("change", syncModeUi);
+        }
+        if (scopeEl && !scopeEl.getAttribute("data-bound")) {
+            scopeEl.setAttribute("data-bound", "1");
+            scopeEl.addEventListener("change", syncModeUi);
+        }
+        if (horizonEl && !horizonEl.getAttribute("data-bound")) {
+            horizonEl.setAttribute("data-bound", "1");
+            horizonEl.addEventListener("change", syncModeUi);
+        }
+        if (weekStartEl && !weekStartEl.getAttribute("data-bound")) {
+            weekStartEl.setAttribute("data-bound", "1");
+            weekStartEl.addEventListener("change", syncModeUi);
+        }
+
+        function readInt(inputEl, fallback) {
+            var n = parseInt(inputEl && inputEl.value ? inputEl.value : "", 10);
+            return isNaN(n) ? fallback : n;
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            setSmartPlannerFeedback("Mempersiapkan scope karyawan...", false);
+
+            var mode = currentCategory();
+            var isOffice = mode === "office_hour";
+            var horizon = currentHorizon();
+
+            var payload = {
+                shiftCategory: mode,
+                weekStart: weekStartEl && weekStartEl.value ? String(weekStartEl.value) : getCurrentWeekStartIso(),
+                rules: {
+                    max_work_days_per_week: readInt(maxWorkDaysEl, 5),
+                    min_days_off_per_week: readInt(minDaysOffEl, 2),
+                    min_rest_hours_between_shifts: readInt(minRestEl, 12),
+                    max_consecutive_night_shifts: isOffice ? 1 : readInt(maxNightEl, 3),
+                    illegal_transition_rules: isOffice ? [] : plannerLegacyRulesFromTransitionKeys(readPlannerTransitionSelection()),
+                },
+            };
+            smartPlannerForbiddenTransitionKeys = readPlannerTransitionSelection();
+            if (!isOffice && payload.rules.illegal_transition_rules.length === 0) {
+                payload.rules.illegal_transition_rules = plannerLegacyRulesFromTransitionKeys(smartPlannerForbiddenTransitionKeys.length ? smartPlannerForbiddenTransitionKeys : ['night:morning']);
+            }
+            smartPlannerLastPayload = JSON.parse(JSON.stringify(payload));
+
+            resolvePlannerScope()
+                .then(function (scopeInfo) {
+                    if (Array.isArray(scopeInfo.employeeIds) && scopeInfo.employeeIds.length > 0) {
+                        payload.employeeIds = scopeInfo.employeeIds;
+                        smartPlannerLastPayload.employeeIds = scopeInfo.employeeIds.slice();
+                    }
+                    if (scopeMetaEl) {
+                        scopeMetaEl.textContent = scopeInfo.message;
+                    }
+                    smartPlannerScopeMeta = String(scopeInfo.message || "");
+                    var employeeCountText = Array.isArray(scopeInfo.employeeIds)
+                        ? String(scopeInfo.employeeIds.length)
+                        : "default";
+                    if (horizon === "end_of_year") {
+                        var endIso = plannerEndOfYearIso(payload.weekStart);
+                        if (endDateEl) {
+                            endDateEl.value = endIso;
+                        }
+                        var weekStarts = plannerBuildWeekStarts(payload.weekStart, endIso);
+                        if (!weekStarts.length) {
+                            return Promise.reject({ plannerMessage: "Rentang batch planner tidak valid. Cek Week Start." });
+                        }
+                        setSmartPlannerFeedback(
+                            "Generating batch planner " +
+                            String(weekStarts.length) +
+                            " minggu untuk " +
+                            employeeCountText +
+                            " karyawan...",
+                            false
+                        );
+                        return executePlannerBatchRequests(payload, weekStarts, function (index, total, weekIso) {
+                            setSmartPlannerFeedback(
+                                "Memproses minggu " + String(index + 1) + "/" + String(total) + " (" + String(weekIso) + ")...",
+                                false
+                            );
+                        }).then(function (batchResults) {
+                            return {
+                                success: true,
+                                data: combinePlannerResults(batchResults),
+                                meta: {
+                                    batchWeeks: weekStarts.length,
+                                    horizon: "end_of_year",
+                                    endDate: endIso,
+                                },
+                            };
+                        });
+                    }
+
+                    setSmartPlannerFeedback("Generating smart planner untuk " + employeeCountText + " karyawan...", false);
+                    return apiPost("/v1/hcm/smart-attendance-shifting/generate", payload).then(function (singleResponse) {
+                        if (!singleResponse || singleResponse.success !== true || !singleResponse.data) {
+                            return singleResponse;
+                        }
+                        return {
+                            success: true,
+                            data: singleResponse.data,
+                            meta: {
+                                batchWeeks: 1,
+                                horizon: "single_week",
+                                endDate: payload.weekStart,
+                            },
+                        };
+                    });
+                })
+                .then(function (response) {
+                    if (!response || response.success !== true || !response.data) {
+                        setSmartPlannerFeedback(formatApiError(response, 0) || "Gagal generate smart planner.", true);
+                        return;
+                    }
+                    smartPlannerLastResult = response.data;
+                    renderSmartPlannerResult(response.data);
+                    if (response.meta && response.meta.horizon === "end_of_year") {
+                        setSmartPlannerFeedback(
+                            "Batch planner berhasil digenerate sampai " + String(response.meta.endDate || "akhir tahun") +
+                            " (" + String(response.meta.batchWeeks || 0) + " minggu).",
+                            false
+                        );
+                    } else {
+                        setSmartPlannerFeedback("Smart planner berhasil digenerate.", false);
+                    }
+                    notify("Smart planner siap direview.", false);
+                })
+                .catch(function (err) {
+                    if (err && err.plannerMessage) {
+                        setSmartPlannerFeedback(String(err.plannerMessage), true);
+                        return;
+                    }
+                    var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
+                    var status = err && err.response ? err.response.status : err && err.status ? err.status : 0;
+                    setSmartPlannerFeedback(formatApiError(data, status) || "Gagal generate smart planner.", true);
+                })
+                .finally(function () {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                });
+        });
+
+        if (applyDominantBtn && applyDominantBtn.getAttribute("data-bound") !== "1") {
+            applyDominantBtn.setAttribute("data-bound", "1");
+            applyDominantBtn.addEventListener("click", function () {
+                if (!smartPlannerLastResult) {
+                    setSmartPlannerFeedback("Generate planner dulu sebelum publish dominant shift.", true);
+                    return;
+                }
+
+                applyDominantBtn.disabled = true;
+                applyPlannerDominantShifts(smartPlannerLastResult)
+                    .then(function (summary) {
+                        var failedCount = Array.isArray(summary.failed) ? summary.failed.length : 0;
+                        if (failedCount > 0) {
+                            setSmartPlannerFeedback(
+                                "Publish selesai: " + String(summary.success) + " berhasil, " + String(failedCount) + " gagal.",
+                                true
+                            );
+                        } else {
+                            setSmartPlannerFeedback(
+                                "Publish dominant shift berhasil untuk " + String(summary.success) + " user.",
+                                false
+                            );
+                            notify("Schedule timing berhasil diupdate dari draft planner.", false);
+                        }
+                        loadScheduleTiming();
+                        updatePlannerApplyState(smartPlannerLastResult);
+                    })
+                    .catch(function (err) {
+                        setSmartPlannerFeedback(String((err && err.plannerMessage) || "Gagal publish dominant shift."), true);
+                        updatePlannerApplyState(smartPlannerLastResult);
+                    });
+            });
+        }
+
+        if (applyDailyBtn && applyDailyBtn.getAttribute("data-bound") !== "1") {
+            applyDailyBtn.setAttribute("data-bound", "1");
+            applyDailyBtn.addEventListener("click", function () {
+                if (!smartPlannerLastResult) {
+                    setSmartPlannerFeedback("Generate planner dulu sebelum publish roster harian.", true);
+                    return;
+                }
+
+                applyDailyBtn.disabled = true;
+                applyPlannerDailyRoster(smartPlannerLastResult)
+                    .then(function (summary) {
+                        setSmartPlannerFeedback(
+                            "Publish roster harian berhasil. Created: " + String(summary.created || 0) +
+                            ", updated: " + String(summary.updated || 0) +
+                            ", off-days: " + String(summary.offDays || 0) + ".",
+                            false
+                        );
+                        notify("Roster harian per tanggal berhasil dipublish.", false);
+                        updatePlannerApplyState(smartPlannerLastResult);
+                    })
+                    .catch(function (err) {
+                        setSmartPlannerFeedback(String((err && err.plannerMessage) || "Gagal publish roster harian."), true);
+                        updatePlannerApplyState(smartPlannerLastResult);
+                    });
+            });
+        }
+
+        var settingsPanel = document.querySelector("[data-smart-planner-settings-panel]");
+        var editModeBtn = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-edit-mode-btn]") : null;
+        var cancelEditBtn = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-cancel-edit-btn]") : null;
+        var resetDefaultsBtn = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-reset-defaults-btn]") : null;
+        var modeIndicator = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-mode-indicator]") : null;
+
+        function storeDefaultInputValues() {
+            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
+            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
+            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
+            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
+            smartPlannerEditModeOriginalValues = {
+                maxWorkDays: (settingsPanelMaxWorkDays && settingsPanelMaxWorkDays.value) ? String(settingsPanelMaxWorkDays.value) : "5",
+                minDaysOff: (settingsPanelMinDaysOff && settingsPanelMinDaysOff.value) ? String(settingsPanelMinDaysOff.value) : "2",
+                minRest: (settingsPanelMinRest && settingsPanelMinRest.value) ? String(settingsPanelMinRest.value) : "12",
+                maxNight: (settingsPanelMaxNight && settingsPanelMaxNight.value) ? String(settingsPanelMaxNight.value) : "3",
+                transitions: readPlannerTransitionSelection().slice(),
+            };
+        }
+
+        function setEditMode(enabled) {
+            smartPlannerEditMode = !!enabled;
+            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
+            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
+            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
+            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
+            var defaults = [settingsPanelMaxWorkDays, settingsPanelMinDaysOff, settingsPanelMinRest, settingsPanelMaxNight];
+            var matrixCheckboxes = settingsPanel ? Array.prototype.slice.call(settingsPanel.querySelectorAll("[data-smart-planner-transition-key]")) : [];
+
+            if (enabled) {
+                storeDefaultInputValues();
+                defaults.forEach(function (el) {
+                    if (el) {
+                        el.disabled = false;
+                    }
+                });
+                matrixCheckboxes.forEach(function (el) {
+                    el.disabled = false;
+                });
+                if (editModeBtn) editModeBtn.classList.add("d-none");
+                if (cancelEditBtn) cancelEditBtn.classList.remove("d-none");
+                if (saveSettingsBtn) saveSettingsBtn.classList.remove("d-none");
+                if (resetDefaultsBtn) resetDefaultsBtn.classList.remove("d-none");
+                if (modeIndicator) {
+                    modeIndicator.textContent = "Editing";
+                    modeIndicator.className = "badge bg-warning text-dark small";
+                }
+                if (submitBtn) submitBtn.disabled = true;
+                if (applyDominantBtn) applyDominantBtn.disabled = true;
+                if (applyDailyBtn) applyDailyBtn.disabled = true;
+            } else {
+                defaults.forEach(function (el) {
+                    if (el) {
+                        el.disabled = true;
+                    }
+                });
+                matrixCheckboxes.forEach(function (el) {
+                    el.disabled = true;
+                });
+                if (editModeBtn) editModeBtn.classList.remove("d-none");
+                if (cancelEditBtn) cancelEditBtn.classList.add("d-none");
+                if (saveSettingsBtn) saveSettingsBtn.classList.add("d-none");
+                if (resetDefaultsBtn) resetDefaultsBtn.classList.add("d-none");
+                if (modeIndicator) {
+                    modeIndicator.textContent = "Viewing";
+                    modeIndicator.className = "badge bg-light text-dark small";
+                }
+                if (submitBtn) submitBtn.disabled = false;
+                if (applyDominantBtn) applyDominantBtn.disabled = false;
+                if (applyDailyBtn) applyDailyBtn.disabled = false;
+            }
+        }
+
+        function restoreOriginalValues() {
+            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
+            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
+            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
+            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
+            if (settingsPanelMaxWorkDays && smartPlannerEditModeOriginalValues.maxWorkDays) {
+                settingsPanelMaxWorkDays.value = smartPlannerEditModeOriginalValues.maxWorkDays;
+            }
+            if (settingsPanelMinDaysOff && smartPlannerEditModeOriginalValues.minDaysOff) {
+                settingsPanelMinDaysOff.value = smartPlannerEditModeOriginalValues.minDaysOff;
+            }
+            if (settingsPanelMinRest && smartPlannerEditModeOriginalValues.minRest) {
+                settingsPanelMinRest.value = smartPlannerEditModeOriginalValues.minRest;
+            }
+            if (settingsPanelMaxNight && smartPlannerEditModeOriginalValues.maxNight) {
+                settingsPanelMaxNight.value = smartPlannerEditModeOriginalValues.maxNight;
+            }
+            renderPlannerTransitionMatrix(smartPlannerTransitionCatalog, smartPlannerEditModeOriginalValues.transitions || smartPlannerForbiddenTransitionKeys);
+        }
+
+        if (editModeBtn && editModeBtn.getAttribute("data-bound") !== "1") {
+            editModeBtn.setAttribute("data-bound", "1");
+            editModeBtn.addEventListener("click", function () {
+                setEditMode(true);
+            });
+        }
+
+        if (cancelEditBtn && cancelEditBtn.getAttribute("data-bound") !== "1") {
+            cancelEditBtn.setAttribute("data-bound", "1");
+            cancelEditBtn.addEventListener("click", function () {
+                restoreOriginalValues();
+                setEditMode(false);
+            });
+        }
+
+        if (resetDefaultsBtn && resetDefaultsBtn.getAttribute("data-bound") !== "1") {
+            resetDefaultsBtn.setAttribute("data-bound", "1");
+            resetDefaultsBtn.addEventListener("click", function () {
+                if (window.confirm("Reset semua ke default tenant yang tersimpan? Perubahan belum disimpan akan hilang.")) {
+                    loadPlannerSettings().then(function () {
+                        if (modeIndicator) {
+                            modeIndicator.textContent = "Editing (Reset)";
+                        }
+                        setPlannerSettingsFeedback("Default tenant berhasil di-reset.", false);
+                    });
+                }
+            });
+        }
+
+        if (saveSettingsBtn && saveSettingsBtn.getAttribute("data-bound") !== "1") {
+            saveSettingsBtn.setAttribute("data-bound", "1");
+            saveSettingsBtn.addEventListener("click", function () {
+                var payload = {
+                    defaultRules: {
+                        max_work_days_per_week: readInt(maxWorkDaysEl, 5),
+                        min_days_off_per_week: readInt(minDaysOffEl, 2),
+                        min_rest_hours_between_shifts: readInt(minRestEl, 12),
+                        max_consecutive_night_shifts: readInt(maxNightEl, 3),
+                        late_tolerance_minutes: (smartPlannerSettingsCache && smartPlannerSettingsCache.defaultRules && smartPlannerSettingsCache.defaultRules.late_tolerance_minutes != null)
+                            ? Number(smartPlannerSettingsCache.defaultRules.late_tolerance_minutes)
+                            : 5,
+                        early_leave_tolerance_minutes: (smartPlannerSettingsCache && smartPlannerSettingsCache.defaultRules && smartPlannerSettingsCache.defaultRules.early_leave_tolerance_minutes != null)
+                            ? Number(smartPlannerSettingsCache.defaultRules.early_leave_tolerance_minutes)
+                            : 5,
+                        overtime_threshold_minutes: (smartPlannerSettingsCache && smartPlannerSettingsCache.defaultRules && smartPlannerSettingsCache.defaultRules.overtime_threshold_minutes != null)
+                            ? Number(smartPlannerSettingsCache.defaultRules.overtime_threshold_minutes)
+                            : 30,
+                    },
+                    forbiddenTransitions: readPlannerTransitionSelection(),
+                };
+
+                saveSettingsBtn.disabled = true;
+                setPlannerSettingsFeedback("Menyimpan default tenant...", false);
+
+                apiPut('/v1/hcm/smart-attendance-shifting/settings', payload)
+                    .then(function (response) {
+                        if (!response || response.success !== true || !response.data) {
+                            setPlannerSettingsFeedback(formatApiError(response, 0) || 'Gagal simpan planner defaults.', true);
+                            return;
+                        }
+                        smartPlannerSettingsCache = {
+                            defaultRules: response.data.defaultRules || payload.defaultRules,
+                            forbiddenTransitions: response.data.forbiddenTransitions || payload.forbiddenTransitions,
+                            transitionCatalog: smartPlannerTransitionCatalog,
+                        };
+                        smartPlannerForbiddenTransitionKeys = Array.isArray(response.data.forbiddenTransitions)
+                            ? response.data.forbiddenTransitions
+                            : payload.forbiddenTransitions;
+                        renderPlannerTransitionMatrix(smartPlannerTransitionCatalog, smartPlannerForbiddenTransitionKeys);
+                        setPlannerSettingsFeedback('Default tenant planner berhasil disimpan.', false);
+                        notify('Planner defaults tersimpan.', false);
+                        setEditMode(false);
+                    })
+                    .catch(function (err) {
+                        var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
+                        var status = err && err.response ? err.response.status : err && err.status ? err.status : 0;
+                        setPlannerSettingsFeedback(formatApiError(data, status) || 'Gagal simpan planner defaults.', true);
+                    })
+                    .finally(function () {
+                        saveSettingsBtn.disabled = false;
+                    });
+            });
+        }
+
+        if (forceApplyEl && forceApplyEl.getAttribute("data-bound") !== "1") {
+            forceApplyEl.setAttribute("data-bound", "1");
+            forceApplyEl.addEventListener("change", function () {
+                updatePlannerApplyState(smartPlannerLastResult);
+            });
+        }
     }
 
     function init() {
@@ -3201,15 +5131,18 @@
         setupReportFilters();
         setupTimesheetFilters();
         setupTimesheetPaginationControls();
+        setupScheduleViewMode();
         setupScheduleTimingFilters();
         setupScheduleTimingPaginationControls();
         setupScheduleTimingEditModal();
+        bindSmartPlanner();
         setupAttendanceAdminEdit();
         loadAdminAttendance();
         loadReportAttendance();
         loadEmployeeAttendance();
         loadTimesheets();
         loadScheduleTiming();
+        loadScheduleCalendarHolidays();
         bindPunch();
         bindBreakToggle();
         bindGpsDebug();

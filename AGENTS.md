@@ -19,6 +19,21 @@ Script ini menjalankan (otomatis):
 
 **Hanya commit/push jika semua pass.** GitHub Actions hanya cek artifact + deploy (bukan re-test).
 
+## Git hooks enforcement (recommended mandatory)
+
+Aktifkan guard lokal sekali per clone:
+
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+Dengan hook aktif:
+- `pre-commit`: menjalankan `scripts/check-tests-on-change.sh` + `scripts/check-api-docs-sync.sh --staged`
+- `pre-push` (khusus push ke `main`): memblok push jika salah satu gagal:
+	1. `bash scripts/local-test-gate.sh`
+	2. `bash scripts/check-shared-hosting-artifact-sync.sh <HEAD>`
+	3. `bash scripts/check-deploy-runtime-guard.sh`
+
 ## Shared hosting deploy (lokal-first automated)
 
 1. Lokal: `bash scripts/local-test-gate.sh` (mandatory gate)

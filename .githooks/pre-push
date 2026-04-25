@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+RUN_GUARD="false"
+
+# pre-push stdin format: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    RUN_GUARD="true"
+    break
+  fi
+done
+
+if [[ "$RUN_GUARD" != "true" ]]; then
+  exit 0
+fi
+
+echo "[pre-push] main branch detected: running mandatory local-first guards"
+
+echo "[pre-push] 1/3 local test gate"
+bash "$ROOT_DIR/scripts/local-test-gate.sh"
+
+echo "[pre-push] 2/3 artifact sync guard"
+bash "$ROOT_DIR/scripts/check-shared-hosting-artifact-sync.sh" "$(git -C "$ROOT_DIR" rev-parse HEAD)"
+
+echo "[pre-push] 3/3 deploy runtime guard"
+bash "$ROOT_DIR/scripts/check-deploy-runtime-guard.sh"
+
+echo "[pre-push] OK: push guard passed"

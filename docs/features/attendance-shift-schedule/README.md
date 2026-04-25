@@ -33,8 +33,11 @@ Dokumen teknis pendamping:
 ## Lifecycle Dan Keputusan Bisnis
 
 - Shift master menyimpan template jam kerja reusable di tenant aktif.
+- Template shift global (`company_id = null`) hanya boleh dimutasi global admin; tenant admin tidak boleh update/delete template global.
 - `schedule-timing` boleh mengacu ke `shiftId` atau override manual jam kerja; keduanya tidak boleh menarget user di luar tenant aktif.
+- Override `schedule-timing` disimpan per kombinasi company+user agar tidak saling menimpa antar tenant saat user yang sama aktif di lebih dari satu company.
 - Timesheets hanya valid bila range tanggal masuk akal; `dateTo < dateFrom` harus ditolak.
+- UI shift master hanya menampilkan aksi create/edit/delete jika user memiliki izin `schedule.manage` atau `schedule.admin`.
 - Kontrak identifier aktif adalah numeric `users.id` dan numeric `hcm_shifts.id`, bukan UUID custom di payload mutation.
 
 ## Integrasi
@@ -65,7 +68,8 @@ Source of truth kontrak:
 ## Existing Vs Target
 
 - Existing: shift master, schedule timing, dan timesheets admin sudah aktif dengan FE/BE contract numeric identifier yang seragam.
-- Existing: tenant guard write schedule sudah aktif dan negative path timesheet date range sudah ditangani.
+- Existing: tenant guard write schedule aktif, sorting start-time schedule stabil terhadap pagination, dan non-global tidak bisa memutasi template shift global.
+- Existing: UI shift master sekarang menegakkan permission write agar user view-only tidak melihat aksi mutasi.
 - Target: audit trail perubahan jadwal yang lebih kaya dan evidence manual browser E2E masih bisa ditambah tanpa mengubah kontrak inti.
 
 ## Data model ringkas

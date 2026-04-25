@@ -86,6 +86,11 @@ Mengambil detail invoice untuk halaman detail invoice admin.
 
 Mengirim ulang email invoice dan menambah log baru ke `invoice_email_logs`.
 
+### Guard status subscription
+
+- Jika `subscription.status = pending_payment`, endpoint ini akan ditolak (`422`) dengan code `PENDING_PAYMENT_REMINDER_ONLY`.
+- Untuk tenant pending payment, gunakan flow **Payment Reminder** (halaman `/saas/reminders` atau cron reminder), bukan kirim invoice baru.
+
 ### Body
 
 ```json
@@ -102,3 +107,4 @@ Mengirim ulang email invoice dan menambah log baru ke `invoice_email_logs`.
 - `403 ADMIN_REQUIRED`
 - `404 NOT_FOUND`
 - `422 VALIDATION_ERROR`
+- `422 PENDING_PAYMENT_REMINDER_ONLY`

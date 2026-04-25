@@ -166,6 +166,11 @@ class EnsureHcmWebPagesAuthenticated
             return null;
         }
 
+        $user = $request->user();
+        if ($user instanceof User && $user->isGlobalHcmAdmin()) {
+            return null;
+        }
+
         $path = trim($request->path(), '/');
         if ($path === 'subscription') {
             return null;

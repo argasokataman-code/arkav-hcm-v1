@@ -327,6 +327,16 @@ class InvoiceController extends Controller
             ], 403);
         }
 
+        if ($invoice->subscription?->status === 'pending_payment') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PENDING_PAYMENT_REMINDER_ONLY',
+                    'message' => 'Invoice send is blocked while tenant payment is pending. Use payment reminder flow instead.',
+                ],
+            ], 422);
+        }
+
         $invoiceService = new InvoiceService();
         $notificationService = new NotificationService();
 

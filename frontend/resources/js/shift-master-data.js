@@ -94,6 +94,52 @@
 
     function bindShifts() {
         var body = document.querySelector("[data-hcm-shifts-body]");
+        var canManageShift = false;
+        var addShiftButton = document.querySelector('[data-bs-target="#arcav_add_shift"]');
+
+        function resolveScheduleManagePermission(mePayload) {
+            var user = mePayload && mePayload.data ? mePayload.data : mePayload;
+            if (!user || typeof user !== "object") {
+                return false;
+            }
+
+            var permissions = user.permissions;
+            if (permissions && typeof permissions === "object" && !Array.isArray(permissions)) {
+                return permissions["schedule.manage"] === true || permissions["schedule.admin"] === true;
+            }
+
+            var permissionCodes = [];
+            if (Array.isArray(user.permissionCodes)) {
+                permissionCodes = user.permissionCodes.slice();
+            } else if (Array.isArray(user.permissions)) {
+                permissionCodes = user.permissions.slice();
+            }
+
+            return permissionCodes.indexOf("schedule.manage") !== -1 || permissionCodes.indexOf("schedule.admin") !== -1;
+        }
+
+        function syncWriteUiVisibility() {
+            if (addShiftButton) {
+                addShiftButton.classList.toggle("d-none", !canManageShift);
+            }
+        }
+
+        function bootstrapPermissions() {
+            return apiRequest("get", "/v1/identity/auth/me", null)
+                .then(function (payload) {
+                    if (!payload || payload.success !== true) {
+                        canManageShift = false;
+                        return;
+                    }
+                    canManageShift = resolveScheduleManagePermission(payload);
+                })
+                .catch(function () {
+                    canManageShift = false;
+                })
+                .finally(function () {
+                    syncWriteUiVisibility();
+                });
+        }
 
         function render(rows) {
             if (!body) {
@@ -117,25 +163,29 @@
                             badge +
                             ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
                             esc(st) +
-                            "</span></td><td><div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-shift-edit data-id=\"" +
-                            esc(s.id) +
-                            "\" data-code=\"" +
-                            esc(s.code) +
-                            "\" data-name=\"" +
-                            esc(s.name) +
-                            "\" data-start=\"" +
-                            esc(s.startTime) +
-                            "\" data-end=\"" +
-                            esc(s.endTime) +
-                            "\" data-desc=\"" +
-                            esc(s.description || "") +
-                            "\" data-active=\"" +
-                            (s.isActive ? "1" : "0") +
-                            "\" data-sort=\"" +
-                            esc(String(s.sortOrder != null ? s.sortOrder : 0)) +
-                            "\" data-bs-toggle=\"modal\" data-bs-target=\"#arcav_edit_shift\"><i class=\"ti ti-edit\"></i></a><a href=\"#\" data-hcm-shift-delete=\"" +
-                            esc(s.id) +
-                            "\"><i class=\"ti ti-trash\"></i></a></div></td></tr>"
+                                                        "</span></td><td>" +
+                                                        (canManageShift
+                                                                ? "<div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-shift-edit data-id=\"" +
+                                                                    esc(s.id) +
+                                                                    "\" data-code=\"" +
+                                                                    esc(s.code) +
+                                                                    "\" data-name=\"" +
+                                                                    esc(s.name) +
+                                                                    "\" data-start=\"" +
+                                                                    esc(s.startTime) +
+                                                                    "\" data-end=\"" +
+                                                                    esc(s.endTime) +
+                                                                    "\" data-desc=\"" +
+                                                                    esc(s.description || "") +
+                                                                    "\" data-active=\"" +
+                                                                    (s.isActive ? "1" : "0") +
+                                                                    "\" data-sort=\"" +
+                                                                    esc(String(s.sortOrder != null ? s.sortOrder : 0)) +
+                                                                    "\" data-bs-toggle=\"modal\" data-bs-target=\"#arcav_edit_shift\"><i class=\"ti ti-edit\"></i></a><a href=\"#\" data-hcm-shift-delete=\"" +
+                                                                    esc(s.id) +
+                                                                    "\"><i class=\"ti ti-trash\"></i></a></div>"
+                                                                : '<span class="text-muted">-</span>') +
+                                                        "</td></tr>"
                         );
                     })
                     .join("") || '<tr><td colspan="7" class="text-center py-4 text-muted">No shifts yet.</td></tr>';
@@ -163,6 +213,10 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!canManageShift) {
+                    notify("Kamu tidak punya izin untuk mengelola shift.", true);
+                    return;
+                }
                 var name = addForm.querySelector('[data-hcm-field="name"]').value.trim();
                 var code = addForm.querySelector('[data-hcm-field="code"]').value.trim();
                 var startTime = addForm.querySelector('[data-hcm-field="startTime"]').value;
@@ -217,6 +271,11 @@
                 if (!btn) {
                     return;
                 }
+                if (!canManageShift) {
+                    e.preventDefault();
+                    notify("Kamu tidak punya izin untuk mengelola shift.", true);
+                    return;
+                }
                 editForm.querySelector('[data-hcm-field="id"]').value = btn.getAttribute("data-id") || "";
                 editForm.querySelector('[data-hcm-field="code"]').value = btn.getAttribute("data-code") || "";
                 editForm.querySelector('[data-hcm-field="name"]').value = btn.getAttribute("data-name") || "";
@@ -231,6 +290,10 @@
             });
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!canManageShift) {
+                    notify("Kamu tidak punya izin untuk mengelola shift.", true);
+                    return;
+                }
                 var id = editForm.querySelector('[data-hcm-field="id"]').value;
                 if (!id) {
                     return;
@@ -267,6 +330,11 @@
                 if (!del) {
                     return;
                 }
+                if (!canManageShift) {
+                    e.preventDefault();
+                    notify("Kamu tidak punya izin untuk mengelola shift.", true);
+                    return;
+                }
                 e.preventDefault();
                 var sid = del.getAttribute("data-hcm-shift-delete");
                 var run =
@@ -293,7 +361,9 @@
             });
         }
 
-        reload();
+        bootstrapPermissions().finally(function () {
+            reload();
+        });
     }
 
     function init() {

@@ -191,7 +191,80 @@ describe('SaaS billing overview wiring', () => {
     });
   });
 
-  it('loads invoice detail page and renders full email history with resend action', async () => {
+  it('renders reminder action instead of resend for pending payment subscriptions', async () => {
+    document.body.innerHTML = `
+      <div class="page-wrapper">
+        <div class="content" data-saas-billing-overview-page>
+          <input data-billing-search value="" />
+          <select data-billing-tab>
+            <option value="subscribed" selected>Subscribed</option>
+          </select>
+          <select data-billing-per-page>
+            <option value="15" selected>15</option>
+          </select>
+          <button data-billing-refresh type="button"></button>
+          <button data-billing-prev type="button"></button>
+          <button data-billing-next type="button"></button>
+          <div data-billing-error class="d-none"></div>
+          <div data-billing-pagination-info></div>
+          <table><tbody data-billing-tbody></tbody></table>
+        </div>
+      </div>
+    `;
+
+    const requestMock = window.AuthApi.request;
+    requestMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            company: { id: 4, code: 'PEND01', name: 'Pending Co' },
+            subscription: {
+              id: 14,
+              status: 'pending_payment',
+              billingCycle: 'monthly',
+              startsAt: '2026-04-01T00:00:00.000000Z',
+              endsAt: '2026-05-01T00:00:00.000000Z',
+              trialEndsAt: null,
+              planCode: 'starter',
+              packageId: '11111111-2222-3333-4444-555555555555',
+              packageName: 'Starter Plan',
+              amount: 100000,
+            },
+            latestInvoice: {
+              id: 97,
+              uuid: '77777777-2222-3333-4444-555555555555',
+              invoiceNumber: 'INV-000097',
+              issueDate: '2026-04-15',
+              dueDate: '2026-04-22',
+              amountDue: 100000,
+              isPaid: false,
+              status: 'draft',
+              detailUrl: '/saas/billing-overview/invoices/77777777-2222-3333-4444-555555555555',
+            },
+            email: {
+              status: 'not_sent',
+              sentAt: null,
+              lastError: null,
+            },
+            stateBadges: [],
+          },
+        ],
+        pagination: { total: 1, per_page: 15, current_page: 1, last_page: 1 },
+      },
+    });
+
+    await loadBillingOverview();
+    window.SaaSBillingOverview.init();
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-billing-tbody]').innerHTML).toContain('Pending Co');
+      expect(document.querySelector('[data-action="resend"]')).toBeNull();
+      expect(document.querySelector('a[href="/saas/reminders"]')).not.toBeNull();
+    });
+  });
+
+  it('loads invoice detail page and blocks resend action for pending payment subscriptions', async () => {
     document.body.innerHTML = `
       <div class="page-wrapper">
         <div class="content" data-saas-billing-invoice-detail-page data-invoice-uuid="99999999-2222-3333-4444-555555555555">
@@ -265,46 +338,7 @@ describe('SaaS billing overview wiring', () => {
           },
         },
       })
-      .mockResolvedValueOnce({ data: { success: true, message: 'sent' } })
-      .mockResolvedValueOnce({
-        data: {
-          success: true,
-          data: {
-            uuid: '99999999-2222-3333-4444-555555555555',
-            invoiceNumber: 'INV-000099',
-            status: 'paid',
-            isPaid: true,
-            dueDate: '2026-04-23',
-            amountDue: 200000,
-            companyName: 'ACME Corp',
-            company: { code: 'ACME01', name: 'ACME Corp' },
-            subscription: {
-              uuid: 'sub-uuid',
-              status: 'pending_payment',
-              planCode: 'pro',
-              packageName: 'Pro Plan',
-              startsAt: '2026-04-01T00:00:00.000000Z',
-              endsAt: '2026-05-01T00:00:00.000000Z',
-            },
-            latestEmail: {
-              uuid: 'log-3',
-              toEmail: 'billing@acme.test',
-              status: 'sent',
-              createdAt: '2026-04-16T13:00:00.000000Z',
-              errorMessage: null,
-            },
-            emailLogs: [
-              {
-                uuid: 'log-3',
-                toEmail: 'billing@acme.test',
-                status: 'sent',
-                createdAt: '2026-04-16T13:00:00.000000Z',
-                errorMessage: null,
-              },
-            ],
-          },
-        },
-      });
+      ;
 
     await loadBillingOverview();
     window.SaaSBillingOverview.init();
@@ -319,7 +353,9 @@ describe('SaaS billing overview wiring', () => {
     document.querySelector('[data-billing-detail-resend]').click();
 
     await vi.waitFor(() => {
-      expect(requestMock).toHaveBeenCalledWith('post', '/saas/invoices/99999999-2222-3333-4444-555555555555/send-email', {});
+      expect(document.querySelector('[data-billing-detail-resend]').disabled).toBe(true);
+      expect(document.querySelector('[data-billing-detail-error]').textContent).toContain('Tenant masih pending payment. Gunakan menu Payment Reminders.');
+      expect(requestMock).toHaveBeenCalledTimes(1);
     });
   });
 });

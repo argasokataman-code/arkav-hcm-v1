@@ -135,4 +135,39 @@ class ShiftMasterApiTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'TENANT_FORBIDDEN');
     }
+
+    public function test_tenant_admin_cannot_mutate_global_shift_template(): void
+    {
+        $token = $this->bearerToken();
+
+        $globalShift = HcmShift::query()->create([
+            'company_id' => null,
+            'code' => 'global_template',
+            'name' => 'Global Template',
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->putJson('/v1/hcm/shifts/'.$globalShift->id, [
+            'name' => 'Global Template Updated',
+            'code' => 'global_template',
+            'startTime' => '08:30',
+            'endTime' => '17:30',
+            'isActive' => true,
+            'sortOrder' => 1,
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->deleteJson('/v1/hcm/shifts/'.$globalShift->id)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->assertNotNull(HcmShift::query()->find($globalShift->id));
+    }
 }

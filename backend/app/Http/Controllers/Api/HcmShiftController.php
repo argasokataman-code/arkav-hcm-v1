@@ -116,6 +116,16 @@ class HcmShiftController extends Controller
             ], 404);
         }
 
+        if (! auth()->user()?->isGlobalHcmAdmin() && $shift->company_id === null) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Global shift templates can only be updated by global admin.',
+                ],
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
             'code' => ['nullable', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
@@ -184,6 +194,16 @@ class HcmShiftController extends Controller
                     'message' => 'Shift not found.',
                 ],
             ], 404);
+        }
+
+        if (! auth()->user()?->isGlobalHcmAdmin() && $shift->company_id === null) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'Global shift templates can only be deleted by global admin.',
+                ],
+            ], 403);
         }
 
         $shift->delete();

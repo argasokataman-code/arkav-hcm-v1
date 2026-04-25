@@ -721,4 +721,125 @@ class AttendanceApiTest extends TestCase
             ->assertStatus(404)
             ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
     }
+
+    public function test_schedule_timing_upsert_is_scoped_per_company_for_same_user(): void
+    {
+        $adminEmail = 'scheduletiming-multico@example.com';
+        $token = $this->bearerToken(true, $adminEmail);
+
+        $otherCompany = Company::query()->create([
+            'code' => 'st_multi_company_b',
+            'name' => 'ST Multi Company B',
+            'legal_name' => 'ST Multi Company B LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $adminUser = User::query()->where('email', $adminEmail)->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            ['company_id' => $otherCompany->id, 'user_id' => $adminUser->id],
+            ['role' => 'owner', 'status' => 'active']
+        );
+
+        $target = User::factory()->create();
+        CompanyUser::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $target->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $target->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
+            'startTime' => '08:00',
+            'endTime' => '17:00',
+        ])->assertOk();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $otherCompany->id,
+        ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
+            'startTime' => '10:00',
+            'endTime' => '19:00',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('hcm_schedule_timings', [
+            'user_id' => $target->id,
+            'company_id' => $this->company->id,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+        ]);
+
+        $this->assertDatabaseHas('hcm_schedule_timings', [
+            'user_id' => $target->id,
+            'company_id' => $otherCompany->id,
+            'start_time' => '10:00',
+            'end_time' => '19:00',
+        ]);
+    }
+
+    public function test_schedule_timing_start_sort_applies_before_pagination(): void
+    {
+        $token = $this->bearerToken(true, 'scheduletiming-sort@example.com');
+
+        $earlyUser = User::factory()->create(['name' => 'Zulu Early']);
+        $lateUser = User::factory()->create(['name' => 'Alpha Late']);
+
+        $this->attachUserToActiveCompany($earlyUser);
+        $this->attachUserToActiveCompany($lateUser);
+
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $earlyUser->id],
+            ['designation' => 'Staff', 'company_id' => $this->company->id]
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $lateUser->id],
+            ['designation' => 'Staff', 'company_id' => $this->company->id]
+        );
+
+        HcmScheduleTiming::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $earlyUser->id,
+            'hcm_shift_id' => null,
+            'start_time' => '07:00',
+            'end_time' => '16:00',
+            'source' => 'manual',
+        ]);
+        HcmScheduleTiming::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $lateUser->id,
+            'hcm_shift_id' => null,
+            'start_time' => '11:00',
+            'end_time' => '20:00',
+            'source' => 'manual',
+        ]);
+
+        $pageOne = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/schedule-timing?sort=start_asc&perPage=1&page=1')
+            ->assertOk()
+            ->json('data');
+
+        $pageTwo = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/schedule-timing?sort=start_asc&perPage=1&page=2')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame($earlyUser->id, (int) ($pageOne[0]['userId'] ?? 0));
+        $this->assertSame($lateUser->id, (int) ($pageTwo[0]['userId'] ?? 0));
+    }
 }

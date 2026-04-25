@@ -2,15 +2,18 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-04-20
+- Tanggal: 2026-04-25
 - Status: ready for deployment
-- Ringkasan: master shift, schedule timing per user, dan timesheets admin sudah aktif dengan kontrak numeric identifier yang sinkron FE/BE, tenant guard untuk write schedule, dan validasi negative path date range timesheet.
+- Ringkasan: hardening 4-point untuk shift/schedule sudah aktif: sorting start-time stabil sebelum pagination, upsert schedule timing tenant-scope per company+user, tenant admin tidak bisa mutasi template shift global, dan UI shift master menyembunyikan aksi write untuk role tanpa `schedule.manage`.
 
 ## Evidence Terbaru
 
 - Runtime docs source of truth aktif di `docs/api/hcm-shift-schedule-api.md` dan `docs/api/hcm-attendance-api.md`.
 - README feature mengikat `/timesheets` dan `/schedule-timing` ke role matrix aktif.
-- Kontrak write tenant scope tervalidasi di `backend/tests/Feature/AttendanceApiTest.php`.
+- Kontrak write tenant scope + sort stability tervalidasi di `backend/tests/Feature/AttendanceApiTest.php` (`test_schedule_timing_upsert_is_scoped_per_company_for_same_user`, `test_schedule_timing_start_sort_applies_before_pagination`).
+- Guard mutasi template global tervalidasi di `backend/tests/Feature/ShiftMasterApiTest.php` (`test_tenant_admin_cannot_mutate_global_shift_template`).
+- UI permission gating shift master tervalidasi di `backend/tests/ui/shift-master-data.wiring.test.js`.
+- Skema persistence schedule timing sudah ditenantkan pada unique key komposit lewat migration `backend/database/migrations/2026_04_25_090000_update_hcm_schedule_timings_unique_scope.php`.
 - Wiring FE untuk `shiftId` numeric dan reversed timesheet range tervalidasi di `backend/tests/ui/attendance.wiring.test.js`.
 - Role/permission URL aktif tercatat di `docs/planning/active-hcm-templates-and-permissions.md`.
 

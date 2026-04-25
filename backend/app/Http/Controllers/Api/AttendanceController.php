@@ -1207,6 +1207,7 @@ class AttendanceController extends Controller
 
         $searchRaw = trim((string) ($validated['search'] ?? ''));
         $sort = $validated['sort'] ?? 'name_asc';
+        $page = max(1, (int) ($validated['page'] ?? 1));
         $perPage = min(100, (int) ($validated['perPage'] ?? 50));
         $tz = $this->tz();
         $since = Carbon::now($tz)->subDays(30)->toDateString();
@@ -1233,27 +1234,31 @@ class AttendanceController extends Controller
             $usersQuery->orderBy('name')->orderBy('id');
         }
 
-        $paginator = $usersQuery->paginate($perPage);
-        $users = collect($paginator->items());
+        $buildRows = function ($users) use ($activeCompanyId, $since, $tz) {
+            $users = collect($users)->values();
+            if ($users->isEmpty()) {
+                return collect();
+            }
 
-        $recordsQuery = AttendanceRecord::query();
-        $this->applyTenantScope($recordsQuery, $activeCompanyId);
-        $records = $recordsQuery
-            ->whereDate('work_date', '>=', $since)
-            ->whereIn('user_id', $users->pluck('id'))
-            ->whereNotNull('check_in_at')
-            ->whereNotNull('check_out_at')
-            ->get()
-            ->groupBy('user_id');
-        $overridesQuery = HcmScheduleTiming::query();
-        $this->applyTenantScope($overridesQuery, $activeCompanyId);
-        $overrides = $overridesQuery
-            ->with(['shift:id,name'])
-            ->whereIn('user_id', $users->pluck('id'))
-            ->get()
-            ->keyBy('user_id');
+            $recordsQuery = AttendanceRecord::query();
+            $this->applyTenantScope($recordsQuery, $activeCompanyId);
+            $records = $recordsQuery
+                ->whereDate('work_date', '>=', $since)
+                ->whereIn('user_id', $users->pluck('id'))
+                ->whereNotNull('check_in_at')
+                ->whereNotNull('check_out_at')
+                ->get()
+                ->groupBy('user_id');
 
-        $rows = $users->map(function (User $u) use ($records, $tz, $overrides) {
+            $overridesQuery = HcmScheduleTiming::query();
+            $this->applyTenantScope($overridesQuery, $activeCompanyId);
+            $overrides = $overridesQuery
+                ->with(['shift:id,name'])
+                ->whereIn('user_id', $users->pluck('id'))
+                ->get()
+                ->keyBy('user_id');
+
+            return $users->map(function (User $u) use ($records, $tz, $overrides) {
             $recs = $records->get($u->id) ?? collect();
             $startMinutes = [];
             $endMinutes = [];
@@ -1295,13 +1300,40 @@ class AttendanceController extends Controller
                 'shiftId' => $ov?->hcm_shift_id,
                 'shiftName' => $ov?->shift?->name,
             ];
-        })->values();
+            })->values();
+        };
 
-        if ($sort === 'start_asc') {
-            $rows = $rows->sortBy('startMinutes')->values();
-        } elseif ($sort === 'start_desc') {
-            $rows = $rows->sortByDesc('startMinutes')->values();
+        if ($sort === 'start_asc' || $sort === 'start_desc') {
+            $allUsers = $usersQuery->get();
+            $rows = $buildRows($allUsers);
+
+            if ($sort === 'start_asc') {
+                $rows = $rows->sortBy('startMinutes')->values();
+            } else {
+                $rows = $rows->sortByDesc('startMinutes')->values();
+            }
+
+            $total = $rows->count();
+            $totalPages = max(1, (int) ceil($total / max(1, $perPage)));
+            $safePage = min($page, $totalPages);
+            $pagedRows = $rows->forPage($safePage, $perPage)->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $pagedRows->all(),
+                'meta' => [
+                    'pagination' => [
+                        'page' => $safePage,
+                        'perPage' => $perPage,
+                        'total' => $total,
+                        'totalPages' => $totalPages,
+                    ],
+                ],
+            ]);
         }
+
+        $paginator = $usersQuery->paginate($perPage, ['*'], 'page', $page);
+        $rows = $buildRows($paginator->items());
 
         return response()->json([
             'success' => true,
@@ -1331,6 +1363,7 @@ class AttendanceController extends Controller
         ]);
 
         $activeCompanyId = $this->activeCompanyId($request);
+        $scheduleCompanyId = $this->scheduleTimingCompanyId($request);
 
         if (! $this->userBelongsToActiveCompany($userId, $activeCompanyId)) {
             return $this->userNotInCompanyResponse();
@@ -1373,17 +1406,34 @@ class AttendanceController extends Controller
         }
 
         User::query()->findOrFail($userId);
-        $row = HcmScheduleTiming::query()->updateOrCreate(
-            ['user_id' => $userId],
-            [
-            'company_id' => $activeCompanyId,
+        $upsertQuery = HcmScheduleTiming::query()->where('user_id', $userId);
+        if ($scheduleCompanyId !== null) {
+            $upsertQuery->where('company_id', $scheduleCompanyId);
+        } else {
+            $upsertQuery->whereNull('company_id');
+        }
+
+        $row = $upsertQuery->first();
+        if ($row) {
+            $row->fill([
+                'company_id' => $scheduleCompanyId,
                 'hcm_shift_id' => $hcmShiftId,
                 'start_time' => $startStr,
                 'end_time' => $endStr,
                 'source' => 'manual',
                 'updated_by_user_id' => $request->user()?->id,
-            ]
-        );
+            ])->save();
+        } else {
+            $row = HcmScheduleTiming::query()->create([
+                'company_id' => $scheduleCompanyId,
+                'user_id' => $userId,
+                'hcm_shift_id' => $hcmShiftId,
+                'start_time' => $startStr,
+                'end_time' => $endStr,
+                'source' => 'manual',
+                'updated_by_user_id' => $request->user()?->id,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -1405,8 +1455,13 @@ class AttendanceController extends Controller
         }
 
         User::query()->findOrFail($userId);
+        $scheduleCompanyId = $this->scheduleTimingCompanyId($request);
         $deleteQuery = HcmScheduleTiming::query()->where('user_id', $userId);
-        $this->applyTenantScope($deleteQuery, $this->activeCompanyId($request));
+        if ($scheduleCompanyId !== null) {
+            $deleteQuery->where('company_id', $scheduleCompanyId);
+        } else {
+            $deleteQuery->whereNull('company_id');
+        }
         $deleteQuery->delete();
 
         return response()->json(['success' => true]);
@@ -1679,6 +1734,11 @@ class AttendanceController extends Controller
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->exists();
+    }
+
+    private function scheduleTimingCompanyId(Request $request): ?int
+    {
+        return $this->activeCompanyId($request);
     }
 
     private function userNotInCompanyResponse(): JsonResponse

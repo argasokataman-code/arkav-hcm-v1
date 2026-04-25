@@ -178,4 +178,50 @@ class LoginWebTest extends TestCase
             ->assertOk()
             ->assertSee('href="'.url('notification-settings').'"', false);
     }
+
+    public function test_global_super_admin_is_not_redirected_to_subscription_when_active_company_pending_payment(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Global Super Admin',
+            'email' => 'qa.login@example.com',
+            'password' => Hash::make('StrongPass1'),
+            'is_super_admin' => true,
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'pending_for_global_admin',
+            'name' => 'Pending For Global Admin',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'starter',
+            'status' => 'pending_payment',
+            'starts_at' => now()->startOfDay(),
+            'ends_at' => now()->addDays(7),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 199000,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/index')
+            ->assertOk()
+            ->assertDontSee('Akses aplikasi dikunci sampai invoice dibayar.');
+    }
 }

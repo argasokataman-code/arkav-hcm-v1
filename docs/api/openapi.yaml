@@ -8539,6 +8539,9 @@ paths:
     post:
       tags: [SaaS]
       summary: Send invoice email (HCM admin)
+      description: |
+        Sends invoice email for admin billing follow-up.
+        If linked subscription status is `pending_payment`, this endpoint is blocked and caller must use payment reminder flow.
       security:
         - bearerAuth: []
       parameters:
@@ -8575,7 +8578,21 @@ paths:
                       status: { type: string }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
+        '422':
+          description: Validation error or pending-payment reminder-only restriction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [VALIDATION_ERROR, PENDING_PAYMENT_REMINDER_ONLY]
+                      message: { type: string }
 
   /v1/hcm/dashboard-summary:
     get:

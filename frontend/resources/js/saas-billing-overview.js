@@ -138,6 +138,23 @@
         return "/saas/invoices?search=" + encodeURIComponent(code);
     }
 
+    function buildEmailFollowUpAction(emailStatus, subscriptionStatus, invoiceUuid) {
+        var normalizedEmailStatus = String(emailStatus || "").toLowerCase();
+        var normalizedSubscriptionStatus = String(subscriptionStatus || "").toLowerCase();
+
+        if (normalizedSubscriptionStatus === "pending_payment") {
+            return '<a class="btn btn-outline-warning btn-sm" href="/saas/reminders"><i class="ti ti-bell"></i> Kirim Reminder</a>';
+        }
+
+        if (normalizedEmailStatus === "not_sent") {
+            return '<button class="btn btn-outline-primary btn-sm" data-action="resend" data-invoice-uuid="' +
+                escapeHtml(invoiceUuid) +
+                '"><i class="ti ti-mail-forward"></i> Kirim Ulang</button>';
+        }
+
+        return "";
+    }
+
     function formatApiError(err) {
         try {
             if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
@@ -231,17 +248,14 @@
                     var email = row.email || {};
                     var stateBadges = row.stateBadges || [];
                     var hasInvoice = !!(inv && inv.uuid);
+                                        var followUpAction = buildEmailFollowUpAction(email.status, s.status, inv && inv.uuid ? String(inv.uuid) : "");
 
                     var actionHtml = hasInvoice
                         ? '<div class="d-flex flex-wrap gap-2 mt-2">' +
                           '<a class="btn btn-outline-secondary btn-sm" href="' +
                           escapeHtml(buildInvoiceDetailUrl(inv)) +
                           '"><i class="ti ti-eye"></i> Detail</a>' +
-                          (String(email.status || "").toLowerCase() === "not_sent"
-                              ? '<button class="btn btn-outline-primary btn-sm" data-action="resend" data-invoice-uuid="' +
-                                escapeHtml(inv.uuid) +
-                                '"><i class="ti ti-mail-forward"></i> Kirim Ulang</button>'
-                              : "") +
+                                                    followUpAction +
                           '<a class="btn btn-outline-dark btn-sm" href="' +
                           escapeHtml(buildInvoicePdfUrl(inv)) +
                           '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-download"></i> PDF</a>' +
@@ -315,6 +329,7 @@
                     var inv = row.latestInvoice || null;
                     var email = row.email || {};
                     var stateBadges = row.stateBadges || [];
+                    var followUpAction = buildEmailFollowUpAction(email.status, s.status, inv && inv.uuid ? String(inv.uuid) : "");
 
                     if (inv && inv.uuid) {
                         state.rowsByInvoiceUuid[String(inv.uuid)] = row;
@@ -370,11 +385,7 @@
                                                     '<a class="btn btn-outline-secondary btn-sm" href="' +
                                                     escapeHtml(buildInvoiceDetailUrl(inv)) +
                                                     '"><i class="ti ti-eye"></i> Detail</a>' +
-                                                    (String(email.status || "").toLowerCase() === "not_sent"
-                                                            ? '<button class="btn btn-outline-primary btn-sm" data-action="resend" data-invoice-uuid="' +
-                                                                escapeHtml(inv.uuid) +
-                                                                '"><i class="ti ti-mail-forward"></i> Kirim Ulang</button>'
-                                                            : "") +
+                                                    followUpAction +
                                                     '<a class="btn btn-outline-dark btn-sm" href="' +
                                                     escapeHtml(buildInvoicePdfUrl(inv)) +
                                                     '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-download"></i> PDF</a>' +
@@ -626,6 +637,7 @@
             var company = data.company || {};
             var subscription = data.subscription || {};
             var latestEmail = data.latestEmail || null;
+            var pendingPaymentOnly = String(subscription.status || "").toLowerCase() === "pending_payment";
 
             setText(pageTitle, data.invoiceNumber || "Detail Invoice");
             setText(companyName, company.name || data.companyName || "-");
@@ -641,6 +653,21 @@
             setText(latestEmailTarget, latestEmail ? String(latestEmail.toEmail || "-") : "-");
             setText(latestEmailSentAt, latestEmail ? formatDateTime(latestEmail.createdAt) : "-");
             setText(latestEmailError, latestEmail && latestEmail.errorMessage ? String(latestEmail.errorMessage) : "-");
+
+            if (resendButton) {
+                resendButton.disabled = pendingPaymentOnly;
+                resendButton.title = pendingPaymentOnly ? "Gunakan Payment Reminder untuk tenant pending payment." : "";
+            }
+
+            if (errorBox) {
+                if (pendingPaymentOnly) {
+                    show(errorBox);
+                    setText(errorBox, "Tenant masih pending payment. Gunakan menu Payment Reminders.");
+                } else {
+                    hide(errorBox);
+                    setText(errorBox, "");
+                }
+            }
 
             renderStateSummary(data);
             renderHistory(data.emailLogs || []);
@@ -669,6 +696,13 @@
         if (resendButton) {
             resendButton.addEventListener("click", function () {
                 hide(errorBox);
+                if (resendButton.disabled) {
+                    if (errorBox) {
+                        show(errorBox);
+                        setText(errorBox, "Tenant masih pending payment. Gunakan menu Payment Reminders.");
+                    }
+                    return;
+                }
                 request("post", "/saas/invoices/" + String(invoiceUuid) + "/send-email", {})
                     .then(function (data) {
                         if (!data.success) {

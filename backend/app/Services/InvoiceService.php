@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\InvoiceMailable;
 use App\Models\Invoice;
+use App\Models\CompanySetting;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\File;
@@ -186,11 +187,53 @@ class InvoiceService
     private function invoiceHtml(Invoice $invoice): string
     {
         $invoice->loadMissing('company', 'purchaseTransaction', 'subscription');
+        $companyProfile = $this->resolveInvoiceCompanyProfile($invoice);
 
         return View::make('pdf.invoice', [
             'invoice' => $invoice,
             'companyAddress' => config('hcm.organization_address'),
             'appName' => config('app.name'),
+            'companyProfile' => $companyProfile,
         ])->render();
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function resolveInvoiceCompanyProfile(Invoice $invoice): array
+    {
+        $company = $invoice->company;
+        if (! $company) {
+            return [
+                'name' => null,
+                'legalName' => null,
+                'address' => null,
+                'city' => null,
+                'state' => null,
+                'country' => null,
+                'postalCode' => null,
+            ];
+        }
+
+        $settings = CompanySetting::query()
+            ->where('company_id', $company->id)
+            ->whereIn('key', [
+                'company_profile_address',
+                'company_profile_city',
+                'company_profile_state',
+                'company_profile_country',
+                'company_profile_postal_code',
+            ])
+            ->pluck('value', 'key');
+
+        return [
+            'name' => $company->name,
+            'legalName' => $company->legal_name,
+            'address' => $settings->get('company_profile_address'),
+            'city' => $settings->get('company_profile_city'),
+            'state' => $settings->get('company_profile_state'),
+            'country' => $settings->get('company_profile_country'),
+            'postalCode' => $settings->get('company_profile_postal_code'),
+        ];
     }
 }

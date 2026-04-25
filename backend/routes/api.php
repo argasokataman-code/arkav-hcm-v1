@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\HcmDashboardController;
 use App\Http\Controllers\Api\EmailDeliveryStatusWebhookController;
 use App\Http\Controllers\Api\EmailInboundWebhookController;
 use App\Http\Controllers\Api\HcmEmailSettingsController;
+use App\Http\Controllers\Api\HcmInvoiceSettingsController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TransactionController;
@@ -245,6 +246,9 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/leave-settings/custom-policies', [HcmLeaveSettingController::class, 'storeCustomPolicy']);
     Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy'])->whereNumber('id');
     Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy'])->whereNumber('id');
+    Route::get('/invoice-settings', [HcmInvoiceSettingsController::class, 'show']);
+    Route::put('/invoice-settings', [HcmInvoiceSettingsController::class, 'update']);
+
     Route::get('/email-settings', [HcmEmailSettingsController::class, 'show']);
     Route::put('/email-settings', [HcmEmailSettingsController::class, 'update']);
     Route::post('/email-settings/compose', [HcmEmailSettingsController::class, 'sendCompose'])->middleware('throttle:10,1');

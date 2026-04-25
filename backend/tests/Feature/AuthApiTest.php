@@ -444,6 +444,13 @@ class AuthApiTest extends TestCase
                 'phone' => '081111111111',
                 'address' => 'Jl. Owner 1',
                 'addressDetail' => 'Bandung',
+                'companyName' => 'Owner Profile Company Updated',
+                'companyLegalName' => 'Owner Profile Company Holdings LLC',
+                'companyAddress' => 'Jl. Billing 77',
+                'companyCity' => 'Jakarta',
+                'companyState' => 'DKI Jakarta',
+                'companyCountry' => 'Indonesia',
+                'companyPostalCode' => '10270',
             ])
             ->assertOk()
             ->assertJsonPath('data.name', 'Owner Profile Updated')
@@ -451,7 +458,14 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.profile.source', 'company_owner_profile')
             ->assertJsonPath('data.profile.phone', '081111111111')
             ->assertJsonPath('data.profile.address', 'Jl. Owner 1')
-            ->assertJsonPath('data.profile.addressDetail', 'Bandung');
+            ->assertJsonPath('data.profile.addressDetail', 'Bandung')
+            ->assertJsonPath('data.companyProfile.name', 'Owner Profile Company Updated')
+            ->assertJsonPath('data.companyProfile.legalName', 'Owner Profile Company Holdings LLC')
+            ->assertJsonPath('data.companyProfile.address', 'Jl. Billing 77')
+            ->assertJsonPath('data.companyProfile.city', 'Jakarta')
+            ->assertJsonPath('data.companyProfile.state', 'DKI Jakarta')
+            ->assertJsonPath('data.companyProfile.country', 'Indonesia')
+            ->assertJsonPath('data.companyProfile.postalCode', '10270');
 
         $updatedUser = User::query()->where('email', 'owner.profile.updated@example.com')->first();
         $this->assertNotNull($updatedUser);
@@ -471,6 +485,149 @@ class AuthApiTest extends TestCase
             'key' => 'owner_address_detail',
             'value' => 'Bandung',
         ]);
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id,
+            'name' => 'Owner Profile Company Updated',
+            'legal_name' => 'Owner Profile Company Holdings LLC',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_address',
+            'value' => 'Jl. Billing 77',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_city',
+            'value' => 'Jakarta',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_state',
+            'value' => 'DKI Jakarta',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_country',
+            'value' => 'Indonesia',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_postal_code',
+            'value' => '10270',
+        ]);
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.companyProfile.name', 'Owner Profile Company Updated')
+            ->assertJsonPath('data.companyProfile.legalName', 'Owner Profile Company Holdings LLC')
+            ->assertJsonPath('data.companyProfile.address', 'Jl. Billing 77')
+            ->assertJsonPath('data.companyProfile.city', 'Jakarta')
+            ->assertJsonPath('data.companyProfile.state', 'DKI Jakarta')
+            ->assertJsonPath('data.companyProfile.country', 'Indonesia')
+            ->assertJsonPath('data.companyProfile.postalCode', '10270')
+            ->assertJsonPath('data.activeCompany.legalName', 'Owner Profile Company Holdings LLC');
+    }
+
+    public function test_owner_profile_update_with_existing_employee_profile_still_updates_company_profile(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Employee Profile',
+            'email' => 'owner.employee.profile@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_employee_profile_company',
+            'name' => 'Owner Employee Profile Company',
+            'legal_name' => 'Owner Employee Profile Company LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'phone' => '080000000000',
+            'address' => 'Jl. Existing Employee Profile',
+            'address_detail' => 'Bandung',
+            'employment_status' => 'active',
+            'designation' => 'Owner',
+            'team' => 'Management',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.employee.profile@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'owner_employee_profile_company',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Owner Employee Profile Updated',
+                'email' => 'owner.employee.profile.updated@example.com',
+                'phone' => '081333333333',
+                'address' => 'Jl. Existing Employee Profile Updated',
+                'addressDetail' => 'Jakarta',
+                'companyName' => 'Owner Employee Profile Company Updated',
+                'companyLegalName' => 'Owner Employee Profile Company Holdings LLC',
+                'companyAddress' => 'Jl. Billing Existing 88',
+                'companyCity' => 'Jakarta',
+                'companyState' => 'DKI Jakarta',
+                'companyCountry' => 'Indonesia',
+                'companyPostalCode' => '12950',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.currentUserRole', 'owner')
+            ->assertJsonPath('data.profile.source', 'employee_profile')
+            ->assertJsonPath('data.profile.phone', '081333333333')
+            ->assertJsonPath('data.companyProfile.name', 'Owner Employee Profile Company Updated')
+            ->assertJsonPath('data.companyProfile.legalName', 'Owner Employee Profile Company Holdings LLC')
+            ->assertJsonPath('data.companyProfile.address', 'Jl. Billing Existing 88')
+            ->assertJsonPath('data.companyProfile.postalCode', '12950');
+
+        $updatedUser = User::query()->where('email', 'owner.employee.profile.updated@example.com')->first();
+        $this->assertNotNull($updatedUser);
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id,
+            'name' => 'Owner Employee Profile Company Updated',
+            'legal_name' => 'Owner Employee Profile Company Holdings LLC',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_address',
+            'value' => 'Jl. Billing Existing 88',
+        ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_postal_code',
+            'value' => '12950',
+        ]);
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.profile.source', 'employee_profile')
+            ->assertJsonPath('data.companyProfile.name', 'Owner Employee Profile Company Updated')
+            ->assertJsonPath('data.companyProfile.legalName', 'Owner Employee Profile Company Holdings LLC')
+            ->assertJsonPath('data.companyProfile.address', 'Jl. Billing Existing 88')
+            ->assertJsonPath('data.companyProfile.postalCode', '12950')
+            ->assertJsonPath('data.activeCompany.legalName', 'Owner Employee Profile Company Holdings LLC');
     }
 
     public function test_profile_password_update_requires_valid_current_password(): void

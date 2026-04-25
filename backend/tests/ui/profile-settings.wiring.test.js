@@ -9,11 +9,14 @@ describe('profile settings wiring', () => {
   beforeEach(() => {
     vi.resetModules();
     document.body.innerHTML = `
-      <div data-company-context-mode></div>
-      <div data-company-name></div>
-      <div data-company-id></div>
-      <div data-company-code></div>
-      <button type="button" class="d-none" data-copy-company-code></button>
+      <div data-company-context-card>
+        <div data-company-context-mode></div>
+        <div data-company-name></div>
+        <div data-company-id></div>
+        <div data-company-code></div>
+        <button type="button" class="d-none" data-copy-company-code></button>
+      </div>
+      <div class="alert d-none" data-company-profile-hint></div>
       <div class="d-none" data-subscription-summary-card>
         <span data-subscription-status></span>
         <span data-subscription-package></span>
@@ -70,7 +73,17 @@ describe('profile settings wiring', () => {
                 uuid: 'company-uuid-19',
                 code: 'owner_profile_company',
                 name: 'Owner Profile Company',
+                legalName: 'Owner Profile Company LLC',
                 role: 'owner',
+              },
+              companyProfile: {
+                name: 'Owner Profile Company',
+                legalName: 'Owner Profile Company LLC',
+                address: 'Jl. Owner Office 10',
+                city: 'Bandung',
+                state: 'Jawa Barat',
+                country: 'Indonesia',
+                postalCode: '40111',
               },
               subscription: {
                 status: 'active',
@@ -138,6 +151,7 @@ describe('profile settings wiring', () => {
     expect(document.querySelector('[data-subscription-next-payment-amount]')?.textContent).toContain('INV-202604-0001');
     expect(document.querySelector('[data-subscription-employee-slots]')?.textContent).toContain('Max 50 employees');
     expect(document.querySelector('[data-subscription-employee-usage]')?.textContent).toContain('38 slot tersisa');
+    expect(document.querySelector('[data-company-profile-hint]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-profile-settings-feedback]')?.classList.contains('d-none')).toBe(true);
   });
 
@@ -151,7 +165,6 @@ describe('profile settings wiring', () => {
     document.querySelector('[data-general-setting="phone"]').value = '081111111111';
     document.querySelector('[data-general-setting="address"]').value = 'Jl. Owner 2';
     document.querySelector('[data-general-setting="city"]').value = 'Jakarta';
-
     document.querySelector('[data-profile-settings-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await flush();
 
@@ -160,5 +173,9 @@ describe('profile settings wiring', () => {
     expect(updateCall[1].headers.Authorization).toBe('Bearer tenant-token');
     expect(updateCall[1].headers['X-Company-Code']).toBe('owner_profile_company');
     expect(updateCall[1].headers['X-Company-Id']).toBe('19');
+    expect(JSON.parse(updateCall[1].body)).toMatchObject({
+      name: 'Owner Profile Updated',
+      email: 'owner.profile.updated@example.com',
+    });
   });
 });

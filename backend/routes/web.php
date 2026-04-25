@@ -1093,6 +1093,10 @@ Route::get('/profile-settings', function () {
     return view('profile-settings');
 })->name('profile-settings');
 
+Route::get('/company-profile', function () {
+    return view('company-profile');
+})->name('company-profile');
+
 Route::redirect('/profile-settingsrout', '/profile-settings', 301)->name('profile-settings.alias');
 
 Route::get('/security-settings', function () {

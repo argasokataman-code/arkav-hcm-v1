@@ -33,7 +33,7 @@ class PaymentReminderMailable extends Mailable
         $daysOverdue = abs($this->invoice->due_date->diffInDays(now()));
 
         return new Content(
-            view: 'emails.payment-reminder',
+            markdown: 'emails.payment-reminder',
             with: [
                 'invoice' => $this->invoice,
                 'company' => $this->invoice->company,

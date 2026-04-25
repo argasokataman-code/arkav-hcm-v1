@@ -339,6 +339,14 @@
     <script src="{{ URL::asset('build/js/profile-settings-data.js') }}"></script>
 @endif
 
+@if (Route::is(['company-profile']))
+    <script src="{{ URL::asset('build/js/company-profile-data.js') }}"></script>
+@endif
+
+@if (Route::is(['invoice-settings']))
+    <script src="{{ URL::asset('build/js/invoice-settings-data.js') }}"></script>
+@endif
+
 @if (Route::is(['notification-settings']))
     <script src="{{ URL::asset('build/js/notification-settings-data.js') }}"></script>
 @endif

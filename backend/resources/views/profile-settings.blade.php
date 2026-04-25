@@ -59,6 +59,7 @@
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
                             <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Profile Settings</a>
+                            <a href="{{ url('company-profile') }}" class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Company Profile</a>
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
                             <a href="{{ url('notification-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Notifications</a>
                             <a href="{{ url('connected-apps') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Connected Apps</a>
@@ -109,6 +110,9 @@
                                 Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login Company</em>.
                             </div>
                         </div>
+                            <div class="alert alert-info d-none" data-company-profile-hint>
+                                <i class="ti ti-building me-2"></i>Atur profil perusahaan (nama legal, alamat billing, dll) di menu <a href="{{ url('company-profile') }}" class="alert-link">Company Profile</a>.
+                            </div>
                         <div class="border rounded-3 p-3 mb-3 d-none" data-subscription-summary-card>
                             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
                                 <div>

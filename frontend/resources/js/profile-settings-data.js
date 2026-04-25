@@ -10,14 +10,16 @@
     var submitButton = document.querySelector('[data-profile-settings-submit]');
     var resetButton = document.querySelector('[data-profile-settings-reset]');
     var fields = Array.prototype.slice.call(document.querySelectorAll('[data-general-setting]'));
+    var companyProfileHintNode = document.querySelector('[data-company-profile-hint]');
     var currentPasswordField = document.querySelector('[data-profile-settings-current-password]');
     var newPasswordField = document.querySelector('[data-profile-settings-new-password]');
     var confirmPasswordField = document.querySelector('[data-profile-settings-confirm-password]');
-    var companyModeNode = document.querySelector('[data-company-context-mode]');
-    var companyNameNode = document.querySelector('[data-company-name]');
-    var companyIdNode = document.querySelector('[data-company-id]');
-    var companyCodeNode = document.querySelector('[data-company-code]');
-    var copyCompanyCodeBtn = document.querySelector('[data-copy-company-code]');
+    var companyContextCardNode = document.querySelector('[data-company-context-card]');
+    var companyModeNode = companyContextCardNode ? companyContextCardNode.querySelector('[data-company-context-mode]') : null;
+    var companyNameNode = companyContextCardNode ? companyContextCardNode.querySelector('[data-company-name]') : null;
+    var companyIdNode = companyContextCardNode ? companyContextCardNode.querySelector('[data-company-id]') : null;
+    var companyCodeNode = companyContextCardNode ? companyContextCardNode.querySelector('[data-company-code]') : null;
+    var copyCompanyCodeBtn = companyContextCardNode ? companyContextCardNode.querySelector('[data-copy-company-code]') : null;
     var subscriptionCardNode = document.querySelector('[data-subscription-summary-card]');
     var subscriptionStatusNode = document.querySelector('[data-subscription-status]');
     var subscriptionPackageNode = document.querySelector('[data-subscription-package]');
@@ -146,6 +148,8 @@
             return;
         }
         var activeCompany = mePayload.data.activeCompany || null;
+        var role = normalize(activeCompany && activeCompany.role).toLowerCase();
+        var isOwnerCompanyMode = role === 'owner'; // eslint-disable-line no-unused-vars
         var tenant = getTenantContext();
         var mode = tenant && tenant.companyCode ? 'Login Company' : 'Login Employee';
         if (companyModeNode) {
@@ -176,6 +180,11 @@
                     showFeedback('warning', 'Gagal menyalin otomatis. Salin manual company code di atas.');
                 }
             };
+        }
+
+        if (companyProfileHintNode) {
+            var isOwner = normalize((activeCompany && activeCompany.role) || '').toLowerCase() === 'owner';
+            companyProfileHintNode.classList.toggle('d-none', !isOwner);
         }
     }
 
@@ -429,7 +438,7 @@
         clearFeedback();
 
         var merged = {};
-        var settingsAvailable = true;
+        var settingsAvailable = true; // eslint-disable-line no-unused-vars
 
         try {
             var settingsResponse = await fetch('/v1/hcm/settings?group=general', {
@@ -458,6 +467,7 @@
             renderCompanyContext(mePayload);
             renderSubscriptionSummary(mePayload);
             merged.identityEmail = normalize(mePayload.data.email || '');
+            merged.companyProfile = mePayload.data.companyProfile || {};
             if (!merged.general_name && mePayload.data.name) {
                 merged.general_name = mePayload.data.name;
             }

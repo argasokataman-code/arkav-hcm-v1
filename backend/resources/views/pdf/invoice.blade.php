@@ -47,6 +47,15 @@
     $issuerAddress = trim((string) ($companyAddress ?? ''));
     $company = $invoice->company;
     $companyName = trim((string) ($company?->name ?? 'Unknown Company'));
+    $billTo = is_array($companyProfile ?? null) ? $companyProfile : [];
+    $companyLegalName = trim((string) ($billTo['legalName'] ?? ($company?->legal_name ?? '')));
+    $companyAddress = trim((string) ($billTo['address'] ?? ''));
+    $companyCity = trim((string) ($billTo['city'] ?? ''));
+    $companyState = trim((string) ($billTo['state'] ?? ''));
+    $companyCountry = trim((string) ($billTo['country'] ?? ''));
+    $companyPostalCode = trim((string) ($billTo['postalCode'] ?? ''));
+    $locationChunks = array_values(array_filter([$companyCity, $companyState, $companyCountry], static fn ($value) => $value !== ''));
+    $locationLine = !empty($locationChunks) ? implode(', ', $locationChunks) : '';
     $invoiceNumber = trim((string) ($invoice->invoice_number ?? '-'));
     $issueDate = optional($invoice->issue_date)->format('d M Y') ?? '-';
     $dueDate = optional($invoice->due_date)->format('d M Y') ?? '-';
@@ -108,6 +117,17 @@
                 <div class="section-card">
                     <p class="section-title">Bill To</p>
                     <div class="bold" style="font-size:11px; margin-bottom:4px;">{{ $companyName }}</div>
+                    @if ($companyLegalName !== '')
+                        <div class="muted small">Legal Name: {{ $companyLegalName }}</div>
+                    @endif
+                    @if ($companyAddress !== '')
+                        <div class="muted small">{{ $companyAddress }}</div>
+                    @endif
+                    @if ($locationLine !== '')
+                        <div class="muted small">{{ $locationLine }}{{ $companyPostalCode !== '' ? ' '.$companyPostalCode : '' }}</div>
+                    @elseif ($companyPostalCode !== '')
+                        <div class="muted small">Postal Code: {{ $companyPostalCode }}</div>
+                    @endif
                     <div class="muted small">Company ID: {{ $invoice->company_id }}</div>
                     @if (!empty($company?->code))
                         <div class="muted small">Company Code: {{ $company->code }}</div>

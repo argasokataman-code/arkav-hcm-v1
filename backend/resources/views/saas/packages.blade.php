@@ -104,6 +104,14 @@
                                             <option value="yearly">Yearly</option>
                                         </select>
                                     </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Maksimal Employee</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="input_package_max_employees" min="1" step="1" placeholder="Kosongkan untuk unlimited">
+                                            <span class="input-group-text">org</span>
+                                        </div>
+                                        <small class="text-muted">Nilai ini akan mengatur fitur <strong>Maximum Employees</strong> secara otomatis.</small>
+                                    </div>
                                 </div>
                                 <div class="mt-3">
                                     <label class="form-label">Status</label>

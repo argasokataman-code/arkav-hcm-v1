@@ -29,7 +29,7 @@ class InvoiceMailable extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.invoice',
+            markdown: 'emails.invoice',
             with: [
                 'invoice' => $this->invoice,
                 'company' => $this->invoice->company,

@@ -270,13 +270,13 @@
     },
 
     applyRoleUi: function () {
-      const addButton = document.querySelector("[data-subscription-add-button]");
+      const addButtons = Array.from(document.querySelectorAll("[data-subscription-add-button]"));
       const readOnlyNotice = document.querySelector("[data-subscription-readonly-notice]");
       const queueCard = document.querySelector("[data-subscription-change-queue-card]");
 
-      if (addButton) {
-        addButton.classList.toggle("d-none", !this.canManageSubscriptions);
-      }
+      addButtons.forEach(function (button) {
+        button.classList.toggle("d-none", !this.canManageSubscriptions);
+      }.bind(this));
 
       if (readOnlyNotice) {
         readOnlyNotice.classList.toggle("d-none", this.canManageSubscriptions);
@@ -370,6 +370,16 @@
       if (addBtn) {
         addBtn.addEventListener("click", function () {
           self.openCreateModal();
+        });
+      }
+
+      const addPendingBtn = document.getElementById("btn_add_pending_subscription");
+      if (addPendingBtn) {
+        addPendingBtn.addEventListener("click", function () {
+          self.openCreateModal({ status: "pending_payment" });
+          if (self.subscriptionModalInstance) {
+            self.subscriptionModalInstance.show();
+          }
         });
       }
 

@@ -6,6 +6,8 @@ Fitur ini menjadi pintu masuk seluruh sistem untuk login, logout, registrasi, pe
 
 Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activeCompany`) dan hint permission (`hcmAdmin`, `hcmGlobalAdmin`, `permissionCodes`) yang dipakai hampir semua modul lain untuk memutuskan redirect, visibilitas menu, dan header tenant di request berikutnya.
 
+Untuk tenant owner, modul ini juga menjadi jalur resmi update profil company (nama legal + alamat billing) via endpoint identity yang sama, tanpa harus membuka halaman settings global admin.
+
 ## Akses
 
 - Guest: bisa mengakses `/login`, `/register`, `/trial`, dan endpoint login/register/reset password.
@@ -49,6 +51,7 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 - Endpoint utama: `POST /v1/identity/auth/register`, `POST /v1/identity/auth/login`, `POST /v1/identity/auth/logout`, `GET /v1/identity/auth/me`, `PUT /v1/identity/auth/profile`.
 - Format error standar: `{ success:false, error:{ code, message, ... } }`.
 - Kontrak penting pada `GET /auth/me`: `hcmAdmin`, `hcmGlobalAdmin`, `permissionCodes`, dan `activeCompany`.
+- Untuk role owner tenant, `GET /auth/me` dan `PUT /auth/profile` juga memuat `companyProfile` agar halaman Profile Settings bisa mengelola data company tenant secara self-serve.
 
 ## Existing Vs Target
 
@@ -61,10 +64,11 @@ Selain autentikasi dasar, modul ini juga menentukan konteks tenant aktif (`activ
 - `GET /auth/me` mengembalikan:
   - `id`, `name`, `email`
   - `profile` (`firstName`, `lastName`, `phone`, `address`, `addressDetail`, `designation`, `team`, `profilePhotoUrl`)
+  - `companyProfile` (`name`, `legalName`, `address`, `city`, `state`, `country`, `postalCode`) untuk owner tenant
   - `roles` (transitional)
   - `hcmAdmin` (boolean hint untuk UI HCM admin-only)
   - `hcmGlobalAdmin`, `permissions`, `permissionCodes`
-  - `activeCompany` (`id`, `uuid`, `code`, `name`, `role`)
+  - `activeCompany` (`id`, `uuid`, `code`, `name`, `legalName`, `role`)
 
 ## Frontend flow
 

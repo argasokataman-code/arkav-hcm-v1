@@ -27,6 +27,11 @@
                         <i class="ti ti-refresh me-2"></i>Renew by ID
                     </button>
                 </div>
+                <div class="mb-2 me-2">
+                    <button type="button" class="btn btn-outline-warning d-flex align-items-center" id="btn_add_pending_subscription" data-subscription-add-button>
+                        <i class="ti ti-receipt-2 me-2"></i>Pending Payment
+                    </button>
+                </div>
                 <div class="mb-2">
                     <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#subscriptionModal" id="btn_add_subscription" data-subscription-add-button>
                         <i class="ti ti-circle-plus me-2"></i>Add Subscription

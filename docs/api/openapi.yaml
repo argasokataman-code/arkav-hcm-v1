@@ -9752,8 +9752,35 @@ components:
                   type: string
                 name:
                   type: string
+                legalName:
+                  type: string
+                  nullable: true
                 role:
                   type: string
+            companyProfile:
+              type: object
+              nullable: true
+              properties:
+                name:
+                  type: string
+                legalName:
+                  type: string
+                  nullable: true
+                address:
+                  type: string
+                  nullable: true
+                city:
+                  type: string
+                  nullable: true
+                state:
+                  type: string
+                  nullable: true
+                country:
+                  type: string
+                  nullable: true
+                postalCode:
+                  type: string
+                  nullable: true
     MeResponse:
       type: object
       properties:
@@ -9920,6 +9947,35 @@ components:
           type: string
           nullable: true
           maxLength: 500
+        companyName:
+          type: string
+          nullable: true
+          minLength: 2
+          maxLength: 255
+        companyLegalName:
+          type: string
+          nullable: true
+          maxLength: 255
+        companyAddress:
+          type: string
+          nullable: true
+          maxLength: 500
+        companyCity:
+          type: string
+          nullable: true
+          maxLength: 120
+        companyState:
+          type: string
+          nullable: true
+          maxLength: 120
+        companyCountry:
+          type: string
+          nullable: true
+          maxLength: 120
+        companyPostalCode:
+          type: string
+          nullable: true
+          maxLength: 12
         currentPassword:
           type: string
           nullable: true
@@ -9979,6 +10035,30 @@ components:
                   enum: [employee_profile, company_owner_profile, account]
             currentUserRole:
               type: string
+            companyProfile:
+              type: object
+              nullable: true
+              properties:
+                name:
+                  type: string
+                legalName:
+                  type: string
+                  nullable: true
+                address:
+                  type: string
+                  nullable: true
+                city:
+                  type: string
+                  nullable: true
+                state:
+                  type: string
+                  nullable: true
+                country:
+                  type: string
+                  nullable: true
+                postalCode:
+                  type: string
+                  nullable: true
             subscription:
               type: object
               nullable: true

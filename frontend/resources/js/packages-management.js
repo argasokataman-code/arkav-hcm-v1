@@ -4,6 +4,7 @@
   const API_BASE = "/v1/saas/packages";
   const API_ADDONS_BASE = "/v1/saas/package-addons";
   const PAGE_SIZE = 10;
+  const FEATURE_LIMIT_INPUT_CODE = "max_employees";
   let apiToken = null;
   const FEATURE_LIBRARY = [
     {
@@ -11,6 +12,15 @@
       title: "Employee Management",
       description: "Master data karyawan, struktur organisasi, dan administrasi HR dasar.",
       features: [
+        {
+          code: "max_employees",
+          name: "Maximum Employees",
+          description: "Batasi jumlah employee aktif yang bisa dikelola dalam paket ini.",
+          requiresLimit: true,
+          limitLabel: "Jumlah employee",
+          limitPlaceholder: "Contoh: 50",
+          limitSuffix: "org",
+        },
         { code: "employee_management", name: "Employee Directory", description: "List, profile, dan pencarian data karyawan." },
         { code: "employee_bulk_import", name: "Bulk Import", description: "Upload massal data employee via template." },
         { code: "employee_document_center", name: "Document Center", description: "Dokumen personal, kontrak, dan arsip employee." },
@@ -198,6 +208,7 @@
     totalAddonPages: 1,
     addonStatus: "all",
     addonSearch: "",
+    featureLimitDrafts: {},
     packageModalInstance: null,
     addonModalInstance: null,
 
@@ -312,6 +323,14 @@
         });
       }
 
+      const maxEmployeesInput = document.getElementById("input_package_max_employees");
+      if (maxEmployeesInput) {
+        maxEmployeesInput.addEventListener("input", function () {
+          self.syncMaxEmployeesFeatureFromTopField();
+          self.updateFeatureSelectionSummary();
+        });
+      }
+
       const selectVisibleBtn = document.querySelector("[data-feature-select-visible]");
       if (selectVisibleBtn) {
         selectVisibleBtn.addEventListener("click", function () {
@@ -325,6 +344,20 @@
           self.toggleVisibleFeatures(false, true);
         });
       }
+
+      document.addEventListener("input", function (e) {
+        const featureLimitInput = e.target.closest("[data-feature-limit-input]");
+        if (!featureLimitInput) {
+          return;
+        }
+
+        const code = featureLimitInput.getAttribute("data-feature-limit-code") || "";
+        self.featureLimitDrafts[code] = featureLimitInput.value;
+        if (code === FEATURE_LIMIT_INPUT_CODE) {
+          self.syncTopFieldFromMaxEmployeesFeature();
+        }
+        self.updateFeatureSelectionSummary();
+      });
 
       // Pagination buttons
       document.addEventListener("click", function (e) {
@@ -387,6 +420,7 @@
 
         const featureCheckbox = e.target.closest("input[type='checkbox'][name='package_feature_codes']");
         if (featureCheckbox) {
+          self.handleFeatureCheckboxChange(featureCheckbox);
           self.updateFeatureSelectionSummary();
         }
       });
@@ -472,6 +506,8 @@
       const container = document.querySelector("[data-packages-list-container]");
       if (!container) return;
 
+      const self = this;
+
       function isIncludedFeature(f) {
         if (!f) return false;
         if (typeof f === "string") return true;
@@ -519,7 +555,7 @@
               <div class="d-flex flex-wrap gap-1">
                 ${preview.map((f) => `
                   <span class="badge bg-light text-dark small">
-                    ${esc(f.name || f.code || f)}
+                    ${esc(self.describeFeatureBadge(f))}
                   </span>
                 `).join('')}
                 ${rest ? `<span class="badge bg-secondary small">+${rest}</span>` : ''}
@@ -569,11 +605,6 @@
                       <td>${featuresCell(pkg)}</td>
                       <td>
                         <div class="action-icon d-inline-flex align-items-center">
-                          ${pkg.status === "active" ? `
-                            <a href="/subscription?packageId=${pkg.id}&status=pending_payment" class="me-2 text-primary fw-semibold" title="Buat langganan menunggu pembayaran untuk paket ini">
-                              Subscribe
-                            </a>
-                          ` : ""}
                           <button class="btn btn-sm btn-white me-2" data-edit-package="${pkg.id}" title="Edit">
                             <i class="ti ti-edit"></i>
                           </button>
@@ -756,7 +787,36 @@
       const rawPrice = document.getElementById("input_package_price")?.value || "0";
       const billingCycle = document.getElementById("input_package_cycle")?.value || "monthly";
       const isActive = !!document.getElementById("input_package_active")?.checked;
-      const selectedFeatureCodes = this.getSelectedFeatureCodes();
+      const maxEmployeesRaw = (document.getElementById("input_package_max_employees")?.value || "").trim();
+      let selectedFeatureConfigs = this.getSelectedFeatureConfigs();
+
+      selectedFeatureConfigs = selectedFeatureConfigs.filter(function (feature) {
+        return feature.code !== FEATURE_LIMIT_INPUT_CODE;
+      });
+
+      if (maxEmployeesRaw !== "") {
+        if (!/^\d+$/.test(maxEmployeesRaw)) {
+          self.showError("Maksimal employee harus berupa angka bulat positif.");
+          return;
+        }
+
+        const maxEmployeesLimit = Number(maxEmployeesRaw);
+        if (!Number.isInteger(maxEmployeesLimit) || maxEmployeesLimit < 1) {
+          self.showError("Maksimal employee minimal 1.");
+          return;
+        }
+
+        selectedFeatureConfigs.push({
+          code: FEATURE_LIMIT_INPUT_CODE,
+          name: self.featureLabelFromCode(FEATURE_LIMIT_INPUT_CODE),
+          limit: maxEmployeesLimit,
+          limitError: "",
+        });
+      }
+
+      const selectedFeatureCodes = selectedFeatureConfigs.map(function (feature) {
+        return feature.code;
+      });
 
       if (!name) {
         self.showError("Package name is required");
@@ -770,6 +830,15 @@
 
       if (!selectedFeatureCodes.length) {
         self.showError("Pilih minimal 1 fitur untuk paket ini");
+        return;
+      }
+
+      const invalidFeatureLimit = selectedFeatureConfigs.find(function (feature) {
+        return feature.limitError;
+      });
+
+      if (invalidFeatureLimit) {
+        self.showError(invalidFeatureLimit.limitError);
         return;
       }
 
@@ -815,7 +884,7 @@
           if (response.success && response.data?.id) {
             const packageId = response.data.id;
             return self
-              .syncPackageFeatures(packageId, selectedFeatureCodes)
+              .syncPackageFeatures(packageId, selectedFeatureConfigs)
               .then(function () {
                 return response;
               });
@@ -846,7 +915,14 @@
 
     syncPackageFeatures: function (packageId, selectedFeatureCodes) {
       const self = this;
-      const selected = new Set(selectedFeatureCodes || []);
+      const selectedFeatureMap = {};
+      (selectedFeatureCodes || []).forEach(function (feature) {
+        if (feature && feature.code) {
+          selectedFeatureMap[feature.code] = feature;
+        }
+      });
+
+      const selected = new Set(Object.keys(selectedFeatureMap));
 
       return apiRequest("GET", API_BASE + "/" + packageId, null)
         .then(function (response) {
@@ -859,11 +935,40 @@
           const addRequests = [];
           selected.forEach(function (code) {
             if (!existingByCode[code]) {
+              const featureConfig = selectedFeatureMap[code] || {};
               addRequests.push(
                 apiRequest("POST", API_BASE + "/" + packageId + "/features", {
                   feature_code: code,
                   feature_name: self.featureLabelFromCode(code),
-                  limit: null,
+                  limit: featureConfig.limit,
+                }).catch(function () {
+                  return null;
+                })
+              );
+            }
+          });
+
+          const updateRequests = [];
+          existingFeatures.forEach(function (feature) {
+            const selectedFeature = selectedFeatureMap[feature.code];
+            if (!selectedFeature) {
+              return;
+            }
+
+            const desiredLimit = selectedFeature.limit === null || selectedFeature.limit === undefined
+              ? null
+              : Number(selectedFeature.limit);
+            const currentLimit = feature.limit === null || feature.limit === undefined
+              ? null
+              : Number(feature.limit);
+            const desiredName = self.featureLabelFromCode(feature.code);
+            const currentName = feature.name || "";
+
+            if (desiredLimit !== currentLimit || desiredName !== currentName) {
+              updateRequests.push(
+                apiRequest("PUT", API_BASE + "/features/" + feature.id, {
+                  feature_name: desiredName,
+                  limit: desiredLimit,
                 }).catch(function () {
                   return null;
                 })
@@ -882,21 +987,28 @@
             }
           });
 
-          return Promise.all(addRequests.concat(removeRequests));
+          return Promise.all(addRequests.concat(updateRequests, removeRequests));
         });
     },
 
-    featureLabelFromCode: function (code) {
-      let foundName = "";
+    featureMetaFromCode: function (code) {
+      let found = null;
       FEATURE_LIBRARY.some(function (group) {
         return (group.features || []).some(function (feature) {
           if (feature.code === code) {
-            foundName = feature.name;
+            found = feature;
             return true;
           }
           return false;
         });
       });
+
+      return found;
+    },
+
+    featureLabelFromCode: function (code) {
+      const meta = this.featureMetaFromCode(code);
+      const foundName = meta?.name || "";
 
       if (foundName) {
         return foundName;
@@ -910,6 +1022,19 @@
         .join(" ");
     },
 
+    collectFeatureLimitDrafts: function () {
+      const catalogRoot = document.getElementById("input_package_feature_chips");
+      const drafts = Object.assign({}, this.featureLimitDrafts || {});
+      if (!catalogRoot) return drafts;
+
+      catalogRoot.querySelectorAll("[data-feature-limit-input]").forEach(function (input) {
+        const code = input.getAttribute("data-feature-limit-code") || "";
+        drafts[code] = input.value;
+      });
+
+      return drafts;
+    },
+
     getSelectedFeatureCodes: function () {
       const catalogRoot = document.getElementById("input_package_feature_chips");
       if (!catalogRoot) return [];
@@ -918,6 +1043,139 @@
       ).map(function (input) {
         return input.value;
       });
+    },
+
+    getSelectedFeatureConfigs: function () {
+      const catalogRoot = document.getElementById("input_package_feature_chips");
+      if (!catalogRoot) return [];
+
+      return Array.from(
+        catalogRoot.querySelectorAll("input[type='checkbox'][name='package_feature_codes']:checked")
+      ).map(
+        function (input) {
+          const code = input.value;
+          const featureMeta = this.featureMetaFromCode(code);
+          const featureConfig = {
+            code: code,
+            name: input.getAttribute("data-feature-name") || this.featureLabelFromCode(code),
+            limit: null,
+            limitError: "",
+          };
+
+          if (featureMeta?.requiresLimit) {
+            const limitInput = catalogRoot.querySelector('[data-feature-limit-code="' + code + '"]');
+            const rawValue = String(limitInput?.value || "").trim();
+
+            if (rawValue === "") {
+              featureConfig.limitError = featureMeta.limitLabel + " wajib diisi untuk " + featureConfig.name + ".";
+              return featureConfig;
+            }
+
+            if (!/^\d+$/.test(rawValue)) {
+              featureConfig.limitError = featureMeta.limitLabel + " harus berupa angka bulat positif.";
+              return featureConfig;
+            }
+
+            const limit = Number(rawValue);
+            if (!Number.isInteger(limit) || limit < 1) {
+              featureConfig.limitError = featureMeta.limitLabel + " minimal 1.";
+              return featureConfig;
+            }
+
+            featureConfig.limit = limit;
+          }
+
+          return featureConfig;
+        }.bind(this)
+      );
+    },
+
+    handleFeatureCheckboxChange: function (checkbox) {
+      const code = checkbox?.value || "";
+      if (!code) {
+        return;
+      }
+
+      this.featureLimitDrafts = this.collectFeatureLimitDrafts();
+
+      const limitInput = document.querySelector('[data-feature-limit-code="' + code + '"]');
+      if (!limitInput) {
+        return;
+      }
+
+      limitInput.disabled = !checkbox.checked;
+      if (checkbox.checked && !String(limitInput.value || "").trim()) {
+        limitInput.focus();
+      }
+
+      if (code === FEATURE_LIMIT_INPUT_CODE) {
+        this.syncTopFieldFromMaxEmployeesFeature();
+      }
+    },
+
+    getMaxEmployeesFeatureControls: function () {
+      return {
+        checkbox: document.querySelector("input[type='checkbox'][name='package_feature_codes'][value='" + FEATURE_LIMIT_INPUT_CODE + "']"),
+        limitInput: document.querySelector("[data-feature-limit-code='" + FEATURE_LIMIT_INPUT_CODE + "']"),
+      };
+    },
+
+    syncMaxEmployeesFeatureFromTopField: function () {
+      const topInput = document.getElementById("input_package_max_employees");
+      if (!topInput) {
+        return;
+      }
+
+      const rawValue = String(topInput.value || "").trim();
+      this.featureLimitDrafts[FEATURE_LIMIT_INPUT_CODE] = rawValue;
+
+      const controls = this.getMaxEmployeesFeatureControls();
+      if (!controls.checkbox || !controls.limitInput) {
+        return;
+      }
+
+      const hasValue = rawValue !== "";
+
+      controls.checkbox.checked = hasValue;
+      controls.limitInput.disabled = !hasValue;
+
+      if (hasValue) {
+        controls.limitInput.value = rawValue;
+        this.featureLimitDrafts[FEATURE_LIMIT_INPUT_CODE] = rawValue;
+      } else {
+        controls.limitInput.value = "";
+        this.featureLimitDrafts[FEATURE_LIMIT_INPUT_CODE] = "";
+      }
+    },
+
+    syncTopFieldFromMaxEmployeesFeature: function () {
+      const topInput = document.getElementById("input_package_max_employees");
+      if (!topInput) {
+        return;
+      }
+
+      const controls = this.getMaxEmployeesFeatureControls();
+      if (!controls.checkbox || !controls.limitInput) {
+        return;
+      }
+
+      if (!controls.checkbox.checked) {
+        topInput.value = "";
+        return;
+      }
+
+      topInput.value = String(controls.limitInput.value || "").trim();
+    },
+
+    describeFeatureBadge: function (feature) {
+      const code = typeof feature === "string" ? feature : feature?.code;
+      const label = this.featureLabelFromCode(code || feature?.name || "Feature");
+      const limit = typeof feature === "string" ? null : feature?.limit;
+      if (code === FEATURE_LIMIT_INPUT_CODE && limit !== null && limit !== undefined && limit !== "") {
+        return label + ": " + String(limit) + " org";
+      }
+
+      return label;
     },
 
     syncFeatureCatalogFromPackages: function (packages) {
@@ -939,6 +1197,7 @@
       const catalogRoot = document.getElementById("input_package_feature_chips");
       if (!catalogRoot) return;
 
+      const limitDrafts = Object.assign({}, this.featureLimitDrafts || {}, this.collectFeatureLimitDrafts());
       const selectedCodes = new Set(this.getSelectedFeatureCodes());
       const incomingCodes = new Set(featureCodes || DEFAULT_FEATURE_CATALOG);
       const knownCodes = new Set(DEFAULT_FEATURE_CATALOG);
@@ -949,6 +1208,9 @@
           title: group.title,
           description: group.description,
           features: (group.features || []).filter(function (feature) {
+            if (feature.code === FEATURE_LIMIT_INPUT_CODE) {
+              return false;
+            }
             return incomingCodes.has(feature.code) || selectedCodes.has(feature.code);
           }),
         };
@@ -1023,6 +1285,10 @@
                       String(featureIndex) +
                       "_" +
                       String(feature.code).replace(/[^a-zA-Z0-9_\-]/g, "_");
+                    const limitValue = limitDrafts[feature.code] ?? "";
+                    const limitLabel = feature.limitLabel || "Limit";
+                    const limitPlaceholder = feature.limitPlaceholder || "Masukkan limit";
+                    const limitSuffix = feature.limitSuffix || "";
 
                     return (
                       '<div class="package-feature-item" data-feature-item data-feature-filter="' +
@@ -1052,6 +1318,32 @@
                       "</span>" +
                       "</label>" +
                       "</div>" +
+                      (feature.requiresLimit
+                        ? '<div class="mt-2 ps-4">' +
+                          '<label class="form-label small text-muted mb-1" for="' +
+                          esc(itemId + "_limit") +
+                          '">' +
+                          esc(limitLabel) +
+                          '</label>' +
+                          '<div class="input-group input-group-sm">' +
+                          '<input class="form-control" type="number" min="1" step="1" id="' +
+                          esc(itemId + "_limit") +
+                          '" data-feature-limit-input data-feature-limit-code="' +
+                          esc(feature.code) +
+                          '" placeholder="' +
+                          esc(limitPlaceholder) +
+                          '" value="' +
+                          esc(limitValue) +
+                          '"' +
+                          (selectedCodes.has(feature.code) ? "" : " disabled") +
+                          '>' +
+                          (limitSuffix
+                            ? '<span class="input-group-text">' + esc(limitSuffix) + '</span>'
+                            : '') +
+                          '</div>' +
+                        '</div>'
+                        : "") +
+                      "</div>" +
                       "</div>"
                     );
                   })
@@ -1065,6 +1357,8 @@
           .join("") +
         "</div>";
 
+      this.featureLimitDrafts = limitDrafts;
+      this.syncMaxEmployeesFeatureFromTopField();
       this.updateFeatureSelectionSummary();
       this.filterFeatureCatalog(document.getElementById("input_package_feature_search")?.value || "");
     },
@@ -1080,6 +1374,12 @@
       catalogRoot.querySelectorAll(selector).forEach(function (checkbox) {
         checkbox.checked = !!checked;
       });
+
+      catalogRoot.querySelectorAll("input[type='checkbox'][name='package_feature_codes']").forEach(
+        function (checkbox) {
+          this.handleFeatureCheckboxChange(checkbox);
+        }.bind(this)
+      );
 
       this.updateFeatureSelectionSummary();
     },
@@ -1113,30 +1413,47 @@
 
     updateFeatureSelectionSummary: function () {
       const selected = this.getSelectedFeatureCodes();
+      const maxEmployeesValue = (document.getElementById("input_package_max_employees")?.value || "").trim();
+      const hasMaxEmployees = maxEmployeesValue !== "";
+      const effectiveSelected = hasMaxEmployees
+        ? [FEATURE_LIMIT_INPUT_CODE].concat(selected.filter(function (code) {
+          return code !== FEATURE_LIMIT_INPUT_CODE;
+        }))
+        : selected.filter(function (code) {
+          return code !== FEATURE_LIMIT_INPUT_CODE;
+        });
       const countEl = document.querySelector("[data-feature-selected-count]");
       const previewEl = document.querySelector("[data-feature-selected-preview]");
 
       if (countEl) {
-        countEl.textContent = String(selected.length);
+        countEl.textContent = String(effectiveSelected.length);
       }
 
       if (!previewEl) {
         return;
       }
 
-      if (selected.length === 0) {
+      if (effectiveSelected.length === 0) {
         previewEl.innerHTML = '<span class="text-muted small">Belum ada fitur dipilih</span>';
         return;
       }
 
-      const labels = selected.slice(0, 10).map(
+      const labels = effectiveSelected.slice(0, 10).map(
         function (code) {
-          return '<span class="package-feature-preview-chip">' + esc(this.featureLabelFromCode(code)) + "</span>";
+          const featureMeta = this.featureMetaFromCode(code);
+          let label = this.featureLabelFromCode(code);
+          if (featureMeta?.requiresLimit) {
+            const limitValue = String(this.collectFeatureLimitDrafts()[code] || "").trim();
+            if (limitValue) {
+              label += ": " + limitValue + " " + (featureMeta.limitSuffix || "").trim();
+            }
+          }
+          return '<span class="package-feature-preview-chip">' + esc(label.trim()) + "</span>";
         }.bind(this)
       );
 
-      if (selected.length > 10) {
-        labels.push('<span class="text-muted small">+' + esc(String(selected.length - 10)) + " lainnya</span>");
+      if (effectiveSelected.length > 10) {
+        labels.push('<span class="text-muted small">+' + esc(String(effectiveSelected.length - 10)) + " lainnya</span>");
       }
 
       previewEl.innerHTML = labels.join("");
@@ -1149,6 +1466,11 @@
       if (submitBtn) submitBtn.textContent = "Save Package";
       this.currentEditSnapshot = null;
       this.currentPricingDirty = false;
+      this.featureLimitDrafts = {};
+      const maxEmployeesInput = document.getElementById("input_package_max_employees");
+      if (maxEmployeesInput) {
+        maxEmployeesInput.value = "";
+      }
     },
 
     openCreateModal: function () {
@@ -1254,6 +1576,22 @@
               yearlyPrice: Number(pkg.yearlyPrice || 0),
             };
             self.currentPricingDirty = false;
+            self.featureLimitDrafts = (pkg.features || []).reduce(function (acc, feature) {
+              if (feature?.code && feature.limit !== null && feature.limit !== undefined) {
+                acc[feature.code] = String(feature.limit);
+              }
+              return acc;
+            }, {});
+
+            const maxEmployeesFeature = (pkg.features || []).find(function (feature) {
+              return feature.code === FEATURE_LIMIT_INPUT_CODE;
+            });
+            const maxEmployeesInput = document.getElementById("input_package_max_employees");
+            if (maxEmployeesInput) {
+              maxEmployeesInput.value = maxEmployeesFeature?.limit !== null && maxEmployeesFeature?.limit !== undefined
+                ? String(maxEmployeesFeature.limit)
+                : "";
+            }
 
             const selectedCodes = (pkg.features || []).map(function (f) {
               return f.code;
@@ -1269,6 +1607,7 @@
                 .querySelectorAll("input[type='checkbox'][name='package_feature_codes']")
                 .forEach(function (el) {
                   el.checked = selectedCodes.indexOf(el.value) !== -1;
+                  self.handleFeatureCheckboxChange(el);
                 });
             }
             self.updateFeatureSelectionSummary();
@@ -1398,7 +1737,7 @@
         '<div class="text-muted small mb-2">Included: <strong>' + String(included.length) + '</strong></div>' +
         '<div class="d-flex flex-wrap gap-2">' +
         (included.map(function (f) {
-          return '<span class="badge bg-light text-dark">' + esc(f.name || f.code || "Feature") + '</span>';
+          return '<span class="badge bg-light text-dark">' + esc(PackagesManager.describeFeatureBadge(f)) + '</span>';
         }).join("") || '<span class="text-muted">No features yet</span>') +
         '</div>';
 

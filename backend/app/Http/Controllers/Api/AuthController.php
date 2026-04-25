@@ -190,6 +190,7 @@ class AuthController extends Controller
             ? Company::query()->with('latestSubscription.package')->find($activeCompanyId)
             : ($activeCompany instanceof Company ? $activeCompany : null);
         $profileData = $this->buildProfilePayload($user, $profile, $resolvedActiveCompany, $activeCompanyRole);
+        $companyProfileData = $this->resolveOwnerCompanyProfile($resolvedActiveCompany, $activeCompanyRole);
         $currentUserRole = $this->resolveCurrentUserRole($activeCompanyRole, $profile);
 
         // `hcmAdmin` is used widely by HCM web modules to decide whether to allow "admin pages".
@@ -223,8 +224,10 @@ class AuthController extends Controller
                     'uuid' => $activeCompany->uuid,
                     'code' => $activeCompany->code,
                     'name' => $activeCompany->name,
+                    'legalName' => $activeCompany->legal_name,
                     'role' => $activeCompanyRole,
                 ] : null,
+                'companyProfile' => $companyProfileData,
             ],
         ]);
     }
@@ -648,6 +651,13 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],
             'addressDetail' => ['nullable', 'string', 'max:500'],
+            'companyName' => ['sometimes', 'nullable', 'string', 'min:2', 'max:255'],
+            'companyLegalName' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'companyAddress' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'companyCity' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'companyState' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'companyCountry' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'companyPostalCode' => ['sometimes', 'nullable', 'string', 'max:12'],
             'currentPassword' => ['nullable', 'string', 'max:64'],
             'newPassword' => ['nullable', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
             'confirmPassword' => ['required_with:newPassword', 'same:newPassword'],
@@ -672,6 +682,16 @@ class AuthController extends Controller
 
         $activeCompany = $request->attributes->get('activeCompany');
         $activeCompanyRole = (string) ($request->attributes->get('activeCompanyRole') ?? '');
+        $isOwnerContext = $activeCompany instanceof Company && strtolower(trim($activeCompanyRole)) === 'owner';
+        $hasCompanyProfileInput = $request->hasAny([
+            'companyName',
+            'companyLegalName',
+            'companyAddress',
+            'companyCity',
+            'companyState',
+            'companyCountry',
+            'companyPostalCode',
+        ]);
         $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
 
         if ($profile) {
@@ -679,7 +699,7 @@ class AuthController extends Controller
             $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
             $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
             $profile->save();
-        } elseif ($activeCompany instanceof Company && $activeCompanyRole === 'owner') {
+        } elseif ($isOwnerContext) {
             $this->storeOwnerProfileSettings(
                 $activeCompany,
                 trim((string) $request->input('phone', '')) ?: null,
@@ -697,10 +717,15 @@ class AuthController extends Controller
             $profile->save();
         }
 
+        if ($isOwnerContext && $hasCompanyProfileInput) {
+            $this->storeOwnerCompanyProfile($request, $activeCompany);
+        }
+
         $user->loadMissing('employeeProfile:id,company_id,user_id,designation,team,phone,address,address_detail,profile_photo_path');
         $resolvedActiveCompany = $activeCompany instanceof Company
             ? Company::query()->with('latestSubscription.package')->find($activeCompany->id)
             : null;
+        $companyProfileData = $this->resolveOwnerCompanyProfile($resolvedActiveCompany, $activeCompanyRole);
 
         return response()->json([
             'success' => true,
@@ -711,6 +736,7 @@ class AuthController extends Controller
                 'profile' => $this->buildProfilePayload($user, $user->employeeProfile, $resolvedActiveCompany, $activeCompanyRole),
                 'currentUserRole' => $this->resolveCurrentUserRole($activeCompanyRole, $user->employeeProfile),
                 'subscription' => $this->buildSubscriptionSummary($resolvedActiveCompany),
+                'companyProfile' => $companyProfileData,
             ],
         ]);
     }
@@ -776,6 +802,69 @@ class AuthController extends Controller
         ];
 
         foreach ($settings as $key => $value) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $company->id, 'key' => $key],
+                ['value' => $value, 'type' => 'string']
+            );
+        }
+    }
+
+    /**
+     * @return array<string, string|null>|null
+     */
+    private function resolveOwnerCompanyProfile(?Company $activeCompany, string $activeCompanyRole): ?array
+    {
+        if (! $activeCompany || strtolower(trim($activeCompanyRole)) !== 'owner') {
+            return null;
+        }
+
+        $settings = CompanySetting::query()
+            ->where('company_id', $activeCompany->id)
+            ->whereIn('key', [
+                'company_profile_address',
+                'company_profile_city',
+                'company_profile_state',
+                'company_profile_country',
+                'company_profile_postal_code',
+            ])
+            ->pluck('value', 'key');
+
+        return [
+            'name' => $activeCompany->name,
+            'legalName' => $activeCompany->legal_name,
+            'address' => $settings->get('company_profile_address'),
+            'city' => $settings->get('company_profile_city'),
+            'state' => $settings->get('company_profile_state'),
+            'country' => $settings->get('company_profile_country'),
+            'postalCode' => $settings->get('company_profile_postal_code'),
+        ];
+    }
+
+    private function storeOwnerCompanyProfile(Request $request, Company $company): void
+    {
+        $companyName = trim((string) $request->input('companyName', ''));
+        if ($companyName !== '') {
+            $company->name = $companyName;
+        }
+
+        if ($request->has('companyLegalName')) {
+            $legalName = trim((string) $request->input('companyLegalName', ''));
+            $company->legal_name = $legalName !== '' ? $legalName : null;
+        }
+
+        if ($company->isDirty(['name', 'legal_name'])) {
+            $company->save();
+        }
+
+        $profileSettings = [
+            'company_profile_address' => trim((string) $request->input('companyAddress', '')) ?: null,
+            'company_profile_city' => trim((string) $request->input('companyCity', '')) ?: null,
+            'company_profile_state' => trim((string) $request->input('companyState', '')) ?: null,
+            'company_profile_country' => trim((string) $request->input('companyCountry', '')) ?: null,
+            'company_profile_postal_code' => trim((string) $request->input('companyPostalCode', '')) ?: null,
+        ];
+
+        foreach ($profileSettings as $key => $value) {
             CompanySetting::query()->updateOrCreate(
                 ['company_id' => $company->id, 'key' => $key],
                 ['value' => $value, 'type' => 'string']

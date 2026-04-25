@@ -6,7 +6,7 @@ Attendance selfie diimplementasikan sebagai ekstensi dari attendance employee, b
 
 - API/controller: `backend/app/Http/Controllers/Api/AttendanceController.php`
 - View host: `backend/resources/views/attendance-employee.blade.php`
-- Frontend runtime: `frontend/resources/js/attendance-data.js`
+- Frontend runtime: `frontend/resources/js/attendance-data.js` (fungsi `initSelfieCapture`)
 - Storage private attendance files: disk Laravel privat untuk selfie image
 
 ## API Endpoints
@@ -27,7 +27,8 @@ Output utama:
 ## Runtime Rules
 
 - Backend mencari attendance record hari ini berdasarkan user auth dan company aktif.
-- Jika attendance hari itu belum dimulai, upload gagal dengan `422 ATTENDANCE_NOT_STARTED`.
+- Jika attendance hari itu belum dimulai (`check_in_at` null), upload gagal dengan `422 ATTENDANCE_NOT_STARTED`.
+- Payload selfie divalidasi ketat: hanya `image/jpeg`, `image/png`, `image/webp`, dan ukuran maksimal 5MB (setelah decode).
 - File selfie disimpan pada path tenant-aware seperti `selfie/{companyId}/...`.
 - Hash SHA256 atas binary image disimpan ke `attendance_records.selfie_encrypted_hash` untuk audit.
 - Endpoint admin download memverifikasi bahwa record attendance berada pada tenant aktif sebelum file dibuka.
@@ -62,6 +63,7 @@ Selfie melekat pada record attendance harian yang sama, sehingga tidak memerluka
 - Integrity check menggunakan hash SHA256 dari payload gambar.
 - Download admin memerlukan auth dan tenant scope yang sama dengan record attendance.
 - Cross-tenant download attempt harus gagal `404` atau `403` tanpa membocorkan keberadaan file.
+- Disk `private` memberi private visibility (non-public URL). Jika dibutuhkan encryption-at-rest, perlu lapisan enkripsi tambahan di storage pipeline.
 
 ## Tests
 

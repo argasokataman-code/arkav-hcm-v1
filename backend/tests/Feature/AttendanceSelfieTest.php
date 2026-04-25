@@ -63,7 +63,6 @@ class AttendanceSelfieTest extends TestCase
 
     public function test_authenticated_employee_can_access_selfie_endpoints(): void
     {
-        // Status endpoint should be accessible
         $response = $this
             ->withHeaders([
                 'Authorization' => 'Bearer '.$this->token,
@@ -71,15 +70,18 @@ class AttendanceSelfieTest extends TestCase
             ])
             ->getJson("{$this->baseUrl}/attendance/me/selfie/status");
 
-        // Should return 200 (not 404 or 403)
-        $this->assertTrue(in_array($response->status(), [200, 401, 403, 422], true));
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.has_selfie', false)
+            ->assertJsonPath('data.selfie', null);
     }
 
-    public function test_selfie_upload_endpoint_exists_and_validates_input(): void
+    public function test_selfie_upload_succeeds_for_valid_image_after_checkin(): void
     {
         Storage::fake('private');
 
-        // Create a simple test base64 image
+        // 1x1 JPEG image
         $testImage = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8VAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=';
 
         $response = $this
@@ -92,8 +94,46 @@ class AttendanceSelfieTest extends TestCase
                 'timestamp' => time(),
             ]);
 
-        // Should succeed (or at least not crash)
-        $this->assertNotSame(500, $response->status());
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'data' => ['attendance_id', 'selfie_path', 'uploaded_at'],
+            ]);
+
+        $path = (string) $response->json('data.selfie_path');
+        $this->assertStringStartsWith('selfie/'.$this->company->id.'/', $path);
+        Storage::disk('private')->assertExists($path);
+
+        $record = AttendanceRecord::query()
+            ->where('company_id', $this->company->id)
+            ->where('user_id', $this->user->id)
+            ->whereDate('work_date', now()->toDateString())
+            ->firstOrFail();
+
+        $this->assertNotNull($record->selfie_encrypted_hash);
+        $this->assertSame(64, strlen((string) $record->selfie_encrypted_hash));
+    }
+
+    public function test_selfie_upload_rejects_when_attendance_not_started(): void
+    {
+        AttendanceRecord::query()
+            ->where('company_id', $this->company->id)
+            ->where('user_id', $this->user->id)
+            ->update(['check_in_at' => null]);
+
+        $response = $this
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$this->token,
+                'X-Company-Id' => $this->company->id,
+            ])
+            ->postJson("{$this->baseUrl}/attendance/me/selfie", [
+                'selfie_base64' => 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAA==',
+            ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ATTENDANCE_NOT_STARTED');
     }
 
     public function test_selfie_endpoint_validates_base64_data(): void
@@ -104,11 +144,70 @@ class AttendanceSelfieTest extends TestCase
                 'X-Company-Id' => $this->company->id,
             ])
             ->postJson("{$this->baseUrl}/attendance/me/selfie", [
-                'selfie_base64' => '', // Empty base64
+                'selfie_base64' => '',
             ]);
 
-        // Should return validation error (422) or similar
         $this->assertSame(422, $response->status(), $response->getContent());
+        $response->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_selfie_endpoint_rejects_non_image_payload(): void
+    {
+        $response = $this
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$this->token,
+                'X-Company-Id' => $this->company->id,
+            ])
+            ->postJson("{$this->baseUrl}/attendance/me/selfie", [
+                'selfie_base64' => 'data:image/png;base64,'.base64_encode('not-an-image'),
+            ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_selfie_endpoint_rejects_oversized_payload(): void
+    {
+        $largeBinary = random_bytes((5 * 1024 * 1024) + 10);
+
+        $response = $this
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$this->token,
+                'X-Company-Id' => $this->company->id,
+            ])
+            ->postJson("{$this->baseUrl}/attendance/me/selfie", [
+                'selfie_base64' => 'data:image/jpeg;base64,'.base64_encode($largeBinary),
+            ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_selfie_status_returns_uploaded_data_after_successful_upload(): void
+    {
+        Storage::fake('private');
+
+        $testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2Yq5sAAAAASUVORK5CYII=';
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => $this->company->id,
+        ])->postJson("{$this->baseUrl}/attendance/me/selfie", [
+            'selfie_base64' => $testImage,
+        ])->assertOk();
+
+        $status = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => $this->company->id,
+        ])->getJson("{$this->baseUrl}/attendance/me/selfie/status");
+
+        $status
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.has_selfie', true)
+            ->assertJsonPath('data.selfie.is_encrypted', true);
     }
 }
 

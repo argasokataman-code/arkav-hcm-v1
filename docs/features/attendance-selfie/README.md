@@ -28,7 +28,7 @@ Dokumen teknis pendamping:
 2. Tombol selfie tetap nonaktif sampai employee berhasil punch in untuk hari tersebut.
 3. Saat tombol dibuka, browser meminta izin kamera dan frontend memulai stream `facingMode: user`.
 4. Employee mengambil foto, meninjau preview, lalu mengirim base64 image ke `POST /v1/hcm/attendance/me/selfie`.
-5. Backend mencari attendance record hari ini pada tenant aktif, memvalidasi bahwa attendance sudah dimulai, lalu menyimpan file ke storage privat.
+5. Backend mencari attendance record hari ini pada tenant aktif, memvalidasi bahwa attendance sudah dimulai (`check_in_at` sudah ada), lalu menyimpan file ke storage privat.
 6. Backend menghitung hash SHA256 atas payload gambar untuk integrity check dan mengembalikan path file + waktu upload.
 7. Admin dapat mengunduh selfie dari record attendance tertentu jika record itu masih berada dalam tenant aktif.
 
@@ -39,6 +39,7 @@ Dokumen teknis pendamping:
 - Storage file harus privat; yang dibuka ke admin adalah response download terotorisasi, bukan URL publik.
 - Hash SHA256 disimpan untuk audit integrity, bukan untuk akses publik.
 - Download selfie wajib ikut tenant scope record attendance; admin tenant A tidak boleh membaca file tenant B.
+- Payload selfie hanya menerima gambar valid (`jpeg/png/webp`) dengan batas ukuran maksimum 5MB setelah decode.
 
 ## Integrasi
 
@@ -60,4 +61,5 @@ Source of truth kontrak: `docs/api/hcm-attendance-api.md`.
 
 - Existing: kamera modal, upload selfie, hash integrity, private storage, dan admin download tenant-scoped sudah aktif.
 - Existing: frontend sudah memblok tombol selfie sebelum attendance dimulai.
+- Existing: backend menolak upload selfie jika attendance belum punch-in dan menolak payload non-image/oversize.
 - Target: evidence manual lintas browser dan fallback UX untuk error perangkat kamera masih bisa diperkaya tanpa mengubah kontrak inti.

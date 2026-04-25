@@ -5,6 +5,7 @@
 - ✅ API: `POST /v1/hcm/attendance/me/selfie`, `GET /v1/hcm/attendance/me/selfie/status`, dan admin download endpoint aktif
 - ✅ DB: Selfie fields + hash storage added
 - ✅ Security: Private storage + SHA256 hash integrity
+- ✅ Validation hardening: wajib punch-in (`check_in_at`) + MIME whitelist (`jpeg/png/webp`) + max 5MB
 
 ---
 
@@ -191,8 +192,10 @@ Responds with prompts - enter your token when asked.
 - [ ] `POST /v1/hcm/attendance/me/selfie` returns 200 on valid image
 - [ ] Response includes `selfie_path` + `uploaded_at`
 - [ ] `GET /v1/hcm/attendance/me/selfie/status` returns `data.has_selfie: true`
-- [ ] Invalid base64 returns 422 error
-- [ ] No attendance record returns 422 `ATTENDANCE_NOT_STARTED`
+- [ ] Invalid base64 returns 422 `VALIDATION_ERROR`
+- [ ] Non-image payload returns 422 `VALIDATION_ERROR`
+- [ ] Oversize payload (>5MB decoded) returns 422 `VALIDATION_ERROR`
+- [ ] No attendance/check-in returns 422 `ATTENDANCE_NOT_STARTED`
 - [ ] Unauthenticated request returns 401
 
 ### Database
@@ -220,7 +223,18 @@ Responds with prompts - enter your token when asked.
 ### 2. Invalid Base64
 - **Setup**: Submit `selfie_base64: "not-base64"`
 - **Expected**: `422 Unprocessable Entity`
-- **Message**: "Data selfie tidak valid"
+- **Code**: `VALIDATION_ERROR`
+- **Message**: "Data selfie tidak valid..."
+
+### 2b. Non-image Payload
+- **Setup**: Submit `selfie_base64` base64 plain text atau binary acak
+- **Expected**: `422 Unprocessable Entity`
+- **Code**: `VALIDATION_ERROR`
+
+### 2c. Oversize Payload
+- **Setup**: Submit payload image/base64 > 5MB (decoded)
+- **Expected**: `422 Unprocessable Entity`
+- **Code**: `VALIDATION_ERROR`
 
 ### 3. Camera Permission Denied
 - **Setup**: Deny camera access in browser

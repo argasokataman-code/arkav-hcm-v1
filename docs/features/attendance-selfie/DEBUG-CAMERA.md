@@ -16,37 +16,19 @@ This guide helps debug camera stream initialization issues in the selfie capture
 ☐ Check console for log messages
 ```
 
-## Expected Console Output (Success)
+## Runtime Note
 
-When the feature works correctly, you should see these console messages **in order**:
-
-```javascript
-Selfie Elements: {
-  modal: true,
-  video: true,
-  canvas: true,
-  captureBtn: true,
-  retakeBtn: true,
-  submitBtn: true,
-  openBtn: true
-}
-Ambil Selfie clicked
-Modal shown event fired
-Starting camera...
-Camera started successfully
-```
-
-If you see all these messages, the camera should be displaying video in the modal.
+Selfie camera lifecycle sekarang ditangani oleh module frontend `attendance-data.js` (fungsi `initSelfieCapture`), bukan inline script blade. Debug utama berfokus pada state UI, permission browser, dan network request API.
 
 ## Debugging Scenarios
 
-### Scenario 1: Modal Opens but No Console Messages
+### Scenario 1: Modal Opens but Camera Tidak Start
 
-**Problem**: No "Selfie Elements:" log appears
+**Problem**: Modal tampil tapi video tidak start
 
 **Causes**:
 - Page not fully loaded
-- JavaScript not executing
+- JavaScript module belum termuat/tereksekusi
 - Blade template missing data attributes
 
 **Solution**:
@@ -64,7 +46,7 @@ document.querySelector('[data-attendance-me-selfie-btn]')  // Should not be null
 
 ---
 
-### Scenario 2: "Selfie Elements:" Logs BUT "Ambil Selfie clicked" Doesn't Appear
+### Scenario 2: Tombol Selfie Tidak Reaktif
 
 **Problem**: Element exists but click event not firing
 
@@ -86,7 +68,7 @@ document.querySelector('[data-attendance-me-selfie-btn]').click()  // Manually t
 
 ---
 
-### Scenario 3: "Starting camera..." Appears BUT NOT "Camera started successfully"
+### Scenario 3: Browser Tolak Kamera
 
 **Problem**: `startCamera()` called but `getUserMedia()` failed
 
@@ -134,7 +116,7 @@ Browser Anda tidak mendukung akses kamera
 
 ---
 
-### Scenario 4: "Camera started successfully" BUT No Video Displays
+### Scenario 4: Stream Aktif Tapi Video Tidak Tampil
 
 **Problem**: Camera initialized but video not visible
 

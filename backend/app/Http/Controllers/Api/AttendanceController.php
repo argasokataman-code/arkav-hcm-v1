@@ -29,6 +29,14 @@ class AttendanceController extends Controller
 
     private const OVERTIME_THRESHOLD_MINUTES = 8 * 60;
     private const EARLY_PUNCH_OUT_REVIEW_MINUTES = 4 * 60;
+    private const SELFIE_MAX_BYTES = 5 * 1024 * 1024;
+
+    /** @var array<string, string> */
+    private const SELFIE_ALLOWED_MIME_TO_EXT = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
 
     private function tz(): string
     {
@@ -1512,26 +1520,37 @@ class AttendanceController extends Controller
                 ], 422);
             }
 
-            // Decode base64 image
-            $base64Data = preg_replace('/^data:image\/\w+;base64,/', '', $validated['selfie_base64']);
-            $imageBinary = base64_decode($base64Data, true);
-
-            if (! $imageBinary) {
+            if (! $attendance->check_in_at) {
                 return response()->json([
                     'success' => false,
                     'error' => [
-                        'code' => 'VALIDATION_ERROR',
-                        'message' => 'Data selfie tidak valid.',
+                        'code' => 'ATTENDANCE_NOT_STARTED',
+                        'message' => 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie.',
                     ],
                 ], 422);
             }
 
+            $parsedImage = $this->parseSelfieImagePayload((string) $validated['selfie_base64']);
+            if ($parsedImage === null) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'Data selfie tidak valid. Gunakan format JPEG/PNG/WEBP maksimal 5MB.',
+                    ],
+                ], 422);
+            }
+
+            ['binary' => $imageBinary, 'mime' => $detectedMime] = $parsedImage;
+            $extension = self::SELFIE_ALLOWED_MIME_TO_EXT[$detectedMime] ?? 'jpg';
+
             // Store image (will be encrypted at storage layer)
             $filename = sprintf(
-                'selfie/%d/%s_%s.jpg',
+                'selfie/%d/%s_%s.%s',
                 (int) ($activeCompanyId ?? 0),
                 $user->id,
-                $workDate . '_' . now('UTC')->timestamp
+                $workDate . '_' . now('UTC')->timestamp,
+                $extension
             );
 
             // Store in storage (encrypted at storage layer via config)
@@ -1570,6 +1589,54 @@ class AttendanceController extends Controller
                 ],
             ], 500);
         }
+    }
+
+    /**
+     * @return array{binary: string, mime: string}|null
+     */
+    private function parseSelfieImagePayload(string $payload): ?array
+    {
+        $raw = trim($payload);
+        if ($raw === '') {
+            return null;
+        }
+
+        $declaredMime = null;
+        $base64Data = $raw;
+
+        if (preg_match('/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s', $raw, $matches) === 1) {
+            $declaredMime = strtolower((string) ($matches[1] ?? ''));
+            $base64Data = (string) ($matches[2] ?? '');
+        }
+
+        $base64Data = str_replace(["\r", "\n", ' '], '', $base64Data);
+        if ($base64Data === '') {
+            return null;
+        }
+
+        $binary = base64_decode($base64Data, true);
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        if (strlen($binary) > self::SELFIE_MAX_BYTES) {
+            return null;
+        }
+
+        $imageInfo = @getimagesizefromstring($binary);
+        $detectedMime = strtolower((string) ($imageInfo['mime'] ?? ''));
+        if (! isset(self::SELFIE_ALLOWED_MIME_TO_EXT[$detectedMime])) {
+            return null;
+        }
+
+        if ($declaredMime !== null && $declaredMime !== $detectedMime) {
+            return null;
+        }
+
+        return [
+            'binary' => $binary,
+            'mime' => $detectedMime,
+        ];
     }
 
     /**

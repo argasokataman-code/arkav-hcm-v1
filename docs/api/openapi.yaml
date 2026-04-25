@@ -3479,6 +3479,10 @@ paths:
     post:
       tags: [Attendance]
       summary: Upload attendance selfie for today (self)
+      description: |
+        Uploads selfie attachment for today's attendance record.
+        Request is rejected when attendance has not started (`check_in_at` missing).
+        Payload accepts only JPEG/PNG/WEBP and maximum 5MB (decoded binary).
       security:
         - bearerAuth: []
       requestBody:
@@ -3491,14 +3495,28 @@ paths:
               properties:
                 selfie_base64:
                   type: string
-                  description: Base64-encoded image payload.
+                  description: Base64-encoded image payload (JPEG/PNG/WEBP, max 5MB decoded).
                 timestamp:
                   type: integer
                   nullable: true
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
+        '422':
+          description: Validation error or attendance not started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        enum: [VALIDATION_ERROR, ATTENDANCE_NOT_STARTED]
+                      message: { type: string }
   /v1/hcm/attendance/me/selfie/status:
     get:
       tags: [Attendance]

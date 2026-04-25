@@ -132,8 +132,8 @@ Body:
 - `timestamp` optional integer
 
 Errors:
-- `422 ATTENDANCE_NOT_STARTED` jika employee belum punya attendance record hari ini
-- `422 VALIDATION_ERROR` jika payload base64 tidak valid
+- `422 ATTENDANCE_NOT_STARTED` jika employee belum punya attendance record hari ini atau `check_in_at` belum terisi
+- `422 VALIDATION_ERROR` jika payload base64 tidak valid, bukan image yang didukung (`jpeg/png/webp`), atau ukuran file melebihi batas 5MB (decoded)
 
 Success `200`:
 

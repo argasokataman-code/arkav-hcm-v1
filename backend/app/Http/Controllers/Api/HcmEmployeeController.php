@@ -60,22 +60,11 @@ class HcmEmployeeController extends Controller
      *
      * @return array{totalEmployees: int, activeEmployees: int, inactiveEmployees: int, probationEmployees: int, newJoiners: int}
      */
-    private function employeeDirectorySummary(?int $activeCompanyId): array
+    private function employeeDirectorySummary(?int $scopeCompanyId): array
     {
-        if (! $activeCompanyId) {
-            return [
-                'totalEmployees' => 0,
-                'activeEmployees' => 0,
-                'inactiveEmployees' => 0,
-                'probationEmployees' => 0,
-                'newJoiners' => 0,
-            ];
-        }
-
         $since = now()->subDays(30);
-        $row = DB::table('employee_profiles')
+        $summaryQuery = DB::table('employee_profiles')
             ->join('users', 'users.id', '=', 'employee_profiles.user_id')
-            ->where('employee_profiles.company_id', $activeCompanyId)
             ->selectRaw(
                 'COUNT(*) as total, '.
                 'SUM(CASE WHEN employee_profiles.employment_status IS NULL OR employee_profiles.employment_status = ? THEN 1 ELSE 0 END) as active_employees, '.
@@ -83,8 +72,13 @@ class HcmEmployeeController extends Controller
                 'SUM(CASE WHEN employee_profiles.employment_status = ? THEN 1 ELSE 0 END) as probation_employees, '.
                 'SUM(CASE WHEN users.created_at >= ? THEN 1 ELSE 0 END) as new_joiners',
                 ['active', 'inactive', 'resigned', 'terminated', 'probation', $since]
-            )
-            ->first();
+            );
+
+        if ($scopeCompanyId) {
+            $summaryQuery->where('employee_profiles.company_id', $scopeCompanyId);
+        }
+
+        $row = $summaryQuery->first();
 
         return [
             'totalEmployees' => (int) ($row->total ?? 0),
@@ -231,6 +225,7 @@ class HcmEmployeeController extends Controller
             'status' => ['nullable', Rule::in($this->directoryStatusOptions())],
             'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
             'designationId' => ['nullable', 'integer', 'exists:designations,id'],
+            'scope' => ['nullable', Rule::in(['global', 'active_company'])],
         ]);
 
         if ($forbidden = $this->ensurePermission($request, 'employee.view')) {
@@ -254,10 +249,15 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
 
-        // Global Super Admin sees employees across ALL tenants; tenant admins
-        // stay scoped to their active company.
         $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
-        $scopeCompanyId = $isGlobalAdmin ? null : $activeCompanyId;
+        $requestedScope = (string) ($validated['scope'] ?? ($isGlobalAdmin ? 'global' : 'active_company'));
+
+        // Global Super Admin can switch between global directory and active tenant only.
+        // Tenant admins remain scoped to active company regardless of query param.
+        $scopeCompanyId = null;
+        if (! $isGlobalAdmin || $requestedScope === 'active_company') {
+            $scopeCompanyId = $activeCompanyId;
+        }
 
         $query = User::query()
             ->with([
@@ -284,10 +284,10 @@ class HcmEmployeeController extends Controller
                     ]);
                 },
             ])
-            ->when(! $isGlobalAdmin, function ($q) use ($scopeCompanyId): void {
+            ->when($scopeCompanyId, function ($q) use ($scopeCompanyId): void {
                 $q->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $scopeCompanyId));
             })
-            ->when($isGlobalAdmin, function ($q): void {
+            ->when(! $scopeCompanyId, function ($q): void {
                 // Global admin still requires an employee profile record.
                 $q->whereHas('employeeProfile');
             })
@@ -298,7 +298,7 @@ class HcmEmployeeController extends Controller
             $useFulltext = strlen($term) >= 3
                 && DB::connection()->getDriverName() === 'mysql';
 
-            $query->where(function ($outer) use ($term, $useFulltext, $scopeCompanyId, $isGlobalAdmin): void {
+            $query->where(function ($outer) use ($term, $useFulltext, $scopeCompanyId): void {
                 if ($useFulltext) {
                     $outer->whereRaw('MATCH(users.name, users.email) AGAINST(? IN NATURAL LANGUAGE MODE)', [$term]);
                 } else {
@@ -306,8 +306,8 @@ class HcmEmployeeController extends Controller
                         ->orWhere('email', 'like', '%'.$term.'%');
                 }
 
-                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term, $scopeCompanyId, $isGlobalAdmin): void {
-                    if (! $isGlobalAdmin && $scopeCompanyId) {
+                $outer->orWhereHas('employeeProfile', function ($profileQuery) use ($term, $scopeCompanyId): void {
+                    if ($scopeCompanyId) {
                         $profileQuery->where('company_id', $scopeCompanyId);
                     }
                     $profileQuery->where(function ($p) use ($term): void {
@@ -318,8 +318,8 @@ class HcmEmployeeController extends Controller
             });
         }
 
-        $statusScope = function ($p) use ($scopeCompanyId, $isGlobalAdmin) {
-            if (! $isGlobalAdmin && $scopeCompanyId) {
+        $statusScope = function ($p) use ($scopeCompanyId) {
+            if ($scopeCompanyId) {
                 $p->where('company_id', $scopeCompanyId);
             }
             return $p;
@@ -383,7 +383,7 @@ class HcmEmployeeController extends Controller
             ];
         })->values();
 
-        $summary = $this->employeeDirectorySummary($activeCompanyId);
+        $summary = $this->employeeDirectorySummary($scopeCompanyId);
 
         return response()->json([
             'success' => true,

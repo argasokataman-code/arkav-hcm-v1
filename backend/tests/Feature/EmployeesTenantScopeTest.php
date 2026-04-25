@@ -107,5 +107,83 @@ class EmployeesTenantScopeTest extends TestCase
         $this->assertContains($employeeA->id, $ids);
         $this->assertNotContains($employeeB->id, $ids);
     }
+
+    public function test_global_admin_can_switch_employee_scope_with_scope_query(): void
+    {
+        $globalAdmin = User::query()->create([
+            'name' => 'Global Admin',
+            'email' => 'global.admin@example.com',
+            'password' => bcrypt('StrongPass1'),
+            'is_super_admin' => true,
+        ]);
+
+        $companyA = Company::query()->create([
+            'name' => 'Company A',
+            'code' => 'company_a',
+            'status' => 'active',
+        ]);
+        $companyB = Company::query()->create([
+            'name' => 'Company B',
+            'code' => 'company_b',
+            'status' => 'active',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $companyA->id,
+            'user_id' => $globalAdmin->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $employeeA = User::query()->create([
+            'name' => 'Employee A',
+            'email' => 'employee.a.scope@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        EmployeeProfile::query()->create([
+            'user_id' => $employeeA->id,
+            'company_id' => $companyA->id,
+            'employment_status' => 'active',
+        ]);
+
+        $employeeB = User::query()->create([
+            'name' => 'Employee B',
+            'email' => 'employee.b.scope@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        EmployeeProfile::query()->create([
+            'user_id' => $employeeB->id,
+            'company_id' => $companyB->id,
+            'employment_status' => 'active',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'global.admin@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $companyA->code,
+        ])->assertOk()->assertCookie($this->cookieName());
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $this->assertNotEmpty($token);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $globalRes = $this->withHeader('Cookie', $cookieHeader)
+            ->withHeader('X-Company-Id', (string) $companyA->id)
+            ->getJson('/v1/hcm/employees?perPage=50&page=1&scope=global');
+
+        $globalRes->assertOk()->assertJsonPath('success', true);
+        $globalIds = collect($globalRes->json('data'))->pluck('id')->all();
+        $this->assertContains($employeeA->id, $globalIds);
+        $this->assertContains($employeeB->id, $globalIds);
+
+        $activeCompanyRes = $this->withHeader('Cookie', $cookieHeader)
+            ->withHeader('X-Company-Id', (string) $companyA->id)
+            ->getJson('/v1/hcm/employees?perPage=50&page=1&scope=active_company');
+
+        $activeCompanyRes->assertOk()->assertJsonPath('success', true);
+        $activeCompanyIds = collect($activeCompanyRes->json('data'))->pluck('id')->all();
+        $this->assertContains($employeeA->id, $activeCompanyIds);
+        $this->assertNotContains($employeeB->id, $activeCompanyIds);
+    }
 }
 

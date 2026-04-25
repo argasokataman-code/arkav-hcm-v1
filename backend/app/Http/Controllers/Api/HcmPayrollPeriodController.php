@@ -107,10 +107,11 @@ class HcmPayrollPeriodController extends Controller
         $this->applyTenantScope($periodQuery, $companyId);
         $period = $periodQuery->where('id', $id)->firstOrFail();
 
-        $latestRun = HcmPayrollRun::query()
+        $latestRunQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($latestRunQuery, $companyId);
+        $latestRun = $latestRunQuery->first();
 
         return response()->json([
             'success' => true,
@@ -178,10 +179,11 @@ class HcmPayrollPeriodController extends Controller
             }
         }
 
-        $latestRun = HcmPayrollRun::query()
+        $latestRunQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $active->id)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+        $this->applyTenantScope($latestRunQuery, $companyId);
+        $latestRun = $latestRunQuery->first();
 
         return response()->json([
             'success' => true,
@@ -203,11 +205,12 @@ class HcmPayrollPeriodController extends Controller
         $this->applyTenantScope($periodQuery, $companyId);
         $period = $periodQuery->where('id', $id)->firstOrFail();
 
-        $finalizedExists = HcmPayrollRun::query()
+        $finalizedExistsQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
-            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-            ->exists();
+            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY);
+        $this->applyTenantScope($finalizedExistsQuery, $companyId);
+        $finalizedExists = $finalizedExistsQuery->exists();
 
         if ($finalizedExists) {
             if (! app()->environment(['local', 'development', 'testing'])) {
@@ -221,13 +224,14 @@ class HcmPayrollPeriodController extends Controller
             }
 
             // Dev helper: void finalized monthly runs and clear payment metadata so draft can be recalculated.
-            DB::transaction(function () use ($period): void {
-                $finalizedRuns = HcmPayrollRun::query()
+            DB::transaction(function () use ($period, $companyId): void {
+                $finalizedRunsQuery = HcmPayrollRun::query()
                     ->where('hcm_payroll_period_id', $period->id)
                     ->where('status', HcmPayrollRun::STATUS_FINALIZED)
                     ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-                    ->lockForUpdate()
-                    ->get();
+                    ->lockForUpdate();
+                $this->applyTenantScope($finalizedRunsQuery, $companyId);
+                $finalizedRuns = $finalizedRunsQuery->get();
 
                 foreach ($finalizedRuns as $finalizedRun) {
                     $lines = HcmPayrollLine::query()
@@ -255,62 +259,8 @@ class HcmPayrollPeriodController extends Controller
             });
         }
 
-        $existingDraft = HcmPayrollRun::query()
-            ->where('hcm_payroll_period_id', $period->id)
-            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-            ->where('status', HcmPayrollRun::STATUS_DRAFT)
-            ->orderByDesc('id')
-            ->first();
-
-        // Prevent accidental multi-click recalculation. Rebuild requires explicit reset flow.
-        if ($existingDraft !== null) {
-            $lines = HcmPayrollLine::query()
-                ->where('hcm_payroll_run_id', $existingDraft->id)
-                ->orderBy('user_id')
-                ->orderBy('sort_order')
-                ->get();
-            $lineCount = $lines->count();
-            $employeeCount = $lines->pluck('user_id')->filter()->unique()->count();
-            $details = $lines->groupBy('user_id')->map(function ($items, $userId): array {
-                $grossPay = round((float) $items->where('kind', 'addition')->sum('amount'), 2);
-                $deductionsTotal = round((float) $items->where('kind', 'deduction')->sum('amount'), 2);
-
-                return [
-                    'employee_id' => (int) $userId,
-                    'gross_pay' => $grossPay,
-                    'deductions_total' => $deductionsTotal,
-                    'net_pay' => round($grossPay - $deductionsTotal, 2),
-                    'line_count' => $items->count(),
-                ];
-            })->values()->all();
-
-            $missingTaxProfileUserIds = $lines
-                ->filter(function (HcmPayrollLine $line): bool {
-                    $meta = is_array($line->meta) ? $line->meta : [];
-                    return ($line->component_code === 'pph21_ter' || $line->category === 'pph21_ter')
-                        && (($meta['missingTaxProfile'] ?? false) === true);
-                })
-                ->pluck('user_id')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'run' => array_merge($this->serializeRunSummary($existingDraft), ['details' => $details]),
-                    'lineCount' => $lineCount,
-                    'employeeCount' => $employeeCount,
-                    'anomalies' => [
-                        'missingTaxProfileUserCount' => count($missingTaxProfileUserIds),
-                        'missingTaxProfileUserIds' => $missingTaxProfileUserIds,
-                    ],
-                    'reusedExistingDraft' => true,
-                ],
-            ]);
-        }
-
+        // Always rebuild draft from latest tenant-scoped employee source of truth.
+        // This keeps "Calculate Draft" aligned with its refresh behavior in UI.
         $run = PayrollDraftBuilder::rebuildDraftRun($period, $companyId);
         $lines = HcmPayrollLine::query()
             ->where('hcm_payroll_run_id', $run->id)
@@ -403,11 +353,6 @@ class HcmPayrollPeriodController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
-        // Global Super Admin bypasses tenant scoping on payroll period queries.
-        if (auth()->user()?->isGlobalHcmAdmin()) {
-            return $query;
-        }
-
         if ($companyId === null) {
             return $query;
         }

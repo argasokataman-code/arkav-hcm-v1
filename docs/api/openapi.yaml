@@ -1849,6 +1849,7 @@ paths:
         - $ref: '#/components/parameters/DepartmentId'
         - $ref: '#/components/parameters/DesignationId'
         - $ref: '#/components/parameters/EmploymentStatus'
+        - $ref: '#/components/parameters/EmployeeScope'
       responses:
         '200':
           description: OK
@@ -8822,6 +8823,17 @@ components:
       schema:
         type: string
         enum: [active, inactive, probation, resigned, terminated]
+    EmployeeScope:
+      name: scope
+      in: query
+      description: |
+        Employee directory scope for Global Super Admin.
+        - `global`: lintas semua tenant.
+        - `active_company`: paksa hanya tenant aktif.
+        Untuk non-global-admin, API selalu tenant aktif.
+      schema:
+        type: string
+        enum: [global, active_company]
   responses:
     ValidationError:
       description: Validation error

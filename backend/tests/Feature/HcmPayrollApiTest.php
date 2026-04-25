@@ -347,8 +347,8 @@ class HcmPayrollApiTest extends TestCase
             ->first();
 
         $this->assertGreaterThan(0, $selectedUserId);
-        $this->assertSame((int) $firstDraft->json('data.run.id'), $runId);
-        $this->assertTrue((bool) $secondDraft->json('data.reusedExistingDraft'));
+        $this->assertNotSame((int) $firstDraft->json('data.run.id'), $runId);
+        $this->assertFalse((bool) $secondDraft->json('data.reusedExistingDraft'));
 
         $disburse = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', [

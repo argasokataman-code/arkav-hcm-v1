@@ -25,6 +25,12 @@
         buttons.forEach(function (btn) {
             var nextView = btn.dataset.view === "grid" ? "grid" : "list";
             var target = new URL(window.location.origin + LIST_PATH);
+            var currentParams = new URL(window.location.href).searchParams;
+            currentParams.forEach(function (value, key) {
+                if (key !== "view") {
+                    target.searchParams.set(key, value);
+                }
+            });
             target.searchParams.set("view", nextView);
             btn.setAttribute("href", target.toString());
         });
@@ -33,6 +39,12 @@
 
     function updateUrl(view) {
         var target = new URL(window.location.origin + LIST_PATH);
+        var currentParams = new URL(window.location.href).searchParams;
+        currentParams.forEach(function (value, key) {
+            if (key !== "view") {
+                target.searchParams.set(key, value);
+            }
+        });
         target.searchParams.set("view", view);
         window.history.replaceState({}, "", target.toString());
     }

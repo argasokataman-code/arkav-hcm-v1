@@ -9,11 +9,15 @@
         status: "",
         departmentId: "",
         designationId: "",
+        scope: "",
     };
     var employeesTableMeta = {
         page: 1,
         perPage: 20,
         total: 0,
+    };
+    var employeesViewerContext = {
+        isSpecialSuperAdminCode1: false,
     };
 
     function employeesListUrl(perPage, page) {
@@ -104,7 +108,64 @@
         if (state.designationId) {
             params.set("designationId", state.designationId);
         }
+        if (state.scope) {
+            params.set("scope", state.scope);
+        }
         return requestJson("get", "/v1/hcm/employees?" + params.toString(), null);
+    }
+
+    function normalizeEmployeeScope(scope) {
+        var value = String(scope || "").toLowerCase();
+        if (value === "global" || value === "active_company") {
+            return value;
+        }
+        return "";
+    }
+
+    function isSpecialSuperAdminCode1(meData) {
+        if (!meData || !meData.hcmGlobalAdmin) {
+            return false;
+        }
+        var activeCompanyId = meData.activeCompany && meData.activeCompany.id != null
+            ? Number(meData.activeCompany.id)
+            : 0;
+        var userId = meData.id != null ? Number(meData.id) : 0;
+        return activeCompanyId === 1 || userId === 1;
+    }
+
+    function syncEmployeesScopeTabState(activeScope) {
+        var tabs = Array.prototype.slice.call(document.querySelectorAll("[data-employees-scope-tab]"));
+        tabs.forEach(function (tab) {
+            var tabScope = normalizeEmployeeScope(tab.getAttribute("data-employees-scope-tab"));
+            var isActive = tabScope && tabScope === activeScope;
+            tab.classList.toggle("active", isActive);
+            tab.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+    }
+
+    function applyEmployeesScopeTabs(meData) {
+        var wrap = document.querySelector("[data-employees-scope-tabs-wrap]");
+        if (!wrap) {
+            return;
+        }
+
+        var eligible = isSpecialSuperAdminCode1(meData);
+        employeesViewerContext.isSpecialSuperAdminCode1 = eligible;
+
+        if (!eligible) {
+            wrap.classList.add("d-none");
+            employeesTableState.scope = "";
+            syncEmployeesScopeTabState("");
+            return;
+        }
+
+        wrap.classList.remove("d-none");
+        var requestedScope = normalizeEmployeeScope(employeesTableState.scope);
+        if (!requestedScope) {
+            requestedScope = "active_company";
+        }
+        employeesTableState.scope = requestedScope;
+        syncEmployeesScopeTabState(requestedScope);
     }
 
     function requestAllEmployeesAggregated(perPage) {
@@ -1708,6 +1769,7 @@
         if (employeesTableState.status) params.set("status", employeesTableState.status);
         if (employeesTableState.departmentId) params.set("departmentId", employeesTableState.departmentId);
         if (employeesTableState.designationId) params.set("designationId", employeesTableState.designationId);
+        if (employeesTableState.scope) params.set("scope", employeesTableState.scope);
         params.set("format", format === "pdf" ? "pdf" : "xlsx");
         window.location.assign("/v1/hcm/employees/export?" + params.toString());
     }
@@ -1732,6 +1794,7 @@
         employeesTableState.status = String(params.get("status") || employeesTableState.status || "").trim();
         employeesTableState.departmentId = String(params.get("departmentId") || employeesTableState.departmentId || "").trim();
         employeesTableState.designationId = String(params.get("designationId") || employeesTableState.designationId || "").trim();
+        employeesTableState.scope = normalizeEmployeeScope(params.get("scope") || employeesTableState.scope || "");
 
         if (searchInput) {
             searchInput.value = employeesTableState.search;
@@ -1802,6 +1865,19 @@
             if (exportBtn) {
                 event.preventDefault();
                 exportEmployees(exportBtn.getAttribute("data-employees-export") || "xlsx");
+                return;
+            }
+
+            var scopeBtn = event.target.closest("[data-employees-scope-tab]");
+            if (scopeBtn && employeesViewerContext.isSpecialSuperAdminCode1) {
+                event.preventDefault();
+                var nextScope = normalizeEmployeeScope(scopeBtn.getAttribute("data-employees-scope-tab"));
+                if (!nextScope || nextScope === employeesTableState.scope) {
+                    return;
+                }
+                employeesTableState.scope = nextScope;
+                syncEmployeesScopeTabState(nextScope);
+                triggerReload(true);
             }
         });
     }
@@ -2007,6 +2083,8 @@
                     window.location.replace("/employee-dashboard");
                     return null;
                 }
+
+                applyEmployeesScopeTabs(me.data || {});
                 bindEmployeeOrgDepartmentChange();
                 return ensureEmployeeOrgMastersLoaded().then(function () {
                     syncEmployeesFilterOptions();

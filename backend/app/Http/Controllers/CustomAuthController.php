@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuthToken;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
@@ -38,8 +39,37 @@ class CustomAuthController extends Controller
                         ->withSuccess('Signed in');
         }
         if (Auth::attempt($credentials)) {
+            $user = Auth::user();
+
+            // Create API token so browser JS (e.g. /v1/identity/auth/me) works after web login.
+            $plainToken = Str::random(64);
+            $expiresIn = (int) config('auth.api_token_cookie.ttl_seconds', 3600);
+            AuthToken::create([
+                'user_id' => $user->id,
+                'token_hash' => hash('sha256', $plainToken),
+                'expires_at' => now()->addSeconds($expiresIn),
+            ]);
+
+            $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
+            $cookiePath = (string) config('auth.api_token_cookie.path', '/');
+            $cookieDomain = config('auth.api_token_cookie.domain') ?: null;
+            $cookieSecure = (bool) config('auth.api_token_cookie.secure', false);
+            $cookieSameSite = (string) config('auth.api_token_cookie.same_site', 'lax');
+            $cookieMinutes = (int) ceil($expiresIn / 60);
+
             return redirect()->intended('index')
-                        ->withSuccess('Signed in');
+                ->withSuccess('Signed in')
+                ->withCookie(cookie(
+                    $cookieName,
+                    $plainToken,
+                    $cookieMinutes,
+                    $cookiePath,
+                    $cookieDomain,
+                    $cookieSecure,
+                    true,
+                    false,
+                    $cookieSameSite
+                ));
         }
         return redirect("login")->withErrors('These credentials do not match our records.');
     }
@@ -123,9 +153,36 @@ class CustomAuthController extends Controller
 
         // Password is correct, regenerate session token for security
         $request->session()->regenerate();
-        
+
+        // Create/refresh API token cookie so JS calls work after lock-screen unlock.
+        $plainToken = Str::random(64);
+        $expiresIn = (int) config('auth.api_token_cookie.ttl_seconds', 3600);
+        AuthToken::create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $plainToken),
+            'expires_at' => now()->addSeconds($expiresIn),
+        ]);
+        $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
+        $cookiePath = (string) config('auth.api_token_cookie.path', '/');
+        $cookieDomain = config('auth.api_token_cookie.domain') ?: null;
+        $cookieSecure = (bool) config('auth.api_token_cookie.secure', false);
+        $cookieSameSite = (string) config('auth.api_token_cookie.same_site', 'lax');
+        $cookieMinutes = (int) ceil($expiresIn / 60);
+
         // Redirect to the intended page or dashboard
-        return redirect()->intended('index')->withSuccess('Session unlocked successfully.');
+        return redirect()->intended('index')
+            ->withSuccess('Session unlocked successfully.')
+            ->withCookie(cookie(
+                $cookieName,
+                $plainToken,
+                $cookieMinutes,
+                $cookiePath,
+                $cookieDomain,
+                $cookieSecure,
+                true,
+                false,
+                $cookieSameSite
+            ));
     }
 
     public function sendPasswordResetLink(Request $request)

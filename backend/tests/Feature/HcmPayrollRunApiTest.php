@@ -6,6 +6,7 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
 use App\Models\HcmPayrollLine;
+use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -248,6 +249,110 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame('finalized', $response->json('data.status'));
+    }
+
+    public function test_shared_global_period_latest_run_and_draft_reuse_are_scoped_by_active_company(): void
+    {
+        $adminA = $this->adminToken();
+        $this->employeeToken('employee-a@example.com', 5_000_000);
+        $companyA = $this->company;
+        $this->assertNotNull($companyA);
+
+        $companyB = Company::query()->create([
+            'code' => 'default_company_b',
+            'name' => 'Default Company B',
+            'domain' => 'default-company-b.local',
+        ]);
+
+        $adminBResult = $this->createHcmAdminWithCompany([
+            'name' => 'Payroll Admin B',
+            'email' => 'payroll-admin-b@example.com',
+            'password' => 'StrongPass1',
+        ], $companyB);
+        $adminB = $adminBResult['token'];
+
+        $adminBUser = User::query()->where('email', 'payroll-admin-b@example.com')->firstOrFail();
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $adminBUser->id],
+            [
+                'company_id' => $companyB->id,
+                'team' => 'HR',
+                'designation' => 'HR Admin',
+                'employment_status' => 'active',
+                'base_salary' => 0,
+                'fixed_allowance' => 0,
+            ],
+        );
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Employee B',
+            'email' => 'employee-b@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $employeeB = User::query()->where('email', 'employee-b@example.com')->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $companyB->id,
+                'user_id' => $employeeB->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ]
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employeeB->id],
+            [
+                'company_id' => $companyB->id,
+                'employment_status' => 'active',
+                'base_salary' => 4_000_000,
+                'fixed_allowance' => 0,
+            ],
+        );
+
+        $now = now('Asia/Jakarta');
+        $sharedPeriod = HcmPayrollPeriod::query()->create([
+            'company_id' => null,
+            'period_year' => (int) $now->year,
+            'period_month' => (int) $now->month,
+            'status' => HcmPayrollPeriod::STATUS_OPEN,
+        ]);
+
+        $runA = (int) $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminA,
+            'X-Company-Id' => (string) $companyA->id,
+        ])->postJson('/v1/hcm/payroll-periods/'.$sharedPeriod->id.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $runB = (int) $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminB,
+            'X-Company-Id' => (string) $companyB->id,
+        ])->postJson('/v1/hcm/payroll-periods/'.$sharedPeriod->id.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->assertNotSame($runA, $runB);
+
+        $activeA = $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminA,
+            'X-Company-Id' => (string) $companyA->id,
+        ])->getJson('/v1/hcm/payroll-periods/active')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame($runA, (int) $activeA->json('data.latestRun.id'));
+
+        $reusedA = $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminA,
+            'X-Company-Id' => (string) $companyA->id,
+        ])->postJson('/v1/hcm/payroll-periods/'.$sharedPeriod->id.'/calculate-draft')
+            ->assertOk();
+
+        $this->assertFalse((bool) $reusedA->json('data.reusedExistingDraft'));
+        $this->assertNotSame($runA, (int) $reusedA->json('data.run.id'));
     }
 
     public function test_admin_cannot_finalize_already_finalized_run(): void
@@ -871,5 +976,106 @@ class HcmPayrollRunApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
             ->assertOk();
+    }
+
+    /**
+     * Security: global super admin scoped to company A must NOT be able to see
+     * payroll runs that belong to company B.
+     * Regression guard for the removed isGlobalHcmAdmin tenant-scope bypass.
+     */
+    public function test_global_super_admin_cannot_see_other_company_payroll_runs(): void
+    {
+        // Create a payroll run inside "other" company (company B) using a normal admin
+        $otherCompany = Company::query()->create([
+            'code' => 'payroll_sec_company_b',
+            'name' => 'Payroll Security Company B',
+            'legal_name' => 'Payroll Security Company B LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        // Create a run in company B
+        $otherPeriod = \App\Models\HcmPayrollPeriod::query()->create([
+            'company_id' => $otherCompany->id,
+            'period_year' => 2026,
+            'period_month' => 11,
+            'status' => 'open',
+        ]);
+        $otherRun = HcmPayrollRun::query()->create([
+            'company_id' => $otherCompany->id,
+            'hcm_payroll_period_id' => $otherPeriod->id,
+            'status' => HcmPayrollRun::STATUS_DRAFT,
+            'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
+        ]);
+
+        // Global super admin in company A context tries to see company B's run
+        $superAdminToken = $this->primarySuperAdminCodeOneToken(); // sets X-Company-Id = company A
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$superAdminToken,
+            'X-Company-Id' => (string) $this->company->id, // company A
+        ])->getJson('/v1/hcm/payroll-runs/'.$otherRun->id)
+            ->assertNotFound();
+    }
+
+    /**
+     * Security: global super admin scoped to company A must NOT be able to disburse
+     * (pay salaries for) a payroll run belonging to company B.
+     * Regression guard for the removed isGlobalHcmAdmin tenant-scope bypass.
+     */
+    public function test_global_super_admin_cannot_disburse_other_company_payroll_run(): void
+    {
+        $otherCompany = Company::query()->create([
+            'code' => 'payroll_sec_disburse_b',
+            'name' => 'Payroll Security Disburse B',
+            'legal_name' => 'Payroll Security Disburse B LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherPeriod = \App\Models\HcmPayrollPeriod::query()->create([
+            'company_id' => $otherCompany->id,
+            'period_year' => 2026,
+            'period_month' => 12,
+            'status' => 'posted',
+        ]);
+        $otherRun = HcmPayrollRun::query()->create([
+            'company_id' => $otherCompany->id,
+            'hcm_payroll_period_id' => $otherPeriod->id,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
+        ]);
+
+        $superAdminToken = $this->primarySuperAdminCodeOneToken(); // sets X-Company-Id = company A
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$superAdminToken,
+            'X-Company-Id' => (string) $this->company->id, // company A
+        ])->postJson('/v1/hcm/payroll-runs/'.$otherRun->id.'/disburse', ['applyAll' => true])
+            ->assertNotFound();
+    }
+
+    /**
+     * Security: global super admin CAN access their own active-company's payroll run.
+     * Ensures the scope fix doesn't block legitimate same-company access.
+     */
+    public function test_global_super_admin_can_view_own_company_payroll_run(): void
+    {
+        $this->employeeToken();
+        $superAdminToken = $this->primarySuperAdminCodeOneToken();
+        $data = $this->createAndFinalizeDraft($superAdminToken, 2026, 9);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$superAdminToken,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/payroll-runs/'.$data['runId'])
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 }

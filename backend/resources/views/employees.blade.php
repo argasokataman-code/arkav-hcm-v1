@@ -83,6 +83,25 @@
             </div>
             <!-- /Breadcrumb -->
 
+            <div class="card mb-3 d-none" data-employees-scope-tabs-wrap>
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <h6 class="mb-1">Employee Scope</h6>
+                            <small class="text-muted">Pilih tampilan lintas tenant atau fokus ke tenant aktif untuk Super Admin Code 1.</small>
+                        </div>
+                        <ul class="nav nav-pills" data-employees-scope-tabs role="tablist" aria-label="Employee scope tabs">
+                            <li class="nav-item" role="presentation">
+                                <button type="button" class="nav-link" data-employees-scope-tab="global" aria-pressed="false">Semua Tenant</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button type="button" class="nav-link" data-employees-scope-tab="active_company" aria-pressed="false">Employee Tenant Aktif (Super Admin Code 1)</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
 
                 <!-- Total Plans -->
@@ -281,6 +300,7 @@
 
     @component('components.modal-popup')
     @endcomponent
+    @include('hcm.partials.employee-stepper-modal', ['mode' => 'add'])
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="employee_quick_preview" aria-labelledby="employee_quick_preview_label">
         <div class="offcanvas-header">

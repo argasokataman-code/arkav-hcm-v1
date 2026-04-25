@@ -83,6 +83,10 @@ Fitur ini menjadi directory utama employee, organisasi, departemen, designation,
 - Detail page kini juga merender koleksi riwayat normalized: `employmentHistory`, `assignmentHistory`, `compensationHistory`, `contractHistory`, `bankAccounts`, plus `emergencyContacts`, `educationItems`, dan `experienceItems`.
 - Employee list mendukung quick preview via side panel (offcanvas) saat klik baris, plus tombol lanjut ke detail lengkap.
 - Navigasi dari list ke detail menyertakan `returnTo` + restore posisi scroll/list state saat kembali.
+- Employee list untuk **super admin code 1** kini menampilkan 2 tab scope directory:
+  - `Global Semua Tenant` → list lintas tenant.
+  - `Khusus Super Admin Code 1` → list dipaksa ke tenant aktif code 1.
+  Untuk user selain super admin code 1, UX tetap existing (tanpa tab scope tambahan).
 - Halaman **`/employee-salary`** (HCM Admin, `hcm.web.admin`): tabel kompensasi dari API yang sama + modal sunting; lihat `docs/features/employee-salary/README.md`.
 - Modal `Add Employee` dan `Edit Employee` di halaman employee sekarang memuat input kompensasi (`baseSalary`, `fixedAllowance`) dan submit langsung ke API employee.
 - Modal `Add Employee` dan `Edit Employee` sekarang juga menggunakan dropdown berjenjang wilayah (`provinceId` → `regencyId` → `districtId` → `villageId`) untuk input alamat, lalu field `address` disusun otomatis agar data tersimpan konsisten.

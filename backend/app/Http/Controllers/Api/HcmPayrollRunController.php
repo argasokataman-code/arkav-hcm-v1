@@ -566,15 +566,30 @@ class HcmPayrollRunController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $result = DB::transaction(function () use ($id, $companyId): array {
+        $result = DB::transaction(function () use ($id, $companyId, $request): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
 
-            $lines = HcmPayrollLine::query()
+            // Get primary super admin user ID for filtering
+            $primaryAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+            $primaryAdminUser = User::query()
+                ->whereRaw('LOWER(email) = ?', [$primaryAdminEmail])
+                ->first();
+            
+            $primaryAdminUserId = $primaryAdminUser?->id;
+
+            // Build query to get only primary super admin's payroll lines
+            $linesQuery = HcmPayrollLine::query()
                 ->where('hcm_payroll_run_id', $run->id)
-                ->lockForUpdate()
-                ->get();
+                ->lockForUpdate();
+            
+            // Filter to only primary super admin if they exist
+            if ($primaryAdminUserId) {
+                $linesQuery->where('user_id', $primaryAdminUserId);
+            }
+            
+            $lines = $linesQuery->get();
 
             $resetLineCount = 0;
             foreach ($lines as $line) {
@@ -1715,11 +1730,6 @@ class HcmPayrollRunController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
-        // Global Super Admin bypasses tenant scoping on payroll run queries.
-        if (auth()->user()?->isGlobalHcmAdmin()) {
-            return $query;
-        }
-
         if ($companyId === null) {
             return $query;
         }

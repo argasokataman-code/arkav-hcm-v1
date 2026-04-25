@@ -25,6 +25,10 @@ Query:
 - `perPage` optional int 1..100 (default 20)
 - `search` optional string max 100 (name/email/phone/NIK). Pada **MySQL**, jika panjang term ≥ 3 karakter, dipakai `FULLTEXT` untuk `users.name` + `users.email`; pencarian `phone` / `nik` tetap ikut via filter profil. Driver lain fallback ke `LIKE`.
 - `status` optional `active|inactive|probation|resigned|terminated`
+- `scope` optional `global|active_company`
+  - `global` (default untuk Global Super Admin): directory lintas semua tenant.
+  - `active_company`: paksa scope ke tenant aktif (`activeCompanyId`) walaupun user adalah Global Super Admin.
+  - user non-global-admin tetap selalu scope tenant aktif (parameter ini diabaikan).
 
 Success `200`:
 - `data[]`: `{ id, uuid, employeeNo(EMP-0001), fullName, email, phone, team, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
@@ -35,7 +39,10 @@ Success `200`:
 - `hireDate` = tanggal bergabung di profil (nullable ISO). `joinDate` = `startDate` / `hireDate` jika ada, jika tidak → tanggal `created_at` user.
 - `phone` kosong → `"—"`; `departmentName` kosong → `"—"`.
 - `meta.page`, `meta.perPage`, `meta.total` (pagination)
-- `meta.summary`: agregat **seluruh** direktori (satu query): `totalEmployees`, `activeEmployees`, `inactiveEmployees`, `probationEmployees`, `newJoiners`
+- `meta.summary`: agregat mengikuti scope request saat ini:
+  - scope `global` → ringkasan lintas tenant
+  - scope `active_company` / non-global-admin → ringkasan tenant aktif
+  - field tetap: `totalEmployees`, `activeEmployees`, `inactiveEmployees`, `probationEmployees`, `newJoiners`
 
 ### POST `/employees`
 

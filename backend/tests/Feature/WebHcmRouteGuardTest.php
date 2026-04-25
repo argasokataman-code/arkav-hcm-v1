@@ -430,7 +430,7 @@ class WebHcmRouteGuardTest extends TestCase
         }
     }
 
-    public function test_pages_blogs_testimonials_only_primary_super_admin_code_one_can_access(): void
+    public function test_pages_blogs_testimonials_and_activity_only_primary_super_admin_code_one_can_access(): void
     {
         config(['hcm.admin_email' => 'qa.login@example.com']);
 
@@ -477,7 +477,7 @@ class WebHcmRouteGuardTest extends TestCase
             'joined_at' => now()->subDay(),
         ]);
 
-        foreach (['/pages', '/blogs', '/testimonials'] as $path) {
+        foreach (['/pages', '/blogs', '/testimonials', '/activity'] as $path) {
             $this->actingAs($primary)
                 ->withHeader('X-Company-Code', $company->code)
                 ->get($path)

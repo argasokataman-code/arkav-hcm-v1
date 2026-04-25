@@ -473,72 +473,77 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy']);
     Route::post('/subscriptions/{subscription}/renew', [SubscriptionController::class, 'renew']);
 
-    // Tenant subscription change requests — super-admin approval endpoints (F4)
-    Route::get('/subscription-change-requests', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'listAllForAdmin']);
-    Route::post('/subscription-change-requests/{id}/approve', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'approve']);
-    Route::post('/subscription-change-requests/{id}/reject', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'reject']);
+    Route::middleware('hcm.api.global-admin')->group(function () {
+        // Tenant subscription change requests — super-admin approval endpoints (F4)
+        Route::get('/subscription-change-requests', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'listAllForAdmin']);
+        Route::post('/subscription-change-requests/{id}/approve', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'approve']);
+        Route::post('/subscription-change-requests/{id}/reject', [\App\Http\Controllers\Api\HcmSubscriptionChangeController::class, 'reject']);
 
-    // Purchase Transactions
-    Route::get('/transactions/export', [TransactionController::class, 'export']);
-    Route::get('/transactions', [TransactionController::class, 'index']);
-    Route::post('/transactions', [TransactionController::class, 'store']);
-    Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->whereNumber('transaction');
-    Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->whereNumber('transaction');
+        // Purchase Transactions
+        Route::get('/transactions/export', [TransactionController::class, 'export']);
+        Route::get('/transactions', [TransactionController::class, 'index']);
+        Route::post('/transactions', [TransactionController::class, 'store']);
+        Route::get('/transactions/{transaction}', [TransactionController::class, 'show'])->whereNumber('transaction');
+        Route::put('/transactions/{transaction}', [TransactionController::class, 'update'])->whereNumber('transaction');
 
-    // Custom Domains
-    Route::get('/domains', [DomainController::class, 'index']);
-    Route::post('/domains', [DomainController::class, 'store']);
-    Route::get('/domains/{domain}', [DomainController::class, 'show']);
-    Route::put('/domains/{domain}', [DomainController::class, 'update']);
-    Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
-    Route::post('/domains/{domain}/verify', [DomainController::class, 'verify']);
-    Route::get('/domains/{domain}/verification-details', [DomainController::class, 'verificationDetails']);
+        // Custom Domains
+        Route::get('/domains', [DomainController::class, 'index']);
+        Route::post('/domains', [DomainController::class, 'store']);
+        Route::get('/domains/{domain}', [DomainController::class, 'show']);
+        Route::put('/domains/{domain}', [DomainController::class, 'update']);
+        Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
+        Route::post('/domains/{domain}/verify', [DomainController::class, 'verify']);
+        Route::get('/domains/{domain}/verification-details', [DomainController::class, 'verificationDetails']);
 
-    // Invoices
-    Route::get('/invoices', [InvoiceController::class, 'index']);
-    Route::post('/invoices', [InvoiceController::class, 'store']);
-    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
-    Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
-    Route::put('/invoices/{invoice}/send', [InvoiceController::class, 'markAsSent']);
-    Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
-    Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
-    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
+        // Invoices
+        Route::get('/invoices', [InvoiceController::class, 'index']);
+        Route::post('/invoices', [InvoiceController::class, 'store']);
+        Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+        Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
+        Route::put('/invoices/{invoice}/send', [InvoiceController::class, 'markAsSent']);
+        Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
+        Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
+        Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
 
-    // Payments
-    Route::get('/payments', [PaymentController::class, 'index']);
-    Route::post('/payments', [PaymentController::class, 'store']);
-    Route::get('/payments/{payment}', [PaymentController::class, 'show']);
-    Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
-    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy']);
-    Route::post('/payments/bulk-upload', [BulkPaymentImportController::class, 'upload']);
+        // Payments
+        Route::get('/payments', [PaymentController::class, 'index']);
+        Route::post('/payments', [PaymentController::class, 'store']);
+        Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+        Route::put('/payments/{payment}/verify', [PaymentController::class, 'verify']);
+        Route::delete('/payments/{payment}', [PaymentController::class, 'destroy']);
+        Route::post('/payments/bulk-upload', [BulkPaymentImportController::class, 'upload']);
 
-    // Reports
+        // Invoice Actions
+        Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
+
+        // Billing overview (companies)
+        Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);
+    });
+
+    // Reports (keep controller-level RBAC response contract: AUTH_FORBIDDEN)
     Route::get('/reports/revenue', [ReportController::class, 'revenue']);
     Route::get('/reports/aging', [ReportController::class, 'aging']);
     Route::get('/reports/churn', [ReportController::class, 'churn']);
 
-    // Invoice Actions
-    Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
-
     // Super Admin Dashboard
-    Route::get('/dashboard/kpi', [SuperAdminDashboardController::class, 'getKpi']);
-    Route::get('/dashboard/kpi/{metricKey}', [SuperAdminDashboardController::class, 'getMetricTrend']);
-    Route::get('/dashboard/companies', [SuperAdminDashboardController::class, 'getCompanies']);
-    Route::get('/dashboard/companies/top-performers', [SuperAdminDashboardController::class, 'getTopCompanies']);
-    Route::get('/dashboard/companies/{company}/details', [SuperAdminDashboardController::class, 'getCompanyDetails']);
-    Route::get('/dashboard/users', [SuperAdminDashboardController::class, 'getUserStats']);
-    Route::get('/dashboard/users/retention', [SuperAdminDashboardController::class, 'getUserRetention']);
-    Route::get('/dashboard/revenue/monthly', [SuperAdminDashboardController::class, 'getMonthlytRevenue']);
-    Route::get('/dashboard/revenue/forecast', [SuperAdminDashboardController::class, 'getRevenueForecast']);
-    Route::get('/dashboard/revenue/by-plan', [SuperAdminDashboardController::class, 'getRevenueByPlan']);
-    Route::get('/dashboard/subscriptions/status', [SuperAdminDashboardController::class, 'getSubscriptionStatus']);
-    Route::get('/dashboard/subscriptions/health', [SuperAdminDashboardController::class, 'getSubscriptionHealth']);
-    Route::get('/dashboard/reports/custom', [SuperAdminDashboardController::class, 'getCustomReport']);
-    Route::get('/dashboard/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
-    Route::get('/dashboard/audit-logs/{auditLog}', [SuperAdminDashboardController::class, 'getAuditLogDetail']);
+    Route::middleware('hcm.api.global-admin')->prefix('/dashboard')->group(function () {
+        Route::get('/kpi', [SuperAdminDashboardController::class, 'getKpi']);
+        Route::get('/kpi/{metricKey}', [SuperAdminDashboardController::class, 'getMetricTrend']);
+        Route::get('/companies', [SuperAdminDashboardController::class, 'getCompanies']);
+        Route::get('/companies/top-performers', [SuperAdminDashboardController::class, 'getTopCompanies']);
+        Route::get('/companies/{company}/details', [SuperAdminDashboardController::class, 'getCompanyDetails']);
+        Route::get('/users', [SuperAdminDashboardController::class, 'getUserStats']);
+        Route::get('/users/retention', [SuperAdminDashboardController::class, 'getUserRetention']);
+        Route::get('/revenue/monthly', [SuperAdminDashboardController::class, 'getMonthlytRevenue']);
+        Route::get('/revenue/forecast', [SuperAdminDashboardController::class, 'getRevenueForecast']);
+        Route::get('/revenue/by-plan', [SuperAdminDashboardController::class, 'getRevenueByPlan']);
+        Route::get('/subscriptions/status', [SuperAdminDashboardController::class, 'getSubscriptionStatus']);
+        Route::get('/subscriptions/health', [SuperAdminDashboardController::class, 'getSubscriptionHealth']);
+        Route::get('/reports/custom', [SuperAdminDashboardController::class, 'getCustomReport']);
+        Route::get('/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
+        Route::get('/audit-logs/{auditLog}', [SuperAdminDashboardController::class, 'getAuditLogDetail']);
+    });
 
-    // Billing overview (companies)
-    Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);
 });
 
 // Mock Payments (Development only - for testing without Stripe/Xendit subscription)

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
+use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\HcmLeaveTypeSetting;
+use App\Models\HcmManualActivity;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
@@ -15,6 +17,7 @@ use App\Models\HcmResignation;
 use App\Models\HcmTermination;
 use App\Models\HcmTraining;
 use App\Models\Holiday;
+use App\Models\Invoice;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
@@ -63,7 +66,20 @@ class HcmDashboardController extends Controller
         // --- Patch: Add totalEmployees and inactiveEmployees ---
         $allProfiles = EmployeeProfile::query()
             ->where('company_id', $companyId)
-            ->get(['id', 'user_id', 'employment_status', 'contract_type', 'contract_end_date', 'hire_date']);
+            ->get([
+                'id',
+                'user_id',
+                'department_id',
+                'designation_id',
+                'designation',
+                'team',
+                'profile_photo_path',
+                'date_of_birth',
+                'employment_status',
+                'contract_type',
+                'contract_end_date',
+                'hire_date',
+            ]);
 
         $totalEmployeeCount = $allProfiles->count();
         $inactiveEmployeeCount = $allProfiles->filter(function (EmployeeProfile $profile): bool {
@@ -214,6 +230,244 @@ class HcmDashboardController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
+        $userDirectory = User::query()
+            ->whereIn('id', $activeUserIds->all())
+            ->get(['id', 'name'])
+            ->keyBy('id');
+
+        $departmentNameById = Department::query()
+            ->whereIn('id', $activeProfiles->pluck('department_id')->filter()->unique()->values()->all())
+            ->pluck('name', 'id');
+
+        $attendancePercentageBase = max(1, $activeEmployeeCount);
+        $attendancePresentPct = (int) round(($presentToday / $attendancePercentageBase) * 100);
+        $attendanceLatePct = (int) round(($lateToday / $attendancePercentageBase) * 100);
+        $attendancePermissionPct = (int) round(($pendingLeave / $attendancePercentageBase) * 100);
+        $attendanceAbsentPct = (int) round(($noCheckInToday / $attendancePercentageBase) * 100);
+
+        $departmentBreakdown = $activeProfiles
+            ->groupBy(function (EmployeeProfile $profile) use ($departmentNameById): string {
+                $departmentId = (int) ($profile->department_id ?? 0);
+                if ($departmentId > 0 && isset($departmentNameById[$departmentId])) {
+                    return (string) $departmentNameById[$departmentId];
+                }
+
+                $fallback = trim((string) ($profile->team ?? ''));
+                return $fallback !== '' ? $fallback : 'Unassigned';
+            })
+            ->map(fn ($rows) => $rows->count())
+            ->sortDesc()
+            ->take(6)
+            ->map(fn (int $count, string $name): array => [
+                'name' => $name,
+                'count' => $count,
+            ])
+            ->values();
+
+        $monthAttendanceRows = AttendanceRecord::query()
+            ->where('company_id', $companyId)
+            ->whereBetween('work_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->whereNotNull('check_in_at')
+            ->when($activeUserIds->isNotEmpty(), fn ($q) => $q->whereIn('user_id', $activeUserIds->all()))
+            ->get(['user_id', 'late_minutes']);
+
+        $monthDaySpan = max(1, (int) $today->day);
+        $topPerformer = $monthAttendanceRows
+            ->groupBy(fn (AttendanceRecord $record) => (int) ($record->user_id ?? 0))
+            ->map(function ($rows, int $userId) use ($userDirectory, $activeProfiles): array {
+                $presentDays = $rows->count();
+                $averageLateMinutes = (float) $rows->avg(fn (AttendanceRecord $record) => (int) ($record->late_minutes ?? 0));
+                $profile = $activeProfiles->first(fn (EmployeeProfile $item) => (int) ($item->user_id ?? 0) === $userId);
+
+                return [
+                    'userId' => $userId,
+                    'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                    'role' => trim((string) ($profile?->designation ?? '')) !== ''
+                        ? (string) $profile?->designation
+                        : 'Team Member',
+                    'presentDays' => $presentDays,
+                    'averageLateMinutes' => $averageLateMinutes,
+                ];
+            })
+            ->map(function (array $row) use ($monthDaySpan): array {
+                $attendanceRate = min(1, $row['presentDays'] / $monthDaySpan);
+                $punctualityRate = max(0, 1 - min(1, ((float) $row['averageLateMinutes']) / 30));
+                $score = (int) round((($attendanceRate * 0.7) + ($punctualityRate * 0.3)) * 100);
+                $row['score'] = max(0, min(100, $score));
+                return $row;
+            })
+            ->sortByDesc('score')
+            ->first();
+
+        if (! $topPerformer) {
+            $fallbackProfile = $activeProfiles->first();
+            $fallbackUserId = (int) ($fallbackProfile?->user_id ?? 0);
+            $topPerformer = [
+                'userId' => $fallbackUserId,
+                'name' => (string) ($userDirectory->get($fallbackUserId)?->name ?? 'Employee'),
+                'role' => trim((string) ($fallbackProfile?->designation ?? '')) !== ''
+                    ? (string) $fallbackProfile?->designation
+                    : 'Team Member',
+                'presentDays' => 0,
+                'averageLateMinutes' => 0.0,
+                'score' => 0,
+            ];
+        }
+
+        $todayClockRows = AttendanceRecord::query()
+            ->where('company_id', $companyId)
+            ->whereDate('work_date', $today->toDateString())
+            ->whereNotNull('check_in_at')
+            ->when($activeUserIds->isNotEmpty(), fn ($q) => $q->whereIn('user_id', $activeUserIds->all()))
+            ->orderBy('check_in_at')
+            ->get(['user_id', 'check_in_at', 'check_out_at', 'late_minutes', 'break_minutes']);
+
+        $clockInOut = $todayClockRows
+            ->take(3)
+            ->map(function (AttendanceRecord $record) use ($userDirectory, $activeProfiles): array {
+                $userId = (int) ($record->user_id ?? 0);
+                $profile = $activeProfiles->first(fn (EmployeeProfile $item) => (int) ($item->user_id ?? 0) === $userId);
+                $checkIn = $record->check_in_at ? Carbon::parse($record->check_in_at, 'Asia/Jakarta') : null;
+                $checkOut = $record->check_out_at ? Carbon::parse($record->check_out_at, 'Asia/Jakarta') : null;
+
+                $productiveHours = 0.0;
+                if ($checkIn && $checkOut && $checkOut->greaterThan($checkIn)) {
+                    $minutes = max(0, $checkOut->diffInMinutes($checkIn) - (int) ($record->break_minutes ?? 0));
+                    $productiveHours = round($minutes / 60, 2);
+                }
+
+                return [
+                    'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                    'role' => trim((string) ($profile?->designation ?? '')) !== ''
+                        ? (string) $profile?->designation
+                        : 'Team Member',
+                    'checkIn' => $checkIn?->format('H:i') ?? '-',
+                    'checkOut' => $checkOut?->format('H:i') ?? '-',
+                    'productiveHours' => number_format($productiveHours, 2),
+                ];
+            })
+            ->values();
+
+        $lateEmployees = $todayClockRows
+            ->filter(fn (AttendanceRecord $record) => (int) ($record->late_minutes ?? 0) > 0)
+            ->sortByDesc(fn (AttendanceRecord $record) => (int) ($record->late_minutes ?? 0))
+            ->take(3)
+            ->map(function (AttendanceRecord $record) use ($userDirectory, $activeProfiles): array {
+                $userId = (int) ($record->user_id ?? 0);
+                $profile = $activeProfiles->first(fn (EmployeeProfile $item) => (int) ($item->user_id ?? 0) === $userId);
+                $checkIn = $record->check_in_at ? Carbon::parse($record->check_in_at, 'Asia/Jakarta') : null;
+
+                return [
+                    'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                    'role' => trim((string) ($profile?->designation ?? '')) !== ''
+                        ? (string) $profile?->designation
+                        : 'Team Member',
+                    'lateMinutes' => (int) ($record->late_minutes ?? 0),
+                    'checkIn' => $checkIn?->format('H:i') ?? '-',
+                ];
+            })
+            ->values();
+
+        $employeesList = EmployeeProfile::query()
+            ->where('company_id', $companyId)
+            ->whereIn('employment_status', ['active', 'probation'])
+            ->with(['user:id,name', 'department:id,name'])
+            ->orderByDesc('updated_at')
+            ->limit(5)
+            ->get(['id', 'user_id', 'department_id', 'designation', 'team'])
+            ->map(function (EmployeeProfile $profile): array {
+                return [
+                    'name' => (string) ($profile->user?->name ?? 'Employee'),
+                    'designation' => trim((string) ($profile->designation ?? '')) !== ''
+                        ? (string) $profile->designation
+                        : 'Team Member',
+                    'department' => (string) ($profile->department?->name ?? $profile->team ?? 'Unassigned'),
+                ];
+            })
+            ->values();
+
+        $invoices = Invoice::query()
+            ->where('company_id', $companyId)
+            ->orderByDesc('issue_date')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get(['id', 'invoice_number', 'amount_due', 'is_paid', 'status'])
+            ->map(function (Invoice $invoice): array {
+                return [
+                    'invoiceNumber' => (string) ($invoice->invoice_number ?? '-'),
+                    'amountDue' => (float) ($invoice->amount_due ?? 0),
+                    'status' => (bool) ($invoice->is_paid ?? false) || strtolower((string) ($invoice->status ?? '')) === 'paid'
+                        ? 'paid'
+                        : 'unpaid',
+                ];
+            })
+            ->values();
+
+        $recentActivities = HcmManualActivity::query()
+            ->where('company_id', $companyId)
+            ->with(['creator:id,name'])
+            ->orderByDesc('updated_at')
+            ->limit(6)
+            ->get(['id', 'title', 'activity_kind', 'status', 'updated_at', 'created_by_user_id'])
+            ->map(function (HcmManualActivity $activity): array {
+                return [
+                    'actor' => (string) ($activity->creator?->name ?? 'System'),
+                    'title' => (string) ($activity->title ?? 'Activity updated'),
+                    'status' => (string) ($activity->status ?? 'updated'),
+                    'time' => $activity->updated_at?->timezone('Asia/Jakarta')->format('H:i') ?? '-',
+                ];
+            })
+            ->values();
+
+        if ($recentActivities->isEmpty()) {
+            $recentActivities = $todayClockRows
+                ->take(6)
+                ->map(function (AttendanceRecord $record) use ($userDirectory): array {
+                    $userId = (int) ($record->user_id ?? 0);
+                    $checkIn = $record->check_in_at ? Carbon::parse($record->check_in_at, 'Asia/Jakarta') : null;
+
+                    return [
+                        'actor' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                        'title' => 'Clock-in recorded',
+                        'status' => 'attendance',
+                        'time' => $checkIn?->format('H:i') ?? '-',
+                    ];
+                })
+                ->values();
+        }
+
+        $todayMonthDay = $today->format('m-d');
+        $tomorrowMonthDay = $today->copy()->addDay()->format('m-d');
+        $birthdayProfiles = $activeProfiles->filter(fn (EmployeeProfile $profile) => $profile->date_of_birth !== null);
+
+        $birthdaysToday = $birthdayProfiles
+            ->filter(fn (EmployeeProfile $profile) => Carbon::parse((string) $profile->date_of_birth)->format('m-d') === $todayMonthDay)
+            ->take(5)
+            ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
+                $userId = (int) ($profile->user_id ?? 0);
+                return [
+                    'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                    'role' => trim((string) ($profile->designation ?? '')) !== ''
+                        ? (string) $profile->designation
+                        : 'Team Member',
+                ];
+            })
+            ->values();
+
+        $birthdaysTomorrow = $birthdayProfiles
+            ->filter(fn (EmployeeProfile $profile) => Carbon::parse((string) $profile->date_of_birth)->format('m-d') === $tomorrowMonthDay)
+            ->take(5)
+            ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
+                $userId = (int) ($profile->user_id ?? 0);
+                return [
+                    'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
+                    'role' => trim((string) ($profile->designation ?? '')) !== ''
+                        ? (string) $profile->designation
+                        : 'Team Member',
+                ];
+            })
+            ->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -258,6 +512,27 @@ class HcmDashboardController extends Controller
                     'attendanceAnomaly' => [
                         'clockInMissing' => $attendanceAnomalyMissingCheckIn,
                         'doubleShift' => $attendanceAnomalyDoubleShift,
+                    ],
+                ],
+                'legacyWidgets' => [
+                    'attendanceOverview' => [
+                        'totalAttendance' => $presentToday,
+                        'presentPct' => $attendancePresentPct,
+                        'latePct' => $attendanceLatePct,
+                        'permissionPct' => $attendancePermissionPct,
+                        'absentPct' => $attendanceAbsentPct,
+                        'absentTotal' => $noCheckInToday,
+                    ],
+                    'topPerformer' => $topPerformer,
+                    'departmentBreakdown' => $departmentBreakdown,
+                    'clockInOut' => $clockInOut,
+                    'lateEmployees' => $lateEmployees,
+                    'employees' => $employeesList,
+                    'invoices' => $invoices,
+                    'recentActivities' => $recentActivities,
+                    'birthdays' => [
+                        'today' => $birthdaysToday,
+                        'tomorrow' => $birthdaysTomorrow,
                     ],
                 ],
             ],

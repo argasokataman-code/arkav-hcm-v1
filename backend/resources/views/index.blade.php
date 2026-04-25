@@ -64,28 +64,27 @@
                         </span>
                         <div class="ms-3">
                             <h3 class="mb-2">Welcome Back, <span id="welcome-user-name">User</span> <a href="javascript:void(0);" class="edit-icon"><i class="ti ti-edit fs-14"></i></a></h3>
-                            <p>You have <span class="text-primary text-decoration-underline">21</span> Pending Approvals & <span class="text-primary text-decoration-underline">14</span> Leave Requests</p>
+                            <p>Terdapat <span class="text-primary text-decoration-underline" data-approval-leave>-</span> Persetujuan Cuti & <span class="text-primary text-decoration-underline" data-approval-overtime>-</span> Pengajuan Lembur</p>
                         </div>
                     </div>
                     <div class="d-flex align-items-center flex-wrap mb-1">
-                        <a href="#" class="btn btn-secondary btn-md me-2 mb-2" data-bs-toggle="modal" data-bs-target="#add_project"><i class="ti ti-square-rounded-plus me-1"></i>Add Project</a>
                         <a href="#" class="btn btn-primary btn-md mb-2" data-bs-toggle="modal" data-bs-target="#add_leaves"><i class="ti ti-square-rounded-plus me-1"></i>Add Requests</a>
                     </div>
                 </div>
             </div>
             <!-- /Welcome Wrap -->
 
-            @php($showModernAdminDashboard = true)
+            @php($showModernAdminDashboard = false)
             @if($showModernAdminDashboard)
                 @include('hcm.partials.admin-home-dashboard')
             @endif
 
-            @php($showLegacyIndexWidgets = false)
+            @php($showLegacyIndexWidgets = true)
             @if($showLegacyIndexWidgets)
             <div class="row">
 
                 <!-- Widget Info -->
-                <div class="col-xxl-8 d-flex">
+                <div class="col-xxl-8 d-flex" data-legacy-index-dashboard>
                     <div class="row flex-fill">
                         <div class="col-md-3 d-flex">
                             <div class="card flex-fill">
@@ -93,57 +92,21 @@
                                     <span class="avatar rounded-circle bg-primary mb-2">
                                         <i class="ti ti-calendar-share fs-16"></i>
                                     </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Attendance Overview</h6>
-                                    <h3 class="mb-3">120/154 <span class="fs-12 fw-medium text-success"><i class="fa-solid fa-caret-up me-1"></i>+2.1%</span></h3>
-                                    <a href="{{url('attendance-employee')}}" class="link-default">View Details</a>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Hadir Hari Ini</h6>
+                                    <h3 class="mb-3"><span data-exec-att-present>-</span>/<span data-legacy-att-active>-</span></h3>
+                                    <a href="{{url('attendance-employee')}}" class="link-default">Lihat Detail</a>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3 d-flex">
                             <div class="card flex-fill">
                                 <div class="card-body">
-                                    <span class="avatar rounded-circle bg-secondary mb-2">
-                                        <i class="ti ti-browser fs-16"></i>
+                                    <span class="avatar rounded-circle bg-warning mb-2">
+                                        <i class="ti ti-clock-pause fs-16"></i>
                                     </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Total No of Project's</h6>
-                                    <h3 class="mb-3">90/125 <span class="fs-12 fw-medium text-danger"><i class="fa-solid fa-caret-down me-1"></i>-2.1%</span></h3>
-                                    <a href="{{url('projects')}}" class="link-default">View All</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex">
-                            <div class="card flex-fill">
-                                <div class="card-body">
-                                    <span class="avatar rounded-circle bg-info mb-2">
-                                        <i class="ti ti-users-group fs-16"></i>
-                                    </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Total No of Clients</h6>
-                                    <h3 class="mb-3">69/86 <span class="fs-12 fw-medium text-danger"><i class="fa-solid fa-caret-down me-1"></i>-11.2%</span></h3>
-                                    <a href="{{url('clients')}}" class="link-default">View All</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex">
-                            <div class="card flex-fill">
-                                <div class="card-body">
-                                    <span class="avatar rounded-circle bg-pink mb-2">
-                                        <i class="ti ti-checklist fs-16"></i>
-                                    </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Total No of Tasks</h6>
-                                    <h3 class="mb-3">225/28 <span class="fs-12 fw-medium text-success"><i class="fa-solid fa-caret-down me-1"></i>+11.2%</span></h3>
-                                    <a href="{{url('tasks')}}" class="link-default">View All</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex">
-                            <div class="card flex-fill">
-                                <div class="card-body">
-                                    <span class="avatar rounded-circle bg-purple mb-2">
-                                        <i class="ti ti-moneybag fs-16"></i>
-                                    </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Additions</h6>
-                                    <h3 class="mb-3">$21445 <span class="fs-12 fw-medium text-success"><i class="fa-solid fa-caret-up me-1"></i>+10.2%</span></h3>
-                                    <a href="{{url('expenses')}}" class="link-default">View All</a>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Terlambat Hari Ini</h6>
+                                    <h3 class="mb-3"><span data-exec-att-late>-</span></h3>
+                                    <a href="{{url('attendance-employee')}}" class="link-default">Lihat Detail</a>
                                 </div>
                             </div>
                         </div>
@@ -151,11 +114,59 @@
                             <div class="card flex-fill">
                                 <div class="card-body">
                                     <span class="avatar rounded-circle bg-danger mb-2">
-                                        <i class="ti ti-browser fs-16"></i>
+                                        <i class="ti ti-user-x fs-16"></i>
                                     </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Profit This Week</h6>
-                                    <h3 class="mb-3">$5,544 <span class="fs-12 fw-medium text-success"><i class="fa-solid fa-caret-up me-1"></i>+2.1%</span></h3>
-                                    <a href="{{url('purchase-transaction')}}" class="link-default">View All</a>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Belum Check-In</h6>
+                                    <h3 class="mb-3"><span data-exec-att-missing>-</span></h3>
+                                    <a href="{{url('attendance-employee')}}" class="link-default">Lihat Detail</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex">
+                            <div class="card flex-fill">
+                                <div class="card-body">
+                                    <span class="avatar rounded-circle bg-info mb-2">
+                                        <i class="ti ti-beach fs-16"></i>
+                                    </span>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Cuti Menunggu</h6>
+                                    <h3 class="mb-3"><span data-approval-leave>-</span></h3>
+                                    <a href="{{url('leave-request')}}" class="link-default">Lihat Semua</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex">
+                            <div class="card flex-fill">
+                                <div class="card-body">
+                                    <span class="avatar rounded-circle bg-secondary mb-2">
+                                        <i class="ti ti-clock-bolt fs-16"></i>
+                                    </span>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Lembur Menunggu</h6>
+                                    <h3 class="mb-3"><span data-approval-overtime>-</span></h3>
+                                    <a href="{{url('overtime-request')}}" class="link-default">Lihat Semua</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex">
+                            <div class="card flex-fill">
+                                <div class="card-body">
+                                    <span class="avatar rounded-circle bg-pink mb-2">
+                                        <i class="ti ti-user-check fs-16"></i>
+                                    </span>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Probation</h6>
+                                    <h3 class="mb-3"><span data-exec-probation>-</span></h3>
+                                    <a href="{{url('employees')}}" class="link-default">Lihat Semua</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex">
+                            <div class="card flex-fill">
+                                <div class="card-body">
+                                    <span class="avatar rounded-circle bg-purple mb-2">
+                                        <i class="ti ti-file-time fs-16"></i>
+                                    </span>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Kontrak Habis 30 Hari</h6>
+                                    <h3 class="mb-3"><span data-exec-pkwt-due>-</span></h3>
+                                    <a href="{{url('employees')}}" class="link-default">Lihat Semua</a>
                                 </div>
                             </div>
                         </div>
@@ -163,23 +174,11 @@
                             <div class="card flex-fill">
                                 <div class="card-body">
                                     <span class="avatar rounded-circle bg-success mb-2">
-                                        <i class="ti ti-users-group fs-16"></i>
+                                        <i class="ti ti-user-plus fs-16"></i>
                                     </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">Job Applicants</h6>
-                                    <h3 class="mb-3">98 <span class="fs-12 fw-medium text-success"><i class="fa-solid fa-caret-up me-1"></i>+2.1%</span></h3>
-                                    <a href="{{url('job-list')}}" class="link-default">View All</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex">
-                            <div class="card flex-fill">
-                                <div class="card-body">
-                                    <span class="avatar rounded-circle bg-dark mb-2">
-                                        <i class="ti ti-user-star fs-16"></i>
-                                    </span>
-                                    <h6 class="fs-13 fw-medium text-default mb-1">New Hire</h6>
-                                    <h3 class="mb-3">45/48 <span class="fs-12 fw-medium text-danger"><i class="fa-solid fa-caret-down me-1"></i>-11.2%</span></h3>
-                                    <a href="{{url('candidates')}}" class="link-default">View All</a>
+                                    <h6 class="fs-13 fw-medium text-default mb-1">Joiner Bulan Ini</h6>
+                                    <h3 class="mb-3"><span data-signal-joiner>-</span></h3>
+                                    <a href="{{url('employees')}}" class="link-default">Lihat Semua</a>
                                 </div>
                             </div>
                         </div>
@@ -211,8 +210,9 @@
                         </div>
                         <div class="card-body">
                             <div id="emp-department"></div>
-                            <p class="fs-13"><i class="ti ti-circle-filled me-2 fs-8 text-primary"></i>No of
-                                Employees increased by <span class="text-success fw-bold">+20%</span> from last Week
+                            <div data-legacy-department-breakdown class="mb-2"></div>
+                            <p class="fs-13"><i class="ti ti-circle-filled me-2 fs-8 text-primary"></i>
+                                <span data-legacy-department-summary>Distribusi departemen akan tampil otomatis.</span>
                             </p>
                         </div>
                     </div>
@@ -247,20 +247,20 @@
                         </div>
                         <div class="card-body">
                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                <p class="fs-13 mb-3">Total Employee</p>
-                                <h3 class="mb-3">154</h3>
+                                <p class="fs-13 mb-3">Total Karyawan</p>
+                                <h3 class="mb-3" data-exec-total-employees>-</h3>
                             </div>
                             <div class="progress-stacked emp-stack mb-3">
-                                <div class="progress" role="progressbar" aria-label="Segment one" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100" style="width: 40%">
+                                <div class="progress" role="progressbar" aria-label="Active" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-active style="width: 60%">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="progress" role="progressbar" aria-label="Probation" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-probation style="width: 15%">
                                     <div class="progress-bar bg-warning"></div>
                                 </div>
-                                <div class="progress" role="progressbar" aria-label="Segment two" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" style="width: 20%">
-                                    <div class="progress-bar bg-secondary"></div>
-                                </div>
-                                <div class="progress" role="progressbar" aria-label="Segment three" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100" style="width: 10%">
+                                <div class="progress" role="progressbar" aria-label="Inactive" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-inactive style="width: 10%">
                                     <div class="progress-bar bg-danger"></div>
                                 </div>
-                                <div class="progress" role="progressbar" aria-label="Segment four" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100" style="width: 30%">
+                                <div class="progress" role="progressbar" aria-label="PKWT Due" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-pkwt style="width: 15%">
                                     <div class="progress-bar bg-pink"></div>
                                 </div>
                             </div>
@@ -268,26 +268,26 @@
                                 <div class="row gx-0">
                                     <div class="col-6">
                                         <div class="p-2 flex-fill border-end border-bottom">
-                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled text-primary fs-12 me-2"></i>Fulltime <span class="text-gray-9">(48%)</span></p>
-                                            <h2 class="display-1">112</h2>
+                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled text-primary fs-12 me-2"></i>Aktif <span class="text-gray-9" data-legacy-active-pct>(-%)</span></p>
+                                            <h2 class="display-1" data-exec-active>-</h2>
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="p-2 flex-fill border-bottom text-end">
-                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-secondary fs-12"></i>Contract <span class="text-gray-9">(20%)</span></p>
-                                            <h2 class="display-1">112</h2>
+                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-warning fs-12"></i>Probation <span class="text-gray-9" data-legacy-probation-pct>(-%)</span></p>
+                                            <h2 class="display-1" data-exec-probation-card>-</h2>
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="p-2 flex-fill border-end">
-                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-danger fs-12"></i>Probation <span class="text-gray-9">(22%)</span></p>
-                                            <h2 class="display-1">12</h2>
+                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled me-2 text-danger fs-12"></i>Tidak Aktif <span class="text-gray-9" data-legacy-inactive-pct>(-%)</span></p>
+                                            <h2 class="display-1" data-legacy-inactive>-</h2>
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="p-2 flex-fill text-end">
-                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled text-pink me-2 fs-12"></i>WFH <span class="text-gray-9">(20%)</span></p>
-                                            <h2 class="display-1">04</h2>
+                                            <p class="fs-13 mb-2"><i class="ti ti-square-filled text-pink me-2 fs-12"></i>PKWT Habis 30hr <span class="text-gray-9" data-legacy-pkwt-pct>(-%)</span></p>
+                                            <h2 class="display-1" data-exec-pkwt-due-card>-</h2>
                                         </div>
                                     </div>
                                 </div>
@@ -302,13 +302,13 @@
                                         <img src="{{ URL::asset('build/img/profiles/avatar-24.jpg') }}" class="rounded-circle border border-white" alt="img">
                                     </a>
                                     <div>
-                                        <h6 class="text-truncate mb-1 fs-14 fw-medium"><a href="employee-details">Daniel Esbella</a></h6>
-                                        <p class="fs-13">IOS Developer</p>
+                                        <h6 class="text-truncate mb-1 fs-14 fw-medium"><a href="employee-details" data-legacy-top-performer-name>Daniel Esbella</a></h6>
+                                        <p class="fs-13" data-legacy-top-performer-role>IOS Developer</p>
                                     </div>
                                 </div>
                                 <div class="text-end">
                                     <p class="fs-13 mb-1">Performance</p>
-                                    <h5 class="text-primary">99%</h5>
+                                    <h5 class="text-primary" data-legacy-top-performer-score>99%</h5>
                                 </div>
                             </div>
                             <a href="{{url('employees')}}" class="btn btn-light btn-md w-100">View All Employees</a>
@@ -344,29 +344,29 @@
                                 <canvas id="attendance" height="200"></canvas>
                                 <div class="position-absolute text-center attendance-canvas">
                                     <p class="fs-13 mb-1">Total Attendance</p>
-                                    <h3>120</h3>
+                                    <h3 data-legacy-attendance-total>0</h3>
                                 </div>
                             </div>
                             <h6 class="mb-3">Status</h6>
                             <div class="d-flex align-items-center justify-content-between">
                                 <p class="f-13 mb-2"><i class="ti ti-circle-filled text-success me-1"></i>Present</p>
-                                <p class="f-13 fw-medium text-gray-9 mb-2">59%</p>
+                                <p class="f-13 fw-medium text-gray-9 mb-2" data-legacy-attendance-present-pct>0%</p>
                             </div>
                             <div class="d-flex align-items-center justify-content-between">
                                 <p class="f-13 mb-2"><i class="ti ti-circle-filled text-secondary me-1"></i>Late</p>
-                                <p class="f-13 fw-medium text-gray-9 mb-2">21%</p>
+                                <p class="f-13 fw-medium text-gray-9 mb-2" data-legacy-attendance-late-pct>0%</p>
                             </div>
                             <div class="d-flex align-items-center justify-content-between">
                                 <p class="f-13 mb-2"><i class="ti ti-circle-filled text-warning me-1"></i>Permission</p>
-                                <p class="f-13 fw-medium text-gray-9 mb-2">2%</p>
+                                <p class="f-13 fw-medium text-gray-9 mb-2" data-legacy-attendance-permission-pct>0%</p>
                             </div>
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <p class="f-13 mb-2"><i class="ti ti-circle-filled text-danger me-1"></i>Absent</p>
-                                <p class="f-13 fw-medium text-gray-9 mb-2">15%</p>
+                                <p class="f-13 fw-medium text-gray-9 mb-2" data-legacy-attendance-absent-pct>0%</p>
                             </div>
                             <div class="bg-light br-5 box-shadow-xs p-2 pb-0 d-flex align-items-center justify-content-between flex-wrap">
                                 <div class="d-flex align-items-center">
-                                    <p class="mb-2 me-2">Total Absenties</p>
+                                    <p class="mb-2 me-2">Total Absenties: <span data-legacy-attendance-absent-total>0</span></p>
                                     <div class="avatar-list-stacked avatar-group-sm mb-2">
                                         <span class="avatar avatar-rounded">
                                             <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-27.jpg') }}" alt="img">
@@ -433,87 +433,9 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div>
-                                <div
-                                    class="d-flex align-items-center justify-content-between mb-3 p-2 border border-dashed br-5">
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/profiles/avatar-24.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                        </a>
-                                        <div class="ms-2">
-                                            <h6 class="fs-14 fw-medium text-truncate">Daniel Esbella</h6>
-                                            <p class="fs-13">UI/UX Designer</p>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="link-default me-2"><i class="ti ti-clock-share"></i></a>
-                                        <span class="fs-10 fw-medium d-inline-flex align-items-center badge badge-success"><i class="ti ti-circle-filled fs-5 me-1"></i>09:15</span>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center justify-content-between mb-3 p-2 border br-5">
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/profiles/avatar-23.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                        </a>
-                                        <div class="ms-2">
-                                            <h6 class="fs-14 fw-medium">Doglas Martini</h6>
-                                            <p class="fs-13">Project Manager</p>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="link-default me-2"><i class="ti ti-clock-share"></i></a>
-                                        <span class="fs-10 fw-medium d-inline-flex align-items-center badge badge-success"><i class="ti ti-circle-filled fs-5 me-1"></i>09:36</span>
-                                    </div>
-                                </div>
-                                <div class="mb-3 p-2 border br-5">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div class="d-flex align-items-center">
-                                            <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                                <img src="{{ URL::asset('build/img/profiles/avatar-27.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                            </a>
-                                            <div class="ms-2">
-                                                <h6 class="fs-14 fw-medium text-truncate">Brian Villalobos</h6>
-                                                <p class="fs-13">PHP Developer</p>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <a href="javascript:void(0);" class="link-default me-2"><i class="ti ti-clock-share"></i></a>
-                                            <span class="fs-10 fw-medium d-inline-flex align-items-center badge badge-success"><i class="ti ti-circle-filled fs-5 me-1"></i>09:15</span>
-                                        </div>
-                                    </div>
-                                    <div
-                                        class="d-flex align-items-center justify-content-between flex-wrap mt-2 border br-5 p-2 pb-0">
-                                        <div>
-                                            <p class="mb-1 d-inline-flex align-items-center"><i class="ti ti-circle-filled text-success fs-5 me-1"></i>Clock In</p>
-                                            <h6 class="fs-13 fw-normal mb-2">10:30 AM</h6>
-                                        </div>
-                                        <div>
-                                            <p class="mb-1 d-inline-flex align-items-center"><i class="ti ti-circle-filled text-danger fs-5 me-1"></i>Clock Out</p>
-                                            <h6 class="fs-13 fw-normal mb-2">09:45 AM</h6>
-                                        </div>
-                                        <div>
-                                            <p class="mb-1 d-inline-flex align-items-center"><i class="ti ti-circle-filled text-warning fs-5 me-1"></i>Production</p>
-                                            <h6 class="fs-13 fw-normal mb-2">09:21 Hrs</h6>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <div data-legacy-clock-list></div>
                             <h6 class="mb-2">Late</h6>
-                            <div class="d-flex align-items-center justify-content-between mb-3 p-2 border border-dashed br-5">
-                                <div class="d-flex align-items-center">
-                                    <span class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/profiles/avatar-29.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </span>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate">Anthony Lewis <span class="fs-10 fw-medium d-inline-flex align-items-center badge badge-success"><i class="ti ti-clock-hour-11 me-1"></i>30 Min</span></h6>
-                                        <p class="fs-13">Marketing Head</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="link-default me-2"><i class="ti ti-clock-share"></i></a>
-                                    <span class="fs-10 fw-medium d-inline-flex align-items-center badge badge-danger"><i class="ti ti-circle-filled fs-5 me-1"></i>08:35</span>
-                                </div>
-                            </div>
+                            <div data-legacy-late-list></div>
                             <a href="{{url('attendance-report') }}" class="btn btn-light btn-md w-100">View All Attendance</a>
                         </div>
                     </div>
@@ -663,7 +585,7 @@
                                             <th>Department</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody data-legacy-employees-body>
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
@@ -754,79 +676,6 @@
                 </div>
                 <!-- /Employees -->
                 
-                <!-- Todo -->
-                <div class="col-xxl-4 col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Todo</h5>
-                            <div class="d-flex align-items-center">
-                                <div class="dropdown mb-2 me-2">
-                                    <a href="javascript:void(0);" class="btn btn-white border btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                        <i class="ti ti-calendar me-1"></i>Today
-                                    </a>
-                                    <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Week</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">Today</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <a href="#" class="btn btn-primary btn-icon btn-xs rounded-circle d-flex align-items-center justify-content-center p-0 mb-2"  data-bs-toggle="modal" data-bs-target="#add_todo"><i class="ti ti-plus fs-16"></i></a>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-2">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo1">
-                                    <label class="form-check-label fw-medium" for="todo1">Add Holidays</label>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-2">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo2">
-                                    <label class="form-check-label fw-medium" for="todo2">Add Meeting  to Client</label>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-2">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo3">
-                                    <label class="form-check-label fw-medium" for="todo3">Chat with Adrian</label>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-2">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo4">
-                                    <label class="form-check-label fw-medium" for="todo4">Management Call</label>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-2">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo5">
-                                    <label class="form-check-label fw-medium" for="todo5">Add Payroll</label>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center todo-item border p-2 br-5 mb-0">
-                                <i class="ti ti-grid-dots me-2"></i>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="todo6">
-                                    <label class="form-check-label fw-medium" for="todo6">Add Policy for Increment </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /Todo -->
-
             </div>
 
             <div class="row">
@@ -912,7 +761,7 @@
                         <div class="card-body pt-2">
                             <div class="table-responsive pt-1">	
                                 <table class="table table-nowrap table-borderless mb-0">
-                                    <tbody>
+                                    <tbody data-legacy-invoices-body>
                                         <tr>
                                             <td class="px-0">
                                                 <div class="d-flex align-items-center">
@@ -1024,325 +873,6 @@
 
             </div>
 
-            <div class="row">
-                
-                <!-- Projects -->
-                <div class="col-xxl-8 col-xl-7 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Projects</h5>
-                            <div class="d-flex align-items-center">
-                                <div class="dropdown mb-2">
-                                    <a href="javascript:void(0);" class="btn btn-white border btn-sm d-inline-flex align-items-center"  data-bs-toggle="dropdown">
-                                        <i class="ti ti-calendar me-1"></i>This Week
-                                    </a>
-                                    <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Week</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">Today</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">	
-                                <table class="table table-nowrap mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Name</th>
-                                            <th>Team</th>
-                                            <th>Hours</th>
-                                            <th>Deadline</th>
-                                            <th>Priority</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><a href="{{url('project-details')}}" class="link-default">PRO-001</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Office Management App</a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-02.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-03.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-05.jpg') }}" alt="img">
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">15/255 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 40%"></div>
-                                                </div>
-                                            </td>
-                                            <td>12 Sep 2024</td>
-                                            <td>
-                                                <span class="badge badge-danger d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>High
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><a href="{{url('project-details')}}" class="link-default">PRO-002</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Clinic Management </a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-06.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-07.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-08.jpg') }}" alt="img">
-                                                    </span>
-                                                    <a class="avatar bg-primary avatar-rounded text-fixed-white fs-10 fw-medium" href="javascript:void(0);">
-                                                        +1
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">15/255 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 40%"></div>
-                                                </div>
-                                            </td>
-                                            <td>24 Oct 2024</td>
-                                            <td>
-                                                <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>Low
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><a href="{{url('project-details')}}" class="link-default">PRO-003</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Educational Platform</a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-06.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-08.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-09.jpg') }}" alt="img">
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">40/255 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
-                                                </div>
-                                            </td>
-                                            <td>18 Feb 2024</td>
-                                            <td>
-                                                <span class="badge badge-pink d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>Medium
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><a href="{{url('project-details')}}" class="link-default">PRO-004</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Chat & Call Mobile App</a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-11.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-12.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-13.jpg') }}" alt="img">
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">35/155 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
-                                                </div>
-                                            </td>
-                                            <td>19 Feb 2024</td>
-                                            <td>
-                                                <span class="badge badge-danger d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>High
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><a href="{{url('project-details') }}" class="link-default">PRO-005</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Travel Planning Website</a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-17.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-18.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-19.jpg') }}" alt="img">
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">50/235 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
-                                                </div>
-                                            </td>
-                                            <td>18 Feb 2024</td>
-                                            <td>
-                                                <span class="badge badge-pink d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>Medium
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td><a href="{{url('project-details')}}" class="link-default">PRO-006</a></td>
-                                            <td><h6 class="fw-medium"><a href="{{url('project-details')}}">Service Booking Software</a></h6></td>
-                                            <td>
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-06.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-08.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-09.jpg') }}" alt="img">
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="mb-1">40/255 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
-                                                </div>
-                                            </td>
-                                            <td>20 Feb 2024</td>
-                                            <td>
-                                                <span class="badge badge-success d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>Low
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="border-0"><a href="{{url('project-details')}}" class="link-default">PRO-008</a></td>
-                                            <td class="border-0"><h6 class="fw-medium"><a href="{{url('project-details')}}">Travel Planning Website</a></h6></td>
-                                            <td class="border-0">
-                                                <div class="avatar-list-stacked avatar-group-sm">
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-15.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-16.jpg') }}" alt="img">
-                                                    </span>
-                                                    <span class="avatar avatar-rounded">
-                                                        <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-17.jpg') }}" alt="img">
-                                                    </span>
-                                                    <a class="avatar bg-primary avatar-rounded text-fixed-white fs-10 fw-medium" href="javascript:void(0);">
-                                                        +2
-                                                    </a>
-                                                </div>
-                                            </td>
-                                            <td class="border-0">
-                                                <p class="mb-1">15/255 Hrs</p>
-                                                <div class="progress progress-xs w-100" role="progressbar" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100">
-                                                    <div class="progress-bar bg-primary" style="width: 45%"></div>
-                                                </div>
-                                            </td>
-                                            <td class="border-0">17 Oct 2024</td>
-                                            <td class="border-0">
-                                                <span class="badge badge-pink d-inline-flex align-items-center badge-xs">
-                                                    <i class="ti ti-point-filled me-1"></i>Medium
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /Projects -->
-
-                <!-- Tasks Statistics -->
-                <div class="col-xxl-4 col-xl-5 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Tasks Statistics</h5>
-                            <div class="d-flex align-items-center">
-                                <div class="dropdown mb-2">
-                                    <a href="javascript:void(0);" class="btn btn-white border btn-sm d-inline-flex align-items-center"  data-bs-toggle="dropdown">
-                                        <i class="ti ti-calendar me-1"></i>This Week
-                                    </a>
-                                    <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Month</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">This Week</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">Today</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="chartjs-wrapper-demo position-relative mb-4">
-                                <canvas id="mySemiDonutChart" height="190"></canvas>
-                                <div class="position-absolute text-center attendance-canvas">
-                                    <p class="fs-13 mb-1">Total Tasks</p>
-                                    <h3>124/165</h3>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center flex-wrap">
-                                <div class="border-end text-center me-2 pe-2 mb-3">
-                                    <p class="fs-13 d-inline-flex align-items-center mb-1"><i class="ti ti-circle-filled fs-10 me-1 text-warning"></i>Ongoing</p>
-                                    <h5>24%</h5>
-                                </div>
-                                <div class="border-end text-center me-2 pe-2 mb-3">
-                                    <p class="fs-13 d-inline-flex align-items-center mb-1"><i class="ti ti-circle-filled fs-10 me-1 text-info"></i>On Hold </p>
-                                    <h5>10%</h5>
-                                </div>
-                                <div class="border-end text-center me-2 pe-2 mb-3">
-                                    <p class="fs-13 d-inline-flex align-items-center mb-1"><i class="ti ti-circle-filled fs-10 me-1 text-danger"></i>Overdue</p>
-                                    <h5>16%</h5>
-                                </div>
-                                <div class="text-center me-2 pe-2 mb-3">
-                                    <p class="fs-13 d-inline-flex align-items-center mb-1"><i class="ti ti-circle-filled fs-10 me-1 text-success"></i>Ongoing</p>
-                                    <h5>40%</h5>
-                                </div>
-                            </div>
-                            <div class="bg-dark br-5 p-3 pb-0 d-flex align-items-center justify-content-between">
-                                <div class="mb-2">
-                                    <h4 class="text-success">389/689 hrs</h4>
-                                    <p class="fs-13 mb-0">Spent on Overall Tasks This Week</p>
-                                </div>
-                                <a href="{{url('tasks')}}" class="btn btn-sm btn-light mb-2 text-nowrap">View All</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /Tasks Statistics -->
-
             </div>
 
             <div class="row">
@@ -1427,9 +957,9 @@
                     <div class="card flex-fill">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                             <h5 class="mb-2">Recent Activities</h5>
-                            <a href="{{url('activity')}}" class="btn btn-light btn-md mb-2">View All</a>
+                            <a href="javascript:void(0);" class="btn btn-light btn-md mb-2">View All</a>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" data-legacy-activities-body>
                             <div class="recent-item">
                                 <div class="d-flex justify-content-between">
                                     <div class="d-flex align-items-center w-100">
@@ -1538,9 +1068,9 @@
                             <h5 class="mb-2">Birthdays</h5>
                             <a href="javascript:void(0);" class="btn btn-light btn-md mb-2">View All</a>
                         </div>
-                        <div class="card-body pb-1">
+                        <div class="card-body pb-1" data-legacy-birthdays-body>
                             <h6 class="mb-2">Today</h6>
-                            <div class="bg-light p-2 border border-dashed rounded-top mb-3">
+                            <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-today>
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center">
                                         <a href="javascript:void(0);" class="avatar">
@@ -1555,7 +1085,7 @@
                                 </div>
                             </div>
                             <h6 class="mb-2">Tomorow</h6>
-                            <div class="bg-light p-2 border border-dashed rounded-top mb-3">
+                            <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-tomorrow>
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center">
                                         <a href="javascript:void(0);" class="avatar">
@@ -1569,7 +1099,7 @@
                                     <a href="javascript:void(0);" class="btn btn-secondary btn-xs"><i class="ti ti-cake me-1"></i>Send</a>
                                 </div>
                             </div>
-                            <div class="bg-light p-2 border border-dashed rounded-top mb-3">
+                            <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-tomorrow-extra>
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="d-flex align-items-center">
                                         <a href="javascript:void(0);" class="avatar">

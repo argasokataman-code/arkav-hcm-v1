@@ -140,7 +140,7 @@
     <script src="{{ URL::asset('build/plugins/sweetalert/sweetalerts.min.js') }}"></script>
 @endif
 
-@if (Route::is(['ui-stickynote', 'kanban-view', 'task-board', 'deals-grid', 'leads-grid', 'candidates-kanban']))
+@if (Route::is(['ui-stickynote', 'candidates-kanban']))
     <!-- Stickynote JS -->
     <script src="{{ URL::asset('build/js/jquery-ui.min.js') }}"></script>
     <script src="{{ URL::asset('build/js/jquery.ui.touch-punch.min.js') }}"></script>    
@@ -151,10 +151,10 @@
 @endif
 
 @if (Route::is([
-        'chart-apex', 'index', 'employee-dashboard', 'deals-dashboard', 'leads-dashboard', 'file-manager', 'dashboard', 'companies', 'packages',
+    'chart-apex', 'index', 'employee-dashboard', 'file-manager', 'dashboard', 'companies', 'packages',
         'layout-horizontal', 'layout-detached', 'layout-modern', 'layout-horizontal-overlay', 'layout-two-column', 'layout-hovered', 'layout-box',
         'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu', 'layout-vertical-transparent', 'layout-without-header',
-        'layout-rtl', 'layout-dark', 'analytics','expenses-report','invoice-report','payment-report','project-report','task-report','user-report',
+    'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report','project-report','task-report','user-report',
         'employee-report','payslip-report','attendance-report', 'leave-report', 'daily-report',
     ]))
     <!-- Chart JS -->
@@ -169,9 +169,9 @@
     <script src="{{ URL::asset('build/plugins/c3-chart/chart-data.js') }}"></script>
 @endif
 
-@if (Route::is(['chart-js', 'index', 'deals-dashboard', 'dashboard', 'companies', 'layout-horizontal', 'layout-detached', 'layout-modern', 
+@if (Route::is(['chart-js', 'index', 'dashboard', 'companies', 'layout-horizontal', 'layout-detached', 'layout-modern', 
 'layout-horizontal-overlay', 'layout-two-column', 'layout-hovered', 'layout-box', 'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu',
-'layout-vertical-transparent', 'layout-without-header', 'layout-rtl', 'layout-dark', 'analytics'
+'layout-vertical-transparent', 'layout-without-header', 'layout-rtl', 'layout-dark'
 ]))
     <!-- Chart JS -->
     <script src="{{ URL::asset('build/plugins/chartjs/chart.min.js') }}"></script>
@@ -185,7 +185,7 @@
     <script src="{{ URL::asset('build/plugins/morris/chart-data.js') }}"></script>
 @endif
 
-@if (Route::is(['chart-peity', 'deals-dashboard', 'leads-dashboard', 'dashboard', 'companies', 'subscription', 'tickets-grid','tickets', 'task-report']))
+@if (Route::is(['chart-peity', 'dashboard', 'companies', 'subscription', 'tickets-grid','tickets', 'task-report']))
     <!-- Chart JS -->
     <script src="{{ URL::asset('build/plugins/peity/jquery.peity.min.js') }}"></script>
     <script src="{{ URL::asset('build/plugins/peity/chart-data.js') }}"></script>
@@ -347,12 +347,12 @@
     <script src="{{ URL::asset('build/js/notification-observability-data.js') }}"></script>
 @endif
 
-@if (Route::is(['email-settings']))
-    <script src="{{ URL::asset('build/js/email-settings-data.js') }}?v={{ file_exists(public_path('build/js/email-settings-data.js')) ? filemtime(public_path('build/js/email-settings-data.js')) : time() }}"></script>
-@endif
-
 @if (Route::is(['activity']))
     <script src="{{ URL::asset('build/js/activity-data.js') }}?v={{ file_exists(public_path('build/js/activity-data.js')) ? filemtime(public_path('build/js/activity-data.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['email-settings']))
+    <script src="{{ URL::asset('build/js/email-settings-data.js') }}?v={{ file_exists(public_path('build/js/email-settings-data.js')) ? filemtime(public_path('build/js/email-settings-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['performance-indicator', 'performance-appraisal', 'performance-review']))

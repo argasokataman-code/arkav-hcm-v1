@@ -8577,6 +8577,41 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/dashboard-summary:
+    get:
+      tags: [HCM]
+      summary: HCM admin dashboard summary (tenant scoped)
+      description: |
+        Returns executive, attendance, payroll/leave inbox, workforce alerts, and
+        additive `legacyWidgets` data used by the current web dashboard hydration.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HcmDashboardSummaryResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/employee-dashboard-summary:
+    get:
+      tags: [HCM]
+      summary: Employee dashboard summary (self scope)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HcmEmployeeDashboardSummaryResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -8898,6 +8933,52 @@ components:
         isExpired: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    HcmDashboardSummaryResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/HcmDashboardSummaryData'
+    HcmDashboardSummaryData:
+      type: object
+      properties:
+        executiveOverview:
+          type: object
+          additionalProperties: true
+        attendanceToday:
+          type: object
+          additionalProperties: true
+        payrollAndLeaveInbox:
+          type: object
+          additionalProperties: true
+        workforceAndAlerts:
+          type: object
+          additionalProperties: true
+        legacyWidgets:
+          type: object
+          description: Additive dashboard payload for legacy card/table hydration.
+          additionalProperties: true
+      additionalProperties: true
+    HcmEmployeeDashboardSummaryResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            scheduleToday:
+              type: object
+              additionalProperties: true
+            attendanceThisMonth:
+              type: object
+              additionalProperties: true
+            leaveBalance:
+              type: object
+              additionalProperties: true
+            payrollSnapshot:
+              type: object
+              additionalProperties: true
+          additionalProperties: true
     RegisterRequest:
       type: object
       required: [name, email, password, confirmPassword]

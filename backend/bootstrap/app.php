@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\ApplyLocalizationSettings;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
+use App\Http\Middleware\EnsureGlobalHcmApiAdmin;
 use App\Http\Middleware\EnsureCompanyFeatureForWebPage;
 use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.token' => AuthenticateApiToken::class,
             'tenant.context' => ResolveTenantContext::class,
+            'hcm.api.global-admin' => EnsureGlobalHcmApiAdmin::class,
             'hcm.web.admin' => EnsureHcmWebAdminPage::class,
             'hcm.web.global-admin' => EnsureGlobalHcmWebAdminPage::class,
             'hcm.web.primary-super-admin' => EnsurePrimarySuperAdminCodeOnePage::class,

@@ -1,12 +1,12 @@
 <!-- Sidebar -->
 @php
-    $authUser = request()->user() ?: auth()->user();
+    $authUser = request( )->user( ) ?: auth( )->user( );
     $whiteLogoUrl = \App\Support\WebsiteSettings::brandingUrl('white_logo', URL::asset('build/img/image111.png'));
     $darkLogoUrl = \App\Support\WebsiteSettings::brandingUrl('dark_logo', URL::asset('build/img/logo-white.svg'));
     $whiteMiniLogoUrl = \App\Support\WebsiteSettings::brandingUrl('white_mini_logo', URL::asset('build/img/image111.png'));
     $darkMiniLogoUrl = \App\Support\WebsiteSettings::brandingUrl('dark_mini_logo', URL::asset('build/img/logo-white.svg'));
-    $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
-    $isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin());
+    $isHcmAdmin = (bool) ($authUser?->isHcmAdmin( ));
+    $isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin( ));
     $primarySuperAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
     $secondarySuperAdminEmail = strtolower(trim((string) config('hcm.secondary_admin_email', 'qa.hcm@example.com')));
     $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
@@ -18,9 +18,9 @@
             strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
             || (bool) ($authUser->is_super_admin ?? false)
         );
-    $activeCompany = request()->attributes->get('activeCompany');
+    $activeCompany = request( )->attributes->get('activeCompany');
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
-        ? $activeCompany->activeSubscription()
+        ? $activeCompany->activeSubscription( )
         : null;
     $hasCompanyBillingAccess = (bool) $activeCompanySubscription;
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
@@ -108,7 +108,7 @@
                 </a>
             </div>
             <div class="me-3 notification-item">
-                <a href="{{url('activity')}}" class="btn btn-menubar position-relative me-1">
+                <a href="javascript:void(0);" class="btn btn-menubar position-relative me-1">
                     <i class="ti ti-bell"></i>
                     <span class="notification-status-dot"></span>
                 </a>
@@ -127,7 +127,7 @@
                 <li>
                     <ul>
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('index','employee-dashboard','deals-dashboard','leads-dashboard') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('index','employee-dashboard') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-smart-home"></i>
                                 <span>Dashboard</span>
                                 <span class="badge badge-danger fs-10 fw-medium text-white p-1">Hot</span>
@@ -138,15 +138,11 @@
                                 <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
 @endif
                                 <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
-@if ($showTemplateCatalogMenus)
-                                <li><a href="{{url('deals-dashboard')}}" class="{{ Request::is('deals-dashboard') ? 'active' : '' }}">Deals Dashboard</a></li>
-                                <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>
-@endif
                             </ul>
                         </li>
                         <!-- <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? 'active subdrop' : '' }}">
+                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -164,22 +160,23 @@
                                 </li>
                                 <li><a href="{{url('calendar')}}"  class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                                 <li><a href="{{url('email')}}"  class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
-                                <li><a href="{{url('todo')}}"  class="{{ Request::is('todo') ? 'active' : '' }}">To Do</a></li>
                                 <li><a href="{{url('notes')}}"  class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                                 <li><a href="{{url('social-feed')}}"  class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
                                 <li><a href="{{url('file-manager')}}"  class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
-                                <li><a href="{{url('kanban-view')}}"  class="{{ Request::is('kanban-view') ? 'active' : '' }}">Kanban</a></li>
                                 <li><a href="{{url('invoices')}}"  class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </li> -->
 @if ($isGlobalHcmAdmin)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('dashboard','activity','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Super Admin</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('dashboard')}}"  class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
+@if ($isPrimarySuperAdmin)
+                                <li><a href="{{url('activity')}}"  class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
+@endif
                                 <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
                                 <li><a href="{{url('saas/billing-overview')}}"  class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
                                 <li><a href="{{url('saas/subscriptions')}}"  class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
@@ -275,67 +272,6 @@
                             </a>
                         </li>
                     </ul>
-                </li> -->
-                <!-- <li class="menu-title"><span>PROJECTS</span></li>
-                <li>
-                    <ul>
-                        <li class="{{ Request::is('clients-grid','clients') ? 'active' : '' }}">
-                            <a href="{{url('clients-grid')}}">
-                                <i class="ti ti-users-group"></i><span>Clients</span>
-                            </a>
-                        </li>
-                        <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('projects-grid','tasks','task-board','projects','task-details') ? 'active' : '' }}">
-                                <i class="ti ti-box"></i><span>Projects</span>
-                                <span class="menu-arrow"></span>
-                            </a>
-                            <ul>
-                                <li><a href="{{url('projects-grid')}}" class="{{ Request::is('projects-grid','project-details','projects' ) ? 'active' : '' }}" >Projects</a></li>
-                                <li><a href="{{url('tasks')}}" class="{{ Request::is('tasks','task-details') ? 'active' : '' }}">Tasks</a></li>
-                                <li><a href="{{url('task-board')}}" class="{{ Request::is('task-board') ? 'active' : '' }}">Task Board</a></li>
-                            </ul>
-                        </li>								
-                    </ul>
-                </li> -->
-                <!-- <li class="menu-title"><span>CRM</span></li>
-                <li>
-                    <ul>
-                        <li class="{{ Request::is('contacts-grid','contacts','contact-details') ? 'active' : '' }}">
-                            <a href="{{url('contacts-grid')}}">
-                                <i class="ti ti-user-shield"></i><span>Contacts</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}">
-                            <a href="{{url('companies-grid')}}">
-                                <i class="ti ti-building"></i><span>Companies</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('deals-grid','deals-details','deals') ? 'active' : '' }}">
-                            <a href="{{url('deals-grid')}}">
-                                <i class="ti ti-heart-handshake"></i><span>Deals</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('leads-grid','leads-details','leads') ? 'active' : '' }}">
-                            <a href="{{url('leads-grid')}}">
-                                <i class="ti ti-user-check"></i><span>Leads</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('pipeline') ? 'active' : '' }}">
-                            <a href="{{url('pipeline')}}">
-                                <i class="ti ti-timeline-event-text"></i><span>Pipeline</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('analytics') ? 'active' : '' }}">
-                            <a href="{{url('analytics')}}">
-                                <i class="ti ti-graph"></i><span>Analytics</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('activity') ? 'active' : '' }}">
-                            <a href="{{url('activity')}}">
-                                <i class="ti ti-activity"></i><span>Activities</span>
-                            </a>
-                        </li>
-                    </ul>							
                 </li> -->
                 <li class="menu-title"><span>HRM</span></li>
                 <li>
@@ -560,13 +496,12 @@
                         </li>
 @endif
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-headset"></i><span>Help & Supports</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
-                                <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                             </ul>
                         </li>
 @if ($isHcmAdmin)
@@ -1341,7 +1276,7 @@
 @endif
                 <li class="submenu">
                     <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? ' subdrop active ' : '' }}">
+                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' subdrop active ' : '' }}">
                         <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                         <span class="menu-arrow"></span>
                     </a>
@@ -1359,11 +1294,9 @@
                         </li>
                         <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                         <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
-                        <li><a href="{{url('todo')}}" class="{{ Request::is('todo') ? 'active' : '' }}">To Do</a></li>
                         <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                         <li><a href="{{url('social-feed')}}" class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
                         <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
-                        <li><a href="{{url('kanban-view')}}" class="{{ Request::is('kanban-view') ? 'active' : '' }}">Kanban</a></li>
                         <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                     </ul>
                 </li>
@@ -1448,9 +1381,7 @@
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#" class="{{ Request::is('clients-grid','clients','projects-grid','projects','tasks','task-board',
-                   'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals','leads-grid','leads-details','leads','pipeline','analytics','activity',
-                    'employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
+                    <a href="#" class="{{ Request::is('clients-grid','clients',                   'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details',                    'employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','leaves','leaves-employee','leave-settings','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? 'active ' : '' }}">
                         <i class="ti ti-user-star"></i><span>Projects</span>
                         <span class="menu-arrow"></span>
@@ -1461,26 +1392,11 @@
                             </a>
                         </li>
                         <li class="submenu">
-                            <a href="javascript:void(0);"class="{{ Request::is('projects-grid','tasks','task-board','projects','project-details','task-details') ? 'active subdrop' : '' }}"><span>Projects</span>
-                                <span class="menu-arrow"></span>
-                            </a>
-                            <ul>
-                                <li><a href="{{url('projects-grid')}}" class="{{ Request::is('projects-grid','project-details','projects') ? 'active' : '' }}">Projects</a></li>
-                                <li><a href="{{url('tasks')}}" class="{{ Request::is('tasks','task-details') ? 'active' : '' }}">Tasks</a></li>
-                                <li><a href="{{url('task-board')}}" class="{{ Request::is('task-board') ? 'active' : '' }}">Task Board</a></li>
-                            </ul>
-                        </li>		
-                        <li class="submenu">
-                            <a href="{{url('call')}}" class="{{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? 'active subdrop' : '' }}">Crm<span class="menu-arrow"></span></a>
+                            <a href="{{url('call')}}" class="{{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details'
+                            ) ? 'active subdrop' : '' }}">Crm<span class="menu-arrow"></span></a>
                             <ul>
                                 <li><a href="{{url('contacts-grid')}}" class="{{ Request::is('contacts-grid','contacts','contact-details') ? 'active' : '' }}"><span>Contacts</span></a></li>
                                 <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
-                                <li><a href="{{url('deals-grid')}}" class="{{ Request::is('deals-grid','deals-details','deals') ? 'active' : '' }}"><span>Deals</span></a></li>
-                                <li><a href="{{url('leads-grid')}}" class="{{ Request::is('leads-grid','leads-details','leads') ? 'active' : '' }}"><span>Leads</span></a></li>
-                                <li><a href="{{url('pipeline')}}" class="{{ Request::is('pipeline') ? 'active' : '' }}"><span>Pipeline</span></a></li>
-                                <li><a href="{{url('analytics')}}" class="{{ Request::is('analytics') ? 'active' : '' }}"><span>Analytics</span></a></li>
-                                <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}"><span>Activities</span></a></li>
                             </ul>
                         </li>
                         <li class="submenu">
@@ -1566,7 +1482,7 @@
                 </li>
                 <li class="submenu">
                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
-                   'assets','asset-categories','knowledgebase','knowledgebase/*','activity', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
+                   'assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                    'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                     'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                         <i class="ti ti-user-star"></i><span>Administration</span>
@@ -1635,12 +1551,11 @@
                         </li>
 @endif
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
+                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
-                                <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                             </ul>
                         </li>
 @if ($isHcmAdmin)
@@ -2358,11 +2273,11 @@
             </a>
             <div class="sidebar-left slimscroll">
                 <div class="nav flex-column align-items-center nav-pills" id="sidebar-tabs" role="tablist" aria-orientation="vertical">
-                    <a href="#" class="nav-link {{ Request::is('index','employee-dashboard','deals-dashboard','leads-dashboard') ? ' show active ' : '' }}" title="Dashboard" data-bs-toggle="tab" data-bs-target="#dashboard">
+                    <a href="#" class="nav-link {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}" title="Dashboard" data-bs-toggle="tab" data-bs-target="#dashboard">
                         <i class="ti ti-smart-home"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices') ? ' show active ' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#application">
+                            'calendar','email','notes','social-feed','file-manager','invoices') ? ' show active ' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#application">
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
                     @if ($isGlobalHcmAdmin)
@@ -2375,11 +2290,11 @@
                     'layout-horizontal-sidemenu','layout-vertical-transparent','layout-without-header','layout-rtl','layout-dark') ? 'show active' : '' }}" title="Layout" data-bs-toggle="tab" data-bs-target="#layout">
                         <i class="ti ti-layout-board-split"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('clients','projects-grid','clients-grid','tasks','task-board','project-details','projects') ? ' show active ' : '' }}" title="Projects" data-bs-toggle="tab" data-bs-target="#projects">
+                    <a href="#" class="nav-link {{ Request::is('clients','clients-grid') ? ' show active ' : '' }}" title="Projects" data-bs-toggle="tab" data-bs-target="#projects">
                         <i class="ti ti-users-group"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? 'show active' : '' }}" title="Crm" data-bs-toggle="tab" data-bs-target="#crm">
+                    <a href="#" class="nav-link {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details'
+                            ) ? 'show active' : '' }}" title="Crm" data-bs-toggle="tab" data-bs-target="#crm">
                         <i class="ti ti-user-shield"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays',
@@ -2390,7 +2305,7 @@
                     <a href="#" class="nav-link {{Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr') ? ' show active ' : '' }}" title="Finance" data-bs-toggle="tab" data-bs-target="#finance">
                         <i class="ti ti-shopping-cart-dollar"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','activity','users','roles-permissions',
+                    <a href="#" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
@@ -2502,7 +2417,7 @@
                         </ul>
                     </div>
                     <div class="tab-pane fade {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? ' show active ' : '' }}" id="application">
+                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' show active ' : '' }}" id="application">
                         <ul>
                             <li class="menu-title"><span>APPLICATION</span></li>
                             <li><a href="{{url('voice-call')}}"class="{{ Request::is('voice-call') ? 'active' : '' }}" >Voice Call</a></li>
@@ -2512,11 +2427,9 @@
                             <li><a href="{{url('call-history')}}" class="{{ Request::is('call-history') ? 'active' : '' }}">Call History</a></li>
                             <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                             <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
-                            <li><a href="{{url('todo')}}" class="{{ Request::is('todo') ? 'active' : '' }}">To Do</a></li>
                             <li><a href="{{url('notes')}}"class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                             <li><a href="{{url('social-active')}}" class="{{ Request::is('social-active') ? 'active' : '' }}">File Manager</a></li>
                             <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
-                            <li><a href="{{url('kanban-view')}}" class="{{ Request::is('kanban-view') ? 'active' : '' }}">Kanban</a></li>
                             <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                         </ul>
                     </div>
@@ -2554,7 +2467,7 @@
                             <li><a href="{{url('layout-dark')}}" class="{{ Request::is('layout-dark') ? 'active' : '' }}"><span>Dark</span></a></li>
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('projects-grid','clients-grid','clients','tasks','task-board','project-details','projects') ? 'show active ' : '' }}" id="projects">
+                    <div class="tab-pane fade {{ Request::is('clients-grid','clients') ? 'show active ' : '' }}" id="projects">
                         <ul>
                             <li class="menu-title"><span>PROJECTS</span></li>
                             <li class="{{ Request::is('clients-grid','clients') ? 'active' : '' }}"><a href="{{url('clients-grid')}}">Clients</a></li>
@@ -2563,24 +2476,16 @@
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
-                                    <li><a href="{{url('projects-grid')}}" class="{{ Request::is('projects-grid','project-details','projects') ? 'active' : '' }}">Projects</a></li>
-                                    <li><a href="{{url('tasks')}}" class="{{ Request::is('tasks','task-details') ? 'active' : '' }}">Tasks</a></li>
-                                    <li><a href="{{url('task-board')}}" class="{{ Request::is('task-board') ? 'active' : '' }}">Task Board</a></li>
                                 </ul>
                             </li>	
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? ' show active ' : '' }}" id="crm">
+                    <div class="tab-pane fade {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details'
+                            ) ? ' show active ' : '' }}" id="crm">
                         <ul>
                             <li class="menu-title"><span>CRM</span></li>
                             <li><a href="{{url('contacts-grid')}}" class="{{ Request::is('contacts-grid','contacts','contact-details') ? 'active' : '' }}" ><span>Contacts</span></a></li>
                             <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
-                            <li><a href="{{url('deals-grid')}}" class="{{ Request::is('deals-grid','deals-details','deals') ? 'active' : '' }}"><span>Deals</span></a></li>
-                            <li><a href="{{url('leads-grid')}}" class="{{ Request::is('leads-grid','leads-details','leads') ? 'active' : '' }}"><span>Leads</span></a></li>
-                            <li><a href="{{url('pipeline')}}" class="{{ Request::is('pipeline') ? 'active' : '' }}"><span>Pipeline</span></a></li>
-                            <li><a href="{{url('analytics')}}" class="{{ Request::is('analytics') ? 'active' : '' }}"><span>Analytics</span></a></li>
-                            <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}"><span>Activities</span></a></li>
                         </ul>
                     </div>
                     <div class="tab-pane fade {{ Request::is('employees','employee-details','departments','designations','policy',
@@ -2746,8 +2651,7 @@
 @endif
                     <div class="tab-pane fade {{ Request::is('assets',
                     'asset-categories',
-                    'knowledgebase','knowledgebase/*','activity',
-                    'users','roles-permissions',
+                    'knowledgebase','knowledgebase/*',                    'users','roles-permissions',
                     'expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                     'profile-settings','security-settings','notification-settings','connected-apps',
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
@@ -2770,12 +2674,11 @@
                             </li>
 @endif
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
+                                <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
                                     <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
-                                    <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                                 </ul>
                             </li>
 @if ($isHcmAdmin)
@@ -3513,14 +3416,14 @@
                     <div class="nav flex-column align-items-center nav-pills" role="tablist" aria-orientation="vertical">
                         <div class="row g-2">
                             <div class="col-6">
-                                <a href="#menu-dashboard" role="tab" class="nav-link {{ Request::is('index','employee-dashboard','deals-dashboard','leads-dashboard') ? ' show active ' : '' }}" title="Dashboard" data-bs-toggle="tab" data-bs-target="#menu-dashboard" aria-selected="true">
+                                <a href="#menu-dashboard" role="tab" class="nav-link {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}" title="Dashboard" data-bs-toggle="tab" data-bs-target="#menu-dashboard" aria-selected="true">
                                     <span><i class="ti ti-smart-home"></i></span>
                                     <p>Dashboard</p>
                                 </a>
                             </div>
                             <div class="col-6">
                                 <a href="#menu-application" role="tab" class="nav-link {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
+                            'calendar','email','notes','social-feed','file-manager','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
                                     <span><i class="ti ti-layout-grid-add"></i></span>
                                     <p>Applications</p>
                                 </a>
@@ -3542,7 +3445,7 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-project" role="tab" class="nav-link {{ Request::is('activity','clients',
+                                <a href="#menu-project" role="tab" class="nav-link {{ Request::is('clients',
                     'employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','leaves','leaves-employee','leave-settings','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? ' show active ' : '' }}" title="Projects" data-bs-toggle="tab" data-bs-target="#menu-project" aria-selected="false">
                                     <span><i class="ti ti-folder"></i></span>
@@ -3550,8 +3453,8 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-crm" role="tab" class="nav-link {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? 'show active' : '' }}" title="CRM" data-bs-toggle="tab" data-bs-target="#menu-crm" aria-selected="false">
+                                <a href="#menu-crm" role="tab" class="nav-link {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details'
+                            ) ? 'show active' : '' }}" title="CRM" data-bs-toggle="tab" data-bs-target="#menu-crm" aria-selected="false">
                                     <span><i class="ti ti-user-shield"></i></span>
                                     <p>Crm</p>
                                 </a>
@@ -3571,7 +3474,7 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-administration" role="tab" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','activity','users','roles-permissions',
+                                <a href="#menu-administration" role="tab" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#menu-administration" aria-selected="false">
@@ -3686,7 +3589,7 @@
                         </div>
 @endif
                         <div class="tab-pane fade {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
+                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
                             <ul class="stack-submenu">
                                 <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                                 <li class="submenu submenu-two">
@@ -3703,10 +3606,8 @@
                                 </li>
                                 <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                                 <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
-                                <li><a href="{{url('todo')}}" class="{{ Request::is('todo') ? 'active' : '' }}">To Do</a></li>
                                 <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                                 <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
-                                <li><a href="{{url('kanban-view')}}" class="{{ Request::is('kanban-view') ? 'active' : '' }}">Kanban</a></li>
                                 <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </div>
@@ -3786,31 +3687,16 @@
                                 </li>
                             </ul>
                         </div>
-                        <div class="tab-pane fade {{ Request::is('clients-grid','clients','projects-grid','projects','tasks','task-details','task-board','project-details') ? ' show active ' : '' }}" id="menu-project">
+                        <div class="tab-pane fade {{ Request::is('clients-grid','clients') ? ' show active ' : '' }}" id="menu-project">
                             <ul class="stack-submenu">
                                 <li class="{{ Request::is('clients-grid','clients') ? 'active' : '' }}"><a href="{{url('clients-grid')}}"><span>Clients</span></a></li>
-                                <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('projects-grid','projects','tasks','task-details','task-board','project-details') ? 'active subdrop' : '' }}"><span>Projects</span>
-                                        <span class="menu-arrow"></span>
-                                    </a>
-                                    <ul>
-                                        <li><a href="{{url('projects-grid')}}" class="{{ Request::is('projects-grid','project-details','projects') ? 'active' : '' }}">Projects</a></li>
-                                        <li><a href="{{url('tasks')}}" class="{{ Request::is('tasks','task-details') ? 'active' : '' }}">Tasks</a></li>
-                                        <li><a href="{{url('task-board')}}" class="{{ Request::is('task-board') ? ' show active' : '' }}">Task Board</a></li>
-                                    </ul>
-                                </li>	
                             </ul>
                         </div>
-                        <div class="tab-pane fade {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? 'show active' : '' }}" id="menu-crm">
+                        <div class="tab-pane fade {{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details'
+                            ) ? 'show active' : '' }}" id="menu-crm">
                             <ul class="stack-submenu">
                                 <li class="{{ Request::is('contacts-grid','contacts','contact-details') ? 'active' : '' }}"><a href="{{url('contacts-grid')}}"><span>Contacts</span></a></li>
                                 <li  class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><a href="{{url('companies-grid')}}"><span>Companies</span></a></li>
-                                <li class="{{ Request::is('deals-grid','deals-details','deals') ? 'active' : '' }}"><a href="{{url('deals-grid')}}"><span>Deals</span></a></li>
-                                <li class="{{ Request::is('leads-grid','leads-details','leads') ? 'active' : '' }}"><a href="{{url('leads-grid')}}"><span>Leads</span></a></li>
-                                <li class="{{ Request::is('pipeline') ? 'active' : '' }}"><a href="{{url('pipeline')}}"><span>Pipeline</span></a></li>
-                                <li class="{{ Request::is('analytics') ? 'active' : '' }}"><a href="{{url('analytics')}}"><span>Analytics</span></a></li>
-                                <li class="{{ Request::is('activity') ? 'active' : '' }}"><a href="{{url('activity')}}"><span>Activities</span></a></li>
 
                             </ul>
                         </div>
@@ -3951,7 +3837,7 @@
                                 </li>
                             </ul>
                         </div>
-                        <div class="tab-pane fade {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','activity','users','roles-permissions',
+                        <div class="tab-pane fade {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" id="menu-administration">
@@ -3968,12 +3854,11 @@
                                 </li>
 @endif
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
+                                    <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
-                                        <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
                                     </ul>
                                 </li>
 @if ($isHcmAdmin)

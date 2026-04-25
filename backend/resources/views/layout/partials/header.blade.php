@@ -82,18 +82,6 @@
                                                 </span>
                                                 <i class="ti ti-arrow-right"></i>
                                             </a>							
-                                            <a href="{{url('deals-grid')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-heart-handshake text-default me-2"></i>Deals
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>								
-                                            <a href="{{url('pipeline')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-timeline-event-text text-default me-2"></i>Pipeline
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>		
                                         </div>
                                         <div class="col-sm-6">							
                                             <a href="{{url('companies-grid')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
@@ -102,18 +90,6 @@
                                                 </span>
                                                 <i class="ti ti-arrow-right"></i>
                                             </a>								
-                                            <a href="{{url('leads-grid')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-user-check text-default me-2"></i>Leads
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>								
-                                            <a href="{{url('activity')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-activity text-default me-2"></i>Activities
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>		
                                         </div>
                                     </div>		
                                 </div>
@@ -141,10 +117,7 @@
                                     <ul>
                                         <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
                                         <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
-@if ($showTemplateCatalogMenus)
-                                        <li><a href="{{url('deals-dashboard')}}" class="{{ Request::is('deals-dashboard') ? 'active' : '' }}">Deals Dashboard</a></li>
-                                        <li><a href="{{url('leads-dashboard')}}" class="{{ Request::is('leads-dashboard') ? 'active' : '' }}">Leads Dashboard</a></li>
-@endif                                    </ul>
+                                    </ul>
                                 </li>
 @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
@@ -163,8 +136,8 @@
                                 </li>
 @endif
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','todo','notes','social-feed','file-manager','kanban-view','invoices','invoice-details') ? 'active subdrop' : '' }}">
+                                        <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
+                                    'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                                         <span class="menu-arrow"></span>
                                     </a>
@@ -183,11 +156,9 @@
                                         </li>
                                         <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                         <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
-                        <li><a href="{{url('todo')}}" class="{{ Request::is('todo') ? 'active' : '' }}">To Do</a></li>
                         <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                         <li><a href="{{url('social-feed')}}" class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
                         <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
-                        <li><a href="{{url('kanban-view')}}" class="{{ Request::is('kanban-view') ? 'active' : '' }}">Kanban</a></li>
                         <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                                     </ul>
                                 </li>
@@ -272,8 +243,8 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('clients-grid','projects-grid','tasks','task-board','project-details',
-                                    'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals','leads-grid','leads-details','leads','pipeline','analytics','activity',
+                                        <a href="#" class="{{ Request::is('clients-grid',
+                                        'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details',
                                      'employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                                              'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','leaves','leaves-employee','leave-settings','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? 'active ' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Projects</span>
@@ -284,33 +255,13 @@
                                             <a href="{{url('clients-grid')}}" class="{{ Request::is('clients-grid') ? 'active' : '' }}"><span>Clients</span>
                                             </a>
                                         </li>
-                                        @if ($showTemplateCatalogMenus)
-                                        @if ($showTemplateCatalogMenus)
-                                        @if ($showTemplateCatalogMenus)
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('projects-grid','project-details','tasks','task-board') ? 'active subdrop' : '' }}"><span>Projects</span>
-                                                <span class="menu-arrow"></span>
-                                            </a>
-                                            <ul>
-                                                <li><a href="{{url('projects-grid')}}" class="{{ Request::is('projects-grid','project-details') ? 'active subdrop' : '' }}">Projects</a></li>
-                                                <li><a href="{{url('tasks')}}" class="{{ Request::is('tasks') ? 'active' : '' }}">Tasks</a></li>
-                                                <li><a href="{{url('task-board')}}" class="{{ Request::is('task-board') ? 'active' : '' }}">Task Board</a></li>
-                                            </ul>
-                                        </li>		
-                                        <li class="submenu">
-                                            <a href="{{url('call')}}" class="{{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details','deals-grid','deals-details','deals'
-                            ,'leads-grid','leads-details','leads','pipeline','analytics','activity') ? 'active subdrop' : '' }}">Crm<span class="menu-arrow"></span></a>
+                                            <a href="{{url('call')}}" class="{{ Request::is('contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details') ? 'active subdrop' : '' }}">Crm<span class="menu-arrow"></span></a>
                                             <ul>
                                                 <li><a href="{{url('contacts-grid')}}" class="{{ Request::is('contacts-grid','contacts','contact-details') ? 'active' : '' }}"><span>Contacts</span></a></li>
-                                <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
-                                <li><a href="{{url('deals-grid')}}" class="{{ Request::is('deals-grid','deals-details','deals') ? 'active' : '' }}"><span>Deals</span></a></li>
-                                <li><a href="{{url('leads-grid')}}" class="{{ Request::is('leads-grid','leads-details','leads') ? 'active' : '' }}"><span>Leads</span></a></li>
-                                <li><a href="{{url('pipeline')}}" class="{{ Request::is('pipeline') ? 'active' : '' }}"><span>Pipeline</span></a></li>
-                                <li><a href="{{url('analytics')}}" class="{{ Request::is('analytics') ? 'active' : '' }}"><span>Analytics</span></a></li>
-                                <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}"><span>Activities</span></a></li>
+                                                <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
                                             </ul>
                                         </li>
-                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
                                                 <span class="menu-arrow"></span>
@@ -323,7 +274,6 @@
                                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                                             </ul>
                                         </li>
-                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
                                                 <span class="menu-arrow"></span>
@@ -365,7 +315,6 @@
                 
                                             </ul>
                                         </li>
-                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}"><span>Performance</span>
                                                 <span class="menu-arrow"></span>
@@ -397,7 +346,7 @@
                                 </li>
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
-                                    'assets','asset-categories','knowledgebase','knowledgebase/*','activity', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
+                                    'assets','asset-categories','knowledgebase','knowledgebase/*', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                                     'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                                      'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Administration</span>
@@ -465,12 +414,11 @@
                                         </li>
 @endif
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details','activity') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
+                                            <a href="javascript:void(0);" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active subdrop' : '' }}"><span>Help & Supports</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
                                                 <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
-                                                 <li><a href="{{url('activity')}}" class="{{ Request::is('activity') ? 'active' : '' }}">Activities</a></li>
 
                                             </ul>
                                         </li>
@@ -1186,16 +1134,11 @@
                                     <a href="{{url('calendar')}}" class="d-block pb-2">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-calendar text-gray-9"></i></span>Calendar
                                     </a>										
-                                    <a href="{{url('todo')}}" class="d-block py-2">
-                                        <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-subtask text-gray-9"></i></span>To Do
-                                    </a>										
                                     <a href="{{url('notes')}}" class="d-block py-2">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-notes text-gray-9"></i></span>Notes
                                     </a>										
                                     <a href="{{url('file-manager')}}" class="d-block py-2">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-folder text-gray-9"></i></span>File Manager
-                                    </a>								
-                                        <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-layout-kanban text-gray-9"></i></span>Kanban
                                     </a>								
                                     <a href="{{url('invoices')}}" class="d-block py-2 pb-0">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-file-invoice text-gray-9"></i></span>Invoices
@@ -1219,7 +1162,7 @@
                         <a href="#" class="btn btn-menubar position-relative me-1" id="notification_popup"
                             data-bs-toggle="dropdown">
                             <i class="ti ti-bell"></i>
-                            <span class="notification-status-dot"></span>
+                            <span class="notification-status-dot d-none" data-notification-status-dot></span>
                             <span class="badge bg-danger rounded-pill d-none align-items-center justify-content-center header-badge" data-notification-unread-badge>0</span>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end notification-dropdown p-4">
@@ -1234,7 +1177,11 @@
                             </div>
                             <div class="d-flex p-0">
                                 <a href="javascript:void(0);" class="btn btn-light w-100 me-2" data-notification-refresh>Refresh</a>
-                                <a href="{{url('activity')}}" class="btn btn-primary w-100">Open Activity</a>
+                                @if ($isPrimarySuperAdmin)
+                                <a href="{{ url('activity') }}" class="btn btn-primary w-100">Open Activity</a>
+                                @else
+                                <a href="{{ url('notification-settings') }}" class="btn btn-primary w-100">Notification Settings</a>
+                                @endif
                             </div>
                         </div>
                     </div>

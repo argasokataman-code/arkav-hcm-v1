@@ -18,6 +18,8 @@ Dokumen ini menjadi **peta tunggal** untuk tim: halaman Blade mana yang dianggap
 
 **Catatan:** `login` / halaman auth adalah template aktif untuk **Identity**, bukan HCM bisnis; tetap dicantumkan di bawah agar role “anon vs authenticated” jelas.
 
+Sejak 2026-04-25, route template out-of-scope V1 untuk Project Management/CRM demo sudah ditakeout dari surface aktif (route + menu): `deals-dashboard`, `leads-dashboard`, `todo`, `todo-list`, `kanban-view`, `projects-grid`, `projects`, `project-details`, `tasks`, `task-board`, `task-details`, `deals-grid`, `deals`, `deals-details`, `leads-grid`, `leads`, `leads-details`, `pipeline`, `analytics`.
+
 ---
 
 ## 2. Model role (target — diselaraskan ke kode bertahap)
@@ -163,3 +165,5 @@ Jalankan berurutan (tidak boleh loncat):
 
 - **2026-04:** Dokumen dibuat agar semua template HCM aktif punya pandangan role/permission terpusat; employee UC detail di `USE-CASES.md`.
 - **2026-04-24:** Ditambahkan kontrak API observability notifikasi `GET /v1/hcm/notifications/delivery-summary` sebagai endpoint internal **global HCM admin only** untuk ringkasan delivery channel (`sent/failed/dropped`).
+- **2026-04-25:** Surface template Project Management/CRM demo yang di luar scope V1 dinonaktifkan dari route + menu agar tidak tampil lintas akun.
+- **2026-04-25 (revision):** Halaman `activity` dipulihkan sebagai audit trail detail khusus **primary super admin code 1** (route `hcm.web.primary-super-admin` + menu/CTA ter-wire ulang ke `activity-data.js`).

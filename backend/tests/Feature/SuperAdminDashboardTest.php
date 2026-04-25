@@ -475,6 +475,26 @@ class SuperAdminDashboardTest extends TestCase
         ]);
     }
 
+    public function test_kpi_request_creates_runtime_audit_log(): void
+    {
+        $this->adminRequest()->getJson('/v1/saas/dashboard/kpi')->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'view_dashboard',
+            'target_type' => 'dashboard',
+        ]);
+    }
+
+    public function test_audit_logs_request_creates_runtime_audit_log(): void
+    {
+        $this->adminRequest()->getJson('/v1/saas/dashboard/audit-logs')->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'view_audit_logs',
+            'target_type' => 'dashboard',
+        ]);
+    }
+
     public function test_admin_can_filter_audit_logs()
     {
         $adminUser = User::where('email', 'qa.login@example.com')->first();

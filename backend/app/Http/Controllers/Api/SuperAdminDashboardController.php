@@ -30,6 +30,10 @@ class SuperAdminDashboardController extends Controller
             ], 403);
         }
 
+        $this->recordAuditLog($user->id, 'view_dashboard', 'dashboard', null, [
+            'page' => 'kpi',
+        ]);
+
         $kpis = [
             'totalCompanies' => $this->resolveDashboardMetric('total_companies', fn (): float => (float) Company::count()),
             'totalUsers' => $this->resolveDashboardMetric('total_users', fn (): float => (float) User::whereHas('companyMemberships')->count()),
@@ -580,6 +584,13 @@ class SuperAdminDashboardController extends Controller
             ], 403);
         }
 
+        $this->recordAuditLog($user->id, 'view_audit_logs', 'dashboard', null, [
+            'filter' => (string) $request->get('action', 'all'),
+            'targetType' => (string) $request->get('target_type', ''),
+            'dateFrom' => (string) $request->get('date_from', ''),
+            'dateTo' => (string) $request->get('date_to', ''),
+        ]);
+
         $query = AuditLog::with('superAdmin');
 
         if ($request->has('super_admin_id')) {
@@ -636,6 +647,11 @@ class SuperAdminDashboardController extends Controller
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
             ], 403);
         }
+
+        $this->recordAuditLog($user->id, 'view_audit_logs', 'audit_log', null, [
+            'auditLog' => $auditLog,
+            'mode' => 'detail',
+        ]);
 
         $auditLogRecord = AuditLog::query()
             ->with('superAdmin')
@@ -823,5 +839,27 @@ class SuperAdminDashboardController extends Controller
         $user = $request->user();
 
         return $user ? $user->isHcmAdmin() : false;
+    }
+
+    private function recordAuditLog(
+        int $superAdminId,
+        string $action,
+        string $targetType,
+        ?int $targetId,
+        array $details = []
+    ): void {
+        try {
+            AuditLog::query()->create([
+                'super_admin_id' => $superAdminId,
+                'action' => $action,
+                'target_type' => $targetType,
+                'target_id' => $targetId,
+                'details' => $details,
+                'ip_address' => request()->ip(),
+                'user_agent' => substr((string) request()->userAgent(), 0, 255),
+            ]);
+        } catch (\Throwable) {
+            // Do not block dashboard responses when audit persistence fails.
+        }
     }
 }

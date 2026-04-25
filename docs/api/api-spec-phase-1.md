@@ -19,6 +19,7 @@ Sumber kebenaran kontrak saat ini:
 - Overtime: `docs/api/hcm-overtime-api.md`
 - Leave: `docs/api/hcm-leave-api.md`
 - Attendance (+ timesheets + schedule timing): `docs/api/hcm-attendance-api.md`
+- Dashboard ringkasan (admin + employee): `docs/api/hcm-dashboard-api.md`
 - Activity feed (`/activity` page): `docs/api/hcm-activity-api.md`
 - Performance: `docs/api/hcm-performance-api.md`
 - Promotion: `docs/api/hcm-promotion-api.md`

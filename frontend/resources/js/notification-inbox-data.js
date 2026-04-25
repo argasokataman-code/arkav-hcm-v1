@@ -4,6 +4,7 @@
     var contentNode = document.querySelector('[data-notification-content]');
     var titleNode = document.querySelector('[data-notification-title]');
     var unreadBadgeNode = document.querySelector('[data-notification-unread-badge]');
+    var statusDotNode = document.querySelector('[data-notification-status-dot]');
     var markAllNode = document.querySelector('[data-notification-mark-all]');
     var refreshNode = document.querySelector('[data-notification-refresh]');
     var triggerNode = document.getElementById('notification_popup');
@@ -105,13 +106,17 @@
     }
 
     function renderUnreadBadge() {
-        if (!unreadBadgeNode) {
-            return;
+        var hasUnread = Boolean(state.unreadCount);
+
+        if (unreadBadgeNode) {
+            unreadBadgeNode.textContent = String(state.unreadCount || 0);
+            unreadBadgeNode.classList.toggle('d-none', !hasUnread);
+            unreadBadgeNode.classList.toggle('d-flex', hasUnread);
         }
 
-        unreadBadgeNode.textContent = String(state.unreadCount || 0);
-        unreadBadgeNode.classList.toggle('d-none', !state.unreadCount);
-        unreadBadgeNode.classList.toggle('d-flex', Boolean(state.unreadCount));
+        if (statusDotNode) {
+            statusDotNode.classList.toggle('d-none', !hasUnread);
+        }
     }
 
     function renderTitle() {

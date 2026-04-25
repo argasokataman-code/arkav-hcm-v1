@@ -427,40 +427,45 @@
 
       // Tab switching
       document.addEventListener("click", function (e) {
-        if (e.target.matches("[data-dashboard-tab]")) {
+        const tabTrigger = e.target.closest("[data-dashboard-tab]");
+        if (tabTrigger) {
           e.preventDefault();
-          const tab = e.target.getAttribute("data-dashboard-tab");
+          const tab = tabTrigger.getAttribute("data-dashboard-tab");
           self.switchTab(tab);
         }
 
         // Pagination
-        if (e.target.matches("[data-page]")) {
+        const pageTrigger = e.target.closest("[data-page]");
+        if (pageTrigger) {
           e.preventDefault();
-          const page = parseInt(e.target.getAttribute("data-page"));
+          const page = parseInt(pageTrigger.getAttribute("data-page"));
           self.currentPage = page;
           self.loadCompanies();
         }
 
         // Audit filter
-        if (e.target.matches("[data-audit-filter]")) {
+        const auditFilterTrigger = e.target.closest("[data-audit-filter]");
+        if (auditFilterTrigger) {
           e.preventDefault();
-          const filter = e.target.getAttribute("data-audit-filter");
+          const filter = auditFilterTrigger.getAttribute("data-audit-filter");
           self.currentFilter = filter;
           self.currentPage = 1;
           self.loadAuditLogs();
         }
 
         // View metric trend
-        if (e.target.matches("[data-metric-trend]")) {
+        const metricTrigger = e.target.closest("[data-metric-trend]");
+        if (metricTrigger) {
           e.preventDefault();
-          const metric = e.target.getAttribute("data-metric-trend");
+          const metric = metricTrigger.getAttribute("data-metric-trend");
           self.showMetricTrend(metric);
         }
 
         // View company details
-        if (e.target.matches("[data-view-company]")) {
+        const companyTrigger = e.target.closest("[data-view-company]");
+        if (companyTrigger) {
           e.preventDefault();
-          const companyId = e.target.getAttribute("data-view-company");
+          const companyId = companyTrigger.getAttribute("data-view-company");
           self.showCompanyDetails(companyId);
         }
       });

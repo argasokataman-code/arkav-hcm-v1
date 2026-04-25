@@ -76,11 +76,11 @@
                                     <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" alt="Img">
                                 </span>
                                 <div>
-                                    <h5 class="text-white mb-1" data-employee-legacy-name>Stephan Peralt</h5>
+                                    <h5 class="text-white mb-1" data-employee-legacy-name>User</h5>
                                     <div class="d-flex align-items-center">
-                                    <p class="text-white fs-12 mb-0" data-employee-legacy-designation>Senior Product Designer</p>
+                                    <p class="text-white fs-12 mb-0" data-employee-legacy-designation>Employee</p>
                                     <span class="mx-1"><i class="ti ti-point-filled text-primary"></i></span>
-                                    <p class="fs-12" data-employee-legacy-team>UI/UX Design</p>
+                                    <p class="fs-12" data-employee-legacy-team>General</p>
                                 </div>
                                 </div>
                             </div>
@@ -89,11 +89,11 @@
                         <div class="card-body">
                             <div class="mb-3">
                                 <span class="d-block mb-1 fs-13">Phone Number</span>
-                                <p class="text-gray-9" data-employee-legacy-phone>+1 324 3453 545</p>
+                                <p class="text-gray-9" data-employee-legacy-phone>-</p>
                             </div>
                             <div class="mb-3">
                                 <span class="d-block mb-1 fs-13">Email Address</span>
-                                <p class="text-gray-9" data-employee-legacy-email>Steperde124@example.com</p>
+                                <p class="text-gray-9" data-employee-legacy-email>-</p>
                             </div>
                             <div class="mb-3">
                                 <span class="d-block mb-1 fs-13">Report Office</span>
@@ -101,7 +101,7 @@
                             </div>
                             <div>
                                 <span class="d-block mb-1 fs-13">Joined on</span>
-                                <p class="text-gray-9" data-employee-legacy-join-date>15  Jan 2024</p>
+                                <p class="text-gray-9" data-employee-legacy-join-date>-</p>
                             </div>
                         </div>
                     </div>
@@ -273,9 +273,9 @@
                             </div>
                             <div class="text-center">
                                 <div class="badge badge-dark badge-md mb-3" data-employee-legacy-production-badge>Production :  3.45 hrs</div>
-                                <h6 class="fw-medium d-flex align-items-center justify-content-center mb-4" data-employee-legacy-punch-line>
+                                    <h6 class="fw-medium d-flex align-items-center justify-content-center mb-4" data-employee-legacy-punch-line>
                                     <i class="ti ti-fingerprint text-primary me-1"></i>
-                                    Punch In at  10.00 AM
+                                    Punch In at -
                                 </h6>
                                 <div class="rounded border mb-3" data-employee-legacy-attendance-map style="height: 180px;"></div>
                                 <p class="small text-muted mb-3" data-employee-legacy-map-hint>Map attendance belum tersedia.</p>
@@ -301,10 +301,10 @@
                                     </div>
                                     <div>
                                         <p class="d-flex align-items-center fs-13">
-                                            <span class="avatar avatar-xs rounded-circle bg-success flex-shrink-0 me-2">
-                                                <i class="ti ti-arrow-up fs-12"></i>
+                                            <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
+                                                <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>5% This Week</span>
+                                            <span>Data minggu ini belum tersedia</span>
                                         </p>
                                     </div>
                                 </div>
@@ -320,10 +320,10 @@
                                     </div>
                                     <div>
                                         <p class="d-flex align-items-center fs-13">
-                                            <span class="avatar avatar-xs rounded-circle bg-success flex-shrink-0 me-2">
-                                                <i class="ti ti-arrow-up fs-12"></i>
+                                            <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
+                                                <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>7% Last Week</span>
+                                            <span>Data pekan lalu belum tersedia</span>
                                         </p>
                                     </div>
                                 </div>
@@ -339,10 +339,10 @@
                                     </div>
                                     <div>
                                         <p class="d-flex align-items-center fs-13 text-truncate">
-                                            <span class="avatar avatar-xs rounded-circle bg-danger flex-shrink-0 me-2">
-                                                <i class="ti ti-arrow-down fs-12"></i>
+                                            <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
+                                                <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>8% Last Month</span>
+                                            <span>Data bulan lalu belum tersedia</span>
                                         </p>
                                     </div>
                                 </div>
@@ -358,10 +358,10 @@
                                     </div>
                                     <div>
                                         <p class="d-flex align-items-center fs-13 text-truncate">
-                                            <span class="avatar avatar-xs rounded-circle bg-danger flex-shrink-0 me-2">
-                                                <i class="ti ti-arrow-down fs-12"></i>
+                                            <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
+                                                <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>6% Last Month</span>
+                                            <span>Data bulan lalu belum tersedia</span>
                                         </p>
                                     </div>
                                 </div>
@@ -432,356 +432,6 @@
                                                 <span class="fs-10">09:00</span>
                                                 <span class="fs-10">10:00</span>
                                                 <span class="fs-10">11:00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                <h5>Projects</h5>
-                                <div class="dropdown">
-                                    <a href="javascript:void(0);" class="btn btn-white border-0 dropdown-toggle border btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                        Ongoing Projects
-                                    </a>
-                                    <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">All Projects</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">Ongoing Projects</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card mb-4 shadow-none mb-md-0">
-                                        <div class="card-body">
-                                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                                <h6>Office Management</h6>
-                                                <div class="dropdown">
-                                                    <a href="javascript:void(0);" class="d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                                        <i class="ti ti-dots-vertical"></i>
-                                                    </a>
-                                                    <ul class="dropdown-menu dropdown-menu-end p-3">
-                                                        <li>
-                                                            <a href="javascript:void(0);" class="dropdown-item rounded-1" data-bs-toggle="modal" data-bs-target="#edit_task"><i class="ti ti-edit me-2"></i>Edit</a>
-                                                        </li>
-                                                        <li>
-                                                            <a href="javascript:void(0);" class="dropdown-item rounded-1" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash me-2"></i>Delete</a>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <a href="javascript:void(0);" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-32.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="javascript:void(0);">Anthony Lewis</a></h6>
-                                                        <span class="fs-13 d-block">Project Leader</span>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <a href="javascript:void(0);" class="avatar bg-soft-primary rounded-circle">
-                                                        <i class="ti ti-calendar text-primary fs-16"></i>
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal">14 Jan 2024</h6>
-                                                        <span class="fs-13 d-block">Deadline</span>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center justify-content-between bg-transparent-light border border-dashed rounded p-2 mb-3">
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="avatar avatar-sm bg-success-transparent rounded-circle me-1"><i class="ti ti-checklist fs-16"></i></span>
-                                                        <p>Tasks : <span class="text-gray-9">6 </span> /10</p>
-                                                    </div>
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-06.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-07.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-08.jpg') }}" alt="img">
-                                                        </span>
-                                                        <a class="avatar bg-primary avatar-rounded text-fixed-white fs-12 fw-medium" href="javascript:void(0);">
-                                                            +2
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                <div class="bg-soft-secondary p-2 rounded d-flex align-items-center justify-content-between">
-                                                    <p class="text-secondary mb-0 text-truncate">Time Spent</p>
-                                                    <h5 class="text-secondary text-truncate">65/120 <span class="fs-14 fw-normal">Hrs</span></h5>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card shadow-none mb-0">
-                                        <div class="card-body">
-                                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                                <h6>Office Management</h6>
-                                                <div class="dropdown">
-                                                    <a href="javascript:void(0);" class="d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                                        <i class="ti ti-dots-vertical"></i>
-                                                    </a>
-                                                    <ul class="dropdown-menu dropdown-menu-end p-3">
-                                                        <li>
-                                                            <a href="javascript:void(0);" class="dropdown-item rounded-1" data-bs-toggle="modal" data-bs-target="#edit_task"><i class="ti ti-edit me-2"></i>Edit</a>
-                                                        </li>
-                                                        <li>
-                                                            <a href="javascript:void(0);" class="dropdown-item rounded-1" data-bs-toggle="modal" data-bs-target="#delete_modal"><i class="ti ti-trash me-2"></i>Delete</a>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <a href="javascript:void(0);" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-33.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="javascript:void(0);">Anthony Lewis</a></h6>
-                                                        <span class="fs-13 d-block">Project Leader</span>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center mb-3">
-                                                    <a href="javascript:void(0);" class="avatar bg-soft-primary rounded-circle">
-                                                        <i class="ti ti-calendar text-primary fs-16"></i>
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal">14 Jan 2024</h6>
-                                                        <span class="fs-13 d-block">Deadline</span>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center justify-content-between bg-transparent-light border border-dashed rounded p-2 mb-3">
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="avatar avatar-sm bg-success-transparent rounded-circle me-1"><i class="ti ti-checklist fs-16"></i></span>
-                                                        <p>Tasks : <span class="text-gray-9">6 </span> /10</p>
-                                                    </div>
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-06.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-07.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-08.jpg') }}" alt="img">
-                                                        </span>
-                                                        <a class="avatar bg-primary avatar-rounded text-fixed-white fs-12 fw-medium" href="javascript:void(0);">
-                                                            +2
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                <div class="bg-soft-secondary p-2 rounded d-flex align-items-center justify-content-between">
-                                                    <p class="text-secondary mb-0 text-truncate">Time Spent</p>
-                                                    <h5 class="text-secondary text-truncate">65/120 <span class="fs-14 fw-normal">Hrs</span></h5>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                <h5>Tasks</h5>
-                                <div class="dropdown">
-                                    <a href="javascript:void(0);" class="btn btn-white border-0 dropdown-toggle border btn-sm d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                        All Tasks
-                                    </a>
-                                    <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">All Tasks</a>
-                                        </li>
-                                        <li>
-                                            <a href="javascript:void(0);" class="dropdown-item rounded-1">Open Tasks</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="list-group list-group-flush">
-                                <div class="list-group-item border rounded mb-3 p-2">
-                                    <div class="row align-items-center row-gap-3">
-                                        <div class="col-md-8">
-                                            <div class="todo-inbox-check d-flex align-items-center">
-                                                <span><i class="ti ti-grid-dots me-2"></i></span>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox">
-                                                </div>
-                                                <span class="me-2 d-flex align-items-center rating-select"><i class="ti ti-star-filled filled"></i></span>
-                                                <div class="strike-info">
-                                                    <h4 class="fs-14 text-truncate">Submit leave request supporting document</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="d-flex align-items-center justify-content-md-end flex-wrap row-gap-3">
-                                                <span class="badge bg-soft-pink d-inline-flex align-items-center me-2"><i class="fas fa-circle fs-6 me-1"></i>On Hold</span>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-13.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-14.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-15.jpg') }}" alt="img">
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="list-group-item border rounded mb-3 p-2">
-                                    <div class="row align-items-center row-gap-3">
-                                        <div class="col-md-8">
-                                            <div class="todo-inbox-check d-flex align-items-center">
-                                                <span><i class="ti ti-grid-dots me-2"></i></span>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox">
-                                                </div>
-                                                <span class="me-2 rating-select d-flex align-items-center"><i class="ti ti-star"></i></span>
-                                                <div class="strike-info">
-                                                    <h4 class="fs-14 text-truncate">Review payroll slip for current period</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="d-flex align-items-center justify-content-md-end flex-wrap row-gap-3">
-                                                <span class="badge bg-transparent-purple d-flex align-items-center me-2"><i class="fas fa-circle fs-6 me-1"></i>In Progress</span>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-20.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-21.jpg') }}" alt="img">
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="list-group-item border rounded mb-3 p-2">
-                                    <div class="row align-items-center row-gap-3">
-                                        <div class="col-md-8">
-                                            <div class="todo-inbox-check d-flex align-items-center">
-                                                <span><i class="ti ti-grid-dots me-2"></i></span>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox">
-                                                </div>
-                                                <span class="me-2 rating-select d-flex align-items-center"><i class="ti ti-star"></i></span>
-                                                <div class="strike-info">
-                                                    <h4 class="fs-14 text-truncate">Complete attendance correction form</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="d-flex align-items-center justify-content-md-end flex-wrap row-gap-3">
-                                                <span class="badge badge-soft-success align-items-center me-2"><i class="fas fa-circle fs-6 me-1"></i>Completed</span>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-28.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-29.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-24.jpg') }}" alt="img">
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="list-group-item border rounded mb-3 p-2">
-                                    <div class="row align-items-center row-gap-3">
-                                        <div class="col-md-8">
-                                            <div class="todo-inbox-check d-flex align-items-center todo-strike-content">
-                                                <span><i class="ti ti-grid-dots me-2"></i></span>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" checked="">
-                                                </div>
-                                                <span class="me-2 rating-select d-flex align-items-center"><i class="ti ti-star"></i></span>
-                                                <div class="strike-info">
-                                                    <h4 class="fs-14 text-truncate">Update emergency contact information</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="d-flex align-items-center justify-content-md-end flex-wrap row-gap-3">
-                                                <span class="badge badge-secondary-transparent d-flex align-items-center me-2"><i class="fas fa-circle fs-6 me-1"></i>Pending</span>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-23.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-24.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-25.jpg') }}" alt="img">
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="list-group-item border rounded p-2">
-                                    <div class="row align-items-center row-gap-3">
-                                        <div class="col-md-8">
-                                            <div class="todo-inbox-check d-flex align-items-center">
-                                                <span><i class="ti ti-grid-dots me-2"></i></span>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox">
-                                                </div>
-                                                <span class="me-2 rating-select d-flex align-items-center"><i class="ti ti-star"></i></span>
-                                                <div class="strike-info">
-                                                    <h4 class="fs-14 text-truncate">Submit monthly overtime claim draft</h4>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="d-flex align-items-center justify-content-md-end flex-wrap row-gap-3">
-                                                <span class="badge bg-transparent-purple d-flex align-items-center me-2"><i class="fas fa-circle fs-6 me-1"></i>In Progress</span>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-list-stacked avatar-group-sm">
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-28.jpg') }}" alt="img">
-                                                        </span>
-                                                        <span class="avatar avatar-rounded">
-                                                            <img class="border border-white" src="{{ URL::asset('build/img/profiles/avatar-29.jpg') }}" alt="img">
-                                                        </span>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -966,8 +616,8 @@
                                         <img src="{{ URL::asset('build/img/users/user-35.jpg') }}" alt="Img" data-team-birthday-photo>
                                     </span>
                                     <div class="mb-3">
-                                        <h6 class="text-white fw-medium mb-1" data-team-birthday-name>Andrew Jermia</h6>
-                                        <p data-team-birthday-role>IOS Developer</p>
+                                        <h6 class="text-white fw-medium mb-1" data-team-birthday-name>-</h6>
+                                        <p data-team-birthday-role>-</p>
                                     </div>
                                     <a href="javascript:void(0);" class="btn btn-sm btn-primary" data-team-birthday-wish>Send Wishes</a>
                                 </div>
@@ -986,7 +636,7 @@
                             <div class="card-body d-flex align-items-center justify-content-between p-3">
                                 <div>
                                     <h5 class="mb-1">Next Holiday</h5>
-                                    <p class="text-gray-9" data-next-holiday-label>Diwali, 15 Sep 2025</p>
+                                    <p class="text-gray-9" data-next-holiday-label>-</p>
                                 </div>
                                 <a href="{{url('holidays')}}" class="btn btn-white btn-sm px-3">View All</a>
                             </div>
@@ -1006,102 +656,7 @@
                             </div>
                         </div>
                         <div class="card-body" data-team-members-body>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-27.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Alexander Jermai</a></h6>
-                                        <p class="fs-13">UI/UX Designer</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-42.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Doglas Martini</a></h6>
-                                        <p class="fs-13">Product Designer</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-43.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Daniel Esbella</a></h6>
-                                        <p class="fs-13">Project Manager</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-11.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Daniel Esbella</a></h6>
-                                        <p class="fs-13">Team Lead</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-44.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Stephan Peralt</a></h6>
-                                        <p class="fs-13">Team Lead</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                        <img src="{{ URL::asset('build/img/users/user-54.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                    </a>
-                                    <div class="ms-2">
-                                        <h6 class="fs-14 fw-medium text-truncate mb-1"><a href="#">Andrew Jermia</a></h6>
-                                        <p class="fs-13">Project  Lead</p>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-phone fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm me-2"><i class="ti ti-mail-bolt fs-16"></i></a>
-                                    <a href="#" class="btn btn-light btn-icon btn-sm"><i class="ti ti-brand-hipchat fs-16"></i></a>
-                                </div>
-                            </div>
+                            <p class="text-muted mb-0">Memuat anggota tim...</p>
                         </div>
                     </div>
                 </div>
@@ -1116,59 +671,7 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div class="d-flex align-items-start mb-4">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="{{ URL::asset('build/img/users/user-27.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1">Leave request approved by manager</h6>
-                                    <p class="fs-13 mb-2">Today at 9:42 AM</p>
-                                    <div class="d-flex align-items-center">
-                                        <a href="#" class="avatar avatar-sm border flex-shrink-0 me-2"><img src="{{ URL::asset('build/img/social/pdf-icon.svg') }}" class="w-auto h-auto" alt="Img"></a>
-                                        <h6 class="fw-normal"><a href="#">leave-approval-note.pdf</a></h6>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start mb-4">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="{{ URL::asset('build/img/users/user-28.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1">Payroll slip for current month is available</h6>
-                                    <p class="fs-13 mb-0">Today at 10:00 AM</p>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start mb-4">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="{{ URL::asset('build/img/users/user-29.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1">Attendance correction request needs confirmation</h6>
-                                    <p class="fs-13 mb-2">Today at 10:50 AM</p>
-                                    <div class="d-flex align-items-center">
-                                        <a href="#" class="btn btn-primary btn-sm me-2">Approve</a>
-                                        <a href="#" class="btn btn-outline-primary btn-sm">Decline</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start mb-4">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="{{ URL::asset('build/img/users/user-30.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1">Upcoming holiday reminder has been posted</h6>
-                                    <p class="fs-13 mb-0">Today at 12:00 PM</p>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start">
-                                <a href="javascript:void(0);" class="avatar flex-shrink-0">
-                                    <img src="{{ URL::asset('build/img/users/user-33.jpg') }}" class="rounded-circle border border-2" alt="img">
-                                </a>
-                                <div class="ms-2">
-                                    <h6 class="fs-14 fw-medium text-truncate mb-1">Performance cycle self-review opens this week</h6>
-                                    <p class="fs-13 mb-0">Today at 05:00 PM</p>
-                                </div>
-                            </div>
+                            <p class="text-muted mb-0">Belum ada notifikasi terbaru.</p>
                         </div>
                     </div>
                 </div>
@@ -1196,54 +699,7 @@
                             </div>
                         </div>
                         <div class="card-body schedule-timeline">
-                            <div class="d-flex align-items-start">
-                                <div class="d-flex align-items-center active-time">
-                                    <span>09:25 AM</span>
-                                    <span><i class="ti ti-point-filled text-primary fs-20"></i></span>
-                                </div>
-                                <div class="flex-fill ps-3 pb-4 timeline-flow">
-                                    <div class="bg-light p-2 rounded">
-                                        <p class="fw-medium text-gray-9 mb-1">Daily attendance and shift sync</p>
-                                        <span>Operations</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start">
-                                <div class="d-flex align-items-center active-time">
-                                    <span>09:20 AM</span>
-                                    <span><i class="ti ti-point-filled text-secondary fs-20"></i></span>
-                                </div>
-                                <div class="flex-fill ps-3 pb-4 timeline-flow">
-                                    <div class="bg-light p-2 rounded">
-                                        <p class="fw-medium text-gray-9 mb-1">Leave and overtime approval standup</p>
-                                        <span>Review</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start">
-                                <div class="d-flex align-items-center active-time">
-                                    <span>09:18 AM</span>
-                                    <span><i class="ti ti-point-filled text-warning fs-20"></i></span>
-                                </div>
-                                <div class="flex-fill ps-3 pb-4 timeline-flow">
-                                    <div class="bg-light p-2 rounded">
-                                        <p class="fw-medium text-gray-9 mb-1">Monthly payroll preparation briefing</p>
-                                        <span>Payroll</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="d-flex align-items-start">
-                                <div class="d-flex align-items-center active-time">
-                                    <span>09:10 AM</span>
-                                    <span><i class="ti ti-point-filled text-success fs-20"></i></span>
-                                </div>
-                                <div class="flex-fill ps-3 timeline-flow">
-                                    <div class="bg-light p-2 rounded">
-                                        <p class="fw-medium text-gray-9 mb-1">Performance and learning check-in</p>
-                                        <span>People Development</span>
-                                    </div>
-                                </div>
-                            </div>
+                            <p class="text-muted mb-0">Belum ada jadwal rapat untuk hari ini.</p>
                         </div>
                     </div>
                 </div>

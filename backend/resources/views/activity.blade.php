@@ -16,28 +16,13 @@
                                 <a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
                             </li>
                             <li class="breadcrumb-item">
-                                CRM
+                                Super Admin
                             </li>
-                            <li class="breadcrumb-item active" aria-current="page">Activity List</li>
+                            <li class="breadcrumb-item active" aria-current="page">Audit Trail</li>
                         </ol>
                     </nav>
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
-                    <div class="me-2 mb-2">
-                        <div class="dropdown">
-                            <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                                <i class="ti ti-file-export me-1"></i>Export
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-end p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
                     <div class="mb-2">
                         <button type="button" class="btn btn-primary d-flex align-items-center" data-activity-add>
                             <i class="ti ti-circle-plus me-2"></i>Add Activity
@@ -52,7 +37,7 @@
             </div>
             <!-- /Breadcrumb -->
 
-            <!-- Leads List -->
+            <!-- Activity List -->
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                     <h5>Activity List</h5>
@@ -134,11 +119,9 @@
                     </div>
                 </div>
             </div>
-            <!-- /Leads List -->
+            <!-- /Activity List -->
 
         </div>
-
-    
 
     </div>
     <!-- /Page Wrapper -->

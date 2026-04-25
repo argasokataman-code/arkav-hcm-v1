@@ -15,6 +15,7 @@ API ini menyediakan analytics **global SaaS** untuk super admin platform. Seluru
 
 - Semua endpoint memerlukan bearer token valid.
 - Semua endpoint memerlukan `isGlobalHcmAdmin()`.
+- Runtime sekarang juga di-guard route-level middleware `hcm.api.global-admin` untuk seluruh endpoint `/v1/saas/dashboard/*`.
 - Company owner / tenant admin biasa akan menerima `403 ADMIN_REQUIRED`.
 
 ## Identifier Policy
@@ -28,6 +29,8 @@ API ini menyediakan analytics **global SaaS** untuk super admin platform. Seluru
 ### 1. KPI summary
 
 `GET /v1/saas/dashboard/kpi`
+
+Catatan runtime: request KPI akan menulis audit log aksi `view_dashboard` (`target_type=dashboard`) secara non-blocking.
 
 Response fields utama:
 
@@ -234,6 +237,8 @@ Setiap item `data[]`:
 - `ipAddress`
 - `createdAt`
 
+Catatan runtime: membuka list audit log akan menulis audit log aksi `view_audit_logs` (`target_type=dashboard`) secara non-blocking.
+
 ### 14. Audit log detail
 
 `GET /v1/saas/dashboard/audit-logs/{auditLog}`
@@ -256,6 +261,8 @@ Response utama:
 - `isSensitiveAction`
 - `createdAt`
 - `updatedAt`
+
+Catatan runtime: membuka detail audit log akan menulis audit log aksi `view_audit_logs` (`target_type=audit_log`, `details.mode=detail`) secara non-blocking.
 
 ## Negative Scenarios Yang Sudah Ditutup
 
@@ -305,5 +312,5 @@ Dokumen lama pernah mengklaim endpoint berikut, tetapi **masih belum aktif di ru
 ---
 
 **API Version:** 1.1  
-**Last Updated:** 2026-04-19  
+**Last Updated:** 2026-04-25
 **Status:** Production Ready

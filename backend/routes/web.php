@@ -92,14 +92,6 @@ Route::get('/employee-dashboard', function () {
     return view('employee-dashboard');
 })->name('employee-dashboard');
 
-Route::get('/deals-dashboard', function () {
-    return view('deals-dashboard');
-})->name('deals-dashboard');
-
-Route::get('/leads-dashboard', function () {
-    return view('leads-dashboard');
-})->name('leads-dashboard');
-
 Route::get('/chat', function () {
     return view('chat');
 })->name('chat');
@@ -242,14 +234,6 @@ Route::match(['get', 'post'], '/email', function (Request $request) {
     ]);
 })->name('email');
 
-Route::get('/todo', function () {
-    return view('todo');
-})->name('todo');
-
-Route::get('/todo-list', function () {
-    return view('todo-list');
-})->name('todo-list');
-
 Route::get('/notes', function () {
     return view('notes');
 })->name('notes');
@@ -261,10 +245,6 @@ Route::get('/social-feed', function () {
 Route::get('/file-manager', function () {
     return view('file-manager');
 })->name('file-manager');
-
-Route::get('/kanban-view', function () {
-    return view('kanban-view');
-})->name('kanban-view');
 
 Route::get('/invoices', function () {
     return view('invoices');
@@ -285,6 +265,10 @@ Route::get('/invoice-details', function () {
 Route::get('/dashboard', function () {
     return view('saas-dashboard');
 })->middleware('hcm.web.global-admin')->name('dashboard');
+
+Route::get('/activity', function () {
+    return view('activity');
+})->middleware('hcm.web.primary-super-admin')->name('activity');
 
 Route::get('/saas-dashboard', function () {
     return view('saas-dashboard');
@@ -438,30 +422,6 @@ Route::get('/client-details', function () {
     return view(view: 'client-details');
 })->name('client-details');
 
-Route::get('/projects-grid', function () {
-    return view(view: 'projects-grid');
-})->name('projects-grid');
-
-Route::get('/projects', function () {
-    return view(view: 'projects');
-})->name('projects');
-
-Route::get('/project-details', function () {
-    return view(view: 'project-details');
-})->name('project-details');
-
-Route::get('/tasks', function () {
-    return view(view: 'tasks');
-})->name('tasks');
-
-Route::get('/task-board', function () {
-    return view(view: 'task-board');
-})->name('task-board');
-
-Route::get('/task-details', function () {
-    return view(view: 'task-details');
-})->name('task-details');
-
 Route::get('/contacts-grid', function () {
     return view(view: 'contacts-grid');
 })->name('contacts-grid');
@@ -485,42 +445,6 @@ Route::get('/companies-crm', function () {
 Route::get('/company-details', function () {
     return view(view: 'company-details');
 })->name('company-details');
-
-Route::get('/deals-grid', function () {
-    return view(view: 'deals-grid');
-})->name('deals-grid');
-
-Route::get('/deals', function () {
-    return view(view: 'deals');
-})->name('deals');
-
-Route::get('/deals-details', function () {
-    return view(view: 'deals-details');
-})->name('deals-details');
-
-Route::get('/leads-grid', function () {
-    return view(view: 'leads-grid');
-})->name('leads-grid');
-
-Route::get('/leads', function () {
-    return view(view: 'leads');
-})->name('leads');
-
-Route::get('/leads-details', function () {
-    return view(view: 'leads-details');
-})->name('leads-details');
-
-Route::get('/pipeline', function () {
-    return view(view: 'pipeline');
-})->name('pipeline');
-
-Route::get('/analytics', function () {
-    return view(view: 'analytics');
-})->name('analytics');
-
-Route::get('/activity', function () {
-    return view(view: 'activity');
-})->name('activity');
 
 Route::get('/employees', function () {
     return view(view: 'employees');

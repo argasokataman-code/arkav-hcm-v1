@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Services\Media\AvatarStorageService;
 use App\Services\Media\Exceptions\InvalidMediaException;
@@ -440,13 +441,27 @@ class HcmEmployeeController extends Controller
 
         $user = null;
         $profile = null;
+        $actorId = $request->user()?->id;
 
-        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId): void {
+        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId, $actorId): void {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
             ]);
+
+            CompanyUser::query()->updateOrCreate(
+                [
+                    'company_id' => $activeCompanyId,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'role' => 'member',
+                    'status' => 'active',
+                    'joined_at' => now(),
+                    'invited_by_user_id' => $actorId,
+                ]
+            );
 
             $profile = EmployeeProfile::query()->create([
                 'company_id' => $activeCompanyId,

@@ -10,10 +10,13 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
+use App\Services\Hcm\PayrollLateArrivalMigrationService;
+use App\Services\Hcm\PayrollMonthlySettingsService;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +29,8 @@ class HcmPayrollRunController extends Controller
     use ChecksPermissions;
 
     public function __construct(
-        private readonly MonthlyPayslipService $monthlyPayslipService
+        private readonly MonthlyPayslipService $monthlyPayslipService,
+        private readonly PayrollLateArrivalMigrationService $payrollLateArrivalMigrationService,
     ) {}
 
     public function show(Request $request, int $id): JsonResponse
@@ -341,6 +345,13 @@ class HcmPayrollRunController extends Controller
                 ->lockForUpdate()
                 ->first();
 
+            if ($paydayBlocker = $this->guardBeforePaydayDisburse($run, $period, $companyId)) {
+                return [
+                    'error' => $paydayBlocker,
+                    'status' => 422,
+                ];
+            }
+
             $lines = HcmPayrollLine::query()
                 ->with('user:id,name')
                 ->where('hcm_payroll_run_id', $run->id)
@@ -424,6 +435,9 @@ class HcmPayrollRunController extends Controller
             $effectiveSelectedUserIds = $selectedUserIds->isNotEmpty()
                 ? $selectedUserIds->intersect($eligibleUserIds)->values()
                 : ($applyAll ? $eligibleUserIds : collect());
+
+            $allEligiblePaidAfterDisburse = $eligibleUserIds->isNotEmpty()
+                && $effectiveSelectedUserIds->count() === $eligibleUserIds->count();
 
             if ($effectiveSelectedUserIds->isEmpty()) {
                 return [
@@ -513,6 +527,7 @@ class HcmPayrollRunController extends Controller
                 'ineligibleUserIds' => $ineligibleUserIds->all(),
                 'skippedAlreadyPaidUserIds' => array_values(array_unique($alreadyPaidUserIds)),
                 'gatewayReference' => $gatewayReference,
+                'allEligiblePaidAfterDisburse' => $allEligiblePaidAfterDisburse,
             ];
         });
 
@@ -525,6 +540,13 @@ class HcmPayrollRunController extends Controller
 
         /** @var HcmPayrollRun $run */
         $run = $result['run'];
+        $paymentSummary = $this->paymentSummary($run);
+        $lateArrivalMigration = null;
+
+        if ((bool) ($result['allEligiblePaidAfterDisburse'] ?? false)) {
+            $lateArrivalMigration = $this->payrollLateArrivalMigrationService
+                ->migrateToNextPeriodIfEligible((int) $run->id, $companyId);
+        }
 
         return response()->json([
             'success' => true,
@@ -534,7 +556,8 @@ class HcmPayrollRunController extends Controller
                 'ineligibleUserIds' => $result['ineligibleUserIds'] ?? [],
                 'skippedAlreadyPaidUserIds' => $result['skippedAlreadyPaidUserIds'],
                 'gatewayReference' => $result['gatewayReference'],
-                'payment' => $this->paymentSummary($run),
+                'payment' => $paymentSummary,
+                'lateArrivalMigration' => $lateArrivalMigration,
             ],
         ]);
     }
@@ -632,6 +655,45 @@ class HcmPayrollRunController extends Controller
                 'payment' => $this->paymentSummary($run),
             ],
         ]);
+    }
+
+    private function guardBeforePaydayDisburse(HcmPayrollRun $run, ?HcmPayrollPeriod $period, ?int $companyId): ?array
+    {
+        if (($run->purpose ?? HcmPayrollRun::PURPOSE_MONTHLY) !== HcmPayrollRun::PURPOSE_MONTHLY || $period === null) {
+            return null;
+        }
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $policySnapshot = is_array($meta['policySnapshot'] ?? null)
+            ? $meta['policySnapshot']
+            : app(PayrollMonthlySettingsService::class)->snapshotForPeriod(
+                (int) $period->period_year,
+                (int) $period->period_month,
+                $companyId,
+            );
+
+        if ((bool) ($policySnapshot['disburseBeforePaydayAllowed'] ?? false)) {
+            return null;
+        }
+
+        $resolvedPaydayDate = (string) ($policySnapshot['resolvedPaydayDate'] ?? '');
+        if ($resolvedPaydayDate === '') {
+            return null;
+        }
+
+        $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
+        $localToday = Carbon::now($payrollTimezone)->toDateString();
+        if ($localToday >= $resolvedPaydayDate) {
+            return null;
+        }
+
+        return [
+            'code' => 'PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN',
+            'message' => sprintf(
+                'Payroll tidak bisa dibayarkan sebelum payday %s sesuai policy tenant aktif.',
+                $resolvedPaydayDate
+            ),
+        ];
     }
 
     private function isPrimarySuperAdminCodeOne(?User $user): bool
@@ -1358,6 +1420,7 @@ class HcmPayrollRunController extends Controller
     private function serializeRunBrief(HcmPayrollRun $r): array
     {
         $payment = $this->paymentSummary($r);
+        $meta = is_array($r->meta) ? $r->meta : [];
 
         return [
             'id' => $r->id,
@@ -1371,6 +1434,8 @@ class HcmPayrollRunController extends Controller
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
             'employeeCount' => $payment['employeeCount'],
             'gatewayReference' => $payment['gatewayReference'],
+            'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
+            'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
         ];
     }
 
@@ -1381,6 +1446,7 @@ class HcmPayrollRunController extends Controller
     {
         $payment = $this->paymentSummary($r);
         $totals = $this->runTotals($r);
+        $meta = is_array($r->meta) ? $r->meta : [];
         $out = [
             'id' => $r->id,
             'payrollPeriodId' => $r->hcm_payroll_period_id,
@@ -1398,6 +1464,8 @@ class HcmPayrollRunController extends Controller
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
             'employeeCount' => $payment['employeeCount'],
             'gatewayReference' => $payment['gatewayReference'],
+            'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
+            'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
             'totals' => $totals,
         ];
         if ($r->relationLoaded('period') && $r->period) {

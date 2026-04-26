@@ -148,7 +148,9 @@
                             <label class="form-label">Jenis hari</label>
                             <select class="form-select" data-ot-guide-field="dayType">
                                 <option value="workday" selected>Hari kerja</option>
-                                <option value="holiday">Hari libur</option>
+                                <option value="public_holiday">Hari libur nasional/tanggal merah</option>
+                                <option value="weekly_rest_day">Hari istirahat mingguan</option>
+                                <option value="weekly_rest_day_short">Istirahat mingguan (hari kerja terpendek, 6-hari)</option>
                             </select>
                         </div>
                         <div class="col-md-6">

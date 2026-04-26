@@ -75,35 +75,41 @@
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-2">
                     <div>
                         <h5 class="mb-1">Smart Attendance Planner</h5>
-                        <p class="text-muted mb-0 small">Pisahkan mode Office Hour dan Shifting 24 Jam agar rekomendasi jadwal sesuai model operasional perusahaan.</p>
+                        <p class="text-muted mb-0 small">Gunakan Panduan untuk arti mode, scope, dan default planner.</p>
                     </div>
+                    <a href="javascript:void(0);" class="btn btn-light btn-sm d-inline-flex align-items-center"
+                       data-bs-toggle="modal" data-bs-target="#arcav_smart_planner_guide">
+                        <i class="ti ti-info-circle me-1"></i>Panduan planner
+                    </a>
                 </div>
                 <div class="card-body">
                     <form class="row g-3" data-smart-planner-form>
                         <div class="col-md-3">
-                            <label class="form-label">Mode Planner</label>
+                            <label class="form-label">Pola Kerja Planner</label>
                             <select class="form-select" data-smart-planner-shift-category>
                                 <option value="office_hour">Office Hour Standar</option>
                                 <option value="shifting_24h" selected>Shifting 24 Jam</option>
                                 <option value="hybrid">Hybrid (Office + Shift)</option>
                             </select>
-                            <div class="form-text" data-smart-planner-mode-hint>Mode Shifting 24 Jam mengaktifkan kontrol kelelahan, distribusi shift malam, dan validasi transisi antar shift.</div>
+                            <div class="form-text d-none" data-smart-planner-mode-hint>Pilihan manual rule planner. Bukan auto dari master shift.</div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Scope Karyawan</label>
+                            <label class="form-label">Sasaran Draft</label>
                             <select class="form-select" data-smart-planner-scope>
-                                <option value="all">Semua karyawan tenant aktif</option>
-                                <option value="team" selected>Filter by team</option>
-                                <option value="custom">Custom user IDs</option>
+                                <option value="all">Semua employee aktif</option>
+                                <option value="department" selected>Per departemen</option>
+                                <option value="custom">Manual user ID (advanced)</option>
                             </select>
-                            <div class="form-text" data-smart-planner-scope-hint>Isi team keyword sesuai unit operasional yang ingin dijadwalkan.</div>
+                            <div class="form-text d-none" data-smart-planner-scope-hint>Sumber data: daftar employee tenant aktif.</div>
                         </div>
-                        <div class="col-md-3" data-smart-planner-field="team-query">
-                            <label class="form-label">Team keyword</label>
-                            <input type="text" class="form-control" placeholder="contoh: Customer Service" data-smart-planner-team-query>
+                        <div class="col-md-3" data-smart-planner-field="department">
+                            <label class="form-label">Departemen</label>
+                            <select class="form-select" data-smart-planner-department>
+                                <option value="">Pilih departemen</option>
+                            </select>
                         </div>
                         <div class="col-md-3 d-none" data-smart-planner-field="custom-ids">
-                            <label class="form-label">Custom user IDs</label>
+                            <label class="form-label">Manual user IDs</label>
                             <input type="text" class="form-control" placeholder="contoh: 101, 102, 150" data-smart-planner-custom-ids>
                         </div>
                         <div class="col-md-3">
@@ -116,7 +122,7 @@
                                 <option value="single_week" selected>Minggu terpilih saja</option>
                                 <option value="end_of_year">Generate sampai akhir tahun</option>
                             </select>
-                            <div class="form-text" data-smart-planner-horizon-hint>Mode default: generate hanya untuk minggu yang dipilih.</div>
+                            <div class="form-text d-none" data-smart-planner-horizon-hint>Pilih 1 minggu atau batch mingguan sampai 31 Desember.</div>
                         </div>
                         <div class="col-md-3 d-none" data-smart-planner-field="horizon-end-date">
                             <label class="form-label">Horizon End Date</label>
@@ -142,18 +148,18 @@
                             <button type="submit" class="btn btn-primary w-100" data-smart-planner-submit>Generate</button>
                         </div>
                         <div class="col-12">
-                            <small class="text-muted" data-smart-planner-scope-meta>Belum ada scope yang dipilih.</small>
+                            <small class="text-muted" data-smart-planner-scope-meta>Rekomendasi flow: pilih pola kerja, pilih sasaran draft, generate, review conflict, lalu publish.</small>
                         </div>
                         <div class="col-12">
-                            <div class="border rounded p-3" data-smart-planner-settings-panel>
-                                <!-- Header dengan Mode Indicator -->
-                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="card border-0 bg-light" data-smart-planner-settings-panel>
+                                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 pb-0">
                                     <div>
-                                        <h6 class="mb-1">📋 Planner Defaults & Transition Matrix</h6>
-                                        <small class="badge bg-light text-dark" data-smart-planner-mode-indicator>Viewing</small>
+                                        <h6 class="mb-1">Planner Defaults &amp; Transition Rules</h6>
+                                        <div class="text-muted small">Fallback saat generate tanpa custom rule.</div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="button" class="btn btn-sm btn-outline-secondary d-none" data-smart-planner-edit-mode-btn>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="badge bg-white text-dark border" data-smart-planner-mode-indicator>View mode</span>
+                                        <button type="button" class="btn btn-light btn-sm d-inline-flex align-items-center" data-smart-planner-edit-mode-btn>
                                             <i class="ti ti-pencil me-1"></i>Edit
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger d-none" data-smart-planner-cancel-edit-btn>
@@ -167,67 +173,39 @@
                                         </button>
                                     </div>
                                 </div>
-
-                                <!-- Panduan Umum -->
-                                <div class="alert alert-info small mb-3" role="alert">
-                                    <strong>💡 Panduan:</strong> Konfigurasi ini menjadi fallback rule saat generate jadwal tanpa rule custom. Setelah disimpan, bisa diubah kembali kapan saja. Saat generate, Anda bisa override nilai ini per-session tanpa mengubah default yang tersimpan.
-                                </div>
-
-                                <!-- Card 1: Default Rules -->
-                                <div class="card mb-3 border">
-                                    <div class="card-header bg-light py-2">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <h6 class="mb-0 small">⚙️ Default Rules</h6>
-                                            <span class="badge bg-light text-dark small">Fallback ketika generate tanpa custom rules</span>
+                                <div class="card-body pt-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-6 col-xl-3">
+                                            <label class="form-label small">Max Work Days</label>
+                                            <input type="number" class="form-control" min="1" max="7" value="5" data-smart-planner-default-max-work-days disabled>
                                         </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label small">Max Work Days Per Week</label>
-                                                <input type="number" class="form-control" min="1" max="7" value="5" data-smart-planner-default-max-work-days disabled>
-                                                <small class="form-text text-muted">Maksimal hari kerja per minggu</small>
+                                        <div class="col-md-6 col-xl-3">
+                                            <label class="form-label small">Min Days Off</label>
+                                            <input type="number" class="form-control" min="0" max="7" value="2" data-smart-planner-default-min-days-off disabled>
+                                        </div>
+                                        <div class="col-md-6 col-xl-3">
+                                            <label class="form-label small">Min Rest (hours)</label>
+                                            <input type="number" class="form-control" min="1" max="24" value="12" data-smart-planner-default-min-rest disabled>
+                                        </div>
+                                        <div class="col-md-6 col-xl-3">
+                                            <label class="form-label small">Max Night Streak</label>
+                                            <input type="number" class="form-control" min="1" max="7" value="3" data-smart-planner-default-max-night disabled>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                                <label class="form-label mb-0">Transition yang diblok</label>
+                                                <small class="text-muted">Berbasis tipe shift planner, bukan nama shift individual.</small>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label small">Min Days Off Per Week</label>
-                                                <input type="number" class="form-control" min="0" max="7" value="2" data-smart-planner-default-min-days-off disabled>
-                                                <small class="form-text text-muted">Minimal hari libur per minggu</small>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label small">Min Rest Hours Between Shifts</label>
-                                                <input type="number" class="form-control" min="1" max="24" value="12" data-smart-planner-default-min-rest disabled>
-                                                <small class="form-text text-muted">Jam istirahat minimal antar shift</small>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label small">Max Consecutive Night Shifts</label>
-                                                <input type="number" class="form-control" min="1" max="7" value="3" data-smart-planner-default-max-night disabled>
-                                                <small class="form-text text-muted">Max shift malam berturut-turut</small>
+                                            <div class="row g-2" data-smart-planner-transition-matrix-wrap>
+                                                <div class="col-12" data-smart-planner-transition-matrix>
+                                                    <div class="text-muted small">Loading transition matrix...</div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <!-- Card 2: Transition Matrix -->
-                                <div class="card border">
-                                    <div class="card-header bg-light py-2">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <h6 class="mb-0 small">🚫 Forbidden Transitions (Dilarang)</h6>
-                                            <span class="badge bg-light text-dark small">Kombinasi shift yg tidak boleh bersebelahan</span>
+                                        <div class="col-12">
+                                            <small class="text-muted d-block" data-smart-planner-settings-feedback>Belum ada perubahan default tersimpan pada sesi ini.</small>
                                         </div>
                                     </div>
-                                    <div class="card-body">
-                                        <p class="text-muted small mb-2">Centang kombinasi shift yang ingin dilarang. Contoh: Night → Morning (capek jika langsung pagi).</p>
-                                        <div class="row g-2" data-smart-planner-transition-matrix-wrap>
-                                            <div class="col-12" data-smart-planner-transition-matrix>
-                                                <div class="text-muted small">Loading transition matrix...</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status Feedback -->
-                                <div class="mt-3">
-                                    <small class="text-muted d-block" data-smart-planner-settings-feedback>Belum ada perubahan default tersimpan pada sesi ini.</small>
                                 </div>
                             </div>
                         </div>
@@ -377,6 +355,81 @@
                                     <button type="button" class="btn btn-success" data-smart-planner-apply-daily disabled>
                                         Publish Roster Harian (Per Date)
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal fade" id="arcav_smart_planner_guide" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Panduan Smart Attendance Planner</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2">Flow yang direkomendasikan</h6>
+                                                <ol class="mb-0 ps-3 small">
+                                                    <li>Pilih pola kerja yang ingin direncanakan.</li>
+                                                    <li>Pilih sasaran draft: semua employee, per departemen, atau manual advanced.</li>
+                                                    <li>Atur rule mingguan bila perlu, lalu generate draft.</li>
+                                                    <li>Review assignment, diff, dan conflict sebelum publish.</li>
+                                                    <li>Pilih publish dominant shift atau roster harian sesuai kebutuhan.</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2">Mode Planner</h6>
+                                                <p class="text-muted small mb-2">Mode planner adalah pilihan manual admin untuk rule kalkulasi AI.</p>
+                                                <ul class="mb-0 ps-3 small">
+                                                    <li>Bukan auto-detect dari master shift.</li>
+                                                    <li>Office Hour untuk pola kerja normal.</li>
+                                                    <li>Shifting 24 Jam untuk rotasi dengan fatigue dan transition check.</li>
+                                                    <li>Hybrid untuk kombinasi dua pola operasional.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2">Sasaran Draft</h6>
+                                                <p class="text-muted small mb-2">Data selalu diambil dari directory employee tenant aktif. Planner tidak lagi memakai team keyword bebas.</p>
+                                                <ul class="mb-0 ps-3 small">
+                                                    <li>All: semua employee tenant aktif.</li>
+                                                    <li>Per departemen: pakai departemen yang ada pada employee aktif.</li>
+                                                    <li>Manual advanced: user ID tertentu yang Anda isi manual.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2">Planner Defaults</h6>
+                                                <p class="text-muted small mb-2">Default ini dipakai hanya saat generate tanpa custom rule di form utama.</p>
+                                                <ul class="mb-0 ps-3 small">
+                                                    <li>Bisa diubah kapan saja.</li>
+                                                    <li>Tidak mengunci hasil planner berikutnya.</li>
+                                                    <li>Rule custom di form utama tetap boleh override.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="border rounded p-3 h-100">
+                                                <h6 class="mb-2">Transition Rules</h6>
+                                                <p class="text-muted small mb-2">Rule ini memblok urutan tipe shift tertentu.</p>
+                                                <ul class="mb-0 ps-3 small">
+                                                    <li>Berbasis tipe shift planner: morning, afternoon, night.</li>
+                                                    <li>Bukan berdasarkan nama shift individual di master shift.</li>
+                                                    <li>Contoh umum: blok night ke morning.</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Mengerti</button>
                                 </div>
                             </div>
                         </div>

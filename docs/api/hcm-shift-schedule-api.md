@@ -21,7 +21,7 @@ Tenant context:
 
 Catatan validasi penting:
 - `code`: pola `a-z0-9_-` (lihat spec regex shared / implementasi controller)
-- `startTime` / `endTime`: format `H:i`, `endTime > startTime`
+- `startTime` / `endTime`: format `H:i`, `endTime` boleh lintas hari (overnight), tetapi tidak boleh sama dengan `startTime`
 
 ### GET `/shifts`
 
@@ -29,7 +29,7 @@ RBAC:
 - HCM Admin only
 
 Success `200`:
-- `data[]` item menyertakan `slotLabel`
+- `data[]` item menyertakan `slotLabel`, `isOvernight`, dan `shiftType`
 
 ### POST `/shifts`
 
@@ -40,7 +40,8 @@ Body:
 - `name` required string max 200
 - `code` optional string max 64 regex `^[a-z0-9_-]+$` (unique)
 - `startTime` required `H:i`
-- `endTime` required `H:i`, must be `> startTime` (else 422 `VALIDATION_ERROR`)
+- `endTime` required `H:i`, tidak boleh sama dengan `startTime` (else 422 `VALIDATION_ERROR`)
+- `shiftType` optional enum `morning|afternoon|night|custom`
 - `description` optional string max 500
 - `isActive` optional boolean
 - `sortOrder` optional int 0..65535

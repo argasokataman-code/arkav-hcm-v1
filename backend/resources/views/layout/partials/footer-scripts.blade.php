@@ -321,6 +321,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 @endif
+@if (Route::is(['schedule-timing']))
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+@endif
 <script src="{{ URL::asset('build/js/attendance-data.js?v=20260416-selfie-prereq') }}"></script>
 
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))

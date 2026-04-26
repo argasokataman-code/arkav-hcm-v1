@@ -87,6 +87,8 @@ describe('Shift master data wiring', () => {
               name: 'Night',
               startTime: '20:00',
               endTime: '05:00',
+              slotLabel: '20:00 - 05:00 (+1d)',
+              isOvernight: true,
               description: null,
               isActive: true,
               sortOrder: 2,
@@ -103,5 +105,7 @@ describe('Shift master data wiring', () => {
     });
 
     expect(document.querySelector('[data-bs-target="#arcav_add_shift"]')?.classList.contains('d-none')).toBe(false);
+    expect(document.body.textContent).toContain('Overnight');
+    expect(document.body.textContent).toContain('(+1d)');
   });
 });

@@ -84,11 +84,27 @@ Fitur overtime mengelola master tipe lembur, pengajuan lembur oleh employee atau
 ## Formula lembur (acuan)
 
 - Upah sejam = `(gaji pokok + tunjangan tetap) / 173`
+- Guard legal di create/update request:
+  - max 4 jam/hari (`OT_DAILY_LIMIT_EXCEEDED`)
+  - max 18 jam/minggu (`OT_WEEKLY_LIMIT_EXCEEDED`, minggu Senin-Minggu untuk status pending/approved)
 - Hari kerja:
   - jam pertama `1.5x`
   - jam berikutnya `2x`
-- Hari libur:
-  - mengikuti segment multiplier lebih tinggi (5/6 hari kerja) sesuai matrix di service.
+- Hari istirahat mingguan / hari libur resmi:
+  - pola 5 hari kerja: `8 jam pertama 2x`, `jam ke-9 3x`, `jam ke-10 dst 4x`
+  - pola 6 hari kerja (normal): `7 jam pertama 2x`, `jam ke-8 3x`, `jam ke-9 dst 4x`
+  - pola 6 hari kerja (hari kerja terpendek): `5 jam pertama 2x`, `jam ke-6 3x`, `jam ke-7 dst 4x`
+
+Enum `dayType` aktif pada kalkulator:
+- `workday`
+- `public_holiday`
+- `weekly_rest_day`
+- `weekly_rest_day_short`
+
+Alias legacy yang masih diterima untuk kompatibilitas lama:
+- `holiday` -> `public_holiday`
+- `restday` -> `weekly_rest_day`
+- `restday_short` -> `weekly_rest_day_short`
 
 ## Data model ringkas
 

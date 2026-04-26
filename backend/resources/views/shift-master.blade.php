@@ -56,13 +56,14 @@
                                     <th>Name</th>
                                     <th>Start</th>
                                     <th>End</th>
+                                    <th>Slot</th>
                                     <th>Status</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody data-hcm-shifts-body>
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">Loading…</td>
+                                    <td colspan="8" class="text-center text-muted py-4">Loading…</td>
                                 </tr>
                             </tbody>
                         </table>

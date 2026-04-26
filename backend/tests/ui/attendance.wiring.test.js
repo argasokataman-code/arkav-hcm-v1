@@ -383,6 +383,98 @@ describe('Attendance UI wiring', () => {
     expect(document.querySelector('[data-smart-planner-suggestions]')?.textContent).toContain('Rebalance night shift distribution');
   });
 
+  it('loads all employee pages when planner scope is all employees', async () => {
+    document.body.innerHTML = `
+      <input data-schedule-timing-search value="">
+      <select data-schedule-timing-sort><option value="name_asc">name_asc</option></select>
+      <table><tbody data-schedule-timing-body></tbody></table>
+      <div data-schedule-timing-pagination style="display:none;">
+        <span data-schedule-timing-page-info></span>
+        <button data-schedule-timing-prev></button>
+        <button data-schedule-timing-next></button>
+      </div>
+      <form data-smart-planner-form>
+        <select data-smart-planner-shift-category><option value="shifting_24h" selected>shift</option></select>
+        <select data-smart-planner-scope><option value="all" selected>all</option></select>
+        <div data-smart-planner-scope-hint></div>
+        <small data-smart-planner-scope-meta></small>
+        <div data-smart-planner-field="department" class="d-none"><select data-smart-planner-department><option value="">Pilih departemen</option></select></div>
+        <div data-smart-planner-field="custom-ids" class="d-none"><input data-smart-planner-custom-ids value=""></div>
+        <div data-smart-planner-mode-hint></div>
+        <input type="date" data-smart-planner-week-start value="2026-04-20">
+        <input data-smart-planner-max-work-days value="5">
+        <input data-smart-planner-min-days-off value="2">
+        <div data-smart-planner-field="rest-rule"><input data-smart-planner-min-rest value="12"></div>
+        <div data-smart-planner-field="night-rule"><input data-smart-planner-max-night value="3"></div>
+        <button type="submit" data-smart-planner-submit>Generate</button>
+      </form>
+      <div class="d-none" data-smart-planner-feedback></div>
+      <div class="d-none" data-smart-planner-result>
+        <span data-smart-planner-validation></span>
+        <span data-smart-planner-fairness></span>
+        <span data-smart-planner-fatigue></span>
+        <span data-smart-planner-unmet></span>
+        <p data-smart-planner-explanation></p>
+        <ul data-smart-planner-violations></ul>
+        <ul data-smart-planner-suggestions></ul>
+      </div>
+    `;
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((url, options = {}) => {
+      if (String(url).startsWith('/v1/hcm/schedule-timing?')) {
+        return jsonResponse({ success: true, data: [], meta: { pagination: { total: 0, page: 1, perPage: 50, totalPages: 1 } } });
+      }
+      if (url === '/v1/hcm/smart-attendance-shifting/settings') {
+        return jsonResponse({
+          success: true,
+          data: {
+            defaultRules: {
+              max_work_days_per_week: 5,
+              min_days_off_per_week: 2,
+              min_rest_hours_between_shifts: 12,
+              max_consecutive_night_shifts: 3,
+            },
+            forbiddenTransitions: ['night:morning'],
+            transitionCatalog: ['night:morning'],
+          },
+        });
+      }
+      if (url === '/v1/hcm/shifts') {
+        return jsonResponse({ success: true, data: [] });
+      }
+      if (url === '/v1/hcm/employees?perPage=100&page=1') {
+        return jsonResponse({ success: true, data: [{ userId: 91 }, { userId: 92 }], meta: { page: 1, perPage: 100, total: 3 } });
+      }
+      if (url === '/v1/hcm/employees?perPage=100&page=2') {
+        return jsonResponse({ success: true, data: [{ userId: 93 }], meta: { page: 2, perPage: 100, total: 3 } });
+      }
+      if (url === '/v1/hcm/smart-attendance-shifting/generate') {
+        return jsonResponse({
+          success: true,
+          data: {
+            schedule_generation: { validation_status: 'valid', weekly_schedule: [], violations: [], unmet_coverage: [] },
+            attendance_analysis: { employee_summaries: [], flags: [] },
+            recommendation: { fairness_score: 88, fatigue_risk_score: 20, improvement_suggestions: [] },
+            explanation: 'ok',
+          },
+        });
+      }
+
+      throw new Error(`Unhandled fetch: ${String(url)} ${options.method || 'GET'}`);
+    });
+
+    await loadAttendanceModule('/schedule-timing');
+
+    const form = document.querySelector('[data-smart-planner-form]');
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+
+    const postCall = fetchMock.mock.calls.find((entry) => entry[0] === '/v1/hcm/smart-attendance-shifting/generate');
+    expect(postCall).toBeTruthy();
+    expect(JSON.parse(postCall[1].body).employeeIds).toEqual([91, 92, 93]);
+  });
+
   it('generates planner in weekly batches until end of year', async () => {
     document.body.innerHTML = `
       <input data-schedule-timing-search value="">
@@ -568,10 +660,10 @@ describe('Attendance UI wiring', () => {
           <option value="shifting_24h" selected>shift</option>
           <option value="hybrid">hybrid</option>
         </select>
-        <select data-smart-planner-scope><option value="team" selected>team</option></select>
+        <select data-smart-planner-scope><option value="department" selected>department</option></select>
         <div data-smart-planner-scope-hint></div>
         <small data-smart-planner-scope-meta></small>
-        <div data-smart-planner-field="team-query"><input data-smart-planner-team-query value="Customer Service"></div>
+        <div data-smart-planner-field="department"><select data-smart-planner-department><option value="11" selected>Customer Care</option></select></div>
         <div data-smart-planner-field="custom-ids" class="d-none"><input data-smart-planner-custom-ids value=""></div>
         <div data-smart-planner-mode-hint></div>
         <input type="date" data-smart-planner-week-start value="2026-04-20">
@@ -637,9 +729,10 @@ describe('Attendance UI wiring', () => {
         return jsonResponse({
           success: true,
           data: [
-            { userId: 91, team: 'Customer Service' },
-            { userId: 92, team: 'Customer Service' },
+            { userId: 91, departmentId: 11, departmentName: 'Customer Care' },
+            { userId: 92, departmentId: 11, departmentName: 'Customer Care' },
           ],
+          meta: { page: 1, perPage: 100, total: 2 },
         });
       }
 
@@ -1178,7 +1271,7 @@ describe('Attendance UI wiring', () => {
     expect(saveBtn.classList.contains('d-none')).toBe(true);
     expect(resetBtn.classList.contains('d-none')).toBe(true);
     expect(maxWorkDaysInput.disabled).toBe(true);
-    expect(modeIndicator.textContent).toContain('Viewing');
+    expect(modeIndicator.textContent).toContain('View mode');
     expect(submitBtn.disabled).toBe(false);
 
     // Click Edit button
@@ -1190,7 +1283,7 @@ describe('Attendance UI wiring', () => {
     expect(saveBtn.classList.contains('d-none')).toBe(false);
     expect(resetBtn.classList.contains('d-none')).toBe(false);
     expect(maxWorkDaysInput.disabled).toBe(false);
-    expect(modeIndicator.textContent).toContain('Editing');
+    expect(modeIndicator.textContent).toContain('Edit mode');
     expect(submitBtn.disabled).toBe(true);
 
     // Modify a value
@@ -1204,7 +1297,7 @@ describe('Attendance UI wiring', () => {
     expect(cancelBtn.classList.contains('d-none')).toBe(true);
     expect(maxWorkDaysInput.value).toBe('5');
     expect(maxWorkDaysInput.disabled).toBe(true);
-    expect(modeIndicator.textContent).toContain('Viewing');
+    expect(modeIndicator.textContent).toContain('View mode');
     expect(submitBtn.disabled).toBe(false);
   });
 });

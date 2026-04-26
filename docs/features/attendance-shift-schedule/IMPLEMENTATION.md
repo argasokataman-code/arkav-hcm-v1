@@ -31,12 +31,19 @@ Endpoint aktif:
 - `PUT /v1/hcm/schedule-timing/{userId}`
 - `DELETE /v1/hcm/schedule-timing/{userId}`
 - `GET /v1/hcm/timesheets`
+- `POST /v1/hcm/smart-attendance-shifting/generate`
+
+Kontrak smart planner:
+- Input mendukung `weekStart`, optional `employeeIds`, `shiftCategory`, `rules`, dan `coverageRequirements`.
+- Output selalu membawa empat blok utama: `schedule_generation`, `attendance_analysis`, `recommendation`, `explanation`.
+- Endpoint dibatasi HCM admin dan tenant context aktif.
 
 ## Identifier Rules
 
 - `PUT /schedule-timing/{userId}` memakai numeric `users.id` untuk target user.
 - `shiftId` dalam payload schedule timing memakai numeric `hcm_shifts.id`.
 - Backend menolak write jika target user bukan member tenant aktif.
+- Window jadwal lintas hari (`overnight`) didukung; validasi hanya menolak `startTime == endTime`.
 - Timesheets date range mengikuti aturan `dateTo >= dateFrom`; range terbalik harus ditolak sebelum query berat dijalankan.
 
 ## Data Model
@@ -71,6 +78,7 @@ Relasi penting:
 
 Backend:
 - `backend/tests/Feature/AttendanceApiTest.php`
+- `backend/tests/Feature/HcmSmartAttendanceApiTest.php`
 
 Frontend/Vitest:
 - `backend/tests/ui/attendance.wiring.test.js`
@@ -79,6 +87,9 @@ Coverage penting:
 - schedule timing write memakai numeric `shiftId`
 - schedule timing write menolak target user di luar tenant aktif
 - timesheets reversed date range ditolak
+- panel smart planner pada `/schedule-timing` memanggil endpoint generate dan merender summary rekomendasi/violation
+- smart planner mengembalikan struktur payload rekomendasi/analisis yang stabil
+- smart planner menolak user non-admin (RBAC server-side)
 
 ## Known Limits
 

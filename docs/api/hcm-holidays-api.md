@@ -78,6 +78,7 @@ Upstream:
 
 Behavior:
 - skip jika ada holiday manual dengan `(date,title)` sama
+- hanya sinkron tanggal pokok (public/national holiday); row `cuti bersama` dari provider tidak diimpor otomatis karena mengikuti kebijakan perusahaan
 - create/update hanya untuk source `api`
 - rekonsiliasi tahunan source `api`: row API tahun target yang sudah tidak ada di payload provider akan dibersihkan (manual tidak disentuh)
 - setiap perubahan API/manual otomatis sinkron ke `holiday_calendars` via `holiday_id`, sehingga leaves selalu membaca data holiday terbaru
@@ -97,6 +98,7 @@ Success `200`:
     "created": 10,
     "updated": 5,
     "skippedManual": 2,
+    "skippedNonPrimary": 3,
     "invalidRows": 0,
     "cleanedStaleApi": 1
   },

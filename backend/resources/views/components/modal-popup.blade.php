@@ -30080,7 +30080,7 @@
     <!-- /Delete Modal -->
 @endif
 
-@if (Route::is(['departments']))
+@if (Request::is('departments'))
     <!-- Add Department -->
     <div class="modal fade" id="add_department">
         <div class="modal-dialog modal-dialog-centered modal-md">
@@ -30184,7 +30184,7 @@
     <!-- /Delete Modal -->
 @endif
 
-@if (Route::is(['designations']))
+@if (Request::is('designations'))
     <!-- Add Designation -->
     <div class="modal fade" id="add_designation">
         <div class="modal-dialog modal-dialog-centered modal-md">

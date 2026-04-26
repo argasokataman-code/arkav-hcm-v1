@@ -92,6 +92,20 @@
         return String(parseInt(p[0], 10)).padStart(2, "0") + ":" + String(parseInt(p[1], 10)).padStart(2, "0");
     }
 
+    function formatShiftSlot(shift) {
+        if (shift && shift.slotLabel) {
+            return String(shift.slotLabel);
+        }
+        var start = shift && shift.startTime ? String(shift.startTime) : "00:00";
+        var end = shift && shift.endTime ? String(shift.endTime) : "00:00";
+        var overnight = !!(shift && shift.isOvernight);
+        return start + " - " + end + (overnight ? " (+1d)" : "");
+    }
+
+    function isEqualShiftWindow(startTime, endTime) {
+        return timeToInput(startTime) === timeToInput(endTime);
+    }
+
     function bindShifts() {
         var body = document.querySelector("[data-hcm-shifts-body]");
         var canManageShift = false;
@@ -150,6 +164,8 @@
                     .map(function (s) {
                         var badge = s.isActive ? "success" : "danger";
                         var st = s.isActive ? "Active" : "Inactive";
+                        var slotLabel = formatShiftSlot(s);
+                        var overnight = !!s.isOvernight;
                         return (
                             "<tr><td><div class=\"form-check form-check-md\"><input class=\"form-check-input\" type=\"checkbox\"></div></td><td><code>" +
                             esc(s.code) +
@@ -159,6 +175,11 @@
                             esc(s.startTime) +
                             "</td><td>" +
                             esc(s.endTime) +
+                            (overnight
+                                ? '<span class="badge badge-soft-info ms-2">Overnight</span>'
+                                : "") +
+                            "</td><td class=\"text-muted small\">" +
+                            esc(slotLabel) +
                             "</td><td><span class=\"badge badge-" +
                             badge +
                             ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
@@ -188,7 +209,7 @@
                                                         "</td></tr>"
                         );
                     })
-                    .join("") || '<tr><td colspan="7" class="text-center py-4 text-muted">No shifts yet.</td></tr>';
+                    .join("") || '<tr><td colspan="8" class="text-center py-4 text-muted">No shifts yet.</td></tr>';
         }
 
         function reload() {
@@ -226,6 +247,10 @@
                 var isActive = addForm.querySelector('[data-hcm-field="isActive"]').checked;
                 if (!name || !startTime || !endTime) {
                     notify("Lengkapi nama dan jam.", true);
+                    return;
+                }
+                if (isEqualShiftWindow(startTime, endTime)) {
+                    notify("Jam pulang tidak boleh sama dengan jam masuk.", true);
                     return;
                 }
                 var payload = {
@@ -307,6 +332,10 @@
                     isActive: editForm.querySelector('[data-hcm-field="isActive"]').checked,
                     sortOrder: parseInt(editForm.querySelector('[data-hcm-field="sortOrder"]').value, 10) || 0,
                 };
+                if (isEqualShiftWindow(payload.startTime, payload.endTime)) {
+                    notify("Jam pulang tidak boleh sama dengan jam masuk.", true);
+                    return;
+                }
                 apiRequest("put", "/v1/hcm/shifts/" + encodeURIComponent(id), payload)
                     .then(function (p) {
                         if (!p || p.success !== true) {

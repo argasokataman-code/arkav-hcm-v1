@@ -98,10 +98,23 @@
         var hours = Math.max(0, minutes / 60);
         var totalMultiplierHours = 0;
 
-        if (dayType === "workday") {
+        var normalizedDayType = String(dayType || "workday").toLowerCase();
+        if (normalizedDayType === "holiday") {
+            normalizedDayType = "public_holiday";
+        } else if (normalizedDayType === "rest_day" || normalizedDayType === "weekly_rest") {
+            normalizedDayType = "weekly_rest_day";
+        } else if (normalizedDayType === "short_rest_day" || normalizedDayType === "weekly_rest_short") {
+            normalizedDayType = "weekly_rest_day_short";
+        }
+
+        if (normalizedDayType === "workday") {
             var firstHour = Math.min(1, hours);
             var nextHours = Math.max(0, hours - 1);
             totalMultiplierHours += (firstHour * 1.5) + (nextHours * 2);
+        } else if (normalizedDayType === "weekly_rest_day_short") {
+            var s1 = Math.min(5, hours);
+            var s2 = Math.max(0, hours - 5);
+            totalMultiplierHours += (s1 * 2) + (s2 * 3);
         } else if (weeklyWorkDays <= 5) {
             var h1 = Math.min(8, hours);
             var h2 = Math.min(1, Math.max(0, hours - 8));
@@ -150,7 +163,7 @@
             var baseSalary = readNumber(baseSalaryInput);
             var fixedAllowance = readNumber(fixedAllowanceInput);
             var minutes = Math.max(1, parseInt(minutesInput.value, 10) || 0);
-            var dayType = dayTypeInput.value === "holiday" ? "holiday" : "workday";
+            var dayType = String(dayTypeInput.value || "workday");
             var weeklyWorkDays = parseInt(weeklyWorkDaysInput.value, 10) === 6 ? 6 : 5;
 
             var calc = computeOvertimeSimulation(baseSalary, fixedAllowance, minutes, dayType, weeklyWorkDays);

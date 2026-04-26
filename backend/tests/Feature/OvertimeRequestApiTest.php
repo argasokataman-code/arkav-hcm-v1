@@ -215,6 +215,27 @@ class OvertimeRequestApiTest extends TestCase
         $this->assertSame($comp->id, $row->hcm_salary_component_id);
     }
 
+    public function test_create_overtime_persists_day_type_and_weekly_work_days(): void
+    {
+        $this->registerAndProfile('OT Admin', 'otadm-daytype@example.com', 'HR Admin');
+        $alice = $this->registerAndProfile('Alice', 'alice-daytype@example.com', 'Staff');
+
+        $adminToken = $this->loginToken('otadm-daytype@example.com');
+        $this->withHeaders($this->withCompanyContext(['Authorization' => 'Bearer '.$adminToken], $this->overtimeCompany()))
+            ->postJson('/v1/hcm/overtime-requests', [
+                'userId' => $alice->id,
+                'workDate' => '2026-04-20',
+                'minutes' => 120,
+                'dayType' => 'public_holiday',
+                'weeklyWorkDays' => 6,
+            ])
+            ->assertStatus(201);
+
+        $row = OvertimeRequest::query()->firstOrFail();
+        $this->assertSame('public_holiday', $row->day_type);
+        $this->assertSame(6, (int) $row->weekly_work_days);
+    }
+
     public function test_admin_can_filter_index_by_work_date(): void
     {
         $this->registerAndProfile('OT Admin', 'otadm6@example.com', 'HR Admin');
@@ -277,5 +298,95 @@ class OvertimeRequestApiTest extends TestCase
             'minutes' => 60,
         ])->assertStatus(422)
             ->assertJsonPath('error.code', 'OT_ON_LEAVE_CONFLICT');
+    }
+
+    public function test_create_overtime_rejects_daily_legal_limit_exceeded(): void
+    {
+        $this->registerAndProfile('OT Admin', 'otadmin-daily-limit@example.com', 'HR Admin');
+        $employee = $this->registerAndProfile('Employee', 'otemployee-daily-limit@example.com', 'Staff');
+        $adminToken = $this->loginToken('otadmin-daily-limit@example.com');
+
+        $this->withHeaders($this->withCompanyContext(['Authorization' => 'Bearer '.$adminToken], $this->overtimeCompany()))
+            ->postJson('/v1/hcm/overtime-requests', [
+                'userId' => $employee->id,
+                'workDate' => '2026-04-10',
+                'minutes' => 241,
+            ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'OT_DAILY_LIMIT_EXCEEDED');
+    }
+
+    public function test_create_overtime_rejects_weekly_legal_limit_exceeded(): void
+    {
+        $this->registerAndProfile('OT Admin', 'otadmin-weekly-limit@example.com', 'HR Admin');
+        $employee = $this->registerAndProfile('Employee', 'otemployee-weekly-limit@example.com', 'Staff');
+        $adminToken = $this->loginToken('otadmin-weekly-limit@example.com');
+
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$adminToken], $this->overtimeCompany());
+
+        $this->withHeaders($headers)->postJson('/v1/hcm/overtime-requests', [
+            'userId' => $employee->id,
+            'workDate' => '2026-04-06',
+            'minutes' => 240,
+        ])->assertStatus(201);
+        $this->withHeaders($headers)->postJson('/v1/hcm/overtime-requests', [
+            'userId' => $employee->id,
+            'workDate' => '2026-04-07',
+            'minutes' => 240,
+        ])->assertStatus(201);
+        $this->withHeaders($headers)->postJson('/v1/hcm/overtime-requests', [
+            'userId' => $employee->id,
+            'workDate' => '2026-04-08',
+            'minutes' => 240,
+        ])->assertStatus(201);
+        $this->withHeaders($headers)->postJson('/v1/hcm/overtime-requests', [
+            'userId' => $employee->id,
+            'workDate' => '2026-04-09',
+            'minutes' => 240,
+        ])->assertStatus(201);
+
+        $this->withHeaders($headers)->postJson('/v1/hcm/overtime-requests', [
+            'userId' => $employee->id,
+            'workDate' => '2026-04-10',
+            'minutes' => 200,
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'OT_WEEKLY_LIMIT_EXCEEDED');
+    }
+
+    public function test_calculator_supports_public_holiday_and_shortest_rest_day_matrix(): void
+    {
+        $this->registerAndProfile('OT Calc Matrix', 'otcalc-matrix@example.com', 'Staff');
+        $token = $this->loginToken('otcalc-matrix@example.com');
+
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$token], $this->overtimeCompany());
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/overtime-requests/calculate', [
+                'baseMonthlySalary' => 5_000_000,
+                'fixedAllowance' => 0,
+                'minutes' => 600,
+                'dayType' => 'public_holiday',
+                'weeklyWorkDays' => 5,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.dayType', 'public_holiday')
+            ->assertJsonPath('data.segments.0.label', '8 jam pertama')
+            ->assertJsonPath('data.segments.1.label', 'Jam ke-9')
+            ->assertJsonPath('data.segments.2.label', 'Jam ke-10 dst');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/overtime-requests/calculate', [
+                'baseMonthlySalary' => 5_000_000,
+                'fixedAllowance' => 0,
+                'minutes' => 420,
+                'dayType' => 'weekly_rest_day_short',
+                'weeklyWorkDays' => 6,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.dayType', 'weekly_rest_day_short')
+            ->assertJsonPath('data.segments.0.label', '5 jam pertama')
+            ->assertJsonPath('data.segments.1.label', 'Jam ke-6')
+            ->assertJsonPath('data.segments.2.label', 'Jam ke-7 dst');
     }
 }

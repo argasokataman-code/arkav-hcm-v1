@@ -3931,18 +3931,35 @@
         var minDaysOffEl = form.querySelector("[data-smart-planner-min-days-off]");
         var minRestEl = form.querySelector("[data-smart-planner-min-rest]");
         var maxNightEl = form.querySelector("[data-smart-planner-max-night]");
+        var settingsPanel = document.querySelector("[data-smart-planner-settings-panel]");
+        var panelMaxWorkDaysEl = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
+        var panelMinDaysOffEl = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
+        var panelMinRestEl = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
+        var panelMaxNightEl = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
 
         if (maxWorkDaysEl && rules.max_work_days_per_week != null) {
             maxWorkDaysEl.value = String(rules.max_work_days_per_week);
         }
+        if (panelMaxWorkDaysEl && rules.max_work_days_per_week != null) {
+            panelMaxWorkDaysEl.value = String(rules.max_work_days_per_week);
+        }
         if (minDaysOffEl && rules.min_days_off_per_week != null) {
             minDaysOffEl.value = String(rules.min_days_off_per_week);
+        }
+        if (panelMinDaysOffEl && rules.min_days_off_per_week != null) {
+            panelMinDaysOffEl.value = String(rules.min_days_off_per_week);
         }
         if (minRestEl && rules.min_rest_hours_between_shifts != null) {
             minRestEl.value = String(rules.min_rest_hours_between_shifts);
         }
+        if (panelMinRestEl && rules.min_rest_hours_between_shifts != null) {
+            panelMinRestEl.value = String(rules.min_rest_hours_between_shifts);
+        }
         if (maxNightEl && rules.max_consecutive_night_shifts != null) {
             maxNightEl.value = String(rules.max_consecutive_night_shifts);
+        }
+        if (panelMaxNightEl && rules.max_consecutive_night_shifts != null) {
+            panelMaxNightEl.value = String(rules.max_consecutive_night_shifts);
         }
     }
 
@@ -3954,7 +3971,9 @@
         }
         var illegalTransitions = Array.isArray(rules.illegal_transition_rules) ? rules.illegal_transition_rules : [];
         var transitionKeys = plannerTransitionKeysFromLegacyRules(illegalTransitions);
-        var blockNightToMorning = transitionKeys.indexOf("night:morning") !== -1;
+        var blockedTransitionSet = new Set(Array.isArray(transitionKeys)
+            ? transitionKeys.map(function (key) { return String(key || "").toLowerCase(); }).filter(function (key) { return key.indexOf(":") > 0; })
+            : []);
 
         var holidayMap = plannerHolidayDateMap();
         var weeklySchedule = result && result.schedule_generation && Array.isArray(result.schedule_generation.weekly_schedule)
@@ -3974,13 +3993,15 @@
 
         weeklySchedule.forEach(function (row) {
             var assignments = (Array.isArray(row && row.assignments) ? row.assignments : [])
-                .filter(function (a) { return String(a && a.shift_id || "").toUpperCase() !== "OFF"; })
                 .slice()
                 .sort(function (a, b) {
                     return String(a && a.date || "").localeCompare(String(b && b.date || ""));
                 });
 
             assignments.forEach(function (assignment) {
+                if (String(assignment && assignment.shift_id || "").toUpperCase() === "OFF") {
+                    return;
+                }
                 var dateIso = scheduleDateIso(assignment && assignment.date);
                 if (dateIso && holidayMap[dateIso] && holidayMap[dateIso].length > 0) {
                     holidayConflictCount += 1;
@@ -3990,6 +4011,11 @@
             for (var i = 0; i < assignments.length - 1; i++) {
                 var current = assignments[i];
                 var next = assignments[i + 1];
+                var currentShiftId = String(current && current.shift_id || "").toUpperCase();
+                var nextShiftId = String(next && next.shift_id || "").toUpperCase();
+                if (currentShiftId === "OFF" || nextShiftId === "OFF") {
+                    continue;
+                }
                 var currentStart = scheduleEventDateTime(current && current.date, current && current.start_time);
                 var currentEnd = scheduleEventDateTime(current && current.date, current && current.end_time);
                 var nextStart = scheduleEventDateTime(next && next.date, next && next.start_time);
@@ -4011,12 +4037,12 @@
                     }
                 }
 
-                if (blockNightToMorning) {
-                    var curMeta = plannerShiftMeta(current);
-                    var nextMeta = plannerShiftMeta(next);
-                    if (curMeta.label === "N" && nextMeta.label === "M") {
-                        transitionConflictCount += 1;
-                    }
+                var curMeta = plannerShiftMeta(current);
+                var nextMeta = plannerShiftMeta(next);
+                var curType = curMeta.label === "N" ? "night" : (curMeta.label === "A" ? "afternoon" : (curMeta.label === "M" ? "morning" : ""));
+                var nextType = nextMeta.label === "N" ? "night" : (nextMeta.label === "A" ? "afternoon" : (nextMeta.label === "M" ? "morning" : ""));
+                if (curType && nextType && blockedTransitionSet.has(curType + ":" + nextType)) {
+                    transitionConflictCount += 1;
                 }
             }
         });
@@ -4049,7 +4075,7 @@
             "Unmet coverage: " + String(summary.unmetCoverageCount),
             "Holiday overlap (butuh review kebijakan): " + String(summary.holidayConflictCount),
             "Rest gap < rule minimum: " + String(summary.restConflictCount),
-            "Illegal transition (night -> morning): " + String(summary.transitionConflictCount),
+            "Illegal transition (matrix rules): " + String(summary.transitionConflictCount),
         ].map(function (line) {
             return "<li>" + esc(line) + "</li>";
         }).join("");
@@ -4545,9 +4571,9 @@
         var scopeEl = form.querySelector("[data-smart-planner-scope]");
         var scopeHintEl = form.querySelector("[data-smart-planner-scope-hint]");
         var scopeMetaEl = form.querySelector("[data-smart-planner-scope-meta]");
-        var teamQueryWrap = form.querySelector('[data-smart-planner-field="team-query"]');
+        var departmentWrap = form.querySelector('[data-smart-planner-field="department"]');
         var customIdsWrap = form.querySelector('[data-smart-planner-field="custom-ids"]');
-        var teamQueryEl = form.querySelector("[data-smart-planner-team-query]");
+        var departmentEl = form.querySelector("[data-smart-planner-department]");
         var customIdsEl = form.querySelector("[data-smart-planner-custom-ids]");
         var modeHintEl = form.querySelector("[data-smart-planner-mode-hint]");
         var maxWorkDaysEl = form.querySelector("[data-smart-planner-max-work-days]");
@@ -4561,6 +4587,8 @@
         var forceApplyEl = document.querySelector("[data-smart-planner-force-apply]");
         var restRuleWrap = form.querySelector('[data-smart-planner-field="rest-rule"]');
         var nightRuleWrap = form.querySelector('[data-smart-planner-field="night-rule"]');
+        var plannerEmployeeDirectoryRows = [];
+        var plannerEmployeeDirectoryPromise = null;
 
         ensureScheduleShiftsLoaded(function () {
             if (smartPlannerLastResult) {
@@ -4610,6 +4638,114 @@
             return horizonEl && horizonEl.value ? String(horizonEl.value) : "single_week";
         }
 
+        function plannerSelectionSummary() {
+            var mode = currentCategory();
+            var scope = currentScope();
+            var horizon = currentHorizon();
+            var modeLabel = mode === "shifting_24h" ? "Shifting 24 Jam" : (mode === "hybrid" ? "Hybrid" : "Office Hour");
+            var selectedDepartmentLabel = departmentEl && departmentEl.selectedOptions && departmentEl.selectedOptions[0]
+                ? String(departmentEl.selectedOptions[0].textContent || "").trim()
+                : "";
+            var scopeLabel = scope === "department"
+                ? (selectedDepartmentLabel && selectedDepartmentLabel !== "Pilih departemen" ? "departemen " + selectedDepartmentLabel : "departemen tertentu")
+                : (scope === "custom" ? "user ID pilihan" : "semua employee aktif");
+            var horizonLabel = horizon === "end_of_year" ? "batch sampai 31 Desember" : "1 minggu";
+            return "Mode: " + modeLabel + ". Scope: " + scopeLabel + ". Horizon: " + horizonLabel + ".";
+        }
+
+        function loadPlannerEmployeeDirectory(forceReload) {
+            if (!forceReload && plannerEmployeeDirectoryRows.length > 0) {
+                return Promise.resolve(plannerEmployeeDirectoryRows.slice());
+            }
+            if (!forceReload && plannerEmployeeDirectoryPromise) {
+                return plannerEmployeeDirectoryPromise;
+            }
+
+            function loadPage(page, collected) {
+                return apiGet('/v1/hcm/employees?perPage=100&page=' + String(page)).then(function (payload) {
+                    var rows = Array.isArray(payload && payload.data) ? payload.data : [];
+                    var meta = payload && payload.meta ? payload.meta : {};
+                    var perPage = Number(meta.perPage || 100);
+                    var total = Number(meta.total || rows.length);
+                    var nextCollected = collected.concat(rows);
+
+                    if (!rows.length) {
+                        return nextCollected;
+                    }
+                    if (total > 0 && nextCollected.length >= total) {
+                        return nextCollected;
+                    }
+                    if (total <= 0 && rows.length < perPage) {
+                        return nextCollected;
+                    }
+
+                    return loadPage(page + 1, nextCollected);
+                });
+            }
+
+            plannerEmployeeDirectoryPromise = loadPage(1, [])
+                .then(function (rows) {
+                    plannerEmployeeDirectoryRows = rows.slice();
+                    plannerEmployeeDirectoryPromise = null;
+                    return rows.slice();
+                })
+                .catch(function (error) {
+                    plannerEmployeeDirectoryPromise = null;
+                    throw error;
+                });
+
+            return plannerEmployeeDirectoryPromise;
+        }
+
+        function renderPlannerDepartmentOptions(rows) {
+            if (!departmentEl) {
+                return;
+            }
+            var currentValue = String(departmentEl.value || "");
+            var seen = {};
+            var options = [{ value: "", label: "Pilih departemen" }];
+
+            (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                var departmentId = row && row.departmentId != null ? String(row.departmentId) : "";
+                var departmentName = row && row.departmentName ? String(row.departmentName).trim() : "";
+                if (!departmentId || !departmentName || departmentName === '—' || seen[departmentId]) {
+                    return;
+                }
+                seen[departmentId] = true;
+                options.push({ value: departmentId, label: departmentName });
+            });
+
+            options.sort(function (left, right) {
+                if (!left.value) {
+                    return -1;
+                }
+                if (!right.value) {
+                    return 1;
+                }
+                return left.label.localeCompare(right.label);
+            });
+
+            departmentEl.innerHTML = options.map(function (option) {
+                var selected = option.value === currentValue ? ' selected' : '';
+                return '<option value="' + esc(option.value) + '"' + selected + '>' + esc(option.label) + '</option>';
+            }).join('');
+        }
+
+        function ensurePlannerDepartmentOptionsLoaded() {
+            if (!departmentEl) {
+                return Promise.resolve([]);
+            }
+            return loadPlannerEmployeeDirectory()
+                .then(function (rows) {
+                    renderPlannerDepartmentOptions(rows);
+                    return rows;
+                })
+                .catch(function (error) {
+                    departmentEl.innerHTML = '<option value="">Departemen tidak tersedia</option>';
+                    throw error;
+                });
+        }
+
         function parseCustomIds(raw) {
             return String(raw || "")
                 .split(/[\s,]+/)
@@ -4636,8 +4772,7 @@
                 });
             }
 
-            return apiGet("/v1/hcm/employees?perPage=100&page=1").then(function (payload) {
-                var rows = Array.isArray(payload && payload.data) ? payload.data : [];
+            return loadPlannerEmployeeDirectory().then(function (rows) {
                 if (!rows.length) {
                     return Promise.reject({ plannerMessage: "Employee list kosong di tenant aktif." });
                 }
@@ -4652,26 +4787,29 @@
                     };
                 }
 
-                var keyword = String(teamQueryEl && teamQueryEl.value || "").trim().toLowerCase();
-                if (!keyword) {
-                    return Promise.reject({ plannerMessage: "Isi keyword team untuk filter scope team." });
+                var selectedDepartmentId = parseInt(departmentEl && departmentEl.value ? departmentEl.value : "", 10);
+                if (isNaN(selectedDepartmentId) || selectedDepartmentId <= 0) {
+                    return Promise.reject({ plannerMessage: "Pilih departemen untuk sasaran draft planner." });
                 }
 
                 var filteredIds = rows
                     .filter(function (row) {
-                        var team = String(row && row.team || "").toLowerCase();
-                        return team.indexOf(keyword) !== -1;
+                        return parseInt(row && row.departmentId != null ? row.departmentId : 0, 10) === selectedDepartmentId;
                     })
                     .map(function (row) { return parseInt(row && row.userId != null ? row.userId : row && row.id, 10); })
                     .filter(function (id) { return !isNaN(id) && id > 0; });
 
+                var departmentLabel = departmentEl && departmentEl.selectedOptions && departmentEl.selectedOptions[0]
+                    ? String(departmentEl.selectedOptions[0].textContent || "").trim()
+                    : "departemen terpilih";
+
                 if (!filteredIds.length) {
-                    return Promise.reject({ plannerMessage: 'Tidak ada karyawan match keyword team "' + keyword + '".' });
+                    return Promise.reject({ plannerMessage: 'Tidak ada employee aktif pada departemen "' + departmentLabel + '".' });
                 }
 
                 return {
                     employeeIds: filteredIds,
-                    message: "Scope team \"" + keyword + "\": " + String(filteredIds.length) + " karyawan.",
+                    message: "Scope departemen \"" + departmentLabel + "\": " + String(filteredIds.length) + " karyawan.",
                 };
             });
         }
@@ -4687,8 +4825,19 @@
             if (restRuleWrap) {
                 restRuleWrap.classList.toggle("d-none", false);
             }
-            if (teamQueryWrap) {
-                teamQueryWrap.classList.toggle("d-none", scope !== "team");
+            if (departmentWrap) {
+                departmentWrap.classList.toggle("d-none", scope !== "department");
+            }
+            if (scope === "department") {
+                ensurePlannerDepartmentOptionsLoaded().then(function () {
+                    if (scopeMetaEl) {
+                        scopeMetaEl.textContent = plannerSelectionSummary();
+                    }
+                }).catch(function () {
+                    if (scopeMetaEl) {
+                        scopeMetaEl.textContent = "Departemen tidak bisa dimuat. Cek employee directory tenant aktif.";
+                    }
+                });
             }
             if (customIdsWrap) {
                 customIdsWrap.classList.toggle("d-none", scope !== "custom");
@@ -4698,28 +4847,31 @@
             }
             if (modeHintEl) {
                 if (mode === "shifting_24h") {
-                    modeHintEl.textContent = "Mode Shifting 24 Jam mengaktifkan kontrol kelelahan, distribusi shift malam, dan validasi transisi antar shift.";
+                    modeHintEl.textContent = "Pilihan manual untuk rotasi shift. Bukan auto dari master shift.";
                 } else if (mode === "hybrid") {
-                    modeHintEl.textContent = "Mode Hybrid menggabungkan pekerja office hour dan shift sehingga rule fairness/fatigue tetap dipakai tetapi lebih fleksibel.";
+                    modeHintEl.textContent = "Pilihan manual untuk gabungan office hour dan shift.";
                 } else {
-                    modeHintEl.textContent = "Mode Office Hour fokus distribusi beban kerja harian normal tanpa optimasi shift malam.";
+                    modeHintEl.textContent = "Pilihan manual untuk pola kerja office hour.";
                 }
             }
             if (scopeHintEl) {
-                if (scope === "team") {
-                    scopeHintEl.textContent = "Isi team keyword sesuai unit operasional yang ingin dijadwalkan (mis: Customer Service).";
+                if (scope === "department") {
+                    scopeHintEl.textContent = "Sumber data: employee tenant aktif, dikelompokkan menurut departemen.";
                 } else if (scope === "custom") {
-                    scopeHintEl.textContent = "Masukkan user ID dipisah koma. Contoh: 601, 602, 603";
+                    scopeHintEl.textContent = "Sumber data: employee tenant aktif, dibatasi ke user ID yang Anda isi.";
                 } else {
-                    scopeHintEl.textContent = "Scope semua karyawan tenant aktif. Cocok untuk planning keseluruhan company.";
+                    scopeHintEl.textContent = "Sumber data: semua employee tenant aktif.";
                 }
             }
             if (horizonHintEl) {
                 if (horizon === "end_of_year") {
-                    horizonHintEl.textContent = "Planner akan dieksekusi per minggu dari Week Start sampai 31 Desember dan hasilnya digabung untuk review kalender.";
+                    horizonHintEl.textContent = "Batch mingguan dari Week Start sampai 31 Desember.";
                 } else {
-                    horizonHintEl.textContent = "Mode default: generate hanya untuk minggu yang dipilih.";
+                    horizonHintEl.textContent = "Generate hanya untuk minggu yang dipilih.";
                 }
+            }
+            if (scopeMetaEl) {
+                scopeMetaEl.textContent = plannerSelectionSummary();
             }
             if (endDateEl) {
                 endDateEl.value = plannerEndOfYearIso(weekStartEl && weekStartEl.value ? weekStartEl.value : getCurrentWeekStartIso());
@@ -4735,6 +4887,10 @@
         if (scopeEl && !scopeEl.getAttribute("data-bound")) {
             scopeEl.setAttribute("data-bound", "1");
             scopeEl.addEventListener("change", syncModeUi);
+        }
+        if (departmentEl && !departmentEl.getAttribute("data-bound")) {
+            departmentEl.setAttribute("data-bound", "1");
+            departmentEl.addEventListener("change", syncModeUi);
         }
         if (horizonEl && !horizonEl.getAttribute("data-bound")) {
             horizonEl.setAttribute("data-bound", "1");
@@ -4942,12 +5098,12 @@
         var cancelEditBtn = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-cancel-edit-btn]") : null;
         var resetDefaultsBtn = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-reset-defaults-btn]") : null;
         var modeIndicator = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-mode-indicator]") : null;
+        var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
+        var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
+        var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
+        var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
 
         function storeDefaultInputValues() {
-            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
-            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
-            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
-            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
             smartPlannerEditModeOriginalValues = {
                 maxWorkDays: (settingsPanelMaxWorkDays && settingsPanelMaxWorkDays.value) ? String(settingsPanelMaxWorkDays.value) : "5",
                 minDaysOff: (settingsPanelMinDaysOff && settingsPanelMinDaysOff.value) ? String(settingsPanelMinDaysOff.value) : "2",
@@ -4959,10 +5115,6 @@
 
         function setEditMode(enabled) {
             smartPlannerEditMode = !!enabled;
-            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
-            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
-            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
-            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
             var defaults = [settingsPanelMaxWorkDays, settingsPanelMinDaysOff, settingsPanelMinRest, settingsPanelMaxNight];
             var matrixCheckboxes = settingsPanel ? Array.prototype.slice.call(settingsPanel.querySelectorAll("[data-smart-planner-transition-key]")) : [];
 
@@ -4981,8 +5133,8 @@
                 if (saveSettingsBtn) saveSettingsBtn.classList.remove("d-none");
                 if (resetDefaultsBtn) resetDefaultsBtn.classList.remove("d-none");
                 if (modeIndicator) {
-                    modeIndicator.textContent = "Editing";
-                    modeIndicator.className = "badge bg-warning text-dark small";
+                    modeIndicator.textContent = "Edit mode";
+                    modeIndicator.className = "badge bg-warning text-dark border";
                 }
                 if (submitBtn) submitBtn.disabled = true;
                 if (applyDominantBtn) applyDominantBtn.disabled = true;
@@ -5001,8 +5153,8 @@
                 if (saveSettingsBtn) saveSettingsBtn.classList.add("d-none");
                 if (resetDefaultsBtn) resetDefaultsBtn.classList.add("d-none");
                 if (modeIndicator) {
-                    modeIndicator.textContent = "Viewing";
-                    modeIndicator.className = "badge bg-light text-dark small";
+                    modeIndicator.textContent = "View mode";
+                    modeIndicator.className = "badge bg-white text-dark border";
                 }
                 if (submitBtn) submitBtn.disabled = false;
                 if (applyDominantBtn) applyDominantBtn.disabled = false;
@@ -5011,10 +5163,6 @@
         }
 
         function restoreOriginalValues() {
-            var settingsPanelMaxWorkDays = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-work-days]") : null;
-            var settingsPanelMinDaysOff = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-days-off]") : null;
-            var settingsPanelMinRest = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-min-rest]") : null;
-            var settingsPanelMaxNight = settingsPanel ? settingsPanel.querySelector("[data-smart-planner-default-max-night]") : null;
             if (settingsPanelMaxWorkDays && smartPlannerEditModeOriginalValues.maxWorkDays) {
                 settingsPanelMaxWorkDays.value = smartPlannerEditModeOriginalValues.maxWorkDays;
             }
@@ -5050,10 +5198,8 @@
             resetDefaultsBtn.addEventListener("click", function () {
                 if (window.confirm("Reset semua ke default tenant yang tersimpan? Perubahan belum disimpan akan hilang.")) {
                     loadPlannerSettings().then(function () {
-                        if (modeIndicator) {
-                            modeIndicator.textContent = "Editing (Reset)";
-                        }
                         setPlannerSettingsFeedback("Default tenant berhasil di-reset.", false);
+                        setEditMode(true);
                     });
                 }
             });
@@ -5064,10 +5210,10 @@
             saveSettingsBtn.addEventListener("click", function () {
                 var payload = {
                     defaultRules: {
-                        max_work_days_per_week: readInt(maxWorkDaysEl, 5),
-                        min_days_off_per_week: readInt(minDaysOffEl, 2),
-                        min_rest_hours_between_shifts: readInt(minRestEl, 12),
-                        max_consecutive_night_shifts: readInt(maxNightEl, 3),
+                        max_work_days_per_week: readInt(settingsPanelMaxWorkDays, 5),
+                        min_days_off_per_week: readInt(settingsPanelMinDaysOff, 2),
+                        min_rest_hours_between_shifts: readInt(settingsPanelMinRest, 12),
+                        max_consecutive_night_shifts: readInt(settingsPanelMaxNight, 3),
                         late_tolerance_minutes: (smartPlannerSettingsCache && smartPlannerSettingsCache.defaultRules && smartPlannerSettingsCache.defaultRules.late_tolerance_minutes != null)
                             ? Number(smartPlannerSettingsCache.defaultRules.late_tolerance_minutes)
                             : 5,
@@ -5095,6 +5241,7 @@
                             forbiddenTransitions: response.data.forbiddenTransitions || payload.forbiddenTransitions,
                             transitionCatalog: smartPlannerTransitionCatalog,
                         };
+                        applyPlannerSettingsToForm(form, smartPlannerSettingsCache);
                         smartPlannerForbiddenTransitionKeys = Array.isArray(response.data.forbiddenTransitions)
                             ? response.data.forbiddenTransitions
                             : payload.forbiddenTransitions;
@@ -5112,6 +5259,10 @@
                         saveSettingsBtn.disabled = false;
                     });
             });
+        }
+
+        if (settingsPanel) {
+            setEditMode(false);
         }
 
         if (forceApplyEl && forceApplyEl.getAttribute("data-bound") !== "1") {

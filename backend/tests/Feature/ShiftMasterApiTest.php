@@ -170,4 +170,30 @@ class ShiftMasterApiTest extends TestCase
 
         $this->assertNotNull(HcmShift::query()->find($globalShift->id));
     }
+
+    public function test_shift_crud_supports_overnight_window(): void
+    {
+        $token = $this->bearerToken(true, 'shift-overnight@example.com');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/v1/hcm/shifts', [
+            'name' => 'Night Shift',
+            'code' => 'night_shift',
+            'startTime' => '22:00',
+            'endTime' => '06:00',
+            'isActive' => true,
+            'sortOrder' => 4,
+        ])->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->getJson('/v1/hcm/shifts')
+            ->assertOk()
+            ->assertJsonFragment([
+                'code' => 'night_shift',
+                'isOvernight' => true,
+            ]);
+    }
 }

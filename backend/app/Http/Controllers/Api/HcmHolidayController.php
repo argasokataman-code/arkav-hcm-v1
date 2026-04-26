@@ -178,6 +178,7 @@ class HcmHolidayController extends Controller
         $updated = 0;
         $skippedManual = 0;
         $invalidRows = 0;
+        $skippedNonPrimary = 0;
         $cleanedStaleApi = 0;
         $now = Carbon::now();
         $seenApiKeys = [];
@@ -205,6 +206,12 @@ class HcmHolidayController extends Controller
                 continue;
             }
             $normalizedTitle = preg_replace('/\s+/', ' ', $title) ?: $title;
+
+            if (! $this->isPrimaryPublicHolidayRow($row, $normalizedTitle, $providerUsed)) {
+                $skippedNonPrimary++;
+                continue;
+            }
+
             $seenKey = $normalizedDate.'|'.mb_strtolower($normalizedTitle);
             $seenApiKeys[$seenKey] = true;
 
@@ -283,6 +290,7 @@ class HcmHolidayController extends Controller
                 'created' => $created,
                 'updated' => $updated,
                 'skippedManual' => $skippedManual,
+                'skippedNonPrimary' => $skippedNonPrimary,
                 'invalidRows' => $invalidRows,
                 'cleanedStaleApi' => $cleanedStaleApi,
             ],
@@ -374,5 +382,41 @@ class HcmHolidayController extends Controller
                 'last_synced_at' => $holiday->last_synced_at,
             ]
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function isPrimaryPublicHolidayRow(array $row, string $title, string $providerUsed): bool
+    {
+        $normalizedTitle = mb_strtolower(trim($title));
+        if ($normalizedTitle === '') {
+            return false;
+        }
+
+        if (str_contains($normalizedTitle, 'cuti bersama')) {
+            return false;
+        }
+
+        if ($providerUsed === 'date.nager.at') {
+            $types = isset($row['types']) && is_array($row['types'])
+                ? array_map(static fn ($type): string => mb_strtolower((string) $type), $row['types'])
+                : [];
+
+            if ($types !== [] && ! in_array('public', $types, true)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (array_key_exists('isCutiBersama', $row) && (bool) $row['isCutiBersama']) {
+            return false;
+        }
+        if (array_key_exists('is_joint_leave', $row) && (bool) $row['is_joint_leave']) {
+            return false;
+        }
+
+        return true;
     }
 }

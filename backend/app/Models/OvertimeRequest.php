@@ -18,6 +18,8 @@ class OvertimeRequest extends Model
         'request_type',
         'work_date',
         'minutes',
+        'day_type',
+        'weekly_work_days',
         'project_name',
         'status',
         'approved_by_user_id',
@@ -30,6 +32,7 @@ class OvertimeRequest extends Model
     {
         return [
             'work_date' => 'date',
+            'weekly_work_days' => 'integer',
             'approved_at' => 'datetime',
         ];
     }

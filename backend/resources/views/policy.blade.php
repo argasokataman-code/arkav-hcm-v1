@@ -49,6 +49,11 @@
                             </ul>
                         </div>
                     </div>
+                    <div class="me-2 mb-2">
+                        <a href="javascript:void(0);" class="btn btn-light d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#arcav_policy_guide">
+                            <i class="ti ti-info-circle me-1"></i>Panduan kebijakan
+                        </a>
+                    </div>
                     <div class="mb-2">
                         <a href="#" data-bs-toggle="modal" data-bs-target="#add_policy" class="btn btn-primary d-flex align-items-center"><i class="ti ti-circle-plus me-2"></i>Add Policy</a>
                     </div>
@@ -129,5 +134,43 @@
 
     @component('components.modal-popup')
     @endcomponent
+
+    <div class="modal fade" id="arcav_policy_guide" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Panduan pengelolaan kebijakan HR</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Halaman ini digunakan untuk menyimpan <strong>dokumen kebijakan</strong> yang berlaku di perusahaan,
+                        baik untuk seluruh departemen maupun untuk departemen tertentu. Policy di sini bukan struktur organisasi baru,
+                        melainkan catatan aturan/dokumen yang menjadi rujukan operasional HR.
+                    </p>
+
+                    <div class="alert alert-light border mb-3">
+                        <div class="fw-semibold mb-1">Arti field utama</div>
+                        <ul class="mb-0 small text-muted ps-3">
+                            <li><strong>Name</strong>: judul kebijakan yang akan tampil di daftar dan hasil pencarian.</li>
+                            <li><strong>Department</strong>: scope penerapan policy. Jika kosong, policy diperlakukan sebagai kebijakan umum lintas departemen.</li>
+                            <li><strong>Description</strong>: ringkasan isi kebijakan atau konteks implementasi.</li>
+                            <li><strong>Appraisal date</strong>: saat ini dipakai sebagai tanggal mulai berlaku policy di data sistem.</li>
+                            <li><strong>Attachment</strong>: file pendukung seperti PDF kebijakan, formulir, atau lampiran sosialisasi.</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-warning border mb-0">
+                        <div class="fw-semibold mb-1">Catatan penggunaan</div>
+                        <p class="mb-1 small">Pisahkan policy per topik agar pencarian, audit, dan pembaruan versi lebih mudah ditelusuri.</p>
+                        <p class="mb-0 small">Jika kebijakan hanya berlaku untuk satu fungsi kerja, pilih departemen terkait agar penerapannya jelas.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @endsection

@@ -842,4 +842,34 @@ class AttendanceApiTest extends TestCase
         $this->assertSame($earlyUser->id, (int) ($pageOne[0]['userId'] ?? 0));
         $this->assertSame($lateUser->id, (int) ($pageTwo[0]['userId'] ?? 0));
     }
+
+    public function test_schedule_timing_admin_can_apply_overnight_shift_id(): void
+    {
+        $token = $this->bearerToken(true, 'scheduletiming-nightshift@example.com');
+        $target = User::factory()->create();
+        $this->attachUserToActiveCompany($target);
+
+        $shift = HcmShift::query()->create([
+            'company_id' => $this->company->id,
+            'code' => 'test_shift_overnight',
+            'name' => 'Night Shift',
+            'start_time' => '22:00',
+            'end_time' => '06:00',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/schedule-timing/'.$target->id, [
+            'shiftId' => $shift->id,
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $row = HcmScheduleTiming::query()->where('user_id', $target->id)->firstOrFail();
+        $this->assertSame($shift->id, (int) $row->hcm_shift_id);
+        $this->assertStringContainsString('22:00', (string) $row->start_time);
+        $this->assertStringContainsString('06:00', (string) $row->end_time);
+    }
 }

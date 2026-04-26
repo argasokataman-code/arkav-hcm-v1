@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arcav.local/schemas/workforce-ai-output.schema.json",
+  "title": "Workforce AI Output",
+  "type": "object",
+  "required": [
+    "schedule_generation",
+    "recommendation",
+    "explanation"
+  ],
+  "properties": {
+    "schedule_generation": {
+      "type": "object",
+      "required": [
+        "validation_status",
+        "weekly_schedule",
+        "violations",
+        "unmet_coverage"
+      ],
+      "properties": {
+        "validation_status": {
+          "type": "string",
+          "enum": ["valid", "invalid"]
+        },
+        "weekly_schedule": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["employee_id", "assignments"],
+            "properties": {
+              "employee_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "assignments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["date", "shift_id", "start_time", "end_time", "cross_day"],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "shift_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "start_time": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "end_time": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "cross_day": {
+                      "type": "boolean"
+                    },
+                    "notes": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "employee_id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high", "critical"]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "unmet_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "shift_id", "required", "assigned"],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "shift_id": {
+                "type": "string"
+              },
+              "required": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "assigned": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "attendance_analysis": {
+      "type": "object",
+      "properties": {
+        "employee_summaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "employee_id",
+              "total_work_days",
+              "late_count",
+              "early_leave_count",
+              "absent_count",
+              "overtime_minutes",
+              "compliance_score"
+            ],
+            "properties": {
+              "employee_id": {
+                "type": "string"
+              },
+              "total_work_days": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "late_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "early_leave_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "absent_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "overtime_minutes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "compliance_score": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["employee_id", "date", "status"],
+            "properties": {
+              "employee_id": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["on_time", "late", "early_leave", "absent", "overtime"]
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "recommendation": {
+      "type": "object",
+      "required": ["fairness_score", "fatigue_risk_score", "improvement_suggestions"],
+      "properties": {
+        "fairness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fatigue_risk_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "improvement_suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "reason", "expected_impact"],
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expected_impact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

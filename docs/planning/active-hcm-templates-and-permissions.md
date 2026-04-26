@@ -86,7 +86,7 @@ Legenda **Target API**: siapa boleh **memanggil mutasi / data sensitif** — har
 | `/attendance-admin` | Absensi admin | `attendance-data.js` | `attendance/admin`, timesheets, schedule | **HCM Admin** | Data semua karyawan | — |
 | `/attendance-employee` | Absensi karyawan | `attendance-data.js` + **Leaflet** (unpkg) + OSM | `attendance/me/*` | Karyawan + Admin | **Self** punch untuk non-admin; punch wajib GPS | — |
 | `/timesheets` | Timesheet | `attendance-data.js` | `GET /timesheets` | **HCM Admin** | Admin view | — |
-| `/schedule-timing` | Jadwal / shift per user | `attendance-data.js` | `schedule-timing`, `shifts` | **HCM Admin** | Mutasi jadwal orang lain | — |
+| `/schedule-timing` | Jadwal / shift per user | `attendance-data.js` | `schedule-timing`, `shifts`, `smart-attendance-shifting/generate` | **HCM Admin** | Mutasi jadwal orang lain + generate rekomendasi jadwal cerdas tenant-scope | — |
 | `/shift-master` | Master shift | `shift-master-data.js` | `GET/POST/PUT/DELETE /shifts` | **HCM Admin** | Sudah `EnsuresHcmAdmin` di controller | — |
 | `/overtime-master` | Master overtime | `overtime-master-data.js` | `overtime-types` | **HCM Admin** | Mutasi admin | — |
 | `/overtime` | Overtime (admin) | `hcm-extras-data.js` | `overtime-requests`, `calculate` | **HCM Admin** | Semua request + kalkulator dengan pilih karyawan | Non-admin diarahkan ke `/overtime-employee` |

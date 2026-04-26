@@ -16,6 +16,7 @@ class HcmShift extends Model
         'name',
         'start_time',
         'end_time',
+        'shift_type',
         'description',
         'is_active',
         'sort_order',
@@ -25,6 +26,7 @@ class HcmShift extends Model
     {
         return [
             'company_id' => 'integer',
+            'shift_type' => 'string',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];

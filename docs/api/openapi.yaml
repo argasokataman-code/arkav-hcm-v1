@@ -7,6 +7,60 @@ info:
     Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.
     Lihat `backend/routes/api.php` dan `docs/planning/implementation-status.md` bila path di bawah belum tercantum di file ini.
 
+    ## Quickstart Swagger (Try it out)
+
+    1. Pilih server `http://127.0.0.1:8007` pada dropdown **Servers**.
+    2. Login lewat endpoint `POST /v1/identity/auth/login`.
+    3. Salin token dari response login, lalu klik tombol **Authorize** dan isi:
+       - `Bearer <token>`
+    4. Untuk endpoint tenant-scoped di prefix `/v1/hcm/*`, kirim header tenant aktif:
+       - `X-Company-Id: <company_uuid>`
+    5. Jalankan endpoint HCM sesuai domain (attendance, leave, payroll, shift, dll).
+
+    Catatan:
+    - Header `X-Company-Id` dipakai untuk memilih tenant aktif saat user punya akses multi-tenant.
+    - Untuk sebagian endpoint list/filter, parameter query wajib (mis. bulan/tahun) sudah didefinisikan pada operation masing-masing.
+
+    ## Tutorial Alur Dasar (Identity -> HCM)
+
+    ### 1) Login
+
+    ```http
+    POST /v1/identity/auth/login
+    Content-Type: application/json
+
+    {
+      "email": "admin@contoh.com",
+      "password": "YourStrongPassword123"
+    }
+    ```
+
+    ### 2) Ambil profil user login
+
+    ```http
+    GET /v1/identity/auth/me
+    Authorization: Bearer <token>
+    X-Company-Id: <company_uuid>
+    ```
+
+    ### 3) Akses endpoint HCM tenant-scoped
+
+    ```http
+    GET /v1/hcm/employees?page=1&per_page=20
+    Authorization: Bearer <token>
+    X-Company-Id: <company_uuid>
+    ```
+
+    ### 4) Contoh alur payroll monthly ringkas
+
+    1. Baca settings payroll tenant: `GET /v1/hcm/payroll/settings`.
+    2. Buat/cek period payroll: `POST /v1/hcm/payroll-periods` atau `GET /v1/hcm/payroll-periods/active`.
+    3. Hitung draft: `POST /v1/hcm/payroll-periods/{id}/calculate-draft`.
+    4. Finalize run: `POST /v1/hcm/payroll-runs/{id}/finalize`.
+    5. Disburse run: `POST /v1/hcm/payroll-runs/{id}/disburse`.
+
+    Untuk alur payroll dengan cutoff/payday policy dan behavior `policySnapshot`, lihat deskripsi operation Payroll dan dokumen feature payroll terkait.
+
     ## Global Super Admin bypass
 
     Pengguna dengan `users.is_super_admin = 1` (Global Developer / Platform
@@ -3585,10 +3639,12 @@ paths:
                   type: string
                   nullable: true
                   pattern: '^\\d{2}:\\d{2}$'
+                  description: Required when `shiftId` is omitted.
                 endTime:
                   type: string
                   nullable: true
                   pattern: '^\\d{2}:\\d{2}$'
+                  description: Required when `shiftId` is omitted. May be lower than `startTime` for overnight schedule, but cannot be equal.
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -3611,6 +3667,221 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/smart-attendance-shifting/generate:
+    post:
+      tags: [Attendance]
+      summary: Generate smart attendance and shift plan (admin only)
+      description: |
+        Data-driven scheduler and attendance analyzer based on runtime tenant data
+        (employee membership, shift templates, attendance history).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weekStart:
+                  type: string
+                  format: date
+                employeeIds:
+                  type: array
+                  items:
+                    type: integer
+                shiftCategory:
+                  type: string
+                  enum: [office_hour, shifting_24h, hybrid]
+                rules:
+                  type: object
+                  properties:
+                    max_work_days_per_week: { type: integer, minimum: 1, maximum: 7 }
+                    min_days_off_per_week: { type: integer, minimum: 0, maximum: 7 }
+                    min_rest_hours_between_shifts: { type: integer, minimum: 1, maximum: 24 }
+                    max_consecutive_night_shifts: { type: integer, minimum: 1, maximum: 7 }
+                    illegal_transition_rules:
+                      type: array
+                      items: { type: string }
+                    late_tolerance_minutes: { type: integer, minimum: 0, maximum: 120 }
+                    early_leave_tolerance_minutes: { type: integer, minimum: 0, maximum: 120 }
+                    overtime_threshold_minutes: { type: integer, minimum: 0, maximum: 480 }
+                forbiddenTransitions:
+                  type: array
+                  description: Preferred transition format `from:to`, e.g. `night:morning`.
+                  items: { type: string }
+                coverageRequirements:
+                  type: array
+                  items:
+                    type: object
+                    required: [date, required]
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      required:
+                        type: array
+                        items:
+                          type: object
+                          required: [shift_id, headcount]
+                          properties:
+                            shift_id: { type: string }
+                            headcount: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      schedule_generation:
+                        type: object
+                        properties:
+                          validation_status: { type: string, enum: [valid, invalid] }
+                          weekly_schedule: { type: array, items: { type: object } }
+                          violations: { type: array, items: { type: object } }
+                          unmet_coverage: { type: array, items: { type: object } }
+                      attendance_analysis:
+                        type: object
+                        properties:
+                          employee_summaries: { type: array, items: { type: object } }
+                          flags: { type: array, items: { type: object } }
+                      recommendation:
+                        type: object
+                        properties:
+                          fairness_score: { type: number, minimum: 0, maximum: 100 }
+                          fatigue_risk_score: { type: number, minimum: 0, maximum: 100 }
+                          improvement_suggestions: { type: array, items: { type: object } }
+                      explanation: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/smart-attendance-shifting/settings:
+    get:
+      tags: [Attendance]
+      summary: Get smart planner default settings (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      defaultRules:
+                        type: object
+                        properties:
+                          max_work_days_per_week: { type: integer }
+                          min_days_off_per_week: { type: integer }
+                          min_rest_hours_between_shifts: { type: integer }
+                          max_consecutive_night_shifts: { type: integer }
+                      forbiddenTransitions:
+                        type: array
+                        items: { type: string }
+                      transitionCatalog:
+                        type: array
+                        items: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [Attendance]
+      summary: Update smart planner default settings (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                defaultRules:
+                  type: object
+                  properties:
+                    max_work_days_per_week: { type: integer, minimum: 1, maximum: 7 }
+                    min_days_off_per_week: { type: integer, minimum: 0, maximum: 7 }
+                    min_rest_hours_between_shifts: { type: integer, minimum: 1, maximum: 24 }
+                    max_consecutive_night_shifts: { type: integer, minimum: 1, maximum: 7 }
+                forbiddenTransitions:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/smart-attendance-shifting/publish-roster:
+    post:
+      tags: [Attendance]
+      summary: Publish planner draft into dated rosters (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weeklySchedule]
+              properties:
+                weeklySchedule:
+                  type: array
+                  items:
+                    type: object
+                    required: [employee_id, assignments]
+                    properties:
+                      employee_id:
+                        oneOf:
+                          - { type: integer }
+                          - { type: string }
+                      assignments:
+                        type: array
+                        items:
+                          type: object
+                          required: [date, shift_id]
+                          properties:
+                            date: { type: string, format: date }
+                            shift_id: { type: string }
+                            start_time: { type: string, nullable: true }
+                            end_time: { type: string, nullable: true }
+                            cross_day: { type: boolean, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/schedule-rosters:
+    get:
+      tags: [Attendance]
+      summary: List dated schedule rosters (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: dateFrom, in: query, required: true, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, required: true, schema: { type: string, format: date } }
+        - { name: employeeIds, in: query, required: false, schema: { type: array, items: { type: integer } }, style: form, explode: true }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   # -------------------------
   # Leave (implemented under /v1/hcm)
@@ -4222,6 +4493,42 @@ paths:
                           finalizedByUserId:
                             type: integer
                             nullable: true
+                          policySnapshot:
+                            type: object
+                            nullable: true
+                            properties:
+                              paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                              cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                              payrollTimezone: { type: string, example: Asia/Jakarta }
+                              disburseBeforePaydayAllowed: { type: boolean, example: false }
+                              paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day], example: previous_working_day }
+                              resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                              resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                              draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                          lateArrivalBuffer:
+                            type: object
+                            nullable: true
+                            properties:
+                              capturedAt: { type: string, format: date-time, nullable: true }
+                              asOfDate: { type: string, format: date, nullable: true }
+                              periodStartDate: { type: string, format: date, nullable: true }
+                              periodEndDate: { type: string, format: date, nullable: true }
+                              hasLateArrivals: { type: boolean, example: false }
+                              migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                              sources:
+                                type: object
+                                nullable: true
+                                properties:
+                                  overtimeRequests:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
+                                  payrollItemAssignments:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
                           voidedAt:
                             type: string
                             format: date-time
@@ -4232,6 +4539,105 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/payroll/settings:
+    get:
+      tags: [Payroll]
+      summary: Get monthly payroll settings (HCM admin)
+      description: |
+        Returns tenant-scoped monthly payroll payday and cutoff settings for the active company context.
+        Catatan kontrak: tanggal resolved payday/cutoff yang authoritative untuk eksekusi payroll tersedia di
+        `policySnapshot` pada payload run/period setelah draft dihitung server-side.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                      cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                      payrollTimezone: { type: string, example: Asia/Jakarta }
+                      disburseBeforePaydayAllowed: { type: boolean, example: false }
+                      paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day], example: previous_working_day }
+        '400':
+          description: Tenant context missing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, example: TENANT_REQUIRED }
+                      message: { type: string, example: Active company context is required. }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [Payroll]
+      summary: Update monthly payroll settings (HCM admin)
+      description: |
+        Saves tenant-scoped monthly payroll payday and cutoff settings for the active company context.
+        Perubahan setting tenant tidak mengubah snapshot run existing; policy baru akan efektif setelah draft direbuild
+        sehingga `policySnapshot` run terbarui.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paydayDay: { type: integer, minimum: 1, maximum: 31 }
+                cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15 }
+                payrollTimezone: { type: string, example: Asia/Jakarta }
+                disburseBeforePaydayAllowed: { type: boolean }
+                paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day] }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: Payroll settings saved. }
+                  data:
+                    type: object
+                    properties:
+                      paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                      cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                      payrollTimezone: { type: string, example: Asia/Jakarta }
+                      disburseBeforePaydayAllowed: { type: boolean, example: false }
+                      paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day], example: previous_working_day }
+        '400':
+          description: Tenant context missing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, example: TENANT_REQUIRED }
+                      message: { type: string, example: Active company context is required. }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/payroll-periods/{id}/calculate-draft:
     post:
       tags: [Payroll]
@@ -4285,6 +4691,42 @@ paths:
                           finalizedByUserId:
                             type: integer
                             nullable: true
+                          policySnapshot:
+                            type: object
+                            nullable: true
+                            properties:
+                              paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                              cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                              payrollTimezone: { type: string, example: Asia/Jakarta }
+                              disburseBeforePaydayAllowed: { type: boolean, example: false }
+                              paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day], example: previous_working_day }
+                              resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                              resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                              draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                          lateArrivalBuffer:
+                            type: object
+                            nullable: true
+                            properties:
+                              capturedAt: { type: string, format: date-time, nullable: true }
+                              asOfDate: { type: string, format: date, nullable: true }
+                              periodStartDate: { type: string, format: date, nullable: true }
+                              periodEndDate: { type: string, format: date, nullable: true }
+                              hasLateArrivals: { type: boolean, example: false }
+                              migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                              sources:
+                                type: object
+                                nullable: true
+                                properties:
+                                  overtimeRequests:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
+                                  payrollItemAssignments:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
                           voidedAt:
                             type: string
                             format: date-time
@@ -4376,6 +4818,42 @@ paths:
                           finalizedByUserId:
                             type: integer
                             nullable: true
+                          policySnapshot:
+                            type: object
+                            nullable: true
+                            properties:
+                              paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                              cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                              payrollTimezone: { type: string, example: Asia/Jakarta }
+                              disburseBeforePaydayAllowed: { type: boolean, example: false }
+                              paydayHolidayStrategy: { type: string, enum: [previous_working_day, next_working_day, exact_calendar_day], example: previous_working_day }
+                              resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                              resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                              draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                          lateArrivalBuffer:
+                            type: object
+                            nullable: true
+                            properties:
+                              capturedAt: { type: string, format: date-time, nullable: true }
+                              asOfDate: { type: string, format: date, nullable: true }
+                              periodStartDate: { type: string, format: date, nullable: true }
+                              periodEndDate: { type: string, format: date, nullable: true }
+                              hasLateArrivals: { type: boolean, example: false }
+                              migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                              sources:
+                                type: object
+                                nullable: true
+                                properties:
+                                  overtimeRequests:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
+                                  payrollItemAssignments:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
                           period:
                             type: object
                             nullable: true
@@ -4523,6 +5001,41 @@ paths:
                       finalizedByUserId:
                         type: integer
                         nullable: true
+                      policySnapshot:
+                        type: object
+                        nullable: true
+                        properties:
+                          paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                          cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                          payrollTimezone: { type: string, example: Asia/Jakarta }
+                          disburseBeforePaydayAllowed: { type: boolean, example: false }
+                          resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                          resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                          draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                      lateArrivalBuffer:
+                        type: object
+                        nullable: true
+                        properties:
+                          capturedAt: { type: string, format: date-time, nullable: true }
+                          asOfDate: { type: string, format: date, nullable: true }
+                          periodStartDate: { type: string, format: date, nullable: true }
+                          periodEndDate: { type: string, format: date, nullable: true }
+                          hasLateArrivals: { type: boolean, example: false }
+                          migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                          sources:
+                            type: object
+                            nullable: true
+                            properties:
+                              overtimeRequests:
+                                type: object
+                                nullable: true
+                                properties:
+                                  totalCount: { type: integer, example: 0 }
+                              payrollItemAssignments:
+                                type: object
+                                nullable: true
+                                properties:
+                                  totalCount: { type: integer, example: 0 }
                       period:
                         type: object
                         nullable: true
@@ -4607,6 +5120,41 @@ paths:
                       finalizedByUserId:
                         type: integer
                         nullable: true
+                      policySnapshot:
+                        type: object
+                        nullable: true
+                        properties:
+                          paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                          cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                          payrollTimezone: { type: string, example: Asia/Jakarta }
+                          disburseBeforePaydayAllowed: { type: boolean, example: false }
+                          resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                          resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                          draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                          lateArrivalBuffer:
+                            type: object
+                            nullable: true
+                            properties:
+                              capturedAt: { type: string, format: date-time, nullable: true }
+                              asOfDate: { type: string, format: date, nullable: true }
+                              periodStartDate: { type: string, format: date, nullable: true }
+                              periodEndDate: { type: string, format: date, nullable: true }
+                              hasLateArrivals: { type: boolean, example: false }
+                              migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                              sources:
+                                type: object
+                                nullable: true
+                                properties:
+                                  overtimeRequests:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
+                                  payrollItemAssignments:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
                       period:
                         type: object
                         nullable: true
@@ -4649,6 +5197,10 @@ paths:
         otomatis memfinalkan run dan menandai periodenya sebagai `posted` sebelum menulis status pembayaran per karyawan.
         Pemanggilan berulang aman/idempotent: user yang sudah `paid` akan dilewati.
         Hanya user dengan total net pay `> 0` yang eligible untuk didisburse.
+        Untuk run `purpose=monthly`, server menolak request sebelum `resolvedPaydayDate` bila
+        `disburseBeforePaydayAllowed=false` pada `policySnapshot` (atau fallback setting tenant aktif).
+        MVP saat ini tidak menyediakan override inline untuk bypass guard tersebut; exception operasional
+        dilakukan melalui perubahan policy tenant yang disetujui lalu rebuild snapshot run.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
@@ -4687,6 +5239,42 @@ paths:
                     properties:
                       run:
                         type: object
+                        properties:
+                          policySnapshot:
+                            type: object
+                            nullable: true
+                            properties:
+                              paydayDay: { type: integer, minimum: 1, maximum: 31, example: 28 }
+                              cutoffOffsetDays: { type: integer, minimum: 0, maximum: 15, example: 3 }
+                              payrollTimezone: { type: string, example: Asia/Jakarta }
+                              disburseBeforePaydayAllowed: { type: boolean, example: false }
+                              resolvedPaydayDate: { type: string, format: date, nullable: true, example: '2026-04-28' }
+                              resolvedCutoffDate: { type: string, format: date, nullable: true, example: '2026-04-25' }
+                              draftDataAsOfDate: { type: string, format: date, nullable: true, example: '2026-04-30' }
+                          lateArrivalBuffer:
+                            type: object
+                            nullable: true
+                            properties:
+                              capturedAt: { type: string, format: date-time, nullable: true }
+                              asOfDate: { type: string, format: date, nullable: true }
+                              periodStartDate: { type: string, format: date, nullable: true }
+                              periodEndDate: { type: string, format: date, nullable: true }
+                              hasLateArrivals: { type: boolean, example: false }
+                              migrationMode: { type: string, nullable: true, example: next-period-date-based-rollover }
+                              sources:
+                                type: object
+                                nullable: true
+                                properties:
+                                  overtimeRequests:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
+                                  payrollItemAssignments:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      totalCount: { type: integer, example: 0 }
                       selectedUserIds:
                         type: array
                         items: { type: integer }
@@ -4699,6 +5287,25 @@ paths:
                       gatewayReference:
                         type: string
                         nullable: true
+                      lateArrivalMigration:
+                        type: object
+                        nullable: true
+                        properties:
+                          sourceRunId:
+                            type: integer
+                            example: 123
+                          targetPeriodId:
+                            type: integer
+                            example: 456
+                          targetPeriodYear:
+                            type: integer
+                            example: 2026
+                          targetPeriodMonth:
+                            type: integer
+                            example: 4
+                          targetRunId:
+                            type: integer
+                            example: 789
                       payment:
                         type: object
                         properties:
@@ -4720,11 +5327,142 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422':
-          description: Validation/domain error termasuk PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
+          description: Validation/domain error termasuk PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/hcm/payroll/work-profiles:
+    get:
+      tags: [Payroll]
+      summary: List payroll work profiles (admin + payroll view)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Payroll]
+      summary: Create payroll work profile (admin + payroll manage)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name, arrangementMode, defaultDayType, weeklyWorkDays]
+              properties:
+                code: { type: string, maxLength: 80, pattern: '^[a-z0-9_-]+$' }
+                name: { type: string, maxLength: 120 }
+                arrangementMode: { type: string, enum: [office_hour, shift_worker] }
+                defaultDayType: { type: string, enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short] }
+                weeklyWorkDays: { type: integer, enum: [5, 6] }
+                isDefault: { type: boolean }
+                meta: { type: object, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/work-profiles/{id}:
+    put:
+      tags: [Payroll]
+      summary: Update payroll work profile (admin + payroll manage)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 120 }
+                arrangementMode: { type: string, enum: [office_hour, shift_worker] }
+                defaultDayType: { type: string, enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short] }
+                weeklyWorkDays: { type: integer, enum: [5, 6] }
+                isDefault: { type: boolean }
+                meta: { type: object, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/work-arrangements:
+    get:
+      tags: [Payroll]
+      summary: List employee work arrangements for payroll resolver
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: userId, in: query, required: false, schema: { type: integer } }
+        - { name: effectiveDate, in: query, required: false, schema: { type: string, format: date } }
+        - { name: arrangementMode, in: query, required: false, schema: { type: string, enum: [office_hour, shift_worker] } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Payroll]
+      summary: Create employee work arrangement (admin + payroll manage)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, arrangementMode, effectiveFrom]
+              properties:
+                userId: { type: integer }
+                profileId: { type: integer, nullable: true }
+                arrangementMode: { type: string, enum: [office_hour, shift_worker] }
+                defaultDayType: { type: string, enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short], nullable: true }
+                weeklyWorkDays: { type: integer, enum: [5, 6], nullable: true }
+                effectiveFrom: { type: string, format: date }
+                effectiveTo: { type: string, format: date, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/work-arrangements/{id}:
+    put:
+      tags: [Payroll]
+      summary: Update employee work arrangement (admin + payroll manage)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profileId: { type: integer, nullable: true }
+                arrangementMode: { type: string, enum: [office_hour, shift_worker] }
+                defaultDayType: { type: string, enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short], nullable: true }
+                weeklyWorkDays: { type: integer, enum: [5, 6], nullable: true }
+                effectiveFrom: { type: string, format: date }
+                effectiveTo: { type: string, format: date, nullable: true }
+                notes: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/payroll/my-slip-latest-period:
     get:
       tags: [Payroll]
@@ -5975,7 +6713,26 @@ paths:
                 overtimeTypeId: { type: integer, nullable: true }
                 requestType: { type: string, enum: [employee_request, company_assignment, missed_log_correction], nullable: true }
                 workDate: { type: string, format: date }
-                minutes: { type: integer, minimum: 1, maximum: 1440 }
+                minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 1440
+                  description: |
+                    Nilai input teknis menerima sampai 1440 menit, tetapi create/update request tetap menegakkan guard hukum:
+                    - max 240 menit per hari (`OT_DAILY_LIMIT_EXCEEDED`)
+                    - max 1080 menit per minggu Senin-Minggu (`OT_WEEKLY_LIMIT_EXCEEDED`)
+                dayType:
+                  type: string
+                  nullable: true
+                  enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short, holiday, restday, restday_short]
+                  description: |
+                    Digunakan payroll draft untuk kalkulasi lembur per request. Jika kosong,
+                    sistem akan fallback ke resolver work arrangement karyawan.
+                weeklyWorkDays:
+                  type: integer
+                  nullable: true
+                  enum: [5, 6]
+                  description: Digunakan bersama dayType untuk matrix lembur 5/6 hari.
                 status: { type: string, enum: [pending, approved, declined], nullable: true }
                 projectName: { type: string, maxLength: 200, nullable: true }
                 notes: { type: string, maxLength: 2000, nullable: true }
@@ -6004,7 +6761,12 @@ paths:
                 baseMonthlySalary: { type: number, minimum: 0 }
                 fixedAllowance: { type: number, minimum: 0 }
                 minutes: { type: integer, minimum: 1, maximum: 1440 }
-                dayType: { type: string, enum: [workday, holiday] }
+                dayType:
+                  type: string
+                  enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short, holiday, restday, restday_short]
+                  description: |
+                    Enum aktif: `workday`, `public_holiday`, `weekly_rest_day`, `weekly_rest_day_short`.
+                    Alias legacy yang masih diterima: `holiday`, `restday`, `restday_short`.
                 weeklyWorkDays: { type: integer, enum: [5, 6] }
       responses:
         '200':
@@ -10235,7 +10997,9 @@ components:
             monthlyWage: { type: number }
             hourlyWage: { type: number }
             hours: { type: number }
-            dayType: { type: string }
+            dayType:
+              type: string
+              enum: [workday, public_holiday, weekly_rest_day, weekly_rest_day_short]
             weeklyWorkDays: { type: integer }
             segments:
               type: array

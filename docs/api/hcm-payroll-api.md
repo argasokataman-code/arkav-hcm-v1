@@ -26,6 +26,8 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - Admin payroll kini dapat membuat **assignment payroll item per karyawan** via endpoint `payroll-item-assignments`; assignment aktif otomatis dimasukkan ke draft payroll bulanan sesuai tanggal efektif.
 - Nominal negatif dari DB diperlakukan sebagai **0**.
 - Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** pembayaran gateway, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
+- Policy bulanan tenant kini dapat dikonfigurasi via **`GET/PUT /payroll/settings`** untuk `paydayDay`, `cutoffOffsetDays`, `payrollTimezone`, `disburseBeforePaydayAllowed`, dan `paydayHolidayStrategy`.
+- Draft run `purpose=monthly` kini menyimpan **`policySnapshot`** agar resolved payday/cutoff yang dipakai saat draft dibuat tetap audit-friendly walau setting tenant berubah sesudahnya.
 
 **Belum** di-cover penuh: posting GL, tabel audit terpisah, dan aturan pajak/payroll lanjutan.
 
@@ -35,6 +37,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 |----------|--------|
 | `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
+| `GET /payroll/settings`, `PUT /payroll/settings` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif |
 | `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
 | `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
@@ -71,7 +74,9 @@ Daftar periode (maks. 100 terbaru), urut tahun & bulan menurun.
 
 ### `GET /payroll-periods/{id}`
 
-**200** `data`: periode + `latestRun` (ringkas: `id`, `payrollPeriodId`, `status`, `calculatedAt`, `finalizedAt`, `finalizedByUserId`) atau `null`.
+**200** `data`: periode + `latestRun` (ringkas: `id`, `payrollPeriodId`, `status`, `calculatedAt`, `finalizedAt`, `finalizedByUserId`, `policySnapshot`, `lateArrivalBuffer`) atau `null`.
+
+`policySnapshot` hanya muncul untuk run `purpose=monthly` dan berisi salinan policy tenant saat draft dibuat: `paydayDay`, `cutoffOffsetDays`, `payrollTimezone`, `disburseBeforePaydayAllowed`, `paydayHolidayStrategy`, `resolvedPaydayDate`, `resolvedCutoffDate`, `draftDataAsOfDate`.
 
 ### `POST /payroll-periods/{id}/calculate-draft`
 
@@ -83,6 +88,10 @@ Membangun run `draft` payroll untuk periode secara **aman dari multi-click**:
 **422** `PAYROLL_PERIOD_FINALIZED` jika periode sudah memiliki run `finalized` (recalc tidak diizinkan sampai ada void / periode baru — backlog).
 
 **200** `data`: `run` (ringkas), `lineCount`, `employeeCount`, `anomalies`, `reusedExistingDraft`.
+
+Run ringkas kini juga dapat memuat `policySnapshot` untuk draft `monthly`, sehingga UI dan audit dapat melihat resolved payday/cutoff yang dipakai saat draft tersebut dihitung.
+
+Run ringkas juga memuat `lateArrivalBuffer` (jika tersedia) sebagai backlog pasca-cutoff baseline. Struktur ini berisi metadata capture (`capturedAt`, `asOfDate`, rentang periode, mode migrasi) dan ringkasan source (`overtimeRequests`, `payrollItemAssignments`) dengan `totalCount` + contoh entries terbatas.
 
 `anomalies` saat ini memuat:
 
@@ -96,6 +105,38 @@ Digunakan untuk audit cepat user yang perhitungan PPh21-nya masih fallback tax s
 Mengembalikan periode payroll aktif (`status=open`) terbaru. Jika belum ada periode open, endpoint akan mencari periode bulan berjalan yang sudah ada (termasuk status `posted`) untuk mencegah duplikasi period; jika tetap tidak ada, baru membuat periode bulan berjalan otomatis.
 
 **200** `data`: shape periode + `latestRun` (jika ada).
+
+### `GET /payroll/settings`
+
+Mengambil konfigurasi payroll bulanan tenant aktif. Endpoint ini dipakai halaman payroll run untuk menampilkan form policy cutoff/payday dan preview resolved date untuk periode aktif.
+
+**200** `data`:
+
+- `paydayDay` — integer 1–31
+- `cutoffOffsetDays` — integer 0–15
+- `payrollTimezone` — timezone IANA, default `Asia/Jakarta`
+- `disburseBeforePaydayAllowed` — boolean guard untuk operasi pembayaran lebih awal
+- `paydayHolidayStrategy` — strategi resolve payday saat jatuh di non-working day: `previous_working_day` (default), `next_working_day`, atau `exact_calendar_day`
+
+Jika setting tenant belum pernah disimpan, endpoint mengembalikan default runtime: payday `28`, cutoff `3`, timezone `Asia/Jakarta`, `disburseBeforePaydayAllowed = false`, dan `paydayHolidayStrategy = previous_working_day`.
+
+### `PUT /payroll/settings`
+
+Menyimpan konfigurasi payroll bulanan tenant aktif.
+
+**Body JSON**
+
+| Field | Wajib | Aturan |
+|-------|--------|--------|
+| `paydayDay` | tidak | integer 1–31 |
+| `cutoffOffsetDays` | tidak | integer 0–15 |
+| `payrollTimezone` | tidak | timezone IANA valid |
+| `disburseBeforePaydayAllowed` | tidak | boolean |
+| `paydayHolidayStrategy` | tidak | enum: `previous_working_day` \| `next_working_day` \| `exact_calendar_day` |
+
+**200** `data`: shape yang sama dengan `GET /payroll/settings`.
+
+**400** `TENANT_REQUIRED` jika active company context tidak tersedia.
 
 ### `GET /payroll-runs/history`
 
@@ -112,6 +153,8 @@ Query opsional:
 
 **200** `data[]`: ringkasan run (`serializeRun`) + `auditTrail[]`.
 
+Ringkasan run `monthly` juga memuat `policySnapshot` bila tersedia.
+
 Field audit yang kini relevan untuk run `void`:
 - `voidedAt`
 - `voidedByUserId`
@@ -124,6 +167,10 @@ Field audit yang kini relevan untuk run `void`:
 ### `GET /payroll-runs/{id}`
 
 **200** `data`: `run` (detail + `period` jika termuat), `lines[]` semua karyawan — urut `userId`, `sortOrder`.
+
+Untuk run `purpose=monthly`, objek `run` kini dapat memuat `policySnapshot` agar halaman admin/history dan audit trail dapat menjelaskan payday/cutoff yang berlaku pada saat draft tersebut dibangun.
+
+Objek `run` juga dapat memuat `lateArrivalBuffer` untuk menampilkan backlog aktivitas post-cutoff yang sengaja tidak masuk perhitungan run periode berjalan.
 
 Untuk run yang sudah di-void, payload `run` juga memuat `voidedAt`, `voidedByUserId`, dan `voidedByUserName`; `auditTrail[]` akan berisi event `voided` dengan waktu dan actor bila metadata tersedia.
 
@@ -160,7 +207,19 @@ Eksekusi gateway pembayaran payroll bulanan untuk subset **`userIds[]`** yang di
 
 Karyawan hanya dianggap **eligible** jika total net pay periodenya **`> 0`** (hanya komponen yang memengaruhi net pay). User dengan THP `<= 0` otomatis dikeluarkan dari target pembayaran.
 
+Untuk run `purpose=monthly`, endpoint juga menegakkan payday policy dari `policySnapshot` run. Jika `disburseBeforePaydayAllowed=false`, request sebelum `resolvedPaydayDate` akan ditolak server dengan policy error eksplisit. Jika snapshot belum ada pada run lama, controller fallback ke setting tenant payroll bulanan saat ini.
+
+Kontrak MVP saat ini adalah **hard-block murni tanpa override inline**. Jika tenant membutuhkan exception operasional, admin harus memastikan policy tenant yang disetujui sudah dipakai oleh snapshot run yang aktif: recalculate untuk run `draft`, atau `void` lalu hitung ulang untuk run `finalized` yang belum `paid`.
+
 Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan di `skippedAlreadyPaidUserIds`. Jika semua karyawan terpilih sudah paid, endpoint tetap mengembalikan **200** dengan `gatewayReference` yang sudah ada (no-op idempotent). Perlindungan race condition ditangani oleh `lockForUpdate()` pada transaksi DB.
+
+Untuk run `monthly` yang memiliki `lateArrivalBuffer` dan sudah selesai dibayar untuk seluruh user **eligible** (net pay `> 0`), endpoint akan menjalankan auto-migration GAP-OPS-01:
+- memastikan periode payroll bulan berikutnya tersedia,
+- me-queue metadata migrasi pada source run,
+- rebuild draft bulan berikutnya,
+- menandai source buffer sebagai `migrated`.
+
+Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutnya tanpa memasukkannya ke run periode source.
 
 **Body JSON**
 
@@ -176,9 +235,11 @@ Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan d
 - `skippedAlreadyPaidUserIds[]`
 - `gatewayReference`
 - `payment { status, employeeCount, paidEmployeeCount, paidUserIds, paidAt }`
+- `lateArrivalMigration` (nullable) — ringkasan hasil auto-migration post-cutoff jika dieksekusi (`targetPeriodId`, `targetPeriodYear`, `targetPeriodMonth`, `targetRunId`)
 
 **422**
 - `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada karyawan eligible yang bisa diproses
+- `PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN` jika run `monthly` dibayar sebelum `resolvedPaydayDate` saat policy tenant melarang early disburse
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
 

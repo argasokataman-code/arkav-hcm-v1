@@ -25,6 +25,7 @@
                             <input type="time" class="form-control" data-hcm-field="endTime" required value="18:00">
                         </div>
                     </div>
+                    <p class="text-muted small mb-3">Tips: untuk shift overnight, isi jam pulang lebih kecil dari jam masuk (contoh 22:00 - 06:00). Jam masuk dan jam pulang tidak boleh sama.</p>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
                         <textarea class="form-control" rows="2" data-hcm-field="description" maxlength="500"></textarea>
@@ -75,6 +76,7 @@
                             <input type="time" class="form-control" data-hcm-field="endTime" required>
                         </div>
                     </div>
+                    <p class="text-muted small mb-3">Tips: untuk shift overnight, isi jam pulang lebih kecil dari jam masuk (contoh 22:00 - 06:00). Jam masuk dan jam pulang tidak boleh sama.</p>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
                         <textarea class="form-control" rows="2" data-hcm-field="description" maxlength="500"></textarea>

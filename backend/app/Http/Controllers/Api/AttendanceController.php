@@ -1403,12 +1403,12 @@ class AttendanceController extends Controller
             $endStr = $validated['endTime'];
         }
 
-        if ($endStr <= $startStr) {
+        if ($endStr === $startStr) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
-                    'message' => 'endTime must be after startTime.',
+                    'message' => 'endTime cannot be equal to startTime.',
                 ],
             ], 422);
         }

@@ -18,6 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class HcmOvertimeRequestController extends Controller
 {
+    private const MAX_DAILY_OVERTIME_MINUTES = 4 * 60;
+
+    private const MAX_WEEKLY_OVERTIME_MINUTES = 18 * 60;
+
     public function __construct(
         private readonly OvertimePayCalculator $calculator
     ) {}
@@ -99,6 +103,8 @@ class HcmOvertimeRequestController extends Controller
                 'email' => $r->user?->email ?? '—',
                 'workDate' => $r->work_date->toDateString(),
                 'minutes' => $r->minutes,
+                'dayType' => $r->day_type,
+                'weeklyWorkDays' => $r->weekly_work_days,
                 'projectName' => $r->project_name ?? '',
                 'overtimeTypeId' => $r->hcm_overtime_type_id,
                 'overtimeTypeName' => $r->overtimeType?->name ?? '',
@@ -233,6 +239,8 @@ class HcmOvertimeRequestController extends Controller
             'requestType' => ['nullable', 'in:employee_request,company_assignment,missed_log_correction'],
             'workDate' => ['required', 'date'],
             'minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            'dayType' => ['nullable', 'in:workday,holiday,public_holiday,weekly_rest_day,weekly_rest_day_short,restday,restday_short'],
+            'weeklyWorkDays' => ['nullable', 'integer', 'in:5,6'],
             'status' => ['nullable', 'in:pending,approved,declined'],
             'projectName' => ['nullable', 'string', 'max:200'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -264,6 +272,16 @@ class HcmOvertimeRequestController extends Controller
         User::query()->findOrFail($userId);
         $status = $this->canManageOvertime($request) ? ($validated['status'] ?? 'pending') : 'pending';
 
+        $limitError = $this->validateLegalOvertimeLimits(
+            $request,
+            (int) $userId,
+            (string) $validated['workDate'],
+            (int) $validated['minutes']
+        );
+        if ($limitError instanceof JsonResponse) {
+            return $limitError;
+        }
+
         // Check for approved leave conflict
         $workDate = Carbon::parse($validated['workDate']);
         $leaveConflict = LeaveRequest::query()
@@ -293,6 +311,8 @@ class HcmOvertimeRequestController extends Controller
             'request_type' => $requestType,
             'work_date' => $validated['workDate'],
             'minutes' => $validated['minutes'],
+            'day_type' => $validated['dayType'] ?? null,
+            'weekly_work_days' => $validated['weeklyWorkDays'] ?? null,
             'project_name' => $validated['projectName'] ?? null,
             'status' => $status,
             'approved_by_user_id' => $status === 'pending' ? null : $actor->id,
@@ -340,6 +360,8 @@ class HcmOvertimeRequestController extends Controller
             'requestType' => ['nullable', 'in:employee_request,company_assignment,missed_log_correction'],
             'workDate' => ['sometimes', 'date'],
             'minutes' => ['sometimes', 'integer', 'min:1', 'max:1440'],
+            'dayType' => ['sometimes', 'nullable', 'in:workday,holiday,public_holiday,weekly_rest_day,weekly_rest_day_short,restday,restday_short'],
+            'weeklyWorkDays' => ['sometimes', 'nullable', 'integer', 'in:5,6'],
             'projectName' => ['nullable', 'string', 'max:200'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'policyNote' => ['nullable', 'string', 'max:500'],
@@ -371,6 +393,12 @@ class HcmOvertimeRequestController extends Controller
         if (isset($validated['minutes'])) {
             $payload['minutes'] = $validated['minutes'];
         }
+        if (array_key_exists('dayType', $validated)) {
+            $payload['day_type'] = $validated['dayType'];
+        }
+        if (array_key_exists('weeklyWorkDays', $validated)) {
+            $payload['weekly_work_days'] = $validated['weeklyWorkDays'];
+        }
         if (array_key_exists('projectName', $validated)) {
             $payload['project_name'] = $validated['projectName'];
         }
@@ -383,6 +411,20 @@ class HcmOvertimeRequestController extends Controller
 
         if ($r->status === 'pending' && $r->user_id === $actor->id) {
             $payload['hcm_salary_component_id'] = HcmSalaryComponent::resolveForOvertimePay()?->id;
+        }
+
+        $effectiveWorkDate = (string) ($payload['work_date'] ?? $r->work_date?->toDateString());
+        $effectiveMinutes = (int) ($payload['minutes'] ?? $r->minutes ?? 0);
+        $limitError = $this->validateLegalOvertimeLimits(
+            $request,
+            (int) $r->user_id,
+            $effectiveWorkDate,
+            $effectiveMinutes,
+            false,
+            (int) $r->id
+        );
+        if ($limitError instanceof JsonResponse) {
+            return $limitError;
         }
 
         if ($payload !== []) {
@@ -398,7 +440,7 @@ class HcmOvertimeRequestController extends Controller
             'baseMonthlySalary' => ['required', 'numeric', 'min:0'],
             'fixedAllowance' => ['nullable', 'numeric', 'min:0'],
             'minutes' => ['required', 'integer', 'min:1', 'max:1440'],
-            'dayType' => ['required', 'in:workday,holiday'],
+            'dayType' => ['required', 'in:workday,holiday,public_holiday,weekly_rest_day,weekly_rest_day_short,restday,restday_short'],
             'weeklyWorkDays' => ['nullable', 'integer', 'in:5,6'],
         ]);
 
@@ -471,5 +513,77 @@ class HcmOvertimeRequestController extends Controller
         if (! empty($validated['status'] ?? null)) {
             $query->where('status', $validated['status']);
         }
+    }
+
+    private function validateLegalOvertimeLimits(
+        Request $request,
+        int $userId,
+        string $workDate,
+        int $minutes,
+        bool $skipWeekly = false,
+        ?int $ignoreRequestId = null
+    ): ?JsonResponse {
+        if ($minutes > self::MAX_DAILY_OVERTIME_MINUTES) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'OT_DAILY_LIMIT_EXCEEDED',
+                    'message' => 'Overtime exceeds daily legal limit (4 hours).',
+                ],
+                'meta' => [
+                    'limitMinutes' => self::MAX_DAILY_OVERTIME_MINUTES,
+                    'requestedMinutes' => $minutes,
+                ],
+            ], 422);
+        }
+
+        if ($skipWeekly || $userId <= 0) {
+            return null;
+        }
+
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return null;
+        }
+
+        $workDateCarbon = Carbon::parse($workDate);
+        $weekStart = $workDateCarbon->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $weekEnd = $workDateCarbon->copy()->endOfWeek(Carbon::SUNDAY)->toDateString();
+
+        $weeklyQuery = OvertimeRequest::query()
+            ->where('user_id', $userId)
+            ->whereDate('work_date', '>=', $weekStart)
+            ->whereDate('work_date', '<=', $weekEnd)
+            ->whereIn('status', ['pending', 'approved']);
+
+        if ($ignoreRequestId) {
+            $weeklyQuery->whereKeyNot($ignoreRequestId);
+        }
+
+        $weeklyQuery->whereHas('user.employeeProfile', function (Builder $builder) use ($activeCompanyId): void {
+            $builder->where('company_id', $activeCompanyId);
+        });
+
+        $existingMinutes = (int) $weeklyQuery->sum('minutes');
+        $requestedTotal = $existingMinutes + $minutes;
+
+        if ($requestedTotal > self::MAX_WEEKLY_OVERTIME_MINUTES) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'OT_WEEKLY_LIMIT_EXCEEDED',
+                    'message' => 'Overtime exceeds weekly legal limit (18 hours).',
+                ],
+                'meta' => [
+                    'weekStart' => $weekStart,
+                    'weekEnd' => $weekEnd,
+                    'existingMinutes' => $existingMinutes,
+                    'requestedMinutes' => $minutes,
+                    'limitMinutes' => self::MAX_WEEKLY_OVERTIME_MINUTES,
+                ],
+            ], 422);
+        }
+
+        return null;
     }
 }

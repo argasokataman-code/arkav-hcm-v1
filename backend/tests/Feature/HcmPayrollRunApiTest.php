@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -163,6 +165,14 @@ class HcmPayrollRunApiTest extends TestCase
             'runId' => (int) $draft['run']['id'],
             'run' => $draft['run'],
         ];
+    }
+
+    private function setEarlyDisbursePolicy(bool $allowed): void
+    {
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
+            ['value' => $allowed ? '1' : '0', 'type' => 'boolean'],
+        );
     }
 
     public function test_non_admin_cannot_show_payroll_run(): void
@@ -416,6 +426,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -440,6 +451,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -470,11 +482,176 @@ class HcmPayrollRunApiTest extends TestCase
         }
     }
 
+    public function test_admin_cannot_disburse_monthly_run_before_payday_when_policy_blocks_early_payment(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(false);
+
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.payday_day'],
+            ['value' => '27', 'type' => 'integer'],
+        );
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.cutoff_offset_days'],
+            ['value' => '2', 'type' => 'integer'],
+        );
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
+            ['value' => '0', 'type' => 'boolean'],
+        );
+
+        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN')
+            ->assertJsonPath('error.message', 'Payroll tidak bisa dibayarkan sebelum payday 2026-08-27 sesuai policy tenant aktif.');
+
+        $this->assertFalse(
+            HcmPayrollLine::query()
+                ->where('hcm_payroll_run_id', $data['runId'])
+                ->get()
+                ->contains(fn (HcmPayrollLine $line): bool => strtolower((string) ($line->meta['paymentStatus'] ?? 'unpaid')) === 'paid')
+        );
+    }
+
+    public function test_admin_can_disburse_before_payday_when_policy_allows_early_payment(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
+
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.payday_day'],
+            ['value' => '27', 'type' => 'integer'],
+        );
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.cutoff_offset_days'],
+            ['value' => '2', 'type' => 'integer'],
+        );
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
+            ['value' => '1', 'type' => 'boolean'],
+        );
+
+        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.selectedUserIds.0', User::query()->where('email', 'employee@example.com')->firstOrFail()->id);
+    }
+
+    public function test_paid_monthly_run_auto_migrates_late_arrival_buffer_into_next_period_draft(): void
+    {
+        $this->employeeToken('migration-employee@example.com', 5_000_000);
+        $admin = $this->adminToken();
+
+        $employee = User::query()->where('email', 'migration-employee@example.com')->firstOrFail();
+        $companyId = $this->company?->id;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 27,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Jakarta',
+                'disburseBeforePaydayAllowed' => true,
+            ])
+            ->assertOk();
+
+        $lateOvertime = OvertimeRequest::query()->create([
+            'company_id' => $companyId,
+            'user_id' => $employee->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-03-26',
+            'minutes' => 120,
+            'day_type' => 'workday',
+            'weekly_work_days' => 5,
+            'status' => 'approved',
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 3,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.lateArrivalBuffer.hasLateArrivals', true)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.totalCount', 1)
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertOk();
+
+        $disburseResponse = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', [
+                'applyAll' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.payment.status', 'partial')
+            ->assertJsonPath('data.lateArrivalMigration.targetPeriodYear', 2026)
+            ->assertJsonPath('data.lateArrivalMigration.targetPeriodMonth', 4);
+
+        $nextPeriod = HcmPayrollPeriod::query()
+            ->where('company_id', $companyId)
+            ->where('period_year', 2026)
+            ->where('period_month', 4)
+            ->first();
+        $this->assertNotNull($nextPeriod);
+
+        $nextRun = HcmPayrollRun::query()
+            ->where('hcm_payroll_period_id', $nextPeriod->id)
+            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
+            ->where('status', HcmPayrollRun::STATUS_DRAFT)
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($nextRun);
+
+        $carryoverOvertimeLine = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $nextRun->id)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'upah_lembur')
+            ->first();
+
+        $this->assertNotNull($carryoverOvertimeLine);
+        $this->assertContains(
+            (int) $lateOvertime->id,
+            array_map('intval', (array) data_get($carryoverOvertimeLine->meta, 'carryoverLateArrivalRequestIds', []))
+        );
+
+        $sourceRun = HcmPayrollRun::query()->findOrFail($runId);
+        $this->assertSame('migrated', (string) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.status'));
+        $this->assertSame(2026, (int) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.targetPeriodYear'));
+        $this->assertSame(4, (int) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.targetPeriodMonth'));
+    }
+
     public function test_admin_disburse_selective_employees(): void
     {
         $emp1 = $this->employeeToken('emp1@example.com', 5_000_000);
         $emp2 = $this->employeeToken('emp2@example.com', 6_000_000);
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
 
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
@@ -508,6 +685,7 @@ class HcmPayrollRunApiTest extends TestCase
         $this->employeeToken('uuid-emp@example.com', 5_500_000);
         $this->employeeToken('uuid-emp-2@example.com', 6_100_000);
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
 
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
@@ -548,6 +726,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 9);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -578,6 +757,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->primarySuperAdminCodeOneToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 10);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -607,6 +787,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $employee = $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 11);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -741,6 +922,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 4);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -788,6 +970,7 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -875,6 +1058,7 @@ class HcmPayrollRunApiTest extends TestCase
         $zeroNetUserId = (int) User::query()->where('email', 'zero-net-employee@example.com')->value('id');
 
         $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])

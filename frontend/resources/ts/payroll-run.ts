@@ -21,6 +21,21 @@ type PayrollRun = {
     paymentStatus?: string;
     finalizedAt?: string | null;
     period?: { periodYear: number; periodMonth: number; status: string };
+    policySnapshot?: PayrollPolicySnapshot | null;
+};
+
+type PayrollSettings = {
+    paydayDay: number;
+    cutoffOffsetDays: number;
+    payrollTimezone: string;
+    disburseBeforePaydayAllowed: boolean;
+    paydayHolidayStrategy: "previous_working_day" | "next_working_day" | "exact_calendar_day";
+};
+
+type PayrollPolicySnapshot = PayrollSettings & {
+    resolvedPaydayDate?: string | null;
+    resolvedCutoffDate?: string | null;
+    draftDataAsOfDate?: string | null;
 };
 
 /** Normalisasi status run dari payload API (varian key / null) + infer aman bila `status` kosong. */
@@ -60,6 +75,40 @@ type EmployeeRow = {
     paidAt: string | null;
     gatewayReference: string | null;
     lines: PayrollLine[];
+};
+
+type PayrollWorkProfile = {
+    id: number;
+    code: string;
+    name: string;
+    arrangementMode: string;
+    defaultDayType: string;
+    weeklyWorkDays: number;
+    isDefault: boolean;
+};
+
+type PayrollWorkArrangement = {
+    id: number;
+    userId: number;
+    userName: string;
+    profileId: number | null;
+    profileCode?: string | null;
+    profileName?: string | null;
+    arrangementMode: string;
+    defaultDayType?: string | null;
+    weeklyWorkDays?: number | null;
+    effectiveFrom?: string | null;
+    effectiveTo?: string | null;
+};
+
+const _workConfigState: {
+    profiles: PayrollWorkProfile[];
+    arrangements: PayrollWorkArrangement[];
+    users: Array<{ id: number; name: string; email?: string | null }>;
+} = {
+    profiles: [],
+    arrangements: [],
+    users: [],
 };
 
 function formatIdr(n: number): string {
@@ -176,6 +225,7 @@ const _state: {
     currentRunId: number | null;
     /** Run status from API (`draft` | `finalized` | …); dipakai untuk tombol Calculate vs Export. */
     currentRunStatus: string | null;
+    currentPolicySnapshot: PayrollPolicySnapshot | null;
     currentRows: EmployeeRow[];
     loading: boolean;
     /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
@@ -184,9 +234,18 @@ const _state: {
     currentPeriodId: null,
     currentRunId: null,
     currentRunStatus: null,
+    currentPolicySnapshot: null,
     currentRows: [],
     loading: false,
     reconciliationDownloadedForRunId: null,
+};
+
+const POST_CUTOFF_REVIEW_ONLY_HINT = "Mode post-cutoff saat ini bersifat review-only. Calculate Draft tetap boleh untuk cek data, tetapi export/disburse menunggu tenggat payday sesuai policy run aktif.";
+
+const _payrollSettingsState: {
+    settings: PayrollSettings | null;
+} = {
+    settings: null,
 };
 
 function currentRunStatus(): string {
@@ -217,6 +276,821 @@ function markReconciliationDownloadedForCurrentRun(): void {
 
 function _getRoot(): HTMLElement | null {
     return document.querySelector<HTMLElement>("[data-payroll-run-panel]");
+}
+
+function getWorkConfigRoot(): HTMLElement | null {
+    const root = document.querySelector<HTMLElement>("[data-payroll-work-config-panel]");
+    if (!root || root.classList.contains("d-none")) {
+        return null;
+    }
+    return root;
+}
+
+function showWorkConfigError(message: string): void {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+    const errorEl = root.querySelector<HTMLElement>("[data-payroll-work-error]");
+    if (!errorEl) {
+        return;
+    }
+    if (!message) {
+        errorEl.classList.add("d-none");
+        errorEl.textContent = "";
+        return;
+    }
+    errorEl.classList.remove("d-none");
+    errorEl.textContent = message;
+}
+
+function arrangementModeLabel(mode: string): string {
+    return mode === "shift_worker" ? "Shift Worker" : "Office Hour";
+}
+
+function dayTypeLabel(dayType: string | null | undefined): string {
+    if (!dayType) {
+        return "Auto";
+    }
+
+    switch (dayType) {
+    case "public_holiday":
+        return "Public Holiday";
+    case "weekly_rest_day":
+        return "Weekly Rest Day";
+    case "weekly_rest_day_short":
+        return "Weekly Rest Day Short";
+    default:
+        return "Workday";
+    }
+}
+
+function parseIntOrNull(value: string | null | undefined): number | null {
+    const parsed = Number.parseInt(String(value || "").trim(), 10);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getPayrollSettingsRoot(): HTMLElement | null {
+    return document.querySelector<HTMLElement>("[data-payroll-settings-panel]");
+}
+
+function formatIsoDateLabel(value: string | null | undefined, timeZone: string): string {
+    if (!value) {
+        return "-";
+    }
+
+    const parsed = new Date(`${value}T12:00:00`);
+    return new Intl.DateTimeFormat("id-ID", {
+        timeZone,
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    }).format(parsed);
+}
+
+function resolvePayrollPolicyPreview(settings: PayrollSettings, periodYear: number | null, periodMonth: number | null): PayrollPolicySnapshot | null {
+    if (!periodYear || !periodMonth) {
+        return null;
+    }
+
+    const lastDay = new Date(periodYear, periodMonth, 0).getDate();
+    const paydayDay = Math.max(1, Math.min(settings.paydayDay, lastDay));
+    const payday = new Date(Date.UTC(periodYear, periodMonth - 1, paydayDay));
+    const resolvedPayday = applyHolidayStrategyPreview(payday, settings.paydayHolidayStrategy);
+    const cutoff = new Date(resolvedPayday.getTime());
+    cutoff.setUTCDate(cutoff.getUTCDate() - Math.max(0, settings.cutoffOffsetDays));
+
+    const toIso = (date: Date): string => {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
+
+    return {
+        ...settings,
+        resolvedPaydayDate: toIso(resolvedPayday),
+        resolvedCutoffDate: toIso(cutoff),
+    };
+}
+
+function applyHolidayStrategyPreview(payday: Date, strategy: PayrollSettings["paydayHolidayStrategy"]): Date {
+    if (strategy === "exact_calendar_day") {
+        return payday;
+    }
+
+    const candidate = new Date(payday.getTime());
+    let guard = 0;
+    while (isWeekendUtc(candidate)) {
+        if (strategy === "next_working_day") {
+            candidate.setUTCDate(candidate.getUTCDate() + 1);
+        } else {
+            candidate.setUTCDate(candidate.getUTCDate() - 1);
+        }
+
+        guard += 1;
+        if (guard > 14) {
+            break;
+        }
+    }
+
+    return candidate;
+}
+
+function isWeekendUtc(value: Date): boolean {
+    const day = value.getUTCDay();
+    return day === 0 || day === 6;
+}
+
+function payrollPolicyStage(snapshot: PayrollPolicySnapshot | null): { label: string; badgeClass: string; note: string } {
+    if (!snapshot?.resolvedCutoffDate || !snapshot?.payrollTimezone) {
+        return {
+            label: "Policy belum siap",
+            badgeClass: "bg-secondary",
+            note: "Lengkapi policy payroll untuk melihat resolved cutoff dan payday periode aktif.",
+        };
+    }
+
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: snapshot.payrollTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+    const today = formatter.format(new Date());
+
+    if (today <= snapshot.resolvedCutoffDate) {
+        return {
+            label: "Pre-cutoff",
+            badgeClass: "bg-success",
+            note: "Data payroll periode aktif masih bisa direfresh. Item variabel baru yang valid masih dapat masuk ke draft periode berjalan.",
+        };
+    }
+
+    return {
+        label: "Post-cutoff",
+        badgeClass: "bg-warning text-dark",
+        note: "Perubahan variabel baru setelah cutoff sebaiknya diperlakukan sebagai input periode berikutnya dan bukan otomatis masuk ke draft berjalan.",
+    };
+}
+
+function currentLocalDateIso(timeZone: string): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+}
+
+function isPostCutoffReviewOnlyMode(): boolean {
+    const snapshot = _state.currentPolicySnapshot;
+    if (!snapshot?.resolvedCutoffDate || !snapshot?.resolvedPaydayDate || !snapshot?.payrollTimezone) {
+        return false;
+    }
+
+    if (snapshot.disburseBeforePaydayAllowed) {
+        return false;
+    }
+
+    const today = currentLocalDateIso(snapshot.payrollTimezone);
+    return today > snapshot.resolvedCutoffDate && today < snapshot.resolvedPaydayDate;
+}
+
+function showPayrollSettingsFeedback(message: string, danger = true): void {
+    const root = getPayrollSettingsRoot();
+    const feedback = root?.querySelector<HTMLElement>("[data-payroll-settings-feedback]");
+    if (!feedback) {
+        if (message) {
+            toast(message, danger);
+        }
+        return;
+    }
+
+    if (!message) {
+        feedback.classList.add("d-none");
+        feedback.classList.remove("alert-danger", "alert-success");
+        feedback.textContent = "";
+        return;
+    }
+
+    feedback.classList.remove("d-none", "alert-danger", "alert-success");
+    feedback.classList.add(danger ? "alert-danger" : "alert-success");
+    feedback.textContent = message;
+}
+
+function fillPayrollSettingsForm(settings: PayrollSettings): void {
+    const root = getPayrollSettingsRoot();
+    if (!root) {
+        return;
+    }
+
+    const paydayInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-payday-day]");
+    const cutoffInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-cutoff-offset]");
+    const timezoneSelect = root.querySelector<HTMLSelectElement>("[data-payroll-settings-timezone]");
+    const disburseEarlyInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-disburse-early]");
+    const holidayStrategySelect = root.querySelector<HTMLSelectElement>("[data-payroll-settings-holiday-strategy]");
+
+    if (paydayInput) paydayInput.value = String(settings.paydayDay);
+    if (cutoffInput) cutoffInput.value = String(settings.cutoffOffsetDays);
+    if (timezoneSelect) timezoneSelect.value = settings.payrollTimezone;
+    if (disburseEarlyInput) disburseEarlyInput.checked = !!settings.disburseBeforePaydayAllowed;
+    if (holidayStrategySelect) holidayStrategySelect.value = settings.paydayHolidayStrategy;
+}
+
+function renderPayrollSettingsPreview(): void {
+    const root = getPayrollSettingsRoot();
+    const settings = _payrollSettingsState.settings;
+    if (!root || !settings) {
+        return;
+    }
+
+    const runRoot = _getRoot();
+    const year = parseIntOrNull(runRoot?.querySelector<HTMLInputElement>("[data-payroll-run-year]")?.value || null);
+    const month = parseIntOrNull(runRoot?.querySelector<HTMLSelectElement>("[data-payroll-run-month]")?.value || null);
+    const preview = resolvePayrollPolicyPreview(settings, year, month);
+    const stage = payrollPolicyStage(preview);
+
+    const periodEl = root.querySelector<HTMLElement>("[data-payroll-settings-preview-period]");
+    const paydayEl = root.querySelector<HTMLElement>("[data-payroll-settings-preview-payday]");
+    const cutoffEl = root.querySelector<HTMLElement>("[data-payroll-settings-preview-cutoff]");
+    const noteEl = root.querySelector<HTMLElement>("[data-payroll-settings-preview-note]");
+    const stageEl = root.querySelector<HTMLElement>("[data-payroll-settings-stage]");
+
+    if (periodEl) {
+        periodEl.textContent = year && month ? `${String(month).padStart(2, "0")}/${year}` : "Menunggu periode aktif...";
+    }
+    if (paydayEl) {
+        paydayEl.textContent = preview ? formatIsoDateLabel(preview.resolvedPaydayDate, settings.payrollTimezone) : "-";
+    }
+    if (cutoffEl) {
+        cutoffEl.textContent = preview ? formatIsoDateLabel(preview.resolvedCutoffDate, settings.payrollTimezone) : "-";
+    }
+    if (noteEl) {
+        noteEl.textContent = stage.note;
+    }
+    if (stageEl) {
+        stageEl.className = `badge ${stage.badgeClass}`;
+        stageEl.textContent = stage.label;
+    }
+}
+
+async function loadPayrollSettings(): Promise<void> {
+    if (!getPayrollSettingsRoot()) {
+        return;
+    }
+
+    try {
+        const resp = await apiRequest("get", "/v1/hcm/payroll/settings") as ApiResponse<PayrollSettings>;
+        if (!resp.success) {
+            showPayrollSettingsFeedback(formatApiError(resp, 400), true);
+            return;
+        }
+
+        _payrollSettingsState.settings = {
+            paydayDay: Number(resp.data.paydayDay || 0) || 28,
+            cutoffOffsetDays: Number(resp.data.cutoffOffsetDays || 0),
+            payrollTimezone: String(resp.data.payrollTimezone || "Asia/Jakarta"),
+            disburseBeforePaydayAllowed: !!resp.data.disburseBeforePaydayAllowed,
+            paydayHolidayStrategy: (resp.data.paydayHolidayStrategy || "previous_working_day") as PayrollSettings["paydayHolidayStrategy"],
+        };
+        fillPayrollSettingsForm(_payrollSettingsState.settings);
+        showPayrollSettingsFeedback("", false);
+        renderPayrollSettingsPreview();
+    } catch (e: any) {
+        showPayrollSettingsFeedback(formatApiError(e.response?.data || {}, 500), true);
+    }
+}
+
+async function savePayrollSettings(): Promise<void> {
+    const root = getPayrollSettingsRoot();
+    if (!root) {
+        return;
+    }
+
+    const saveBtn = root.querySelector<HTMLButtonElement>("[data-payroll-settings-save]");
+    const paydayInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-payday-day]");
+    const cutoffInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-cutoff-offset]");
+    const timezoneSelect = root.querySelector<HTMLSelectElement>("[data-payroll-settings-timezone]");
+    const disburseEarlyInput = root.querySelector<HTMLInputElement>("[data-payroll-settings-disburse-early]");
+    const holidayStrategySelect = root.querySelector<HTMLSelectElement>("[data-payroll-settings-holiday-strategy]");
+    if (!paydayInput || !cutoffInput || !timezoneSelect || !disburseEarlyInput || !holidayStrategySelect) {
+        return;
+    }
+
+    const payload = {
+        paydayDay: parseIntOrNull(paydayInput.value),
+        cutoffOffsetDays: parseIntOrNull(cutoffInput.value),
+        payrollTimezone: timezoneSelect.value,
+        disburseBeforePaydayAllowed: disburseEarlyInput.checked,
+        paydayHolidayStrategy: holidayStrategySelect.value,
+    };
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Menyimpan...";
+    }
+
+    try {
+        const resp = await apiRequest("put", "/v1/hcm/payroll/settings", payload) as ApiResponse<PayrollSettings>;
+        if (!resp.success) {
+            showPayrollSettingsFeedback(formatApiError(resp, 400), true);
+            return;
+        }
+
+        _payrollSettingsState.settings = {
+            paydayDay: Number(resp.data.paydayDay || 0) || 28,
+            cutoffOffsetDays: Number(resp.data.cutoffOffsetDays || 0),
+            payrollTimezone: String(resp.data.payrollTimezone || "Asia/Jakarta"),
+            disburseBeforePaydayAllowed: !!resp.data.disburseBeforePaydayAllowed,
+            paydayHolidayStrategy: (resp.data.paydayHolidayStrategy || "previous_working_day") as PayrollSettings["paydayHolidayStrategy"],
+        };
+        fillPayrollSettingsForm(_payrollSettingsState.settings);
+        renderPayrollSettingsPreview();
+        showPayrollSettingsFeedback("Policy payroll berhasil disimpan. Run finalized yang belum paid tetap memakai snapshot lama; void lalu Calculate Draft ulang jika policy baru harus diterapkan.", false);
+    } catch (e: any) {
+        showPayrollSettingsFeedback(formatApiError(e.response?.data || {}, 500), true);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Simpan policy payroll";
+        }
+    }
+}
+
+function renderWorkProfiles(profiles: PayrollWorkProfile[]): void {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    const profileBody = root.querySelector<HTMLElement>("[data-payroll-work-profiles-body]");
+    const profileSelect = root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-profile]");
+
+    if (profileBody) {
+        if (!profiles.length) {
+            profileBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Belum ada profile.</td></tr>';
+        } else {
+            profileBody.innerHTML = profiles.map((profile) => {
+                const summary = `${arrangementModeLabel(profile.arrangementMode)} · ${dayTypeLabel(profile.defaultDayType)} · ${profile.weeklyWorkDays} hari`;
+                return `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${profile.name}</div>
+                            <div class="text-muted small">${profile.code}</div>
+                        </td>
+                        <td class="small">${summary}</td>
+                        <td class="text-center">${profile.isDefault ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Default</span>' : '<span class="text-muted">-</span>'}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+    }
+
+    if (profileSelect) {
+        const current = profileSelect.value;
+        profileSelect.innerHTML = '<option value="">Custom tanpa profile</option>' + profiles.map((profile) => `<option value="${profile.id}">${profile.name} (${profile.code})</option>`).join("");
+        if (current && profileSelect.querySelector(`option[value="${current}"]`)) {
+            profileSelect.value = current;
+        }
+    }
+}
+
+function renderWorkArrangements(arrangements: PayrollWorkArrangement[]): void {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    const body = root.querySelector<HTMLElement>("[data-payroll-work-arrangements-body]");
+    if (!body) {
+        return;
+    }
+
+    if (!arrangements.length) {
+        body.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Belum ada assignment.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = arrangements.map((row) => {
+        const profileText = row.profileName
+            ? `${row.profileName} (${row.profileCode || "-"})`
+            : `${arrangementModeLabel(row.arrangementMode)} · ${dayTypeLabel(row.defaultDayType)} · ${row.weeklyWorkDays || "auto"} hari`;
+        const effectiveText = `${row.effectiveFrom || "-"} s/d ${row.effectiveTo || "open"}`;
+        return `
+            <tr>
+                <td>
+                    <div class="fw-semibold">${row.userName || `User #${row.userId}`}</div>
+                    <div class="text-muted small">UID: ${row.userId}</div>
+                </td>
+                <td class="small">${profileText}</td>
+                <td class="small">${effectiveText}</td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function renderEmployeeOptions(users: Array<{ id: number; name: string; email?: string | null }>): void {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    const select = root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-user]");
+    if (!select) {
+        return;
+    }
+
+    const current = select.value;
+    select.innerHTML = '<option value="">Pilih karyawan</option>' + users.map((user) => {
+        const emailSuffix = user.email ? ` · ${user.email}` : "";
+        return `<option value="${user.id}">${user.name}${emailSuffix}</option>`;
+    }).join("");
+
+    if (current && select.querySelector(`option[value="${current}"]`)) {
+        select.value = current;
+    }
+}
+
+function isoDateFromPayrollPeriodOrToday(): string {
+    const root = _getRoot();
+    const year = Number(root?.querySelector<HTMLInputElement>("[data-payroll-run-year]")?.value || 0);
+    const month = Number(root?.querySelector<HTMLSelectElement>("[data-payroll-run-month]")?.value || 0);
+    if (Number.isFinite(year) && year >= 2000 && Number.isFinite(month) && month >= 1 && month <= 12) {
+        return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-01`;
+    }
+
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function isArrangementActiveOnDate(row: PayrollWorkArrangement, isoDate: string): boolean {
+    const from = String(row.effectiveFrom || "").trim();
+    const to = String(row.effectiveTo || "").trim();
+    if (!from) {
+        return false;
+    }
+    if (from > isoDate) {
+        return false;
+    }
+    if (!to) {
+        return true;
+    }
+    return to >= isoDate;
+}
+
+async function autoGenerateWorkArrangementsFromRun(options?: { showToast?: boolean; useWorkConfigError?: boolean }): Promise<{ created: number; skipped: number }> {
+    const root = getWorkConfigRoot();
+    if (options?.useWorkConfigError !== false && root) {
+        showWorkConfigError("");
+    }
+
+    const btn = root?.querySelector<HTMLButtonElement>("[data-payroll-work-auto-generate]") || null;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Generating...";
+    }
+
+    try {
+        const effectiveFrom = isoDateFromPayrollPeriodOrToday();
+        const profileResp = await apiRequest("get", "/v1/hcm/payroll/work-profiles") as ApiResponse<PayrollWorkProfile[]>;
+        const arrangementResp = await apiRequest("get", "/v1/hcm/payroll/work-arrangements?perPage=25") as ApiResponse<PayrollWorkArrangement[]>;
+        if (!profileResp?.success) {
+            throw new Error(formatApiError(profileResp, 400));
+        }
+        if (!arrangementResp?.success) {
+            throw new Error(formatApiError(arrangementResp, 400));
+        }
+
+        const profiles = Array.isArray(profileResp.data) ? profileResp.data : [];
+        const arrangements = Array.isArray(arrangementResp.data) ? arrangementResp.data : [];
+
+        let users = usersFromCurrentPayrollRows();
+        if (!users.length) {
+            users = await usersFromCurrentPayrollRunDetail();
+        }
+        if (!users.length) {
+            if (options?.useWorkConfigError !== false && root) {
+                showWorkConfigError("Belum ada user dari run aktif untuk di-auto-generate.");
+            }
+            return { created: 0, skipped: 0 };
+        }
+
+        const activeUserSet = new Set<number>();
+        for (const arrangement of arrangements) {
+            if (isArrangementActiveOnDate(arrangement, effectiveFrom)) {
+                activeUserSet.add(Number(arrangement.userId));
+            }
+        }
+
+        const defaultProfile = profiles.find((profile) => !!profile.isDefault) || null;
+        let created = 0;
+        let skipped = 0;
+        for (const user of users) {
+            if (activeUserSet.has(user.id)) {
+                skipped += 1;
+                continue;
+            }
+
+            const payload = {
+                userId: user.id,
+                profileId: defaultProfile ? defaultProfile.id : null,
+                arrangementMode: defaultProfile ? defaultProfile.arrangementMode : "office_hour",
+                defaultDayType: defaultProfile ? null : "workday",
+                weeklyWorkDays: defaultProfile ? null : 5,
+                effectiveFrom,
+                effectiveTo: null,
+            };
+
+            const response = await apiRequest("post", "/v1/hcm/payroll/work-arrangements", payload) as ApiResponse<PayrollWorkArrangement>;
+            if (!response?.success) {
+                throw new Error(formatApiError(response, 400));
+            }
+
+            created += 1;
+        }
+
+        if (root) {
+            await refreshWorkConfigurator();
+        }
+        if (options?.showToast !== false) {
+            toast(`Auto-generate selesai. Created: ${created}, skipped: ${skipped}.`, false);
+        }
+        return { created, skipped };
+    } catch (error: any) {
+        if (options?.useWorkConfigError !== false && root) {
+            showWorkConfigError(error?.message || "Auto-generate assignment gagal.");
+        }
+        return { created: 0, skipped: 0 };
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Auto Generate dari Run Aktif";
+        }
+    }
+}
+
+function usersFromCurrentPayrollRows(): Array<{ id: number; name: string; email?: string | null }> {
+    const unique = new Map<number, { id: number; name: string; email?: string | null }>();
+    for (const row of _state.currentRows) {
+        const userId = Number(row.userId);
+        if (!Number.isFinite(userId) || userId <= 0) {
+            continue;
+        }
+        const name = String(row.name || row.userName || row.meta?.userName || `User #${userId}`).trim();
+        if (!unique.has(userId)) {
+            unique.set(userId, { id: userId, name: name || `User #${userId}`, email: null });
+        }
+    }
+    return Array.from(unique.values());
+}
+
+async function usersFromCurrentPayrollRunDetail(): Promise<Array<{ id: number; name: string; email?: string | null }>> {
+    if (!_state.currentRunId) {
+        return [];
+    }
+
+    const response = await apiRequest("get", `/v1/hcm/payroll-runs/${_state.currentRunId}`) as ApiResponse<{ lines?: PayrollLine[] }>;
+    if (!response?.success) {
+        return [];
+    }
+
+    const lines = Array.isArray(response.data?.lines) ? response.data.lines : [];
+    const unique = new Map<number, { id: number; name: string; email?: string | null }>();
+    for (const line of lines) {
+        const userId = Number(line.userId);
+        if (!Number.isFinite(userId) || userId <= 0) {
+            continue;
+        }
+        const name = String(line.userName || line.meta?.userName || `User #${userId}`).trim();
+        if (!unique.has(userId)) {
+            unique.set(userId, { id: userId, name: name || `User #${userId}`, email: null });
+        }
+    }
+
+    return Array.from(unique.values());
+}
+
+async function refreshWorkConfigurator(): Promise<void> {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    showWorkConfigError("");
+    const profilesBody = root.querySelector<HTMLElement>("[data-payroll-work-profiles-body]");
+    const arrangementsBody = root.querySelector<HTMLElement>("[data-payroll-work-arrangements-body]");
+
+    if (profilesBody) {
+        profilesBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Memuat profile...</td></tr>';
+    }
+    if (arrangementsBody) {
+        arrangementsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">Memuat assignment...</td></tr>';
+    }
+
+    try {
+        const profileResp = await apiRequest("get", "/v1/hcm/payroll/work-profiles") as ApiResponse<PayrollWorkProfile[]>;
+        const arrangementResp = await apiRequest("get", "/v1/hcm/payroll/work-arrangements?perPage=25") as ApiResponse<PayrollWorkArrangement[]>;
+        let employeeResp: ApiResponse<Array<{ id?: number; userId?: number; name?: string; fullName?: string; email?: string | null }>> | null = null;
+        try {
+            employeeResp = await apiRequest("get", "/v1/hcm/employees?page=1&perPage=100") as ApiResponse<Array<{ id?: number; userId?: number; name?: string; fullName?: string; email?: string | null }>>;
+        } catch (_employeeErr) {
+            employeeResp = null;
+        }
+
+        if (!profileResp?.success) {
+            throw new Error(formatApiError(profileResp, 400));
+        }
+        if (!arrangementResp?.success) {
+            throw new Error(formatApiError(arrangementResp, 400));
+        }
+
+        const profiles = Array.isArray(profileResp.data) ? profileResp.data : [];
+        const arrangements = Array.isArray(arrangementResp.data) ? arrangementResp.data : [];
+        const employeeRows = employeeResp?.success && Array.isArray(employeeResp.data) ? employeeResp.data : [];
+        const usersFromDirectory = employeeRows
+            .map((item) => ({
+                id: Number(item.userId ?? item.id ?? 0),
+                name: String(item.fullName || item.name || ""),
+                email: item.email || null,
+            }))
+            .filter((item) => Number.isFinite(item.id) && item.id > 0 && item.name);
+        const fallbackFromState = usersFromCurrentPayrollRows();
+        let fallbackFromRun: Array<{ id: number; name: string; email?: string | null }> = [];
+        if (!usersFromDirectory.length && !fallbackFromState.length) {
+            fallbackFromRun = await usersFromCurrentPayrollRunDetail();
+        }
+
+        const usersById = new Map<number, { id: number; name: string; email?: string | null }>();
+        for (const user of [...usersFromDirectory, ...fallbackFromState, ...fallbackFromRun]) {
+            if (!Number.isFinite(user.id) || user.id <= 0) {
+                continue;
+            }
+            if (!usersById.has(user.id)) {
+                usersById.set(user.id, user);
+            }
+        }
+        const users = Array.from(usersById.values());
+        _workConfigState.profiles = profiles;
+        _workConfigState.arrangements = arrangements;
+        _workConfigState.users = users;
+
+        renderWorkProfiles(profiles);
+        renderWorkArrangements(arrangements);
+        renderEmployeeOptions(users);
+
+        if (!users.length) {
+            showWorkConfigError("Belum ada kandidat karyawan. Coba refresh setelah data payroll run bulanan dimuat.");
+        }
+    } catch (error: any) {
+        showWorkConfigError(error?.message || "Gagal memuat konfigurasi payroll work arrangement.");
+    }
+}
+
+async function submitWorkProfileForm(form: HTMLFormElement): Promise<void> {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    const code = root.querySelector<HTMLInputElement>("[data-payroll-work-profile-code]")?.value?.trim() || "";
+    const name = root.querySelector<HTMLInputElement>("[data-payroll-work-profile-name]")?.value?.trim() || "";
+    const arrangementMode = root.querySelector<HTMLSelectElement>("[data-payroll-work-profile-mode]")?.value || "office_hour";
+    const defaultDayType = root.querySelector<HTMLSelectElement>("[data-payroll-work-profile-day-type]")?.value || "workday";
+    const weeklyWorkDays = parseIntOrNull(root.querySelector<HTMLSelectElement>("[data-payroll-work-profile-weekly-days]")?.value) || 5;
+    const isDefault = !!root.querySelector<HTMLInputElement>("[data-payroll-work-profile-default]")?.checked;
+    const submitBtn = root.querySelector<HTMLButtonElement>("[data-payroll-work-profile-submit]");
+
+    if (!code || !name) {
+        showWorkConfigError("Kode dan nama profile wajib diisi.");
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+    }
+
+    try {
+        const response = await apiRequest("post", "/v1/hcm/payroll/work-profiles", {
+            code,
+            name,
+            arrangementMode,
+            defaultDayType,
+            weeklyWorkDays,
+            isDefault,
+        }) as ApiResponse<PayrollWorkProfile>;
+
+        if (!response?.success) {
+            showWorkConfigError(formatApiError(response, 400));
+            return;
+        }
+
+        form.reset();
+        const weeklySelect = root.querySelector<HTMLSelectElement>("[data-payroll-work-profile-weekly-days]");
+        if (weeklySelect) {
+            weeklySelect.value = "5";
+        }
+        toast("Profile payroll work berhasil disimpan.", false);
+        await refreshWorkConfigurator();
+    } catch (error: any) {
+        showWorkConfigError(formatApiError(error?.response?.data || {}, 500));
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+        }
+    }
+}
+
+async function submitWorkArrangementForm(form: HTMLFormElement): Promise<void> {
+    const root = getWorkConfigRoot();
+    if (!root) {
+        return;
+    }
+
+    const userId = parseIntOrNull(root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-user]")?.value);
+    const profileId = parseIntOrNull(root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-profile]")?.value);
+    const arrangementMode = root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-mode]")?.value || "office_hour";
+    const defaultDayTypeRaw = root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-day-type]")?.value || "";
+    const weeklyWorkDays = parseIntOrNull(root.querySelector<HTMLSelectElement>("[data-payroll-work-arrangement-weekly-days]")?.value);
+    const effectiveFrom = root.querySelector<HTMLInputElement>("[data-payroll-work-arrangement-effective-from]")?.value || "";
+    const effectiveToRaw = root.querySelector<HTMLInputElement>("[data-payroll-work-arrangement-effective-to]")?.value || "";
+    const submitBtn = root.querySelector<HTMLButtonElement>("[data-payroll-work-arrangement-submit]");
+
+    if (!userId || !effectiveFrom) {
+        showWorkConfigError("Karyawan dan effective from wajib diisi.");
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+    }
+
+    try {
+        const response = await apiRequest("post", "/v1/hcm/payroll/work-arrangements", {
+            userId,
+            profileId,
+            arrangementMode,
+            defaultDayType: defaultDayTypeRaw || null,
+            weeklyWorkDays,
+            effectiveFrom,
+            effectiveTo: effectiveToRaw || null,
+        }) as ApiResponse<PayrollWorkArrangement>;
+
+        if (!response?.success) {
+            showWorkConfigError(formatApiError(response, 400));
+            return;
+        }
+
+        form.reset();
+        toast("Assignment payroll work berhasil disimpan.", false);
+        await refreshWorkConfigurator();
+    } catch (error: any) {
+        showWorkConfigError(formatApiError(error?.response?.data || {}, 500));
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+        }
+    }
+}
+
+function bindWorkConfigurator(): void {
+    const root = getWorkConfigRoot();
+    if (!root || root.dataset.bound === "1") {
+        return;
+    }
+    root.dataset.bound = "1";
+
+    const refreshBtn = root.querySelector<HTMLButtonElement>("[data-payroll-work-refresh]");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", () => {
+            void refreshWorkConfigurator();
+        });
+    }
+
+    const autoGenerateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-work-auto-generate]");
+    if (autoGenerateBtn) {
+        autoGenerateBtn.addEventListener("click", () => {
+            void autoGenerateWorkArrangementsFromRun();
+        });
+    }
+
+    const profileForm = root.querySelector<HTMLFormElement>("[data-payroll-work-profile-form]");
+    if (profileForm) {
+        profileForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            void submitWorkProfileForm(profileForm);
+        });
+    }
+
+    const arrangementForm = root.querySelector<HTMLFormElement>("[data-payroll-work-arrangement-form]");
+    if (arrangementForm) {
+        arrangementForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            void submitWorkArrangementForm(arrangementForm);
+        });
+    }
+
+    void refreshWorkConfigurator();
 }
 
 function showErr(msg: string): void {
@@ -336,6 +1210,11 @@ async function triggerExportReconciliation(): Promise<void> {
         toast("Belum ada baris payroll. Lakukan Calculate Draft terlebih dahulu.", true);
         return;
     }
+    if (isPostCutoffReviewOnlyMode()) {
+        setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        toast("Periode saat ini post-cutoff review-only. Export reconciliation untuk payment menunggu payday.", true);
+        return;
+    }
     if (String(_state.currentRunStatus || "").toLowerCase() !== "draft") {
         toast("Export reconciliation hanya untuk payroll run berstatus draft.", true);
         return;
@@ -451,13 +1330,18 @@ function refreshSelectionSummary(): void {
     }
     if (disburseBtn) {
         const st = currentRunStatus();
+        const reviewOnly = isPostCutoffReviewOnlyMode();
         const canDisburse = !_state.currentRunId ||
             _state.currentRows.length === 0 ||
             selectedIds.length === 0 ||
             !hasDownloadedReconciliationForCurrentRun() ||
-            !(st === "draft" || st === "finalized");
+            !(st === "draft" || st === "finalized") ||
+            reviewOnly;
         console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), status: st, disabled: canDisburse });
         disburseBtn.disabled = canDisburse;
+        if (reviewOnly) {
+            setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        }
     }
     if (resetBtn) {
         resetBtn.disabled = !_state.currentRunId;
@@ -501,7 +1385,7 @@ function syncExportReconciliationButton(): void {
     const exportBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-export-evidence]");
     if (exportBtn) {
         const st = String(_state.currentRunStatus || "").toLowerCase();
-        const exportAllowed = !!_state.currentRunId && _state.currentRows.length > 0 && st === "draft";
+        const exportAllowed = !!_state.currentRunId && _state.currentRows.length > 0 && st === "draft" && !isPostCutoffReviewOnlyMode();
         console.log("[syncExportReconciliationButton]", { runId: _state.currentRunId, rows: _state.currentRows.length, status: st, exportAllowed });
         exportBtn.disabled = !exportAllowed;
     }
@@ -525,8 +1409,10 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
 
     if (runData) {
         _state.currentRunStatus = deriveRunLifecycleStatus(runData);
+        _state.currentPolicySnapshot = runData.policySnapshot || null;
     } else if (!_state.currentRunId) {
         _state.currentRunStatus = null;
+        _state.currentPolicySnapshot = null;
     }
 
     const empCountEl = root.querySelector<HTMLElement>("[data-payroll-run-emp-count]");
@@ -811,6 +1697,10 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
         syncCalculateDraftButton();
         syncExportReconciliationButton();
         refreshSelectionSummary();
+        if (getWorkConfigRoot()) {
+            void refreshWorkConfigurator();
+        }
+        renderPayrollSettingsPreview();
         console.log("[loadPeriod] Done");
     }
 }
@@ -838,6 +1728,14 @@ async function calculateDraft(silent = false): Promise<void> {
         }
         if (_state.currentRunId) {
             await loadRunDetails(_state.currentRunId);
+            try {
+                const autoSummary = await autoGenerateWorkArrangementsFromRun({ showToast: false, useWorkConfigError: false });
+                if (autoSummary.created > 0) {
+                    toast(`Auto-assignment payroll aktif: ${autoSummary.created} dibuat, ${autoSummary.skipped} dilewati.`, false);
+                }
+            } catch (autoError: any) {
+                console.warn("[payroll-run] auto work assignment skipped", autoError?.message || autoError);
+            }
         }
     } catch (e: any) {
         toast(formatApiError(e.response?.data || {}, 500), true);
@@ -976,6 +1874,11 @@ function openDisburseModal(userIds?: number[]): void {
         toast("Pilih minimal satu karyawan untuk dibayar melalui gateway.", true);
         return;
     }
+    if (isPostCutoffReviewOnlyMode()) {
+        setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        toast("Periode saat ini post-cutoff review-only. Pembayaran menunggu payday sesuai policy run aktif.", true);
+        return;
+    }
     if (!hasDownloadedReconciliationForCurrentRun()) {
         setPayrollReconciliationHint(
             "Urutan wajib: Calculate Draft → Export Reconciliation → unduh file CSV → Pay via Gateway.",
@@ -994,6 +1897,12 @@ function openDisburseModal(userIds?: number[]): void {
 async function disburseSelected(): Promise<void> {
     const modal = document.getElementById("payroll_gateway_modal");
     if (!modal || !_state.currentRunId) return;
+
+    if (isPostCutoffReviewOnlyMode()) {
+        setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        toast("Periode saat ini post-cutoff review-only. Pembayaran menunggu payday sesuai policy run aktif.", true);
+        return;
+    }
 
     const payBtn = modal.querySelector<HTMLButtonElement>("[data-payroll-gateway-pay]");
     const ids = String(payBtn?.dataset.userIds || "")
@@ -1047,7 +1956,11 @@ async function disburseSelected(): Promise<void> {
         });
 
         updateRunUI((resp.data?.run || null) as PayrollRun | null, null);
-        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"})${ineligibleCount > 0 ? `, ${ineligibleCount} user tidak eligible dilewati.` : ""}.`, false);
+        const migration = resp.data?.lateArrivalMigration || null;
+        const migrationSuffix = migration && migration.targetPeriodYear && migration.targetPeriodMonth
+            ? ` Carryover late-arrival dimigrasikan ke periode ${String(migration.targetPeriodMonth).padStart(2, "0")}/${migration.targetPeriodYear}.`
+            : "";
+        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"})${ineligibleCount > 0 ? `, ${ineligibleCount} user tidak eligible dilewati.` : ""}.${migrationSuffix}`, false);
         if ((window as any).bootstrap?.Modal) {
             (window as any).bootstrap.Modal.getOrCreateInstance(modal).hide();
         }
@@ -1217,6 +2130,36 @@ function bindEvents(): void {
     const modal = document.getElementById("payroll_gateway_modal");
     modal?.querySelector<HTMLButtonElement>("[data-payroll-gateway-pay]")?.addEventListener("click", () => void disburseSelected());
 
+    const settingsRoot = getPayrollSettingsRoot();
+    settingsRoot?.querySelector<HTMLFormElement>("[data-payroll-settings-form]")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void savePayrollSettings();
+    });
+    settingsRoot?.addEventListener("input", () => {
+        const paydayInput = settingsRoot.querySelector<HTMLInputElement>("[data-payroll-settings-payday-day]");
+        const cutoffInput = settingsRoot.querySelector<HTMLInputElement>("[data-payroll-settings-cutoff-offset]");
+        const timezoneSelect = settingsRoot.querySelector<HTMLSelectElement>("[data-payroll-settings-timezone]");
+        const disburseEarlyInput = settingsRoot.querySelector<HTMLInputElement>("[data-payroll-settings-disburse-early]");
+        const holidayStrategySelect = settingsRoot.querySelector<HTMLSelectElement>("[data-payroll-settings-holiday-strategy]");
+        if (!paydayInput || !cutoffInput || !timezoneSelect || !disburseEarlyInput || !holidayStrategySelect) {
+            return;
+        }
+        _payrollSettingsState.settings = {
+            paydayDay: parseIntOrNull(paydayInput.value) || 28,
+            cutoffOffsetDays: parseIntOrNull(cutoffInput.value) || 0,
+            payrollTimezone: timezoneSelect.value || "Asia/Jakarta",
+            disburseBeforePaydayAllowed: disburseEarlyInput.checked,
+            paydayHolidayStrategy: (holidayStrategySelect.value || "previous_working_day") as PayrollSettings["paydayHolidayStrategy"],
+        };
+        renderPayrollSettingsPreview();
+    });
+    settingsRoot?.addEventListener("change", () => {
+        renderPayrollSettingsPreview();
+    });
+
+    bindWorkConfigurator();
+
+    void loadPayrollSettings();
     void loadPeriod(false);
 }
 

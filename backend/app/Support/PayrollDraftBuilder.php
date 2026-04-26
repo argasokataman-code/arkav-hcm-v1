@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\OvertimePayCalculator;
 use App\Services\Hcm\PayrollLeaveHolidayAdjuster;
+use App\Services\Hcm\PayrollMonthlySettingsService;
+use App\Services\Hcm\PayrollWorkRuleResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -185,6 +187,13 @@ final class PayrollDraftBuilder
                 'hcm_payroll_period_id' => $period->id,
                 'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
                 'status' => HcmPayrollRun::STATUS_DRAFT,
+                'meta' => [
+                    'policySnapshot' => app(PayrollMonthlySettingsService::class)->snapshotForPeriod(
+                        (int) $period->period_year,
+                        (int) $period->period_month,
+                        $companyId,
+                    ),
+                ],
                 'calculated_at' => now(),
             ]);
 
@@ -227,7 +236,15 @@ final class PayrollDraftBuilder
             $overtimeCalculator = app(OvertimePayCalculator::class);
             $snapshotService = app(EmployeeSnapshotService::class);
             $leaveHolidayAdjuster = app(PayrollLeaveHolidayAdjuster::class);
-            $asOf = Carbon::create($period->period_year, $period->period_month, 1)->endOfMonth();
+            $workRuleResolver = app(PayrollWorkRuleResolver::class);
+            $policySnapshot = is_array($run->meta['policySnapshot'] ?? null)
+                ? $run->meta['policySnapshot']
+                : [];
+            $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
+            $periodStart = Carbon::create($period->period_year, $period->period_month, 1, 0, 0, 0, $payrollTimezone)->startOfMonth();
+            $periodEnd = $periodStart->copy()->endOfMonth();
+            $asOfDate = (string) ($policySnapshot['draftDataAsOfDate'] ?? $periodStart->copy()->endOfMonth()->toDateString());
+            $asOf = Carbon::parse($asOfDate, $payrollTimezone)->endOfDay();
 
             $resignedUserIds = HcmResignation::query()
                 ->where('status', 'approved')
@@ -259,6 +276,7 @@ final class PayrollDraftBuilder
                     $profile = $user->employeeProfile;
                     if ($profile === null) {
                         return false;
+                        $workRuleResolver = app(PayrollWorkRuleResolver::class);
                     }
 
                     $employment = $snapshotService->latestEmployment($profile, $asOf);
@@ -290,6 +308,91 @@ final class PayrollDraftBuilder
             $assignmentsByUser = $assignmentQuery
                 ->get()
                 ->groupBy('user_id');
+
+            $carryoverPayload = self::resolveCarryoverOvertimeForPeriod($period, $asOf, $companyId);
+            $carryoverRequestsByUser = collect($carryoverPayload['requestsByUser'] ?? []);
+            $carryoverSourceRunByRequestId = is_array($carryoverPayload['sourceRunByRequestId'] ?? null)
+                ? $carryoverPayload['sourceRunByRequestId']
+                : [];
+
+            $lateOvertimeQuery = OvertimeRequest::query()
+                ->whereIn('user_id', $users->pluck('id')->all())
+                ->where('status', 'approved')
+                ->whereDate('work_date', '>', $asOf->toDateString())
+                ->whereDate('work_date', '<=', $periodEnd->toDateString())
+                ->when($companyId !== null, function ($query) use ($companyId): void {
+                    $query->where(function ($inner) use ($companyId): void {
+                        $inner->where('company_id', $companyId)
+                            ->orWhereNull('company_id');
+                    });
+                })
+                ->orderBy('work_date')
+                ->orderBy('id');
+
+            $lateOvertimeTotalCount = (clone $lateOvertimeQuery)->count();
+            $lateOvertimeEntries = $lateOvertimeQuery
+                ->limit(200)
+                ->get()
+                ->map(fn (OvertimeRequest $request): array => [
+                    'requestId' => (int) $request->id,
+                    'userId' => (int) $request->user_id,
+                    'workDate' => $request->work_date?->toDateString(),
+                    'minutes' => (int) $request->minutes,
+                    'status' => (string) $request->status,
+                    'postedAt' => $request->created_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all();
+
+            $lateAssignmentQuery = HcmEmployeePayrollItemAssignment::query()
+                ->with(['payrollItem'])
+                ->where('is_active', true)
+                ->whereIn('user_id', $users->pluck('id')->all())
+                ->whereNotNull('effective_start_date')
+                ->whereDate('effective_start_date', '>', $asOf->toDateString())
+                ->whereDate('effective_start_date', '<=', $periodEnd->toDateString())
+                ->orderBy('effective_start_date')
+                ->orderBy('id');
+            self::applyTenantScope($lateAssignmentQuery, $companyId);
+
+            $lateAssignmentTotalCount = (clone $lateAssignmentQuery)->count();
+            $lateAssignmentEntries = $lateAssignmentQuery
+                ->limit(200)
+                ->get()
+                ->map(fn (HcmEmployeePayrollItemAssignment $assignment): array => [
+                    'assignmentId' => (int) $assignment->id,
+                    'userId' => (int) $assignment->user_id,
+                    'payrollItemId' => (int) $assignment->hcm_payroll_item_id,
+                    'payrollItemCode' => (string) ($assignment->payrollItem?->code ?? ''),
+                    'amount' => round((float) $assignment->amount, 2),
+                    'effectiveStartDate' => $assignment->effective_start_date?->toDateString(),
+                    'effectiveEndDate' => $assignment->effective_end_date?->toDateString(),
+                    'postedAt' => $assignment->created_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all();
+
+            $meta = is_array($run->meta) ? $run->meta : [];
+            $meta['lateArrivalBuffer'] = [
+                'capturedAt' => now()->toIso8601String(),
+                'asOfDate' => $asOf->toDateString(),
+                'periodStartDate' => $periodStart->toDateString(),
+                'periodEndDate' => $periodEnd->toDateString(),
+                'hasLateArrivals' => ($lateOvertimeTotalCount + $lateAssignmentTotalCount) > 0,
+                'migrationMode' => 'next-period-date-based-rollover',
+                'sources' => [
+                    'overtimeRequests' => [
+                        'totalCount' => $lateOvertimeTotalCount,
+                        'entries' => $lateOvertimeEntries,
+                    ],
+                    'payrollItemAssignments' => [
+                        'totalCount' => $lateAssignmentTotalCount,
+                        'entries' => $lateAssignmentEntries,
+                    ],
+                ],
+            ];
+            $run->meta = $meta;
+            $run->save();
 
             foreach ($users as $user) {
                 $profile = $user->employeeProfile;
@@ -402,16 +505,64 @@ final class PayrollDraftBuilder
                 $approvedOvertime = OvertimeRequest::query()
                     ->where('user_id', $user->id)
                     ->where('status', 'approved')
-                    ->whereYear('work_date', $period->period_year)
-                    ->whereMonth('work_date', $period->period_month)
+                    ->whereDate('work_date', '>=', $periodStart->toDateString())
+                    ->whereDate('work_date', '<=', $asOf->toDateString())
+                    ->when($companyId !== null, function ($query) use ($companyId): void {
+                        $query->where(function ($inner) use ($companyId): void {
+                            $inner->where('company_id', $companyId)
+                                ->orWhereNull('company_id');
+                        });
+                    })
                     ->orderBy('work_date')
                     ->get();
 
+                $carryoverOvertime = collect($carryoverRequestsByUser->get($user->id, []))
+                    ->filter(fn ($request) => $request instanceof OvertimeRequest)
+                    ->values();
+
+                $approvedOvertime = $approvedOvertime
+                    ->concat($carryoverOvertime)
+                    ->unique('id')
+                    ->values();
+
                 $overtimeMinutes = (int) $approvedOvertime->sum('minutes');
                 $overtimePay = 0.0;
+                $resolvedPolicies = [];
+                $carryoverRequestIds = $carryoverOvertime
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->values()
+                    ->all();
+
+                $carryoverSourceRunIds = collect($carryoverRequestIds)
+                    ->map(fn (int $requestId) => isset($carryoverSourceRunByRequestId[$requestId]) ? (int) $carryoverSourceRunByRequestId[$requestId] : null)
+                    ->filter(fn ($id) => is_int($id) && $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
                 foreach ($approvedOvertime as $request) {
-                    $calc = $overtimeCalculator->calculate($base, $fixed, (int) $request->minutes, 'workday', 5);
+                    $resolvedRule = $workRuleResolver->resolveForOvertimeRequest($request, $companyId);
+                    $calc = $overtimeCalculator->calculate(
+                        $base,
+                        $fixed,
+                        (int) $request->minutes,
+                        (string) $resolvedRule['dayType'],
+                        (int) $resolvedRule['weeklyWorkDays']
+                    );
                     $overtimePay += (float) ($calc['totalOvertimePay'] ?? 0);
+
+                    $resolvedPolicies[] = [
+                        'requestId' => (int) $request->id,
+                        'workDate' => $request->work_date?->toDateString(),
+                        'minutes' => (int) $request->minutes,
+                        'dayType' => (string) $resolvedRule['dayType'],
+                        'weeklyWorkDays' => (int) $resolvedRule['weeklyWorkDays'],
+                        'arrangementMode' => (string) $resolvedRule['arrangementMode'],
+                        'source' => (string) $resolvedRule['source'],
+                        'isCarryoverLateArrival' => in_array((int) $request->id, $carryoverRequestIds, true),
+                        'carryoverSourceRunId' => $carryoverSourceRunByRequestId[(int) $request->id] ?? null,
+                    ];
                 }
 
                 if ($overtimePay > 0) {
@@ -432,7 +583,10 @@ final class PayrollDraftBuilder
                             'affectsNetPay' => (bool) ($overtimeComponent?->affects_net_pay ?? true),
                             'approvedRequestIds' => $approvedOvertime->pluck('id')->values()->all(),
                             'approvedMinutes' => $overtimeMinutes,
-                            'calculationMode' => 'workday_default',
+                            'calculationMode' => 'request_or_arrangement_rule',
+                            'resolvedPolicies' => $resolvedPolicies,
+                            'carryoverLateArrivalRequestIds' => $carryoverRequestIds,
+                            'carryoverLateArrivalSourceRunIds' => $carryoverSourceRunIds,
                         ],
                     ]);
 
@@ -442,7 +596,7 @@ final class PayrollDraftBuilder
                 }
 
                 // --- H3: Leave/Holiday integration (off by default via feature flag) ---
-                $leaveAdjustment = $leaveHolidayAdjuster->adjust($user, $period, $companyId, $base, $fixed);
+                $leaveAdjustment = $leaveHolidayAdjuster->adjust($user, $period, $companyId, $base, $fixed, $asOf);
                 if ($leaveAdjustment['enabled']) {
                     if ($leaveAdjustment['unpaidLeaveAmount'] > 0) {
                         $unpaidComponent = self::resolveOrCreateComponent(
@@ -708,4 +862,79 @@ final class PayrollDraftBuilder
             default => $taxKey,
         };
     }
+
+    /**
+     * @return array{requestsByUser:array<int,array<int,OvertimeRequest>>,sourceRunByRequestId:array<int,int>}
+     */
+    private static function resolveCarryoverOvertimeForPeriod(HcmPayrollPeriod $period, Carbon $asOf, ?int $companyId): array
+    {
+        $sourceRunsQuery = HcmPayrollRun::query()
+            ->with(['period', 'lines'])
+            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
+            ->where('status', HcmPayrollRun::STATUS_FINALIZED)
+            ->where('hcm_payroll_period_id', '!=', $period->id)
+            ->orderByDesc('id');
+        self::applyTenantScope($sourceRunsQuery, $companyId);
+
+        $sourceRuns = $sourceRunsQuery->get();
+        $targetYear = (int) $period->period_year;
+        $targetMonth = (int) $period->period_month;
+
+        $carryoverRequestIds = [];
+        $sourceRunByRequestId = [];
+
+        foreach ($sourceRuns as $sourceRun) {
+            $meta = is_array($sourceRun->meta) ? $sourceRun->meta : [];
+            $buffer = is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : [];
+            $migration = is_array($buffer['migration'] ?? null) ? $buffer['migration'] : [];
+
+            if (($migration['targetPeriodYear'] ?? null) !== $targetYear || ($migration['targetPeriodMonth'] ?? null) !== $targetMonth) {
+                continue;
+            }
+
+            if (! in_array((string) ($migration['status'] ?? ''), ['queued', 'migrated'], true)) {
+                continue;
+            }
+
+            $entries = $buffer['sources']['overtimeRequests']['entries'] ?? [];
+            if (! is_array($entries)) {
+                continue;
+            }
+
+            foreach ($entries as $entry) {
+                $requestId = (int) ($entry['requestId'] ?? 0);
+                if ($requestId <= 0) {
+                    continue;
+                }
+
+                $carryoverRequestIds[] = $requestId;
+                $sourceRunByRequestId[$requestId] = (int) $sourceRun->id;
+            }
+        }
+
+        $carryoverRequestIds = array_values(array_unique($carryoverRequestIds));
+        if ($carryoverRequestIds === []) {
+            return [
+                'requestsByUser' => [],
+                'sourceRunByRequestId' => [],
+            ];
+        }
+
+        $carryoverRequests = OvertimeRequest::query()
+            ->whereIn('id', $carryoverRequestIds)
+            ->where('status', 'approved')
+            ->whereDate('work_date', '<=', $asOf->toDateString())
+            ->orderBy('work_date')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($rows) => $rows->values()->all())
+            ->toArray();
+
+        return [
+            'requestsByUser' => $carryoverRequests,
+            'sourceRunByRequestId' => $sourceRunByRequestId,
+        ];
+    }
+
 }

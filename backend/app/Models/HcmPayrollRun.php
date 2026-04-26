@@ -26,6 +26,7 @@ class HcmPayrollRun extends Model
     protected $fillable = [
         'company_id',
         'hcm_payroll_period_id',
+        'meta',
         'purpose',
         'status',
         'calculated_at',
@@ -39,6 +40,7 @@ class HcmPayrollRun extends Model
     {
         return [
             'company_id' => 'integer',
+            'meta' => 'array',
             'calculated_at' => 'datetime',
             'finalized_at' => 'datetime',
             'voided_at' => 'datetime',

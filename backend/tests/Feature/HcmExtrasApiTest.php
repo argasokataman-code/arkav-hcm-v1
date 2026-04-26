@@ -327,6 +327,42 @@ class HcmExtrasApiTest extends TestCase
             ->assertJsonPath('meta.linkage.unlinkedRows', 0);
     }
 
+    public function test_holidays_sync_skips_cuti_bersama_rows_from_primary_calendar(): void
+    {
+        $token = $this->hcmAdminBearerToken('hcmextra-admin-cutibersama@example.com');
+
+        Http::fake([
+            'https://libur.deno.dev/api?year=2026' => Http::response([
+                [
+                    'date' => '2026-05-01',
+                    'name' => 'Hari Buruh',
+                ],
+                [
+                    'date' => '2026-05-02',
+                    'name' => 'Cuti Bersama Hari Buruh',
+                ],
+            ], 200),
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/holidays/sync-indonesia', ['year' => 2026])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.skippedNonPrimary', 1);
+
+        $this->assertDatabaseHas('holidays', [
+            'title' => 'Hari Buruh',
+            'holiday_date' => '2026-05-01 00:00:00',
+            'source' => 'api',
+        ]);
+        $this->assertDatabaseMissing('holidays', [
+            'title' => 'Cuti Bersama Hari Buruh',
+            'holiday_date' => '2026-05-02 00:00:00',
+            'source' => 'api',
+        ]);
+    }
+
     public function test_leave_request_create_and_me_scope(): void
     {
         $token = $this->bearerToken();

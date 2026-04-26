@@ -216,9 +216,15 @@ Body:
 - `endTime` required_without:shiftId, `H:i`
 
 Validasi tambahan:
-- `endTime > startTime` (422 `VALIDATION_ERROR`)
-- Jika shift inactive/not found → 422 `VALIDATION_ERROR`
+- `endTime != startTime` (422 `VALIDATION_ERROR`); overnight (`endTime < startTime`) diperbolehkan
+- Jika `shiftId` dikirim, shift harus aktif dan berada dalam tenant scope
 - Jika `{userId}` bukan membership aktif pada tenant yang dipilih → 404 `USER_NOT_IN_COMPANY`
+
+Success `200`:
+
+```json
+{ "success": true, "data": { "id": 123 } }
+```
 
 ### DELETE `/schedule-timing/{userId}`
 
@@ -230,4 +236,136 @@ Path:
 
 Errors:
 - `404 USER_NOT_IN_COMPANY` jika target user bukan member company aktif
+
+## Smart attendance & shifting (admin)
+
+### POST `/smart-attendance-shifting/generate`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Generate weekly schedule otomatis berbasis data tenant (employee membership, shift template aktif, histori attendance),
+- Validasi pelanggaran rule jadwal,
+- Analisis attendance (`late`, `early_leave`, `absent`, `overtime`),
+- Beri rekomendasi fairness/fatigue yang explainable.
+
+Body (optional fields):
+- `weekStart` date
+- `employeeIds` array integer (batasi user scope)
+- `shiftCategory` enum `office_hour|shifting_24h|hybrid`
+- `rules` object:
+  - `max_work_days_per_week` int 1..7
+  - `min_days_off_per_week` int 0..7
+  - `min_rest_hours_between_shifts` int 1..24
+  - `max_consecutive_night_shifts` int 1..7
+  - `illegal_transition_rules` array string (legacy key format, contoh: `night_to_morning`)
+  - `late_tolerance_minutes` int 0..120
+  - `early_leave_tolerance_minutes` int 0..120
+  - `overtime_threshold_minutes` int 0..480
+- `forbiddenTransitions` array string (format baru `from:to`, contoh: `night:morning`)
+- `coverageRequirements` array:
+  - `date` (date)
+  - `required[]` dengan `shift_id` (string) dan `headcount` (int >= 0)
+
+Catatan runtime:
+- Rules runtime di-generate dari merge `rules` payload + default tenant pada endpoint settings.
+- `forbiddenTransitions` (format `from:to`) akan dipetakan ke legacy `illegal_transition_rules` agar kompatibel dengan engine scheduler lama.
+
+Success `200`:
+- `data.schedule_generation`
+  - `validation_status` (`valid|invalid`)
+  - `weekly_schedule[]` per employee
+  - `violations[]`
+  - `unmet_coverage[]`
+- `data.attendance_analysis`
+  - `employee_summaries[]`
+  - `flags[]`
+- `data.recommendation`
+  - `fairness_score` (0..100)
+  - `fatigue_risk_score` (0..100)
+  - `improvement_suggestions[]`
+- `data.explanation` (human-readable summary)
+
+Errors:
+- `422 TENANT_CONTEXT_REQUIRED` jika context company tidak ada
+- `422 NO_EMPLOYEE_IN_SCOPE` jika tidak ada employee dalam scope tenant/filters
+- `403 AUTH_FORBIDDEN` untuk user non-admin
+
+### GET `/smart-attendance-shifting/settings`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Mengambil default planner rules per-tenant + daftar forbidden transition yang dipakai UI matrix.
+
+Success `200`:
+- `data.defaultRules`
+  - `max_work_days_per_week` int
+  - `min_days_off_per_week` int
+  - `min_rest_hours_between_shifts` int
+  - `max_consecutive_night_shifts` int
+- `data.forbiddenTransitions[]` string format `from:to`
+- `data.transitionCatalog[]` string format `from:to`
+
+### PUT `/smart-attendance-shifting/settings`
+
+RBAC:
+- HCM Admin only
+
+Body:
+- `defaultRules` object (opsional, field sama seperti GET response)
+- `forbiddenTransitions` array string format `from:to`
+
+Success `200`:
+- `data.defaultRules`
+- `data.forbiddenTransitions[]`
+- `data.transitionCatalog[]`
+
+### POST `/smart-attendance-shifting/publish-roster`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Publish hasil draft planner menjadi roster harian bertanggal (`hcm_schedule_rosters`) per kombinasi company+user+work_date.
+
+Body:
+- `weeklySchedule[]`
+  - `employee_id` integer/string numeric
+  - `assignments[]`
+    - `date` (date, required)
+    - `shift_id` (string; `OFF` untuk hari libur)
+    - `start_time` (nullable string `H:i`)
+    - `end_time` (nullable string `H:i`)
+    - `cross_day` (boolean, optional)
+
+Success `200`:
+- `data.created` int
+- `data.updated` int
+- `data.offDays` int
+- `data.total` int
+
+### GET `/schedule-rosters`
+
+RBAC:
+- HCM Admin only
+
+Query:
+- `dateFrom` date (required)
+- `dateTo` date (required, harus >= `dateFrom`)
+- `employeeIds[]` int (optional)
+- `page` int (optional)
+- `perPage` int (optional)
+
+Success `200`:
+- `data[]`
+  - `id`
+  - `userId`
+  - `workDate`
+  - `rosterStatus` (`working|off`)
+  - `shiftId` nullable int
+  - `shift` object nullable (`id`, `name`, `shiftType`, `startTime`, `endTime`)
+- `meta.pagination` (page/perPage/total/totalPages)
 

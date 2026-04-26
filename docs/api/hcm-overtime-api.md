@@ -6,8 +6,10 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/H
 
 - Setiap **POST** `/overtime-requests` mengisi **`hcm_salary_component_id`** ke komponen slip untuk upah lembur, di-resolve lewat `HcmSalaryComponent::resolveForOvertimePay()` (prioritas: baris aktif `code = upah_lembur`, fallback: `kind = addition` + `category = overtime`).
 - **GET** `/overtime-requests` menyertakan per baris: `salaryComponentId`, `salaryComponentCode`, `salaryComponentName` (bisa `null` jika master dihapus/nonaktif dan tidak ada fallback).
+- **GET** `/overtime-requests` menyertakan juga `dayType` + `weeklyWorkDays` per request untuk mendukung payroll rule yang configurable (shift/office).
 - **POST** `/overtime-requests/calculate` menambahkan field **`salaryComponent`** (`id`, `code`, `name` atau `null`) agar UI kalkulator selaras dengan definisi slip.
 - Pemilik request yang **mengubah** pengajuan `pending` (PUT sebagai owner) akan **refresh** tautan komponen ke resolver terkini.
+- Draft payroll bulanan membaca `dayType` + `weeklyWorkDays` per request; bila kosong, fallback ke resolver arrangement per karyawan + tanggal.
 
 ## Base path
 
@@ -85,6 +87,8 @@ Body:
 - `requestType` optional enum (non-admin only `employee_request`)
 - `workDate` required date
 - `minutes` required int 1..1440
+- `dayType` optional enum `workday|public_holiday|weekly_rest_day|weekly_rest_day_short` (+ alias legacy `holiday|restday|restday_short`)
+- `weeklyWorkDays` optional int `5|6`
 - `status` optional enum (admin only; non-admin forced `pending`)
 - `projectName` optional string max 200
 - `notes` optional string max 2000
@@ -95,6 +99,8 @@ RBAC / guard:
 - admin set `userId` ke user di luar tenant aktif → `422 VALIDATION_ERROR`
 - non-admin set `requestType` selain `employee_request` → 403
 - jika pada `workDate` sudah ada leave `approved` untuk `company_id` + `user_id` yang sama → `422 OT_ON_LEAVE_CONFLICT`
+- jika `minutes > 240` → `422 OT_DAILY_LIMIT_EXCEEDED`
+- jika akumulasi lembur minggu yang sama (Senin–Minggu, status `pending|approved`) melewati 1080 menit → `422 OT_WEEKLY_LIMIT_EXCEEDED`
 
 Success `201`: `{ success: true, data: { id } }`
 
@@ -131,9 +137,21 @@ Body:
 - `baseMonthlySalary` required numeric min 0
 - `fixedAllowance` optional numeric min 0
 - `minutes` required int 1..1440
-- `dayType` required `workday|holiday`
+- `dayType` required enum:
+	- `workday`
+	- `public_holiday` (alias legacy: `holiday`)
+	- `weekly_rest_day` (alias legacy: `restday`)
+	- `weekly_rest_day_short` (alias legacy: `restday_short`) — khusus pola 6 hari pada hari kerja terpendek
 - `weeklyWorkDays` optional int `5|6` (default 5)
 
 Success `200`:
 - `data` berisi hasil kalkulasi (breakdown + totals) dari `OvertimePayCalculator`, plus **`salaryComponent`**: `{ id, code, name } | null` (sama resolver dengan create request)
+
+## Catatan compliance pemerintah
+
+- Upah sejam menggunakan basis `(gaji pokok + tunjangan tetap) / 173`.
+- Guard legal limit diterapkan pada create/update request:
+	- max 4 jam/hari
+	- max 18 jam/minggu
+- Kalkulator mendukung matrix segment untuk hari kerja, hari istirahat mingguan, hari libur resmi, serta varian hari kerja terpendek (6 hari kerja).
 

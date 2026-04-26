@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-04-26
-- Status: in progress (foundation configurability tahap 4 + UI edit mode hardening)
-- Ringkasan: hardening shift/schedule tetap aktif dengan dukungan shift lintas hari (overnight), sorting start-time stabil sebelum pagination, upsert tenant-scope per company+user, tenant admin tidak bisa mutasi template global, UI shift master tetap menghormati permission write, calendar view tetap aktif, smart planner mendukung batch rolling sampai akhir tahun, foundation baru untuk default rules + transition matrix per-tenant, publish roster harian bertanggal, endpoint roster index untuk review paginated, dan **UI edit mode dengan clear state indicator + inline guidance untuk prevent accidental configuration changes**.
+- Tanggal: 2026-04-25
+- Status: in progress (foundation configurability tahap 4 + fairness/fatigue hardening)
+- Ringkasan: hardening shift/schedule tetap aktif dengan dukungan shift lintas hari (overnight), sorting start-time stabil sebelum pagination, upsert tenant-scope per company+user, tenant admin tidak bisa mutasi template global, UI shift master tetap menghormati permission write, calendar view tetap aktif, smart planner mendukung batch rolling sampai akhir tahun, foundation baru untuk default rules + transition matrix per-tenant, publish roster harian bertanggal, endpoint roster index untuk review paginated, **UI edit mode untuk planner defaults**, **flow planner yang lebih deterministik untuk HR dengan scope berbasis department dan pagination employee directory penuh**, serta tuning formula agar assignment lebih aman untuk pekerja.
 
 ## Evidence Terbaru
 
@@ -26,13 +26,27 @@
   - **Reset Button**: Dalam edit mode, admin bisa click "Reset" untuk reload dari DB tanpa save draft edits.
   - State management tervalidasi: `smartPlannerEditMode` + `smartPlannerEditModeOriginalValues` state di frontend, store/restore logic di `bindSmartPlanner()`.
   - Wiring UX edit mode tervalidasi manual (tapi tidak di Vitest automation, karena input enable/disable state sulit ditest via headless DOM).
+- Flow planner HR diperjelas:
+  - Scope `team keyword` dihapus dari surface planner karena tidak ada master scope team khusus; flow lama hanya mencari string `team` pada snapshot employee dan ini rancu untuk HR.
+  - Scope planner aktif sekarang: `all`, `department`, dan `manual user IDs (advanced)`.
+  - Scope `department` bersumber dari employee directory tenant aktif (`departmentId` + `departmentName`), bukan keyword bebas.
+  - Planner memuat seluruh page employee directory sampai `meta.total` terpenuhi, jadi scope `all` tidak berhenti diam-diam di page pertama.
+  - Tombol `Panduan planner` sekarang memuat langkah penggunaan yang direkomendasikan untuk HR: pilih pola kerja -> pilih sasaran draft -> generate -> review -> publish.
 - Tahap 4 publish harian aktif: endpoint `POST /v1/hcm/smart-attendance-shifting/publish-roster` menulis roster bertanggal ke `hcm_schedule_rosters` dengan kunci unik company+user+work_date.
 - Tahap 4 roster review aktif: endpoint `GET /v1/hcm/schedule-rosters` menyediakan list roster harian paginated untuk rentang tanggal.
 - Wiring FE untuk conflict gate tervalidasi di `backend/tests/ui/attendance.wiring.test.js` (`requires force apply when critical conflicts are detected before publish`).
 - Wiring FE publish harian tervalidasi di `backend/tests/ui/attendance.wiring.test.js` (`publishes daily roster per date from planner draft`).
+- Wiring FE scope planner tervalidasi di `backend/tests/ui/attendance.wiring.test.js` (`loads all employee pages when planner scope is all employees`, `publishes dominant shifts from planner draft into schedule timing`).
 - Hardcode label shift kalender dari slot waktu tetap (07/15/23) sudah dieliminasi; label sekarang bersumber dari metadata shift runtime (`/v1/hcm/shifts`).
 - Asset FullCalendar dimuat khusus halaman `/schedule-timing` melalui `backend/resources/views/layout/partials/footer-scripts.blade.php`.
 - Scheduler backend sudah dituning untuk variasi lebih nyata pada mode shifting/hybrid: balancing target shift count per user + anti-repeat shift streak saat memilih kandidat assignment.
+- Scheduler backend kini menambah guard `max_consecutive_work_days` saat validasi kandidat agar pola kerja lebih aman dan tidak mendorong streak kerja panjang.
+- Evaluasi illegal transition sekarang membaca matrix transition (`illegal_transition_rules`) berbasis `shift_type` aktual (mis. `afternoon_to_morning`, `night_to_morning`) sehingga tidak hanya terpaku pada satu heuristik.
+- Candidate ranking sekarang memperhitungkan work streak, short-rest events, dan backward rotation events agar assignment lebih adil sekaligus lebih rendah risiko fatigue.
+- Fatigue risk score sekarang memasukkan dimensi overtime, max night streak, max work streak, short rest, dan backward rotation (bukan hanya overtime + night + average workdays).
+- Fairness score sekarang memakai weighted policy dengan prioritas tertinggi pada sebaran night shift (70%), lalu workload harian (20%), lalu backward rotation (10%).
+- Conflict analyzer frontend kini tidak lagi menghitung rest/transition conflict palsu saat salah satu assignment adalah OFF, dan label summary transition mengikuti matrix rules.
+- Regression test khusus transition matrix sudah ditambahkan: `test_generate_respects_afternoon_to_morning_forbidden_transition_matrix` di `backend/tests/Feature/HcmSmartAttendanceApiTest.php`.
 - Kontrak write tenant scope + sort stability tervalidasi di `backend/tests/Feature/AttendanceApiTest.php` (`test_schedule_timing_upsert_is_scoped_per_company_for_same_user`, `test_schedule_timing_start_sort_applies_before_pagination`).
 - Dukungan overnight pada shift master dan schedule timing tervalidasi di `backend/tests/Feature/ShiftMasterApiTest.php` (`test_shift_crud_supports_overnight_window`) dan `backend/tests/Feature/AttendanceApiTest.php` (`test_schedule_timing_admin_can_apply_overnight_shift_id`).
 - Guard mutasi template global tervalidasi di `backend/tests/Feature/ShiftMasterApiTest.php` (`test_tenant_admin_cannot_mutate_global_shift_template`).

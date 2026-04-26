@@ -2,6 +2,7 @@
 
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Services\Hcm\RefreshOpenPayrollDraftsService;
 use App\Support\CronjobSettings;
 use App\Support\PayrollDraftBuilder;
 use App\Jobs\SendPaymentReminder;
@@ -45,31 +46,12 @@ if (($wilayahSync['enabled'] ?? true) !== true) {
 $payrollRefresh = CronjobSettings::get('payroll_refresh_open_period');
 
 $payrollRefreshTask = Schedule::call(function (): void {
-    $period = HcmPayrollPeriod::query()
-        ->where('status', HcmPayrollPeriod::STATUS_OPEN)
-        ->orderByDesc('period_year')
-        ->orderByDesc('period_month')
-        ->first();
-
-    if ($period === null) {
-        return;
-    }
-
-    $finalizedExists = HcmPayrollRun::query()
-        ->where('hcm_payroll_period_id', $period->id)
-        ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-        ->where('status', HcmPayrollRun::STATUS_FINALIZED)
-        ->exists();
-
-    if ($finalizedExists) {
-        return;
-    }
-
-    PayrollDraftBuilder::rebuildDraftRun($period);
+    app(RefreshOpenPayrollDraftsService::class)->refresh();
 })->name('hcm-payroll-refresh-open-period')
     ->description('Refresh monthly payroll draft at 00:00 WIB for the active open period.')
     ->timezone((string) ($payrollRefresh['timezone'] ?? 'Asia/Jakarta'))
-    ->dailyAt((string) ($payrollRefresh['time'] ?? '00:00'));
+    ->dailyAt((string) ($payrollRefresh['time'] ?? '00:00'))
+    ->withoutOverlapping(60);
 if (($payrollRefresh['enabled'] ?? true) !== true) {
     $payrollRefreshTask->skip(fn (): bool => true);
 }

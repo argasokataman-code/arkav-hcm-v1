@@ -50,17 +50,18 @@ class HcmShiftController extends Controller
             'code' => ['nullable', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
             'startTime' => ['required', 'date_format:H:i'],
             'endTime' => ['required', 'date_format:H:i'],
+            'shiftType' => ['nullable', 'string', 'in:morning,afternoon,night,custom'],
             'description' => ['nullable', 'string', 'max:500'],
             'isActive' => ['nullable', 'boolean'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
         ]);
 
-        if ($validated['endTime'] <= $validated['startTime']) {
+        if ($validated['endTime'] === $validated['startTime']) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
-                    'message' => 'endTime must be after startTime.',
+                    'message' => 'endTime cannot be equal to startTime.',
                 ],
             ], 422);
         }
@@ -87,6 +88,7 @@ class HcmShiftController extends Controller
             'name' => $validated['name'],
             'start_time' => $validated['startTime'],
             'end_time' => $validated['endTime'],
+            'shift_type' => $validated['shiftType'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) ($validated['isActive'] ?? true),
             'sort_order' => (int) ($validated['sortOrder'] ?? 0),
@@ -131,17 +133,18 @@ class HcmShiftController extends Controller
             'code' => ['nullable', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
             'startTime' => ['required', 'date_format:H:i'],
             'endTime' => ['required', 'date_format:H:i'],
+            'shiftType' => ['nullable', 'string', 'in:morning,afternoon,night,custom'],
             'description' => ['nullable', 'string', 'max:500'],
             'isActive' => ['nullable', 'boolean'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
         ]);
 
-        if ($validated['endTime'] <= $validated['startTime']) {
+        if ($validated['endTime'] === $validated['startTime']) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
-                    'message' => 'endTime must be after startTime.',
+                    'message' => 'endTime cannot be equal to startTime.',
                 ],
             ], 422);
         }
@@ -167,6 +170,7 @@ class HcmShiftController extends Controller
             'name' => $validated['name'],
             'start_time' => $validated['startTime'],
             'end_time' => $validated['endTime'],
+            'shift_type' => $validated['shiftType'] ?? null,
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) ($validated['isActive'] ?? true),
             'sort_order' => (int) ($validated['sortOrder'] ?? $shift->sort_order),
@@ -218,6 +222,7 @@ class HcmShiftController extends Controller
     {
         $start = $this->formatTimeString($s->start_time);
         $end = $this->formatTimeString($s->end_time);
+        $isOvernight = $end <= $start;
 
         return [
             'id' => $s->id,
@@ -225,10 +230,12 @@ class HcmShiftController extends Controller
             'name' => $s->name,
             'startTime' => $start,
             'endTime' => $end,
+            'shiftType' => $s->shift_type,
+            'isOvernight' => $isOvernight,
             'description' => $s->description ?? '',
             'isActive' => (bool) $s->is_active,
             'sortOrder' => (int) $s->sort_order,
-            'slotLabel' => $start.' - '.$end,
+            'slotLabel' => $start.' - '.$end.($isOvernight ? ' (+1d)' : ''),
         ];
     }
 

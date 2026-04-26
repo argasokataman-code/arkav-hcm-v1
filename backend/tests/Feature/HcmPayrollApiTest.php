@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\MonthlyPayslipMail;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeTaxProfile;
@@ -314,6 +315,11 @@ class HcmPayrollApiTest extends TestCase
     {
         $this->workerToken();
         $admin = $this->adminToken();
+
+        CompanySetting::query()->updateOrCreate(
+            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
+            ['value' => '1', 'type' => 'boolean'],
+        );
 
         $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods', [

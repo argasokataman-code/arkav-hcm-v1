@@ -143,6 +143,85 @@
         return status ? "Error " + status : "Request failed";
     }
 
+    function normalizeOvertimeDayType(dayType) {
+        var key = String(dayType || "workday").trim().toLowerCase();
+        if (key === "holiday") {
+            return "public_holiday";
+        }
+        if (key === "rest_day" || key === "weekly_rest") {
+            return "weekly_rest_day";
+        }
+        if (key === "short_rest_day" || key === "weekly_rest_short") {
+            return "weekly_rest_day_short";
+        }
+        if (key !== "workday" && key !== "public_holiday" && key !== "weekly_rest_day" && key !== "weekly_rest_day_short") {
+            return "workday";
+        }
+        return key;
+    }
+
+    function overtimeDayTypeLabel(dayType) {
+        var key = normalizeOvertimeDayType(dayType);
+        if (key === "public_holiday") {
+            return "Hari libur nasional/tanggal merah";
+        }
+        if (key === "weekly_rest_day") {
+            return "Hari istirahat mingguan";
+        }
+        if (key === "weekly_rest_day_short") {
+            return "Istirahat mingguan (hari kerja terpendek)";
+        }
+        return "Hari kerja";
+    }
+
+    function formatOvertimeComplianceError(data, status, fallbackMessage) {
+        var code = data && data.error && data.error.code ? String(data.error.code) : "";
+        if (code === "OT_DAILY_LIMIT_EXCEEDED") {
+            return "Durasi lembur melewati batas legal 4 jam per hari. Kurangi menit lembur atau pisah ke tanggal lain.";
+        }
+        if (code === "OT_WEEKLY_LIMIT_EXCEEDED") {
+            return "Total lembur melewati batas legal 18 jam per minggu. Tinjau ulang distribusi lembur minggu berjalan.";
+        }
+        return formatApiError(data, status) || fallbackMessage || "Request failed";
+    }
+
+    function overtimeStatusMeta(status) {
+        var key = String(status || "pending").toLowerCase();
+        if (key === "approved") {
+            return { badge: "success", label: "Disetujui", note: "Siap diproses payroll" };
+        }
+        if (key === "declined") {
+            return { badge: "danger", label: "Ditolak", note: "Perlu revisi/klarifikasi" };
+        }
+        return { badge: "warning", label: "Menunggu", note: "Menunggu review atasan/HR" };
+    }
+
+    function overtimePolicyTypeLabel(requestType) {
+        var key = String(requestType || "employee_request").toLowerCase();
+        if (key === "company_assignment") {
+            return "Penugasan perusahaan";
+        }
+        if (key === "missed_log_correction") {
+            return "Koreksi lupa catat";
+        }
+        return "Pengajuan karyawan";
+    }
+
+    function isPendingOlderThan24h(row) {
+        if (!row || String(row.status || "").toLowerCase() !== "pending") {
+            return false;
+        }
+        var dt = String(row.workDate || "").slice(0, 10);
+        if (!dt) {
+            return false;
+        }
+        var workDate = new Date(dt + "T00:00:00");
+        if (Number.isNaN(workDate.getTime())) {
+            return false;
+        }
+        return (Date.now() - workDate.getTime()) > (24 * 60 * 60 * 1000);
+    }
+
     var employeeCompensationById = {};
 
     function loadEmployeeOptions(selectEl) {
@@ -464,7 +543,9 @@
                                 ", Stale cleaned: " +
                                 String(d.cleanedStaleApi || 0) +
                                 ", Skipped manual: " +
-                                String(d.skippedManual || 0),
+                                String(d.skippedManual || 0) +
+                                ", Skipped non-primary: " +
+                                String(d.skippedNonPrimary || 0),
                             false
                         );
                         reload();
@@ -503,7 +584,7 @@
                         reload();
                     })
                     .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
+                        notify(formatOvertimeComplianceError(err.data, err.status), true);
                     });
             });
         }
@@ -550,7 +631,7 @@
                         reload();
                     })
                     .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
+                        notify(formatOvertimeComplianceError(err.data, err.status), true);
                     });
             });
             document.addEventListener("click", function (e) {
@@ -1960,6 +2041,10 @@
     function bindOvertime(isAdmin) {
         var otPage = 1;
         var otPerPage = 20;
+        var otFilters = {
+            status: "",
+            requestType: "",
+        };
         function buildOtUrl() {
             var q = "page=" + encodeURIComponent(String(otPage)) + "&perPage=" + encodeURIComponent(String(otPerPage));
             if (isAdmin) {
@@ -2044,16 +2129,27 @@
             if (!body) {
                 return;
             }
+            var filteredRows = (rows || []).filter(function (r) {
+                var statusOk = !otFilters.status || String(r.status || "").toLowerCase() === otFilters.status;
+                var requestTypeOk = !otFilters.requestType || String(r.requestType || "employee_request").toLowerCase() === otFilters.requestType;
+                return statusOk && requestTypeOk;
+            });
             body.innerHTML =
-                (rows || [])
+                filteredRows
                     .map(function (r) {
-                        var badge =
-                            r.status === "approved" ? "success" : r.status === "declined" ? "danger" : "warning";
+                        var statusMeta = overtimeStatusMeta(r.status);
+                        var isUrgent = isPendingOlderThan24h(r);
                         var hrs = (r.minutes / 60).toFixed(2);
                         var emp = isAdmin ? "<td>" + esc(r.employeeName) + "</td>" : "";
                         var tid = r.overtimeTypeId != null && r.overtimeTypeId !== "" ? String(r.overtimeTypeId) : "";
+                        var policyLine = isAdmin
+                            ? '<div class="text-muted small mt-1">' +
+                              esc(overtimePolicyTypeLabel(r.requestType)) +
+                              (r.policyNote ? ' - ' + esc(String(r.policyNote)) : "") +
+                              "</div>"
+                            : "";
                         return (
-                            "<tr>" +
+                            "<tr" + (isUrgent ? ' class="table-warning"' : "") + ">" +
                             emp +
                             "<td>" +
                             esc(r.workDate) +
@@ -2074,10 +2170,17 @@
                             "</td><td>" +
                             esc(r.notes || "—") +
                             "</td><td><span class=\"badge badge-" +
-                            badge +
+                            statusMeta.badge +
                             ' badge-xs">' +
-                            esc(r.status) +
-                            "</span></td><td><a href=\"#\" data-hcm-ot-edit data-id=\"" +
+                            esc(statusMeta.label) +
+                            "</span><div class=\"text-muted small mt-1\">" +
+                            esc(statusMeta.note) +
+                            "</div>" +
+                            (isUrgent
+                                ? '<div class="text-danger small fw-semibold mt-1">Prioritas: pending >24 jam</div>'
+                                : "") +
+                            policyLine +
+                            "</td><td><a href=\"#\" data-hcm-ot-edit data-id=\"" +
                             esc(r.id) +
                             "\" data-user=\"" +
                             esc(r.userId) +
@@ -2107,7 +2210,45 @@
                     .join("") ||
                     '<tr><td colspan="' +
                     (isAdmin ? "9" : "8") +
-                    '" class="text-center py-4 text-muted">No overtime requests.</td></tr>';
+                    '" class="text-center py-4 text-muted">No overtime requests for current filter.</td></tr>';
+        }
+
+        function setupOtFilters() {
+            var wrap = document.querySelector("[data-hcm-ot-filters]");
+            if (!wrap || wrap.getAttribute("data-bound") === "1") {
+                return;
+            }
+            wrap.setAttribute("data-bound", "1");
+            var statusSel = wrap.querySelector('[data-hcm-ot-filter="status"]');
+            var requestTypeSel = wrap.querySelector('[data-hcm-ot-filter="requestType"]');
+            var resetBtn = wrap.querySelector("[data-hcm-ot-filter-reset]");
+
+            function syncFilters() {
+                otFilters.status = String((statusSel && statusSel.value) || "").trim().toLowerCase();
+                otFilters.requestType = String((requestTypeSel && requestTypeSel.value) || "").trim().toLowerCase();
+                otPage = 1;
+                reload();
+            }
+
+            if (statusSel) {
+                statusSel.addEventListener("change", syncFilters);
+            }
+            if (requestTypeSel) {
+                requestTypeSel.addEventListener("change", syncFilters);
+            }
+            if (resetBtn) {
+                resetBtn.addEventListener("click", function () {
+                    otFilters = { status: "", requestType: "" };
+                    if (statusSel) {
+                        statusSel.value = "";
+                    }
+                    if (requestTypeSel) {
+                        requestTypeSel.value = "";
+                    }
+                    otPage = 1;
+                    reload();
+                });
+            }
         }
 
         function renderOtPagination(meta) {
@@ -2197,6 +2338,7 @@
         }
 
         setupOtPagination();
+        setupOtFilters();
 
         var addForm = document.querySelector('[data-hcm-ot-form="add"]');
         if (addForm) {
@@ -2416,16 +2558,20 @@
         }
 
         btn.addEventListener("click", function () {
+            var selectedDayType = normalizeOvertimeDayType((document.querySelector('[data-hcm-ot-calc="dayType"]') || {}).value || "workday");
             var payload = {
                 baseMonthlySalary: parseFloat((document.querySelector('[data-hcm-ot-calc="baseSalary"]') || {}).value || "0"),
                 fixedAllowance: parseFloat((document.querySelector('[data-hcm-ot-calc="fixedAllowance"]') || {}).value || "0"),
                 minutes: parseInt((document.querySelector('[data-hcm-ot-calc="minutes"]') || {}).value || "0", 10),
-                dayType: (document.querySelector('[data-hcm-ot-calc="dayType"]') || {}).value || "workday",
+                dayType: selectedDayType,
                 weeklyWorkDays: parseInt((document.querySelector('[data-hcm-ot-calc="weeklyWorkDays"]') || {}).value || "5", 10),
             };
             if (!payload.baseMonthlySalary || !payload.minutes) {
                 notify("Isi dulu gaji pokok dan menit lembur.", true);
                 return;
+            }
+            if (payload.minutes > 240) {
+                notify("Catatan: pengajuan lembur legal dibatasi 4 jam per hari, kalkulator ini tetap menjalankan simulasi.", false);
             }
             apiRequest("post", "/v1/hcm/overtime-requests/calculate", payload)
                 .then(function (r) {
@@ -2443,13 +2589,15 @@
                             ? " | Komponen slip: " + (sc.code || "") + (sc.name ? " — " + sc.name : "")
                             : "";
                     resultEl.textContent =
+                        "Tipe hari: " + overtimeDayTypeLabel(selectedDayType) +
+                        " | " +
                         "Upah sejam Rp" + Number(d.hourlyWage || 0).toLocaleString("id-ID") +
                         " | Segment: " + seg +
                         " | Total lembur Rp" + Number(d.totalOvertimePay || 0).toLocaleString("id-ID") +
                         scPart;
                 })
                 .catch(function (e) {
-                    resultEl.textContent = formatApiError(e.data, e.status);
+                    resultEl.textContent = formatOvertimeComplianceError(e.data, e.status, "Perhitungan gagal.");
                 });
         });
 

@@ -335,6 +335,8 @@ class HcmPayrollPeriodController extends Controller
      */
     private function serializeRunSummary(HcmPayrollRun $r): array
     {
+        $meta = is_array($r->meta) ? $r->meta : [];
+
         return [
             'id' => $r->id,
             'payrollPeriodId' => $r->hcm_payroll_period_id,
@@ -343,6 +345,8 @@ class HcmPayrollPeriodController extends Controller
             'calculatedAt' => $r->calculated_at?->toIso8601String(),
             'finalizedAt' => $r->finalized_at?->toIso8601String(),
             'finalizedByUserId' => $r->finalized_by_user_id,
+            'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
+            'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
         ];
     }
 

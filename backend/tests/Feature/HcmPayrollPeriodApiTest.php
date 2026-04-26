@@ -4,10 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\HolidayCalendar;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\HcmPayrollItem;
+use App\Models\HcmSalaryComponent;
+use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\User;
+use App\Models\OvertimeRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -250,6 +255,279 @@ class HcmPayrollPeriodApiTest extends TestCase
         $this->assertNotNull($response->json('data.run'));
         $this->assertGreaterThan(0, (int) $response->json('data.run.id'));
         $this->assertSame('draft', $response->json('data.run.status'));
+    }
+
+    public function test_calculate_draft_persists_policy_snapshot_from_company_settings(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 27,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Makassar',
+            ])
+            ->assertOk();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 3,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayDay', 27)
+            ->assertJsonPath('data.run.policySnapshot.cutoffOffsetDays', 2)
+            ->assertJsonPath('data.run.policySnapshot.payrollTimezone', 'Asia/Makassar')
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2026-03-27')
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2026-03-25')
+            ->assertJsonPath('data.run.policySnapshot.draftDataAsOfDate', '2026-03-25');
+
+        $runId = (int) $response->json('data.run.id');
+        $run = HcmPayrollRun::query()->findOrFail($runId);
+
+        $this->assertSame('2026-03-27', data_get($run->meta, 'policySnapshot.resolvedPaydayDate'));
+        $this->assertSame('2026-03-25', data_get($run->meta, 'policySnapshot.resolvedCutoffDate'));
+        $this->assertSame('2026-03-25', data_get($run->meta, 'policySnapshot.draftDataAsOfDate'));
+    }
+
+    public function test_calculate_draft_clamps_payday_to_last_day_of_short_month(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 31,
+                'cutoffOffsetDays' => 3,
+                'payrollTimezone' => 'Asia/Jakarta',
+            ])
+            ->assertOk();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayDay', 31)
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2026-04-30')
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2026-04-27')
+            ->assertJsonPath('data.run.policySnapshot.draftDataAsOfDate', '2026-04-27');
+    }
+
+    public function test_calculate_draft_resolves_leap_year_february_payday_and_cutoff(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 31,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Jakarta',
+            ])
+            ->assertOk();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2028,
+                'periodMonth' => 2,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayDay', 31)
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2028-02-29')
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2028-02-27')
+            ->assertJsonPath('data.run.policySnapshot.draftDataAsOfDate', '2028-02-27');
+    }
+
+    public function test_calculate_draft_moves_weekend_payday_to_previous_working_day_by_default_strategy(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 28,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Jakarta',
+                'paydayHolidayStrategy' => 'previous_working_day',
+            ])
+            ->assertOk();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 2,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayHolidayStrategy', 'previous_working_day')
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2026-02-27')
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2026-02-25')
+            ->assertJsonPath('data.run.policySnapshot.draftDataAsOfDate', '2026-02-25');
+    }
+
+    public function test_calculate_draft_moves_payday_forward_when_next_working_day_strategy_hits_holiday(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        HolidayCalendar::query()->create([
+            'company_id' => null,
+            'date' => '2026-03-27',
+            'name' => 'Hari Libur Uji Payday',
+            'is_national' => true,
+            'is_joint_leave' => false,
+            'deduct_from_leave' => false,
+            'source' => 'manual',
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 27,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Jakarta',
+                'paydayHolidayStrategy' => 'next_working_day',
+            ])
+            ->assertOk();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 3,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayHolidayStrategy', 'next_working_day')
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2026-03-30')
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2026-03-28')
+            ->assertJsonPath('data.run.policySnapshot.draftDataAsOfDate', '2026-03-28');
+    }
+
+    public function test_calculate_draft_captures_late_arrival_buffer_in_run_meta(): void
+    {
+        $this->employeeToken();
+        $admin = $this->adminToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/settings', [
+                'paydayDay' => 27,
+                'cutoffOffsetDays' => 2,
+                'payrollTimezone' => 'Asia/Jakarta',
+            ])
+            ->assertOk();
+
+        $component = HcmSalaryComponent::query()->create([
+            'company_id' => null,
+            'code' => 'insentif_shift_tl',
+            'name' => 'Insentif Shift TL',
+            'kind' => 'addition',
+            'category' => 'irregular_allowance',
+            'is_active' => true,
+            'is_system' => false,
+            'sort_order' => 210,
+            'affects_net_pay' => true,
+            'include_pph21_ter_gross' => true,
+            'formula_type' => 'flat',
+        ]);
+
+        $payrollItem = HcmPayrollItem::query()->create([
+            'company_id' => null,
+            'hcm_salary_component_id' => $component->id,
+            'code' => 'insentif_shift_tl',
+            'name' => 'Insentif Shift TL',
+            'kind' => 'addition',
+            'category' => 'irregular_allowance',
+            'is_active' => true,
+            'sort_order' => 210,
+        ]);
+
+        $employee = User::query()->where('email', 'employee@example.com')->firstOrFail();
+
+        OvertimeRequest::query()->create([
+            'company_id' => null,
+            'user_id' => $employee->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-03-26',
+            'minutes' => 60,
+            'day_type' => 'workday',
+            'weekly_work_days' => 5,
+            'status' => 'approved',
+        ]);
+
+        HcmEmployeePayrollItemAssignment::query()->create([
+            'company_id' => null,
+            'user_id' => $employee->id,
+            'hcm_payroll_item_id' => $payrollItem->id,
+            'amount' => 150000,
+            'is_active' => true,
+            'effective_start_date' => '2026-03-26',
+            'effective_end_date' => null,
+            'notes' => 'late-arrival baseline',
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 3,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.resolvedCutoffDate', '2026-03-25')
+            ->assertJsonPath('data.run.lateArrivalBuffer.hasLateArrivals', true)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.totalCount', 1)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.payrollItemAssignments.totalCount', 1)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.entries.0.workDate', '2026-03-26')
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.payrollItemAssignments.entries.0.effectiveStartDate', '2026-03-26');
+
+        $runId = (int) $response->json('data.run.id');
+
+        $overtimeLineExists = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $runId)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'upah_lembur')
+            ->exists();
+        $this->assertFalse($overtimeLineExists);
+
+        $assignmentLineExists = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $runId)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'insentif_shift_tl')
+            ->exists();
+        $this->assertFalse($assignmentLineExists);
+
+        $run = HcmPayrollRun::query()->findOrFail($runId);
+        $this->assertTrue((bool) data_get($run->meta, 'lateArrivalBuffer.hasLateArrivals'));
+        $this->assertSame(1, (int) data_get($run->meta, 'lateArrivalBuffer.sources.overtimeRequests.totalCount'));
+        $this->assertSame(1, (int) data_get($run->meta, 'lateArrivalBuffer.sources.payrollItemAssignments.totalCount'));
     }
 
     public function test_admin_can_recalculate_draft_rebuilds_lines(): void

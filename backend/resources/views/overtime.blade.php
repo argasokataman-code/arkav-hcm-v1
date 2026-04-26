@@ -143,7 +143,9 @@
                             <label class="form-label">Tipe Hari</label>
                             <select class="form-select" data-hcm-ot-calc="dayType">
                                 <option value="workday">Hari kerja</option>
-                                <option value="holiday">Hari libur</option>
+                                <option value="public_holiday">Hari libur nasional/tanggal merah</option>
+                                <option value="weekly_rest_day">Hari istirahat mingguan</option>
+                                <option value="weekly_rest_day_short">Istirahat mingguan (hari kerja terpendek, 6-hari)</option>
                             </select>
                         </div>
                         <div class="col-lg-2">
@@ -156,7 +158,7 @@
                     </div>
                     <div class="mt-3 d-flex align-items-center gap-2">
                         <button type="button" class="btn btn-outline-primary" data-hcm-ot-calc="run">Hitung lembur</button>
-                        <div class="small text-muted">Acuan payroll internal; hasil lembur ditaut ke komponen slip lewat <a href="{{ url('payroll') }}">payroll items</a> (Upah lembur). Final mengikuti kebijakan HR.</div>
+                        <div class="small text-muted">Guard legal request: max 4 jam/hari dan 18 jam/minggu. Kalkulator tetap bisa dipakai untuk simulasi skenario. Hasil lembur ditaut ke komponen slip lewat <a href="{{ url('payroll') }}">payroll items</a> (Upah lembur).</div>
                     </div>
                     <div class="mt-3 alert alert-light mb-0" data-hcm-ot-calc="result">Belum ada perhitungan.</div>
                 </div>
@@ -166,8 +168,20 @@
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                     <h5>{{ $arcavOvertimeEmployeeOnly ? 'My overtime requests' : 'Overtime requests' }}</h5>
-                    <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                        <span class="text-muted small">Filter menyusul.</span>
+                    <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-2" data-hcm-ot-filters>
+                        <select class="form-select form-select-sm" data-hcm-ot-filter="status" style="min-width: 170px;">
+                            <option value="">Semua status</option>
+                            <option value="pending">Menunggu</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="declined">Ditolak</option>
+                        </select>
+                        <select class="form-select form-select-sm" data-hcm-ot-filter="requestType" style="min-width: 220px;">
+                            <option value="">Semua tipe kebijakan</option>
+                            <option value="employee_request">Pengajuan karyawan</option>
+                            <option value="company_assignment">Penugasan perusahaan</option>
+                            <option value="missed_log_correction">Koreksi lupa catat</option>
+                        </select>
+                        <button type="button" class="btn btn-sm btn-light border" data-hcm-ot-filter-reset>Reset</button>
                     </div>
                 </div>
                 <div class="card-body p-0">

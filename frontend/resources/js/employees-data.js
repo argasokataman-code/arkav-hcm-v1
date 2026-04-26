@@ -481,7 +481,7 @@
         }
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             return;
         }
@@ -498,7 +498,6 @@
                 '<td><a href="' + buildEmployeeDetailUrl(row.id) + '" data-employee-detail-link data-employee-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.employeeNo) + "</a></td>" +
                 "<td>" + nameCell + "</td>" +
                 "<td>" + escapeHtml(row.email) + "</td>" +
-                "<td>" + escapeHtml(row.team || "—") + "</td>" +
                 "<td>" + escapeHtml(row.departmentName || "—") + "</td>" +
                 "<td>" + escapeHtml(row.designation || "Employee") + "</td>" +
                 "<td>" + escapeHtml(row.joinDate || "-") + "</td>" +
@@ -517,7 +516,7 @@
     function renderListMessage(message) {
         var tbody = document.querySelector("[data-employees-list-body]");
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
         tbody.setAttribute("data-hydrated", "1");
     }
 
@@ -548,7 +547,6 @@
                 '<span class="badge badge-purple-transparent fs-10 fw-medium">' + escapeHtml(row.designation || "Employee") + "</span>" +
                 "</div>" +
                 '<p class="mb-1 text-center"><strong>ID:</strong> ' + escapeHtml(row.employeeNo) + "</p>" +
-                '<p class="mb-1 text-center"><strong>Team:</strong> ' + escapeHtml(row.team || "—") + "</p>" +
                 '<p class="mb-1 text-center"><strong>Dept:</strong> ' + escapeHtml(row.departmentName || "—") + "</p>" +
                 '<p class="mb-1 text-center"><strong>Email:</strong> ' + escapeHtml(row.email) + "</p>" +
                 '<p class="mb-0 text-center"><strong>Status:</strong> ' + escapeHtml(st) + "</p>" +
@@ -587,7 +585,6 @@
                 '<span class="badge badge-soft-dark">' + escapeHtml(item.designation || "Employee") + '</span></div>' +
                 '<div class="border rounded p-2 mb-2">' +
                 '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Employee ID</span><strong>' + escapeHtml(item.employeeNo || "-") + "</strong></div>" +
-                '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Team</span><strong>' + escapeHtml(item.team || "-") + "</strong></div>" +
                 '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Department</span><strong>' + escapeHtml(item.departmentName || "-") + "</strong></div>" +
                 '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Status</span><strong>' + escapeHtml(item.employmentStatus || "-") + "</strong></div>" +
                 '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Join Date</span><strong>' + escapeHtml(item.joinDate || "-") + "</strong></div>" +

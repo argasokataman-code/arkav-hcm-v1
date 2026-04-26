@@ -99,6 +99,7 @@ tags:
   - name: Leave
   - name: Overtime
   - name: Payroll
+  - name: Tax Governance
   - name: Holidays
   - name: Training
   - name: Performance
@@ -9709,6 +9710,514 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/hcm/tax-governance/policies:
+    get:
+      tags: [Tax Governance]
+      summary: List tax governance policies (tenant scoped)
+      description: |
+        Phase 4 runtime baseline is in progress for tax governance tenant control plane.
+        Public identifier policy is UUID-only for this endpoint family.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, submitted, approved, published, superseded, void]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyListResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Tax Governance]
+      summary: Create tax governance policy draft
+      description: |
+        Requires draft-manage permission and tenant scope match.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxGovernancePolicyUpsertRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/policies/{policyUuid}:
+    get:
+      tags: [Tax Governance]
+      summary: Get tax governance policy detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    patch:
+      tags: [Tax Governance]
+      summary: Update tax governance policy draft
+      description: |
+        Only draft policy can be edited. Runtime baseline rejects stale update versions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxGovernancePolicyUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/ConflictError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/policies/{policyUuid}/publish:
+    post:
+      tags: [Tax Governance]
+      summary: Publish approved tax governance policy
+      description: |
+        Draft contract. Requires publish permission and SoD guardrail checks.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publishReason, effectiveStartDate]
+              properties:
+                publishReason:
+                  type: string
+                  maxLength: 1000
+                effectiveStartDate:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/policies/{policyUuid}/submit:
+    post:
+      tags: [Tax Governance]
+      summary: Submit tax governance draft for approval
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                submissionNote:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/policies/{policyUuid}/approve:
+    post:
+      tags: [Tax Governance]
+      summary: Approve submitted tax governance policy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvalNote]
+              properties:
+                approvalNote:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/governance/dashboard:
+    get:
+      tags: [Tax Governance]
+      summary: Cross-tenant governance dashboard projection
+      description: |
+        Draft contract for global observability dashboard.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: risk_level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceDashboardResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/tax-governance/governance/anomalies:
+    get:
+      tags: [Tax Governance]
+      summary: List cross-tenant tax governance anomalies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceAnomalyListResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/tax-governance/governance/break-glass/requests:
+    post:
+      tags: [Tax Governance]
+      summary: Create break-glass access request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxGovernanceBreakGlassRequestCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceBreakGlassRequestResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/governance/break-glass/requests/{requestUuid}/approve:
+    post:
+      tags: [Tax Governance]
+      summary: Approve break-glass request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestUuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvalNote, expiresAt]
+              properties:
+                approvalNote:
+                  type: string
+                  maxLength: 1000
+                expiresAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceBreakGlassRequestResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/reports/tenant-self-audit:
+    get:
+      tags: [Tax Governance]
+      summary: Export tenant self-audit report
+      description: |
+        Runtime baseline returns tenant-scoped audit summary payload while report pack expansion remains in-progress.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period_year
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+        - name: period_month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [json, csv, xlsx, pdf]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/platform-billing/policies:
+    get:
+      tags: [Tax Governance]
+      summary: List platform billing tax policies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: billing_cycle
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [monthly, yearly, custom]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyListResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Tax Governance]
+      summary: Create platform billing tax policy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxGovernancePlatformBillingPolicyUpsertRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/platform-billing/reports:
+    get:
+      tags: [Tax Governance]
+      summary: Platform billing tax reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period_start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: period_end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: group_by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [cycle, package, tenant_segment]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceDashboardResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/tax-governance/platform-billing/reports/export:
+    get:
+      tags: [Tax Governance]
+      summary: Export platform billing tax report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period_start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: period_end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [json, csv, xlsx, pdf]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -12122,3 +12631,246 @@ components:
         updatedAt:
           type: string
           format: date-time
+    TaxGovernancePolicy:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        tenantUuid:
+          type: string
+          format: uuid
+          nullable: true
+        policyCode:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, submitted, approved, published, superseded, void]
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+          nullable: true
+        version:
+          type: integer
+        updatedByUserUuid:
+          type: string
+          format: uuid
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+    TaxGovernancePolicyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/TaxGovernancePolicy'
+    TaxGovernancePolicyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaxGovernancePolicy'
+            meta:
+              type: object
+              properties:
+                page:
+                  type: integer
+                perPage:
+                  type: integer
+                total:
+                  type: integer
+    TaxGovernancePolicyUpsertRequest:
+      type: object
+      required: [policyCode, name, effectiveStartDate, rules, rateSchedules]
+      properties:
+        policyCode:
+          type: string
+          maxLength: 100
+        name:
+          type: string
+          maxLength: 255
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+          nullable: true
+        rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rateSchedules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        version:
+          type: integer
+          nullable: true
+    TaxGovernanceDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            summary:
+              type: object
+              additionalProperties: true
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+    TaxGovernanceAnomalyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  anomalyUuid:
+                    type: string
+                    format: uuid
+                  tenantUuid:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  severity:
+                    type: string
+                    enum: [low, medium, high, critical]
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  detectedAt:
+                    type: string
+                    format: date-time
+            meta:
+              type: object
+              properties:
+                page:
+                  type: integer
+                perPage:
+                  type: integer
+                total:
+                  type: integer
+    TaxGovernanceBreakGlassRequestCreate:
+      type: object
+      required: [targetTenantUuid, reasonCode, reason]
+      properties:
+        targetTenantUuid:
+          type: string
+          format: uuid
+        reasonCode:
+          type: string
+          maxLength: 100
+        reason:
+          type: string
+          maxLength: 2000
+    TaxGovernanceBreakGlassRequestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            requestUuid:
+              type: string
+              format: uuid
+            targetTenantUuid:
+              type: string
+              format: uuid
+            status:
+              type: string
+              enum: [requested, approved, expired, revoked]
+            requestedByUserUuid:
+              type: string
+              format: uuid
+            approvedByUserUuid:
+              type: string
+              format: uuid
+              nullable: true
+            expiresAt:
+              type: string
+              format: date-time
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    TaxGovernanceReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            reportType:
+              type: string
+            generatedAt:
+              type: string
+              format: date-time
+            format:
+              type: string
+              enum: [json, csv, xlsx, pdf]
+            downloadUrl:
+              type: string
+              nullable: true
+            summary:
+              type: object
+              additionalProperties: true
+    TaxGovernancePlatformBillingPolicyUpsertRequest:
+      type: object
+      required: [policyCode, billingCycle, effectiveStartDate, rateSchedules]
+      properties:
+        policyCode:
+          type: string
+          maxLength: 100
+        billingCycle:
+          type: string
+          enum: [monthly, yearly, custom]
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+          nullable: true
+        rateSchedules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true

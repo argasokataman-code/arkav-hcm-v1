@@ -58,6 +58,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 37 | Mock Payment (Dev) | ✅ Dev Ready | [→](mock-payment/) | [📘 Implementation](mock-payment/IMPLEMENTATION.md) | [🧭 Tracker](mock-payment/tracker.md), [⚡ Quick Guide](../MOCK-PAYMENT-GATEWAY-GUIDE.md) |
 | 38 | Notifications & Alerts | 🚧 Planning (Design Ready) | [→](notifications/) | [📘 Implementation](notifications/IMPLEMENTATION.md) | [🧪 E2E Testing](notifications/E2E-TESTING.md), [🧭 Tracker](notifications/tracker.md), [🧩 API Contract](notifications/API-CONTRACT.md) |
 | 39 | Email Settings & Templates | 🚧 In Progress (Observability Baseline) | [→](email-settings/) | [📘 Implementation](email-settings/IMPLEMENTATION.md) | [🧭 Tracker](email-settings/tracker.md), provider-agnostic roadmap |
+| 40 | Tax Governance & Taxonomy | 🚧 In Progress | [→](tax-governance/) | [📘 Implementation](tax-governance/IMPLEMENTATION.md) | [🧭 Tracker](tax-governance/tracker.md), `/tax-rates` audit-readiness mapping |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -131,6 +132,9 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `email-settings/README.md` - **Email Settings & Templates:** audit runtime fitur email, flow bisnis existing vs target, dan readiness untuk provider-agnostic subscription/email service.
 - `email-settings/IMPLEMENTATION.md` - Catatan implementasi teknis endpoint status Mailtrap, wiring route/view, gap persistence, dan roadmap bertahap.
 - `email-settings/tracker.md` - Snapshot status, evidence code surface, gap register, dan milestone implementasi berikutnya.
+- `tax-governance/README.md` - **Tax Governance & Taxonomy:** pemetaan source of truth pajak runtime, dampak audit, anomaly, dan negative scenario seputar `/tax-rates`.
+- `tax-governance/IMPLEMENTATION.md` - Catatan implementasi teknis mengenai web shell `/tax-rates`, employee tax profile, salary component tax flags, dan payroll tax engine.
+- `tax-governance/tracker.md` - Snapshot status, evidence, dan rencana implementasi governance pajak bertahap.
 
 ---
 

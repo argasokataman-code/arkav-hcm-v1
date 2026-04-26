@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\HcmShiftController;
 use App\Http\Controllers\Api\HcmTeamController;
 use App\Http\Controllers\Api\HcmTicketController;
 use App\Http\Controllers\Api\HcmTrainingController;
+use App\Http\Controllers\Api\HcmTaxGovernanceController;
 use App\Http\Controllers\Api\HcmUserManagementController;
 use App\Http\Controllers\Api\SaasCompanyBillingOverviewController;
 use App\Http\Controllers\Api\WilayahLookupController;
@@ -170,6 +171,23 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/salary-components/{id}', [HcmSalaryComponentController::class, 'show'])->whereNumber('id');
     Route::put('/salary-components/{id}', [HcmSalaryComponentController::class, 'update'])->whereNumber('id');
     Route::delete('/salary-components/{id}', [HcmSalaryComponentController::class, 'destroy'])->whereNumber('id');
+
+    Route::prefix('tax-governance')->group(function (): void {
+        Route::get('/policies', [HcmTaxGovernanceController::class, 'index']);
+        Route::post('/policies', [HcmTaxGovernanceController::class, 'store']);
+        Route::get('/policies/{policyUuid}', [HcmTaxGovernanceController::class, 'show'])->whereUuid('policyUuid');
+        Route::patch('/policies/{policyUuid}', [HcmTaxGovernanceController::class, 'update'])->whereUuid('policyUuid');
+        Route::post('/policies/{policyUuid}/submit', [HcmTaxGovernanceController::class, 'submit'])->whereUuid('policyUuid');
+        Route::post('/policies/{policyUuid}/approve', [HcmTaxGovernanceController::class, 'approve'])->whereUuid('policyUuid');
+        Route::post('/policies/{policyUuid}/publish', [HcmTaxGovernanceController::class, 'publish'])->whereUuid('policyUuid');
+        Route::get('/policies/{policyUuid}/events', [HcmTaxGovernanceController::class, 'policyEventHistory'])->whereUuid('policyUuid');
+        Route::get('/governance/dashboard', [HcmTaxGovernanceController::class, 'dashboardSummary']);
+        Route::get('/governance/anomalies', [HcmTaxGovernanceController::class, 'anomalyRegistry']);
+        Route::patch('/governance/anomalies/{anomalyId}/resolve', [HcmTaxGovernanceController::class, 'resolveAnomaly'])->whereUuid('anomalyId');
+        Route::post('/governance/anomalies/{anomalyId}/acknowledge', [HcmTaxGovernanceController::class, 'acknowledgeAnomaly'])->whereUuid('anomalyId');
+        Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);
+        Route::get('/reports/tenant-self-audit-export', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportExport']);
+    });
 
     Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);
     Route::post('/asset-categories', [HcmAssetCategoryController::class, 'store']);

@@ -38,6 +38,20 @@ Fitur ini menyediakan satu layar operasional untuk memantau semua company/tenant
 - Domain Management: konteks tenant operasional sering dibaca bersamaan dengan domain custom tenant. Lihat `docs/features/domain-management/README.md`.
 - Reporting dan Super Admin Dashboard: health billing dan mismatch state menjadi input dashboard/platform analytics yang lebih luas. Lihat `docs/features/reporting/README.md` dan `docs/features/super-admin-dashboard/README.md`.
 - Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
+- Tax Governance: billing dashboard menjadi consumer utama untuk observability pajak biaya layanan aplikasi (platform billing tax), termasuk segmentasi package monthly/yearly/custom.
+
+## Integrasi Pajak Layanan Aplikasi
+
+Dashboard ini menjadi surface utama global admin untuk membaca pajak atas pendapatan layanan aplikasi:
+
+1. Per tenant: taxable base, tax amount, dan invoice total.
+2. Per package cycle: monthly, yearly, custom.
+3. Per invoice status: draft, issued, paid, void.
+4. Per anomaly: tax policy missing, snapshot mismatch, manual override.
+
+Catatan boundary:
+- Pajak billing platform tidak boleh bercampur dengan pajak payroll tenant.
+- Laporan lintas tenant di dashboard ini bersifat governance platform, bukan penggabungan kewajiban setor pajak milik tenant.
 
 ## Kontrak API
 

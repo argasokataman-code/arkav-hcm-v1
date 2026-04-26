@@ -671,14 +671,14 @@
                     <div class="card flex-fill">
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <h5>Notifications</h5>
+                                <h5 data-employee-dashboard-notifications-title>Notifications (0)</h5>
                                 <div>
-                                    <a href="#" class="btn btn-light btn-sm">View All</a>
+                                    <a href="javascript:void(0);" class="btn btn-light btn-sm" data-employee-dashboard-notifications-refresh>Refresh</a>
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-0">Belum ada notifikasi terbaru.</p>
+                        <div class="card-body" data-employee-dashboard-notifications-body>
+                            <p class="text-muted mb-0">Memuat notifikasi...</p>
                         </div>
                     </div>
                 </div>

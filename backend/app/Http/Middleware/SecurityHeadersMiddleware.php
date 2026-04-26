@@ -21,7 +21,7 @@ class SecurityHeadersMiddleware
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set(
             'Permissions-Policy',
-            'accelerometer=(), camera=(), microphone=(), payment=(), usb=()'
+            'accelerometer=(), camera=(self), microphone=(), payment=(), usb=()'
         );
 
         return $response;

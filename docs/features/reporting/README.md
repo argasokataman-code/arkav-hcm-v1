@@ -106,7 +106,7 @@ Karena itu reporting di sistem ini tidak boleh dibaca hanya sebagai “halaman c
 | `/payslip-report` | HCM Admin only | Mendukung `Live` vs `Archive Snapshot` |
 | `/employee-report` | HCM Admin only | Mendukung `Live` vs `Archive Snapshot` |
 | `/leave-report` | HCM Admin only | Mendukung `Live` vs `Archive Snapshot` |
-| `/invoice-report`, `/payment-report`, `/expenses-report`, `/user-report`, `/daily-report`, `/project-report`, `/task-report` | Admin flow existing | Masih memakai legacy report/data source yang sudah ada |
+| `/invoice-report`, `/payment-report`, `/expenses-report`, `/user-report`, `/daily-report` | Admin flow existing | Masih memakai legacy report/data source yang sudah ada |
 
 ### Endpoint API existing
 

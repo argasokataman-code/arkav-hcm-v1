@@ -51,6 +51,8 @@ class TerminationApiTest extends TestCase
                 'userId' => $emp->uuid,
                 'department' => 'Finance',
                 'terminationType' => 'Layoff',
+                'terminationReasonCode' => 'company_efficiency',
+                'legalBasisCode' => 'pp_35_2021',
                 'reason' => 'Workforce reduction',
                 'noticeDate' => '2026-04-01',
                 'terminationDate' => '2026-04-30',
@@ -59,6 +61,14 @@ class TerminationApiTest extends TestCase
 
         $id = $create->json('data.id');
         $this->assertIsInt($id);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)
+            ->assertOk()
+            ->assertJsonPath('data.terminationReasonCode', 'company_efficiency')
+            ->assertJsonPath('data.legalBasisCode', 'pp_35_2021')
+            ->assertJsonPath('data.policyProfileKey', 'company_termination')
+            ->assertJsonPath('data.policyFormulaVersion', '2026.04.id.v1');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->getJson('/v1/hcm/terminations')
@@ -181,6 +191,153 @@ class TerminationApiTest extends TestCase
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
 
+    public function test_termination_rejects_invalid_legal_taxonomy_codes(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'terminationReasonCode' => 'invalid_reason_code',
+                'legalBasisCode' => 'unknown_basis',
+                'reason' => 'Workforce reduction',
+                'noticeDate' => '2026-04-01',
+                'terminationDate' => '2026-04-30',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_termination_workflow_stage_tracks_audit_trail_and_derives_status(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $created = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'terminationReasonCode' => 'company_efficiency',
+                'legalBasisCode' => 'pp_35_2021',
+                'workflowStage' => 'legal_review',
+                'reason' => 'Workforce reduction',
+                'noticeDate' => '2026-04-01',
+                'terminationDate' => '2026-04-30',
+                'notes' => 'Awaiting internal approval',
+            ])
+            ->assertStatus(201);
+
+        $id = $created->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.workflowStage', 'legal_review')
+            ->assertJsonPath('data.workflow.reviewed.user.id', $admin->id);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->putJson('/v1/hcm/terminations/'.$id, [
+                'workflowStage' => 'approved_internal',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved')
+            ->assertJsonPath('data.workflowStage', 'approved_internal')
+            ->assertJsonPath('data.workflow.approved.user.id', $admin->id);
+    }
+
+    public function test_termination_rejects_invalid_workflow_stage_transition(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $created = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'workflowStage' => 'finalized_execution',
+                'reason' => 'Legacy finalized import',
+                'noticeDate' => '2026-04-01',
+                'terminationDate' => '2026-04-30',
+                'clearanceNotes' => 'Imported finalized record',
+            ])
+            ->assertStatus(201);
+
+        $id = $created->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->putJson('/v1/hcm/terminations/'.$id, [
+                'workflowStage' => 'approved_internal',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_termination_finalization_requires_mandatory_non_asset_checklist_completion_when_checklist_present(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $basePayload = [
+            'userId' => $emp->uuid,
+            'department' => 'Finance',
+            'terminationType' => 'Layoff',
+            'reason' => 'Operational handover',
+            'noticeDate' => '2026-04-01',
+            'terminationDate' => '2026-04-30',
+            'workflowStage' => 'finalized_execution',
+            'clearanceNotes' => 'Checklist reviewed by HR and payroll.',
+        ];
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', array_merge($basePayload, [
+                'nonAssetChecklist' => [
+                    [
+                        'label' => 'Handover pekerjaan aktif',
+                        'ownerName' => 'HRBP',
+                        'dueDate' => '2026-04-29',
+                        'status' => 'pending',
+                        'mandatory' => true,
+                    ],
+                ],
+            ]))
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+
+        $created = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', array_merge($basePayload, [
+                'nonAssetChecklist' => [
+                    [
+                        'label' => 'Handover pekerjaan aktif',
+                        'ownerName' => 'HRBP',
+                        'dueDate' => '2026-04-29',
+                        'status' => 'completed',
+                        'completionEvidence' => 'BA handover signed.',
+                        'mandatory' => true,
+                    ],
+                ],
+            ]))
+            ->assertStatus(201);
+
+        $id = $created->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)
+            ->assertOk()
+            ->assertJsonPath('data.settlement.nonAssetChecklist.0.label', 'Handover pekerjaan aktif')
+            ->assertJsonPath('data.settlement.nonAssetChecklist.0.status', 'completed');
+    }
+
     public function test_termination_finalized_requires_settlement_snapshot_and_returns_computed_net_amount(): void
     {
         [$admin, $adminToken] = $this->login(true);
@@ -227,7 +384,8 @@ class TerminationApiTest extends TestCase
             ->assertJsonPath('data.settlement.finalSalaryAmount', '4500000.00')
             ->assertJsonPath('data.settlement.finalAllowanceAmount', '750000.00')
             ->assertJsonPath('data.settlement.finalDeductionAmount', '500000.00')
-            ->assertJsonPath('data.settlement.finalNetAmount', '4750000.00');
+            ->assertJsonPath('data.settlement.finalNetAmount', '4750000.00')
+            ->assertJsonPath('data.settlement.policyProfile', null);
     }
 
     public function test_termination_settlement_preview_returns_compensation_and_clearance_and_finalized_store_auto_links_period(): void

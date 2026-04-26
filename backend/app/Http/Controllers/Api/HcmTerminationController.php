@@ -25,6 +25,7 @@ class HcmTerminationController extends Controller
     use ChecksPermissions;
 
     private const STATUSES = ['pending', 'approved', 'finalized', 'cancelled'];
+    private const POLICY_FORMULA_VERSION = '2026.04.id.v1';
 
     public function __construct(
         private readonly AssetService $assetService,
@@ -68,7 +69,13 @@ class HcmTerminationController extends Controller
 
         $query = HcmTermination::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email', 'settlementPayrollPeriodRef:id,period_year,period_month,status'])
+            ->with([
+                'user:id,name,email',
+                'settlementPayrollPeriodRef:id,period_year,period_month,status',
+                'workflowReviewedBy:id,name,email',
+                'workflowApprovedBy:id,name,email',
+                'workflowFinalizedBy:id,name,email',
+            ])
             ->orderByDesc('termination_date')
             ->orderByDesc('id');
 
@@ -77,6 +84,8 @@ class HcmTerminationController extends Controller
             $query->where(function ($b) use ($q): void {
                 $b->where('department', 'like', '%'.$q.'%')
                     ->orWhere('termination_type', 'like', '%'.$q.'%')
+                    ->orWhere('termination_reason_code', 'like', '%'.$q.'%')
+                    ->orWhere('legal_basis_code', 'like', '%'.$q.'%')
                     ->orWhere('reason', 'like', '%'.$q.'%')
                     ->orWhere('status', 'like', '%'.$q.'%')
                     ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$q.'%')->orWhere('email', 'like', '%'.$q.'%'));
@@ -118,7 +127,13 @@ class HcmTerminationController extends Controller
 
         $t = HcmTermination::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email', 'settlementPayrollPeriodRef:id,period_year,period_month,status'])
+            ->with([
+                'user:id,name,email',
+                'settlementPayrollPeriodRef:id,period_year,period_month,status',
+                'workflowReviewedBy:id,name,email',
+                'workflowApprovedBy:id,name,email',
+                'workflowFinalizedBy:id,name,email',
+            ])
             ->find($id);
         if (! $t) {
             return response()->json([
@@ -249,7 +264,13 @@ class HcmTerminationController extends Controller
 
         $termination = HcmTermination::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email', 'settlementPayrollPeriodRef:id,period_year,period_month,status'])
+            ->with([
+                'user:id,name,email',
+                'settlementPayrollPeriodRef:id,period_year,period_month,status',
+                'workflowReviewedBy:id,name,email',
+                'workflowApprovedBy:id,name,email',
+                'workflowFinalizedBy:id,name,email',
+            ])
             ->find($id);
 
         if (! $termination || ! $termination->user) {
@@ -366,7 +387,13 @@ class HcmTerminationController extends Controller
 
         $rows = HcmTermination::query()
             ->where('company_id', $activeCompanyId)
-            ->with(['user:id,name,email', 'settlementPayrollPeriodRef:id,period_year,period_month,status'])
+            ->with([
+                'user:id,name,email',
+                'settlementPayrollPeriodRef:id,period_year,period_month,status',
+                'workflowReviewedBy:id,name,email',
+                'workflowApprovedBy:id,name,email',
+                'workflowFinalizedBy:id,name,email',
+            ])
             ->where('user_id', $userId)
             ->orderByDesc('termination_date')
             ->orderByDesc('id')
@@ -405,6 +432,9 @@ class HcmTerminationController extends Controller
             'userId' => ['required', 'uuid', 'exists:users,uuid'],
             'department' => ['nullable', 'string', 'max:150'],
             'terminationType' => ['required', 'string', 'max:150'],
+            'terminationReasonCode' => ['nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::TERMINATION_REASON_CODES)],
+            'legalBasisCode' => ['nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::LEGAL_BASIS_CODES)],
+            'workflowStage' => ['nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::WORKFLOW_STAGES)],
             'reason' => ['required', 'string', 'max:2000'],
             'noticeDate' => ['required', 'date'],
             'terminationDate' => ['required', 'date', 'after_or_equal:noticeDate'],
@@ -418,11 +448,17 @@ class HcmTerminationController extends Controller
             'clearanceNotes' => ['nullable', 'string', 'max:2000'],
             'settlementBreakdown' => ['nullable', 'array'],
             'clearanceItems' => ['nullable', 'array'],
+            'nonAssetChecklist' => ['nullable', 'array'],
         ]);
 
         if ($finalizedError = $this->validateFinalizedFields($v)) {
             return $finalizedError;
         }
+
+        $workflowStage = $this->resolveWorkflowStage(
+            $v['workflowStage'] ?? null,
+            $v['status'] ?? null,
+        );
 
         $resolvedUserId = $this->resolveUserIdFromUuid((string) $v['userId'], $activeCompanyId);
         if ($resolvedUserId === null) {
@@ -442,15 +478,25 @@ class HcmTerminationController extends Controller
             $v
         );
 
+        $policyPayload = $this->resolvePolicyProfilePayload(
+            $v['terminationReasonCode'] ?? null,
+            $v['legalBasisCode'] ?? null,
+        );
+        $workflowPayload = $this->buildWorkflowPayloadOnCreate($workflowStage, (int) $request->user()->id);
+
         $t = HcmTermination::query()->create([
             'company_id' => $activeCompanyId,
             'user_id' => $resolvedUserId,
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'termination_type' => trim((string) $v['terminationType']),
+            'termination_reason_code' => $this->cleanNullableString($v['terminationReasonCode'] ?? null),
+            'legal_basis_code' => $this->cleanNullableString($v['legalBasisCode'] ?? null),
+            ...$policyPayload,
+            ...$workflowPayload,
             'reason' => trim((string) $v['reason']),
             'notice_date' => $v['noticeDate'],
             'termination_date' => $v['terminationDate'],
-            'status' => $v['status'] ?? 'pending',
+            'status' => $this->statusFromWorkflowStage($workflowStage),
             'notes' => isset($v['notes']) ? trim((string) $v['notes']) : null,
             ...$snapshotPayload,
         ]);
@@ -483,6 +529,9 @@ class HcmTerminationController extends Controller
             'userId' => ['sometimes', 'required', 'uuid', 'exists:users,uuid'],
             'department' => ['sometimes', 'nullable', 'string', 'max:150'],
             'terminationType' => ['sometimes', 'required', 'string', 'max:150'],
+            'terminationReasonCode' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::TERMINATION_REASON_CODES)],
+            'legalBasisCode' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::LEGAL_BASIS_CODES)],
+            'workflowStage' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::WORKFLOW_STAGES)],
             'reason' => ['sometimes', 'required', 'string', 'max:2000'],
             'noticeDate' => ['sometimes', 'required', 'date'],
             'terminationDate' => ['sometimes', 'required', 'date'],
@@ -496,10 +545,12 @@ class HcmTerminationController extends Controller
             'clearanceNotes' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'settlementBreakdown' => ['sometimes', 'nullable', 'array'],
             'clearanceItems' => ['sometimes', 'nullable', 'array'],
+            'nonAssetChecklist' => ['sometimes', 'nullable', 'array'],
         ]);
 
         $effectiveValues = array_merge([
             'status' => $t->status,
+            'workflowStage' => $t->workflow_stage,
             'settlementPayrollPeriod' => $t->settlement_payroll_period,
             'finalSalaryAmount' => $t->final_salary_amount,
             'finalAllowanceAmount' => $t->final_allowance_amount,
@@ -508,10 +559,27 @@ class HcmTerminationController extends Controller
             'clearanceNotes' => $t->clearance_notes,
             'settlementBreakdown' => $t->settlement_breakdown,
             'clearanceItems' => $t->clearance_items,
+            'nonAssetChecklist' => $t->non_asset_checklist,
         ], $v);
 
         if ($finalizedError = $this->validateFinalizedFields($effectiveValues)) {
             return $finalizedError;
+        }
+
+        if (array_key_exists('workflowStage', $v) || array_key_exists('status', $v)) {
+            $requestedWorkflowStage = $this->resolveWorkflowStage(
+                $v['workflowStage'] ?? null,
+                $v['status'] ?? null,
+            );
+            if (! $this->isWorkflowTransitionAllowed($t->workflow_stage, $requestedWorkflowStage)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'Workflow stage transition is not allowed.',
+                    ],
+                ], 422);
+            }
         }
 
         if (isset($v['noticeDate'], $v['terminationDate'])) {
@@ -566,6 +634,31 @@ class HcmTerminationController extends Controller
         if (array_key_exists('terminationType', $v)) {
             $payload['termination_type'] = trim((string) $v['terminationType']);
         }
+        if (array_key_exists('terminationReasonCode', $v)) {
+            $payload['termination_reason_code'] = $this->cleanNullableString($v['terminationReasonCode']);
+        }
+        if (array_key_exists('legalBasisCode', $v)) {
+            $payload['legal_basis_code'] = $this->cleanNullableString($v['legalBasisCode']);
+        }
+        if (array_key_exists('terminationReasonCode', $v) || array_key_exists('legalBasisCode', $v)) {
+            $payload = array_merge($payload, $this->resolvePolicyProfilePayload(
+                $v['terminationReasonCode'] ?? $t->termination_reason_code,
+                $v['legalBasisCode'] ?? $t->legal_basis_code,
+            ));
+        }
+        if (array_key_exists('workflowStage', $v) || array_key_exists('status', $v)) {
+            $nextWorkflowStage = $this->resolveWorkflowStage(
+                $v['workflowStage'] ?? null,
+                $v['status'] ?? null,
+            );
+            $payload['workflow_stage'] = $nextWorkflowStage;
+            $payload['status'] = $this->statusFromWorkflowStage($nextWorkflowStage);
+            $payload = array_merge($payload, $this->buildWorkflowPayloadOnUpdate(
+                $t,
+                $nextWorkflowStage,
+                (int) $request->user()->id,
+            ));
+        }
         if (array_key_exists('reason', $v)) {
             $payload['reason'] = trim((string) $v['reason']);
         }
@@ -584,6 +677,7 @@ class HcmTerminationController extends Controller
 
         $snapshotFields = [
             'status',
+            'workflowStage',
             'terminationDate',
             'settlementPayrollPeriod',
             'finalSalaryAmount',
@@ -593,6 +687,7 @@ class HcmTerminationController extends Controller
             'clearanceNotes',
             'settlementBreakdown',
             'clearanceItems',
+            'nonAssetChecklist',
         ];
 
         $shouldRefreshSnapshot = $payload['status'] ?? $t->status;
@@ -650,6 +745,7 @@ class HcmTerminationController extends Controller
     {
         $breakdown = $this->normalizeListForResponse($t->settlement_breakdown);
         $clearanceItems = $this->normalizeListForResponse($t->clearance_items);
+        $nonAssetChecklist = $this->normalizeChecklistForResponse($t->non_asset_checklist);
         $hasSettlement = $t->settlement_payroll_period !== null
             || $t->settlement_payroll_period_id !== null
             || $t->final_salary_amount !== null
@@ -658,7 +754,8 @@ class HcmTerminationController extends Controller
             || $t->asset_return_notes !== null
             || $t->clearance_notes !== null
             || $breakdown !== []
-            || $clearanceItems !== [];
+            || $clearanceItems !== []
+            || $nonAssetChecklist !== [];
 
         $salary = $this->decimalString($t->final_salary_amount);
         $allowance = $this->decimalString($t->final_allowance_amount);
@@ -670,6 +767,17 @@ class HcmTerminationController extends Controller
             'employee' => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name, 'email' => $t->user->email] : null,
             'department' => $t->department ?? '',
             'terminationType' => $t->termination_type ?? '',
+            'terminationReasonCode' => $t->termination_reason_code,
+            'legalBasisCode' => $t->legal_basis_code,
+            'policyProfileKey' => $t->policy_profile_key,
+            'policyFormulaVersion' => $t->policy_formula_version,
+            'workflowStage' => $t->workflow_stage ?? $this->workflowStageFromStatus($t->status),
+            'workflow' => [
+                'stage' => $t->workflow_stage ?? $this->workflowStageFromStatus($t->status),
+                'reviewed' => $this->workflowActorPayload($t->workflowReviewedBy, $t->workflow_reviewed_at),
+                'approved' => $this->workflowActorPayload($t->workflowApprovedBy, $t->workflow_approved_at),
+                'finalized' => $this->workflowActorPayload($t->workflowFinalizedBy, $t->workflow_finalized_at),
+            ],
             'reason' => $t->reason ?? '',
             'noticeDate' => $t->notice_date?->toDateString(),
             'terminationDate' => $t->termination_date?->toDateString(),
@@ -688,14 +796,85 @@ class HcmTerminationController extends Controller
                 'breakdown' => $breakdown,
                 'clearanceItems' => $clearanceItems,
                 'clearanceOutstandingCount' => count($clearanceItems),
+                'nonAssetChecklist' => $nonAssetChecklist,
+                'policyProfile' => $this->policyProfileSummary($t->policy_profile_key),
             ] : null,
             'createdAt' => $t->created_at?->toIso8601String(),
         ];
     }
 
+    /**
+     * @return array{policy_profile_key:?string,policy_formula_version:?string}
+     */
+    private function resolvePolicyProfilePayload(mixed $reasonCode, mixed $legalBasisCode): array
+    {
+        $reason = $this->cleanNullableString($reasonCode);
+        $legalBasis = $this->cleanNullableString($legalBasisCode);
+
+        if ($reason === null && $legalBasis === null) {
+            return [
+                'policy_profile_key' => null,
+                'policy_formula_version' => null,
+            ];
+        }
+
+        return [
+            'policy_profile_key' => $this->resolvePolicyProfileKey($reason, $legalBasis),
+            'policy_formula_version' => self::POLICY_FORMULA_VERSION,
+        ];
+    }
+
+    private function resolvePolicyProfileKey(?string $reasonCode, ?string $legalBasisCode): string
+    {
+        if ($reasonCode === 'contract_end' && $legalBasisCode === 'pkwt_contract') {
+            return 'pkwt_end_of_contract';
+        }
+        if ($reasonCode === 'retirement') {
+            return 'retirement';
+        }
+        if (in_array($reasonCode, ['company_efficiency', 'company_closure', 'force_majeure'], true)) {
+            return 'company_termination';
+        }
+        if (in_array($reasonCode, ['misconduct', 'court_order'], true)) {
+            return 'disciplinary_or_court';
+        }
+        if ($reasonCode === 'death') {
+            return 'deceased_employee';
+        }
+        if ($reasonCode === 'long_term_illness') {
+            return 'medical_termination';
+        }
+
+        return 'general_other';
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function policyProfileSummary(?string $policyProfileKey): ?array
+    {
+        if ($policyProfileKey === null || trim($policyProfileKey) === '') {
+            return null;
+        }
+
+        $components = [
+            'severancePay' => in_array($policyProfileKey, ['retirement', 'company_termination', 'general_other', 'medical_termination'], true),
+            'longServiceAward' => in_array($policyProfileKey, ['retirement', 'company_termination', 'general_other', 'medical_termination'], true),
+            'rightsCompensation' => true,
+            'pkwtCompensation' => $policyProfileKey === 'pkwt_end_of_contract',
+        ];
+
+        return [
+            'key' => $policyProfileKey,
+            'formulaVersion' => self::POLICY_FORMULA_VERSION,
+            'components' => $components,
+        ];
+    }
+
     private function validateFinalizedFields(array $values): ?JsonResponse
     {
-        if (($values['status'] ?? 'pending') !== 'finalized') {
+        $effectiveStatus = $values['status'] ?? $this->statusFromWorkflowStage($values['workflowStage'] ?? null);
+        if ($effectiveStatus !== 'finalized') {
             return null;
         }
 
@@ -711,6 +890,23 @@ class HcmTerminationController extends Controller
                     'error' => [
                         'code' => 'VALIDATION_ERROR',
                         'message' => $message,
+                    ],
+                ], 422);
+            }
+        }
+
+        $checklist = $this->normalizeChecklistForResponse($values['nonAssetChecklist'] ?? null);
+        if ($checklist !== []) {
+            $incompleteMandatory = array_values(array_filter($checklist, function (array $item): bool {
+                return ($item['mandatory'] ?? false) === true && ($item['status'] ?? 'pending') !== 'completed';
+            }));
+
+            if ($incompleteMandatory !== []) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'All mandatory non-asset checklist items must be completed before finalization.',
                     ],
                 ], 422);
             }
@@ -732,6 +928,7 @@ class HcmTerminationController extends Controller
             'clearance_notes' => $this->cleanNullableString($values['clearanceNotes'] ?? null),
             'settlement_breakdown' => $this->normalizeNullableArray($values['settlementBreakdown'] ?? null),
             'clearance_items' => $this->normalizeNullableArray($values['clearanceItems'] ?? null),
+            'non_asset_checklist' => $this->normalizeChecklistForStorage($values['nonAssetChecklist'] ?? null),
         ];
 
         if ($status !== 'finalized') {
@@ -758,6 +955,7 @@ class HcmTerminationController extends Controller
                 ?? $this->normalizeNullableArray($preview['breakdown'] ?? null),
             'clearance_items' => $this->normalizeNullableArray($values['clearanceItems'] ?? null)
                 ?? $this->normalizeNullableArray($clearance['items'] ?? null),
+            'non_asset_checklist' => $this->normalizeChecklistForStorage($values['nonAssetChecklist'] ?? null),
         ];
     }
 
@@ -1150,6 +1348,48 @@ class HcmTerminationController extends Controller
         return is_array($value) ? array_values($value) : [];
     }
 
+    private function normalizeChecklistForStorage(mixed $value): ?array
+    {
+        $normalized = $this->normalizeChecklistForResponse($value);
+
+        return $normalized === [] ? null : $normalized;
+    }
+
+    private function normalizeChecklistForResponse(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach (array_values($value) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $label = $this->cleanNullableString($item['label'] ?? null);
+            if ($label === null) {
+                continue;
+            }
+
+            $status = $this->cleanNullableString($item['status'] ?? null) ?? 'pending';
+            if (! in_array($status, ['pending', 'completed'], true)) {
+                $status = 'pending';
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'ownerName' => $this->cleanNullableString($item['ownerName'] ?? null),
+                'dueDate' => $this->cleanNullableString($item['dueDate'] ?? null),
+                'status' => $status,
+                'completionEvidence' => $this->cleanNullableString($item['completionEvidence'] ?? null),
+                'mandatory' => (bool) ($item['mandatory'] ?? false),
+            ];
+        }
+
+        return $normalized;
+    }
+
     private function cleanNullableString(mixed $value): ?string
     {
         if ($value === null) {
@@ -1186,6 +1426,132 @@ class HcmTerminationController extends Controller
         }
 
         return number_format(((float) $salary + (float) $allowance) - (float) $deduction, 2, '.', '');
+    }
+
+    private function resolveWorkflowStage(mixed $workflowStage, mixed $status): string
+    {
+        $stage = $this->cleanNullableString($workflowStage);
+        if ($stage !== null) {
+            return $stage;
+        }
+
+        return $this->workflowStageFromStatus($this->cleanNullableString($status));
+    }
+
+    private function workflowStageFromStatus(?string $status): string
+    {
+        return match ($status) {
+            'approved' => 'approved_internal',
+            'finalized' => 'finalized_execution',
+            'cancelled' => 'cancelled',
+            default => 'draft_review',
+        };
+    }
+
+    private function statusFromWorkflowStage(mixed $workflowStage): string
+    {
+        return match ($workflowStage) {
+            'approved_internal' => 'approved',
+            'finalized_execution' => 'finalized',
+            'cancelled' => 'cancelled',
+            default => 'pending',
+        };
+    }
+
+    private function isWorkflowTransitionAllowed(?string $currentStage, string $nextStage): bool
+    {
+        $current = $currentStage ?: 'draft_review';
+
+        if ($current === $nextStage) {
+            return true;
+        }
+
+        return match ($current) {
+            'draft_review' => in_array($nextStage, ['legal_review', 'approved_internal', 'finalized_execution', 'cancelled'], true),
+            'legal_review' => in_array($nextStage, ['approved_internal', 'finalized_execution', 'cancelled'], true),
+            'approved_internal' => in_array($nextStage, ['finalized_execution', 'cancelled'], true),
+            'finalized_execution', 'cancelled' => false,
+            default => false,
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildWorkflowPayloadOnCreate(string $workflowStage, int $actorUserId): array
+    {
+        $payload = [
+            'workflow_stage' => $workflowStage,
+            'workflow_reviewed_by_user_id' => null,
+            'workflow_reviewed_at' => null,
+            'workflow_approved_by_user_id' => null,
+            'workflow_approved_at' => null,
+            'workflow_finalized_by_user_id' => null,
+            'workflow_finalized_at' => null,
+        ];
+
+        $now = now();
+        if (in_array($workflowStage, ['legal_review', 'approved_internal', 'finalized_execution'], true)) {
+            $payload['workflow_reviewed_by_user_id'] = $actorUserId;
+            $payload['workflow_reviewed_at'] = $now;
+        }
+        if (in_array($workflowStage, ['approved_internal', 'finalized_execution'], true)) {
+            $payload['workflow_approved_by_user_id'] = $actorUserId;
+            $payload['workflow_approved_at'] = $now;
+        }
+        if ($workflowStage === 'finalized_execution') {
+            $payload['workflow_finalized_by_user_id'] = $actorUserId;
+            $payload['workflow_finalized_at'] = $now;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildWorkflowPayloadOnUpdate(HcmTermination $termination, string $nextStage, int $actorUserId): array
+    {
+        $payload = [];
+        $current = $termination->workflow_stage ?: $this->workflowStageFromStatus($termination->status);
+        if ($current === $nextStage) {
+            return $payload;
+        }
+
+        $now = now();
+        if (in_array($nextStage, ['legal_review', 'approved_internal', 'finalized_execution'], true) && $termination->workflow_reviewed_at === null) {
+            $payload['workflow_reviewed_by_user_id'] = $actorUserId;
+            $payload['workflow_reviewed_at'] = $now;
+        }
+        if (in_array($nextStage, ['approved_internal', 'finalized_execution'], true) && $termination->workflow_approved_at === null) {
+            $payload['workflow_approved_by_user_id'] = $actorUserId;
+            $payload['workflow_approved_at'] = $now;
+        }
+        if ($nextStage === 'finalized_execution' && $termination->workflow_finalized_at === null) {
+            $payload['workflow_finalized_by_user_id'] = $actorUserId;
+            $payload['workflow_finalized_at'] = $now;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function workflowActorPayload(?User $user, mixed $timestamp): ?array
+    {
+        if ($user === null && $timestamp === null) {
+            return null;
+        }
+
+        return [
+            'user' => $user ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ] : null,
+            'at' => $timestamp instanceof Carbon ? $timestamp->toIso8601String() : ($timestamp ? (string) $timestamp : null),
+        ];
     }
 
     private function canManageTermination(Request $request): bool

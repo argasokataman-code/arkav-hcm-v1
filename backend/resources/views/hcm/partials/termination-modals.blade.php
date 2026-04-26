@@ -22,12 +22,24 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Status</label>
-                            <select class="form-select" data-arcav-termination-status>
+                            <select class="form-select bg-light" data-arcav-termination-status>
                                 <option value="pending">pending</option>
                                 <option value="approved">approved</option>
                                 <option value="finalized">finalized</option>
                                 <option value="cancelled">cancelled</option>
                             </select>
+                            <small class="text-muted fs-12">Status diturunkan otomatis dari workflow stage compliance.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Workflow stage</label>
+                            <select class="form-select" data-arcav-termination-workflow-stage>
+                                <option value="draft_review">draft_review</option>
+                                <option value="legal_review">legal_review</option>
+                                <option value="approved_internal">approved_internal</option>
+                                <option value="finalized_execution">finalized_execution</option>
+                                <option value="cancelled">cancelled</option>
+                            </select>
+                            <small class="text-muted fs-12">Trail compliance: review internal, legal review, approval, lalu final execution.</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Termination type <span class="text-danger">*</span></label>
@@ -40,6 +52,39 @@
                                 <option value="Breach of Contract"></option>
                             </datalist>
                             <div class="invalid-feedback">Tipe terminasi wajib diisi (maks. 150 karakter).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Termination reason code</label>
+                            <select class="form-select" data-arcav-termination-reason-code>
+                                <option value="">Select reason code…</option>
+                                <option value="contract_end">contract_end</option>
+                                <option value="retirement">retirement</option>
+                                <option value="company_efficiency">company_efficiency</option>
+                                <option value="misconduct">misconduct</option>
+                                <option value="company_closure">company_closure</option>
+                                <option value="force_majeure">force_majeure</option>
+                                <option value="long_term_illness">long_term_illness</option>
+                                <option value="court_order">court_order</option>
+                                <option value="death">death</option>
+                                <option value="other">other</option>
+                            </select>
+                            <small class="text-muted fs-12">Kode terstruktur untuk mapping policy hak PHK.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Legal basis code</label>
+                            <select class="form-select" data-arcav-termination-legal-basis-code>
+                                <option value="">Select legal basis…</option>
+                                <option value="uu_ketenagakerjaan">uu_ketenagakerjaan</option>
+                                <option value="uu_cipta_kerja">uu_cipta_kerja</option>
+                                <option value="pp_35_2021">pp_35_2021</option>
+                                <option value="pkwt_contract">pkwt_contract</option>
+                                <option value="company_regulation">company_regulation</option>
+                                <option value="collective_labor_agreement">collective_labor_agreement</option>
+                                <option value="settlement_agreement">settlement_agreement</option>
+                                <option value="court_decision">court_decision</option>
+                                <option value="other">other</option>
+                            </select>
+                            <small class="text-muted fs-12">Dasar legal utama untuk audit trail termination.</small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Notice date <span class="text-danger">*</span></label>

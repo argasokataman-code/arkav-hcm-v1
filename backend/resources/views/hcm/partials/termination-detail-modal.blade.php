@@ -18,6 +18,12 @@
                         <dd class="col-sm-8" data-arcav-termination-detail-department>—</dd>
                         <dt class="col-sm-4 text-muted">Termination type</dt>
                         <dd class="col-sm-8" data-arcav-termination-detail-type>—</dd>
+                        <dt class="col-sm-4 text-muted">Termination reason code</dt>
+                        <dd class="col-sm-8" data-arcav-termination-detail-reason-code>—</dd>
+                        <dt class="col-sm-4 text-muted">Legal basis code</dt>
+                        <dd class="col-sm-8" data-arcav-termination-detail-legal-basis-code>—</dd>
+                        <dt class="col-sm-4 text-muted">Workflow stage</dt>
+                        <dd class="col-sm-8" data-arcav-termination-detail-workflow-stage>—</dd>
                         <dt class="col-sm-4 text-muted">Status</dt>
                         <dd class="col-sm-8" data-arcav-termination-detail-status>—</dd>
                         <dt class="col-sm-4 text-muted">Notice date</dt>
@@ -28,6 +34,12 @@
                         <dd class="col-sm-8 text-break" data-arcav-termination-detail-reason>—</dd>
                         <dt class="col-sm-4 text-muted">Notes</dt>
                         <dd class="col-sm-8 text-break" data-arcav-termination-detail-notes>—</dd>
+                        <dt class="col-sm-4 text-muted">Reviewed</dt>
+                        <dd class="col-sm-8 text-break" data-arcav-termination-detail-reviewed>—</dd>
+                        <dt class="col-sm-4 text-muted">Approved</dt>
+                        <dd class="col-sm-8 text-break" data-arcav-termination-detail-approved>—</dd>
+                        <dt class="col-sm-4 text-muted">Finalized</dt>
+                        <dd class="col-sm-8 text-break" data-arcav-termination-detail-finalized>—</dd>
                         <div class="d-none" data-arcav-termination-detail-settlement-wrap>
                             <dt class="col-sm-4 text-muted">Settlement payroll period</dt>
                             <dd class="col-sm-8" data-arcav-termination-detail-settlement-period>—</dd>

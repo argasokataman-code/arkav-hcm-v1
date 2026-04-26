@@ -156,6 +156,54 @@
         return "warning";
     }
 
+    function deriveWorkflowStageFromStatus(status) {
+        var s = String(status || "pending").toLowerCase();
+        if (s === "approved") return "approved_internal";
+        if (s === "finalized") return "finalized_execution";
+        if (s === "cancelled") return "cancelled";
+        return "draft_review";
+    }
+
+    function deriveStatusFromWorkflowStage(stage) {
+        var s = String(stage || "draft_review").toLowerCase();
+        if (s === "approved_internal") return "approved";
+        if (s === "finalized_execution") return "finalized";
+        if (s === "cancelled") return "cancelled";
+        return "pending";
+    }
+
+    function formatWorkflowAuditEntry(entry) {
+        if (!entry) return "—";
+        var user = entry.user || {};
+        var parts = [];
+        if (user.name) {
+            parts.push(String(user.name));
+        } else if (user.email) {
+            parts.push(String(user.email));
+        }
+        if (entry.at) {
+            parts.push(String(entry.at));
+        }
+        return parts.length ? parts.join(" · ") : "—";
+    }
+
+    function syncWorkflowFromStatus() {
+        if (!statusSelect) return;
+        var derivedWorkflow = deriveWorkflowStageFromStatus(statusSelect.value);
+        if (workflowStageSelect) {
+            workflowStageSelect.value = derivedWorkflow;
+        }
+        toggleFinalizationFields(statusSelect.value);
+    }
+
+    function syncStatusFromWorkflow() {
+        var derivedStatus = deriveStatusFromWorkflowStage(workflowStageSelect ? workflowStageSelect.value : "draft_review");
+        if (statusSelect) {
+            statusSelect.value = derivedStatus;
+        }
+        toggleFinalizationFields(derivedStatus);
+    }
+
     function parseAmount(value) {
         if (value === null || value === undefined || value === "") {
             return null;
@@ -252,7 +300,10 @@
     var flashEl = modalEl ? modalEl.querySelector("[data-arcav-termination-flash]") : null;
     var idInput = modalEl ? modalEl.querySelector("[data-arcav-termination-id]") : null;
     var userSelect = modalEl ? modalEl.querySelector("[data-arcav-termination-user]") : null;
+    var workflowStageSelect = modalEl ? modalEl.querySelector("[data-arcav-termination-workflow-stage]") : null;
     var typeInput = modalEl ? modalEl.querySelector("[data-arcav-termination-type]") : null;
+    var reasonCodeSelect = modalEl ? modalEl.querySelector("[data-arcav-termination-reason-code]") : null;
+    var legalBasisCodeSelect = modalEl ? modalEl.querySelector("[data-arcav-termination-legal-basis-code]") : null;
     var noticeInput = modalEl ? modalEl.querySelector("[data-arcav-termination-notice-date]") : null;
     var termDateInput = modalEl ? modalEl.querySelector("[data-arcav-termination-termination-date]") : null;
     var deptInput = modalEl ? modalEl.querySelector("[data-arcav-termination-department]") : null;
@@ -524,19 +575,24 @@
         latestSettlementPreview = null;
         if (modalTitle) modalTitle.textContent = row ? "Edit Termination" : "Add Termination";
         if (idInput) idInput.value = row ? String(row.id) : "";
+        if (workflowStageSelect) workflowStageSelect.value = row ? (row.workflowStage || deriveWorkflowStageFromStatus(row.status || "pending")) : "draft_review";
         if (typeInput) typeInput.value = row ? (row.terminationType || "") : "";
+        if (reasonCodeSelect) reasonCodeSelect.value = row ? (row.terminationReasonCode || "") : "";
+        if (legalBasisCodeSelect) legalBasisCodeSelect.value = row ? (row.legalBasisCode || "") : "";
         if (noticeInput) noticeInput.value = row ? (row.noticeDate || "") : "";
         if (termDateInput) termDateInput.value = row ? (row.terminationDate || "") : "";
         if (reasonInput) reasonInput.value = row ? (row.reason || "") : "";
         if (notesInput) notesInput.value = row ? (row.notes || "") : "";
-        if (statusSelect) statusSelect.value = row ? String(row.status || "pending") : "pending";
+        if (statusSelect) {
+            statusSelect.value = row ? String(row.status || deriveStatusFromWorkflowStage(workflowStageSelect ? workflowStageSelect.value : "draft_review")) : deriveStatusFromWorkflowStage(workflowStageSelect ? workflowStageSelect.value : "draft_review");
+        }
         if (settlementPayrollPeriodInput) settlementPayrollPeriodInput.value = row && row.settlement ? (row.settlement.payrollPeriod || "") : "";
         if (finalSalaryAmountInput) finalSalaryAmountInput.value = row && row.settlement ? (row.settlement.finalSalaryAmount || "") : "";
         if (finalAllowanceAmountInput) finalAllowanceAmountInput.value = row && row.settlement ? (row.settlement.finalAllowanceAmount || "") : "";
         if (finalDeductionAmountInput) finalDeductionAmountInput.value = row && row.settlement ? (row.settlement.finalDeductionAmount || "") : "";
         if (assetReturnNotesInput) assetReturnNotesInput.value = row && row.settlement ? (row.settlement.assetReturnNotes || "") : "";
         if (clearanceNotesInput) clearanceNotesInput.value = row && row.settlement ? (row.settlement.clearanceNotes || "") : "";
-        toggleFinalizationFields(statusSelect ? statusSelect.value : "pending");
+        toggleFinalizationFields(statusSelect ? statusSelect.value : deriveStatusFromWorkflowStage(workflowStageSelect ? workflowStageSelect.value : "draft_review"));
         if (row && row.settlement) {
             renderSettlementPreview(previewFromSettlement(row.settlement));
         } else {
@@ -582,7 +638,13 @@
 
     if (statusSelect) {
         statusSelect.addEventListener("change", function () {
-            toggleFinalizationFields(statusSelect.value);
+            syncWorkflowFromStatus();
+        });
+    }
+
+    if (workflowStageSelect) {
+        workflowStageSelect.addEventListener("change", function () {
+            syncStatusFromWorkflow();
         });
     }
 
@@ -671,10 +733,14 @@
                 return;
             }
             var ttype = typeInput ? String(typeInput.value || "").trim() : "";
+            var workflowStage = workflowStageSelect ? String(workflowStageSelect.value || "draft_review").trim() : "draft_review";
+            var terminationReasonCode = reasonCodeSelect ? String(reasonCodeSelect.value || "").trim() : "";
+            var legalBasisCode = legalBasisCodeSelect ? String(legalBasisCodeSelect.value || "").trim() : "";
             var dept = deptInput ? String(deptInput.value || "").trim() : "";
             var reason = reasonInput ? String(reasonInput.value || "").trim() : "";
             var notes = notesInput ? String(notesInput.value || "") : "";
-            var st = statusSelect ? String(statusSelect.value || "pending") : "pending";
+            var st = statusSelect ? String(statusSelect.value || deriveStatusFromWorkflowStage(workflowStage)) : deriveStatusFromWorkflowStage(workflowStage);
+            workflowStage = deriveWorkflowStageFromStatus(st || workflowStage);
             var settlementPayrollPeriod = settlementPayrollPeriodInput ? String(settlementPayrollPeriodInput.value || "").trim() : "";
             var finalSalaryAmount = finalSalaryAmountInput ? String(finalSalaryAmountInput.value || "").trim() : "";
             var finalAllowanceAmount = finalAllowanceAmountInput ? String(finalAllowanceAmountInput.value || "").trim() : "";
@@ -718,6 +784,9 @@
             var id = idInput && idInput.value ? String(idInput.value) : "";
             var payload = {
                 terminationType: ttype,
+                workflowStage: workflowStage,
+                terminationReasonCode: terminationReasonCode || null,
+                legalBasisCode: legalBasisCode || null,
                 noticeDate: nd,
                 terminationDate: td,
                 reason: reason,
@@ -807,11 +876,17 @@
             setDetail("[data-arcav-termination-detail-email]", emp.email || "—");
             setDetail("[data-arcav-termination-detail-department]", d.department || "—");
             setDetail("[data-arcav-termination-detail-type]", d.terminationType || "—");
+            setDetail("[data-arcav-termination-detail-reason-code]", d.terminationReasonCode || "—");
+            setDetail("[data-arcav-termination-detail-legal-basis-code]", d.legalBasisCode || "—");
+            setDetail("[data-arcav-termination-detail-workflow-stage]", d.workflowStage || deriveWorkflowStageFromStatus(d.status || "pending"));
             setDetail("[data-arcav-termination-detail-status]", d.status || "—");
             setDetail("[data-arcav-termination-detail-notice-date]", d.noticeDate || "—");
             setDetail("[data-arcav-termination-detail-termination-date]", d.terminationDate || "—");
             setDetail("[data-arcav-termination-detail-reason]", d.reason || "—");
             setDetail("[data-arcav-termination-detail-notes]", d.notes || "—");
+            setDetail("[data-arcav-termination-detail-reviewed]", formatWorkflowAuditEntry(d.workflow && d.workflow.reviewed ? d.workflow.reviewed : null));
+            setDetail("[data-arcav-termination-detail-approved]", formatWorkflowAuditEntry(d.workflow && d.workflow.approved ? d.workflow.approved : null));
+            setDetail("[data-arcav-termination-detail-finalized]", formatWorkflowAuditEntry(d.workflow && d.workflow.finalized ? d.workflow.finalized : null));
             setDetail("[data-arcav-termination-detail-created]", d.createdAt || "—");
             var settlementWrap = detailModalEl.querySelector("[data-arcav-termination-detail-settlement-wrap]");
             if (settlementWrap) {

@@ -243,9 +243,10 @@ class AttendanceController extends Controller
         $paginator = $listQuery->with(['employeeProfile:id,user_id,team,designation'])->paginate($perPage);
 
         $userIds = collect($paginator->items())->pluck('id');
-        $recordsQuery = AttendanceRecord::query();
-        $this->applyTenantScope($recordsQuery, $activeCompanyId);
-        $records = $recordsQuery
+        // Do NOT apply tenant scope here — user_ids are already scoped by adminAttendanceFilteredQuery.
+        // The attendance record's company_id may differ from the admin's active company
+        // (e.g. employee punched in under a different session company context).
+        $records = AttendanceRecord::query()
             ->whereIn('user_id', $userIds)
             ->whereDate('work_date', $dateYmd)
             ->get()

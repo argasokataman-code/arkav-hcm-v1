@@ -329,8 +329,8 @@
                 </div>
                 <div class="col-xl-9 col-lg-8">
                     <div class="row g-3">
-                        <div class="col-xxl-3 col-md-6">
-                            <div class="card arcav-stat-card shadow-sm">
+                        <div class="col-xxl-3 col-md-6 d-flex">
+                            <div class="card arcav-stat-card shadow-sm flex-fill">
                                 <div class="card-body">
                                     <div class="stat-head">
                                         <p class="stat-label">Jam kerja hari ini</p>
@@ -344,8 +344,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-xxl-3 col-md-6">
-                            <div class="card arcav-stat-card shadow-sm">
+                        <div class="col-xxl-3 col-md-6 d-flex">
+                            <div class="card arcav-stat-card shadow-sm flex-fill">
                                 <div class="card-body">
                                     <div class="stat-head">
                                         <p class="stat-label">Jam kerja minggu ini</p>
@@ -359,8 +359,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-xxl-3 col-md-6">
-                            <div class="card arcav-stat-card shadow-sm">
+                        <div class="col-xxl-3 col-md-6 d-flex">
+                            <div class="card arcav-stat-card shadow-sm flex-fill">
                                 <div class="card-body">
                                     <div class="stat-head">
                                         <p class="stat-label">Jam kerja bulan ini</p>
@@ -374,8 +374,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-xxl-3 col-md-6">
-                            <div class="card arcav-stat-card shadow-sm">
+                        <div class="col-xxl-3 col-md-6 d-flex">
+                            <div class="card arcav-stat-card shadow-sm flex-fill">
                                 <div class="card-body">
                                     <div class="stat-head">
                                         <p class="stat-label">Lembur bulan ini</p>

@@ -1214,14 +1214,6 @@ Route::middleware('hcm.web.admin')->group(function (): void {
         return view('payment-report');
     })->name('payment-report');
 
-    Route::get('/project-report', function () {
-        return view('project-report');
-    })->name('project-report');
-
-    Route::get('/task-report', function () {
-        return view('task-report');
-    })->name('task-report');
-
     Route::get('user-report', function () {
         return view('user-report');
     })->name('user-report');

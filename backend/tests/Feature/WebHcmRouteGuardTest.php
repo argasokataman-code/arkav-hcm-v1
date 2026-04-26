@@ -157,8 +157,6 @@ class WebHcmRouteGuardTest extends TestCase
             '/expenses-report',
             '/invoice-report',
             '/payment-report',
-            '/project-report',
-            '/task-report',
             '/user-report',
             '/employee-report',
             '/payslip-report',

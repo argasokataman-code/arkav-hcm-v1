@@ -677,6 +677,84 @@
             dateFrom: "",
             dateTo: "",
         };
+        var openLeaveRequestId = "";
+        var openLeaveRequestUuid = "";
+
+        try {
+            var openParams = new URLSearchParams(window.location.search || "");
+            openLeaveRequestId = String(openParams.get("openLeaveRequestId") || "").trim();
+            openLeaveRequestUuid = String(openParams.get("openLeaveRequestUuid") || "").trim();
+        } catch (_e) {
+            openLeaveRequestId = "";
+            openLeaveRequestUuid = "";
+        }
+
+        function clearOpenLeaveQuery() {
+            if (!openLeaveRequestId && !openLeaveRequestUuid) {
+                return;
+            }
+
+            openLeaveRequestId = "";
+            openLeaveRequestUuid = "";
+
+            try {
+                var next = new URL(window.location.href);
+                next.searchParams.delete("openLeaveRequestId");
+                next.searchParams.delete("openLeaveRequestUuid");
+                window.history.replaceState({}, "", next.pathname + (next.search || "") + (next.hash || ""));
+            } catch (_e) {}
+        }
+
+        function tryOpenLeaveFromQuery() {
+            if (!isAdmin || (!openLeaveRequestId && !openLeaveRequestUuid)) {
+                return;
+            }
+
+            var target = null;
+            document.querySelectorAll("[data-hcm-leave-edit]").forEach(function (el) {
+                if (target) {
+                    return;
+                }
+
+                var rowId = String(el.getAttribute("data-id") || "");
+                var rowUuid = String(el.getAttribute("data-uuid") || "");
+                if ((openLeaveRequestId && rowId === openLeaveRequestId) || (openLeaveRequestUuid && rowUuid === openLeaveRequestUuid)) {
+                    target = el;
+                }
+            });
+
+            if (!target) {
+                return;
+            }
+
+            target.click();
+            clearOpenLeaveQuery();
+        }
+
+        function splitDeclinedLeaveNotes(rawNotes) {
+            var notes = String(rawNotes || "");
+            var marker = "\n\n[Admin rejection reason]\n";
+            var idx = notes.lastIndexOf(marker);
+            if (idx >= 0) {
+                return {
+                    employeeNotes: notes.slice(0, idx).trim(),
+                    rejectionReason: notes.slice(idx + marker.length).trim(),
+                };
+            }
+
+            var legacy = /^\s*\[Admin rejection reason\]\s*([\s\S]*)$/i.exec(notes);
+            if (legacy && legacy[1]) {
+                return {
+                    employeeNotes: "",
+                    rejectionReason: String(legacy[1] || "").trim(),
+                };
+            }
+
+            return {
+                employeeNotes: notes.trim(),
+                rejectionReason: "",
+            };
+        }
 
         function buildFilterQuery() {
             var params = [];
@@ -1280,6 +1358,8 @@
                             actions.push(
                                 '<a href="#" class="me-2" data-hcm-leave-edit data-id="' +
                                     esc(r.id) +
+                                    '" data-uuid="' +
+                                    esc(r.uuid || "") +
                                     '" data-user="' +
                                     esc(r.userId) +
                                     '" data-type="' +
@@ -1409,6 +1489,7 @@
                     renderHolidayPanel(p.meta || {});
                     refreshFormDateHint(document.querySelector('[data-hcm-leave-form="add"]'));
                     refreshFormDateHint(document.querySelector('[data-hcm-leave-form="edit"]'));
+                    tryOpenLeaveFromQuery();
                 })
                 .catch(function (e) {
                     renderHolidayPanel({});
@@ -1530,12 +1611,72 @@
         var editForm = document.querySelector('[data-hcm-leave-form="edit"]');
         if (editForm) {
             bindDateValidation(editForm);
+
+            function syncAdminLeaveReviewNotes() {
+                var notesEl = editForm.querySelector('[data-hcm-field="notes"]');
+                var statusEl = editForm.querySelector('[data-hcm-field="status"]');
+                if (!notesEl) {
+                    return;
+                }
+
+                var owner = String(editForm.querySelector('[data-hcm-field="ownerUserId"]').value || "");
+                var me = String(window.__arcav_me_id || "");
+                var adminReviewMode = isAdmin && owner && owner !== me;
+                var notesLabel = notesEl.closest('.mb-3') && notesEl.closest('.mb-3').querySelector('.form-label');
+
+                if (!adminReviewMode) {
+                    notesEl.readOnly = false;
+                    notesEl.required = false;
+                    if (notesLabel) {
+                        notesLabel.textContent = "Notes";
+                    }
+                    return;
+                }
+
+                var status = statusEl ? String(statusEl.value || "pending").toLowerCase() : "pending";
+                var employeeNotes = String(editForm.dataset.employeeNotes || "");
+                var rejectionReason = String(editForm.dataset.rejectionReason || "");
+
+                if (status === "declined") {
+                    notesEl.readOnly = false;
+                    notesEl.required = true;
+                    notesEl.value = rejectionReason;
+                    if (notesLabel) {
+                        notesLabel.textContent = "Rejection reason";
+                    }
+                    return;
+                }
+
+                notesEl.readOnly = true;
+                notesEl.required = false;
+                notesEl.value = employeeNotes;
+                if (notesLabel) {
+                    notesLabel.textContent = "Employee notes";
+                }
+            }
+
+            var statusInput = editForm.querySelector('[data-hcm-field="status"]');
+            if (statusInput) {
+                statusInput.addEventListener("change", function () {
+                    syncAdminLeaveReviewNotes();
+                });
+            }
             
             // Hide error alert when user starts editing
-            editForm.addEventListener("input", function () {
+            editForm.addEventListener("input", function (event) {
                 var errorAlert = editForm.querySelector('[data-hcm-leave-error-edit]');
                 if (errorAlert) {
                     errorAlert.classList.add("d-none");
+                }
+
+                var statusValue = String((editForm.querySelector('[data-hcm-field="status"]') || {}).value || "").toLowerCase();
+                var owner = String((editForm.querySelector('[data-hcm-field="ownerUserId"]') || {}).value || "");
+                var me = String(window.__arcav_me_id || "");
+                if (isAdmin && owner && owner !== me && statusValue === "declined") {
+                    var notesEl = editForm.querySelector('[data-hcm-field="notes"]');
+                    if (notesEl && event && event.target === notesEl) {
+                        editForm.dataset.rejectionReason = notesEl.value.trim();
+                    }
                 }
             });
             
@@ -1562,9 +1703,13 @@
                 editForm.querySelector('[data-hcm-field="dateTo"]').value = btn.dataset.to || "";
                 editForm.querySelector('[data-hcm-field="days"]').value = btn.dataset.days || "";
                 editForm.querySelector('[data-hcm-field="status"]').value = btn.dataset.status || "pending";
-                editForm.querySelector('[data-hcm-field="notes"]').value = btn.dataset.notes || "";
+                var noteParts = splitDeclinedLeaveNotes(btn.dataset.notes || "");
+                editForm.dataset.employeeNotes = noteParts.employeeNotes;
+                editForm.dataset.rejectionReason = noteParts.rejectionReason;
+                editForm.querySelector('[data-hcm-field="notes"]').value = noteParts.employeeNotes;
                 refreshLeaveTypeHints();
                 refreshFormDateHint(editForm);
+                syncAdminLeaveReviewNotes();
             });
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
@@ -1581,10 +1726,19 @@
                 var me = window.__arcav_me_id;
                 var payload;
                 if (isAdmin && String(owner) !== String(me)) {
+                    var statusValue = String(editForm.querySelector('[data-hcm-field="status"]').value || "pending").toLowerCase();
+                    var rejectionReason = editForm.querySelector('[data-hcm-field="notes"]').value.trim();
+                    if (statusValue === "declined" && !rejectionReason) {
+                        notify("Alasan penolakan wajib diisi saat status Declined.", true);
+                        return;
+                    }
+
                     payload = {
-                        status: editForm.querySelector('[data-hcm-field="status"]').value,
-                        notes: editForm.querySelector('[data-hcm-field="notes"]').value.trim() || null,
+                        status: statusValue,
                     };
+                    if (statusValue === "declined") {
+                        payload.notes = rejectionReason;
+                    }
                 } else {
                     payload = {
                         leaveType: (function () {

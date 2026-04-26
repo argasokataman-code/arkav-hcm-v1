@@ -43,6 +43,13 @@ Feature Termination saat ini mencakup:
 
 ## Data Snapshot Yang Disimpan
 
+- termination reason code terstruktur (`termination_reason_code`)
+- legal basis code terstruktur (`legal_basis_code`)
+- policy profile key (`policy_profile_key`)
+- policy formula version (`policy_formula_version`)
+- workflow stage (`workflow_stage`)
+- workflow reviewed/approved/finalized actor + timestamp metadata
+- non-asset obligation checklist (`non_asset_checklist`)
 - settlement payroll period label + linked period id
 - final salary / allowance / deduction / net
 - breakdown settlement terstruktur
@@ -54,6 +61,9 @@ Feature Termination saat ini mencakup:
 
 - payload `userId` create/update memakai UUID user;
 - record/path termination masih numeric legacy id;
+- payload create/update menerima `terminationReasonCode` + `legalBasisCode` (opsional) dari taxonomy legal yang tervalidasi server;
+- payload create/update menerima `workflowStage` (opsional) dan server akan menurunkan `status` kompatibilitas dari stage tersebut;
+- payload create/update menerima `nonAssetChecklist[]` untuk kewajiban non-asset; item mandatory harus `completed` sebelum finalization berhasil;
 - `finalized` minimal mewajibkan `clearanceNotes`;
 - preview settlement tidak menunggu payroll monthly finalized: sistem tetap bisa fallback ke policy prorata existing;
 - action clearance return memakai lifecycle asset existing via `AssetService::returnAsset`.

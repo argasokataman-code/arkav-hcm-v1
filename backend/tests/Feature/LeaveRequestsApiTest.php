@@ -14,6 +14,7 @@ use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
 use App\Models\Company;
 use App\Models\User;
+use App\Notifications\LeaveRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -130,6 +131,57 @@ class LeaveRequestsApiTest extends TestCase
             ->assertJsonPath('success', true);
     }
 
+    public function test_employee_leave_submission_notifies_tenant_admin_owner(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_notification_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'owner-leave-notif@example.com',
+            'name' => 'Owner Leave Notif',
+        ], $company);
+
+        $employee = User::factory()->create([
+            'email' => 'employee-leave-notif@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        CompanyUser::query()->updateOrCreate(
+            ['company_id' => $company->id, 'user_id' => $employee->id],
+            ['role' => 'employee', 'status' => 'active', 'joined_at' => now()]
+        );
+
+        EmployeeProfile::query()->updateOrCreate(
+            ['company_id' => $company->id, 'user_id' => $employee->id],
+            ['employment_status' => 'active', 'designation' => 'Staff', 'team' => 'Operations', 'nik' => 'EMP-LEAVE-NOTIF-1', 'hire_date' => now()->subMonth()->toDateString()]
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'hospitalisation',
+            'dateFrom' => '2026-04-10',
+            'dateTo' => '2026-04-10',
+            'days' => 1,
+            'notes' => 'leave notification smoke test',
+        ])->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $adminUser = User::query()->where('email', 'owner-leave-notif@example.com')->firstOrFail();
+
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $adminUser->id,
+            'type' => LeaveRequestedNotification::class,
+        ]);
+    }
+
     public function test_non_admin_cannot_update_another_users_leave_status(): void
     {
         $employeeToken = $this->bearerToken('employee-leave2@example.com', 'Staff');
@@ -199,6 +251,98 @@ class LeaveRequestsApiTest extends TestCase
             ->assertJsonPath('success', true);
 
         $this->assertSame('approved', $leave->fresh()->status);
+    }
+
+    public function test_admin_cannot_override_employee_notes_when_not_declining(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_admin_note_lock_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave-note-lock@example.com',
+            'name' => 'Admin Note Lock',
+        ], $company);
+        $adminToken = $admin['token'];
+        $employee = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'leave_type' => 'Annual',
+            'date_from' => '2026-04-10',
+            'date_to' => '2026-04-10',
+            'days' => 1,
+            'status' => 'pending',
+            'notes' => 'Employee original note',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
+            'status' => 'approved',
+            'notes' => 'Admin attempted overwrite',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame('approved', (string) $leave->fresh()->status);
+        $this->assertSame('Employee original note', (string) $leave->fresh()->notes);
+    }
+
+    public function test_admin_decline_requires_reason_and_preserves_employee_note_context(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_admin_decline_reason_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave-decline-reason@example.com',
+            'name' => 'Admin Decline Reason',
+        ], $company);
+        $adminToken = $admin['token'];
+        $employee = User::factory()->create();
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $leave = LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'leave_type' => 'Annual',
+            'date_from' => '2026-04-10',
+            'date_to' => '2026-04-10',
+            'days' => 1,
+            'status' => 'pending',
+            'notes' => 'Employee original note',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
+            'status' => 'declined',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['notes']);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
+            'status' => 'declined',
+            'notes' => 'Insufficient supporting documents.',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $saved = (string) $leave->fresh()->notes;
+        $this->assertStringContainsString('Employee original note', $saved);
+        $this->assertStringContainsString('[Admin rejection reason]', $saved);
+        $this->assertStringContainsString('Insufficient supporting documents.', $saved);
     }
 
     public function test_admin_approval_posts_leave_ledger_and_balance(): void
@@ -317,7 +461,10 @@ class LeaveRequestsApiTest extends TestCase
         ];
 
         $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])->assertOk();
-        $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'declined'])->assertOk();
+        $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, [
+            'status' => 'declined',
+            'notes' => 'Policy recheck required',
+        ])->assertOk();
         $this->withHeaders($headers)->putJson('/v1/hcm/leave-requests/'.$leave->id, ['status' => 'approved'])->assertOk();
 
         $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();

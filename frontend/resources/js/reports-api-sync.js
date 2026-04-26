@@ -1,6 +1,15 @@
 (function (window, document) {
     "use strict";
 
+    var realtimeTimer = null;
+    var dailyReportState = {
+        page: 1,
+        perPage: 100,
+        totalPages: 1,
+        total: 0,
+        loading: false,
+    };
+
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
             return window.AuthApi.handleUnauthorizedFromApi(status, data);
@@ -139,6 +148,107 @@
 
     function findReportTable() {
         return document.querySelector("table.datatable[data-api-report-table='1'] tbody");
+    }
+
+    function findReportTableElement() {
+        return document.querySelector("table.datatable[data-api-report-table='1']");
+    }
+
+    function setDailyPaginationLoading(loading) {
+        var root = document.querySelector("[data-daily-report-pagination='1']");
+        if (!root) {
+            return;
+        }
+        var prevBtn = root.querySelector("[data-daily-report-prev='1']");
+        var nextBtn = root.querySelector("[data-daily-report-next='1']");
+        if (prevBtn) {
+            prevBtn.disabled = loading || dailyReportState.page <= 1;
+        }
+        if (nextBtn) {
+            nextBtn.disabled = loading || dailyReportState.page >= dailyReportState.totalPages;
+        }
+    }
+
+    function ensureDailyPaginationControls() {
+        var table = findReportTableElement();
+        if (!table) {
+            return;
+        }
+        var wrapper = table.closest(".custom-datatable-filter") || table.parentElement;
+        if (!wrapper || !wrapper.parentElement) {
+            return;
+        }
+
+        var root = wrapper.parentElement.querySelector("[data-daily-report-pagination='1']");
+        if (!root) {
+            root = document.createElement("div");
+            root.setAttribute("data-daily-report-pagination", "1");
+            root.className = "d-flex justify-content-between align-items-center flex-wrap gap-2 px-3 py-3 border-top";
+            root.innerHTML =
+                '<div class="text-muted small" data-daily-report-count="1">-</div>' +
+                '<div class="d-flex align-items-center gap-2">' +
+                '  <button type="button" class="btn btn-sm btn-outline-secondary" data-daily-report-prev="1">Prev</button>' +
+                '  <span class="small text-muted" data-daily-report-page-info="1">Page 1 of 1</span>' +
+                '  <button type="button" class="btn btn-sm btn-outline-secondary" data-daily-report-next="1">Next</button>' +
+                '</div>';
+            wrapper.parentElement.appendChild(root);
+        }
+
+        var prevBtn = root.querySelector("[data-daily-report-prev='1']");
+        var nextBtn = root.querySelector("[data-daily-report-next='1']");
+
+        if (prevBtn && !prevBtn.dataset.bound) {
+            prevBtn.dataset.bound = "1";
+            prevBtn.addEventListener("click", function () {
+                if (dailyReportState.loading || dailyReportState.page <= 1) {
+                    return;
+                }
+                syncDailyReport({ page: dailyReportState.page - 1 }).catch(function () {});
+            });
+        }
+
+        if (nextBtn && !nextBtn.dataset.bound) {
+            nextBtn.dataset.bound = "1";
+            nextBtn.addEventListener("click", function () {
+                if (dailyReportState.loading || dailyReportState.page >= dailyReportState.totalPages) {
+                    return;
+                }
+                syncDailyReport({ page: dailyReportState.page + 1 }).catch(function () {});
+            });
+        }
+
+        setDailyPaginationLoading(dailyReportState.loading);
+    }
+
+    function updateDailyPagination(meta) {
+        meta = meta || {};
+        dailyReportState.page = Math.max(1, toNum(meta.page) || dailyReportState.page || 1);
+        dailyReportState.perPage = Math.max(1, toNum(meta.perPage) || dailyReportState.perPage || 100);
+        dailyReportState.totalPages = Math.max(1, toNum(meta.totalPages) || 1);
+        dailyReportState.total = Math.max(0, toNum(meta.total));
+
+        var root = document.querySelector("[data-daily-report-pagination='1']");
+        if (!root) {
+            return;
+        }
+
+        var info = root.querySelector("[data-daily-report-page-info='1']");
+        var count = root.querySelector("[data-daily-report-count='1']");
+        if (info) {
+            info.textContent = "Page " + dailyReportState.page + " of " + dailyReportState.totalPages;
+        }
+
+        if (count) {
+            if (dailyReportState.total <= 0) {
+                count.textContent = "No employee data.";
+            } else {
+                var from = ((dailyReportState.page - 1) * dailyReportState.perPage) + 1;
+                var to = Math.min(dailyReportState.total, dailyReportState.page * dailyReportState.perPage);
+                count.textContent = "Showing " + from + "-" + to + " of " + dailyReportState.total + " employees";
+            }
+        }
+
+        setDailyPaginationLoading(dailyReportState.loading);
     }
 
     function setRows(rowsHtml, colCount, emptyMsg) {
@@ -354,19 +464,34 @@
         });
     }
 
-    function syncDailyReport() {
+    function syncDailyReport(options) {
+        options = options || {};
+        if (options.page !== undefined && options.page !== null) {
+            dailyReportState.page = Math.max(1, toNum(options.page) || 1);
+        }
+        if (dailyReportState.loading) {
+            return Promise.resolve();
+        }
+
+        ensureDailyPaginationControls();
+        dailyReportState.loading = true;
+        setDailyPaginationLoading(true);
+
         var today = new Date().toISOString().slice(0, 10);
         return Promise.all([
-            apiGet("/v1/hcm/attendance/admin?date=" + encodeURIComponent(today)),
+            apiGet("/v1/hcm/attendance/admin?date=" + encodeURIComponent(today) + "&perPage=" + encodeURIComponent(String(dailyReportState.perPage)) + "&page=" + encodeURIComponent(String(dailyReportState.page)) + "&sort=name_asc"),
             apiGet("/v1/hcm/timesheets?dateFrom=" + encodeURIComponent(today) + "&dateTo=" + encodeURIComponent(today) + "&perPage=200")
         ]).then(function (res) {
             var attendancePayload = res[0] || {};
             var tsPayload = res[1] || {};
             var rows = Array.isArray(attendancePayload.data) ? attendancePayload.data : [];
             var tasks = Array.isArray(tsPayload.data) ? tsPayload.data : [];
+            var pagination = (attendancePayload.meta && attendancePayload.meta.pagination) ? attendancePayload.meta.pagination : null;
 
-            var present = rows.filter(function (r) { return String(r.statusKey || "").toLowerCase() === "present"; }).length;
-            var absent = rows.filter(function (r) { return String(r.statusKey || "").toLowerCase() === "absent"; }).length;
+            // Use server-side summary (covers ALL employees, not just current page)
+            var summary = (attendancePayload.meta && attendancePayload.meta.summary) ? attendancePayload.meta.summary : {};
+            var present = summary.present !== undefined ? summary.present : rows.filter(function (r) { return String(r.statusKey || "").toLowerCase() === "present"; }).length;
+            var absent = summary.absent !== undefined ? summary.absent : rows.filter(function (r) { return String(r.statusKey || "").toLowerCase() === "absent"; }).length;
             var completedTasks = tasks.filter(function (r) { return toNum(r.workedHours) >= toNum(r.assignedHours); }).length;
             var pendingTasks = Math.max(tasks.length - completedTasks, 0);
 
@@ -386,6 +511,10 @@
                     '</tr>';
             });
             setRows(html, 4, "No attendance data for today.");
+            updateDailyPagination(pagination);
+        }).finally(function () {
+            dailyReportState.loading = false;
+            setDailyPaginationLoading(false);
         });
     }
 
@@ -490,16 +619,39 @@
         else if (byPath("/expenses-report")) run = syncExpensesReport;
         else if (byPath("/user-report")) run = syncUserReport;
         else if (byPath("/daily-report")) run = syncDailyReport;
-        else if (byPath("/project-report")) run = syncProjectReport;
-        else if (byPath("/task-report")) run = syncTaskReport;
 
         if (!run) {
             return;
         }
 
+        if (byPath("/daily-report")) {
+            ensureDailyPaginationControls();
+        }
+
         run().catch(function () {
             // Keep existing template layout visible if API request fails.
         });
+
+        if (byPath("/daily-report")) {
+            if (realtimeTimer) {
+                window.clearInterval(realtimeTimer);
+            }
+
+            // Keep admin daily report fresh without manual page reload.
+            realtimeTimer = window.setInterval(function () {
+                syncDailyReport().catch(function () {});
+            }, 30000);
+
+            document.addEventListener("visibilitychange", function () {
+                if (document.visibilityState === "visible") {
+                    syncDailyReport().catch(function () {});
+                }
+            });
+
+            window.addEventListener("focus", function () {
+                syncDailyReport().catch(function () {});
+            });
+        }
     }
 
     if (document.readyState === "loading") {

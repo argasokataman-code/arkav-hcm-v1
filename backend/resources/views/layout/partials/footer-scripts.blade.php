@@ -154,7 +154,7 @@
     'chart-apex', 'index', 'employee-dashboard', 'file-manager', 'dashboard', 'companies', 'packages',
         'layout-horizontal', 'layout-detached', 'layout-modern', 'layout-horizontal-overlay', 'layout-two-column', 'layout-hovered', 'layout-box',
         'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu', 'layout-vertical-transparent', 'layout-without-header',
-    'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report','project-report','task-report','user-report',
+    'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report','user-report',
         'employee-report','payslip-report','attendance-report', 'leave-report', 'daily-report',
     ]))
     <!-- Chart JS -->
@@ -185,7 +185,7 @@
     <script src="{{ URL::asset('build/plugins/morris/chart-data.js') }}"></script>
 @endif
 
-@if (Route::is(['chart-peity', 'dashboard', 'companies', 'subscription', 'tickets-grid','tickets', 'task-report']))
+@if (Route::is(['chart-peity', 'dashboard', 'companies', 'subscription', 'tickets-grid','tickets']))
     <!-- Chart JS -->
     <script src="{{ URL::asset('build/plugins/peity/jquery.peity.min.js') }}"></script>
     <script src="{{ URL::asset('build/plugins/peity/chart-data.js') }}"></script>
@@ -391,7 +391,7 @@
     <script src="{{ URL::asset('build/js/reports-hub.js') }}?v={{ file_exists(public_path('build/js/reports-hub.js')) ? filemtime(public_path('build/js/reports-hub.js')) : time() }}"></script>
 @endif
 
-@if (Route::is(['invoice-report', 'payment-report', 'expenses-report', 'user-report', 'daily-report', 'project-report', 'task-report']))
+@if (Route::is(['invoice-report', 'payment-report', 'expenses-report', 'user-report', 'daily-report']))
     <script src="{{ URL::asset('build/js/reports-api-sync.js') }}?v={{ file_exists(public_path('build/js/reports-api-sync.js')) ? filemtime(public_path('build/js/reports-api-sync.js')) : time() }}"></script>
 @endif
 

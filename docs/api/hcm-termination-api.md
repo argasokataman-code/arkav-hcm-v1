@@ -15,9 +15,31 @@ Base path: `/v1/hcm`
 - `userId` (required, **UUID user**) — target user wajib anggota aktif company yang sedang aktif.
 - `department` (optional, string ≤ 150)
 - `terminationType` (required, string ≤ 150) — contoh: Retirement, Layoff, Insubordination
+- `terminationReasonCode` (optional, enum string ≤ 64) — taxonomy alasan PHK terstruktur:
+  - `contract_end`
+  - `retirement`
+  - `company_efficiency`
+  - `misconduct`
+  - `company_closure`
+  - `force_majeure`
+  - `long_term_illness`
+  - `court_order`
+  - `death`
+  - `other`
+- `legalBasisCode` (optional, enum string ≤ 64) — taxonomy dasar legal utama:
+  - `uu_ketenagakerjaan`
+  - `uu_cipta_kerja`
+  - `pp_35_2021`
+  - `pkwt_contract`
+  - `company_regulation`
+  - `collective_labor_agreement`
+  - `settlement_agreement`
+  - `court_decision`
+  - `other`
 - `reason` (required, string ≤ 2000)
 - `noticeDate`, `terminationDate` (required, `YYYY-MM-DD`; `terminationDate` ≥ `noticeDate`)
 - `status` (optional, default `pending`): `pending` | `approved` | `finalized` | `cancelled`
+- `workflowStage` (optional): `draft_review` | `legal_review` | `approved_internal` | `finalized_execution` | `cancelled`
 - `notes` (optional, string ≤ 2000)
 - `settlementPayrollPeriod` (optional, `YYYY-MM`) — override label periode payroll target untuk final settlement. Jika tidak dikirim saat `finalized`, server akan resolve periode payroll aktual terdekat.
 - `finalSalaryAmount` (optional, numeric ≥ 0) — jika tidak dikirim saat `finalized`, server akan derive dari preview payroll/kompensasi aktif.
@@ -27,6 +49,7 @@ Base path: `/v1/hcm`
 - `clearanceNotes` (optional, string ≤ 2000)
 - `settlementBreakdown` (optional, array) — snapshot breakdown settlement terstruktur.
 - `clearanceItems` (optional, array) — snapshot clearance item terstruktur, saat ini terutama asset assignment aktif.
+- `nonAssetChecklist` (optional, array) — checklist kewajiban non-asset seperti handover pekerjaan, penutupan akses, atau dokumen legal.
 
 Jika `status = finalized`, runtime saat ini mewajibkan minimum:
 
@@ -54,6 +77,24 @@ Response detail/list sekarang mengembalikan `settlement` object bila snapshot fi
 - `breakdown[]`
 - `clearanceItems[]`
 - `clearanceOutstandingCount`
+- `nonAssetChecklist[]`
+
+Response row/detail juga mengembalikan metadata taxonomy legal:
+
+- `terminationReasonCode`
+- `legalBasisCode`
+- `policyProfileKey` (nullable) — hasil mapping profile policy settlement dari taxonomy legal
+- `policyFormulaVersion` (nullable) — versi formula policy yang dipakai saat mapping
+- `workflowStage` — stage compliance aktif
+- `workflow.reviewed`
+- `workflow.approved`
+- `workflow.finalized`
+
+Catatan compatibility:
+
+- `status` tetap dipertahankan untuk compatibility runtime lama.
+- Server akan menurunkan `status` dari `workflowStage` bila field stage dikirim.
+- Flow lama yang hanya mengirim `status` masih tetap diterima dan akan dimapping ke stage yang paling dekat.
 
 ## Identifier status
 
@@ -117,7 +158,7 @@ Create (**HCM admin only**). `userId` wajib **UUID user** dan server menolak use
 
 ### PUT `/terminations/{id}`
 
-Update partial (**HCM admin**). Pasangan tanggal harus tetap valid (422 `VALIDATION_ERROR` jika `terminationDate` < `noticeDate`). Saat record berada di status `finalized`, update akan me-refresh link payroll period dan snapshot settlement/clearance dari source runtime kecuali field override dikirim eksplisit.
+Update partial (**HCM admin**). Pasangan tanggal harus tetap valid (422 `VALIDATION_ERROR` jika `terminationDate` < `noticeDate`). Saat record berada di status `finalized`, update akan me-refresh link payroll period dan snapshot settlement/clearance dari source runtime kecuali field override dikirim eksplisit. Jika `workflowStage` berubah, server akan memvalidasi transisi stage dan mencatat actor/timestamp trail review/approval/finalization.
 
 ### DELETE `/terminations/{id}`
 

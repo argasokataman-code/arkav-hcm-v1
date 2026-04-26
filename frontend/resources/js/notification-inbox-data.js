@@ -105,6 +105,47 @@
         return Math.floor(diffSeconds / 86400) + ' days ago';
     }
 
+    function canViewLeavesAdmin() {
+        try {
+            var authUser = window.AuthUser || null;
+            var permissions = authUser && Array.isArray(authUser.permissions)
+                ? authUser.permissions
+                : [];
+            return permissions.indexOf('leave.view') >= 0;
+        } catch (_e) {
+            return false;
+        }
+    }
+
+    function buildNotificationTarget(item) {
+        if (!item) {
+            return null;
+        }
+
+        var data = (item && item.data && typeof item.data === 'object') ? item.data : {};
+        var eventKey = String(item.eventKey || data.eventKey || data.event || '').trim().toLowerCase();
+        if (!eventKey || eventKey.indexOf('leave.') !== 0) {
+            return null;
+        }
+
+        var requestId = data.leaveRequestId != null ? String(data.leaveRequestId).trim() : '';
+        var requestUuid = data.leaveRequestUuid != null ? String(data.leaveRequestUuid).trim() : '';
+        if (!requestId && !requestUuid) {
+            return null;
+        }
+
+        var basePath = canViewLeavesAdmin() ? '/leaves' : '/leaves-employee';
+        var params = [];
+        if (requestId) {
+            params.push('openLeaveRequestId=' + encodeURIComponent(requestId));
+        }
+        if (requestUuid) {
+            params.push('openLeaveRequestUuid=' + encodeURIComponent(requestUuid));
+        }
+
+        return basePath + (params.length ? ('?' + params.join('&')) : '');
+    }
+
     function renderUnreadBadge() {
         var hasUnread = Boolean(state.unreadCount);
 
@@ -143,10 +184,15 @@
             var body = escapeHtml(item.body || '');
             var createdAt = formatRelativeTime(item.createdAt);
             var severity = escapeHtml(item.severity || 'informational');
+            var target = buildNotificationTarget(item);
+            var openTag = target
+                ? '<a href="' + escapeHtml(target) + '" class="text-decoration-none text-reset d-block" data-notification-open="' + escapeHtml(item.uuid || '') + '">'
+                : '<div class="d-block">';
+            var closeTag = target ? '</a>' : '</div>';
 
             html += '<div class="' + rowClass + '">';
             html += '<div class="d-flex align-items-start justify-content-between gap-2">';
-            html += '<div class="flex-grow-1">';
+            html += '<div class="flex-grow-1">' + openTag;
             html += '<p class="mb-1"><span class="text-dark fw-semibold">' + title + '</span></p>';
             if (body) {
                 html += '<p class="mb-1 text-muted">' + body + '</p>';
@@ -155,7 +201,7 @@
             html += '<span>' + escapeHtml(createdAt) + '</span>';
             html += '<span class="badge bg-light text-dark">' + severity + '</span>';
             html += '</div>';
-            html += '</div>';
+            html += closeTag + '</div>';
             if (!item.isRead) {
                 html += '<button type="button" class="btn btn-sm btn-outline-primary" data-notification-mark-read-item="' + escapeHtml(item.uuid) + '">Mark read</button>';
             }

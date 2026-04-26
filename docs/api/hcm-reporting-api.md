@@ -70,7 +70,7 @@ Rules:
 
 ## Legacy report API
 
-Endpoint ini masih dipakai halaman report lama seperti `invoice-report`, `payment-report`, `expenses-report`, `user-report`, `daily-report`, `project-report`, dan `task-report`.
+Endpoint ini masih dipakai halaman report lama seperti `invoice-report`, `payment-report`, `expenses-report`, `user-report`, dan `daily-report`.
 
 ### GET `/v1/saas/reports/revenue`
 

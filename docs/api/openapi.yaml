@@ -7684,6 +7684,21 @@ paths:
                 userId: { type: string, format: uuid, description: User UUID. User must belong to the active company. }
                 department: { type: string, maxLength: 150, nullable: true }
                 terminationType: { type: string, maxLength: 150 }
+                terminationReasonCode:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [contract_end, retirement, company_efficiency, misconduct, company_closure, force_majeure, long_term_illness, court_order, death, other]
+                legalBasisCode:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [uu_ketenagakerjaan, uu_cipta_kerja, pp_35_2021, pkwt_contract, company_regulation, collective_labor_agreement, settlement_agreement, court_decision, other]
+                workflowStage:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [draft_review, legal_review, approved_internal, finalized_execution, cancelled]
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 terminationDate: { type: string, format: date }
@@ -7700,6 +7715,10 @@ paths:
                   nullable: true
                   items: { type: object, additionalProperties: true }
                 clearanceItems:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
+                nonAssetChecklist:
                   type: array
                   nullable: true
                   items: { type: object, additionalProperties: true }
@@ -7791,6 +7810,21 @@ paths:
                 userId: { type: string, format: uuid, description: User UUID. User must belong to the active company. }
                 department: { type: string, maxLength: 150, nullable: true }
                 terminationType: { type: string, maxLength: 150 }
+                terminationReasonCode:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [contract_end, retirement, company_efficiency, misconduct, company_closure, force_majeure, long_term_illness, court_order, death, other]
+                legalBasisCode:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [uu_ketenagakerjaan, uu_cipta_kerja, pp_35_2021, pkwt_contract, company_regulation, collective_labor_agreement, settlement_agreement, court_decision, other]
+                workflowStage:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  enum: [draft_review, legal_review, approved_internal, finalized_execution, cancelled]
                 reason: { type: string, maxLength: 2000 }
                 noticeDate: { type: string, format: date }
                 terminationDate: { type: string, format: date }
@@ -7807,6 +7841,10 @@ paths:
                   nullable: true
                   items: { type: object, additionalProperties: true }
                 clearanceItems:
+                  type: array
+                  nullable: true
+                  items: { type: object, additionalProperties: true }
+                nonAssetChecklist:
                   type: array
                   nullable: true
                   items: { type: object, additionalProperties: true }

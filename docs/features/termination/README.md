@@ -38,8 +38,9 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 
 ## Lifecycle Dan Keputusan Bisnis
 
-- `pending`, `approved`, `finalized`, dan `cancelled` adalah lifecycle bisnis utama.
-- Finalization baru boleh dipakai sebagai snapshot settlement saat preview payroll/asset sudah cukup jelas.
+- Runtime mempertahankan lifecycle bisnis utama `pending`, `approved`, `finalized`, dan `cancelled` untuk compatibility existing.
+- Di balik lifecycle tersebut, compliance flow sekarang mulai dipisah ke workflow stage: `draft_review`, `legal_review`, `approved_internal`, `finalized_execution`, dan `cancelled`.
+- Finalization baru boleh dipakai sebagai snapshot settlement saat preview payroll/asset sudah cukup jelas dan checklist kewajiban wajib yang dikirim sudah selesai.
 - Runtime saat ini sengaja memprioritaskan transparansi settlement preview existing meski formula bisnis akhir belum lengkap.
 
 ## Aktor & Role
@@ -55,28 +56,31 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 ### Flow utama
 
 1. HR membuat record Termination saat ada keputusan awal bahwa perusahaan akan mengakhiri hubungan kerja karyawan.
-2. Record masuk ke status `pending` selama diskusi internal, verifikasi alasan, dan validasi tanggal efektif masih berjalan.
-3. Setelah keputusan internal disahkan, status digeser ke `approved`.
-4. Saat perusahaan siap mengeksekusi settlement akhir, admin membuka mode finalization dan menekan `Refresh from payroll & assets`.
+2. Record masuk ke status `pending` dan workflow stage `draft_review` selama diskusi internal, verifikasi alasan, dan validasi tanggal efektif masih berjalan.
+3. Saat butuh telaah HR/IR/legal, workflow stage digeser ke `legal_review` tetapi status bisnis tetap `pending` sampai keputusan internal benar-benar disahkan.
+4. Setelah keputusan internal disahkan, workflow stage masuk `approved_internal` dan status bisnis turunannya menjadi `approved`.
+5. Saat perusahaan siap mengeksekusi settlement akhir, admin membuka mode finalization dan menekan `Refresh from payroll & assets`.
 5. Sistem menghitung settlement preview berdasarkan runtime existing:
 	- resolve periode payroll aktual terdekat;
 	- hitung gaji pokok dan tunjangan tetap secara prorata sampai `terminationDate`;
 	- tarik komponen payroll lain sebagai reference bila monthly payroll run untuk periode itu sudah tersedia;
 	- tambahkan kompensasi PKWT bila kontrak memang due pada bulan tersebut;
 	- tampilkan clearance item asset yang masih outstanding.
-6. Admin mengecek hasil preview, menambahkan `clearanceNotes`, lalu menyimpan status `finalized`.
-7. Jika ada asset yang belum kembali, admin dapat memicu `Mark returned` langsung dari context Termination untuk memperbarui snapshot clearance tanpa pindah ke menu Asset.
-8. Record `finalized` menjadi snapshot operasional yang dipakai sebagai bahan eksekusi settlement/payroll final.
+6. Admin mengecek hasil preview, menambahkan `clearanceNotes`, dan bila perlu melampirkan checklist kewajiban non-asset seperti handover pekerjaan, penutupan akses, atau dokumen legal.
+7. Jika checklist mandatory dikirim, semua item tersebut harus selesai sebelum workflow stage dapat disimpan ke `finalized_execution` dan status bisnis turunannya menjadi `finalized`.
+8. Jika ada asset yang belum kembali, admin dapat memicu `Mark returned` langsung dari context Termination untuk memperbarui snapshot clearance tanpa pindah ke menu Asset.
+9. Record `finalized` menjadi snapshot operasional yang dipakai sebagai bahan eksekusi settlement/payroll final.
 
 ### Keputusan / percabangan
 
-- Jika kasus masih diperdebatkan internal, record tetap `pending` dan tidak boleh diperlakukan sebagai settlement final.
-- Jika keputusan terminasi sudah disahkan tetapi settlement belum siap, record masuk `approved`.
-- Jika settlement preview sudah dipetakan dan kewajiban final sudah dicatat, record masuk `finalized`.
+- Jika kasus masih diperdebatkan internal, record tetap `pending` dan biasanya berada di `draft_review` atau `legal_review`.
+- Jika keputusan terminasi sudah disahkan tetapi settlement belum siap, workflow stage masuk `approved_internal` dan status bisnis menjadi `approved`.
+- Jika settlement preview sudah dipetakan dan kewajiban final sudah dicatat, workflow stage masuk `finalized_execution` dan status bisnis menjadi `finalized`.
 - Jika kasus dibatalkan, record masuk `cancelled` dan tidak boleh dibawa ke settlement akhir.
 - Jika payroll run bulanan belum tersedia, sistem tetap memberi preview dengan policy prorata berdasarkan kompensasi aktif saat ini.
 - Jika kontrak PKWT jatuh tempo pada bulan terminasi, sistem menambahkan kompensasi PKWT sebagai komponen settlement.
 - Jika asset masih outstanding, finalization tetap bisa disimpan, tetapi snapshot clearance akan menunjukkan item yang belum selesai agar follow-up tetap terlihat.
+- Jika checklist non-asset mandatory dikirim tetapi masih open, finalization ditolak agar penyelesaian kewajiban tidak hanya bergantung pada catatan bebas.
 
 ## Integrasi
 
@@ -98,6 +102,16 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 | `finalized` | Hak dan kewajiban akhir sudah dipetakan | Admin menyimpan finalization dengan `clearanceNotes` | Menjadi snapshot settlement akhir untuk payroll/clearance | Sudah aktif dengan preview prorata + PKWT + clearance asset |
 | `cancelled` | Kasus dibatalkan | Admin membatalkan proses | Tidak boleh diproses sebagai exit settlement | Sudah aktif |
 
+### Workflow stage compliance
+
+| Workflow stage | Turunan status bisnis | Arti operasional |
+|----------------|-----------------------|------------------|
+| `draft_review` | `pending` | Draft awal termination masih ditelaah internal |
+| `legal_review` | `pending` | Case sedang direview HR/IR/legal sebelum approval internal |
+| `approved_internal` | `approved` | Keputusan internal sudah sah, settlement belum dieksekusi |
+| `finalized_execution` | `finalized` | Settlement snapshot dan kewajiban final sudah siap eksekusi |
+| `cancelled` | `cancelled` | Case dihentikan/dibatalkan |
+
 ## E2E Bisnis
 
 ### Happy path yang didukung runtime sekarang
@@ -106,10 +120,11 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 2. Admin memilih karyawan, mengisi alasan, notice date, dan termination date.
 3. Record disimpan sebagai `pending`.
 4. Setelah keputusan internal selesai, admin mengubah status ke `approved`.
-5. Menjelang penyelesaian exit, admin mengubah status ke `finalized` dan menekan `Refresh from payroll & assets`.
+5. Menjelang penyelesaian exit, admin mengubah workflow stage ke `finalized_execution` atau tetap memakai pilihan status legacy `finalized`, lalu menekan `Refresh from payroll & assets`.
 6. Sistem menampilkan preview settlement dan outstanding clearance.
-7. Admin menulis `clearanceNotes`, menyimpan, lalu record menjadi snapshot final yang siap dievaluasi payroll/HR.
-8. Bila asset sudah kembali, admin menekan `Mark returned` pada item clearance terkait dan snapshot outstanding berkurang.
+7. Admin menulis `clearanceNotes`; bila checklist kewajiban non-asset dipakai, semua item mandatory harus selesai.
+8. Record menjadi snapshot final yang siap dievaluasi payroll/HR.
+9. Bila asset sudah kembali, admin menekan `Mark returned` pada item clearance terkait dan snapshot outstanding berkurang.
 
 ### Exception / skenario keputusan lain
 
@@ -150,23 +165,44 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 ### Existing runtime yang sudah ada
 
 - lifecycle `pending | approved | finalized | cancelled` sudah aktif end-to-end;
+- workflow stage compliance dasar `draft_review | legal_review | approved_internal | finalized_execution | cancelled` sudah aktif dengan audit actor/timestamp;
 - finalization sudah bisa menarik preview settlement dari source runtime;
 - settlement sudah menghitung prorata gaji pokok dan tunjangan tetap;
 - kompensasi PKWT sudah ikut ditambahkan bila due pada bulan termination;
 - clearance asset sudah tampil sebagai item terstruktur dan bisa di-return langsung dari feature Termination;
 - snapshot final sudah menyimpan periode payroll target, breakdown settlement, dan clearance outstanding.
+- snapshot final juga sudah bisa menyimpan checklist kewajiban non-asset bila API mengirimkannya.
 
 ### Gap yang masih terbuka
 
 - belum ada formula bisnis tambahan seperti severance, leave payout, atau custom compensation policy lain di luar prorata + PKWT;
-- belum ada checklist/approval step terstruktur untuk kewajiban non-asset per item;
+- UI editor khusus untuk checklist kewajiban non-asset per item belum ada, meski kontrak API dan guard finalization dasarnya sudah tersedia;
 - settlement preview belum menggabungkan source lintas-purpose seperti THR atau run khusus lain dalam satu layar final settlement.
+- legal taxonomy alasan PHK + dasar hukum sudah ada, tetapi mapping formula hak PHK masih belum lengkap;
+- legal audit snapshot sudah mulai menyimpan formula/profile/version dan approval trail, tetapi hash lampiran evidentiary wajib belum immutable.
 
 ### Keputusan kompromi sementara
 
 - sistem memprioritaskan transparansi existing runtime daripada menunggu policy sempurna;
 - jika formula bisnis akhir belum lengkap, README tetap menjelaskan perilaku existing dan gap-nya secara eksplisit;
 - snapshot final dipakai sebagai basis evaluasi bersama, bukan diklaim sebagai engine settlement final yang sudah sempurna.
+
+## Compliance Regulasi Indonesia (Target Hardening)
+
+Feature Termination ditargetkan menuju proses PHK yang siap audit hubungan industrial di Indonesia. Untuk mencapai itu, implementasi perlu bergerak dari settlement preview operasional ke compliance workflow yang eksplisit.
+
+### Target kontrol minimum
+
+1. Alasan PHK dan dasar hukum tersimpan sebagai kode terstruktur, bukan free text semata.
+2. Formula hak akhir dipisah per komponen (mis. pesangon/UPMK/UPH/kompensasi PKWT/komponen internal policy) dengan parameter dan hasil hitung yang bisa diaudit.
+3. Finalization mewajibkan dokumen dan approval trail yang relevan (HR, payroll, legal/IR sesuai kebijakan perusahaan).
+4. Snapshot final menyimpan metadata legal penting: formula version, actor approval, timestamp, dan referensi lampiran.
+5. Seluruh perubahan kontrak API terkait compliance wajib sinkron ke docs API dan tracker.
+
+### Catatan tata kelola
+
+- Baseline ini membantu engineering mematangkan fitur ke arah kepatuhan regulasi Indonesia.
+- Validasi terakhir atas interpretasi pasal, formula, dan wording dokumen tetap harus melalui Legal/Industrial Relations perusahaan.
 
 ## UI Existing
 
@@ -180,7 +216,7 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 
 - Status implementation: **in progress**
 - Tracker: [tracker.md](tracker.md)
-- Snapshot saat ini: runtime sudah cukup kuat untuk evaluasi flow bisnis termination secara end-to-end, tetapi policy settlement dan checklist non-asset masih belum lengkap.
+- Snapshot saat ini: runtime sudah cukup kuat untuk evaluasi flow bisnis termination secara end-to-end; fokus berikutnya adalah compliance hardening terhadap praktik ketenagakerjaan Indonesia (lihat tracker untuk backlog mandatory).
 
 ## API & Technical References
 

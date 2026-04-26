@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\HcmLeaveTypeSetting;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,7 +29,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -519,18 +522,63 @@ class HcmLeaveRequestController extends Controller
 
         $this->syncLeaveRequestBreakdowns($r->fresh());
 
-        // Emit leave.requested notification to approvers/admins
-        $adminUsers = User::query()
-            ->where(fn ($q) => $q->where('email', config('app.primary_hcm_admin_email'))
-                ->orWhere('email', config('app.secondary_hcm_admin_email')))
-            ->get();
-        foreach ($adminUsers as $admin) {
-            if ($admin) {
-                $admin->notify(new LeaveRequestedNotification($r->fresh()));
-            }
+        // Emit leave.requested notification to tenant approvers/admins.
+        $recipients = $this->resolveLeaveRequestedRecipients($companyId, $user->id);
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new LeaveRequestedNotification($r->fresh()));
         }
 
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function resolveLeaveRequestedRecipients(int $companyId, int $requesterUserId): Collection
+    {
+        if ($companyId <= 0) {
+            return collect();
+        }
+
+        $tenantAdminIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('role', ['owner', 'admin'])
+            ->pluck('user_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values();
+
+        $legacyAdminEmails = collect([
+            config('app.primary_hcm_admin_email'),
+            config('app.secondary_hcm_admin_email'),
+        ])
+            ->filter(static fn ($email): bool => is_string($email) && trim($email) !== '')
+            ->map(static fn (string $email): string => trim($email))
+            ->values();
+
+        $legacyAdminIds = $legacyAdminEmails->isEmpty()
+            ? collect()
+            : User::query()
+                ->whereIn('email', $legacyAdminEmails->all())
+                ->pluck('id')
+                ->map(static fn ($id): int => (int) $id)
+                ->filter(static fn (int $id): bool => $id > 0)
+                ->values();
+
+        $recipientIds = $tenantAdminIds
+            ->merge($legacyAdminIds)
+            ->unique()
+            ->reject(static fn (int $id): bool => $id === $requesterUserId)
+            ->values();
+
+        if ($recipientIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', $recipientIds->all())
+            ->get();
     }
 
     public function update(Request $request, string $id): JsonResponse
@@ -551,17 +599,34 @@ class HcmLeaveRequestController extends Controller
 
             $validated = $request->validate([
                 'status' => ['required', 'in:pending,approved,declined'],
-                'notes' => ['nullable', 'string', 'max:2000'],
+                'notes' => [
+                    'nullable',
+                    'string',
+                    'max:2000',
+                    Rule::requiredIf(static fn () => (string) $request->input('status') === 'declined'),
+                ],
             ]);
 
             DB::transaction(function () use ($r, $validated, $companyId): void {
                 $r = $this->applyTenantScope(LeaveRequest::query()->lockForUpdate(), $companyId)->whereKey($r->id)->firstOrFail();
                 $fromStatus = (string) $r->status;
                 $toStatus = (string) $validated['status'];
+                $nextNotes = $r->notes;
+
+                if ($toStatus === 'declined') {
+                    $reason = trim((string) ($validated['notes'] ?? ''));
+                    if ($reason === '') {
+                        throw ValidationException::withMessages([
+                            'notes' => 'Rejection reason is required when leave request is declined.',
+                        ]);
+                    }
+
+                    $nextNotes = $this->composeDeclinedLeaveNotes((string) ($r->notes ?? ''), $reason);
+                }
 
                 $r->update([
                     'status' => $toStatus,
-                    'notes' => $validated['notes'] ?? $r->notes,
+                    'notes' => $nextNotes,
                 ]);
 
                 if (! Schema::hasTable('leave_types') || ! Schema::hasTable('leave_ledger')) {
@@ -649,6 +714,41 @@ class HcmLeaveRequestController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    private function composeDeclinedLeaveNotes(string $existingNotes, string $reason): string
+    {
+        [$employeeNotes, ] = $this->splitDeclinedLeaveNotes($existingNotes);
+
+        $employeeNotes = trim($employeeNotes);
+        $reason = trim($reason);
+
+        if ($employeeNotes === '') {
+            return '[Admin rejection reason]\n'.$reason;
+        }
+
+        return $employeeNotes."\n\n[Admin rejection reason]\n".$reason;
+    }
+
+    /**
+     * @return array{0:string,1:string}
+     */
+    private function splitDeclinedLeaveNotes(string $notes): array
+    {
+        $marker = "\n\n[Admin rejection reason]\n";
+        $pos = strrpos($notes, $marker);
+        if ($pos !== false) {
+            return [
+                trim(substr($notes, 0, $pos)),
+                trim(substr($notes, $pos + strlen($marker))),
+            ];
+        }
+
+        if (preg_match('/^\s*\[Admin rejection reason\]\s*(.+)$/s', $notes, $matches) === 1) {
+            return ['', trim((string) ($matches[1] ?? ''))];
+        }
+
+        return [trim($notes), ''];
     }
 
     private function calculateLeaveDays(Carbon $from, Carbon $to, string $leaveType): float

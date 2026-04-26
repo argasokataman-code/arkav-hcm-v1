@@ -6,6 +6,16 @@
     var latestDashboardData = null;
     var attendanceMap = null;
     var attendanceMarker = null;
+    var latestDashboardNotifications = [];
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
     function notify(message, tone) {
         var text = String(message || "");
@@ -225,6 +235,216 @@
                 return data;
             });
         });
+    }
+
+    function getTenantContext() {
+        try {
+            if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
+                return window.AuthApi.getTenantContext() || {};
+            }
+        } catch (_e) {}
+
+        return {};
+    }
+
+    async function getApiToken() {
+        try {
+            if (window.AuthApi && typeof window.AuthApi.getToken === "function") {
+                var authToken = window.AuthApi.getToken();
+                if (authToken) {
+                    return authToken;
+                }
+            }
+        } catch (_e) {}
+
+        try {
+            var response = await fetch("/api-token", { credentials: "include" });
+            var payload = await response.json();
+            var tokenFromPayload = payload && payload.data && payload.data.token
+                ? payload.data.token
+                : (payload && payload.token ? payload.token : null);
+            if (tokenFromPayload) {
+                return tokenFromPayload;
+            }
+        } catch (_e) {}
+
+        return null;
+    }
+
+    function buildNotificationHeaders(token) {
+        var headers = {
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        };
+
+        if (token) {
+            headers.Authorization = "Bearer " + String(token);
+        }
+
+        var tenant = getTenantContext();
+        if (tenant && tenant.companyCode) {
+            headers["X-Company-Code"] = String(tenant.companyCode);
+        }
+        if (tenant && tenant.companyId) {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant && tenant.companyUuid) {
+            headers["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return headers;
+    }
+
+    function formatRelativeTime(value) {
+        if (!value) {
+            return "Just now";
+        }
+
+        var parsed = new Date(value);
+        if (isNaN(parsed.getTime())) {
+            return "Just now";
+        }
+
+        var diffSeconds = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 1000));
+        if (diffSeconds < 60) {
+            return "Just now";
+        }
+        if (diffSeconds < 3600) {
+            return Math.floor(diffSeconds / 60) + " mins ago";
+        }
+        if (diffSeconds < 86400) {
+            return Math.floor(diffSeconds / 3600) + " hrs ago";
+        }
+        return Math.floor(diffSeconds / 86400) + " days ago";
+    }
+
+    function canViewLeavesAdmin() {
+        try {
+            var authUser = window.AuthUser || null;
+            var permissions = authUser && Array.isArray(authUser.permissions)
+                ? authUser.permissions
+                : [];
+            return permissions.indexOf("leave.view") >= 0;
+        } catch (_e) {
+            return false;
+        }
+    }
+
+    function buildNotificationTarget(item) {
+        if (!item) {
+            return null;
+        }
+
+        var data = (item && item.data && typeof item.data === "object") ? item.data : {};
+        var eventKey = String(item.eventKey || data.eventKey || data.event || "").trim().toLowerCase();
+        if (!eventKey || eventKey.indexOf("leave.") !== 0) {
+            return null;
+        }
+
+        var requestId = data.leaveRequestId != null ? String(data.leaveRequestId).trim() : "";
+        var requestUuid = data.leaveRequestUuid != null ? String(data.leaveRequestUuid).trim() : "";
+        if (!requestId && !requestUuid) {
+            return null;
+        }
+
+        var basePath = canViewLeavesAdmin() ? "/leaves" : "/leaves-employee";
+        var params = [];
+        if (requestId) {
+            params.push("openLeaveRequestId=" + encodeURIComponent(requestId));
+        }
+        if (requestUuid) {
+            params.push("openLeaveRequestUuid=" + encodeURIComponent(requestUuid));
+        }
+
+        return basePath + (params.length ? ("?" + params.join("&")) : "");
+    }
+
+    function renderDashboardNotifications(items, unreadCount) {
+        var titleNode = document.querySelector("[data-employee-dashboard-notifications-title]");
+        var bodyNode = document.querySelector("[data-employee-dashboard-notifications-body]");
+        if (!titleNode || !bodyNode) {
+            return;
+        }
+
+        var list = Array.isArray(items) ? items : [];
+        titleNode.textContent = "Notifications (" + String(Number(unreadCount || 0)) + ")";
+
+        if (!list.length) {
+            bodyNode.innerHTML = '<p class="text-muted mb-0">Belum ada notifikasi terbaru.</p>';
+            return;
+        }
+
+        var html = '<div class="d-flex flex-column gap-3">';
+        list.slice(0, 5).forEach(function (item, idx) {
+            var target = buildNotificationTarget(item);
+            var title = escapeHtml(item.title || item.eventKey || "Notification");
+            var body = escapeHtml(item.body || "");
+            var severity = escapeHtml(item.severity || "informational");
+            var when = escapeHtml(formatRelativeTime(item.createdAt));
+            var toneClass = item.isRead ? "text-muted" : "text-dark";
+            var rowClass = idx === list.slice(0, 5).length - 1 ? "" : "border-bottom pb-3";
+
+            html += '<div class="' + rowClass + '">';
+            if (target) {
+                html += '<a href="' + escapeHtml(target) + '" class="text-decoration-none d-block">';
+            }
+            html += '<p class="mb-1 fw-semibold ' + toneClass + '">' + title + '</p>';
+            if (body) {
+                html += '<p class="mb-1 small text-muted">' + body + '</p>';
+            }
+            html += '<div class="d-flex align-items-center gap-2 small text-muted">';
+            html += '<span>' + when + '</span>';
+            html += '<span class="badge bg-light text-dark">' + severity + '</span>';
+            if (!item.isRead) {
+                html += '<span class="badge bg-primary-subtle text-primary">new</span>';
+            }
+            html += '</div>';
+            if (target) {
+                html += '</a>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+
+        bodyNode.innerHTML = html;
+    }
+
+    async function refreshDashboardNotifications() {
+        var titleNode = document.querySelector("[data-employee-dashboard-notifications-title]");
+        var bodyNode = document.querySelector("[data-employee-dashboard-notifications-body]");
+        if (!titleNode || !bodyNode) {
+            return;
+        }
+
+        var token = await getApiToken();
+        if (!token) {
+            renderDashboardNotifications([], 0);
+            return;
+        }
+
+        try {
+            var response = await fetch("/v1/hcm/notifications?page=1&perPage=5", {
+                method: "GET",
+                headers: buildNotificationHeaders(token),
+                credentials: "same-origin"
+            });
+            var payload = await response.json().catch(function () { return null; });
+            if (!response.ok || !payload || payload.success !== true) {
+                renderDashboardNotifications(latestDashboardNotifications, latestDashboardNotifications.length);
+                return;
+            }
+
+            var data = payload.data || {};
+            var items = Array.isArray(data.items) ? data.items : [];
+            var unreadCount = data.meta && Number.isFinite(Number(data.meta.unreadCount))
+                ? Number(data.meta.unreadCount)
+                : items.filter(function (item) { return !item.isRead; }).length;
+
+            latestDashboardNotifications = items.slice();
+            renderDashboardNotifications(items, unreadCount);
+        } catch (_e) {
+            renderDashboardNotifications(latestDashboardNotifications, latestDashboardNotifications.length);
+        }
     }
 
     function renderLegacyLeavesChart(leave, overtime) {
@@ -747,7 +967,7 @@
     }
 
     function loadDashboardSummary(dateIso) {
-        var url = "/v1/hcm/dashboard-summary";
+        var url = "/v1/hcm/employee-dashboard-summary";
         if (dateIso) {
             url += "?date=" + encodeURIComponent(dateIso);
         }
@@ -782,6 +1002,17 @@
         var dateInput = document.querySelector("[data-employee-dashboard-date]");
         var dateIso = dateInput ? parseDateInput(dateInput.value) : "";
         loadDashboardSummary(dateIso || "");
+        refreshDashboardNotifications();
+
+        var refreshBtn = document.querySelector("[data-employee-dashboard-notifications-refresh]");
+        if (refreshBtn) {
+            refreshBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+                refreshDashboardNotifications();
+            });
+        }
+
+        window.setInterval(refreshDashboardNotifications, 60000);
     }
 
     if (document.readyState === "loading") {

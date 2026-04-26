@@ -30,7 +30,7 @@ class AttendanceAdminTenantScopeTest extends TestCase
         return (string) $resp->json('data.accessToken');
     }
 
-    public function test_attendance_admin_index_joins_records_with_company_scope(): void
+    public function test_attendance_admin_index_joins_records_for_scoped_users_even_when_record_company_differs(): void
     {
         $companyA = Company::factory()->create();
         $companyB = Company::factory()->create();
@@ -86,7 +86,26 @@ class AttendanceAdminTenantScopeTest extends TestCase
         $respA->assertOk()->assertJsonPath('success', true);
         $rowA = collect($respA->json('data'))->firstWhere('userId', $u->id);
         $this->assertNotNull($rowA);
-        $this->assertSame('', (string) ($rowA['checkInTime24'] ?? ''), 'Expected company A to NOT join company B record.');
+        $this->assertSame('10:02', (string) ($rowA['checkInTime24'] ?? ''), 'Expected company A scoped user to join record regardless of record company_id.');
+
+        // Guardrail: user outside active company A must still never leak into company A response.
+        $outsideUser = User::factory()->create();
+        CompanyUser::query()->create([
+            'company_id' => $companyB->id,
+            'user_id' => $outsideUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        AttendanceRecord::query()->create([
+            'company_id' => $companyB->id,
+            'user_id' => $outsideUser->id,
+            'work_date' => $date,
+            'status' => 'present',
+            'check_in_at' => now()->setTime(9, 15, 0),
+        ]);
+
+        $rowOutsideA = collect($respA->json('data'))->firstWhere('userId', $outsideUser->id);
+        $this->assertNull($rowOutsideA, 'Expected company A response to exclude users without active membership in company A.');
 
         $respB = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,

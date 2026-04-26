@@ -194,6 +194,12 @@
                 }
                 var id = new URL(window.location.href).searchParams.get('id');
                 if (!id) {
+                    var meId = window.__arcav_me_id || (window.AuthUser && window.AuthUser.id) || null;
+                    if (meId !== null && meId !== undefined && String(meId).trim() !== '') {
+                        id = String(meId).trim();
+                    }
+                }
+                if (!id) {
                     return;
                 }
                 fetch('/v1/hcm/employees/' + encodeURIComponent(id), {

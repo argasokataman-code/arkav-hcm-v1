@@ -34,6 +34,12 @@ Dengan hook aktif:
 	2. `bash scripts/check-shared-hosting-artifact-sync.sh <HEAD>`
 	3. `bash scripts/check-deploy-runtime-guard.sh`
 
+## Communication discipline (mandatory)
+
+- Saat memberi "next step" atau "saran", **wajib** tampilkan seluruh langkah/opsi relevan dalam **satu list lengkap** pada satu respons.
+- Dilarang memberi saran bertahap satu-per-satu jika konteksnya bisa diberikan sekaligus.
+- Urutkan list dari paling wajib ke opsional agar tim tidak bingung prioritas.
+
 ## Shared hosting deploy (lokal-first automated)
 
 1. Lokal: `bash scripts/local-test-gate.sh` (mandatory gate)

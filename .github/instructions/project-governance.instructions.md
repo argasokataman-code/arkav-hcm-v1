@@ -26,6 +26,12 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 
 ## Rule eksekusi pasca-fixing (wajib) — LOCAL-FIRST WORKFLOW
 
+## Rule komunikasi agen (wajib)
+
+- Jika memberi "next steps" / "saran", agen wajib menuliskan seluruh langkah/opsi relevan sekaligus dalam satu list lengkap.
+- Hindari saran bertahap satu-per-satu bila konteksnya bisa dirangkum langsung.
+- Susun prioritas jelas dari mandatory ke opsional.
+
 **MANDATORY:** Jalankan local test gate SEBELUM commit/push:
 
 ```bash

@@ -273,6 +273,7 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Team</th>
+                                    <th>Team Leader</th>
                                     <th>Department</th>
                                     <th>Designation</th>
                                     <th>Joining Date</th>
@@ -283,6 +284,7 @@
                             <tbody data-employees-list-body>
                                 <tr>
                                     <td class="text-center text-muted py-4">Loading...</td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>

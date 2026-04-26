@@ -55,6 +55,13 @@
             </div>
             <!-- /Breadcrumb -->
 
+            @if (session('error'))
+                <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                    {{ session('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
             @php($showModernEmployeeDashboard = false)
             @if($showModernEmployeeDashboard)
                 @include('hcm.partials.employee-home-dashboard')

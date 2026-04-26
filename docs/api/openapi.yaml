@@ -2974,7 +2974,8 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
     post:
       tags: [User Management]
-      summary: Create role (requires super user)
+      summary: Create tenant role (tenant manage permission)
+      description: Tenant role setup is owned by tenant admins in the active company. Global HCM admin cannot mutate tenant role setup.
       security:
         - bearerAuth: []
       requestBody:
@@ -2998,7 +2999,8 @@ paths:
   /v1/hcm/user-management/roles/{id}:
     put:
       tags: [User Management]
-      summary: Update role (requires super user)
+      summary: Update tenant role (tenant manage permission)
+      description: Tenant role setup is owned by tenant admins in the active company. Global HCM admin cannot mutate tenant role setup.
       security:
         - bearerAuth: []
       parameters:
@@ -3021,7 +3023,8 @@ paths:
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [User Management]
-      summary: Delete or archive role (requires super user)
+      summary: Delete or archive tenant role (tenant manage permission)
+      description: Tenant role setup is owned by tenant admins in the active company. Global HCM admin cannot mutate tenant role setup.
       security:
         - bearerAuth: []
       parameters:
@@ -3052,6 +3055,7 @@ paths:
     post:
       tags: [User Management]
       summary: Replace role permissions with provided permission codes
+      description: Permission sync is tenant-owned in active company context. Global HCM admin cannot mutate tenant role permissions.
       security:
         - bearerAuth: []
       parameters:
@@ -8228,6 +8232,9 @@ paths:
     post:
       tags: [SaaS]
       summary: Create subscription (HCM admin)
+      description: |
+        Menolak pembuatan `active`/`trial` baru jika company sudah punya subscription lain
+        berstatus `active`/`trial` yang masih berlaku (`422 ACTIVE_SUBSCRIPTION_ALREADY_EXISTS`).
       security:
         - bearerAuth: []
       requestBody:
@@ -8292,6 +8299,9 @@ paths:
     put:
       tags: [SaaS]
       summary: Update subscription (HCM admin)
+      description: |
+        Jika hasil update membuat subscription menjadi `active`/`trial`, API menolak konflik
+        dengan record aktif/trial lain pada company yang sama (`422 ACTIVE_SUBSCRIPTION_ALREADY_EXISTS`).
       security:
         - bearerAuth: []
       requestBody:
@@ -8344,6 +8354,8 @@ paths:
       summary: Renew subscription — sets active, starts_at now, ends_at from body (HCM admin)
       description: |
         Typical prior statuses: expired, cancelled, suspended, inactive. Not valid for `pending_payment` (422).
+        Renew ditolak jika company sudah memiliki subscription lain yang masih `active`/`trial`
+        (`422 ACTIVE_SUBSCRIPTION_ALREADY_EXISTS`).
         Web UI `/saas/subscriptions` may resolve `{subscription}` via **Renew by UUID** (`GET /v1/saas/subscriptions/{subscription}` first).
       security:
         - bearerAuth: []

@@ -11,6 +11,7 @@ use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\SendInvoiceEmailJob;
+use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -236,6 +237,10 @@ class PublicOnboardingController
                 'status' => 'active',
                 'joined_at' => now(),
             ]);
+
+            // Provision default tenant RBAC catalog (roles/permissions + owner admin assignment)
+            // so newly subscribed companies can immediately use employee/admin flows.
+            app(HcmUserManagementSeeder::class)->run();
 
             $startMode = (string) ($validated['start_mode'] ?? 'trial');
 

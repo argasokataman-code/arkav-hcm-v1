@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use Carbon\Carbon;
 use App\Models\Company;
+use App\Models\HcmRole;
+use App\Models\HcmUserRole;
 use App\Models\Invoice;
 use App\Models\Package;
 use Illuminate\Support\Facades\Http;
@@ -240,6 +242,26 @@ class PublicOnboardingApiTest extends TestCase
         $this->assertDatabaseHas('company_settings', ['company_id' => $company->id, 'key' => 'business_address', 'value' => 'Jl. Sudirman Kav. 52-53']);
         $this->assertDatabaseHas('company_settings', ['company_id' => $company->id, 'key' => 'business_city', 'value' => 'Jakarta Selatan']);
         $this->assertDatabaseHas('company_settings', ['company_id' => $company->id, 'key' => 'business_postal_code', 'value' => '12190']);
+
+        $this->assertDatabaseHas('hcm_roles', ['company_id' => $company->id, 'code' => 'EMPLOYEE']);
+        $this->assertDatabaseHas('hcm_roles', ['company_id' => $company->id, 'code' => 'ADMIN']);
+
+        $ownerUserId = (int) \App\Models\User::query()
+            ->where('email', 'budi.santoso@example.com')
+            ->value('id');
+        $adminRoleId = (int) HcmRole::query()
+            ->where('company_id', $company->id)
+            ->where('code', 'ADMIN')
+            ->value('id');
+
+        $this->assertTrue(
+            HcmUserRole::query()
+                ->where('company_id', $company->id)
+                ->where('user_id', $ownerUserId)
+                ->where('role_id', $adminRoleId)
+                ->where('status', 'active')
+                ->exists()
+        );
     }
 
     public function test_guest_can_onboard_and_start_pending_payment_with_invoice(): void

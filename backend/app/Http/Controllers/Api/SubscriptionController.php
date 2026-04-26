@@ -145,6 +145,12 @@ class SubscriptionController extends Controller
             }
         }
 
+        if ($this->isActiveOrTrialStatus((string) $validated['status'])) {
+            if ($guard = $this->ensureNoConcurrentActiveOrTrial((int) $validated['company_id'])) {
+                return $guard;
+            }
+        }
+
         $subscription = Subscription::create($validated);
         $subscription->load('company', 'package');
 
@@ -251,6 +257,12 @@ class SubscriptionController extends Controller
             return $gate;
         }
 
+        if ($this->isActiveOrTrialStatus((string) $mergedStatus)) {
+            if ($guard = $this->ensureNoConcurrentActiveOrTrial((int) $subscription->company_id, (int) $subscription->id)) {
+                return $guard;
+            }
+        }
+
         // If package changed, update plan_code and sync amount to catalog prices
         if (isset($validated['package_uuid'])) {
             $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
@@ -317,6 +329,10 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'ends_at' => 'required|date|after:now',
         ]);
+
+        if ($guard = $this->ensureNoConcurrentActiveOrTrial((int) $subscription->company_id, (int) $subscription->id)) {
+            return $guard;
+        }
 
         $subscription->update([
             'status' => 'active',
@@ -393,6 +409,39 @@ class SubscriptionController extends Controller
         }
 
         return null;
+    }
+
+    private function isActiveOrTrialStatus(string $status): bool
+    {
+        return in_array($status, ['active', 'trial'], true);
+    }
+
+    private function ensureNoConcurrentActiveOrTrial(int $companyId, ?int $exceptSubscriptionId = null): ?JsonResponse
+    {
+        $query = Subscription::query()
+            ->where('company_id', $companyId)
+            ->whereIn('status', ['active', 'trial'])
+            ->where(function ($builder): void {
+                $builder->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            });
+
+        if ($exceptSubscriptionId !== null && $exceptSubscriptionId > 0) {
+            $query->where('id', '!=', $exceptSubscriptionId);
+        }
+
+        $conflict = $query->first();
+        if (! $conflict) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'ACTIVE_SUBSCRIPTION_ALREADY_EXISTS',
+                'message' => 'Company already has an active or trial subscription. Update the existing subscription instead of creating another active/trial record.',
+            ],
+        ], 422);
     }
 
     /**

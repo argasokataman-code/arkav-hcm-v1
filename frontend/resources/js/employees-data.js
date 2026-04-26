@@ -525,7 +525,7 @@
         }
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
             updateBulkSelectionUi();
             return;
@@ -535,6 +535,7 @@
             var st = row.employmentStatus || "active";
             var statusClass = st === "active" ? "success" : st === "probation" ? "warning" : "danger";
             var teamLabel = row.teamName || row.team || "—";
+            var teamLeaderLabel = row.managerName || "Belum ditentukan";
             var teamBadge = row.teamIsActive === false
                 ? '<span class="badge bg-soft-warning text-warning ms-1">inactive</span>'
                 : "";
@@ -550,6 +551,7 @@
                 "<td>" + nameCell + "</td>" +
                 "<td>" + escapeHtml(row.email) + "</td>" +
                 "<td>" + escapeHtml(teamLabel) + teamBadge + "</td>" +
+                "<td>" + escapeHtml(teamLeaderLabel) + "</td>" +
                 "<td>" + escapeHtml(row.departmentName || "—") + "</td>" +
                 "<td>" + escapeHtml(row.designation || "Employee") + "</td>" +
                 "<td>" + escapeHtml(row.joinDate || "-") + "</td>" +
@@ -570,7 +572,7 @@
     function renderListMessage(message) {
         var tbody = document.querySelector("[data-employees-list-body]");
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
         tbody.setAttribute("data-hydrated", "1");
         updateBulkSelectionUi();
     }

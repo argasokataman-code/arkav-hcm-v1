@@ -1,4 +1,8 @@
-@php($syncStatus = session('wilayahSyncStatus'))
+@php
+    $syncStatus = session('wilayahSyncStatus');
+    $syncAuthUser = request()->user() ?: auth()->user();
+    $canRunWilayahSync = (bool) ($syncAuthUser?->isGlobalHcmAdmin());
+@endphp
 @if (is_array($syncStatus))
     <div class="alert alert-{{ $syncStatus['type'] ?? 'info' }} alert-dismissible fade show" role="alert">
         <div class="fw-semibold">{{ $syncStatus['message'] ?? 'Sync status' }}</div>
@@ -9,32 +13,36 @@
     </div>
 @endif
 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
-    <form method="POST" action="{{ route('locations.sync') }}" class="mb-2" data-wilayah-sync-form>
-        @csrf
-        <button type="submit" class="btn btn-primary d-inline-flex align-items-center" data-wilayah-sync-button>
-            <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true" data-wilayah-sync-spinner></span>
-            <i class="ti ti-refresh-dot me-1" data-wilayah-sync-icon></i>
-            <span data-wilayah-sync-text>Sync Data Wilayah</span>
-        </button>
-        <div class="small text-muted mt-1 d-none" data-wilayah-sync-hint>
-            Sync sedang diproses di background, mohon tunggu lalu refresh halaman.
-        </div>
-    </form>
+    @if ($canRunWilayahSync)
+        <form method="POST" action="{{ route('locations.sync') }}" class="mb-2" data-wilayah-sync-form>
+            @csrf
+            <button type="submit" class="btn btn-primary d-inline-flex align-items-center" data-wilayah-sync-button>
+                <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true" data-wilayah-sync-spinner></span>
+                <i class="ti ti-refresh-dot me-1" data-wilayah-sync-icon></i>
+                <span data-wilayah-sync-text>Sync Data Wilayah</span>
+            </button>
+            <div class="small text-muted mt-1 d-none" data-wilayah-sync-hint>
+                Sync sedang diproses di background, mohon tunggu lalu refresh halaman.
+            </div>
+        </form>
+    @endif
     <div class="mb-2 text-muted small">{{ $pageSubtitle }}</div>
 </div>
 
-<div class="card border mb-3 d-none" data-wilayah-progress-panel>
-    <div class="card-body py-2 px-3">
-        <div class="d-flex align-items-center justify-content-between mb-1">
-            <span class="small fw-semibold" data-wilayah-progress-stage>Sync Status</span>
-            <span class="small text-muted" data-wilayah-progress-percent>0%</span>
+@if ($canRunWilayahSync)
+    <div class="card border mb-3 d-none" data-wilayah-progress-panel>
+        <div class="card-body py-2 px-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-semibold" data-wilayah-progress-stage>Sync Status</span>
+                <span class="small text-muted" data-wilayah-progress-percent>0%</span>
+            </div>
+            <div class="progress" role="progressbar" aria-label="Wilayah sync progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-wilayah-progress-root>
+                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%" data-wilayah-progress-bar></div>
+            </div>
+            <div class="small text-muted mt-1" data-wilayah-progress-message>Belum ada sync berjalan.</div>
         </div>
-        <div class="progress" role="progressbar" aria-label="Wilayah sync progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-wilayah-progress-root>
-            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%" data-wilayah-progress-bar></div>
-        </div>
-        <div class="small text-muted mt-1" data-wilayah-progress-message>Belum ada sync berjalan.</div>
     </div>
-</div>
+@endif
 
 <script>
     (function () {

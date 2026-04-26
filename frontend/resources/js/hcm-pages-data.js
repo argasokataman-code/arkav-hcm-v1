@@ -594,6 +594,7 @@
         set("[data-employee-no]", item.employeeNo);
         set("[data-employee-team]", item.team);
         set("[data-employee-department]", item.departmentName);
+        set("[data-employee-team-leader]", (item.assignment && item.assignment.managerName) || item.managerName || "Belum ditentukan");
         set("[data-employee-join-date]", item.joinDate);
         set("[data-employee-designation]", item.designation);
         set("[data-employee-phone]", item.phone);
@@ -651,6 +652,9 @@
             var assignmentHistory = Array.isArray(item.assignmentHistory) ? item.assignmentHistory : [];
             var compensationHistory = Array.isArray(item.compensationHistory) ? item.compensationHistory : [];
             var contractHistory = Array.isArray(item.contractHistory) ? item.contractHistory : [];
+            var compensationHeading = compensationHistory.length > 1
+                ? "Compensation History"
+                : (compensationHistory.length === 1 ? "Initial Compensation" : "Compensation");
             var bankAccounts = Array.isArray(item.bankAccounts) ? item.bankAccounts : [];
             var documents = Array.isArray(item.documents) ? item.documents : [];
             var trainings = Array.isArray(item.trainingItems) ? item.trainingItems : [];
@@ -736,7 +740,7 @@
                 '</div>' +
                 '<h5 class="mb-3">Employment History</h5><ul class="mb-4">' + (employmentHistoryHtml || '<li>-</li>') + '</ul>' +
                 '<h5 class="mb-3">Assignment</h5><ul class="mb-4">' + (assignmentHistoryHtml || '<li>-</li>') + '</ul>' +
-                '<h5 class="mb-3">Compensation History</h5><ul class="mb-4">' + (compensationHistoryHtml || '<li>-</li>') + '</ul>' +
+                '<h5 class="mb-3">' + esc(compensationHeading) + '</h5><ul class="mb-4">' + (compensationHistoryHtml || '<li>-</li>') + '</ul>' +
                 '<h5 class="mb-3">Contracts</h5><ul class="mb-4">' + (contractHistoryHtml || '<li>-</li>') + '</ul>' +
                 '<h5 class="mb-3">Bank Accounts</h5><ul class="mb-4">' + (bankAccountsHtml || '<li><strong>' + esc(bank.name || '-') + '</strong> — ' + esc(bank.accountNo || '-') + '</li>') + '</ul>' +
                 '<h5 class="mb-3">Tax Info</h5>' +

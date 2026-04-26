@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Package;
+use App\Models\PackageFeature;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,7 +66,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->assertRedirect(url('employee-dashboard'));
     }
 
-    public function test_qa_super_admin_still_sees_asset_menu_when_feature_disabled(): void
+    public function test_qa_super_admin_does_not_see_asset_menu_when_feature_disabled_in_tenant_context(): void
     {
         $company = $this->createCompanyWithActiveSubscriptionWithoutAssetFeature();
 
@@ -99,8 +100,11 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->get('/employees');
 
         $response->assertOk();
-        $response->assertSee('href="'.url('assets').'"', false);
-        $response->assertSee('href="'.url('asset-categories').'"', false);
+        // When in tenant context, even QA/global admin must respect the tenant's subscription.
+        // Asset feature is not in this tenant's package, so asset menu must NOT appear.
+        $response->assertDontSee('href="'.url('assets').'"', false);
+        $response->assertDontSee('href="'.url('asset-categories').'"', false);
+        // System/settings menus are still visible (not feature-gated)
         $response->assertSee('href="'.url('email-settings').'"', false);
         $response->assertSee('href="'.url('business-settings').'"', false);
         $response->assertSee('href="'.url('currencies').'"', false);
@@ -148,6 +152,18 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             'invited_by_user_id' => null,
         ]);
 
+        $subscription = Subscription::query()
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        PackageFeature::query()->create([
+            'package_uuid' => $subscription->package_uuid,
+            'feature_code' => 'payroll',
+            'feature_name' => 'Payroll',
+            'limit' => null,
+        ]);
+
         $response = $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
             ->get('/employees');
@@ -179,6 +195,62 @@ class SidebarAssetMenuVisibilityTest extends TestCase
         $response->assertDontSee('href="'.url('refferals').'"', false);
         $response->assertSee('href="'.url('pages').'"', false);
         $response->assertDontSee('href="'.url('login').'"', false);
+    }
+
+    public function test_regular_employee_does_not_see_payroll_menu_even_when_payroll_feature_enabled(): void
+    {
+        $company = $this->createCompanyWithActiveSubscriptionWithoutAssetFeature();
+
+        $subscription = Subscription::query()
+            ->where('company_id', $company->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        PackageFeature::query()->create([
+            'package_uuid' => $subscription->package_uuid,
+            'feature_code' => 'payroll',
+            'feature_name' => 'Payroll',
+            'limit' => null,
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Regular Employee',
+            'email' => 'regular.employee@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Operations',
+            'nik' => 'EMP-304',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'employee',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/employee-dashboard');
+
+        $response->assertOk();
+        $response->assertDontSee('FINANCE & ACCOUNTS', false);
+        $response->assertDontSee('Process Monthly Payroll', false);
+        $response->assertDontSee('THR Payroll', false);
+
+        $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/payroll')
+            ->assertRedirect(url('employee-dashboard'));
     }
 
     private function createCompanyWithActiveSubscriptionWithoutAssetFeature(): Company

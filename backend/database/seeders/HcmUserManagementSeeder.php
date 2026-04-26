@@ -171,6 +171,25 @@ class HcmUserManagementSeeder extends Seeder
         $rolePermissionCodes = [
             'TEAM_LEAD' => ['employee.view', 'team.lead', 'report.view'],
             'MANAGER' => ['employee.view', 'team.lead'],
+            'EMPLOYEE' => [
+                'dashboard.view',
+                'employee.view',
+                'holiday.view',
+                'attendance.view',
+                'attendance.create',
+                'timesheet.view',
+                'schedule.view',
+                'leave.view',
+                'leave.create',
+                'overtime.view',
+                'overtime.create',
+                'ticket.view',
+                'ticket.create',
+                'ticket.update',
+                'performance.view',
+                'training.view',
+                'policy.view',
+            ],
         ];
         $adminPermissionIds = collect($permissionIdsByCode)
             ->filter(static fn ($id): bool => is_numeric($id))
@@ -249,6 +268,35 @@ class HcmUserManagementSeeder extends Seeder
                         'user_id' => $adminUserId,
                         'company_id' => $companyId,
                         'role_id' => $createdRoles['ADMIN'],
+                        'status' => 'active',
+                    ],
+                    [
+                        'assigned_by_user_id' => null,
+                        'effective_from' => null,
+                        'effective_until' => null,
+                        'revoked_at' => null,
+                    ]
+                );
+            }
+
+            if (! isset($createdRoles['EMPLOYEE'])) {
+                continue;
+            }
+
+            $employeeUserIds = CompanyUser::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'active')
+                ->whereIn('role', ['employee', 'member'])
+                ->pluck('user_id')
+                ->map(static fn ($value): int => (int) $value)
+                ->all();
+
+            foreach ($employeeUserIds as $employeeUserId) {
+                HcmUserRole::query()->updateOrCreate(
+                    [
+                        'user_id' => $employeeUserId,
+                        'company_id' => $companyId,
+                        'role_id' => $createdRoles['EMPLOYEE'],
                         'status' => 'active',
                     ],
                     [

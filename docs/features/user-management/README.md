@@ -62,9 +62,11 @@ Target fase awal:
 
 Status: Implemented (Backend API v1 + Authorization Pattern v1)
 Version: 1.0
-Last updated: 2026-04-21
+Last updated: 2026-04-26
 
-**Latest:** 2026-04-21 - Global-only governance hardening completed for role setup and platform hub visibility. Permission catalog `GET /permissions` now hides `module=system` from tenant admins, while global super admin keeps full visibility for system-level permissions and cross-tenant platform oversight. Web guard + header/sidebar visibility for platform billing/revenue pages are now aligned to `isGlobalHcmAdmin`, and tenant billing self-service (`/subscription`, `/company/invoices`) remains available to tenant admins.
+**Latest:** 2026-04-26 - Employee/member web access hardening untuk mencegah mismatch role-vs-menu: sidebar varian tambahan sekarang menyembunyikan link admin-only (`holidays`, `timesheets`, `policy`, dst) untuk user employee/member; legacy shortcut route (`/tickets`, `/ticket-details`, `/leave-request`, `/overtime-request`, `/schedules`) kini redirect berdasarkan role aktif (admin ke admin page, employee/member ke employee page); middleware admin-only sekarang kirim flash reason agar redirect ke employee dashboard tidak lagi silent. Header profile juga menampilkan badge company code + role aktif untuk mengurangi kebingungan context tenant saat user berpindah akun/peran.
+
+**Previous:** 2026-04-26 - Default tenant RBAC provisioning now runs during public onboarding so each new company automatically gets role catalog (`ADMIN`, `EMPLOYEE`, dll) and owner admin assignment. Employee creation now auto-assigns role `EMPLOYEE` in `hcm_user_roles` (with legacy fallback seeding when older tenant belum punya role default), sehingga akun karyawan baru tidak lagi start tanpa baseline permission.
 
 **Validation note:** The FE auth client and tenant-context flow used by user-management were also revalidated through `backend/tests/ui/auth-api.wiring.test.js`, so export/list pages now share the same verified auth contract as the rest of the HCM UI.
 

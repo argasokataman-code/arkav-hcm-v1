@@ -16,7 +16,9 @@ class WilayahSyncStatusTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create([
+            'is_super_admin' => true,
+        ]));
     }
 
     public function test_sync_status_returns_idle_default_when_cache_empty(): void

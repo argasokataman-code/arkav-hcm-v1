@@ -1,6 +1,6 @@
 # User Management - Status Tracker
 
-Last reviewed: 2026-04-21
+Last reviewed: 2026-04-26
 
 ## Purpose
 
@@ -16,6 +16,7 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 - Role setup governance: verified. `GET /v1/hcm/user-management/permissions` now hides `module=system` for non-global admins, and the sidebar/header no longer expose System Settings to tenant HCM admins.
 - **Global Super Admin (Developer)**: persisted via `users.is_super_admin` (BOOLEAN, indexed). Primary source of truth for `User::isGlobalHcmAdmin()` + `HcmRbacService::isGlobalAdmin()`. One developer account (`qa.login@example.com`) backfilled on migration. Email config retained only as bootstrap fallback.
 - **Tenant Super Admin**: unchanged contract — `company_users.role='owner'` membership + `hcm_user_roles` role assignment per company.
+- Default tenant RBAC provisioning: active for onboarding flow. New tenant now gets role catalog including `EMPLOYEE`, owner receives active `ADMIN` assignment, and newly created employee user is auto-assigned active `EMPLOYEE` role.
 
 ## Remaining Gaps
 
@@ -23,6 +24,27 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 - `config('hcm.super_admin_emails')` array is intentionally unused — removed as a runtime signal.
 
 ## Evidence Log
+
+- 2026-04-26 (tenant-owned role setup governance): role/permission mutation boundary corrected so tenant admin/owner keeps authority over tenant role setup, while global admin cannot mutate tenant-owned role/permission.
+  - `HcmUserManagementController` mutating endpoints (`createRole`, `updateRole`, `deleteRole`, `syncRolePermissions`) now enforce `TENANT_ROLE_SETUP_FORBIDDEN` when actor is global admin.
+  - Tenant admins with manage permission (`role.*`, `role.sync_permission`, `user_management.manage`) can configure tenant role setup without legacy super-user gate.
+  - API docs synchronized: `docs/api/user-management-api.md` and `docs/api/openapi.yaml` now describe tenant-owned setup + global-admin block explicitly.
+  - Regression coverage updated in `HcmUserManagementApiTest`: tenant admin allowed path + global super admin blocked path.
+
+- 2026-04-26 (employee/member web guard hardening): web-layer routing/menu alignment updated so employee/member users no longer receive admin-only links in additional sidebar variants, and legacy shortcuts now resolve to role-appropriate destination.
+  - `layout/partials/sidebar.blade.php` now treats `company_users.role=member` as employee-scoped and hides admin-only menu targets (holidays/timesheets/policy/admin-ticket/admin-overtime/admin-leave settings) for employee/member users in the stacked menu section.
+  - `routes/web.php` legacy shortcuts now use role-aware redirects: `/tickets`, `/ticket-details`, `/leave-request`, `/overtime-request`, `/schedules`.
+  - `EnsureHcmWebAdminPage` now sets flash `error` reason when redirecting non-admin users to `/employee-dashboard`, and `employee-dashboard.blade.php` renders that flash banner.
+  - `layout/partials/header.blade.php` adds active company badge + role badge in profile card for clearer tenant context.
+  - Test evidence: `php artisan test tests/Feature/WebHcmRouteGuardTest.php` => PASS (17 tests, 1471 assertions), including new coverage for legacy shortcut redirects and admin-only flash message.
+
+- 2026-04-26 (employee default-role baseline): onboarding flow now calls tenant RBAC seeding so role catalog and owner assignment are ready immediately after subscribe/trial creation.
+  - `PublicOnboardingController::store()` invokes `HcmUserManagementSeeder` after owner membership creation.
+  - `HcmUserManagementSeeder` now maps default `EMPLOYEE` permissions (`dashboard/attendance/leave/overtime/ticket/performance/training/policy` self-service scope) and assigns `EMPLOYEE` role to active `company_users` with role `employee/member`.
+  - `HcmEmployeeController::store()` now auto-assigns `EMPLOYEE` role in `hcm_user_roles` and includes fallback RBAC bootstrap for legacy tenants missing the role catalog.
+  - Test evidence:
+    - `php artisan test --filter=PublicOnboardingApiTest` => PASS (7 tests, 39 assertions)
+    - `php artisan test --filter=HcmEmployeeApiTest` => PASS (37 tests, 298 assertions)
 
 - 2026-04-21 (global-only hardening pass 3): Website Settings platform items `/language`, `/language-web`, `/add-language`, `/authentication-settings`, `/ai-settings` moved to `hcm.web.global-admin`. Menu entries for Language, Authentication, AI Settings wrapped in `@if ($isGlobalHcmAdmin)` across all 4 sidebar layouts + header. `/prefixes`, `/preferences`, `/appearance` kept as tenant-admin.
   - `WebHcmRouteGuardTest` redirect path list extended with 5 new paths; tenant-redirect test now covers 22 paths.

@@ -13,7 +13,9 @@ use App\Services\Media\MediaFileDeleter;
 use App\Services\Media\PolicyAttachmentStorageService;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
+use App\Models\HcmRole;
 use App\Models\HcmScheduleTiming;
+use App\Models\HcmUserRole;
 use App\Models\Policy;
 use App\Models\Team;
 use App\Models\User;
@@ -25,6 +27,7 @@ use App\Services\EmployeeCountValidator;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Support\WebsiteSettings;
+use Database\Seeders\HcmUserManagementSeeder;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\Eloquent\Builder;
@@ -286,7 +289,8 @@ class HcmEmployeeController extends Controller
                     )->with([
                         'department:id,name',
                         'designationRef:id,name,department_id',
-                        'assignedTeam:id,name,is_active',
+                        'assignedTeam:id,name,is_active,team_lead_id',
+                        'assignedTeam.teamLead:id,name',
                     ]);
                 },
             ])
@@ -364,6 +368,9 @@ class HcmEmployeeController extends Controller
             $designationLabel = $snapshot['designation'] ?: 'Employee';
             $pkwtSummary = $this->pkwtCompensationService->summarizeProfile($profile);
             $teamName = $profile?->assignedTeam?->name ?: ($snapshot['team'] ?: '—');
+            $teamLeaderName = $snapshot['managerName']
+                ?? $profile?->assignedTeam?->teamLead?->name
+                ?? null;
 
             return [
                 'id' => $user->id,
@@ -377,6 +384,8 @@ class HcmEmployeeController extends Controller
                 'teamId' => $profile?->team_id ? (int) $profile->team_id : null,
                 'teamName' => $teamName,
                 'teamIsActive' => $profile?->assignedTeam ? (bool) $profile->assignedTeam->is_active : null,
+                'managerUserId' => $snapshot['managerUserId'] ?? null,
+                'managerName' => $teamLeaderName,
                 'departmentId' => $snapshot['departmentId'],
                 'departmentName' => $snapshot['departmentName'] ?: '—',
                 'designationId' => $snapshot['designationId'],
@@ -480,6 +489,25 @@ class HcmEmployeeController extends Controller
                 ]
             );
 
+            $employeeRoleId = $this->resolveEmployeeRoleIdForCompany($activeCompanyId);
+
+            if (is_numeric($employeeRoleId)) {
+                HcmUserRole::query()->updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'company_id' => $activeCompanyId,
+                        'role_id' => (int) $employeeRoleId,
+                        'status' => 'active',
+                    ],
+                    [
+                        'assigned_by_user_id' => $actorId,
+                        'effective_from' => null,
+                        'effective_until' => null,
+                        'revoked_at' => null,
+                    ]
+                );
+            }
+
             $profile = EmployeeProfile::query()->create([
                 'company_id' => $activeCompanyId,
                 'user_id' => $user->id,
@@ -533,6 +561,29 @@ class HcmEmployeeController extends Controller
                 'email' => $user->email,
             ],
         ], 201);
+    }
+
+    private function resolveEmployeeRoleIdForCompany(int $companyId): ?int
+    {
+        $roleId = HcmRole::query()
+            ->where('company_id', $companyId)
+            ->where('code', 'EMPLOYEE')
+            ->value('id');
+
+        if (is_numeric($roleId)) {
+            return (int) $roleId;
+        }
+
+        // Backward-compatible bootstrap for legacy tenants that existed before
+        // role defaults were auto-provisioned during onboarding.
+        app(HcmUserManagementSeeder::class)->run();
+
+        $roleId = HcmRole::query()
+            ->where('company_id', $companyId)
+            ->where('code', 'EMPLOYEE')
+            ->value('id');
+
+        return is_numeric($roleId) ? (int) $roleId : null;
     }
 
     public function exportEmployees(Request $request)
@@ -966,6 +1017,7 @@ class HcmEmployeeController extends Controller
                     'designationId' => $snapshot['designationId'],
                     'designationName' => $snapshot['designationName'],
                     'managerUserId' => $snapshot['managerUserId'],
+                    'managerName' => $snapshot['managerName'] ?? null,
                 ],
                 'compensation' => $snapshot['compensation'],
                 'contract' => [

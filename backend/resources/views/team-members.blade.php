@@ -5,6 +5,58 @@
         [data-team-members-body]:not([data-hydrated="1"]) {
             display: none;
         }
+
+        .team-members-summary-grid .card {
+            border: 1px solid var(--bs-border-color);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+        }
+
+        .team-members-summary-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--bs-secondary-color);
+            margin-bottom: 0.35rem;
+        }
+
+        .team-members-summary-value {
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.35;
+            margin-bottom: 0;
+            color: var(--bs-body-color);
+        }
+
+        .team-members-summary-value.is-total {
+            font-size: 1.55rem;
+            line-height: 1;
+        }
+
+        .team-members-toolbar {
+            gap: 0.65rem;
+        }
+
+        .team-members-toolbar .form-control,
+        .team-members-toolbar .form-select {
+            min-width: 160px;
+        }
+
+        .team-members-toolbar .team-members-search {
+            min-width: 260px;
+            flex: 1 1 260px;
+        }
+
+        @media (max-width: 767.98px) {
+            .team-members-toolbar .form-control,
+            .team-members-toolbar .form-select,
+            .team-members-toolbar .btn {
+                width: 100%;
+            }
+
+            .team-members-toolbar .team-members-search {
+                min-width: 100%;
+            }
+        }
     </style>
 
     <div class="page-wrapper">
@@ -37,36 +89,60 @@
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-12 col-xl-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="mb-2">Team Summary</h6>
-                            <p class="mb-1 text-muted small">Name</p>
-                            <p class="mb-2" data-team-members-team-name>-</p>
-                            <p class="mb-1 text-muted small">Department</p>
-                            <p class="mb-2" data-team-members-team-department>-</p>
-                            <p class="mb-1 text-muted small">Lead</p>
-                            <p class="mb-2" data-team-members-team-lead>-</p>
-                            <p class="mb-1 text-muted small">Members</p>
-                            <p class="mb-0 fw-semibold" data-team-members-total>0</p>
+            <div class="row g-3 mb-3 team-members-summary-grid">
+                <div class="col-12 col-sm-6 col-xl-3 d-flex">
+                    <div class="card w-100 h-100">
+                        <div class="card-body py-3">
+                            <p class="team-members-summary-label">Team Name</p>
+                            <p class="team-members-summary-value" data-team-members-team-name>-</p>
                         </div>
                     </div>
                 </div>
+                <div class="col-12 col-sm-6 col-xl-3 d-flex">
+                    <div class="card w-100 h-100">
+                        <div class="card-body py-3">
+                            <p class="team-members-summary-label">Department</p>
+                            <p class="team-members-summary-value" data-team-members-team-department>-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3 d-flex">
+                    <div class="card w-100 h-100">
+                        <div class="card-body py-3">
+                            <p class="team-members-summary-label">Team Lead</p>
+                            <p class="team-members-summary-value" data-team-members-team-lead>-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-xl-3 d-flex">
+                    <div class="card w-100 h-100">
+                        <div class="card-body py-3">
+                            <p class="team-members-summary-label">Total Members</p>
+                            <p class="team-members-summary-value is-total" data-team-members-total>0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <div class="col-12 col-xl-8">
+            <div class="row">
+                <div class="col-12">
                     <div class="card">
-                        <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                            <h5 class="mb-0">Members</h5>
-                            <div class="d-flex align-items-center flex-wrap gap-2">
-                                <input type="text" class="form-control" style="min-width: 220px;" placeholder="Search name/email/nik" data-team-members-search>
-                                <select class="form-select" style="min-width: 170px;" data-team-members-status>
+                        <div class="card-header">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                <h5 class="mb-0">Members Directory</h5>
+                                <button type="button" class="btn btn-primary" data-team-members-assign-open>
+                                    <i class="ti ti-user-plus me-1"></i>Assign Members
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center flex-wrap team-members-toolbar">
+                                <input type="text" class="form-control team-members-search" placeholder="Search name/email/NIK" data-team-members-search>
+                                <select class="form-select" data-team-members-status>
                                     <option value="all">All Status</option>
                                     <option value="active">Active</option>
                                     <option value="probation">Probation</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
-                                <select class="form-select" style="min-width: 130px;" data-team-members-per-page>
+                                <select class="form-select" data-team-members-per-page>
                                     <option value="10">10 / page</option>
                                     <option value="20" selected>20 / page</option>
                                     <option value="50">50 / page</option>
@@ -84,10 +160,11 @@
                                             <th>Department</th>
                                             <th>Designation</th>
                                             <th>Status</th>
+                                            <th class="text-end">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody data-team-members-body>
-                                        <tr><td class="text-center text-muted py-4" colspan="6">Loading...</td></tr>
+                                        <tr><td class="text-center text-muted py-4" colspan="7">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -103,6 +180,31 @@
     </div>
 
     <input type="hidden" value="{{ $teamId }}" data-team-members-id>
+
+    <div class="modal fade" id="team_members_assign_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Members To Team</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form data-team-members-assign-form>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Select Employees</label>
+                            <select class="form-select" multiple data-team-members-assign-users></select>
+                            <small class="text-muted d-block mt-1">Ketik nama/email untuk mencari. Employee yang sudah berada di team ini otomatis tidak ditampilkan.</small>
+                        </div>
+                        <div class="alert d-none mb-0" data-team-members-assign-result></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" data-team-members-assign-submit>Assign Selected</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     @push('scripts')
     <script src="{{ asset('build/js/team-master-data.js') }}"></script>

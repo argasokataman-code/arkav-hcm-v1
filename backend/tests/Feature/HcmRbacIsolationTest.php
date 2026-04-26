@@ -148,7 +148,7 @@ class HcmRbacIsolationTest extends TestCase
     }
 
     #[Test]
-    public function tenant_admin_cannot_mutate_role_setup_without_super_admin()
+    public function tenant_admin_with_company_admin_role_can_create_roles()
     {
         $company = Company::factory()->create();
         $email = 'tenant.admin.'.time().'@example.com';
@@ -179,7 +179,9 @@ class HcmRbacIsolationTest extends TestCase
         ])->assertOk();
         $token = (string) $login->json('data.accessToken');
 
-        // Should be blocked from role creation
+        // Tenant admin (CompanyUser role='admin') passes the backward-compat permission check
+        // and is NOT blocked by ensureTenantRoleSetupBoundary (which only blocks global admin).
+        // New design: tenant admins manage their own role structures; global admin cannot.
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $company->id,
@@ -189,17 +191,12 @@ class HcmRbacIsolationTest extends TestCase
             'name' => 'Test Role',
         ]);
 
-        $response->assertStatus(403)
-                ->assertJson([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'SUPER_USER_REQUIRED',
-                    ],
-                ]);
+        $response->assertStatus(201)
+                ->assertJsonPath('success', true);
     }
 
     #[Test]
-    public function global_admin_can_manage_roles_across_companies()
+    public function global_admin_cannot_directly_manage_tenant_role_setup()
     {
         $company = Company::factory()->create();
         $email = 'super@admin.com';
@@ -266,7 +263,7 @@ class HcmRbacIsolationTest extends TestCase
         ])->assertOk();
         $token = (string) $login->json('data.accessToken');
 
-        // Super admin can create roles
+        // New design: global admin is BLOCKED from directly mutating tenant role setup.
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $company->id,
@@ -276,7 +273,7 @@ class HcmRbacIsolationTest extends TestCase
             'name' => 'Super Created Role',
         ]);
 
-        $response->assertStatus(201)
-                ->assertJson(['success' => true]);
+        $response->assertStatus(403)
+            ->assertJsonPath('error.code', 'TENANT_ROLE_SETUP_FORBIDDEN');
     }
 }

@@ -8,23 +8,55 @@
     $isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
     $showTemplateCatalogMenus = $isPrimarySuperAdmin;
     $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
+    $isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin());
     $activeCompany = request()->attributes->get('activeCompany');
+    $activeCompanyRole = strtolower(trim((string) request()->attributes->get('activeCompanyRole', '')));
+    if ($activeCompanyRole === '' && $activeCompany instanceof \App\Models\Company && $authUser) {
+        $activeCompanyRole = strtolower((string) (\App\Models\CompanyUser::query()
+            ->where('company_id', $activeCompany->id)
+            ->where('user_id', $authUser->id)
+            ->value('role') ?? ''));
+    }
+    if ($activeCompanyRole === '' && $authUser) {
+        $activeCompanyRole = strtolower((string) (\App\Models\CompanyUser::query()
+            ->where('user_id', $authUser->id)
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->value('role') ?? ''));
+    }
+    $isEmployeeScopedUser = in_array($activeCompanyRole, ['employee', 'member'], true);
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription()
         : null;
+    $activeCompanyIdentifier = $activeCompany instanceof \App\Models\Company
+        ? ((string) ($activeCompany->uuid ?? '') !== '' ? (string) $activeCompany->uuid : (string) ((int) ($activeCompany->id ?? 0)))
+        : null;
+    $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
+    $hasTickets = (bool) ($activeCompanySubscription?->package?->hasFeature('tickets') ?? false);
+    // Feature bypass: global/QA admin only bypasses feature gates when NOT inside a specific tenant context.
+    $isInTenantContext = $activeCompany instanceof \App\Models\Company;
+    $featureBypass = $isGlobalHcmAdmin && !$isInTenantContext;
+    $canManageTrainingMenu = $featureBypass || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
+    $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
+    $canSeeTicketsMenu = $featureBypass || $hasTickets;
+    $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
+    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && $isHcmAdmin);
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
     $isQaSuperAdmin = $authUser
         && (
             strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
             || (bool) ($authUser->is_super_admin ?? false)
         );
-    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin;
+    $canSeeAssetManagementMenu = $featureBypass || ($hasAssetManagement && !$isEmployeeScopedUser && $isHcmAdmin);
     $headerProfileName = trim((string) ($authUser->name ?? 'User')) ?: 'User';
     $headerProfileEmail = trim((string) ($authUser->email ?? '')) ?: 'user@example.com';
     $headerProfilePhotoPath = trim((string) ($authUser->employeeProfile->profile_photo_path ?? ''));
     $headerProfilePhotoUrl = $headerProfilePhotoPath !== ''
         ? asset('storage/'.ltrim($headerProfilePhotoPath, '/'))
         : URL::asset('build/img/profiles/avatar-12.jpg');
+    $headerActiveCompanyName = trim((string) ($activeCompany?->name ?? ''));
+    $headerActiveCompanyCode = trim((string) ($activeCompany?->code ?? ''));
+    $headerRoleBadge = strtoupper($activeCompanyRole !== '' ? $activeCompanyRole : 'member');
 @endphp
 <div class="header">
     <div class="main-header">
@@ -274,6 +306,7 @@
                                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                                             </ul>
                                         </li>
+@if ($canSeeTicketsMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
                                                 <span class="menu-arrow"></span>
@@ -285,6 +318,7 @@
 
                                             </ul>
                                         </li>
+@endif
                                         <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>                                        <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}"><span>Attendance</span>
@@ -327,15 +361,17 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                                             </ul>
                                         </li>
-                                        @if ($showTemplateCatalogMenus)
+                                        @if ($showTemplateCatalogMenus && $canViewTrainingMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}"><span>Training</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
                                                 <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
+@if ($canManageTrainingMenu)
                                                <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                                 <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
+@endif
 
                                             </ul>
                                         </li>
@@ -378,6 +414,7 @@
                                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                                             </ul>
                                         </li>
+@if ($canSeePayrollMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                                 <span class="menu-arrow"></span>
@@ -402,6 +439,7 @@
                                                 </li>
                                             </ul>
                                         </li>
+@endif
 @if ($canSeeAssetManagementMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('assets','asset-categories') ? 'active subdrop' : '' }}"><span>Assets</span>
@@ -428,7 +466,8 @@
                                             </a>
                                             <ul>
                                                 <li><a href="{{url('users')}}" class="{{ Request::is('users') ? 'active' : '' }}">Users</a></li>
-                                                <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>  </ul>
+                                                <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
+                                            </ul>
                                         </li>
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','task-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
@@ -1185,23 +1224,31 @@
                             </div>
                         </div>
                     </div>
-                    <div class="dropdown profile-dropdown">
-                        @php
-                            $trialEndsAt = $activeCompanySubscription?->trial_ends_at;
-                            $trialDaysLeft = null;
-                            if ($activeCompanySubscription && $activeCompanySubscription->status === 'trial' && $trialEndsAt) {
-                                // Use ceiling for friendly UX: if remaining hours > 0, show at least 1 day.
-                                $secondsLeft = now()->diffInSeconds($trialEndsAt, false);
-                                $trialDaysLeft = $secondsLeft > 0 ? (int) ceil($secondsLeft / 86400) : 0;
-                            }
-                        @endphp
-                        @if (is_int($trialDaysLeft) && $trialDaysLeft > 0)
-                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-warning me-2 d-none d-md-inline-flex align-items-center gap-1">
+                    @php
+                        $trialEndsAt = $activeCompanySubscription?->trial_ends_at;
+                        $trialDaysLeft = null;
+                        if ($activeCompanySubscription && $activeCompanySubscription->status === 'trial' && $trialEndsAt) {
+                            // Use ceiling for friendly UX: if remaining hours > 0, show at least 1 day.
+                            $secondsLeft = now()->diffInSeconds($trialEndsAt, false);
+                            $trialDaysLeft = $secondsLeft > 0 ? (int) ceil($secondsLeft / 86400) : 0;
+                        }
+                    @endphp
+                    @if (is_int($trialDaysLeft) && $trialDaysLeft > 0)
+                        <div class="me-2 d-inline-flex d-md-none align-items-center">
+                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1 text-nowrap px-2" title="Trial {{ $trialDaysLeft }} hari lagi">
+                                <i class="ti ti-sparkles"></i>
+                                <span class="badge bg-warning text-dark rounded-pill">{{ $trialDaysLeft }}d</span>
+                            </a>
+                        </div>
+                        <div class="me-2 d-none d-md-flex align-items-center">
+                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1 text-nowrap px-2">
                                 <i class="ti ti-sparkles"></i>
                                 <span class="fw-semibold">Trial</span>
-                                <span class="badge bg-warning text-dark">{{ $trialDaysLeft }} hari lagi</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{{ $trialDaysLeft }} hari lagi</span>
                             </a>
-                        @endif
+                        </div>
+                    @endif
+                    <div class="dropdown profile-dropdown">
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <span class="avatar avatar-sm online">
@@ -1218,6 +1265,14 @@
                                         <div>
                                             <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>
                                             <p class="fs-12 fw-medium mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
+                                            @if ($headerActiveCompanyName !== '' || $headerActiveCompanyCode !== '')
+                                                <p class="mb-0 mt-1">
+                                                    <span class="badge bg-light text-dark border">
+                                                        {{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
+                                                    </span>
+                                                    <span class="badge bg-soft-secondary text-secondary ms-1">{{ $headerRoleBadge }}</span>
+                                                </p>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>

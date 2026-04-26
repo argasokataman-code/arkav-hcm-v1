@@ -10,6 +10,7 @@ use App\Models\HcmRole;
 use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
 use App\Models\User;
+use App\Support\Hcm\HcmFeatureEntitlementResolver;
 use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -47,18 +48,18 @@ class HcmUserManagementController extends Controller
         ]);
     }
 
-    private function ensureRoleSetupSuperUser(Request $request): ?JsonResponse
+    private function ensureTenantRoleSetupBoundary(Request $request): ?JsonResponse
     {
         $user = $request->user();
         if ($user && $user->isGlobalHcmAdmin()) {
-            return null;
+            return $this->errorResponse(
+                'TENANT_ROLE_SETUP_FORBIDDEN',
+                'Global admin cannot modify tenant role or permission setup.',
+                403,
+            );
         }
 
-        return $this->errorResponse(
-            'SUPER_USER_REQUIRED',
-            'Only application super user can configure role and permission setup.',
-            403,
-        );
+        return null;
     }
 
     public function users(Request $request): JsonResponse
@@ -285,6 +286,7 @@ class HcmUserManagementController extends Controller
             ->distinct()
             ->orderBy('hcm_permissions.code')
             ->pluck('code')
+            ->filter(fn ($code): bool => HcmFeatureEntitlementResolver::isPermissionAllowedForCompany((string) $code, $companyId))
             ->values();
 
         return response()->json([
@@ -565,6 +567,7 @@ class HcmUserManagementController extends Controller
                 'isSystem' => (bool) $role->is_system,
                 'permissionCodes' => $role->permissions
                     ->pluck('code')
+                    ->filter(fn ($code): bool => HcmFeatureEntitlementResolver::isPermissionAllowedForCompany((string) $code, $companyId))
                     ->map(static fn ($code): string => (string) $code)
                     ->sort()
                     ->values(),
@@ -585,7 +588,7 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+        if ($response = $this->ensureTenantRoleSetupBoundary($request)) {
             return $response;
         }
 
@@ -631,7 +634,7 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+        if ($response = $this->ensureTenantRoleSetupBoundary($request)) {
             return $response;
         }
 
@@ -684,7 +687,7 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+        if ($response = $this->ensureTenantRoleSetupBoundary($request)) {
             return $response;
         }
 
@@ -774,7 +777,9 @@ class HcmUserManagementController extends Controller
             'action' => $permission->action,
             'name' => $permission->name,
             'description' => $permission->description,
-        ])->values();
+        ])
+            ->filter(fn (array $permission): bool => HcmFeatureEntitlementResolver::isPermissionAllowedForCompany((string) ($permission['code'] ?? ''), $companyId))
+            ->values();
 
         return response()->json(['success' => true, 'data' => $rows]);
     }
@@ -790,7 +795,7 @@ class HcmUserManagementController extends Controller
             return $response;
         }
 
-        if ($response = $this->ensureRoleSetupSuperUser($request)) {
+        if ($response = $this->ensureTenantRoleSetupBoundary($request)) {
             return $response;
         }
 
@@ -814,6 +819,18 @@ class HcmUserManagementController extends Controller
             ->filter()
             ->unique()
             ->values();
+
+        $blockedCodes = $codes
+            ->reject(fn (string $code): bool => HcmFeatureEntitlementResolver::isPermissionAllowedForCompany($code, $companyId))
+            ->values();
+
+        if ($blockedCodes->isNotEmpty()) {
+            return $this->errorResponse(
+                'PERMISSION_FEATURE_NOT_ALLOWED',
+                'One or more permissions are not allowed by current package features: '.$blockedCodes->implode(', '),
+                422,
+            );
+        }
 
         $permissions = HcmPermission::query()
             ->whereIn('code', $codes->all())

@@ -96,13 +96,100 @@
         });
     }
 
-    // Fetch users for team lead dropdown
-    function fetchUsers() {
-        return api('GET', '/v1/hcm/user-management/users').then(function (res) {
-            return res.data || [];
-        }).catch(function () {
-            return [];
+    function setTeamLeadSelectValue(selectEl, userId, userName) {
+        if (!selectEl) return;
+
+        var normalizedId = userId != null && String(userId).trim() !== '' ? String(userId) : '';
+
+        if (!normalizedId) {
+            selectEl.value = '';
+            if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                window.jQuery(selectEl).trigger('change');
+            }
+            return;
+        }
+
+        var exists = Array.prototype.slice.call(selectEl.options).some(function (opt) {
+            return String(opt.value) === normalizedId;
         });
+
+        if (!exists) {
+            var label = userName && String(userName).trim() ? String(userName).trim() : ('User #' + normalizedId);
+            var opt = new Option(label, normalizedId, true, true);
+            selectEl.appendChild(opt);
+        }
+
+        selectEl.value = normalizedId;
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+            window.jQuery(selectEl).trigger('change');
+        }
+    }
+
+    function initTeamLeadRemoteSelect(selector, modalSelector) {
+        if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+
+        var el = document.querySelector(selector);
+        if (!el || el.getAttribute('data-team-lead-remote-init') === '1') return;
+
+        var $el = window.jQuery(el);
+        var $modal = modalSelector ? window.jQuery(modalSelector) : null;
+        var pageSize = 20;
+
+        $el.select2({
+            width: '100%',
+            allowClear: true,
+            placeholder: 'Cari employee untuk Team Lead (opsional)',
+            dropdownParent: $modal && $modal.length ? $modal : null,
+            minimumInputLength: 0,
+            ajax: {
+                delay: 250,
+                transport: function (params, success, failure) {
+                    var term = params.data && params.data.search ? String(params.data.search) : '';
+                    var page = params.data && params.data.page ? Number(params.data.page) : 1;
+                    var query = new URLSearchParams({
+                        page: String(page),
+                        perPage: String(pageSize),
+                        status: 'active',
+                        search: term
+                    });
+
+                    api('GET', '/v1/hcm/user-management/users?' + query.toString())
+                        .then(success)
+                        .catch(failure);
+                },
+                data: function (params) {
+                    return {
+                        search: params.term || '',
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (response, params) {
+                    var rows = Array.isArray(response && response.data) ? response.data : [];
+                    var pagination = response && response.meta && response.meta.pagination ? response.meta.pagination : {};
+                    var page = Number((params && params.page) || 1);
+                    var lastPage = Math.max(page, Number(pagination.lastPage || page) || page);
+
+                    return {
+                        results: rows.map(function (user) {
+                            var label = user && user.name ? user.name : ('User #' + String(user && user.id ? user.id : ''));
+                            if (user && user.email) {
+                                label += ' (' + user.email + ')';
+                            }
+                            return {
+                                id: user.id,
+                                text: label,
+                                rawName: user && user.name ? user.name : label
+                            };
+                        }),
+                        pagination: {
+                            more: page < lastPage
+                        }
+                    };
+                }
+            }
+        });
+
+        el.setAttribute('data-team-lead-remote-init', '1');
     }
 
     // Render teams grid
@@ -116,15 +203,17 @@
             var deptName = team.department_name || '—';
             var leadName = team.team_lead_id ? team.team_lead_name || '—' : '—';
             var memberCount = team.member_count || 0;
+            var membersUrl = '/teams/' + esc(team.id) + '/members';
             
             return '<tr>' +
                 '<td><h6 class="fw-medium">' + esc(team.name) + '</h6></td>' +
                 '<td>' + esc(deptName) + '</td>' +
-                '<td><a href="/teams/' + esc(team.id) + '/members" class="badge bg-light-info text-decoration-none">' + memberCount + '</a></td>' +
+                '<td><a href="' + membersUrl + '" class="badge bg-light-info text-decoration-none">' + memberCount + '</a></td>' +
                 '<td>' + esc(leadName) + '</td>' +
                 '<td><span class="badge badge-' + badge + ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + status + '</span></td>' +
-                '<td><div class="action-icon d-inline-flex">' +
-                '<a href="#" class="me-2" data-hcm-edit="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '" data-department-id="' + esc(team.department_id) + '" data-team-lead-id="' + esc(team.team_lead_id || '') + '" data-active="' + (team.is_active ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_team"><i class="ti ti-edit"></i></a>' +
+                '<td><div class="action-icon d-inline-flex align-items-center">' +
+                '<a href="' + membersUrl + '" class="me-2" title="Assign Members" aria-label="Assign Members"><i class="ti ti-user-plus"></i></a>' +
+                '<a href="#" class="me-2" data-hcm-edit="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '" data-department-id="' + esc(team.department_id) + '" data-team-lead-id="' + esc(team.team_lead_id || '') + '" data-team-lead-name="' + esc(team.team_lead_name || '') + '" data-active="' + (team.is_active ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_team"><i class="ti ti-edit"></i></a>' +
                 '<a href="#" data-hcm-delete="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '"><i class="ti ti-trash"></i></a>' +
                 '</div></td>' +
                 '</tr>';
@@ -228,10 +317,8 @@
             populateDropdown('[data-hcm-field="team-department"]', depts, 'id', 'name');
             populateDropdown('#edit_team [data-hcm-field="team-department"]', depts, 'id', 'name');
         });
-        fetchUsers().then(function (users) {
-            populateDropdown('[data-hcm-field="team-lead"]', users, 'id', 'name');
-            populateDropdown('#edit_team [data-hcm-field="team-lead"]', users, 'id', 'name');
-        });
+        initTeamLeadRemoteSelect('[data-hcm-form="team-add"] [data-hcm-field="team-lead"]', '#add_team');
+        initTeamLeadRemoteSelect('[data-hcm-form="team-edit"] [data-hcm-field="team-lead"]', '#edit_team');
 
         // Pagination
         document.addEventListener('click', function (e) {
@@ -291,6 +378,7 @@
                 }).then(function () {
                     notify('Team created successfully', false);
                     addForm.reset();
+                    setTeamLeadSelectValue(addForm.querySelector('[data-hcm-field="team-lead"]'), '', '');
                     document.querySelector('#add_team').closest('.modal').modal = null;
                     var modal = window.bootstrap.Modal.getInstance(document.querySelector('#add_team'));
                     if (modal) modal.hide();
@@ -312,7 +400,11 @@
                     form.dataset.id = editBtn.getAttribute('data-id');
                     form.querySelector('[data-hcm-field="team-name"]').value = editBtn.getAttribute('data-name');
                     form.querySelector('[data-hcm-field="team-department"]').value = editBtn.getAttribute('data-department-id');
-                    form.querySelector('[data-hcm-field="team-lead"]').value = editBtn.getAttribute('data-team-lead-id') || '';
+                    setTeamLeadSelectValue(
+                        form.querySelector('[data-hcm-field="team-lead"]'),
+                        editBtn.getAttribute('data-team-lead-id') || '',
+                        editBtn.getAttribute('data-team-lead-name') || ''
+                    );
                     form.querySelector('[data-hcm-field="team-active"]').value = editBtn.getAttribute('data-active');
                 }
             }
@@ -382,6 +474,106 @@
             status: 'all'
         };
 
+        function showAssignResult(level, message) {
+            var box = document.querySelector('[data-team-members-assign-result]');
+            if (!box) return;
+
+            if (!message) {
+                box.className = 'alert d-none mb-0';
+                box.textContent = '';
+                return;
+            }
+
+            var kind = level || 'info';
+            var map = {
+                info: 'alert-info',
+                success: 'alert-success',
+                warning: 'alert-warning',
+                danger: 'alert-danger'
+            };
+            box.className = 'alert ' + (map[kind] || 'alert-info') + ' mb-0';
+            box.textContent = message;
+        }
+
+        function getAssignModalInstance() {
+            if (!(window.bootstrap && window.bootstrap.Modal)) return null;
+            var modalEl = document.getElementById('team_members_assign_modal');
+            if (!modalEl) return null;
+            return window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        }
+
+        function initAssignMembersPicker() {
+            if (!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+
+            var select = document.querySelector('[data-team-members-assign-users]');
+            var modalEl = document.getElementById('team_members_assign_modal');
+            if (!select || !modalEl || select.getAttribute('data-team-members-assign-init') === '1') return;
+
+            var $select = window.jQuery(select);
+            var $modal = window.jQuery(modalEl);
+            var pageSize = 20;
+            var currentTeamId = Number(state.teamId || 0);
+
+            $select.select2({
+                width: '100%',
+                dropdownParent: $modal,
+                placeholder: 'Search employee to assign',
+                minimumInputLength: 1,
+                ajax: {
+                    delay: 250,
+                    transport: function (params, success, failure) {
+                        var term = params.data && params.data.search ? String(params.data.search) : '';
+                        var page = params.data && params.data.page ? Number(params.data.page) : 1;
+                        var query = new URLSearchParams({
+                            page: String(page),
+                            perPage: String(pageSize),
+                            status: 'active',
+                            search: term
+                        });
+
+                        api('GET', '/v1/hcm/employees?' + query.toString())
+                            .then(success)
+                            .catch(failure);
+                    },
+                    data: function (params) {
+                        return {
+                            search: params.term || '',
+                            page: params.page || 1
+                        };
+                    },
+                    processResults: function (response, params) {
+                        var rows = Array.isArray(response && response.data) ? response.data : [];
+                        var page = Number((params && params.page) || 1);
+                        var meta = response && response.meta ? response.meta : {};
+                        var total = Number(meta.total || 0);
+                        var perPage = Math.max(1, Number(meta.perPage || pageSize));
+
+                        var filtered = rows.filter(function (item) {
+                            var employeeProfileId = Number(item && item.employeeProfileId ? item.employeeProfileId : 0);
+                            return employeeProfileId > 0 && Number(item && item.teamId ? item.teamId : 0) !== currentTeamId;
+                        });
+
+                        return {
+                            results: filtered.map(function (item) {
+                                var name = item && item.fullName ? item.fullName : ('Employee #' + String(item && item.id ? item.id : ''));
+                                var email = item && item.email ? item.email : '';
+                                var caption = email ? (name + ' (' + email + ')') : name;
+                                return {
+                                    id: item.employeeProfileId,
+                                    text: caption
+                                };
+                            }),
+                            pagination: {
+                                more: (page * perPage) < total
+                            }
+                        };
+                    }
+                }
+            });
+
+            select.setAttribute('data-team-members-assign-init', '1');
+        }
+
         function renderMembersSummary(team, meta) {
             var title = document.querySelector('[data-team-members-title]');
             if (title) {
@@ -404,6 +596,7 @@
             body.innerHTML = (rows || []).map(function (row) {
                 var status = String(row.employment_status || '-');
                 var statusBadge = status === 'active' ? 'success' : (status === 'probation' ? 'warning' : 'danger');
+                var employeeId = Number(row && row.employee_id ? row.employee_id : 0);
                 return '<tr>' +
                     '<td>' + esc(row.name || '-') + '</td>' +
                     '<td>' + esc(row.email || '-') + '</td>' +
@@ -411,8 +604,13 @@
                     '<td>' + esc(row.department_name || '-') + '</td>' +
                     '<td>' + esc(row.designation_name || '-') + '</td>' +
                     '<td><span class="badge badge-' + statusBadge + '">' + esc(status) + '</span></td>' +
+                    '<td class="text-end">' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger" data-team-members-remove="' + employeeId + '" data-team-members-remove-name="' + esc(row.name || '') + '">' +
+                            '<i class="ti ti-user-off me-1"></i>Take Out' +
+                        '</button>' +
+                    '</td>' +
                     '</tr>';
-            }).join('') || '<tr><td colspan="6" class="text-center py-4 text-muted">No members found.</td></tr>';
+            }).join('') || '<tr><td colspan="7" class="text-center py-4 text-muted">No members found.</td></tr>';
 
             body.setAttribute('data-hydrated', '1');
         }
@@ -479,10 +677,18 @@
                     var body = document.querySelector('[data-team-members-body]');
                     if (body) {
                         var msg = (err.body && err.body.error && err.body.error.message) ? err.body.error.message : 'Failed to load team members.';
-                        body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">' + esc(msg) + '</td></tr>';
+                        body.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">' + esc(msg) + '</td></tr>';
                         body.setAttribute('data-hydrated', '1');
                     }
                 });
+        }
+
+        function confirmTakeOut(memberName) {
+            var label = memberName && String(memberName).trim() ? String(memberName).trim() : 'this member';
+            if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === 'function') {
+                return window.ArcavUi.confirmDelete('Take out ' + label + ' from this team?');
+            }
+            return Promise.resolve(window.confirm('Take out ' + label + ' from this team?'));
         }
 
         document.addEventListener('click', function (e) {
@@ -493,6 +699,39 @@
             if (nextPage < 1 || Number.isNaN(nextPage)) return;
             state.page = nextPage;
             loadMembers();
+        });
+
+        document.addEventListener('click', function (e) {
+            var removeBtn = e.target.closest('[data-team-members-remove]');
+            if (!removeBtn) return;
+
+            e.preventDefault();
+            var employeeId = Number(removeBtn.getAttribute('data-team-members-remove') || 0);
+            if (!Number.isFinite(employeeId) || employeeId <= 0) return;
+
+            var memberName = removeBtn.getAttribute('data-team-members-remove-name') || 'member';
+
+            confirmTakeOut(memberName).then(function (ok) {
+                if (!ok) return;
+
+                removeBtn.disabled = true;
+                api('POST', '/v1/hcm/teams/reassign-members', {
+                    employee_ids: [employeeId],
+                    source_team_id: Number(state.teamId),
+                    target_team_id: null
+                }).then(function (res) {
+                    var affected = Number(res && res.data && res.data.affected_count ? res.data.affected_count : 0);
+                    notify('Member removed from team (' + affected + ').', false);
+                    loadMembers();
+                }).catch(function (err) {
+                    var msg = err && err.body && err.body.error && err.body.error.message
+                        ? err.body.error.message
+                        : 'Failed to take out member from team.';
+                    notify(msg, true);
+                }).finally(function () {
+                    removeBtn.disabled = false;
+                });
+            });
         });
 
         var searchInput = document.querySelector('[data-team-members-search]');
@@ -519,6 +758,72 @@
                 state.perPage = parseInt(this.value || '20', 10) || 20;
                 state.page = 1;
                 loadMembers();
+            });
+        }
+
+        initAssignMembersPicker();
+
+        document.addEventListener('click', function (e) {
+            var openAssign = e.target.closest('[data-team-members-assign-open]');
+            if (!openAssign) return;
+            e.preventDefault();
+
+            var select = document.querySelector('[data-team-members-assign-users]');
+            if (select && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                window.jQuery(select).val(null).trigger('change');
+            }
+            showAssignResult('', '');
+
+            var modal = getAssignModalInstance();
+            if (modal) modal.show();
+        });
+
+        var assignForm = document.querySelector('[data-team-members-assign-form]');
+        if (assignForm) {
+            assignForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                var select = this.querySelector('[data-team-members-assign-users]');
+                var submitBtn = this.querySelector('[data-team-members-assign-submit]');
+                var selectedRaw = select && window.jQuery ? (window.jQuery(select).val() || []) : [];
+                var employeeIds = (selectedRaw || []).map(function (id) {
+                    return Number(id);
+                }).filter(function (id) {
+                    return Number.isFinite(id) && id > 0;
+                });
+
+                if (!employeeIds.length) {
+                    showAssignResult('warning', 'Pilih minimal 1 employee untuk diassign.');
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+                showAssignResult('info', 'Assigning selected members...');
+
+                api('POST', '/v1/hcm/teams/reassign-members', {
+                    employee_ids: employeeIds,
+                    target_team_id: Number(state.teamId)
+                }).then(function (res) {
+                    var affected = Number(res && res.data && res.data.affected_count ? res.data.affected_count : 0);
+                    showAssignResult('success', 'Berhasil assign ' + affected + ' employee ke team ini.');
+                    notify('Members assigned successfully (' + affected + ').', false);
+                    loadMembers();
+
+                    window.setTimeout(function () {
+                        if (select && window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+                            window.jQuery(select).val(null).trigger('change');
+                        }
+                        var modal = getAssignModalInstance();
+                        if (modal) modal.hide();
+                    }, 500);
+                }).catch(function (err) {
+                    var msg = err && err.body && err.body.error && err.body.error.message
+                        ? err.body.error.message
+                        : 'Gagal assign members ke team.';
+                    showAssignResult('danger', msg);
+                }).finally(function () {
+                    if (submitBtn) submitBtn.disabled = false;
+                });
             });
         }
 

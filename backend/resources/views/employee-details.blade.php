@@ -36,6 +36,7 @@
                                 <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-id me-2"></i>Employee ID</span><p class="text-dark" data-employee-no>-</p></div>
                                 <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-star me-2"></i>Team</span><p class="text-dark" data-employee-team>-</p></div>
                                 <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-building me-2"></i>Department</span><p class="text-dark" data-employee-department>-</p></div>
+                                <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-user-shield me-2"></i>Team Leader</span><p class="text-dark text-end" data-employee-team-leader>-</p></div>
                                 <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-calendar-check me-2"></i>Date Of Join</span><p class="text-dark" data-employee-join-date>-</p></div>
                                 <div class="d-flex align-items-center justify-content-between"><span><i class="ti ti-calendar-check me-2"></i>Report Office</span><p class="text-dark" data-employee-report-office>-</p></div>
                             </div>
@@ -135,6 +136,7 @@
                 setText('[data-employee-no]', item.employeeNo);
                 setText('[data-employee-team]', item.team);
                 setText('[data-employee-department]', item.departmentName);
+                setText('[data-employee-team-leader]', (item.assignment && item.assignment.managerName) || item.managerName || 'Belum ditentukan');
                 setText('[data-employee-join-date]', item.joinDate);
                 setText('[data-employee-designation]', item.designation);
                 setText('[data-employee-phone]', item.phone);

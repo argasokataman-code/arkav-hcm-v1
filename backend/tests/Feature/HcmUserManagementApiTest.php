@@ -17,7 +17,7 @@ class HcmUserManagementApiTest extends TestCase
 
     private function adminToken(): string
     {
-        $email = 'qa.login@example.com';
+        $email = 'tenant.admin@example.com';
         $password = 'StrongPass1';
 
         $this->postJson('/v1/identity/auth/register', [
@@ -26,6 +26,51 @@ class HcmUserManagementApiTest extends TestCase
             'password' => $password,
             'confirmPassword' => $password,
         ])->assertStatus(201);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $companyId = (int) CompanyUser::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->value('company_id');
+        $this->assertGreaterThan(0, $companyId);
+
+        $requiredPermissions = [
+            ['code' => 'user.view', 'module' => 'user_management', 'resource' => 'user', 'action' => 'view', 'name' => 'View Users'],
+            ['code' => 'user.create', 'module' => 'user_management', 'resource' => 'user', 'action' => 'create', 'name' => 'Create Users'],
+            ['code' => 'user.update', 'module' => 'user_management', 'resource' => 'user', 'action' => 'update', 'name' => 'Update Users'],
+            ['code' => 'user.assign_role', 'module' => 'user_management', 'resource' => 'user_role', 'action' => 'assign', 'name' => 'Assign User Roles'],
+            ['code' => 'role.view', 'module' => 'user_management', 'resource' => 'role', 'action' => 'view', 'name' => 'View Roles'],
+            ['code' => 'role.create', 'module' => 'user_management', 'resource' => 'role', 'action' => 'create', 'name' => 'Create Roles'],
+            ['code' => 'role.update', 'module' => 'user_management', 'resource' => 'role', 'action' => 'update', 'name' => 'Update Roles'],
+            ['code' => 'role.delete', 'module' => 'user_management', 'resource' => 'role', 'action' => 'delete', 'name' => 'Delete Roles'],
+            ['code' => 'role.sync_permission', 'module' => 'user_management', 'resource' => 'role_permission', 'action' => 'sync', 'name' => 'Sync Role Permissions'],
+            ['code' => 'user_management.view', 'module' => 'user_management', 'resource' => 'user_management', 'action' => 'view', 'name' => 'View User Management'],
+            ['code' => 'user_management.manage', 'module' => 'user_management', 'resource' => 'user_management', 'action' => 'manage', 'name' => 'Manage User Management'],
+        ];
+
+        foreach ($requiredPermissions as $permissionData) {
+            HcmPermission::query()->updateOrCreate(
+                ['code' => $permissionData['code']],
+                $permissionData + ['description' => null, 'is_active' => true]
+            );
+        }
+
+        $adminRole = HcmRole::query()->updateOrCreate(
+            ['company_id' => $companyId, 'code' => 'TENANT_TEST_ADMIN'],
+            ['name' => 'Tenant Test Admin', 'status' => 'active', 'is_system' => false]
+        );
+        $adminRole->permissions()->sync(
+            HcmPermission::query()->whereIn('code', array_column($requiredPermissions, 'code'))->pluck('id')->all()
+        );
+
+        HcmUserRole::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+                'role_id' => $adminRole->id,
+            ],
+            ['status' => 'active']
+        );
 
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
@@ -78,7 +123,7 @@ class HcmUserManagementApiTest extends TestCase
     public function test_user_management_list_supports_filter_and_pagination(): void
     {
         $token = $this->adminToken();
-        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $companyId = $this->activeCompanyIdFor('tenant.admin@example.com');
 
         $role = HcmRole::query()->create([
             'company_id' => $companyId,
@@ -118,25 +163,31 @@ class HcmUserManagementApiTest extends TestCase
     public function test_admin_can_crud_roles_and_sync_permissions(): void
     {
         $token = $this->adminToken();
-        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $companyId = $this->activeCompanyIdFor('tenant.admin@example.com');
 
-        HcmPermission::query()->create([
-            'code' => 'user.view',
-            'module' => 'user_management',
-            'resource' => 'user',
-            'action' => 'view',
-            'name' => 'View User',
-            'is_active' => true,
-        ]);
+        HcmPermission::query()->updateOrCreate(
+            ['code' => 'user.view'],
+            [
+                'module' => 'user_management',
+                'resource' => 'user',
+                'action' => 'view',
+                'name' => 'View User',
+                'description' => null,
+                'is_active' => true,
+            ]
+        );
 
-        HcmPermission::query()->create([
-            'code' => 'user.update',
-            'module' => 'user_management',
-            'resource' => 'user',
-            'action' => 'update',
-            'name' => 'Update User',
-            'is_active' => true,
-        ]);
+        HcmPermission::query()->updateOrCreate(
+            ['code' => 'user.update'],
+            [
+                'module' => 'user_management',
+                'resource' => 'user',
+                'action' => 'update',
+                'name' => 'Update User',
+                'description' => null,
+                'is_active' => true,
+            ]
+        );
 
         $createRole = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
@@ -180,7 +231,7 @@ class HcmUserManagementApiTest extends TestCase
     public function test_admin_can_create_user_assign_role_and_revoke_assignment(): void
     {
         $token = $this->adminToken();
-        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $companyId = $this->activeCompanyIdFor('tenant.admin@example.com');
 
         HcmRole::query()->create([
             'company_id' => $companyId,
@@ -221,7 +272,7 @@ class HcmUserManagementApiTest extends TestCase
     public function test_admin_can_delete_user_from_active_company(): void
     {
         $token = $this->adminToken();
-        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $companyId = $this->activeCompanyIdFor('tenant.admin@example.com');
 
         $user = User::factory()->create();
         CompanyUser::query()->create([
@@ -270,7 +321,7 @@ class HcmUserManagementApiTest extends TestCase
     public function test_admin_can_export_user_management_csv(): void
     {
         $token = $this->adminToken();
-        $companyId = $this->activeCompanyIdFor('qa.login@example.com');
+        $companyId = $this->activeCompanyIdFor('tenant.admin@example.com');
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
@@ -371,7 +422,7 @@ class HcmUserManagementApiTest extends TestCase
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
-    public function test_tenant_admin_cannot_configure_role_setup_without_global_super_user_access(): void
+    public function test_tenant_admin_can_configure_role_setup_with_tenant_permissions(): void
     {
         $company = Company::factory()->create(['code' => 'tenant_role_setup_lock']);
 
@@ -449,8 +500,53 @@ class HcmUserManagementApiTest extends TestCase
         ])->postJson('/v1/hcm/user-management/roles', [
             'code' => 'TENANT_ONLY_ROLE',
             'name' => 'Tenant Only Role',
+        ])->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.code', 'TENANT_ONLY_ROLE');
+    }
+
+    public function test_global_super_admin_cannot_modify_tenant_role_setup(): void
+    {
+        $company = Company::factory()->create(['code' => 'tenant_role_guard']);
+
+        $email = 'global.super.admin@example.com';
+        $password = 'StrongPass1';
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Global Super Admin',
+            'email' => $email,
+            'password' => $password,
+            'confirmPassword' => $password,
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $user->is_super_admin = true;
+        $user->save();
+
+        CompanyUser::query()->where('user_id', $user->id)->delete();
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $email,
+            'password' => $password,
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $token = (string) $login->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ])->postJson('/v1/hcm/user-management/roles', [
+            'code' => 'BLOCKED_FOR_GLOBAL',
+            'name' => 'Blocked For Global',
         ])->assertStatus(403)
-            ->assertJsonPath('error.code', 'SUPER_USER_REQUIRED');
+            ->assertJsonPath('error.code', 'TENANT_ROLE_SETUP_FORBIDDEN');
     }
 
     public function test_tenant_admin_permissions_catalog_hides_system_module(): void

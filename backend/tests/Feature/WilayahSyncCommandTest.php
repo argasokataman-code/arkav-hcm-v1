@@ -189,7 +189,9 @@ class WilayahSyncCommandTest extends TestCase
             };
         });
 
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email' => (string) config('hcm.admin_email', 'qa.login@example.com'),
+        ]);
         Cache::forget(\App\Services\Wilayah\WilayahSyncService::PROGRESS_CACHE_KEY);
         $csrfToken = 'test-sync-token';
         $response = $this->actingAs($user)
@@ -200,6 +202,25 @@ class WilayahSyncCommandTest extends TestCase
         $response->assertRedirect('/states');
         $response->assertSessionHas('wilayahSyncStatus');
         $this->assertDatabaseHas('wilayah_provinces', ['code' => '11', 'name' => 'Aceh']);
+    }
+
+    public function test_locations_manual_sync_endpoint_is_blocked_for_non_global_admin(): void
+    {
+        Http::fake();
+
+        $user = User::factory()->create();
+        Cache::forget(\App\Services\Wilayah\WilayahSyncService::PROGRESS_CACHE_KEY);
+        $csrfToken = 'test-sync-token-forbidden';
+
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->from('/states')
+            ->post('/locations/sync', ['_token' => $csrfToken]);
+
+        $response->assertRedirect('/states');
+        $response->assertSessionHas('wilayahSyncStatus');
+        $response->assertSessionHas('wilayahSyncStatus.message', 'Sync data wilayah hanya tersedia untuk global admin.');
+        Http::assertNothingSent();
     }
 
     public function test_locations_pages_support_search_and_pagination_controls(): void

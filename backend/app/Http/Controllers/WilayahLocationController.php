@@ -23,8 +23,22 @@ class WilayahLocationController extends Controller
 
     private const CACHE_TTL_SECONDS = 300;
 
-    public function sync(): RedirectResponse
+    private function canRunWilayahSync(Request $request): bool
     {
+        $user = $request->user() ?: auth()->user();
+        return (bool) ($user?->isGlobalHcmAdmin());
+    }
+
+    public function sync(Request $request): RedirectResponse
+    {
+        if (! $this->canRunWilayahSync($request)) {
+            return redirect()->back()->with('wilayahSyncStatus', [
+                'type' => 'warning',
+                'message' => 'Sync data wilayah hanya tersedia untuk global admin.',
+                'output' => null,
+            ]);
+        }
+
         try {
             $existingStatus = Cache::get(WilayahSyncService::PROGRESS_CACHE_KEY);
             if (is_array($existingStatus) && (bool) ($existingStatus['running'] ?? false)) {
@@ -100,8 +114,18 @@ class WilayahLocationController extends Controller
         }
     }
 
-    public function syncStatus(): JsonResponse
+    public function syncStatus(Request $request): JsonResponse
     {
+        if (! $this->canRunWilayahSync($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'WILAYAH_SYNC_FORBIDDEN',
+                    'message' => 'Sync status hanya tersedia untuk global admin.',
+                ],
+            ], 403);
+        }
+
         $status = Cache::get(WilayahSyncService::PROGRESS_CACHE_KEY, [
             'running' => false,
             'progress' => 0,

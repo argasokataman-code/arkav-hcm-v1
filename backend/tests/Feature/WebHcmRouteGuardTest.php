@@ -309,6 +309,47 @@ class WebHcmRouteGuardTest extends TestCase
         }
     }
 
+    public function test_hcm_admin_web_session_can_open_team_members_page(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'team_members_guard',
+            'name' => 'Team Members Guard Company',
+            'legal_name' => 'Team Members Guard Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $admin = User::factory()->create([
+            'email' => 'team-members-admin@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'employment_status' => 'active',
+            'designation' => 'HCM Admin',
+            'team' => 'HCM',
+            'nik' => 'EMP-TEAM-GUARD',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/teams/123/members')
+            ->assertOk();
+    }
+
     public function test_non_hcm_admin_web_session_redirected_from_promotion_resignation_termination(): void
     {
         $user = User::factory()->create([
@@ -321,6 +362,94 @@ class WebHcmRouteGuardTest extends TestCase
         foreach ($adminPaths as $path) {
             $this->get($path)->assertRedirect(url('employee-dashboard'));
         }
+    }
+
+    public function test_admin_only_redirect_sets_error_flash_message(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'guard-flash-employee@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/roles-permissions')
+            ->assertRedirect(url('employee-dashboard'))
+            ->assertSessionHas('error');
+    }
+
+    public function test_legacy_employee_shortcuts_redirect_to_employee_pages_for_non_admin_users(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'legacy-shortcut-employee@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        $this->actingAs($user)->get('/tickets')->assertRedirect('/tickets-employee');
+        $this->actingAs($user)->get('/ticket-details')->assertRedirect('/tickets-employee');
+        $this->actingAs($user)->get('/leave-request')->assertRedirect('/leaves-employee');
+        $this->actingAs($user)->get('/overtime-request')->assertRedirect('/overtime-employee');
+        $this->actingAs($user)->get('/schedules')->assertRedirect('/attendance-employee');
+    }
+
+    public function test_legacy_employee_shortcuts_redirect_to_admin_pages_for_hcm_admin(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'legacy_shortcut_admin',
+            'name' => 'Legacy Shortcut Admin Co',
+            'legal_name' => 'Legacy Shortcut Admin Co PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $admin = User::factory()->create([
+            'email' => 'legacy-shortcut-admin@example.com',
+            'password' => bcrypt('password'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'employment_status' => 'active',
+            'designation' => 'HCM Admin',
+            'team' => 'HCM',
+            'nik' => 'EMP-LEGACY-SHORTCUT-ADM',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/tickets')
+            ->assertRedirect('/tickets-admin');
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/ticket-details')
+            ->assertRedirect('/tickets-admin');
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/leave-request')
+            ->assertRedirect('/leaves');
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/overtime-request')
+            ->assertRedirect('/overtime');
+
+        $this->actingAs($admin)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/schedules')
+            ->assertRedirect('/schedule-timing');
     }
 
     public function test_tenant_hcm_admin_without_global_signal_is_redirected_from_super_admin_dashboard(): void

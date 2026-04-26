@@ -513,6 +513,66 @@ class SubscriptionServiceTest extends TestCase
         $response->assertJsonPath('error.code', 'PACKAGE_NOT_ACTIVE');
     }
 
+    public function test_create_subscription_rejects_if_company_already_has_active_or_trial_subscription(): void
+    {
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $this->basicPackage->uuid,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->postJson('/v1/saas/subscriptions', [
+            'company_id' => $this->company->uuid,
+            'package_uuid' => $this->basicPackage->uuid,
+            'status' => 'trial',
+            'starts_at' => now()->toDateString(),
+            'ends_at' => now()->addMonth()->toDateString(),
+            'trial_ends_at' => now()->addDays(14)->toDateString(),
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'ACTIVE_SUBSCRIPTION_ALREADY_EXISTS');
+    }
+
+    public function test_update_subscription_to_active_rejects_if_another_active_exists(): void
+    {
+        Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $this->basicPackage->uuid,
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $target = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $this->basicPackage->uuid,
+            'plan_code' => 'basic',
+            'status' => 'inactive',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->subMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$target->uuid}", [
+            'status' => 'active',
+            'ends_at' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('error.code', 'ACTIVE_SUBSCRIPTION_ALREADY_EXISTS');
+    }
+
     public function test_invoice_mark_paid_activates_pending_payment_subscription(): void
     {
         $sub = Subscription::create([

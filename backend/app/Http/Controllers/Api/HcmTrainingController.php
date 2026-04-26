@@ -160,10 +160,12 @@ class HcmTrainingController extends Controller
     // -------------------------
     public function trainings(Request $request): JsonResponse
     {
-        if (! $this->canManageTraining($request)) {
+        $canManage = $this->canManageTraining($request);
+        if (! $canManage && ! $this->canViewTraining($request)) {
             return $this->forbidden();
         }
 
+        $auth = $request->user();
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->tenantContextRequired();
@@ -184,6 +186,10 @@ class HcmTrainingController extends Controller
             ])
             ->where('company_id', $companyId)
             ->orderByDesc('id');
+
+        if (! $canManage && $auth) {
+            $query->whereHas('participants', fn ($participantQuery) => $participantQuery->where('users.id', (int) $auth->id));
+        }
 
         if (! empty($v['status'])) {
             $query->where('status', $v['status']);
@@ -617,6 +623,11 @@ class HcmTrainingController extends Controller
     private function canManageTraining(Request $request): bool
     {
         return $this->hasPermission($request, 'training.manage');
+    }
+
+    private function canViewTraining(Request $request): bool
+    {
+        return $this->hasPermission($request, 'training.view') || $this->canManageTraining($request);
     }
 }
 

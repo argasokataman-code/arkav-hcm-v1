@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
+use App\Models\HcmRole;
+use App\Models\HcmUserRole;
 use App\Models\Company;
 use App\Models\Team;
 use App\Models\Policy;
@@ -273,6 +275,20 @@ class HcmEmployeeApiTest extends TestCase
             'department_id' => $dept->id,
             'designation_id' => $designation->id,
         ]);
+
+        $employeeRoleId = (int) HcmRole::query()
+            ->where('company_id', $this->company->id)
+            ->where('code', 'EMPLOYEE')
+            ->value('id');
+
+        $this->assertTrue(
+            HcmUserRole::query()
+                ->where('company_id', $this->company->id)
+                ->where('user_id', $id)
+                ->where('role_id', $employeeRoleId)
+                ->where('status', 'active')
+                ->exists()
+        );
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/'.$id)

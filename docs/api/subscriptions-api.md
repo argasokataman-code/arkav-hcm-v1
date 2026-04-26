@@ -137,6 +137,10 @@ Membuat subscription baru untuk company.
 }
 ```
 
+**Business Rule (422)**
+- `ACTIVE_SUBSCRIPTION_ALREADY_EXISTS`: company sudah punya subscription lain berstatus `active`/`trial` yang masih berlaku (`ends_at` null atau di masa depan).
+- Admin harus update record aktif yang sudah ada, bukan membuat record aktif/trial baru.
+
 ### Get Subscription Details (Admin Only)
 
 ```
@@ -176,7 +180,7 @@ Mengupdate subscription.
 | auto_renew | boolean | Enable/disable auto-renewal |
 | billing_cycle | enum | monthly, yearly |
 
-**Errors (422)** — selain validasi Laravel: `trial_ends_at is required when status is trial`, `trial_ends_at must be after starts_at`, `trial_ends_at must be on or before ends_at`, `ends_at is required when status is active or trial`, `package_uuid` must be a valid active package UUID.
+**Errors (422)** — selain validasi Laravel: `trial_ends_at is required when status is trial`, `trial_ends_at must be after starts_at`, `trial_ends_at must be on or before ends_at`, `ends_at is required when status is active or trial`, `package_uuid` must be a valid active package UUID, `ACTIVE_SUBSCRIPTION_ALREADY_EXISTS` saat update membuat konflik dengan subscription aktif/trial lain pada company yang sama.
 
 **Response (200 OK)**
 ```json
@@ -209,6 +213,8 @@ POST /v1/saas/subscriptions/{id}/renew
 ```
 
 Memperpanjang subscription: mengaktifkan kembali (`status` → `active`), `starts_at` = sekarang (server), `ends_at` dari body. Status sumber yang didukung (sama dengan UI): **expired**, **cancelled**, **suspended**, **inactive**.
+
+Guard integritas: renew akan ditolak `422 ACTIVE_SUBSCRIPTION_ALREADY_EXISTS` jika company sudah punya record lain berstatus `active`/`trial` yang masih berlaku.
 
 **UI `/saas/subscriptions`:** (1) tombol renew pada baris memakai modal tanggal; (2) **Renew by ID** memanggil `GET /v1/saas/subscriptions/{id}` lalu `POST .../renew` bila baris tidak muncul di halaman list (filter/pagination).
 

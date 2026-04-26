@@ -7,6 +7,7 @@
       permissions: [],
       search: "",
       status: "active",
+      scope: "company",
       editingRoleId: null,
       syncingRoleId: null,
       rolePermissionsMap: {},
@@ -19,6 +20,9 @@
       }
       var authUser = window.AuthUser || null;
       var isAppSuperUser = !!(authUser && authUser.hcmGlobalAdmin === true);
+      var scopeInput = document.getElementById("rp_scope");
+      var requestedScope = scopeInput ? String(scopeInput.value || "").trim().toLowerCase() : "company";
+      this.state.scope = requestedScope === "global" && isAppSuperUser ? "global" : "company";
       var hasManagePermission = window.AuthPermissions && window.AuthPermissions.hasPermission
         ? (
           window.AuthPermissions.hasPermission('user_management.manage') ||
@@ -28,8 +32,12 @@
           window.AuthPermissions.hasPermission('role.sync_permission')
         )
         : false;
-      // Role/permission setup can only be changed by application super user.
-      this.canManageRoles = isAppSuperUser && (hasManagePermission || !(authUser && Array.isArray(authUser.permissions) && authUser.permissions.length));
+      var isCompanyScope = this.state.scope === "company";
+      var hasNoLoadedPermissions = !(authUser && Array.isArray(authUser.permissions) && authUser.permissions.length);
+      // Company scope follows tenant RBAC permissions; global scope stays global-admin only.
+      this.canManageRoles = isCompanyScope
+        ? (hasManagePermission || (isAppSuperUser && hasNoLoadedPermissions))
+        : (isAppSuperUser && (hasManagePermission || hasNoLoadedPermissions));
       this.bindEvents();
       this.loadPermissions();
       this.loadRoles();
@@ -255,7 +263,7 @@
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Loading roles...</td></tr>';
       }
 
-      this.api("GET", "/hcm/user-management/roles?scope=company&status=" + encodeURIComponent(this.state.status || "active"))
+      this.api("GET", "/hcm/user-management/roles?scope=" + encodeURIComponent(this.state.scope || "company") + "&status=" + encodeURIComponent(this.state.status || "active"))
         .then(function (resp) {
           self.state.roles = Array.isArray(resp.data) ? resp.data : [];
           self.renderRoles();

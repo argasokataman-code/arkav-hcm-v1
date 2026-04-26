@@ -19,18 +19,46 @@
             || (bool) ($authUser->is_super_admin ?? false)
         );
     $activeCompany = request( )->attributes->get('activeCompany');
+    $activeCompanyRole = strtolower(trim((string) request( )->attributes->get('activeCompanyRole', '')));
+    if ($activeCompanyRole === '' && $activeCompany instanceof \App\Models\Company && $authUser) {
+        $activeCompanyRole = strtolower((string) (\App\Models\CompanyUser::query()
+            ->where('company_id', $activeCompany->id)
+            ->where('user_id', $authUser->id)
+            ->value('role') ?? ''));
+    }
+    if ($activeCompanyRole === '' && $authUser) {
+        $activeCompanyRole = strtolower((string) (\App\Models\CompanyUser::query()
+            ->where('user_id', $authUser->id)
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->value('role') ?? ''));
+    }
+    $isEmployeeScopedUser = in_array($activeCompanyRole, ['employee', 'member'], true);
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription( )
         : null;
     $hasCompanyBillingAccess = (bool) $activeCompanySubscription;
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
-    $canSeeAssetManagementMenu = $hasAssetManagement || $isQaSuperAdmin || $isGlobalHcmAdmin; // Super admin sees all assets
+    $hasTickets = (bool) ($activeCompanySubscription?->package?->hasFeature('tickets') ?? false);
+    $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
+    // Feature bypass: global/QA admin only bypasses feature gates when NOT inside a specific tenant context.
+    // When operating within a tenant (activeCompany set), feature menus follow the tenant's subscription.
+    $isInTenantContext = $activeCompany instanceof \App\Models\Company;
+    $featureBypass = $isGlobalHcmAdmin && !$isInTenantContext;
+    $canSeeAssetManagementMenu = $featureBypass || ($hasAssetManagement && !$isEmployeeScopedUser && $isHcmAdmin);
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
     $hasPerformance = (bool) ($activeCompanySubscription?->package?->hasFeature('performance') ?? false);
-    // Super admin (developer mode) sees all features regardless of package
-    $isSuperAdminDeveloperMode = $isGlobalHcmAdmin;
+    $activeCompanyIdentifier = $activeCompany instanceof \App\Models\Company
+        ? ((string) ($activeCompany->uuid ?? '') !== '' ? (string) $activeCompany->uuid : (string) ((int) ($activeCompany->id ?? 0)))
+        : null;
+    $canManageTrainingMenu = $featureBypass || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
+    $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
+    $canSeeTicketsMenu = $featureBypass || $hasTickets;
+    $canSeePerformanceMenu = $featureBypass || ($hasPerformance && !$isEmployeeScopedUser && $isHcmAdmin);
+    $isSuperAdminDeveloperMode = $featureBypass;
     $superAdminUnlockedPayroll = $hasPayroll || $isSuperAdminDeveloperMode;
     $superAdminUnlockedPerformance = $hasPerformance || $isSuperAdminDeveloperMode;
+    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && $isHcmAdmin);
 @endphp
 <div class="sidebar" id="sidebar">
     <!-- Logo -->
@@ -294,6 +322,7 @@
 @endif
                             </ul>
                         </li>
+@if ($canSeeTicketsMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);"  class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active' : '' }}">
                                 <i class="ti ti-ticket"></i><span>Tickets</span>
@@ -307,11 +336,14 @@
                                 <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
                             </ul>
                         </li>
+@endif
+@if ($isHcmAdmin)
                         <li class="{{ Request::is('holidays') ? 'active' : '' }}">
                             <a href="{{url('holidays')}}">
                                 <i class="ti ti-calendar-event"></i><span>Holidays</span>
                             </a>
                         </li>
+@endif
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}">
@@ -352,7 +384,7 @@
                                 </li>
                             </ul>
                         </li>
-@if ($isHcmAdmin || $superAdminUnlockedPerformance)
+@if ($canSeePerformanceMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);"  class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-school"></i><span>Performance</span>
@@ -367,6 +399,7 @@
                             </ul>
                         </li>
 @endif
+@if ($canViewTrainingMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-edit"></i><span>Training</span>
@@ -374,12 +407,13 @@
                             </a>
                             <ul>
                                 <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
-@if ($isHcmAdmin)
+@if ($canManageTrainingMenu)
                                 <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                 <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
 @endif
                             </ul>
                         </li>
+@endif
 @if ($isHcmAdmin)
                         <li class="{{ Request::is('promotion') ? 'active' : '' }}">
                             <a href="{{url('promotion')}}">
@@ -421,7 +455,7 @@
                     </ul>
                 </li>
 @endif
-@if ($isHcmAdmin || $superAdminUnlockedPayroll)
+@if ($canSeePayrollMenu)
                 <li class="menu-title"><span>FINANCE & ACCOUNTS</span></li>
                 <li>
                     <ul>
@@ -451,7 +485,7 @@
                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                             </ul>
                         </li> -->
-@if ($isHcmAdmin || $superAdminUnlockedPayroll)
+@if ($canSeePayrollMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Payroll</span>
@@ -1414,6 +1448,7 @@
                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                             </ul>
                         </li>
+@if ($canSeeTicketsMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);"  class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
                                 <span class="menu-arrow"></span>
@@ -1424,6 +1459,7 @@
                                 <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
                             </ul>
                         </li>
+@endif
                         <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
@@ -1468,16 +1504,20 @@
                             </ul>
                         </li>
 @endif
+@if ($canViewTrainingMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}"><span>Training</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
+@if ($canManageTrainingMenu)
                                 <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                 <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
+@endif
                             </ul>
                         </li>
+@endif
                         <li><a href="{{url('promotion')}}" class="{{ Request::is('promotion') ? 'active' : '' }}"><span>Promotion</span></a></li>
                         <li><a href="{{url('resignation')}}" class="{{ Request::is('resignation') ? 'active' : '' }}"><span>Resignation</span></a></li>
                         <li><a href="{{url('termination')}}"  class="{{ Request::is('termination') ? 'active' : '' }}"><span>Termination</span></a></li>														
@@ -1516,7 +1556,7 @@
                                 <li><a href="{{url('budget-revenues')}}" class="{{ Request::is('budget-revenues') ? 'active' : '' }}">Budget Revenues</a></li>
                             </ul>
                         </li>
-@if ($isHcmAdmin || $hasPayroll)
+@if ($canSeePayrollMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                 <span class="menu-arrow"></span>
@@ -2514,6 +2554,7 @@
 @endif
                                 </ul>
                             </li>
+@if ($canSeeTicketsMenu)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
                                     <span class="menu-arrow"></span>
@@ -2526,6 +2567,7 @@
                                     <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
                                 </ul>
                             </li>
+@endif
                             <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
@@ -2580,18 +2622,20 @@
                                     <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                                 </ul>
                             </li>
+@if ($canViewTrainingMenu)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type','promotion','resignation','termination') ? 'active subdrop' : '' }}"><span>Training</span>
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
                                     <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
-@if ($isHcmAdmin)
+@if ($canManageTrainingMenu)
                                     <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                     <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
 @endif
                                 </ul>
                             </li>
+@endif
 @if ($isHcmAdmin)
                             <li><a href="{{url('promotion')}}" class="{{ Request::is('promotion') ? 'active' : '' }}"><span>Promotion</span></a></li>
                             <li><a href="{{url('resignation')}}" class="{{ Request::is('resignation') ? 'active' : '' }}"><span>Resignation</span></a></li>
@@ -2599,7 +2643,7 @@
 @endif
                         </ul>
                     </div>
-@if ($isHcmAdmin || $superAdminUnlockedPayroll)
+@if ($canSeePayrollMenu)
                     <div class="tab-pane fade {{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr') ? ' show active' : '' }}" id="finance">
                         <ul>
                             <li class="menu-title"><span>FINANCE & ACCOUNTS</span></li>
@@ -3371,7 +3415,7 @@
 
 <!-- Stacked Sidebar -->
 <div class="stacked-sidebar" id="stacked-sidebar">
-    <div class="sidebar sidebar-stacked" style="display: flex !important;">
+    <div class="sidebar sidebar-stacked">
         <div class="stacked-mini">
             <a href="{{url('index')}}" class="logo-small">
                 <img src="{{URL::asset('build/img/image111.png')}}" alt="Logo">
@@ -3715,25 +3759,35 @@
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
+        @if ($isHcmAdmin)
                                         <li><a href="{{url('employees')}}" class="{{ Request::is('employees') ? 'active' : '' }}">Employee Lists</a></li>
+        @endif
                                                                                 <li><a href="{{url('employee-details')}}" class="{{ Request::is('employee-details') ? 'active' : '' }}">Employee Details</a></li>
+        @if ($isHcmAdmin)
                                         <li><a href="{{url('departments')}}" class="{{ Request::is('departments') ? 'active' : '' }}">Departments</a></li>
                                         <li><a href="{{url('designations')}}" class="{{ Request::is('designations') ? 'active' : '' }}">Designations</a></li>
                                         <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
+        @endif
         
                                     </ul>
                                 </li>
+@if ($canSeeTicketsMenu)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? ' subdrop active ' : '' }}"><span>Tickets</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
+@if ($isHcmAdmin)
                                         <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                         <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
+@endif
                                         <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
                                     </ul>
                                 </li>
+@endif
+@if ($isHcmAdmin)
                                 <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>
+@endif
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}"><span>Attendance</span>
@@ -3743,21 +3797,31 @@
                                         <li class="submenu submenu-two">
                                             <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings') ? 'active subdrop' : '' }}">Leaves<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
+@if ($isHcmAdmin)
                                                 <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}" >Leaves (Admin)</a></li>
+@endif
                                                 <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@if ($isHcmAdmin)
                                                 <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>											
+@endif
                                             </ul>												
                                         </li>
+@if ($isHcmAdmin)
                                         <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
+@endif
                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@if ($isHcmAdmin)
                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                 <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
+@endif
                                         <li class="submenu submenu-two">
                                             <a href="javascript:void(0);" class="{{ Request::is('overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}">Overtime<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
+@if ($isHcmAdmin)
                                                 <li><a href="{{url('overtime-master')}}" class="{{ Request::is('overtime-master') ? 'active' : '' }}">Master Overtime</a></li>
                                                 <li><a href="{{url('overtime')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Overtime (Admin)</a></li>
+@endif
                                                 <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
                                             </ul>
                                         </li>
@@ -3775,16 +3839,20 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                                     </ul>
                                 </li>
+@if ($canViewTrainingMenu)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active' : '' }}"><span>Training</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li><a href="{{url('training')}}" class="{{ Request::is('training') ? 'active' : '' }}">Training List</a></li>
+@if ($canManageTrainingMenu)
                                         <li><a href="{{url('trainers')}}" class="{{ Request::is('trainers') ? 'active' : '' }}">Trainers</a></li>
                                         <li><a href="{{url('training-type')}}" class="{{ Request::is('training-type') ? 'active' : '' }}">Training Type</a></li>
+@endif
                                     </ul>
                                 </li>
+@endif
                                 <li class="{{ Request::is('promotion') ? 'active' : '' }}"><a href="{{url('promotion')}}"><span>Promotion</span></a></li>
                                 <li class="{{ Request::is('resignation') ? 'active' : '' }}"><a href="{{url('resignation')}}"><span>Resignation</span></a></li>
                                 <li class="{{ Request::is('termination') ? 'active' : '' }}"><a href="{{url('termination')}}"><span>Termination</span></a></li>		
@@ -3817,6 +3885,7 @@
 
                                     </ul>
                                 </li>
+@if ($canSeePayrollMenu)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                         <span class="menu-arrow"></span>
@@ -3841,6 +3910,7 @@
                                         </li>
                                     </ul>
                                 </li>
+@endif
                             </ul>
                         </div>
                         <div class="tab-pane fade {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
@@ -3982,6 +4052,7 @@
                                         <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
                                     </ul>
                                 </li>
+                                @endif
                                 @endif
                                 @endif
                             </ul>
@@ -4466,6 +4537,5 @@
     </div>
 </div>
 <!-- /Stacked Sidebar -->
-@endif
 
 

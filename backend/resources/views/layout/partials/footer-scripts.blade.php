@@ -468,6 +468,8 @@
     <script src="{{ URL::asset('build/js/termination-data.js') }}"></script>
 @endif
 
+@stack('scripts')
+
 <!-- Custom JS -->
 <script src="{{ URL::asset('build/js/todo.js') }}"></script>
 <script src="{{ URL::asset('build/js/theme-colorpicker.js') }}"></script>

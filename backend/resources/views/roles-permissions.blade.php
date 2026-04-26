@@ -1,6 +1,9 @@
 <?php $page = 'roles-permissions'; ?>
 @extends('layout.mainlayout')
 @section('content')
+    @php
+        $roleScope = 'company';
+    @endphp
     <div class="page-wrapper">
         <div class="content">
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
@@ -107,6 +110,8 @@
                 </div>
             </div>
         </div>
+
+        <input type="hidden" id="rp_scope" value="{{ $roleScope }}">
 
         <div class="modal fade" id="rp_role_modal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">

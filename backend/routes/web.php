@@ -472,14 +472,24 @@ Route::get('/teams', function () {
 
 Route::get('/teams/{id}/members', function (string $id) {
     return view(view: 'team-members', data: ['teamId' => $id]);
-})->middleware('auth')->name('team-members');
+})->middleware('hcm.web.admin')->name('team-members');
 
 Route::get('/policy', function () {
     return view(view: 'policy');
 })->middleware('hcm.web.admin')->name('policy');
 
 Route::get('/tickets', function () {
-    return redirect('/tickets-admin');
+    $user = request()->user();
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $isAdmin = $user && ($activeCompanyId > 0
+        ? $user->isHcmAdminForCompany($activeCompanyId)
+        : $user->isHcmAdmin());
+
+    if ($isAdmin) {
+        return redirect('/tickets-admin');
+    }
+
+    return redirect('/tickets-employee');
 })->name('tickets');
 
 Route::get('/tickets-admin', function () {
@@ -505,7 +515,17 @@ Route::get('/tickets-grid', function () {
 })->name('tickets-grid');
 
 Route::get('/ticket-details', function () {
-    return redirect('/tickets-admin');
+    $user = request()->user();
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $isAdmin = $user && ($activeCompanyId > 0
+        ? $user->isHcmAdminForCompany($activeCompanyId)
+        : $user->isHcmAdmin());
+
+    if ($isAdmin) {
+        return redirect('/tickets-admin');
+    }
+
+    return redirect('/tickets-employee');
 })->name('ticket-details-legacy');
 
 Route::get('/ticket-details/{id}', function (int $id) {
@@ -523,6 +543,20 @@ Route::get('/leaves', function () {
 Route::get('/leaves-employee', function () {
     return view(view: 'leaves-employee');
 })->name('leaves-employee');
+
+Route::get('/leave-request', function () {
+    $user = request()->user();
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $isAdmin = $user && ($activeCompanyId > 0
+        ? $user->isHcmAdminForCompany($activeCompanyId)
+        : $user->isHcmAdmin());
+
+    if ($isAdmin) {
+        return redirect('/leaves');
+    }
+
+    return redirect('/leaves-employee');
+})->name('leave-request-legacy');
 
 Route::get('/leave-settings', function () {
     return view(view: 'leave-settings');
@@ -544,6 +578,20 @@ Route::get('/schedule-timing', function () {
     return view(view: 'schedule-timing');
 })->middleware('hcm.web.admin')->name('schedule-timing');
 
+Route::get('/schedules', function () {
+    $user = request()->user();
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $isAdmin = $user && ($activeCompanyId > 0
+        ? $user->isHcmAdminForCompany($activeCompanyId)
+        : $user->isHcmAdmin());
+
+    if ($isAdmin) {
+        return redirect('/schedule-timing');
+    }
+
+    return redirect('/attendance-employee');
+})->name('schedules-legacy');
+
 Route::get('/shift-master', function () {
     return view(view: 'shift-master');
 })->middleware('hcm.web.admin')->name('shift-master');
@@ -555,6 +603,20 @@ Route::get('/overtime', function () {
 Route::get('/overtime-employee', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => true]);
 })->name('overtime-employee');
+
+Route::get('/overtime-request', function () {
+    $user = request()->user();
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $isAdmin = $user && ($activeCompanyId > 0
+        ? $user->isHcmAdminForCompany($activeCompanyId)
+        : $user->isHcmAdmin());
+
+    if ($isAdmin) {
+        return redirect('/overtime');
+    }
+
+    return redirect('/overtime-employee');
+})->name('overtime-request-legacy');
 
 Route::get('/overtime-master', function () {
     return view(view: 'overtime-master');
@@ -582,7 +644,7 @@ Route::get('/goal-type', function () {
 
 Route::get('/training', function () {
     return view(view: 'training');
-})->middleware(['hcm.web.admin', 'hcm.web.feature:training'])->name('training');
+})->middleware('hcm.web.feature:training')->name('training');
 
 Route::get('/trainers', function () {
     return view(view: 'trainers');

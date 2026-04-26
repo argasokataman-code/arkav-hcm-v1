@@ -296,6 +296,8 @@ final class EmployeeSnapshotService
         $bank = $this->primaryBankAccount($profile);
         $tax = $this->latestTaxProfile($profile, $asOf);
         $benefit = $this->latestBenefit($profile, $asOf);
+        $managerName = $assignment?->manager?->name
+            ?? $profile->assignedTeam?->teamLead?->name;
 
         $emergencyContacts = $profile->emergencyContacts()->orderBy('sort_order')->get()->map(fn ($item) => [
             'name' => $item->name,
@@ -341,8 +343,9 @@ final class EmployeeSnapshotService
             'designationName' => $assignment?->designation?->name ?? $profile->designationRef?->name,
             'designation' => $assignment?->designation?->name ?: ($profile->designationRef?->name ?: $profile->getRawOriginal('designation')),
             'managerUserId' => $assignment?->manager_user_id ?? $profile->getRawOriginal('manager_user_id'),
+                'managerName' => $managerName,
             'baseSalary' => (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0),
-            'fixedAllowance' => (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0),
+                'fixedAllowance' => (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0),
             'compensation' => [
                 'salaryType' => $compensation?->salary_type ?? 'monthly',
                 'currency' => $compensation?->currency ?? 'IDR',

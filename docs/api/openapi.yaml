@@ -1813,6 +1813,7 @@ paths:
     get:
       tags: [HCM]
       summary: List teams with pagination and search
+      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
       security:
         - bearerAuth: []
       parameters:
@@ -1840,6 +1841,7 @@ paths:
     post:
       tags: [HCM]
       summary: Create team
+      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
       security:
         - bearerAuth: []
       requestBody:
@@ -1862,12 +1864,55 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /v1/hcm/teams/reassign-members:
+    post:
+      tags: [HCM]
+      summary: Bulk reassign employees to a target team (or unassign)
+      description: |
+        Requires `team.manage` permission (transitional fallback: `employee.manage`).
+        Target team assignment rejects inactive teams with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamBulkReassignRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamBulkReassignResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Validation error (including inactive target team policy)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                inactiveTargetTeam:
+                  value:
+                    success: false
+                    error:
+                      code: TEAM_INACTIVE_NOT_ASSIGNABLE
+                      message: Inactive team cannot receive member assignments.
+
   /v1/hcm/teams/{id}:
     parameters:
       - $ref: '#/components/parameters/TeamNumericIdPath'
     get:
       tags: [HCM]
       summary: Get single team
+      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
       security:
         - bearerAuth: []
       responses:
@@ -1886,6 +1931,7 @@ paths:
     put:
       tags: [HCM]
       summary: Update team
+      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
       security:
         - bearerAuth: []
       requestBody:
@@ -1912,6 +1958,7 @@ paths:
     delete:
       tags: [HCM]
       summary: Delete team (blocks if team has members)
+      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
       security:
         - bearerAuth: []
       responses:
@@ -1932,6 +1979,9 @@ paths:
     get:
       tags: [HCM]
       summary: List members assigned to a team
+      description: |
+        Accessible by team managers (`team.manage` or transitional `employee.manage`) or
+        team leads that both own the requested team and hold `team.lead` permission.
       security:
         - bearerAuth: []
       parameters:
@@ -2052,6 +2102,7 @@ paths:
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/DepartmentId'
         - $ref: '#/components/parameters/DesignationId'
+        - $ref: '#/components/parameters/TeamId'
         - $ref: '#/components/parameters/EmploymentStatus'
         - $ref: '#/components/parameters/EmployeeScope'
       responses:
@@ -2099,6 +2150,7 @@ paths:
       description: |
         Requires active tenant context (`activeCompanyId`).
         Global Super Admin (`users.is_super_admin = 1`) can create employee lintas tenant without being blocked by subscription employee-limit validation (`EMPLOYEE_COUNT_EXCEEDED`).
+        Assignment to inactive teams is rejected with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
       security:
         - bearerAuth: []
       requestBody:
@@ -2131,6 +2183,12 @@ paths:
                     error:
                       code: EMPLOYEE_COUNT_EXCEEDED
                       message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
+                inactiveTeamAssignment:
+                  value:
+                    success: false
+                    error:
+                      code: TEAM_INACTIVE_NOT_ASSIGNABLE
+                      message: Inactive team cannot receive member assignments.
   /v1/hcm/employees/{id}:
     parameters:
       - $ref: '#/components/parameters/EmployeeIdentifierPath'
@@ -2155,6 +2213,7 @@ paths:
     put:
       tags: [HCM]
       summary: Update employee
+      description: Assignment to inactive teams is rejected with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
       security:
         - bearerAuth: []
       parameters:
@@ -2179,7 +2238,18 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
         '422':
-          $ref: '#/components/responses/ValidationError'
+          description: Validation error, including inactive team assignment policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                inactiveTeamAssignment:
+                  value:
+                    success: false
+                    error:
+                      code: TEAM_INACTIVE_NOT_ASSIGNABLE
+                      message: Inactive team cannot receive member assignments.
 
   /v1/hcm/employees/bulk-template:
     get:
@@ -2204,6 +2274,9 @@ paths:
     post:
       tags: [HCM]
       summary: Bulk create/update employees from spreadsheet
+      description: |
+        All-or-nothing import. Team assignment rows reject inactive team targets,
+        both for explicit `team_id` and resolved `team` name.
       security:
         - bearerAuth: []
       requestBody:
@@ -2252,6 +2325,12 @@ paths:
                     error:
                       code: EMPLOYEE_COUNT_EXCEEDED
                       message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
+                inactiveTeamAssignment:
+                  value:
+                    success: false
+                    error:
+                      code: BULK_UPLOAD_VALIDATION_FAILED
+                      message: Bulk upload dibatalkan karena ada baris yang tidak valid. Tidak ada perubahan yang disimpan.
 
   /v1/hcm/billing/checkout:
     post:
@@ -9816,6 +9895,12 @@ components:
       schema:
         type: integer
         minimum: 1
+    TeamId:
+      name: teamId
+      in: query
+      schema:
+        type: integer
+        minimum: 1
     EmploymentStatus:
       name: status
       in: query
@@ -10017,6 +10102,24 @@ components:
         is_active:
           type: boolean
           default: true
+    TeamBulkReassignRequest:
+      type: object
+      required: [employee_ids]
+      properties:
+        employee_ids:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: integer
+        source_team_id:
+          type: integer
+          nullable: true
+          description: Optional source-team guard. When set, all employee_ids must currently belong to this team.
+        target_team_id:
+          type: integer
+          nullable: true
+          description: Target team id. Set null to remove team assignment from selected employees.
     Team:
       type: object
       properties:
@@ -10126,6 +10229,30 @@ components:
               type: integer
             total:
               type: integer
+    TeamBulkReassignResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            requested_count:
+              type: integer
+            affected_count:
+              type: integer
+            source_team_id:
+              type: integer
+              nullable: true
+            target_team:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
     DesignationUpsertRequest:
       allOf:
         - $ref: '#/components/schemas/DepartmentUpsertRequest'
@@ -10139,6 +10266,9 @@ components:
         email: { type: string, format: email }
         phone: { type: string, description: 'Profil employee; kosong direpresentasikan sebagai "—"' }
         team: { type: string }
+        teamId: { type: integer, nullable: true }
+        teamName: { type: string }
+        teamIsActive: { type: boolean, nullable: true }
         departmentId: { type: integer, nullable: true }
         departmentName: { type: string }
         designationId: { type: integer, nullable: true }
@@ -10190,6 +10320,11 @@ components:
           type: string
           maxLength: 100
           nullable: true
+        teamId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Optional team assignment in active tenant; inactive team assignment is rejected.
         departmentId:
           type: integer
           minimum: 1
@@ -10382,6 +10517,11 @@ components:
           type: string
           maxLength: 100
           nullable: true
+        teamId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Optional team assignment in active tenant; inactive team assignment is rejected.
         departmentId:
           type: integer
           minimum: 1

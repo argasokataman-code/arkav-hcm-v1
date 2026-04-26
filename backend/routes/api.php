@@ -144,6 +144,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     // Teams Master Data
     Route::get('/teams', [HcmTeamController::class, 'index']);
     Route::post('/teams', [HcmTeamController::class, 'store']);
+    Route::post('/teams/reassign-members', [HcmTeamController::class, 'reassignMembers']);
     Route::get('/teams/{id}/members', [HcmTeamController::class, 'members']);
     Route::get('/teams/{id}', [HcmTeamController::class, 'show']);
     Route::put('/teams/{id}', [HcmTeamController::class, 'update']);

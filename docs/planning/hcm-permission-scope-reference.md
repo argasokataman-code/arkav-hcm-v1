@@ -11,7 +11,7 @@ Tujuan utamanya: saat ada bug role/permission, tim tidak perlu menebak-nebak lag
 Ada tiga sumber permission yang saat ini hidup bersamaan, dan ini memang sumber kekacauan utama:
 
 1. `backend/database/seeders/HcmUserManagementSeeder.php`
-   Ini katalog permission HCM yang benar-benar dipakai untuk role setup company-scoped. Saat seeder ini aktif, ada **76 permission** yang bisa di-assign ke role HCM.
+   Ini katalog permission HCM yang benar-benar dipakai untuk role setup company-scoped. Saat seeder ini aktif, ada **78 permission** yang bisa di-assign ke role HCM.
 2. `backend/app/Http/Controllers/Api/AuthController.php`
    Ini fallback global super admin untuk `/v1/identity/auth/me`. Daftar ini berisi **permission legacy yang jauh lebih luas** dan banyak nama code-nya tidak sama dengan katalog role HCM saat ini.
 3. `docs/planning/active-hcm-templates-and-permissions.md`
@@ -34,6 +34,7 @@ Berdasarkan `HcmUserManagementSeeder`, role yang dibuat otomatis per company ada
 - `OPS_ADMIN`
 - `OWNER`
 - `HCM_ADMIN`
+- `TEAM_LEAD`
 - `MANAGER`
 - `EMPLOYEE`
 
@@ -41,24 +42,25 @@ Scope default yang aktif saat ini:
 
 | Role | Scope default saat seeding | Catatan |
 |------|----------------------------|---------|
-| `ADMIN` | Semua 76 permission HCM | Full company-scoped admin |
-| `HR_ADMIN` | Semua 76 permission HCM | Full company-scoped admin |
-| `OPS_ADMIN` | Semua 76 permission HCM | Full company-scoped admin |
-| `OWNER` | Semua 76 permission HCM | Full company-scoped admin |
-| `HCM_ADMIN` | Semua 76 permission HCM | Full company-scoped admin |
-| `MANAGER` | Tidak ada permission default | Harus diisi eksplisit jika ingin granular scope |
+| `ADMIN` | Semua 78 permission HCM | Full company-scoped admin |
+| `HR_ADMIN` | Semua 78 permission HCM | Full company-scoped admin |
+| `OPS_ADMIN` | Semua 78 permission HCM | Full company-scoped admin |
+| `OWNER` | Semua 78 permission HCM | Full company-scoped admin |
+| `HCM_ADMIN` | Semua 78 permission HCM | Full company-scoped admin |
+| `TEAM_LEAD` | `employee.view`, `team.lead`, `report.view` | Scope default baca anggota tim + report ringkas |
+| `MANAGER` | `employee.view`, `team.lead` | Scope default team-lead compatible untuk rollout bertahap |
 | `EMPLOYEE` | Tidak ada permission default | Akses self-service banyak masih ditentukan endpoint ownership, bukan role permission granular |
 
 Implikasinya:
 
-- Kalau mau “scope super admin HCM per company”, paket yang paling aman saat ini adalah **semua 76 permission HCM**.
-- Kalau mau role menengah seperti Manager, katalog permission-nya **sudah ada**, tetapi mapping default-nya **belum ada**.
+- Kalau mau “scope super admin HCM per company”, paket yang paling aman saat ini adalah **semua 78 permission HCM**.
+- Untuk role menengah (`TEAM_LEAD`, `MANAGER`), mapping default baseline sudah aktif; tenant tetap bisa override sesuai kebijakan internal.
 
 ---
 
 ## 3. Katalog permission HCM yang bisa di-assign sekarang
 
-Total current catalog: **76 permission**.
+Total current catalog: **78 permission**.
 
 ### Attendance (7)
 
@@ -108,7 +110,7 @@ Total current catalog: **76 permission**.
 - `leave.settings`
 - `leave.type`
 
-### Organization (6)
+### Organization (8)
 
 - `department.view`
 - `department.manage`
@@ -116,6 +118,8 @@ Total current catalog: **76 permission**.
 - `designation.manage`
 - `policy.view`
 - `policy.manage`
+- `team.manage`
+- `team.lead`
 
 ### Overtime (4)
 

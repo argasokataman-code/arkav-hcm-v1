@@ -155,12 +155,13 @@ Sama seperti POST (multipart) + replace attachment jika dikirim.
 - `GET /teams/{id}` (admin only)
 - `PUT /teams/{id}` (admin only)
 - `DELETE /teams/{id}` (admin only)
+- `POST /teams/reassign-members` (admin only)
 - `GET /teams/{id}/members` (admin atau team lead untuk team tersebut)
 
 ### GET `/teams`
 
 RBAC:
-- HCM Admin only
+- HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
 
 Query:
 - `page` optional (default `1`)
@@ -200,7 +201,7 @@ Success `200`:
 ### POST `/teams`
 
 RBAC:
-- HCM Admin only
+- HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
 
 Body:
 - `name` required string max `100`
@@ -213,7 +214,7 @@ Success `201`: `{ success: true, data: <team> }`
 ### PUT `/teams/{id}`
 
 RBAC:
-- HCM Admin only
+- HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
 
 Body:
 - `name` optional|required string max `100`
@@ -226,18 +227,50 @@ Success `200`: `{ success: true, data: <team> }`
 ### DELETE `/teams/{id}`
 
 RBAC:
-- HCM Admin only
+- HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
 
 Success `204`
 
 Error:
 - `409 TEAM_DELETION_BLOCKED` jika masih ada member aktif pada team
 
+### POST `/teams/reassign-members`
+
+RBAC:
+- HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
+
+Body:
+- `employee_ids` required array integer (min 1, max 200)
+- `source_team_id` nullable integer (opsional guard: semua employee harus berasal dari team ini)
+- `target_team_id` nullable integer (target team; `null` untuk unassign team)
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "requested_count": 2,
+    "affected_count": 2,
+    "source_team_id": 11,
+    "target_team": {
+      "id": 12,
+      "name": "Ops B"
+    }
+  }
+}
+```
+
+Error:
+- `404 TEAM_NOT_FOUND` jika `target_team_id` tidak ditemukan di tenant aktif
+- `422 TEAM_INACTIVE_NOT_ASSIGNABLE` jika `target_team_id` mengacu ke team inactive
+- `422 EMPLOYEE_SCOPE_MISMATCH` jika ada employee di luar tenant/scope atau tidak sesuai `source_team_id`
+
 ### GET `/teams/{id}/members`
 
 RBAC:
 - HCM Admin, atau
-- Team lead dari team yang diminta (`team_lead_id == user login`)
+- Team lead dari team yang diminta (`team_lead_id == user login`) **dan** memiliki permission `team.lead`
 
 Query:
 - `page` optional (default `1`)

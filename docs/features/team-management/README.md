@@ -2,7 +2,7 @@
 
 ## ⚠️ Implementation Status & Existing UI Impact
 
-**Status:** Phase 1 Complete + Phase 2 Team Members View Complete  
+**Status:** ✅ Phase 1 Complete + ✅ Phase 2 Complete + ✅ Phase 3 Complete (Backend Polish) + ✅ Phase 4.5 Access & Ops Hardening  
 **Existing UI Changes:** ✅ Documented in [IMPACT-ANALYSIS.md](./IMPACT-ANALYSIS.md)
 
 **Key existing UI modifications during Phase 1:**
@@ -28,6 +28,7 @@ Team adalah entitas **independent dari Department dan Designation**, meskipun se
 Dokumen teknis pendamping:
 - `tracker.md` untuk snapshot readiness, evidence implementasi, dan gap aktif.
 - `USE-CASES.md` untuk detail aktor, matriks hak, dan skenario bisnis per role.
+- `BACKFILL-RUNBOOK.md` untuk prosedur operasional command `hcm:teams-backfill-legacy`.
 - `docs/features/employees-organization/README.md` untuk employee core yang terintegrasi dengan team.
 - `docs/features/attendance-shift-schedule/README.md` untuk integrasi shift + team scheduling.
 
@@ -35,13 +36,14 @@ Dokumen teknis pendamping:
 
 **Aktor utama:**
 - **HCM Admin**: CRUD seluruh teams, assign/reassign employee ke teams, lihat composition per team, bulk reassign action.
-- **Team Lead** (future phase): view hanya team-nya sendiri, report/export employee di team-nya, suggest assignment (dengan approval HCM Admin).
+- **Team Lead**: view member list team yang dipimpin (wajib `team.lead` + ownership team).
 - **Employee**: view diri sendiri dan team-mate (jika di team yang sama), tidak bisa mutasi.
 - **Super Admin**: lihat teams lintas tenant (monitoring).
 
 **Guard & Permission:**
-- Seluruh mutasi team (create/update/delete) hanya boleh HCM Admin dengan guard `hcm.web.admin` dan permission `team.manage` (opsional, bisa defer ke implementasi).
-- Assignment employee ke team hanya boleh HCM Admin atau module bulk import (dengan validation team existence).
+- Seluruh mutasi team (create/update/delete/reassign member) hanya boleh HCM Admin dengan guard `hcm.web.admin` dan permission `team.manage` (fallback transisi masih menerima `employee.manage`).
+- Assignment employee ke team hanya boleh HCM Admin atau module bulk import, dan target team **harus active** (`TEAM_INACTIVE_NOT_ASSIGNABLE` jika inactive).
+- Akses `GET /teams/{id}/members` untuk team lead mensyaratkan dua hal: user adalah `team_lead_id` pada team tersebut **dan** punya permission `team.lead`.
 - Team data hanya valid untuk member tenant aktif; cross-tenant team tampil hanya di view super admin.
 
 ## UI Aktif
@@ -84,7 +86,7 @@ Dokumen teknis pendamping:
 2d. Alternative: Bulk assignment
     - Import employee bulk via /v1/hcm/employees/bulk-upload
     - Kolom 'team' berisi team name atau team id
-    - Sistem match dengan team master, jika tidak ada → auto-create team (future, tergantung policy)
+  - Sistem match dengan team master tenant aktif; jika match ke team inactive maka baris ditolak
 ```
 
 **Output bisnis:** Employee terassign ke workgroup formal, siap untuk shift/schedule centralized.
@@ -221,6 +223,14 @@ Dokumen teknis pendamping:
 
 ### Team Endpoints (`/v1/hcm/teams`)
 
+- `GET /v1/hcm/teams`
+- `POST /v1/hcm/teams`
+- `GET /v1/hcm/teams/{id}`
+- `PUT /v1/hcm/teams/{id}`
+- `DELETE /v1/hcm/teams/{id}`
+- `GET /v1/hcm/teams/{id}/members`
+- `POST /v1/hcm/teams/reassign-members`
+
 **List Teams**
 ```
 GET /v1/hcm/teams
@@ -228,8 +238,7 @@ Query params:
   - perPage: int (default 20)
   - page: int (default 1)
   - search: string (search by name, optional)
-  - active: boolean (filter active/inactive, optional)
-  - departmentId: int (filter by primary dept, optional)
+  - status: enum(all|active|inactive), optional
 
 Response:
 {
@@ -251,10 +260,9 @@ Response:
     }
   ],
   "meta": {
-    "total": 15,
-    "per_page": 20,
-    "current_page": 1,
-    "last_page": 1
+    "page": 1,
+    "perPage": 20,
+    "total": 15
   }
 }
 ```
@@ -290,8 +298,33 @@ Response: { "success": true, "data": { ...updated team... } }
 ```
 DELETE /v1/hcm/teams/{id}
 Response:
-  Success: { "success": true, "message": "Team deleted" }
-  Error (has member): { "success": false, "error": "Cannot delete team with active members. Please reassign first." }
+  Success: 204 No Content
+  Error (has member): 409 TEAM_DELETION_BLOCKED
+```
+
+**Team Members**
+```
+GET /v1/hcm/teams/{id}/members
+Query params:
+  - perPage: int (default 20)
+  - page: int (default 1)
+  - search: string (optional)
+  - status: enum(all|active|probation|inactive), optional
+```
+
+**Bulk Reassign Team Members**
+```
+POST /v1/hcm/teams/reassign-members
+Body:
+{
+  "employee_ids": [101, 102],
+  "source_team_id": 1,
+  "target_team_id": 2
+}
+
+Notes:
+  - target_team_id = null means unassign team
+  - source_team_id optional as guard to prevent wrong-scope updates
 ```
 
 ### Employee Integration
@@ -316,12 +349,12 @@ Note: ref sheet 'ref_teams' dengan team master
 ```
 
 ### Source of Truth
-- `docs/api/openapi.yaml` — Team endpoint spec akan ditambah di section `components/schemas/Team`.
-- `docs/api/hcm-team-api.md` (future) — detailed API doc jika diperlukan terpisah.
+- `docs/api/openapi.yaml` — canonical API contract.
+- `docs/api/hcm-masterdata-api.md` — feature API detail synchronized with runtime.
 
-## Existing Vs Target
+## Current Runtime Vs Backlog
 
-### Existing (April 2026)
+### Current Runtime (April 2026)
 - **Data model**: `teams` table sudah ada dengan columns: `id`, `uuid`, `company_id`, `department_id`, `name`, `is_active`, `created_at`, `updated_at`.
 - **Model & Relation**: `Team` model exists (`app/Models/Team.php`) dengan methods `department()`, `assignments()` (via EmployeeAssignment).
 - **Employee integration**: `EmployeeProfile` sudah punya `team` field (string, legacy).
@@ -331,21 +364,27 @@ Note: ref sheet 'ref_teams' dengan team master
 - **Bulk import**: template sudah include team reference sheet (`ref_teams`), dropdown validation untuk team_id di Excel.
 - **Foreign key**: safe FK migration sudah run untuk team → department dan employee_assignments → teams.
 
-### Target (Post-Implementation)
-- **UI CRUD Team**: halaman `/teams` dengan full CRUD (create, list, edit, delete) — mirror from `/departments` pattern.
-- **Team dropdown in Employee**: form employee include team selection, dropdown populate dari `/v1/hcm/teams` API, optional field.
-- **Team-scoped assignment**: bulk reassign employee ke team via UI atau import.
-- **Reporting filter**: dashboard + reports dapat filter/group by team.
-- **Permission model**: `team.manage` permission untuk CRUD, `team.lead` untuk team lead delegation (phase 2).
-- **Team lead assignment**: form team dapat assign team lead, team lead visible di list.
-- **Audit trail** (optional phase 2): log team mutations.
-- **Documentation**: this README, USE-CASES, API docs, and tracker maintained.
+### Audit Total Integrasi UI/UX (26 April 2026)
+
+| Area | Kondisi Runtime Saat Ini | Evidence | Status Audit | Gap Phase Selanjutnya |
+|------|---------------------------|----------|--------------|-----------------------|
+| Team Master List (`/teams`) | Kolom team-centric sudah lengkap: Team Name, Department, Members, Team Lead, Status | `backend/resources/views/teams.blade.php` | ✅ Clear | Tidak ada gap kritikal UI untuk list inti team |
+| Team Members List (`/teams/{id}/members`) | Menampilkan anggota dalam konteks single-team: Name, Email, NIK, Department, Designation, Status | `backend/resources/views/team-members.blade.php` | ✅ Clear (by context) | Tambah aksi bulk reassign dari halaman ini (UX enhancement) |
+| Employee Main List (`/employees`) | Sudah menampilkan kolom Team di tabel utama + Team filter | `backend/resources/views/employees.blade.php` | ✅ Clear | Monitor UX dan data quality lintas tenant |
+| Employee Report Table | Renderer report sudah fallback `teamName || team` | `frontend/resources/js/employees-data.js` | ✅ Clear | Pertahankan backward compatibility field |
+| Employee Create/Edit Form | Dropdown Team mutation hanya tampilkan team aktif; fallback aman untuk employee legacy yang masih di team inactive | `frontend/resources/js/employees-data.js` + runtime form employees | ✅ Clear | Monitor hanya untuk exceptional tenant policy |
+| Bulk Team Mutation UX | API bulk reassign sudah live + mass-action UI sudah tersedia di employee list | `POST /v1/hcm/teams/reassign-members` + `employees.blade.php` | ✅ Clear | Tambah source-team guard optional untuk safety tambahan |
+
+### Remaining Backlog (Post Phase 3)
+- Tidak ada blocker mayor tersisa untuk team management runtime saat ini.
+- Monitoring lane tetap aktif untuk kebutuhan tenant-specific custom role mapping.
 
 ### Gap & Risk Mitigation
 1. **Free-text team field conflict**: legacy `EmployeeProfile::team` (string) dapat conflict dengan structured `team_id`. Mitigation: Policy clear jika `team_id` null, display `team` string; prefer `team_id` untuk new data.
 2. **Orphan employee post-team-delete**: jika team deleted, employee `team_id` set NULL. Mitigation: UI warning + cascade policy clear di delete endpoint.
-3. **Team lead delegation future work**: phase 1 focus CRUD, phase 2 add permission + delegation logic.
-4. **Bulk operation UX**: no dedicated "bulk reassign to team" UI yet, use import or manual edit. Can add button later.
+3. **Team lead delegation future work**: granular permission sudah aktif; risiko tersisa pada governance rollout tenant lama yang belum sinkron role default.
+4. **Bulk operation UX**: mass-action UI sudah tersedia, namun source-team guard masih bisa ditambah untuk safety.
+5. **Inactive team assignment policy**: sudah hard-block di backend; risiko residual hanya data legacy yang perlu reassign terencana.
 
 ## Data Model Ringkas
 
@@ -404,13 +443,13 @@ departments, designations (untouched by team feature)
 
 ## Roadmap Fase Implementasi
 
-| Fase | Fitur | Estimasi | Prioritas |
-|------|-------|----------|-----------|
-| **Fase 1** | Core CRUD: endpoint, model, validation, test | 3 hari | **MUST** |
-| **Fase 1** | UI `/teams`: list, create, edit, delete halaman | 2 hari | **MUST** |
-| **Fase 1** | Employee form: team dropdown integration | 2 hari | **MUST** |
-| **Fase 2** | Reporting: filter + widget team | 3 hari | **SHOULD** |
-| **Fase 2** | Team lead permission + delegation UI | 3 hari | **SHOULD** |
-| **Fase 3** | Bulk reassign team action | 2 hari | **NICE** |
-| **Fase 3** | Audit trail team mutations | 2 hari | **NICE** |
-| **Total Phase 1** | MVP ready for testing | **~9 days** | **Ready Q2 2026** |
+| Fase | Fitur | Status | Catatan |
+|------|-------|--------|---------|
+| **Fase 1** | Core CRUD + `/teams` UI + employee team dropdown | ✅ Complete | MVP selesai |
+| **Fase 2** | Team members API/UI + team lead visibility + role matrix sync | ✅ Complete | Members page live |
+| **Fase 3** | Bulk reassign API + audit trail + legacy backfill command + performance tuning | ✅ Complete | Polish backend selesai |
+| **Fase 4 (UI/UX Integration Hardening)** | Employee list Team column + Team filter + alignment list/report | ✅ Complete | UI parity list/report sudah ditutup |
+| **Fase 4 (UI/UX Integration Hardening)** | Bulk reassign mass-action UI (employee/team list) + feedback modal | ✅ Complete | Operasional tidak API-only lagi |
+| **Fase 4.5 (Security Hardening)** | Granular RBAC (`team.manage`, `team.lead`) + scope enforcement matrix | ✅ Complete | Runtime + docs + tests aligned |
+| **Fase 4.5 (Ops Readiness)** | Backfill operational runbook + rollback playbook | ✅ Complete | Runbook siap eksekusi tenant rollout |
+| **Fase 4.6 (Follow-up Rollout)** | Default role template `TEAM_LEAD` + UI mutation guard parity inactive-team | ✅ Complete | Seeder + frontend fallback aman untuk data legacy |

@@ -46,6 +46,7 @@ class InitializeTenantRbacCommand extends Command
                     'performance.view', 'performance.manage',
                     'training.view', 'training.manage',
                     'user_management.view', 'user_management.manage',
+                    'team.manage',
                     'dashboard.view', 'report.view',
                 ],
             ],

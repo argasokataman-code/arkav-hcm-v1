@@ -66,6 +66,11 @@
                             <i class="ti ti-file-download me-2"></i>Template Bulk Employee
                         </a>
                     </div>
+                        <div class="me-2 mb-2">
+                            <button type="button" class="btn btn-outline-warning d-flex align-items-center" data-employees-bulk-reassign-open disabled>
+                                <i class="ti ti-users-group me-2"></i>Reassign Team (<span data-employees-selected-count>0</span>)
+                            </button>
+                        </div>
                     <div class="me-2 mb-2">
                         <a href="#" data-bs-toggle="modal" data-bs-target="#employee_bulk_upload" class="btn btn-outline-primary d-flex align-items-center">
                             <i class="ti ti-upload me-2"></i>Bulk Upload Employee
@@ -224,6 +229,11 @@
                                 <option value="">All Designations</option>
                             </select>
                         </div>
+                            <div class="me-3">
+                                <select class="form-select" data-employees-filter-team>
+                                    <option value="">All Teams</option>
+                                </select>
+                            </div>
                         <div class="me-3">
                             <select class="form-select" data-employees-filter-status>
                                 <option value="">All Status</option>
@@ -256,12 +266,13 @@
                                 <tr>
                                     <th class="no-sort">
                                         <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox" id="select-all">
+                                            <input class="form-check-input" type="checkbox" data-employees-select-all>
                                         </div>
                                     </th>
                                     <th>Emp ID</th>
                                     <th>Name</th>
                                     <th>Email</th>
+                                    <th>Team</th>
                                     <th>Department</th>
                                     <th>Designation</th>
                                     <th>Joining Date</th>
@@ -272,6 +283,7 @@
                             <tbody data-employees-list-body>
                                 <tr>
                                     <td class="text-center text-muted py-4">Loading...</td>
+                                    <td></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>
@@ -324,6 +336,39 @@
                     <h5 class="modal-title">Bulk Upload Employee</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
+                    <div class="modal fade" id="employee_bulk_team_reassign" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-md">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Bulk Reassign Team</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form data-employees-bulk-reassign-form>
+                                    <div class="modal-body">
+                                        <p class="text-muted mb-3">
+                                            Aksi ini akan memindahkan semua employee terpilih ke team tujuan yang sama.
+                                        </p>
+                                        <div class="alert alert-light border mb-3 py-2 px-3">
+                                            Selected employee: <strong data-employees-bulk-selected-count>0</strong>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Target Team</label>
+                                            <select class="form-select" data-employees-bulk-target-team required>
+                                                <option value="">Select target team</option>
+                                            </select>
+                                            <small class="text-muted d-block mt-1">Pilih "Unassign Team" jika ingin mengosongkan assignment team.</small>
+                                        </div>
+                                        <div class="alert d-none mb-0" data-employees-bulk-reassign-result></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-warning" data-employees-bulk-submit>Apply Reassign</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 <form data-employee-bulk-upload-form>
                     <div class="modal-body">
                         <p class="text-muted mb-3">

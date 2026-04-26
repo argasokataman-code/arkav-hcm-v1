@@ -47,6 +47,8 @@ abstract class TestCase extends BaseTestCase
             'department.manage' => ['module' => 'department', 'resource' => 'department', 'action' => 'manage'],
             'designation.manage' => ['module' => 'designation', 'resource' => 'designation', 'action' => 'manage'],
             'policy.manage' => ['module' => 'policy', 'resource' => 'policy', 'action' => 'manage'],
+            'team.manage' => ['module' => 'organization', 'resource' => 'team', 'action' => 'manage'],
+            'team.lead' => ['module' => 'organization', 'resource' => 'team', 'action' => 'lead'],
             'attendance.manage' => ['module' => 'attendance', 'resource' => 'attendance', 'action' => 'manage'],
             'leave.manage' => ['module' => 'leave', 'resource' => 'leave', 'action' => 'manage'],
             'payroll.view' => ['module' => 'payroll', 'resource' => 'payroll', 'action' => 'view'],

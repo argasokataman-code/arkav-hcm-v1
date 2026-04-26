@@ -15,6 +15,8 @@ class HcmPermissionsSeeder extends Seeder
             ['code' => 'employee.create', 'module' => 'employee', 'resource' => 'profile', 'action' => 'create', 'name' => 'Create Employee Profiles', 'description' => 'Can create new employee profiles'],
             ['code' => 'employee.edit', 'module' => 'employee', 'resource' => 'profile', 'action' => 'edit', 'name' => 'Edit Employee Profiles', 'description' => 'Can edit employee profile information'],
             ['code' => 'employee.delete', 'module' => 'employee', 'resource' => 'profile', 'action' => 'delete', 'name' => 'Delete Employee Profiles', 'description' => 'Can delete employee profiles'],
+            ['code' => 'team.manage', 'module' => 'organization', 'resource' => 'team', 'action' => 'manage', 'name' => 'Manage Teams', 'description' => 'Can create, update, delete, and reassign team members'],
+            ['code' => 'team.lead', 'module' => 'organization', 'resource' => 'team', 'action' => 'lead', 'name' => 'Lead Team Scope', 'description' => 'Can view members for teams led by the current user'],
 
             // Payroll
             ['code' => 'payroll.view', 'module' => 'payroll', 'resource' => 'run', 'action' => 'view', 'name' => 'View Payroll Runs', 'description' => 'Can view payroll processing runs'],

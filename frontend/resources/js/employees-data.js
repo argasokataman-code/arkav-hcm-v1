@@ -9,6 +9,7 @@
         status: "",
         departmentId: "",
         designationId: "",
+        teamId: "",
         scope: "",
     };
     var employeesTableMeta = {
@@ -19,6 +20,7 @@
     var employeesViewerContext = {
         isSpecialSuperAdminCode1: false,
     };
+    var selectedEmployeeProfilesMap = {};
 
     function employeesListUrl(perPage, page) {
         var n = perPage != null ? perPage : 20;
@@ -107,6 +109,9 @@
         }
         if (state.designationId) {
             params.set("designationId", state.designationId);
+        }
+        if (state.teamId) {
+            params.set("teamId", state.teamId);
         }
         if (state.scope) {
             params.set("scope", state.scope);
@@ -295,6 +300,7 @@
     function loadTeamsDropdown(selectEl, preferredValue) {
         var pref = preferredValue != null ? String(preferredValue) : "";
         selectEl.innerHTML = '<option value="">— Pilih Team (opsional) —</option>';
+        selectEl.removeAttribute("data-inactive-team-pref");
         orgTeamsFlat.forEach(function (t) {
             if (t.is_active) {
                 var opt = document.createElement("option");
@@ -309,6 +315,20 @@
             });
             if (match) {
                 selectEl.value = pref;
+                return;
+            }
+
+            var inactiveCurrent = orgTeamsFlat.find(function (t) {
+                return String(t.id) === pref && !t.is_active;
+            });
+
+            if (inactiveCurrent) {
+                var inactiveInfo = document.createElement("option");
+                inactiveInfo.value = "";
+                inactiveInfo.textContent = "Current team inactive: " + (inactiveCurrent.name || pref) + " (reassign to active team)";
+                selectEl.insertBefore(inactiveInfo, selectEl.options[1] || null);
+                selectEl.value = "";
+                selectEl.setAttribute("data-inactive-team-pref", pref);
             }
         }
     }
@@ -505,23 +525,31 @@
         }
 
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+            tbody.innerHTML = '<tr><td class="text-center text-muted py-4">No employees found.</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
             tbody.setAttribute("data-hydrated", "1");
+            updateBulkSelectionUi();
             return;
         }
 
         tbody.innerHTML = rows.map(function (row) {
             var st = row.employmentStatus || "active";
             var statusClass = st === "active" ? "success" : st === "probation" ? "warning" : "danger";
+            var teamLabel = row.teamName || row.team || "—";
+            var teamBadge = row.teamIsActive === false
+                ? '<span class="badge bg-soft-warning text-warning ms-1">inactive</span>'
+                : "";
+            var employeeProfileId = row.employeeProfileId != null ? String(row.employeeProfileId) : "";
+            var checked = employeeProfileId && selectedEmployeeProfilesMap[employeeProfileId] ? ' checked' : '';
             var nameCell = row.profilePhotoUrl
                 ? '<div class="d-flex align-items-center"><span class="avatar avatar-sm me-2"><img src="' + escapeHtml(row.profilePhotoUrl) + '" alt="Photo" class="rounded-circle w-100 h-100"></span><span>' + escapeHtml(row.fullName) + '</span></div>'
                 : '<div class="d-flex align-items-center"><span class="avatar avatar-sm me-2 bg-primary-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center">' + escapeHtml((row.fullName || "?").charAt(0).toUpperCase()) + '</span><span>' + escapeHtml(row.fullName) + '</span></div>';
             return (
-                '<tr data-employees-row-preview="' + escapeHtml(row.id) + '" class="cursor-pointer">' +
-                '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td>' +
+                '<tr data-employees-row-preview="' + escapeHtml(row.id) + '" data-employee-id="' + escapeHtml(row.id) + '" data-employee-profile-id="' + escapeHtml(employeeProfileId) + '" data-employee-team-id="' + escapeHtml(row.teamId != null ? String(row.teamId) : "") + '" class="cursor-pointer">' +
+                '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox" data-employees-select data-employee-profile-id="' + escapeHtml(employeeProfileId) + '"' + checked + '></div></td>' +
                 '<td><a href="' + buildEmployeeDetailUrl(row.id) + '" data-employee-detail-link data-employee-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.employeeNo) + "</a></td>" +
                 "<td>" + nameCell + "</td>" +
                 "<td>" + escapeHtml(row.email) + "</td>" +
+                "<td>" + escapeHtml(teamLabel) + teamBadge + "</td>" +
                 "<td>" + escapeHtml(row.departmentName || "—") + "</td>" +
                 "<td>" + escapeHtml(row.designation || "Employee") + "</td>" +
                 "<td>" + escapeHtml(row.joinDate || "-") + "</td>" +
@@ -535,13 +563,176 @@
             );
         }).join("");
         tbody.setAttribute("data-hydrated", "1");
+        syncSelectAllCheckboxState();
+        updateBulkSelectionUi();
     }
 
     function renderListMessage(message) {
         var tbody = document.querySelector("[data-employees-list-body]");
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
         tbody.setAttribute("data-hydrated", "1");
+        updateBulkSelectionUi();
+    }
+
+    function getSelectedEmployeeProfileIds() {
+        return Object.keys(selectedEmployeeProfilesMap)
+            .filter(function (id) {
+                return Boolean(selectedEmployeeProfilesMap[id]);
+            })
+            .map(function (id) {
+                return Number(id);
+            })
+            .filter(function (id) {
+                return Number.isFinite(id) && id > 0;
+            });
+    }
+
+    function syncSelectAllCheckboxState() {
+        var selectAll = document.querySelector("[data-employees-select-all]");
+        if (!selectAll) {
+            return;
+        }
+        var rowCheckboxes = Array.prototype.slice.call(document.querySelectorAll("[data-employees-select]"));
+        if (!rowCheckboxes.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        var selectedCount = rowCheckboxes.filter(function (cb) {
+            return cb.checked;
+        }).length;
+
+        selectAll.checked = selectedCount > 0 && selectedCount === rowCheckboxes.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < rowCheckboxes.length;
+    }
+
+    function updateBulkSelectionUi() {
+        var selectedIds = getSelectedEmployeeProfileIds();
+        var count = selectedIds.length;
+        document.querySelectorAll("[data-employees-selected-count], [data-employees-bulk-selected-count]").forEach(function (el) {
+            el.textContent = String(count);
+        });
+
+        var openBtn = document.querySelector("[data-employees-bulk-reassign-open]");
+        if (openBtn) {
+            openBtn.disabled = count < 1;
+        }
+    }
+
+    function clearSelectedEmployeesSelection() {
+        selectedEmployeeProfilesMap = {};
+        document.querySelectorAll("[data-employees-select]").forEach(function (cb) {
+            cb.checked = false;
+        });
+        syncSelectAllCheckboxState();
+        updateBulkSelectionUi();
+    }
+
+    function getBulkReassignModalInstance() {
+        var modalEl = document.getElementById("employee_bulk_team_reassign");
+        if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+            return null;
+        }
+        return window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    }
+
+    function fillBulkTargetTeamOptions() {
+        var select = document.querySelector("[data-employees-bulk-target-team]");
+        if (!select) {
+            return;
+        }
+        var previous = String(select.value || "");
+        select.innerHTML = '<option value="">Select target team</option><option value="__UNASSIGN__">Unassign Team</option>';
+        orgTeamsFlat.forEach(function (team) {
+            if (!team || !team.is_active) {
+                return;
+            }
+            var opt = document.createElement("option");
+            opt.value = String(team.id);
+            opt.textContent = team.name || String(team.id);
+            select.appendChild(opt);
+        });
+        if (previous) {
+            var exists = Array.prototype.slice.call(select.options).some(function (o) {
+                return o.value === previous;
+            });
+            if (exists) {
+                select.value = previous;
+            }
+        }
+    }
+
+    function renderBulkReassignResult(level, message) {
+        var box = document.querySelector("[data-employees-bulk-reassign-result]");
+        if (!box) {
+            return;
+        }
+        if (!message) {
+            box.className = "alert d-none mb-0";
+            box.textContent = "";
+            return;
+        }
+        box.className = "alert mb-0 alert-" + (level || "info");
+        box.textContent = message;
+    }
+
+    function submitBulkTeamReassign() {
+        var selectedIds = getSelectedEmployeeProfileIds();
+        if (!selectedIds.length) {
+            renderBulkReassignResult("warning", "Pilih minimal 1 employee.");
+            return Promise.resolve();
+        }
+
+        var select = document.querySelector("[data-employees-bulk-target-team]");
+        var submitBtn = document.querySelector("[data-employees-bulk-submit]");
+        var rawValue = select ? String(select.value || "") : "";
+        if (!rawValue) {
+            renderBulkReassignResult("warning", "Target team wajib dipilih.");
+            return Promise.resolve();
+        }
+
+        var targetTeamId = rawValue === "__UNASSIGN__" ? null : Number(rawValue);
+        if (targetTeamId !== null && (!Number.isFinite(targetTeamId) || targetTeamId <= 0)) {
+            renderBulkReassignResult("danger", "Target team tidak valid.");
+            return Promise.resolve();
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+        renderBulkReassignResult("info", "Processing reassign...");
+
+        return requestJson("post", "/v1/hcm/teams/reassign-members", {
+            employee_ids: selectedIds,
+            target_team_id: targetTeamId,
+        }).then(function (payload) {
+            if (!payload || payload.success !== true) {
+                var msg = formatApiError(payload, 0) || "Bulk reassign gagal diproses.";
+                renderBulkReassignResult("danger", msg);
+                return;
+            }
+            var affected = Number(payload.data && payload.data.affected_count ? payload.data.affected_count : 0);
+            window.ArcavUi.showToast("Bulk team reassign berhasil. Employee terupdate: " + affected + ".", "success");
+            renderBulkReassignResult("success", "Berhasil memproses " + affected + " employee.");
+            clearSelectedEmployeesSelection();
+            var modal = getBulkReassignModalInstance();
+            if (modal) {
+                modal.hide();
+            }
+            loadEmployeesData();
+        }).catch(function (error) {
+            if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
+                return;
+            }
+            var msg = formatApiError(error && error.data, error && error.status) || "Bulk reassign gagal.";
+            renderBulkReassignResult("danger", msg);
+        }).finally(function () {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        });
     }
 
     function renderGrid(rows) {
@@ -1273,6 +1464,14 @@
             payload.designationId = designationId;
             payload.teamId = teamId;
 
+            var teamSelectEl = form.querySelector('[data-employee-org-team]');
+            var inactiveTeamPref = teamSelectEl ? String(teamSelectEl.getAttribute('data-inactive-team-pref') || '') : '';
+            var selectedTeamRaw = teamSelectEl ? String(teamSelectEl.value || '') : '';
+            if (isEdit && inactiveTeamPref && selectedTeamRaw === '') {
+                delete payload.teamId;
+                delete payload.team;
+            }
+
             if (!isEdit) {
                 payload.password = readField(form, "password");
                 payload.confirmPassword = readField(form, "confirmPassword");
@@ -1702,6 +1901,7 @@
     function syncEmployeesFilterOptions() {
         var depSel = document.querySelector("[data-employees-filter-department]");
         var desSel = document.querySelector("[data-employees-filter-designation]");
+        var teamSel = document.querySelector("[data-employees-filter-team]");
         if (depSel) {
             var depPrev = employeesTableState.departmentId || depSel.value || "";
             depSel.innerHTML = '<option value="">All Departments</option>';
@@ -1723,6 +1923,17 @@
                 desSel.appendChild(opt2);
             });
             desSel.value = desPrev;
+        }
+        if (teamSel) {
+            var teamPrev = employeesTableState.teamId || teamSel.value || "";
+            teamSel.innerHTML = '<option value="">All Teams</option>';
+            orgTeamsFlat.forEach(function (t) {
+                var opt3 = document.createElement("option");
+                opt3.value = String(t.id);
+                opt3.textContent = t.name || String(t.id);
+                teamSel.appendChild(opt3);
+            });
+            teamSel.value = teamPrev;
         }
     }
 
@@ -1800,6 +2011,7 @@
         if (employeesTableState.status) params.set("status", employeesTableState.status);
         if (employeesTableState.departmentId) params.set("departmentId", employeesTableState.departmentId);
         if (employeesTableState.designationId) params.set("designationId", employeesTableState.designationId);
+        if (employeesTableState.teamId) params.set("teamId", employeesTableState.teamId);
         if (employeesTableState.scope) params.set("scope", employeesTableState.scope);
         params.set("format", format === "pdf" ? "pdf" : "xlsx");
         window.location.assign("/v1/hcm/employees/export?" + params.toString());
@@ -1815,6 +2027,7 @@
         var statusSel = document.querySelector("[data-employees-filter-status]");
         var depSel = document.querySelector("[data-employees-filter-department]");
         var desSel = document.querySelector("[data-employees-filter-designation]");
+        var teamSel = document.querySelector("[data-employees-filter-team]");
         var perPageSel = document.querySelector("[data-employees-per-page]");
         var debounceTimer = null;
 
@@ -1825,6 +2038,7 @@
         employeesTableState.status = String(params.get("status") || employeesTableState.status || "").trim();
         employeesTableState.departmentId = String(params.get("departmentId") || employeesTableState.departmentId || "").trim();
         employeesTableState.designationId = String(params.get("designationId") || employeesTableState.designationId || "").trim();
+        employeesTableState.teamId = String(params.get("teamId") || employeesTableState.teamId || "").trim();
         employeesTableState.scope = normalizeEmployeeScope(params.get("scope") || employeesTableState.scope || "");
 
         if (searchInput) {
@@ -1833,9 +2047,14 @@
         if (statusSel) {
             statusSel.value = employeesTableState.status;
         }
+        if (teamSel) {
+            teamSel.value = employeesTableState.teamId;
+        }
         if (perPageSel) {
             perPageSel.value = String(employeesTableState.perPage);
         }
+        fillBulkTargetTeamOptions();
+        updateBulkSelectionUi();
 
         function triggerReload(resetPage) {
             if (resetPage) {
@@ -1871,12 +2090,54 @@
                 triggerReload(true);
             });
         }
+        if (teamSel) {
+            teamSel.addEventListener("change", function () {
+                employeesTableState.teamId = String(teamSel.value || "");
+                triggerReload(true);
+            });
+        }
         if (perPageSel) {
             perPageSel.addEventListener("change", function () {
                 employeesTableState.perPage = Math.max(1, parseInt(perPageSel.value || "20", 10) || 20);
                 triggerReload(true);
             });
         }
+
+        document.addEventListener("change", function (event) {
+            var selectAll = event.target.closest("[data-employees-select-all]");
+            if (selectAll) {
+                var checked = Boolean(selectAll.checked);
+                document.querySelectorAll("[data-employees-select]").forEach(function (cb) {
+                    cb.checked = checked;
+                    var profileId = String(cb.getAttribute("data-employee-profile-id") || "").trim();
+                    if (!profileId) {
+                        return;
+                    }
+                    if (checked) {
+                        selectedEmployeeProfilesMap[profileId] = true;
+                    } else {
+                        delete selectedEmployeeProfilesMap[profileId];
+                    }
+                });
+                syncSelectAllCheckboxState();
+                updateBulkSelectionUi();
+                return;
+            }
+
+            var rowSelect = event.target.closest("[data-employees-select]");
+            if (rowSelect) {
+                var profileId = String(rowSelect.getAttribute("data-employee-profile-id") || "").trim();
+                if (profileId) {
+                    if (rowSelect.checked) {
+                        selectedEmployeeProfilesMap[profileId] = true;
+                    } else {
+                        delete selectedEmployeeProfilesMap[profileId];
+                    }
+                }
+                syncSelectAllCheckboxState();
+                updateBulkSelectionUi();
+            }
+        });
 
         document.addEventListener("click", function (event) {
             var pageLink = event.target.closest("[data-employees-page]");
@@ -1899,6 +2160,22 @@
                 return;
             }
 
+            var openBulkReassign = event.target.closest("[data-employees-bulk-reassign-open]");
+            if (openBulkReassign) {
+                event.preventDefault();
+                if (getSelectedEmployeeProfileIds().length < 1) {
+                    window.ArcavUi.showToast("Pilih minimal 1 employee dulu.", "warning");
+                    return;
+                }
+                fillBulkTargetTeamOptions();
+                renderBulkReassignResult("", "");
+                var modal = getBulkReassignModalInstance();
+                if (modal) {
+                    modal.show();
+                }
+                return;
+            }
+
             var scopeBtn = event.target.closest("[data-employees-scope-tab]");
             if (scopeBtn && employeesViewerContext.isSpecialSuperAdminCode1) {
                 event.preventDefault();
@@ -1910,6 +2187,15 @@
                 syncEmployeesScopeTabState(nextScope);
                 triggerReload(true);
             }
+        });
+
+        document.addEventListener("submit", function (event) {
+            var form = event.target.closest("[data-employees-bulk-reassign-form]");
+            if (!form) {
+                return;
+            }
+            event.preventDefault();
+            submitBulkTeamReassign();
         });
     }
 
@@ -1947,7 +2233,7 @@
                     "</td><td>" +
                     escapeHtml(row.email || "") +
                     "</td><td>" +
-                    escapeHtml(row.team || "—") +
+                    escapeHtml(row.teamName || row.team || "—") +
                     "</td><td>" +
                     escapeHtml(row.departmentName || "—") +
                     "</td><td>" +

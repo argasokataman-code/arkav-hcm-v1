@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
 use App\Models\User;
+use App\Models\EmployeeProfile;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -49,6 +50,11 @@ class Team extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(EmployeeAssignment::class, 'team_id');
+    }
+
+    public function memberProfiles(): HasMany
+    {
+        return $this->hasMany(EmployeeProfile::class, 'team_id');
     }
 
     public function teamLead(): BelongsTo

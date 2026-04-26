@@ -25,13 +25,17 @@ Query:
 - `perPage` optional int 1..100 (default 20)
 - `search` optional string max 100 (name/email/phone/NIK). Pada **MySQL**, jika panjang term ≥ 3 karakter, dipakai `FULLTEXT` untuk `users.name` + `users.email`; pencarian `phone` / `nik` tetap ikut via filter profil. Driver lain fallback ke `LIKE`.
 - `status` optional `active|inactive|probation|resigned|terminated`
+- `teamId` optional int (filter employee berdasarkan `team_id`)
 - `scope` optional `global|active_company`
   - `global` (default untuk Global Super Admin): directory lintas semua tenant.
   - `active_company`: paksa scope ke tenant aktif (`activeCompanyId`) walaupun user adalah Global Super Admin.
   - user non-global-admin tetap selalu scope tenant aktif (parameter ini diabaikan).
 
 Success `200`:
-- `data[]`: `{ id, uuid, employeeNo(EMP-0001), fullName, email, phone, team, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
+- `data[]`: `{ id, uuid, employeeNo(EMP-0001), fullName, email, phone, team, teamId, teamName, teamIsActive, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
+- `team`: label backward-compatible untuk UI lama.
+- `teamId` + `teamName`: field canonical untuk UI list/report baru.
+- `teamIsActive`: `true/false/null` untuk indikator UX assignment team inactive.
 - `uuid` disertakan sebagai identifier user stabil untuk modul yang mengirim payload UUID ke endpoint lain, termasuk Termination.
 - `designation` = label tampilan (prioritas nama master `designation_id` jika ada).
 - `employeeType`, gaji, pajak, assignment, dan kontrak di-resolve dari tabel riwayat relasional (`employee_employment_history`, `employee_assignments`, `employee_compensations`, `employee_contracts`, `employee_tax_profiles`) dengan fallback legacy agar backward-compatible.
@@ -55,6 +59,7 @@ Body:
 - `password` required regex `password_strong`
 - `confirmPassword` required same:password
 - `team` optional string max 100
+- `teamId` optional int exists `teams.id` pada tenant aktif
 - `departmentId` **required** int exists `departments.id`
 - `designationId` **required** int exists `designations.id` (atau kirim `designation` label legacy jika memang belum memakai master, tetapi UI produksi sekarang mewajibkan master designation)
 - `designation` optional string max 150 (fallback legacy jika tanpa `designationId`)
@@ -96,6 +101,7 @@ Success `201`:
 
 Error `422`:
 - `DESIGNATION_DEPARTMENT_MISMATCH` — `designationId` tidak termasuk `departmentId` yang dikirim.
+- `TEAM_INACTIVE_NOT_ASSIGNABLE` — `teamId` mengacu ke team inactive.
 
 ### GET `/employees/{id}`
 
@@ -137,6 +143,7 @@ Admin body (semua `sometimes`):
 - `name` string min 2 max 150
 - `email` email:rfc unique ignore current id
 - `team` string max 100
+- `teamId` nullable int exists `teams.id` pada tenant aktif
 - `departmentId` nullable int exists `departments.id`
 - `designationId` nullable int exists `designations.id` (aturan sinkron sama seperti POST)
 - `designation` string max 150
@@ -175,6 +182,9 @@ Self update body:
 Success `200`:
 - return payload sama seperti GET `/employees/{id}`
 
+Error `422`:
+- `TEAM_INACTIVE_NOT_ASSIGNABLE` — assignment ke team inactive ditolak.
+
 ## Bulk
 
 ### GET `/employees/bulk-template`
@@ -205,6 +215,8 @@ Catatan:
 - validasi enum sekarang ketat untuk `employment_status`, `salary_type`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
 - kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `salary_type`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
 - `department_id`, `designation_id` (integer, harus ada di master); `designation` teks tetap didukung; kombinasi id divalidasi seperti API POST
+- Jika `team_id` dikirim, importer memverifikasi team tenant aktif dan status team harus `active`.
+- Jika hanya `team` (nama) dikirim, importer akan resolve ke master team tenant aktif bila nama match; jika match ke team inactive maka baris ditolak.
 - setelah import sukses, snapshot legacy `employee_profiles` dan tabel riwayat relasional akan di-sync bersamaan.
 - template saat ini masih **single-sheet**; final polish berikutnya bisa dinaikkan menjadi template multi-sheet dengan referensi master/dropdown.
 

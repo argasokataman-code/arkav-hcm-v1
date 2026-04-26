@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\Team;
 use App\Models\Policy;
 use App\Models\User;
 use App\Models\CompanyUser;
@@ -555,6 +556,147 @@ class HcmEmployeeApiTest extends TestCase
         $res->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($u->id, $ids);
+    }
+
+    public function test_employees_filter_by_team_id_returns_matching_rows(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $teamA = Team::query()->create([
+            'company_id' => $this->company->id,
+            'name' => 'Core Support',
+            'is_active' => true,
+        ]);
+        $teamB = Team::query()->create([
+            'company_id' => $this->company->id,
+            'name' => 'Field Ops',
+            'is_active' => true,
+        ]);
+
+        $userA = User::factory()->create(['email' => 'team.filter.a@example.com']);
+        $userB = User::factory()->create(['email' => 'team.filter.b@example.com']);
+
+        CompanyUser::query()->firstOrCreate([
+            'company_id' => $this->company->id,
+            'user_id' => $userA->id,
+        ]);
+        CompanyUser::query()->firstOrCreate([
+            'company_id' => $this->company->id,
+            'user_id' => $userB->id,
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $userA->id,
+            'team_id' => $teamA->id,
+            'team' => $teamA->name,
+            'employment_status' => 'active',
+        ]);
+        EmployeeProfile::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $userB->id,
+            'team_id' => $teamB->id,
+            'team' => $teamB->name,
+            'employment_status' => 'active',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/employees?teamId='.$teamA->id.'&perPage=50');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $rows = collect($response->json('data'));
+        $ids = $rows->pluck('id')->values()->all();
+
+        $this->assertContains($userA->id, $ids);
+        $this->assertNotContains($userB->id, $ids);
+
+        $row = $rows->firstWhere('id', $userA->id);
+        $this->assertEquals($teamA->id, data_get($row, 'teamId'));
+        $this->assertEquals($teamA->name, data_get($row, 'teamName'));
+    }
+
+    public function test_employee_create_rejects_inactive_team_assignment(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $dept = Department::query()->firstOrCreate(
+            ['company_id' => $this->company->id, 'name' => 'Ops Inactive Team'],
+            ['code' => 'OPS-INACTIVE']
+        );
+        $designation = Designation::query()->firstOrCreate(
+            ['department_id' => $dept->id, 'name' => 'Ops Specialist'],
+            ['code' => 'OPS-SPEC', 'is_active' => true]
+        );
+        $inactiveTeam = Team::query()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Ops Team Inactive',
+            'is_active' => false,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Inactive Team Candidate',
+            'email' => 'inactive.team.candidate@example.com',
+            'departmentId' => $dept->id,
+            'designationId' => $designation->id,
+            'teamId' => $inactiveTeam->id,
+            'team' => $inactiveTeam->name,
+        ]));
+
+        $response->assertUnprocessable();
+        $this->assertEquals('TEAM_INACTIVE_NOT_ASSIGNABLE', $response->json('error.code'));
+    }
+
+    public function test_employee_update_rejects_inactive_team_assignment(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $dept = Department::query()->firstOrCreate(
+            ['company_id' => $this->company->id, 'name' => 'Ops Update Inactive Team'],
+            ['code' => 'OPS-UPD-INACTIVE']
+        );
+        $designation = Designation::query()->firstOrCreate(
+            ['department_id' => $dept->id, 'name' => 'Ops Update Specialist'],
+            ['code' => 'OPS-UPD-SPEC', 'is_active' => true]
+        );
+        $inactiveTeam = Team::query()->create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Ops Team Inactive Update',
+            'is_active' => false,
+        ]);
+
+        $create = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Team Update Candidate',
+            'email' => 'team.update.candidate@example.com',
+            'departmentId' => $dept->id,
+            'designationId' => $designation->id,
+            'team' => null,
+            'teamId' => null,
+        ]));
+
+        $create->assertCreated();
+        $userId = (int) $create->json('data.id');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/employees/'.$userId, [
+            'teamId' => $inactiveTeam->id,
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertEquals('TEAM_INACTIVE_NOT_ASSIGNABLE', $response->json('error.code'));
     }
 
     public function test_employee_update_persists_normalized_history_tables(): void

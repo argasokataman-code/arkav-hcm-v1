@@ -15,6 +15,7 @@ use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\Policy;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
@@ -226,6 +227,7 @@ class HcmEmployeeController extends Controller
             'status' => ['nullable', Rule::in($this->directoryStatusOptions())],
             'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
             'designationId' => ['nullable', 'integer', 'exists:designations,id'],
+            'teamId' => ['nullable', 'integer', 'exists:teams,id'],
             'scope' => ['nullable', Rule::in(['global', 'active_company'])],
         ]);
 
@@ -249,6 +251,7 @@ class HcmEmployeeController extends Controller
         $statusFilter = $validated['status'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
+        $teamId = $validated['teamId'] ?? null;
 
         $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
         $requestedScope = (string) ($validated['scope'] ?? ($isGlobalAdmin ? 'global' : 'active_company'));
@@ -278,10 +281,12 @@ class HcmEmployeeController extends Controller
                         'phone',
                         'department_id',
                         'designation_id',
+                        'team_id',
                         'profile_photo_path',
                     )->with([
                         'department:id,name',
                         'designationRef:id,name,department_id',
+                        'assignedTeam:id,name,is_active',
                     ]);
                 },
             ])
@@ -346,6 +351,10 @@ class HcmEmployeeController extends Controller
             $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('designation_id', (int) $designationId));
         }
 
+        if ($teamId) {
+            $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('team_id', (int) $teamId));
+        }
+
         $paginator = $query->orderByDesc('id')->paginate($perPage);
 
         $rows = $paginator->getCollection()->map(function (User $user) {
@@ -354,6 +363,7 @@ class HcmEmployeeController extends Controller
             $employmentStatus = $snapshot['employmentStatus'] ?? 'active';
             $designationLabel = $snapshot['designation'] ?: 'Employee';
             $pkwtSummary = $this->pkwtCompensationService->summarizeProfile($profile);
+            $teamName = $profile?->assignedTeam?->name ?: ($snapshot['team'] ?: '—');
 
             return [
                 'id' => $user->id,
@@ -363,7 +373,10 @@ class HcmEmployeeController extends Controller
                 'fullName' => $user->name,
                 'email' => $user->email,
                 'phone' => $profile?->phone ? (string) $profile->phone : '—',
-                'team' => $snapshot['team'] ?: '—',
+                'team' => $teamName,
+                'teamId' => $profile?->team_id ? (int) $profile->team_id : null,
+                'teamName' => $teamName,
+                'teamIsActive' => $profile?->assignedTeam ? (bool) $profile->assignedTeam->is_active : null,
                 'departmentId' => $snapshot['departmentId'],
                 'departmentName' => $snapshot['departmentName'] ?: '—',
                 'designationId' => $snapshot['designationId'],
@@ -425,6 +438,10 @@ class HcmEmployeeController extends Controller
 
         $this->normalizeEmployeeWritePayload($request);
         $validated = $request->validate($this->employeeWriteRules($request, true));
+
+        if ($teamAssignmentError = $this->ensureAssignableTeamIsActive($activeCompanyId, $validated['teamId'] ?? null)) {
+            return $teamAssignmentError;
+        }
 
         if (array_key_exists('bankName', $validated)) {
             $validated['bankName'] = $this->normalizeBankName($validated['bankName']);
@@ -529,6 +546,7 @@ class HcmEmployeeController extends Controller
             'status' => ['nullable', Rule::in($this->directoryStatusOptions())],
             'departmentId' => ['nullable', 'integer', 'exists:departments,id'],
             'designationId' => ['nullable', 'integer', 'exists:designations,id'],
+            'teamId' => ['nullable', 'integer', 'exists:teams,id'],
             'format' => ['nullable', Rule::in(['xlsx', 'csv', 'pdf'])],
         ]);
 
@@ -536,6 +554,7 @@ class HcmEmployeeController extends Controller
         $statusFilter = $validated['status'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
+        $teamId = $validated['teamId'] ?? null;
 
         $query = User::query()
             ->with([
@@ -550,9 +569,11 @@ class HcmEmployeeController extends Controller
                         'phone',
                         'department_id',
                         'designation_id',
+                        'team_id',
                     )->with([
                         'department:id,name',
                         'designationRef:id,name,department_id',
+                        'assignedTeam:id,name,is_active',
                     ]);
                 },
             ])
@@ -593,17 +614,23 @@ class HcmEmployeeController extends Controller
             $query->whereHas('employeeProfile', fn ($p) => $p->where('designation_id', (int) $designationId));
         }
 
+        if ($teamId) {
+            $query->whereHas('employeeProfile', fn ($p) => $p->where('team_id', (int) $teamId));
+        }
+
         $users = $query->orderByDesc('id')->get();
 
-        $headers = ['Employee No', 'Name', 'Email', 'Phone', 'Department', 'Designation', 'Status', 'Join Date'];
+        $headers = ['Employee No', 'Name', 'Email', 'Team', 'Phone', 'Department', 'Designation', 'Status', 'Join Date'];
         $rows = $users->map(function (User $user): array {
             $profile = $user->employeeProfile;
             $snapshot = $this->employeeSnapshotService->snapshotForUser($user);
+            $teamName = $profile?->assignedTeam?->name ?: ($snapshot['team'] ?: '');
 
             return [
                 $this->formatEmployeeNo($user->id),
                 (string) $user->name,
                 (string) $user->email,
+                (string) $teamName,
                 (string) ($profile?->phone ?: ''),
                 (string) ($snapshot['departmentName'] ?: ''),
                 (string) ($snapshot['designation'] ?: 'Employee'),
@@ -650,6 +677,12 @@ class HcmEmployeeController extends Controller
     {
         $this->normalizeEmployeeWritePayload($request);
         $validated = $request->validate($this->employeeWriteRules($request, false, $user));
+
+        if (array_key_exists('teamId', $validated)) {
+            if ($teamAssignmentError = $this->ensureAssignableTeamIsActive($this->activeCompanyId($request), $validated['teamId'])) {
+                return $teamAssignmentError;
+            }
+        }
 
         if (array_key_exists('bankName', $validated)) {
             $validated['bankName'] = $this->normalizeBankName($validated['bankName']);
@@ -1390,9 +1423,17 @@ class HcmEmployeeController extends Controller
             $bulkDesigId = isset($row['designation_id']) && is_numeric($row['designation_id']) ? (int) $row['designation_id'] : null;
             $resolvedTeam = null;
             if ($teamId !== null) {
-                $resolvedTeam = DB::table('teams')->select('id', 'department_id', 'name')->where('id', $teamId)->first();
+                $resolvedTeam = DB::table('teams')
+                    ->select('id', 'department_id', 'name', 'is_active')
+                    ->where('company_id', $activeCompanyId)
+                    ->where('id', $teamId)
+                    ->first();
                 if (! $resolvedTeam) {
                     $errors[] = "Row {$lineNo}: team_id tidak ditemukan pada master teams.";
+                    continue;
+                }
+                if (! (bool) ($resolvedTeam->is_active ?? false)) {
+                    $errors[] = "Row {$lineNo}: team_id mengacu ke team inactive dan tidak boleh dipakai assignment.";
                     continue;
                 }
                 if ($bulkDeptId === null && $resolvedTeam->department_id !== null) {
@@ -1407,9 +1448,32 @@ class HcmEmployeeController extends Controller
                     continue;
                 }
                 $teamNameInput = (string) $resolvedTeam->name;
+            } elseif ($teamNameInput !== null) {
+                $resolvedByName = DB::table('teams')
+                    ->select('id', 'department_id', 'name', 'is_active')
+                    ->where('company_id', $activeCompanyId)
+                    ->whereRaw('LOWER(name) = ?', [strtolower((string) $teamNameInput)])
+                    ->first();
+
+                if ($resolvedByName) {
+                    if (! (bool) ($resolvedByName->is_active ?? false)) {
+                        $errors[] = "Row {$lineNo}: team mengacu ke team inactive dan tidak boleh dipakai assignment.";
+                        continue;
+                    }
+                    $teamId = (int) $resolvedByName->id;
+                    $teamNameInput = (string) $resolvedByName->name;
+                    if ($bulkDeptId === null && $resolvedByName->department_id !== null) {
+                        $bulkDeptId = (int) $resolvedByName->department_id;
+                    }
+                    if ($bulkDeptId !== null && $resolvedByName->department_id !== null && (int) $resolvedByName->department_id !== (int) $bulkDeptId) {
+                        $errors[] = "Row {$lineNo}: team tidak sesuai dengan department_id yang dipilih.";
+                        continue;
+                    }
+                }
             }
 
             $profile->team = $teamNameInput;
+            $profile->team_id = $teamId;
             if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->exists()) {
                 $errors[] = "Row {$lineNo}: department_id tidak ditemukan.";
                 continue;
@@ -2658,6 +2722,40 @@ class HcmEmployeeController extends Controller
         }
 
         return $rules;
+    }
+
+    private function ensureAssignableTeamIsActive(?int $activeCompanyId, mixed $teamId): ?JsonResponse
+    {
+        if ($activeCompanyId === null || $teamId === null || (int) $teamId <= 0) {
+            return null;
+        }
+
+        $team = Team::query()
+            ->where('company_id', $activeCompanyId)
+            ->whereKey((int) $teamId)
+            ->first();
+
+        if (! $team) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TEAM_NOT_FOUND',
+                    'message' => 'Selected team is not available in active company.',
+                ],
+            ], 422);
+        }
+
+        if (! (bool) $team->is_active) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TEAM_INACTIVE_NOT_ASSIGNABLE',
+                    'message' => 'Inactive team cannot receive member assignments.',
+                ],
+            ], 422);
+        }
+
+        return null;
     }
 
     /**

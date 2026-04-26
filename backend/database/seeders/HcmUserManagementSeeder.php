@@ -92,6 +92,8 @@ class HcmUserManagementSeeder extends Seeder
             ['code' => 'designation.manage', 'module' => 'organization', 'resource' => 'designation', 'action' => 'manage', 'name' => 'Manage Designations'],
             ['code' => 'policy.view', 'module' => 'organization', 'resource' => 'policy', 'action' => 'view', 'name' => 'View Policies'],
             ['code' => 'policy.manage', 'module' => 'organization', 'resource' => 'policy', 'action' => 'manage', 'name' => 'Manage Policies'],
+            ['code' => 'team.manage', 'module' => 'organization', 'resource' => 'team', 'action' => 'manage', 'name' => 'Manage Teams'],
+            ['code' => 'team.lead', 'module' => 'organization', 'resource' => 'team', 'action' => 'lead', 'name' => 'Lead Team Scope'],
 
             // Ticket Management
             ['code' => 'ticket.view', 'module' => 'ticket', 'resource' => 'ticket', 'action' => 'view', 'name' => 'View Tickets'],
@@ -155,6 +157,7 @@ class HcmUserManagementSeeder extends Seeder
             ['code' => 'OPS_ADMIN', 'name' => 'Operations Administrator', 'isSystem' => true],
             ['code' => 'OWNER', 'name' => 'Owner'],
             ['code' => 'HCM_ADMIN', 'name' => 'HCM Admin'],
+            ['code' => 'TEAM_LEAD', 'name' => 'Team Lead'],
             ['code' => 'MANAGER', 'name' => 'Manager'],
             ['code' => 'EMPLOYEE', 'name' => 'Employee'],
         ];
@@ -165,6 +168,10 @@ class HcmUserManagementSeeder extends Seeder
         ]);
 
         $adminRoleCodes = ['ADMIN', 'HR_ADMIN', 'OPS_ADMIN', 'HCM_ADMIN', 'OWNER'];
+        $rolePermissionCodes = [
+            'TEAM_LEAD' => ['employee.view', 'team.lead', 'report.view'],
+            'MANAGER' => ['employee.view', 'team.lead'],
+        ];
         $adminPermissionIds = collect($permissionIdsByCode)
             ->filter(static fn ($id): bool => is_numeric($id))
             ->map(static fn ($id): int => (int) $id)
@@ -191,6 +198,18 @@ class HcmUserManagementSeeder extends Seeder
 
                 if (in_array($role['code'], $adminRoleCodes, true)) {
                     $createdRole->syncPermissionsForCompany($adminPermissionIds);
+                    continue;
+                }
+
+                if (array_key_exists($role['code'], $rolePermissionCodes)) {
+                    $scopedPermissionIds = collect($rolePermissionCodes[$role['code']])
+                        ->map(static fn (string $code) => $permissionIdsByCode[$code] ?? null)
+                        ->filter(static fn ($id): bool => is_numeric($id))
+                        ->map(static fn ($id): int => (int) $id)
+                        ->values()
+                        ->all();
+
+                    $createdRole->syncPermissionsForCompany($scopedPermissionIds);
                 }
             }
 

@@ -1,9 +1,11 @@
 # Team Management Feature — Complete Impact Analysis
 
+> **Document Note (2026-04-26):** File ini adalah baseline impact planning awal (Phase 1). Untuk status runtime terbaru, audit lintas UI/UX, dan backlog aktif phase selanjutnya, gunakan `tracker.md` dan `README.md` pada folder feature ini.
+
 **Last Updated:** 2026-04-26  
-**Phase:** 1 (MVP CRUD + employee form integration)  
-**Objective:** Identify ALL files that must be created, modified, or documented for Team Master CRUD feature.  
-**Scope:** Excludes Phase 2+ (team lead delegation, analytics, payroll grouping, attendance team-filtering).
+**Phase:** Historical baseline (Phase 1 planning artifact)  
+**Objective:** Captured initial file impact map for Team Master CRUD rollout.  
+**Scope:** Dokumen ini tidak merepresentasikan status implementasi final lintas phase.
 
 ---
 

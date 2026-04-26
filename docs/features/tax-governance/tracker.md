@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-05-03
-- Status: phase 1 done, phase 2 done, phase 3 done, phase 4 in-progress
-- Ringkasan: keputusan produk sudah final dan implementasi runtime phase 4 sudah dimulai (migration + model + controller + route + baseline tests) untuk lifecycle policy tenant UUID-only dengan guardrail RBAC, SoD, dan tenant boundary.
+- Tanggal: 2026-04-27
+- Status: phase 1 done, phase 2 done, phase 3 done, phase 4 done, phase 5 done, phase 7 done, phase 8 done, phase 9 done
+- Ringkasan: runtime tenant lifecycle, observability dashboard, audit evidence pack, UUID bridge migration, dan platform billing tax runtime sudah aktif end-to-end dengan regression gate lokal lulus.
 
 ## Progress Phase (Live)
 
@@ -13,12 +13,12 @@
 | 1 | Baseline Dokumentasi dan Scope Lock | done | Baseline docs, decision lock, RBAC matrix detail sudah sinkron. |
 | 2 | UI/UX Planning dan Role Journey | done | UI/UX plan disetujui sementara; siap jadi acuan implementasi FE/BE/QA. |
 | 3 | API Contract dan Permission Mapping | done | Kontrak API UUID-only, endpoint-permission map, dan sinkronisasi OpenAPI phase 3 sudah dikunci. |
-| 4 | Runtime Control Plane Foundation | in-progress | Baseline runtime sudah mulai di backend: persistence policy/events, endpoint lifecycle tenant, dan test awal SoD + tenant boundary. |
-| 5 | Governance Dashboard Lintas Tenant | not-started | Menunggu projection model dan metric definition. |
+| 4 | Runtime Control Plane Foundation | done | Runtime lifecycle + SoD + tenant boundary sudah stabil dan regression-tested. |
+| 5 | Governance Dashboard Lintas Tenant | done | Dashboard summary + anomaly registry aktif dengan projection read model. |
 | 6 | Negative Path Hardening | not-started | Menunggu wiring runtime + UX warning implementation. |
-| 7 | Audit Evidence Pack | not-started | Menunggu domain event + reporting pipeline. |
-| 8 | UUID Migration Execution | not-started | Menunggu object model final + migration plan rinci. |
-| 9 | Platform Billing Tax + Tenant Self-Reporting Finalization | not-started | Menunggu foundation phase 4-8 stabil. |
+| 7 | Audit Evidence Pack | done | Self-audit export + anomaly acknowledge/resolve + policy event history endpoint sudah tersedia. |
+| 8 | UUID Migration Execution | done | Policy endpoint bridge UUID+numeric + deprecation headers + telemetry + migration docs aktif. |
+| 9 | Platform Billing Tax + Tenant Self-Reporting Finalization | done | Billing tax policy model/migration/service + report/invoice endpoints aktif dan tervalidasi oleh local test gate. |
 
 ## Evidence Phase 1 (Done)
 
@@ -64,6 +64,9 @@
 - `PayrollDraftBuilder` menghitung PPh21 TER bulanan dan mencatat metadata `missingTaxProfile`, `taxStatusSource`, serta `pph21TerCategory` pada payroll line.
 - Dokumentasi API payroll dan salary component sudah mengakui peran tax status dan TER gross flags, tetapi belum ada paket fitur governance pajak yang memusatkan narasi audit.
 - Decision document final sudah dibuat di [DECISION.md](DECISION.md) dan mengunci dual-plane architecture + UUID-only strategy.
+- Runtime phase 8 mengaktifkan policy path bridge (`{policyRef}`), telemetry numeric usage, dan header deprecation sunset.
+- Runtime phase 9 menambahkan `hcm_billing_tax_policies` + BillingTaxCalculationService + endpoint `/platform-billing/reports` dan `/platform-billing/invoices`.
+- Tenant self-audit enhanced sekarang menyertakan `billing_tax_compliance` section untuk monthly compliance readout.
 
 ## Gap Aktif
 

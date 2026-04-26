@@ -9772,19 +9772,22 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
-  /v1/hcm/tax-governance/policies/{policyUuid}:
+  /v1/hcm/tax-governance/policies/{policyRef}:
     get:
       tags: [Tax Governance]
       summary: Get tax governance policy detail
       security:
         - bearerAuth: []
       parameters:
-        - name: policyUuid
+        - name: policyRef
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
       responses:
         '200':
           description: OK
@@ -9803,12 +9806,15 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: policyUuid
+        - name: policyRef
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
       requestBody:
         required: true
         content:
@@ -9828,7 +9834,7 @@ paths:
         '409': { $ref: '#/components/responses/ConflictError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
-  /v1/hcm/tax-governance/policies/{policyUuid}/publish:
+  /v1/hcm/tax-governance/policies/{policyRef}/publish:
     post:
       tags: [Tax Governance]
       summary: Publish approved tax governance policy
@@ -9837,12 +9843,15 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: policyUuid
+        - name: policyRef
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
       requestBody:
         required: true
         content:
@@ -9869,19 +9878,22 @@ paths:
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
-  /v1/hcm/tax-governance/policies/{policyUuid}/submit:
+  /v1/hcm/tax-governance/policies/{policyRef}/submit:
     post:
       tags: [Tax Governance]
       summary: Submit tax governance draft for approval
       security:
         - bearerAuth: []
       parameters:
-        - name: policyUuid
+        - name: policyRef
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
       requestBody:
         required: false
         content:
@@ -9904,19 +9916,22 @@ paths:
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
-  /v1/hcm/tax-governance/policies/{policyUuid}/approve:
+  /v1/hcm/tax-governance/policies/{policyRef}/approve:
     post:
       tags: [Tax Governance]
       summary: Approve submitted tax governance policy
       security:
         - bearerAuth: []
       parameters:
-        - name: policyUuid
+        - name: policyRef
           in: path
           required: true
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
       requestBody:
         required: true
         content:
@@ -10103,6 +10118,143 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/tax-governance/reports/tenant-self-audit-export:
+    get:
+      tags: [Tax Governance]
+      summary: Export tenant self-audit report (enhanced)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: company_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: period_start
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: period_end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/policies/{policyRef}/events:
+    get:
+      tags: [Tax Governance]
+      summary: Get policy immutable event history
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: policyRef
+          in: path
+          required: true
+          schema:
+            oneOf:
+              - type: string
+                format: uuid
+              - type: integer
+                minimum: 1
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/tax-governance/governance/anomalies/{anomalyId}/resolve:
+    patch:
+      tags: [Tax Governance]
+      summary: Resolve anomaly
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: anomalyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution_note]
+              properties:
+                resolution_note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/governance/anomalies/{anomalyId}/acknowledge:
+    post:
+      tags: [Tax Governance]
+      summary: Acknowledge anomaly
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: anomalyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
   /v1/hcm/tax-governance/platform-billing/policies:
     get:
       tags: [Tax Governance]
@@ -10182,31 +10334,19 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
-  /v1/hcm/tax-governance/platform-billing/reports/export:
+  /v1/hcm/tax-governance/platform-billing/invoices:
     get:
       tags: [Tax Governance]
-      summary: Export platform billing tax report
+      summary: Platform billing tax invoice snapshots
       security:
         - bearerAuth: []
       parameters:
-        - name: period_start
+        - name: month
           in: query
           required: true
           schema:
             type: string
-            format: date
-        - name: period_end
-          in: query
-          required: true
-          schema:
-            type: string
-            format: date
-        - name: format
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [json, csv, xlsx, pdf]
+            pattern: '^[0-9]{4}-[0-9]{2}$'
       responses:
         '200':
           description: OK

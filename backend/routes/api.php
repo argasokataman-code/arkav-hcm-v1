@@ -175,18 +175,22 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::prefix('tax-governance')->group(function (): void {
         Route::get('/policies', [HcmTaxGovernanceController::class, 'index']);
         Route::post('/policies', [HcmTaxGovernanceController::class, 'store']);
-        Route::get('/policies/{policyUuid}', [HcmTaxGovernanceController::class, 'show'])->whereUuid('policyUuid');
-        Route::patch('/policies/{policyUuid}', [HcmTaxGovernanceController::class, 'update'])->whereUuid('policyUuid');
-        Route::post('/policies/{policyUuid}/submit', [HcmTaxGovernanceController::class, 'submit'])->whereUuid('policyUuid');
-        Route::post('/policies/{policyUuid}/approve', [HcmTaxGovernanceController::class, 'approve'])->whereUuid('policyUuid');
-        Route::post('/policies/{policyUuid}/publish', [HcmTaxGovernanceController::class, 'publish'])->whereUuid('policyUuid');
-        Route::get('/policies/{policyUuid}/events', [HcmTaxGovernanceController::class, 'policyEventHistory'])->whereUuid('policyUuid');
+        Route::get('/policies/{policyRef}', [HcmTaxGovernanceController::class, 'show'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::patch('/policies/{policyRef}', [HcmTaxGovernanceController::class, 'update'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::post('/policies/{policyRef}/submit', [HcmTaxGovernanceController::class, 'submit'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::post('/policies/{policyRef}/approve', [HcmTaxGovernanceController::class, 'approve'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::post('/policies/{policyRef}/publish', [HcmTaxGovernanceController::class, 'publish'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::get('/policies/{policyRef}/events', [HcmTaxGovernanceController::class, 'policyEventHistory'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::get('/governance/dashboard', [HcmTaxGovernanceController::class, 'dashboardSummary']);
         Route::get('/governance/anomalies', [HcmTaxGovernanceController::class, 'anomalyRegistry']);
         Route::patch('/governance/anomalies/{anomalyId}/resolve', [HcmTaxGovernanceController::class, 'resolveAnomaly'])->whereUuid('anomalyId');
         Route::post('/governance/anomalies/{anomalyId}/acknowledge', [HcmTaxGovernanceController::class, 'acknowledgeAnomaly'])->whereUuid('anomalyId');
         Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);
         Route::get('/reports/tenant-self-audit-export', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportExport']);
+        Route::get('/platform-billing/policies', [HcmTaxGovernanceController::class, 'platformBillingPolicies']);
+        Route::post('/platform-billing/policies', [HcmTaxGovernanceController::class, 'storePlatformBillingPolicy']);
+        Route::get('/platform-billing/reports', [HcmTaxGovernanceController::class, 'platformBillingReports']);
+        Route::get('/platform-billing/invoices', [HcmTaxGovernanceController::class, 'platformBillingInvoices']);
     });
 
     Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);

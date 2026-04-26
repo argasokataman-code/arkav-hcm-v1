@@ -1,10 +1,10 @@
-# HCM — Tax Governance API (Phase 5 In Progress)
+# HCM — Tax Governance API (Phase 9 In Progress)
 
 Prefix utama: `/v1/hcm/tax-governance`  
 Prefix platform billing: `/v1/hcm/tax-governance/platform-billing`  
 Middleware: `api.token` + tenant scope resolver + server-side RBAC guardrails
 
-Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 in-progress (governance dashboard + anomaly observability)`.
+Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 done (UUID bridge + deprecation), phase-9 in-progress (platform billing tax runtime)`.
 
 ## Progress Phase 5 (Governance Dashboard Lintas Tenant)
 
@@ -24,7 +24,7 @@ Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenan
 ## Progress Phase 4 (Runtime Baseline)
 
 1. Selesai (phase-4 done):
-   - endpoint runtime tenant lifecycle terpasang untuk `GET/POST /policies`, `GET/PATCH /policies/{policyUuid}`, `POST /submit`, `POST /approve`, `POST /publish`;
+   - endpoint runtime tenant lifecycle terpasang untuk `GET/POST /policies`, `GET/PATCH /policies/{policyRef}`, `POST /submit`, `POST /approve`, `POST /publish`;
    - baseline guardrail server-side untuk `AUTH_FORBIDDEN`, `TAX_POLICY_SOD_VIOLATION`, `TAX_POLICY_NOT_FOUND`, `TAX_POLICY_INVALID_STATE_TRANSITION`, `TAX_POLICY_VERSION_CONFLICT`;
    - migration persistence policy + event immutable;
    - model HcmTaxGovernancePolicy + HcmTaxGovernancePolicyEvent;
@@ -68,11 +68,12 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/DECISION.md
 |---|---|---|---|
 | `GET /policies` | List tax policy tenant | `tax.tenant.policy.view` | Tenant sendiri |
 | `POST /policies` | Buat draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `GET /policies/{policyUuid}` | Detail policy | `tax.tenant.policy.view` | Tenant sendiri |
-| `PATCH /policies/{policyUuid}` | Ubah draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `POST /policies/{policyUuid}/submit` | Submit approval | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `POST /policies/{policyUuid}/approve` | Approve policy | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
-| `POST /policies/{policyUuid}/publish` | Publish policy | `tax.tenant.policy.publish` | Tenant sendiri + SoD |
+| `GET /policies/{policyRef}` | Detail policy | `tax.tenant.policy.view` | Tenant sendiri |
+| `PATCH /policies/{policyRef}` | Ubah draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
+| `POST /policies/{policyRef}/submit` | Submit approval | `tax.tenant.policy.draft.manage` | Tenant sendiri |
+| `POST /policies/{policyRef}/approve` | Approve policy | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
+| `POST /policies/{policyRef}/publish` | Publish policy | `tax.tenant.policy.publish` | Tenant sendiri + SoD |
+| `GET /policies/{policyRef}/events` | Event history immutable | `tax.tenant.policy.view` | Tenant sendiri |
 | `GET /reports/tenant-self-audit` | Export tenant self-audit | `tax.tenant.report.export` | Tenant sendiri |
 | `GET /governance/dashboard` | Dashboard lintas tenant subscribe | `tax.governance.dashboard.view_all` | Global observability |
 | `GET /governance/anomalies` | Anomaly lintas tenant | `tax.governance.anomaly.view_all` | Global observability |
@@ -81,7 +82,7 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/DECISION.md
 | `GET /platform-billing/policies` | List policy platform billing tax | `tax.platform.policy.view` | Platform domain |
 | `POST /platform-billing/policies` | Buat/ubah policy platform billing | `tax.platform.policy.manage` | Platform domain |
 | `GET /platform-billing/reports` | Lihat report billing tax lintas tenant | `tax.platform.report.view_all` | Platform domain |
-| `GET /platform-billing/reports/export` | Export report billing tax | `tax.platform.report.export_all` | Platform domain |
+| `GET /platform-billing/invoices` | Invoice snapshot billing tax | `tax.platform.report.export_all` | Platform domain |
 
 ## Lifecycle Policy Statutory Tax Tenant
 
@@ -126,15 +127,15 @@ Body minimum:
 Response `201`:
 - `data` policy object status `draft`.
 
-### `GET /v1/hcm/tax-governance/policies/{policyUuid}`
+### `GET /v1/hcm/tax-governance/policies/{policyRef}`
 
 Path:
-1. `policyUuid` format UUID.
+1. `policyRef` menerima UUID (utama) atau numeric legacy (sementara) selama migration window.
 
 Response `200`:
 - detail policy + publication summary + audit summary.
 
-### `PATCH /v1/hcm/tax-governance/policies/{policyUuid}`
+### `PATCH /v1/hcm/tax-governance/policies/{policyRef}`
 
 Aturan:
 1. Hanya status `draft` yang bisa diubah.
@@ -143,7 +144,7 @@ Aturan:
 Response `200`:
 - policy draft terbaru.
 
-### `POST /v1/hcm/tax-governance/policies/{policyUuid}/submit`
+### `POST /v1/hcm/tax-governance/policies/{policyRef}/submit`
 
 Body opsional:
 1. `submissionNote` (string, max 1000)
@@ -151,7 +152,7 @@ Body opsional:
 Response `200`:
 - status berubah menjadi `submitted`.
 
-### `POST /v1/hcm/tax-governance/policies/{policyUuid}/approve`
+### `POST /v1/hcm/tax-governance/policies/{policyRef}/approve`
 
 Body minimum:
 1. `approvalNote` (string)
@@ -159,7 +160,13 @@ Body minimum:
 Response `200`:
 - status berubah menjadi `approved`.
 
-### `POST /v1/hcm/tax-governance/policies/{policyUuid}/publish`
+### `POST /v1/hcm/tax-governance/policies/{policyRef}/publish`
+
+### `GET /v1/hcm/tax-governance/policies/{policyRef}/events`
+
+Response `200`:
+1. history event immutable dengan field `policy_uuid` dan `event_uuid`.
+2. jika path menggunakan numeric legacy, response menyertakan header deprecation + sunset.
 
 Body minimum:
 1. `publishReason` (string)
@@ -247,15 +254,15 @@ Query minimum:
 Response `200`:
 - summary tax by cycle, package, segment.
 
-### `GET /v1/hcm/tax-governance/platform-billing/reports/export`
+### `GET /v1/hcm/tax-governance/platform-billing/invoices`
 
 Query minimum:
 1. `period_start`
 2. `period_end`
-3. `format`: `json|csv|xlsx|pdf`
+3. tidak ada format export; response berisi `invoice_snapshots` untuk billing month.
 
 Response `200`:
-- artefak export report billing tax lintas tenant.
+- snapshot invoice billing tax lintas tenant untuk evidence dan rekonsiliasi.
 
 ## Negative/Forbidden Contract (Mandatory)
 
@@ -274,8 +281,8 @@ Response `200`:
 
 ## Catatan Transisi Identifier
 
-Status transisi domain tax governance: **UUID-only untuk endpoint baru**.  
-Jika runtime lama masih butuh numeric bridge internal, bridge tetap private di service layer dan tidak dipublikasikan ke API response/request.
+Status transisi domain tax governance: **UUID primary + temporary numeric fallback untuk policy path runtime**.  
+Numeric fallback mengirim header deprecation dan sunset, serta ditracking via telemetry sampai cutoff migration.
 
 ## Sinkronisasi Wajib
 

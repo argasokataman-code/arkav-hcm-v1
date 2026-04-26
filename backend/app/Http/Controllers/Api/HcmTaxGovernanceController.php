@@ -6,18 +6,27 @@ use App\Events\TaxGovernancePolicyTransitioned;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
+use App\Services\BillingTaxCalculationService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class HcmTaxGovernanceController extends Controller
 {
     use ChecksPermissions;
+
+    private const NUMERIC_POLICY_ID_DEPRECATION = 'true';
+
+    private const NUMERIC_POLICY_ID_SUNSET_AT = '2026-07-26T00:00:00Z';
 
     public function index(Request $request): JsonResponse
     {
@@ -111,30 +120,32 @@ class HcmTaxGovernanceController extends Controller
         ], 201);
     }
 
-    public function show(Request $request, string $policyUuid): JsonResponse
+    public function show(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.view')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyUuid);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
 
-        return response()->json([
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
             'success' => true,
             'data' => $this->policyPayload($policy, true),
-        ]);
+        ]), $usedNumericLegacy);
     }
 
-    public function update(Request $request, string $policyUuid): JsonResponse
+    public function update(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyUuid);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
@@ -168,19 +179,20 @@ class HcmTaxGovernanceController extends Controller
 
         $policy->refresh();
 
-        return response()->json([
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
             'success' => true,
             'data' => $this->policyPayload($policy),
-        ]);
+        ]), $usedNumericLegacy);
     }
 
-    public function submit(Request $request, string $policyUuid): JsonResponse
+    public function submit(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyUuid);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
@@ -219,16 +231,20 @@ class HcmTaxGovernanceController extends Controller
         // Dispatch event for projection sync
         // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
 
-        return response()->json(['success' => true, 'data' => $this->policyPayload($policy)]);
+        return $this->withNumericPolicyDeprecationHeaders(
+            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
+            $usedNumericLegacy
+        );
     }
 
-    public function approve(Request $request, string $policyUuid): JsonResponse
+    public function approve(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.approve')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyUuid);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
@@ -264,16 +280,20 @@ class HcmTaxGovernanceController extends Controller
         // Dispatch event for projection sync
         // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
 
-        return response()->json(['success' => true, 'data' => $this->policyPayload($policy)]);
+        return $this->withNumericPolicyDeprecationHeaders(
+            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
+            $usedNumericLegacy
+        );
     }
 
-    public function publish(Request $request, string $policyUuid): JsonResponse
+    public function publish(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.publish')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyUuid);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
@@ -311,7 +331,10 @@ class HcmTaxGovernanceController extends Controller
         // Dispatch event for projection sync
         // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
 
-        return response()->json(['success' => true, 'data' => $this->policyPayload($policy)]);
+        return $this->withNumericPolicyDeprecationHeaders(
+            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
+            $usedNumericLegacy
+        );
     }
 
     public function tenantSelfAuditReport(Request $request): JsonResponse
@@ -393,11 +416,23 @@ class HcmTaxGovernanceController extends Controller
             'red' => $allProjections->where('tenant_risk_level', 'red')->count(),
         ];
 
+        $billingMonth = now()->format('Y-m');
+        $billingService = app(BillingTaxCalculationService::class);
+        $billingReport = $billingService->generateCrossTenantMonthlyReport($billingMonth);
+        $billingTaxHealth = [
+            'billing_month' => $billingMonth,
+            'tenant_count_with_policy' => (int) ($billingReport['summary']['tenant_count_with_policy'] ?? 0),
+            'total_tax_due' => (float) ($billingReport['summary']['total_tax_due'] ?? 0),
+            'total_invoice_amount' => (float) ($billingReport['summary']['total_invoice_amount'] ?? 0),
+            'unpaid_invoice_count' => (int) ($billingReport['summary']['unpaid_invoice_count'] ?? 0),
+        ];
+
         return response()->json([
             'success' => true,
             'data' => [
                 'summary' => $summary,
                 'risk_heatmap' => $riskHeatmap,
+                'billing_tax_health' => $billingTaxHealth,
                 'tenants' => collect($projections->items())->map(function (HcmTaxGovernanceProjection $proj) {
                     return [
                         'company_id' => $proj->company_id,
@@ -592,8 +627,8 @@ class HcmTaxGovernanceController extends Controller
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = $validated['period_start'] ? \Carbon\Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = $validated['period_end'] ? \Carbon\Carbon::parse($validated['period_end']) : now();
+        $periodStart = $validated['period_start'] ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = $validated['period_end'] ? Carbon::parse($validated['period_end']) : now();
 
         $policies = HcmTaxGovernancePolicy::where('company_id', $companyId)->get();
         $currentPublishedPolicy = $policies->where('status', 'published')->first();
@@ -627,6 +662,9 @@ class HcmTaxGovernanceController extends Controller
             'no_unresolved_anomalies' => HcmTaxGovernanceAnomaly::where('company_id', $companyId)->whereNull('resolved_at')->count() === 0,
         ];
 
+        $billingService = app(BillingTaxCalculationService::class);
+        $billingTaxCompliance = $billingService->calculateBillingTax((int) $companyId, now()->format('Y-m'));
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -652,6 +690,16 @@ class HcmTaxGovernanceController extends Controller
                     'anomalies_in_period' => [],
                 ],
                 'compliance_checklist' => $complianceChecklist,
+                'billing_tax_compliance' => [
+                    'billing_month' => $billingTaxCompliance['billing_month'] ?? now()->format('Y-m'),
+                    'policy_uuid' => $billingTaxCompliance['policy_uuid'] ?? null,
+                    'invoice_count' => (int) ($billingTaxCompliance['invoice_count'] ?? 0),
+                    'paid_invoice_count' => (int) ($billingTaxCompliance['paid_invoice_count'] ?? 0),
+                    'unpaid_invoice_count' => (int) ($billingTaxCompliance['unpaid_invoice_count'] ?? 0),
+                    'total_invoice_amount' => (float) ($billingTaxCompliance['total_invoice_amount'] ?? 0),
+                    'tax_amount_due' => (float) ($billingTaxCompliance['tax_amount'] ?? 0),
+                    'tax_rate_percentage' => (float) ($billingTaxCompliance['tax_rate_percentage'] ?? 0),
+                ],
             ],
         ]);
     }
@@ -675,17 +723,36 @@ class HcmTaxGovernanceController extends Controller
         return $request->validate($rules);
     }
 
-    private function findPolicyForRequest(Request $request, string $policyUuid): ?HcmTaxGovernancePolicy
+    private function findPolicyForRequest(Request $request, string $policyRef, bool &$usedNumericLegacy = false): ?HcmTaxGovernancePolicy
     {
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return null;
         }
 
-        return HcmTaxGovernancePolicy::query()
-            ->where('company_id', $companyId)
-            ->where('uuid', $policyUuid)
-            ->first();
+        $usedNumericLegacy = ctype_digit($policyRef);
+
+        if ($usedNumericLegacy) {
+            Log::notice('tax_governance.numeric_policy_reference_used', [
+                'user_id' => (int) ($request->user()?->id ?? 0) ?: null,
+                'company_id' => (int) $companyId,
+                'method' => $request->method(),
+                'path' => $request->path(),
+                'policy_reference' => $policyRef,
+                'sunset_at' => self::NUMERIC_POLICY_ID_SUNSET_AT,
+            ]);
+        }
+
+        $query = HcmTaxGovernancePolicy::query()
+            ->where('company_id', $companyId);
+
+        if ($usedNumericLegacy) {
+            $query->where('id', (int) $policyRef);
+        } else {
+            $query->where('uuid', $policyRef);
+        }
+
+        return $query->first();
     }
 
     private function policyPayload(HcmTaxGovernancePolicy $policy, bool $withEvents = false): array
@@ -789,13 +856,174 @@ class HcmTaxGovernanceController extends Controller
         ]);
     }
 
-    public function policyEventHistory(Request $request, string $policyId): JsonResponse
+    public function platformBillingPolicies(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.policy.view')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can access platform billing tax policies.', 403);
+        }
+
+        $validated = $request->validate([
+            'billing_month' => ['nullable', 'date_format:Y-m'],
+            'status' => ['nullable', Rule::in(['draft', 'active', 'inactive'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $query = HcmBillingTaxPolicy::query()->with('company')->orderByDesc('effective_from')->orderByDesc('created_at');
+
+        if (!empty($validated['billing_month'])) {
+            $query->where('billing_month', $validated['billing_month']);
+        }
+
+        if (!empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        $rows = $query->paginate((int) ($validated['per_page'] ?? 20));
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'items' => collect($rows->items())->map(fn (HcmBillingTaxPolicy $policy): array => [
+                    'id' => $policy->id,
+                    'company_id' => $policy->company_id,
+                    'company_name' => optional($policy->company)->name,
+                    'billing_month' => $policy->billing_month,
+                    'billing_cycle_type' => $policy->billing_cycle_type,
+                    'tax_rate_percentage' => (float) $policy->tax_rate_percentage,
+                    'base_calculation_method' => $policy->base_calculation_method,
+                    'effective_from' => optional($policy->effective_from)?->toDateString(),
+                    'effective_to' => optional($policy->effective_to)?->toDateString(),
+                    'status' => $policy->status,
+                ])->values(),
+                'meta' => [
+                    'page' => $rows->currentPage(),
+                    'per_page' => $rows->perPage(),
+                    'total' => $rows->total(),
+                ],
+            ],
+        ]);
+    }
+
+    public function storePlatformBillingPolicy(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.policy.manage')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can manage platform billing tax policies.', 403);
+        }
+
+        $validated = $request->validate([
+            'company_id' => ['required', 'integer', 'exists:companies,id'],
+            'billing_month' => ['required', 'date_format:Y-m'],
+            'billing_cycle_type' => ['required', Rule::in(['monthly', 'yearly', 'custom'])],
+            'tax_rate_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'base_calculation_method' => ['required', Rule::in(['invoice_amount_due'])],
+            'effective_from' => ['required', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'status' => ['nullable', Rule::in(['draft', 'active', 'inactive'])],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $service = app(BillingTaxCalculationService::class);
+        if (!$service->validateBillingTaxPolicy($validated)) {
+            return $this->errorResponse('BILLING_TAX_POLICY_INVALID', 'Billing tax policy validation failed.', 422);
+        }
+
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        $policy = HcmBillingTaxPolicy::query()->create([
+            'id' => (string) Str::uuid(),
+            'company_id' => (int) $validated['company_id'],
+            'billing_month' => $validated['billing_month'],
+            'billing_cycle_type' => $validated['billing_cycle_type'],
+            'tax_rate_percentage' => $validated['tax_rate_percentage'],
+            'base_calculation_method' => $validated['base_calculation_method'],
+            'effective_from' => $validated['effective_from'],
+            'effective_to' => $validated['effective_to'] ?? null,
+            'status' => $validated['status'] ?? 'active',
+            'notes' => $validated['notes'] ?? null,
+            'created_by_user_id' => $actorId,
+            'updated_by_user_id' => $actorId,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $policy->id,
+                'company_id' => $policy->company_id,
+                'billing_month' => $policy->billing_month,
+                'billing_cycle_type' => $policy->billing_cycle_type,
+                'tax_rate_percentage' => (float) $policy->tax_rate_percentage,
+                'base_calculation_method' => $policy->base_calculation_method,
+                'effective_from' => optional($policy->effective_from)?->toDateString(),
+                'effective_to' => optional($policy->effective_to)?->toDateString(),
+                'status' => $policy->status,
+            ],
+        ], 201);
+    }
+
+    public function platformBillingReports(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.report.view_all')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can view platform billing tax reports.', 403);
+        }
+
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $report = app(BillingTaxCalculationService::class)->generateCrossTenantMonthlyReport($validated['month']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $report,
+        ]);
+    }
+
+    public function platformBillingInvoices(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.report.export_all')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can view platform billing tax invoices.', 403);
+        }
+
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+
+        $report = app(BillingTaxCalculationService::class)->generateCrossTenantMonthlyReport($validated['month']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'month' => $validated['month'],
+                'invoice_snapshots' => $report['invoice_snapshots'] ?? [],
+            ],
+        ]);
+    }
+
+    public function policyEventHistory(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.view')) {
             return $response;
         }
 
-        $policy = $this->findPolicyForRequest($request, $policyId);
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (!$policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
@@ -811,20 +1039,20 @@ class HcmTaxGovernanceController extends Controller
             ->orderBy('created_at', 'asc')
             ->paginate($perPage);
 
-        return response()->json([
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
             'success' => true,
             'data' => [
-                'policy_id' => $policy->id,
+                'policy_uuid' => $policy->uuid,
                 'events' => collect($events->items())->map(function (HcmTaxGovernancePolicyEvent $event) {
                     return [
-                        'event_id' => $event->id,
+                        'event_uuid' => $event->uuid,
                         'event_type' => $event->event_type,
                         'timestamp' => $event->created_at->toIso8601String(),
                         'actor_user_id' => $event->actor_user_id,
                         'actor_email' => optional($event->actorUser)->email ?? 'System',
                         'note' => $event->note,
-                        'before_state' => $event->before_state ? json_decode($event->before_state, true) : null,
-                        'after_state' => $event->after_state ? json_decode($event->after_state, true) : null,
+                        'before_state' => $event->before_state,
+                        'after_state' => $event->after_state,
                     ];
                 })->values(),
                 'meta' => [
@@ -833,7 +1061,19 @@ class HcmTaxGovernanceController extends Controller
                     'total' => $events->total(),
                 ],
             ],
-        ]);
+        ]), $usedNumericLegacy);
+    }
+
+    private function withNumericPolicyDeprecationHeaders(JsonResponse $response, bool $usedNumericLegacy): JsonResponse
+    {
+        if (! $usedNumericLegacy) {
+            return $response;
+        }
+
+        return $response
+            ->header('Deprecation', self::NUMERIC_POLICY_ID_DEPRECATION)
+            ->header('Sunset', self::NUMERIC_POLICY_ID_SUNSET_AT)
+            ->header('Warning', '299 - "Numeric policy identifier is deprecated. Use UUID."');
     }
     private function policyStateSnapshot(HcmTaxGovernancePolicy $policy): array
     {

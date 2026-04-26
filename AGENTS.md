@@ -37,11 +37,21 @@ Dengan hook aktif:
 ## Shared hosting deploy (lokal-first automated)
 
 1. Lokal: `bash scripts/local-test-gate.sh` (mandatory gate)
-2. Lokal: `bash scripts/shared-hosting-package-local.sh` (build artifact)
-3. Lokal: parity pre-check `bash scripts/compare-local-staging.sh --user <user> --host <host> --port <port> --app-dir <remote_app_dir>`
-4. Lokal: `git commit && git push origin main`
-5. **GitHub Actions auto-deploy**: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
-6. Lokal: parity post-check dengan command yang sama, wajib pastikan hash critical sinkron.
+2. Lokal: commit perubahan code/docs dulu (tanpa artifact release)
+3. Lokal: `bash scripts/shared-hosting-package-local.sh` (build artifact dari commit terbaru)
+4. Lokal: `bash scripts/check-shared-hosting-artifact-sync.sh` (wajib PASS)
+5. Lokal: commit perubahan `release/shared-hosting/` (artifact refresh)
+6. Lokal: push ke `main` **hanya setelah konfirmasi eksplisit dari operator**
+7. **GitHub Actions auto-deploy**: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
+8. Lokal: parity post-check (`scripts/compare-local-staging.sh`) saat akses SSH staging tersedia.
+
+### Mandatory safety (deploy prep)
+
+- Saat diminta "prepare deploy", **jangan push otomatis**. Stop di status "ready to push" dan tunggu instruksi operator.
+- Jangan minta parameter SSH (`--user/--host/--port/--app-dir`) untuk flow GitHub auto-deploy standar, kecuali operator memang minta parity check manual.
+- Artifact **wajib** dibangun setelah commit code/docs utama agar `RELEASE-METADATA git_head` tidak stale.
+- Jika pre-push menolak karena stale artifact, ulangi urutan resmi: commit code/docs -> package artifact -> commit release artifact -> push.
+- Gunakan `bash scripts/prepare-main-push.sh --message "<commit message code/docs>"` untuk alur aman satu pintu (script ini tidak pernah melakukan push otomatis).
 
 Artifact di-track di `release/shared-hosting/` agar GitHub dapat deploy tanpa re-build.
 

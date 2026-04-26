@@ -9,6 +9,7 @@ fi
 
 chmod +x scripts/check-tests-on-change.sh
 chmod +x scripts/check-api-docs-sync.sh
+chmod +x scripts/prepare-main-push.sh
 chmod +x .githooks/pre-commit
 chmod +x .githooks/pre-push
 
@@ -18,3 +19,4 @@ echo "install-git-hooks: done"
 echo "  - core.hooksPath = .githooks"
 echo "  - pre-commit will run test/docs guards"
 echo "  - pre-push will block main push unless local gate + artifact sync pass"
+echo "  - deploy prep helper available: bash scripts/prepare-main-push.sh --message \"<msg>\""

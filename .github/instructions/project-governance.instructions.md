@@ -48,19 +48,24 @@ Hanya push ke main jika **semua tests pass lokal**. GitHub Actions hanya bertuga
 
 **Workflow**:
 1. **Lokal** — `bash scripts/local-test-gate.sh` (tester saja, gate mandatory)
-2. **Lokal** — Jika pass, build artifact: `bash scripts/shared-hosting-package-local.sh`
+2. **Lokal** — Commit perubahan code/docs dulu (tanpa artifact release).
+3. **Lokal** — Build artifact dari commit terbaru: `bash scripts/shared-hosting-package-local.sh`
 	- Script ini otomatis melakukan rolling prune artifact lama (default simpan 5 terbaru).
 	- Override jumlah retention bila perlu: `SHARED_HOSTING_ARTIFACT_KEEP_COUNT=<n> bash scripts/shared-hosting-package-local.sh`.
-3. **Lokal** — Guard sinkronisasi artifact (wajib sebelum push):
+4. **Lokal** — Guard sinkronisasi artifact (wajib sebelum push):
 	- `bash scripts/check-shared-hosting-artifact-sync.sh`
 	- Guard ini wajib PASS; jika gagal berarti artifact stale terhadap commit aktif.
-4. **Lokal** — Parity pre-check (wajib sebelum push):
-	- `bash scripts/compare-local-staging.sh --user <user> --host <host> --port <port> --app-dir <remote_app_dir>`
-	- Simpan evidence hash yang berbeda/sama sebelum deploy.
-5. **Lokal** — Commit + push: `git add release/ && git commit && git push origin main`
-6. **GitHub Actions** — Auto: cek artifact ada + cek sinkronisasi artifact vs commit → SCP upload → SSH deploy → verify status
-7. **Lokal** — Parity post-check (wajib setelah deploy):
-	- jalankan ulang `scripts/compare-local-staging.sh` dan pastikan file critical + release marker sinkron.
+5. **Lokal** — Commit perubahan `release/shared-hosting/` (artifact refresh).
+6. **Lokal** — Push ke `main` hanya setelah konfirmasi eksplisit operator.
+7. **GitHub Actions** — Auto: cek artifact ada + cek sinkronisasi artifact vs commit → SCP upload → SSH deploy → verify status
+8. **Lokal** — Parity pre/post-check via `scripts/compare-local-staging.sh` dilakukan saat akses SSH staging tersedia atau saat diminta eksplisit.
+
+**Mandatory deploy-prep discipline**:
+- Saat request "prepare deploy", stop di status "ready to push"; **dilarang push otomatis** tanpa konfirmasi operator.
+- Untuk GitHub auto-deploy standar, **jangan meminta parameter remote port/host** kecuali parity manual diminta eksplisit.
+- Gunakan helper flow tunggal untuk menghindari stale artifact:
+	- `bash scripts/prepare-main-push.sh --message "<commit message code/docs>"`
+	- Script ini tidak melakukan push; operator tetap memberi konfirmasi akhir sebelum `git push origin main`.
 
 **GitHub workflow** (`.github/workflows/shared-hosting-deploy.yml`):
 - Trigger: push ke main dengan perubahan di `backend/**` atau `release/shared-hosting/**`

@@ -21,6 +21,8 @@
     var currentInvoice = null;
     var searchTimer = null;
     var manualModalOpen = false;
+    var invoiceSettingsCache = null;
+    var invoiceSettingsRequest = null;
     try {
         if (modalEl && window.bootstrap) {
             modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -132,6 +134,52 @@
             return "Until " + fmtDate(inv.currentPeriodEnd);
         }
         return "-";
+    }
+
+    function parseBool(v, fallback) {
+        if (v === true || v === 1 || v === "1") return true;
+        if (v === false || v === 0 || v === "0") return false;
+        return !!fallback;
+    }
+
+    function defaultInvoiceSettings() {
+        return {
+            invoice_prefix: "INV-",
+            invoice_due_days: "30",
+            invoice_show_tax: "1",
+            invoice_round_off_enabled: "0",
+            invoice_round_off: "none",
+            invoice_header_terms: "",
+            invoice_footer_terms: "",
+        };
+    }
+
+    function fetchInvoiceSettings() {
+        if (invoiceSettingsCache) {
+            return Promise.resolve(invoiceSettingsCache);
+        }
+        if (invoiceSettingsRequest) {
+            return invoiceSettingsRequest;
+        }
+
+        invoiceSettingsRequest = api("get", "/hcm/invoice-settings")
+            .then(function (payload) {
+                if (payload && payload.success === true && payload.data) {
+                    invoiceSettingsCache = Object.assign(defaultInvoiceSettings(), payload.data);
+                } else {
+                    invoiceSettingsCache = defaultInvoiceSettings();
+                }
+                return invoiceSettingsCache;
+            })
+            .catch(function () {
+                invoiceSettingsCache = defaultInvoiceSettings();
+                return invoiceSettingsCache;
+            })
+            .finally(function () {
+                invoiceSettingsRequest = null;
+            });
+
+        return invoiceSettingsRequest;
     }
 
     function paidDateValue(inv) {
@@ -407,8 +455,25 @@
         applySummary(rows);
     }
 
-    function fillModal(inv) {
+    function fillModal(inv, invoiceSettings) {
         currentInvoice = inv || null;
+        var settings = Object.assign(defaultInvoiceSettings(), invoiceSettings || {});
+
+        var prefix = settings.invoice_prefix || "INV-";
+        var dueDays = String(settings.invoice_due_days || "30");
+        var taxShown = parseBool(settings.invoice_show_tax, true);
+        var roundOffEnabled = parseBool(settings.invoice_round_off_enabled, false);
+        var roundOffMode = settings.invoice_round_off || "none";
+        var headerTerms = settings.invoice_header_terms || "-";
+        var footerTerms = settings.invoice_footer_terms || "-";
+
+        var termsSummary = [
+            "Prefix " + prefix,
+            "Due in " + dueDays + " days",
+            "Tax " + (taxShown ? "shown" : "hidden"),
+            "Round-off " + (roundOffEnabled ? roundOffMode : "disabled"),
+        ].join(" | ");
+
         function set(sel, val) {
             var el = document.querySelector(sel);
             if (el) el.textContent = val;
@@ -448,6 +513,9 @@
         set("[data-invoice-modal-table-amount]", fmtMoney(inv.amountDue));
         set("[data-invoice-modal-table-total]", fmtMoney(inv.amountDue));
         set("[data-invoice-modal-guidance]", invoiceGuidance(inv));
+        set("[data-invoice-modal-terms-summary]", termsSummary);
+        set("[data-invoice-modal-header-terms]", headerTerms);
+        set("[data-invoice-modal-footer-terms]", footerTerms);
         set("[data-invoice-modal-notes]", inv.notes || "Tidak ada catatan tambahan untuk invoice ini.");
         if (downloadBtn) {
             downloadBtn.disabled = !inv || !inv.id;
@@ -522,9 +590,14 @@
             var viewBtn = e.target.closest("[data-invoice-view]");
             if (viewBtn) {
                 var id = viewBtn.getAttribute("data-invoice-view");
-                api("get", "/hcm/billing/invoices/" + encodeURIComponent(id)).then(function (payload) {
+                Promise.all([
+                    api("get", "/hcm/billing/invoices/" + encodeURIComponent(id)),
+                    fetchInvoiceSettings(),
+                ]).then(function (results) {
+                    var payload = results[0];
+                    var settings = results[1];
                     if (!payload || payload.success !== true) return;
-                    fillModal(payload.data);
+                    fillModal(payload.data, settings);
                     openModal();
                 }).catch(function (err) {
                     showFeedback(parseError(err));

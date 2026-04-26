@@ -432,10 +432,15 @@ function initBusinessSettingsPage() {
                     console.log('✓ Loaded business settings:', settings);
                     // Populate form fields with existing values
                     $('[data-business]').each(function() {
-                        const key = $(this).data('business');
+                        const $field = $(this);
+                        const key = $field.data('business');
                         const settingKey = `business_${key}`;
-                        if (settings[settingKey]) {
-                            $(this).val(settings[settingKey]);
+                        if (Object.prototype.hasOwnProperty.call(settings, settingKey)) {
+                            const value = settings[settingKey] ?? '';
+                            $field.val(value);
+                            if ($field.is('select')) {
+                                $field.trigger('change');
+                            }
                         }
                     });
 
@@ -453,20 +458,13 @@ function initBusinessSettingsPage() {
         e.preventDefault();
 
         const businessData = {};
-        let hasData = false;
         $('[data-business]').each(function() {
             const key = $(this).data('business');
-            const value = $(this).val()?.trim();
-            if (value) {
-                businessData[key] = value;
-                hasData = true;
-            }
-        });
+            const rawValue = $(this).val();
+            const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
 
-        if (!hasData) {
-            alert('WARNING: Please fill at least one field before saving.');
-            return;
-        }
+            businessData[key] = value === '' ? null : value;
+        });
         
         const submitBtn = $(this).find('button[type="submit"]');
         const originalText = submitBtn.text();

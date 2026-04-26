@@ -268,6 +268,14 @@
                             </div>
                             <div class="col-lg-6">
                                 <div class="company-invoice-preview__panel h-100">
+                                    <div class="company-invoice-preview__panel-title">Invoice Terms</div>
+                                    <p class="company-invoice-preview__support mb-2" data-invoice-modal-terms-summary>Prefix INV- | Due in 30 days | Tax shown | Round-off disabled</p>
+                                    <p class="company-invoice-preview__support mb-1" data-invoice-modal-header-terms>-</p>
+                                    <p class="company-invoice-preview__support mb-0" data-invoice-modal-footer-terms>-</p>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="company-invoice-preview__panel h-100">
                                     <div class="company-invoice-preview__panel-title">Notes</div>
                                     <p class="company-invoice-preview__notes mb-0" data-invoice-modal-notes>No notes</p>
                                 </div>

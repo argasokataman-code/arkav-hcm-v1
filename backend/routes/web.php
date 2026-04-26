@@ -466,6 +466,14 @@ Route::get('/designations', function () {
     return view(view: 'designations');
 })->middleware('hcm.web.admin')->name('designations');
 
+Route::get('/teams', function () {
+    return view(view: 'teams');
+})->middleware('hcm.web.admin')->name('teams');
+
+Route::get('/teams/{id}/members', function (string $id) {
+    return view(view: 'team-members', data: ['teamId' => $id]);
+})->middleware('auth')->name('team-members');
+
 Route::get('/policy', function () {
     return view(view: 'policy');
 })->middleware('hcm.web.admin')->name('policy');

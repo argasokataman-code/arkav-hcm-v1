@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-04-25
-- Status: in progress (foundation configurability tahap 4 + fairness/fatigue hardening)
-- Ringkasan: hardening shift/schedule tetap aktif dengan dukungan shift lintas hari (overnight), sorting start-time stabil sebelum pagination, upsert tenant-scope per company+user, tenant admin tidak bisa mutasi template global, UI shift master tetap menghormati permission write, calendar view tetap aktif, smart planner mendukung batch rolling sampai akhir tahun, foundation baru untuk default rules + transition matrix per-tenant, publish roster harian bertanggal, endpoint roster index untuk review paginated, **UI edit mode untuk planner defaults**, **flow planner yang lebih deterministik untuk HR dengan scope berbasis department dan pagination employee directory penuh**, serta tuning formula agar assignment lebih aman untuk pekerja.
+- Tanggal: 2026-04-26
+- Status: in progress (foundation configurability tahap 4 + UUID relation hardening untuk planner settings)
+- Ringkasan: hardening shift/schedule tetap aktif dengan dukungan shift lintas hari (overnight), sorting start-time stabil sebelum pagination, upsert tenant-scope per company+user, tenant admin tidak bisa mutasi template global, UI shift master tetap menghormati permission write, calendar view tetap aktif, smart planner mendukung batch rolling sampai akhir tahun, foundation baru untuk default rules + transition matrix per-tenant, publish roster harian bertanggal, endpoint roster index untuk review paginated, **UI edit mode untuk planner defaults**, **flow planner yang lebih deterministik untuk HR dengan scope berbasis department dan pagination employee directory penuh**, tuning formula agar assignment lebih aman untuk pekerja, dan **persistence planner settings yang sekarang dual-write identifier legacy+UUID untuk menutup kerancuan relasi DB pada environment UUID-cutover**.
 
 ## Evidence Terbaru
 
@@ -18,6 +18,10 @@
 - Tahap 3 publish UX aktif di `/schedule-timing`: tombol `Apply Dominant Shift per User` untuk mem-publish dominant shift hasil draft ke `schedule-timing` pada user dalam scope planner terakhir.
 - Tahap 3.1 guardrail UX aktif di `/schedule-timing`: panel `Preview Diff Dominant Shift (Before/After)` dan `Conflict Resolver (Pre-publish)` menentukan apakah publish bisa langsung jalan atau perlu `Force apply`.
 - Tahap 4 foundation configurability aktif: endpoint `GET/PUT /v1/hcm/smart-attendance-shifting/settings` menyimpan default rules + transition matrix (`forbiddenTransitions`) per-tenant.
+- UUID relation hardening untuk planner settings aktif: tabel `hcm_smart_planner_settings` kini menyimpan `company_uuid`, `created_by_user_uuid`, `updated_by_user_uuid` selain kolom legacy numeric agar FK dapat ditegakkan saat `companies`/`users` memakai PK UUID.
+- Runtime settings controller kini membaca record planner dengan fallback `company_uuid` -> `company_id` sehingga kompatibel untuk data lama dan data baru.
+- Guard schema baru tersedia: `scripts/check-smart-planner-fk-health.sh` untuk memastikan kolom/FK UUID planner settings tidak silently missing pada environment MySQL/MariaDB.
+- Local gate `scripts/local-test-gate.sh` sekarang mengeksekusi schema health check planner settings sebelum PHPUnit/Vitest.
 - Tahap 4 UI edit mode hardening aktif: panel `📋 Planner Defaults & Transition Matrix` dengan dual-mode UX:
   - **View Mode (default)**: Semua input disabled, badge "Viewing" (light), tombol "Edit" aktif, tombol "Simpan/Cancel/Reset" hidden.
   - **Edit Mode**: Ketika admin click "Edit", input fields & checkboxes enabled, badge "Editing" (warning), tombol "Simpan/Cancel/Reset" visible, tombol Generate & Publish disabled untuk prevent accidental trigger.

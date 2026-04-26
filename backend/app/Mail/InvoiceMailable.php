@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Invoice;
+use App\Support\WebsiteSettings;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -21,8 +22,10 @@ class InvoiceMailable extends Mailable
 
     public function envelope(): Envelope
     {
+        $issuerName = WebsiteSettings::businessCompanyName();
+
         return new Envelope(
-            subject: "Invoice {$this->invoice->invoice_number} - " . config('app.name'),
+            subject: "Invoice {$this->invoice->invoice_number} - " . $issuerName,
         );
     }
 
@@ -35,6 +38,7 @@ class InvoiceMailable extends Mailable
                 'company' => $this->invoice->company,
                 'amountDue' => $this->invoice->amount_due,
                 'dueDate' => $this->invoice->due_date,
+                'issuerName' => WebsiteSettings::businessCompanyName(),
             ],
         );
     }

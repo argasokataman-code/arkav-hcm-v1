@@ -2,9 +2,9 @@
 
 ## Status Snapshot
 
-- Date: 2026-04-19
+- Date: 2026-04-26
 - Status: In Progress
-- Focus saat ini: route hardening, transaction integrity, dan source-of-truth docs untuk split contract transaksi
+- Focus saat ini: route hardening, transaction integrity, source-of-truth docs untuk split contract transaksi, dan integrasi context invoice render
 
 ## Latest Evidence
 
@@ -19,6 +19,8 @@
 - Purchase bearer contract menolak create transaction dengan subscription-company mismatch.
 - Frontend transaksi menampilkan pesan backend error envelope secara langsung.
 - README feature dan API markdown sekarang jujur terhadap runtime split contract.
+- Invoice PDF context sekarang terintegrasi: issuer dari Business Settings, Bill To dari Company Profile tenant, dan terms dari Invoice Settings tenant.
+- Subject/signature email invoice mengikuti nama issuer dari Business Settings agar konsisten dengan dokumen PDF.
 
 ## Open Gaps
 

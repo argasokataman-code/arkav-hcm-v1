@@ -1,8 +1,8 @@
-# Core HCM — Master Data API (Phase 1)
+# Core HCM — Master Data API (Phase 2)
 
-Mencakup: departments, designations, policies.
+Mencakup: departments, designations, policies, teams.
 
-Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/HcmEmployeeController.php` (method departments/designations/policies).
+Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/HcmEmployeeController.php` (method departments/designations/policies) + `backend/app/Http/Controllers/Api/HcmTeamController.php` (teams).
 
 ## Base path
 
@@ -147,4 +147,132 @@ Error:
 ### PUT `/policies/{id}`
 
 Sama seperti POST (multipart) + replace attachment jika dikirim.
+
+## Teams
+
+- `GET /teams`
+- `POST /teams` (admin only)
+- `GET /teams/{id}` (admin only)
+- `PUT /teams/{id}` (admin only)
+- `DELETE /teams/{id}` (admin only)
+- `GET /teams/{id}/members` (admin atau team lead untuk team tersebut)
+
+### GET `/teams`
+
+RBAC:
+- HCM Admin only
+
+Query:
+- `page` optional (default `1`)
+- `perPage` optional (default `20`, max `100`)
+- `search` optional (filter by name)
+- `status` optional: `all|active|inactive`
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "uuid": "5b80c4bb-7152-45e6-8f97-0a4c0d9ebf17",
+      "company_id": 1,
+      "name": "Platform Squad",
+      "department_id": 2,
+      "department_name": "Engineering",
+      "team_lead_id": 11,
+      "team_lead_name": "Rina Putri",
+      "member_count": 8,
+      "is_active": true,
+      "created_at": "2026-04-27T08:10:22+07:00",
+      "updated_at": "2026-04-27T08:10:22+07:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 20,
+    "total": 1
+  }
+}
+```
+
+### POST `/teams`
+
+RBAC:
+- HCM Admin only
+
+Body:
+- `name` required string max `100`
+- `department_id` required integer exists `departments.id`
+- `team_lead_id` optional integer exists `users.id`
+- `is_active` optional boolean (default `true`)
+
+Success `201`: `{ success: true, data: <team> }`
+
+### PUT `/teams/{id}`
+
+RBAC:
+- HCM Admin only
+
+Body:
+- `name` optional|required string max `100`
+- `department_id` optional|required integer exists `departments.id`
+- `team_lead_id` nullable integer exists `users.id`
+- `is_active` optional boolean
+
+Success `200`: `{ success: true, data: <team> }`
+
+### DELETE `/teams/{id}`
+
+RBAC:
+- HCM Admin only
+
+Success `204`
+
+Error:
+- `409 TEAM_DELETION_BLOCKED` jika masih ada member aktif pada team
+
+### GET `/teams/{id}/members`
+
+RBAC:
+- HCM Admin, atau
+- Team lead dari team yang diminta (`team_lead_id == user login`)
+
+Query:
+- `page` optional (default `1`)
+- `perPage` optional (default `20`, max `100`)
+- `search` optional (`name`, `email`, `nik`)
+- `status` optional: `all|active|probation|inactive`
+
+Success `200`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "team": {
+      "id": 1,
+      "name": "Platform Squad"
+    },
+    "members": [
+      {
+        "employee_id": 14,
+        "user_id": 33,
+        "name": "Adi Setiawan",
+        "email": "adi@example.com",
+        "nik": "EMP-0014",
+        "department_name": "Engineering",
+        "designation_name": "Backend Engineer",
+        "employment_status": "active"
+      }
+    ]
+  },
+  "meta": {
+    "page": 1,
+    "perPage": 20,
+    "total": 1
+  }
+}
+```
 

@@ -1,0 +1,539 @@
+/**
+ * Team Master Data Manager
+ * Handles CRUD operations for teams
+ */
+
+(function (window) {
+    "use strict";
+
+    // Utility: escape HTML
+    function esc(val) {
+        if (val == null) return '';
+        var div = document.createElement('div');
+        div.textContent = val;
+        return div.innerHTML;
+    }
+
+    // Get auth headers
+    function getAuthHeaders() {
+        var headers = {};
+        var token = document.querySelector('[data-auth-token]');
+        if (token && token.getAttribute('data-auth-token')) {
+            headers['Authorization'] = 'Bearer ' + token.getAttribute('data-auth-token');
+        }
+        var company = document.querySelector('[data-company-id]');
+        if (company && company.getAttribute('data-company-id')) {
+            headers['X-Company-Id'] = company.getAttribute('data-company-id');
+        }
+        return headers;
+    }
+
+    // Toast notification
+    function notify(message, isError) {
+        var existing = document.querySelector("[data-hcm-toast-container]");
+        var container = existing;
+        if (!container) {
+            container = document.createElement("div");
+            container.setAttribute("data-hcm-toast-container", "1");
+            container.style.position = "fixed";
+            container.style.top = "16px";
+            container.style.right = "16px";
+            container.style.zIndex = "1080";
+            container.style.maxWidth = "340px";
+            document.body.appendChild(container);
+        }
+
+        var toast = document.createElement("div");
+        toast.className = "alert " + (isError ? "alert-danger" : "alert-success") + " shadow-sm mb-2";
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        window.setTimeout(function () {
+            toast.remove();
+        }, 2400);
+    }
+
+    // API helper
+    function api(method, url, data) {
+        var options = {
+            method: method.toUpperCase(),
+            headers: Object.assign({ 'Content-Type': 'application/json', 'Accept': 'application/json' }, getAuthHeaders()),
+            credentials: 'same-origin',
+        };
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+        return fetch(url, options).then(function (res) {
+            return res.json().then(function (body) {
+                if (!res.ok) {
+                    throw { status: res.status, body: body };
+                }
+                return body;
+            });
+        });
+    }
+
+    // Fetch teams list
+    function fetchTeams(page, perPage, search, status) {
+        var params = new URLSearchParams({
+            page: page || 1,
+            perPage: perPage || 20,
+            search: search || '',
+            status: status || 'all'
+        });
+        return api('GET', '/v1/hcm/teams?' + params.toString()).catch(function (err) {
+            notify('Failed to load teams: ' + (err.body && err.body.message ? err.body.message : 'Unknown error'), true);
+            throw err;
+        });
+    }
+
+    // Fetch departments for dropdown
+    function fetchDepartments() {
+        return api('GET', '/v1/hcm/departments').then(function (res) {
+            return res.data || [];
+        }).catch(function () {
+            return [];
+        });
+    }
+
+    // Fetch users for team lead dropdown
+    function fetchUsers() {
+        return api('GET', '/v1/hcm/user-management/users').then(function (res) {
+            return res.data || [];
+        }).catch(function () {
+            return [];
+        });
+    }
+
+    // Render teams grid
+    function renderTeams(data, meta) {
+        var body = document.querySelector('[data-teams-body]');
+        if (!body) return;
+
+        body.innerHTML = (data || []).map(function (team) {
+            var badge = team.is_active ? 'success' : 'danger';
+            var status = team.is_active ? 'Active' : 'Inactive';
+            var deptName = team.department_name || '—';
+            var leadName = team.team_lead_id ? team.team_lead_name || '—' : '—';
+            var memberCount = team.member_count || 0;
+            
+            return '<tr>' +
+                '<td><h6 class="fw-medium">' + esc(team.name) + '</h6></td>' +
+                '<td>' + esc(deptName) + '</td>' +
+                '<td><a href="/teams/' + esc(team.id) + '/members" class="badge bg-light-info text-decoration-none">' + memberCount + '</a></td>' +
+                '<td>' + esc(leadName) + '</td>' +
+                '<td><span class="badge badge-' + badge + ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + status + '</span></td>' +
+                '<td><div class="action-icon d-inline-flex">' +
+                '<a href="#" class="me-2" data-hcm-edit="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '" data-department-id="' + esc(team.department_id) + '" data-team-lead-id="' + esc(team.team_lead_id || '') + '" data-active="' + (team.is_active ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_team"><i class="ti ti-edit"></i></a>' +
+                '<a href="#" data-hcm-delete="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '"><i class="ti ti-trash"></i></a>' +
+                '</div></td>' +
+                '</tr>';
+        }).join('') || '<tr><td colspan="6" class="text-center py-4 text-muted">No teams found.</td></tr>';
+
+        body.setAttribute('data-hydrated', '1');
+        renderPagination(meta);
+        renderShowing(data.length, meta);
+    }
+
+    // Render pagination
+    function renderPagination(meta) {
+        var list = document.querySelector('[data-hcm-pagination="teams"]');
+        if (!list) return;
+
+        var total = meta.total || 0;
+        var page = meta.page || 1;
+        var perPage = meta.perPage || 20;
+        var totalPages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
+
+        if (totalPages <= 1) {
+            list.innerHTML = '';
+            return;
+        }
+
+        var startPage = Math.max(1, page - 2);
+        var endPage = Math.min(totalPages, page + 2);
+        var html = '';
+
+        html += '<li class="page-item ' + (page <= 1 ? 'disabled' : '') + '"><a href="#" class="page-link" data-hcm-page="' + (page - 1) + '">Prev</a></li>';
+        for (var p = startPage; p <= endPage; p++) {
+            html += '<li class="page-item ' + (p === page ? 'active' : '') + '"><a href="#" class="page-link" data-hcm-page="' + p + '">' + p + '</a></li>';
+        }
+        html += '<li class="page-item ' + (page >= totalPages ? 'disabled' : '') + '"><a href="#" class="page-link" data-hcm-page="' + (page + 1) + '">Next</a></li>';
+
+        list.innerHTML = html;
+    }
+
+    // Render showing text
+    function renderShowing(rowCount, meta) {
+        var el = document.querySelector('[data-hcm-showing="teams"]');
+        if (!el) return;
+
+        var total = meta.total || 0;
+        var page = meta.page || 1;
+        var perPage = meta.perPage || 20;
+
+        if (!total || !rowCount) {
+            el.textContent = 'Showing 0 - 0 of 0 entries';
+            return;
+        }
+
+        var start = ((page - 1) * perPage) + 1;
+        var end = Math.min(start + rowCount - 1, total);
+        el.textContent = 'Showing ' + start + ' - ' + end + ' of ' + total + ' entries';
+    }
+
+    // Populate dropdown
+    function populateDropdown(selector, items, valueKey, labelKey) {
+        var select = document.querySelector(selector);
+        if (!select) return;
+
+        var currentValue = select.value;
+        select.innerHTML = '<option value="">Select</option>';
+        (items || []).forEach(function (item) {
+            var opt = document.createElement('option');
+            opt.value = item[valueKey] || '';
+            opt.textContent = item[labelKey] || '';
+            select.appendChild(opt);
+        });
+        select.value = currentValue;
+    }
+
+    // Load page
+    function loadPage(page, perPage, search, status) {
+        page = page || 1;
+        perPage = perPage || 20;
+        search = search || '';
+        status = status || 'all';
+
+        fetchTeams(page, perPage, search, status).then(function (res) {
+            renderTeams(res.data, res.meta);
+        });
+    }
+
+    // Init page
+    function initTeamsPage() {
+        var path = window.location.pathname;
+        if (path !== '/teams') return;
+
+        var currentPage = 1;
+        var currentPerPage = 20;
+        var currentSearch = '';
+        var currentStatus = 'all';
+
+        // Load initial data
+        loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+
+        // Load dropdown options
+        fetchDepartments().then(function (depts) {
+            populateDropdown('[data-hcm-field="team-department"]', depts, 'id', 'name');
+            populateDropdown('#edit_team [data-hcm-field="team-department"]', depts, 'id', 'name');
+        });
+        fetchUsers().then(function (users) {
+            populateDropdown('[data-hcm-field="team-lead"]', users, 'id', 'name');
+            populateDropdown('#edit_team [data-hcm-field="team-lead"]', users, 'id', 'name');
+        });
+
+        // Pagination
+        document.addEventListener('click', function (e) {
+            var pageLink = e.target.closest('[data-hcm-page]');
+            if (pageLink) {
+                e.preventDefault();
+                currentPage = parseInt(pageLink.getAttribute('data-hcm-page'), 10);
+                loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+            }
+        });
+
+        // Search
+        var searchInput = document.querySelector('[data-hcm-search-input="teams"]');
+        if (searchInput) {
+            searchInput.addEventListener('change', function () {
+                currentSearch = this.value;
+                currentPage = 1;
+                loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+            });
+        }
+
+        // Status filter
+        var statusFilter = document.querySelector('[data-hcm-status-filter="teams"]');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', function () {
+                currentStatus = this.value;
+                currentPage = 1;
+                loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+            });
+        }
+
+        // Per page
+        var perPageSelect = document.querySelector('[data-hcm-per-page="teams"]');
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function () {
+                currentPerPage = parseInt(this.value, 10);
+                currentPage = 1;
+                loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+            });
+        }
+
+        // Create form
+        var addForm = document.querySelector('[data-hcm-form="team-add"]');
+        if (addForm) {
+            addForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var nameInput = this.querySelector('[data-hcm-field="team-name"]');
+                var deptInput = this.querySelector('[data-hcm-field="team-department"]');
+                var leadInput = this.querySelector('[data-hcm-field="team-lead"]');
+                var activeInput = this.querySelector('[data-hcm-field="team-active"]');
+
+                api('POST', '/v1/hcm/teams', {
+                    name: nameInput.value,
+                    department_id: parseInt(deptInput.value, 10),
+                    team_lead_id: leadInput.value ? parseInt(leadInput.value, 10) : null,
+                    is_active: activeInput.value === '1',
+                }).then(function () {
+                    notify('Team created successfully', false);
+                    addForm.reset();
+                    document.querySelector('#add_team').closest('.modal').modal = null;
+                    var modal = window.bootstrap.Modal.getInstance(document.querySelector('#add_team'));
+                    if (modal) modal.hide();
+                    loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+                }).catch(function (err) {
+                    var msg = err.body && err.body.error ? err.body.error.message : 'Failed to create team';
+                    notify(msg, true);
+                });
+            });
+        }
+
+        // Edit modal
+        document.addEventListener('click', function (e) {
+            var editBtn = e.target.closest('[data-hcm-edit="team"]');
+            if (editBtn) {
+                e.preventDefault();
+                var form = document.querySelector('[data-hcm-form="team-edit"]');
+                if (form) {
+                    form.dataset.id = editBtn.getAttribute('data-id');
+                    form.querySelector('[data-hcm-field="team-name"]').value = editBtn.getAttribute('data-name');
+                    form.querySelector('[data-hcm-field="team-department"]').value = editBtn.getAttribute('data-department-id');
+                    form.querySelector('[data-hcm-field="team-lead"]').value = editBtn.getAttribute('data-team-lead-id') || '';
+                    form.querySelector('[data-hcm-field="team-active"]').value = editBtn.getAttribute('data-active');
+                }
+            }
+        });
+
+        // Edit form
+        var editForm = document.querySelector('[data-hcm-form="team-edit"]');
+        if (editForm) {
+            editForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var id = this.dataset.id;
+                var nameInput = this.querySelector('[data-hcm-field="team-name"]');
+                var deptInput = this.querySelector('[data-hcm-field="team-department"]');
+                var leadInput = this.querySelector('[data-hcm-field="team-lead"]');
+                var activeInput = this.querySelector('[data-hcm-field="team-active"]');
+
+                api('PUT', '/v1/hcm/teams/' + id, {
+                    name: nameInput.value,
+                    department_id: parseInt(deptInput.value, 10),
+                    team_lead_id: leadInput.value ? parseInt(leadInput.value, 10) : null,
+                    is_active: activeInput.value === '1',
+                }).then(function () {
+                    notify('Team updated successfully', false);
+                    var modal = window.bootstrap.Modal.getInstance(document.querySelector('#edit_team'));
+                    if (modal) modal.hide();
+                    loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+                }).catch(function (err) {
+                    var msg = err.body && err.body.error ? err.body.error.message : 'Failed to update team';
+                    notify(msg, true);
+                });
+            });
+        }
+
+        // Delete
+        document.addEventListener('click', function (e) {
+            var deleteBtn = e.target.closest('[data-hcm-delete="team"]');
+            if (deleteBtn) {
+                e.preventDefault();
+                var id = deleteBtn.getAttribute('data-id');
+                var name = deleteBtn.getAttribute('data-name');
+
+                if (window.confirm('Delete team "' + name + '"? This cannot be undone.')) {
+                    api('DELETE', '/v1/hcm/teams/' + id).then(function () {
+                        notify('Team deleted successfully', false);
+                        loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
+                    }).catch(function (err) {
+                        var msg = err.body && err.body.error ? err.body.error.message : 'Failed to delete team';
+                        notify(msg, true);
+                    });
+                }
+            }
+        });
+    }
+
+    function initTeamMembersPage() {
+        var path = window.location.pathname || '';
+        if (path.indexOf('/teams/') !== 0 || path.indexOf('/members') < 0) return;
+
+        var idEl = document.querySelector('[data-team-members-id]');
+        if (!idEl || !idEl.value) return;
+
+        var state = {
+            teamId: String(idEl.value),
+            page: 1,
+            perPage: 20,
+            search: '',
+            status: 'all'
+        };
+
+        function renderMembersSummary(team, meta) {
+            var title = document.querySelector('[data-team-members-title]');
+            if (title) {
+                title.textContent = 'Team Members - ' + (team && team.name ? team.name : '-');
+            }
+            var teamName = document.querySelector('[data-team-members-team-name]');
+            if (teamName) teamName.textContent = team && team.name ? team.name : '-';
+            var teamDept = document.querySelector('[data-team-members-team-department]');
+            if (teamDept) teamDept.textContent = team && team.department_name ? team.department_name : '-';
+            var teamLead = document.querySelector('[data-team-members-team-lead]');
+            if (teamLead) teamLead.textContent = team && team.team_lead_name ? team.team_lead_name : '-';
+            var total = document.querySelector('[data-team-members-total]');
+            if (total) total.textContent = String(meta && meta.total ? meta.total : 0);
+        }
+
+        function renderMembersRows(rows) {
+            var body = document.querySelector('[data-team-members-body]');
+            if (!body) return;
+
+            body.innerHTML = (rows || []).map(function (row) {
+                var status = String(row.employment_status || '-');
+                var statusBadge = status === 'active' ? 'success' : (status === 'probation' ? 'warning' : 'danger');
+                return '<tr>' +
+                    '<td>' + esc(row.name || '-') + '</td>' +
+                    '<td>' + esc(row.email || '-') + '</td>' +
+                    '<td>' + esc(row.nik || '-') + '</td>' +
+                    '<td>' + esc(row.department_name || '-') + '</td>' +
+                    '<td>' + esc(row.designation_name || '-') + '</td>' +
+                    '<td><span class="badge badge-' + statusBadge + '">' + esc(status) + '</span></td>' +
+                    '</tr>';
+            }).join('') || '<tr><td colspan="6" class="text-center py-4 text-muted">No members found.</td></tr>';
+
+            body.setAttribute('data-hydrated', '1');
+        }
+
+        function renderMembersShowing(meta, rowCount) {
+            var showing = document.querySelector('[data-team-members-showing]');
+            if (!showing) return;
+
+            var total = Number(meta && meta.total ? meta.total : 0);
+            var page = Number(meta && meta.page ? meta.page : 1);
+            var perPage = Number(meta && meta.perPage ? meta.perPage : 20);
+
+            if (!rowCount || !total) {
+                showing.textContent = 'Showing 0 - 0 of 0 entries';
+                return;
+            }
+
+            var start = ((page - 1) * perPage) + 1;
+            var end = Math.min(start + rowCount - 1, total);
+            showing.textContent = 'Showing ' + start + ' - ' + end + ' of ' + total + ' entries';
+        }
+
+        function renderMembersPagination(meta) {
+            var list = document.querySelector('[data-team-members-pagination]');
+            if (!list) return;
+
+            var total = Number(meta && meta.total ? meta.total : 0);
+            var page = Number(meta && meta.page ? meta.page : 1);
+            var perPage = Number(meta && meta.perPage ? meta.perPage : 20);
+            var totalPages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
+
+            if (totalPages <= 1) {
+                list.innerHTML = '';
+                return;
+            }
+
+            var html = '';
+            html += '<li class="page-item ' + (page <= 1 ? 'disabled' : '') + '"><a href="#" class="page-link" data-team-members-page="' + (page - 1) + '">Prev</a></li>';
+            for (var p = Math.max(1, page - 2); p <= Math.min(totalPages, page + 2); p++) {
+                html += '<li class="page-item ' + (p === page ? 'active' : '') + '"><a href="#" class="page-link" data-team-members-page="' + p + '">' + p + '</a></li>';
+            }
+            html += '<li class="page-item ' + (page >= totalPages ? 'disabled' : '') + '"><a href="#" class="page-link" data-team-members-page="' + (page + 1) + '">Next</a></li>';
+            list.innerHTML = html;
+        }
+
+        function loadMembers() {
+            var params = new URLSearchParams({
+                page: state.page,
+                perPage: state.perPage,
+                search: state.search,
+                status: state.status,
+            });
+
+            api('GET', '/v1/hcm/teams/' + encodeURIComponent(state.teamId) + '/members?' + params.toString())
+                .then(function (res) {
+                    var payload = res.data || {};
+                    var rows = payload.members || [];
+                    renderMembersSummary(payload.team || {}, res.meta || {});
+                    renderMembersRows(rows);
+                    renderMembersShowing(res.meta || {}, rows.length);
+                    renderMembersPagination(res.meta || {});
+                })
+                .catch(function (err) {
+                    var body = document.querySelector('[data-team-members-body]');
+                    if (body) {
+                        var msg = (err.body && err.body.error && err.body.error.message) ? err.body.error.message : 'Failed to load team members.';
+                        body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">' + esc(msg) + '</td></tr>';
+                        body.setAttribute('data-hydrated', '1');
+                    }
+                });
+        }
+
+        document.addEventListener('click', function (e) {
+            var pageLink = e.target.closest('[data-team-members-page]');
+            if (!pageLink) return;
+            e.preventDefault();
+            var nextPage = parseInt(pageLink.getAttribute('data-team-members-page') || '1', 10);
+            if (nextPage < 1 || Number.isNaN(nextPage)) return;
+            state.page = nextPage;
+            loadMembers();
+        });
+
+        var searchInput = document.querySelector('[data-team-members-search]');
+        if (searchInput) {
+            searchInput.addEventListener('change', function () {
+                state.search = String(this.value || '').trim();
+                state.page = 1;
+                loadMembers();
+            });
+        }
+
+        var statusInput = document.querySelector('[data-team-members-status]');
+        if (statusInput) {
+            statusInput.addEventListener('change', function () {
+                state.status = String(this.value || 'all');
+                state.page = 1;
+                loadMembers();
+            });
+        }
+
+        var perPageInput = document.querySelector('[data-team-members-per-page]');
+        if (perPageInput) {
+            perPageInput.addEventListener('change', function () {
+                state.perPage = parseInt(this.value || '20', 10) || 20;
+                state.page = 1;
+                loadMembers();
+            });
+        }
+
+        loadMembers();
+    }
+
+    // Auto-init when DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            initTeamsPage();
+            initTeamMembersPage();
+        });
+    } else {
+        initTeamsPage();
+        initTeamMembersPage();
+    }
+
+})(window);

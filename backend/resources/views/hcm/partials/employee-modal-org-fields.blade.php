@@ -15,3 +15,11 @@
         </select>
     </div>
 </div>
+<div class="col-md-6">
+    <div class="mb-3">
+        <label class="form-label">Tim (Team)</label>
+        <select class="form-select" data-employee-add-field="teamId" data-employee-edit-field="teamId" data-employee-org-team>
+            <option value="">— Pilih Team (opsional) —</option>
+        </select>
+    </div>
+</div>

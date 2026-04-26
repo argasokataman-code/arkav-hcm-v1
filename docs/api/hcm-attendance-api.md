@@ -300,6 +300,11 @@ RBAC:
 Tujuan:
 - Mengambil default planner rules per-tenant + daftar forbidden transition yang dipakai UI matrix.
 
+Status identifier (transisi, tidak mengubah kontrak request):
+- Tenant context request tetap mengikuti runtime context aktif (`X-Company-Id` numeric legacy dari session/header resolver).
+- Persistence settings sekarang dual-write `company_id` + `company_uuid` agar tenant relation tetap bisa ditegakkan pada environment UUID-cutover.
+- Actor audit settings juga dual-write `created_by_user_id`/`updated_by_user_id` + `created_by_user_uuid`/`updated_by_user_uuid`.
+
 Success `200`:
 - `data.defaultRules`
   - `max_work_days_per_week` int
@@ -317,6 +322,10 @@ RBAC:
 Body:
 - `defaultRules` object (opsional, field sama seperti GET response)
 - `forbiddenTransitions` array string format `from:to`
+
+Catatan kompatibilitas:
+- Payload API tetap sama (tidak menambah field baru di request/response).
+- Perubahan ada di persistence layer: backend menyimpan identifier legacy + UUID secara paralel untuk menghindari gap FK saat `companies.id`/`users.id` bukan key unik utama.
 
 Success `200`:
 - `data.defaultRules`

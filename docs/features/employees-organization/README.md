@@ -59,10 +59,14 @@ Fitur ini menjadi directory utama employee, organisasi, departemen, designation,
 - `GET/POST /employees` — hanya **hcmAdmin** (full directory).
 - `GET/PUT /employees/{id}` — **hcmAdmin** semua ID; karyawan hanya **id = user login**; `PUT` self terbatas field (phone, address, bio, emergency/education/experience) per `USE-CASES.md` §5.2.
 - `GET/POST/PUT/DELETE /departments`, `/designations`, **`/policies`** — hanya **hcmAdmin**.
+- `GET/POST /teams` — hanya **hcmAdmin** (list dan buat team baru).
+- `GET/PUT/DELETE /teams/{id}` — hanya **hcmAdmin** (detail, edit, delete team); DELETE return 409 Conflict jika team masih punya assigned employee.
+- **Note:** `team_id` pada employee adalah FK opsional. Employee dapat diedit untuk menambah/mengubah team assignment melalui `PUT /employees/{id}` dengan field `teamId`.
 
 ## Data model ringkas
 
 - `users` + `employee_profiles` (FK opsional **`department_id` → `departments`**, **`designation_id` → `designations`**, plus kolom `designation` string untuk label/denormalisasi)
+- `users` + `employee_profiles` (FK opsional **`department_id` → `departments`**, **`designation_id` → `designations`**, **`team_id` → `teams`**, plus kolom `designation` string untuk label/denormalisasi)
 - tabel riwayat/normalized compatibility layer:
   - `employee_employment_history`
   - `employee_assignments` (termasuk `team_id` + fallback `team_name`)

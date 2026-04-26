@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,6 +29,7 @@ class Team extends Model
         'uuid',
         'company_id',
         'department_id',
+        'team_lead_id',
         'name',
         'is_active',
     ];
@@ -35,6 +37,7 @@ class Team extends Model
     protected $casts = [
         'uuid' => 'string',
         'company_id' => 'integer',
+        'team_lead_id' => 'integer',
         'is_active' => 'boolean',
     ];
 
@@ -46,5 +49,10 @@ class Team extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(EmployeeAssignment::class, 'team_id');
+    }
+
+    public function teamLead(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'team_lead_id');
     }
 }

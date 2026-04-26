@@ -468,6 +468,7 @@ class HcmEmployeeController extends Controller
                 'user_id' => $user->id,
                 'hire_date' => $validated['hireDate'] ?? ($validated['startDate'] ?? null),
                 'team' => $validated['team'] ?? null,
+                'team_id' => $validated['teamId'] ?? null,
                 'department_id' => $org['department_id'],
                 'designation_id' => $org['designation_id'],
                 'manager_user_id' => $validated['managerUserId'] ?? null,
@@ -694,6 +695,7 @@ class HcmEmployeeController extends Controller
         }
         $fieldMap = [
             'team' => 'team',
+            'teamId' => 'team_id',
             'managerUserId' => 'manager_user_id',
             'phone' => 'phone',
             'address' => 'address',
@@ -2517,6 +2519,7 @@ class HcmEmployeeController extends Controller
             'password' => $isCreate ? ['required', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'] : ['sometimes', 'nullable', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
             'confirmPassword' => $isCreate ? ['required', 'same:password'] : ['sometimes', 'nullable', 'same:password'],
             'team' => ['nullable', 'string', 'max:100'],
+            'teamId' => ['nullable', 'integer', Rule::exists('teams', 'id')->where(fn ($query) => $query->where('company_id', $this->activeCompanyId($request)))],
             'departmentId' => array_values(array_filter([
                 $isCreate && ! $selfService ? 'required' : 'sometimes',
                 'nullable',

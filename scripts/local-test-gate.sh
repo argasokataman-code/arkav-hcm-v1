@@ -57,8 +57,17 @@ fi
 echo "${GREEN}✓ Database migrated${NC}"
 echo ""
 
-# Step 5: Run PHPUnit tests
-echo "${YELLOW}[5/6]${NC} Running PHPUnit tests..."
+# Step 5: Smart planner UUID FK health check
+echo "${YELLOW}[5/7]${NC} Checking smart planner UUID FK health..."
+if ! bash "$PROJECT_ROOT/scripts/check-smart-planner-fk-health.sh"; then
+  echo "${RED}✗ Smart planner FK health check failed${NC}"
+  exit 1
+fi
+echo "${GREEN}✓ Smart planner FK health check passed${NC}"
+echo ""
+
+# Step 6: Run PHPUnit tests
+echo "${YELLOW}[6/7]${NC} Running PHPUnit tests..."
 if ! php artisan test; then
   echo "${RED}✗ PHPUnit tests failed${NC}"
   exit 1
@@ -66,8 +75,8 @@ fi
 echo "${GREEN}✓ PHPUnit tests passed${NC}"
 echo ""
 
-# Step 6: Run Vitest
-echo "${YELLOW}[6/6]${NC} Running Vitest..."
+# Step 7: Run Vitest
+echo "${YELLOW}[7/7]${NC} Running Vitest..."
 if ! npx vitest run; then
   echo "${RED}✗ Vitest failed${NC}"
   exit 1

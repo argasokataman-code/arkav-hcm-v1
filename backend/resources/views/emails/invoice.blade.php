@@ -25,5 +25,5 @@ If you have any questions about this invoice, please don't hesitate to contact u
 
 Thank you!
 
-{{ config('app.name') }}
+{{ $issuerName ?? config('app.name') }}
 @endcomponent

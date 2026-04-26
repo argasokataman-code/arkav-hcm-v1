@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleRoster;
@@ -43,6 +44,7 @@ class HcmSmartAttendanceController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
+        $companyUuid = $this->activeCompanyUuid($request);
         if (! $companyId) {
             return response()->json([
                 'success' => false,
@@ -82,6 +84,7 @@ class HcmSmartAttendanceController extends Controller
 
         $rules = $this->resolveRules(
             $companyId,
+            $companyUuid,
             isset($validated['rules']) && is_array($validated['rules']) ? $validated['rules'] : [],
             (string) ($validated['shiftCategory'] ?? 'office_hour')
         );
@@ -128,6 +131,7 @@ class HcmSmartAttendanceController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
+        $companyUuid = $this->activeCompanyUuid($request);
         if (! $companyId) {
             return response()->json([
                 'success' => false,
@@ -138,9 +142,7 @@ class HcmSmartAttendanceController extends Controller
             ], 422);
         }
 
-        $setting = HcmSmartPlannerSetting::query()
-            ->where('company_id', $companyId)
-            ->first();
+        $setting = $this->findPlannerSetting($companyId, $companyUuid);
 
         $rules = self::DEFAULT_RULES;
         if ($setting && is_array($setting->default_rules)) {
@@ -169,6 +171,7 @@ class HcmSmartAttendanceController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
+        $companyUuid = $this->activeCompanyUuid($request);
         if (! $companyId) {
             return response()->json([
                 'success' => false,
@@ -201,15 +204,29 @@ class HcmSmartAttendanceController extends Controller
             ? array_values(array_unique(array_map('strval', $validated['forbiddenTransitions'])))
             : ['night:morning'];
 
-        $setting = HcmSmartPlannerSetting::query()->updateOrCreate(
-            ['company_id' => $companyId],
-            [
-                'default_rules' => $rules,
-                'forbidden_transitions' => $transitions,
-                'updated_by_user_id' => $request->user()?->id,
-                'created_by_user_id' => $request->user()?->id,
-            ]
-        );
+        $setting = $this->findPlannerSetting($companyId, $companyUuid);
+        $payload = [
+            'company_id' => $companyId,
+            'company_uuid' => $companyUuid,
+            'default_rules' => $rules,
+            'forbidden_transitions' => $transitions,
+            'updated_by_user_id' => $request->user()?->id,
+            'updated_by_user_uuid' => is_string($request->user()?->uuid) ? $request->user()?->uuid : null,
+        ];
+
+        if (! $setting || ! $setting->created_by_user_id) {
+            $payload['created_by_user_id'] = $request->user()?->id;
+        }
+        if (! $setting || ! is_string($setting->created_by_user_uuid) || trim($setting->created_by_user_uuid) === '') {
+            $payload['created_by_user_uuid'] = is_string($request->user()?->uuid) ? $request->user()?->uuid : null;
+        }
+
+        if ($setting) {
+            $setting->fill($payload);
+            $setting->save();
+        } else {
+            $setting = HcmSmartPlannerSetting::query()->create($payload);
+        }
 
         return response()->json([
             'success' => true,
@@ -435,6 +452,40 @@ class HcmSmartAttendanceController extends Controller
         return is_numeric($value) ? (int) $value : null;
     }
 
+    private function activeCompanyUuid(Request $request): ?string
+    {
+        $value = $request->attributes->get('activeCompanyUuid');
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return null;
+        }
+
+        $uuid = Company::query()->where('id', $companyId)->value('uuid');
+
+        return is_string($uuid) && trim($uuid) !== '' ? trim($uuid) : null;
+    }
+
+    private function findPlannerSetting(int $companyId, ?string $companyUuid): ?HcmSmartPlannerSetting
+    {
+        $legacySetting = HcmSmartPlannerSetting::query()
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (! $companyUuid) {
+            return $legacySetting;
+        }
+
+        $uuidSetting = HcmSmartPlannerSetting::query()
+            ->where('company_uuid', $companyUuid)
+            ->first();
+
+        return $uuidSetting ?: $legacySetting;
+    }
+
     /**
      * @param array<int,int>|null $employeeIds
      * @return \Illuminate\Support\Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>
@@ -504,10 +555,10 @@ class HcmSmartAttendanceController extends Controller
      * @param array<string,mixed> $runtimeRules
      * @return array<string,mixed>
      */
-    private function resolveRules(int $companyId, array $runtimeRules, string $shiftCategory): array
+    private function resolveRules(int $companyId, ?string $companyUuid, array $runtimeRules, string $shiftCategory): array
     {
         $rules = self::DEFAULT_RULES;
-        $setting = HcmSmartPlannerSetting::query()->where('company_id', $companyId)->first();
+        $setting = $this->findPlannerSetting($companyId, $companyUuid);
         if ($setting && is_array($setting->default_rules)) {
             $rules = array_merge($rules, $setting->default_rules);
         }

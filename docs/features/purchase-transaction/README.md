@@ -35,6 +35,10 @@ Feature ini menjadi ledger billing operasional untuk admin SaaS, baik dari halam
 - Reporting: transaksi menjadi input laporan revenue, aging, dan churn pada stack reporting/billing. Lihat `docs/features/reporting/README.md`.
 - Trial & Billing Dashboard: dashboard company list dan invoice detail membaca status invoice/payment yang bersinggungan dengan transaksi. Lihat `docs/features/trial-billing-dashboard/README.md`.
 - Export Reconciliation: action finansial sensitif di billing dapat digate oleh export reconciliation sesuai rollout. Lihat `docs/features/export-reconciliation/README.md`.
+- Invoice render context (terintegrasi):
+  - identitas issuer global membaca Business Settings (`business_*`) via `WebsiteSettings`;
+  - data `Bill To` membaca Company Profile tenant (`company_profile_*`);
+  - terms/policy invoice membaca Invoice Settings tenant (`invoice_*`) untuk PDF output.
 - Peta integrasi lengkap: `docs/features/INTEGRATION-MAP.md`.
 
 ## Kontrak API
@@ -50,6 +54,7 @@ Feature ini menjadi ledger billing operasional untuk admin SaaS, baik dari halam
 
 - Existing: route web admin sudah diproteksi, FE menampilkan backend error aktual, UUID compatibility untuk create/filter sudah ditangani, dan runtime split contract ditulis eksplisit.
 - Existing: blade aktif tetap cocok dengan shape ledger legacy yang dipakai frontend sekarang.
+- Existing: PDF invoice sekarang memakai context terintegrasi (Business Settings + Company Profile + Invoice Settings) sehingga branding/terms tidak lagi terpecah antar sumber.
 - Target: unifikasi penuh antara legacy ledger contract dan purchase transaction contract masih pekerjaan lanjutan.
 
 ## Ringkasan Bisnis

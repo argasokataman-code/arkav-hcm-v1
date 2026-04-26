@@ -267,6 +267,7 @@
 
     var orgDepartmentsFlat = [];
     var orgDesignationsFlat = [];
+    var orgTeamsFlat = [];
     var orgMastersPromise = null;
 
     function fillDesignationSelectForDepartment(selectEl, departmentId, preferredValue) {
@@ -278,6 +279,27 @@
                 var opt = document.createElement("option");
                 opt.value = String(d.id);
                 opt.textContent = d.name || d.code || String(d.id);
+                selectEl.appendChild(opt);
+            }
+        });
+        if (pref) {
+            var match = Array.prototype.slice.call(selectEl.options).some(function (o) {
+                return o.value === pref;
+            });
+            if (match) {
+                selectEl.value = pref;
+            }
+        }
+    }
+
+    function loadTeamsDropdown(selectEl, preferredValue) {
+        var pref = preferredValue != null ? String(preferredValue) : "";
+        selectEl.innerHTML = '<option value="">— Pilih Team (opsional) —</option>';
+        orgTeamsFlat.forEach(function (t) {
+            if (t.is_active) {
+                var opt = document.createElement("option");
+                opt.value = String(t.id);
+                opt.textContent = t.name || String(t.id);
                 selectEl.appendChild(opt);
             }
         });
@@ -321,9 +343,11 @@
         return Promise.all([
             requestJson("get", "/v1/hcm/departments", null),
             requestJson("get", "/v1/hcm/designations", null),
+            requestJson("get", "/v1/hcm/teams", null),
         ]).then(function (results) {
             orgDepartmentsFlat = results[0] && results[0].success && Array.isArray(results[0].data) ? results[0].data : [];
             orgDesignationsFlat = results[1] && results[1].success && Array.isArray(results[1].data) ? results[1].data : [];
+            orgTeamsFlat = results[2] && results[2].success && Array.isArray(results[2].data) ? results[2].data : [];
             rebuildDepartmentSelectOptions();
         });
     }
@@ -1186,6 +1210,10 @@
             resetRepeatable(form, "experienceItems", []);
             toggleContractEndDateVisibility(form);
             resetWilayahCascade(form);
+            var teamEl = form.querySelector("[data-employee-org-team]");
+            if (teamEl) {
+                loadTeamsDropdown(teamEl, "");
+            }
             setStep(form, 0);
         }
 
@@ -1240,8 +1268,10 @@
 
             var departmentId = readInteger(form, "departmentId");
             var designationId = readInteger(form, "designationId");
+            var teamId = readInteger(form, "teamId");
             payload.departmentId = departmentId;
             payload.designationId = designationId;
+            payload.teamId = teamId;
 
             if (!isEdit) {
                 payload.password = readField(form, "password");
@@ -1295,10 +1325,14 @@
             writeField(editForm, "departmentId", item.departmentId != null && item.departmentId !== "" ? String(item.departmentId) : "");
             var depEl = editForm.querySelector("[data-employee-org-department]");
             var desEl = editForm.querySelector("[data-employee-org-designation]");
+            var teamEl = editForm.querySelector("[data-employee-org-team]");
             if (depEl && desEl) {
                 fillDesignationSelectForDepartment(desEl, depEl.value, item.designationId != null && item.designationId !== "" ? String(item.designationId) : "");
             } else {
                 writeField(editForm, "designationId", item.designationId != null && item.designationId !== "" ? String(item.designationId) : "");
+            }
+            if (teamEl) {
+                loadTeamsDropdown(teamEl, item.teamId != null && item.teamId !== "" ? String(item.teamId) : "");
             }
 
             editForm.setAttribute("data-employee-edit-org-snapshot-dept", item.departmentId != null && item.departmentId !== "" ? String(item.departmentId) : "");

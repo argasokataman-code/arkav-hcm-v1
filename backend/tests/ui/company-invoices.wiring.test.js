@@ -44,6 +44,9 @@ describe('company invoices wiring', () => {
       <div data-invoice-modal-table-amount></div>
       <div data-invoice-modal-table-total></div>
       <div data-invoice-modal-guidance></div>
+      <div data-invoice-modal-terms-summary></div>
+      <div data-invoice-modal-header-terms></div>
+      <div data-invoice-modal-footer-terms></div>
       <div data-invoice-modal-notes></div>
       <button type="button" data-company-invoice-download></button>
       <button type="button" data-company-invoice-print></button>
@@ -130,6 +133,23 @@ describe('company invoices wiring', () => {
                 status: 'paid',
                 isPaid: true,
                 notes: 'Paid invoice',
+              },
+            },
+          });
+        }
+
+        if (method === 'get' && path === '/hcm/invoice-settings') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                invoice_prefix: 'TENANT-',
+                invoice_due_days: '45',
+                invoice_show_tax: '0',
+                invoice_round_off_enabled: '1',
+                invoice_round_off: 'round_up',
+                invoice_header_terms: 'Header term tenant invoice.',
+                invoice_footer_terms: 'Footer term tenant invoice.',
               },
             },
           });
@@ -246,6 +266,54 @@ describe('company invoices wiring', () => {
             },
           });
         }
+        if (method === 'get' && path === '/hcm/invoice-settings') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                invoice_prefix: 'INV-',
+                invoice_due_days: '30',
+                invoice_show_tax: '1',
+                invoice_round_off_enabled: '0',
+                invoice_round_off: 'none',
+                invoice_header_terms: '',
+                invoice_footer_terms: '',
+              },
+            },
+          });
+        }
+        if (method === 'get' && path === '/hcm/invoice-settings') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                invoice_prefix: 'INV-',
+                invoice_due_days: '30',
+                invoice_show_tax: '1',
+                invoice_round_off_enabled: '0',
+                invoice_round_off: 'none',
+                invoice_header_terms: '',
+                invoice_footer_terms: '',
+              },
+            },
+          });
+        }
+        if (method === 'get' && path === '/hcm/invoice-settings') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                invoice_prefix: 'INV-',
+                invoice_due_days: '30',
+                invoice_show_tax: '1',
+                invoice_round_off_enabled: '0',
+                invoice_round_off: 'none',
+                invoice_header_terms: '',
+                invoice_footer_terms: '',
+              },
+            },
+          });
+        }
         throw new Error(`Unexpected AuthApi call: ${method} ${path}`);
       }),
       getTenantContext: vi.fn(() => ({ companyCode: 'tenant_pro', companyId: 77 })),
@@ -305,11 +373,15 @@ describe('company invoices wiring', () => {
     await flush();
 
     expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices/89', undefined);
+    expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/invoice-settings', undefined);
     expect(document.querySelector('[data-invoice-modal-number]')?.textContent).toContain('INV-89');
     expect(document.querySelector('[data-invoice-modal-payment-status]')?.textContent).toContain('Paid');
     expect(document.querySelector('[data-invoice-modal-package-name]')?.textContent).toContain('Growth');
     expect(document.querySelector('[data-invoice-modal-next-billing-date]')?.textContent).toContain('2027');
     expect(document.querySelector('[data-invoice-modal-guidance]')?.textContent).toContain('Pembayaran sudah diterima');
+    expect(document.querySelector('[data-invoice-modal-terms-summary]')?.textContent).toContain('Prefix TENANT-');
+    expect(document.querySelector('[data-invoice-modal-header-terms]')?.textContent).toContain('Header term tenant invoice');
+    expect(document.querySelector('[data-invoice-modal-footer-terms]')?.textContent).toContain('Footer term tenant invoice');
     expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('Rp');
     expect(showSpy).toHaveBeenCalled();
   });
@@ -404,6 +476,22 @@ describe('company invoices wiring', () => {
                 amountDue: 2400000,
                 status: 'paid',
                 isPaid: true,
+              },
+            },
+          });
+        }
+        if (method === 'get' && path === '/hcm/invoice-settings') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                invoice_prefix: 'INV-',
+                invoice_due_days: '30',
+                invoice_show_tax: '1',
+                invoice_round_off_enabled: '0',
+                invoice_round_off: 'none',
+                invoice_header_terms: '',
+                invoice_footer_terms: '',
               },
             },
           });

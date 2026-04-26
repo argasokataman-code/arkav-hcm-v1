@@ -52,6 +52,7 @@ Fitur ini juga mencakup endpoint smart planner backend (`POST /v1/hcm/smart-atte
 - Template shift global (`company_id = null`) hanya boleh dimutasi global admin; tenant admin tidak boleh update/delete template global.
 - `schedule-timing` boleh mengacu ke `shiftId` atau override manual jam kerja; keduanya tidak boleh menarget user di luar tenant aktif.
 - Override `schedule-timing` disimpan per kombinasi company+user agar tidak saling menimpa antar tenant saat user yang sama aktif di lebih dari satu company.
+- Smart planner settings (`/smart-attendance-shifting/settings`) tetap menerima kontrak request/response yang sama, tetapi persistence backend sekarang menyimpan tenant dan actor dalam dual-key (`*_id` legacy + `*_uuid`) agar hubungan data tetap bisa ditegakkan pada environment UUID-cutover.
 - Timesheets hanya valid bila range tanggal masuk akal; `dateTo < dateFrom` harus ditolak.
 - UI shift master hanya menampilkan aksi create/edit/delete jika user memiliki izin `schedule.manage` atau `schedule.admin`.
 - Kontrak identifier aktif adalah numeric `users.id` dan numeric `hcm_shifts.id`, bukan UUID custom di payload mutation.
@@ -104,6 +105,7 @@ Source of truth kontrak:
     - `Manual user IDs (advanced)`: path khusus bila admin memang sudah tahu user target.
   - Free-text `team keyword` tidak lagi dipakai di planner karena tidak ada master scope team khusus di flow ini; sebelumnya field itu hanya melakukan pencarian string pada snapshot employee dan terbukti rancu untuk HR.
   - Planner directory sekarang membaca seluruh page employee directory (`/v1/hcm/employees`) sampai `meta.total` terpenuhi, bukan berhenti diam-diam di page pertama.
+  - Persistence settings planner sudah dual-write `company_id` + `company_uuid` dan actor `*_user_id` + `*_user_uuid`, sehingga relasi tidak lagi bergantung pada uniqueness `companies.id`/`users.id`.
   - Panel `Planner Defaults & Transition Rules` tetap punya edit mode UX:
     - **View mode** (default): semua input disabled, hanya tampil konfigurasi yang tersimpan, tombol `Edit` aktif.
     - **Edit mode**: ketika admin klik `Edit`, semua input field & transition checkboxes enabled, tombol `Simpan`, `Cancel`, dan `Reset` tampil. Tombol Generate + Publish disabled untuk mencegah trigger yang tidak disengaja.

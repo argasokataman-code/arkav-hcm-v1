@@ -277,7 +277,7 @@
                 <li>
                     <ul>
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-users"></i><span>Employees</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -289,6 +289,7 @@
 @if ($isHcmAdmin)
                                 <li><a href="{{url('departments')}}" class="{{ Request::is('departments') ? 'active' : '' }}">Departments</a></li>
                                 <li><a href="{{url('designations')}}" class="{{ Request::is('designations') ? 'active' : '' }}">Designations</a></li>
+                                <li><a href="{{url('teams')}}" class="{{ Request::is('teams','teams/*') ? 'active' : '' }}">Teams</a></li>
                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
 @endif
                             </ul>
@@ -1382,7 +1383,7 @@
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#" class="{{ Request::is('clients-grid','clients',                   'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details',                    'employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
+                    <a href="#" class="{{ Request::is('clients-grid','clients',                   'contacts-grid','contacts','contact-details','companies-grid','companies-crm','company-details',                    'employees','employee-details','departments','designations','teams','teams/*','policy','tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','leaves','leaves-employee','leave-settings','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? 'active ' : '' }}">
                         <i class="ti ti-user-star"></i><span>Projects</span>
                         <span class="menu-arrow"></span>
@@ -1401,7 +1402,7 @@
                             </ul>
                         </li>
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
+                            <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
@@ -1409,6 +1410,7 @@
                                                                 <li><a href="{{url('employee-details')}}" class="{{ Request::is('employee-details') ? 'active' : '' }}">Employee Details</a></li>
                                 <li><a href="{{url('departments')}}" class="{{ Request::is('departments') ? 'active' : '' }}">Departments</a></li>
                                 <li><a href="{{url('designations')}}" class="{{ Request::is('designations') ? 'active' : '' }}">Designations</a></li>
+                                <li><a href="{{url('teams')}}" class="{{ Request::is('teams','teams/*') ? 'active' : '' }}">Teams</a></li>
                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                             </ul>
                         </li>
@@ -2299,7 +2301,7 @@
                             ) ? 'show active' : '' }}" title="Crm" data-bs-toggle="tab" data-bs-target="#crm">
                         <i class="ti ti-user-shield"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('employees','employee-details','departments','designations','policy','tickets','tickets-grid','ticket-details','holidays',
+                    <a href="#" class="nav-link {{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy','tickets','tickets-grid','ticket-details','holidays',
                         'leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? ' show active ' : '' }}" title="Hrm" data-bs-toggle="tab" data-bs-target="#hrm">
                         <i class="ti ti-user"></i>
@@ -2490,13 +2492,13 @@
                             <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('employees','employee-details','departments','designations','policy',
+                    <div class="tab-pane fade {{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy',
                     'tickets','tickets-grid','ticket-details','holidays','leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee','performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type','training','trainers','training-type','promotion','resignation','termination') ? ' show active' : '' }}" id="hrm">
                         <ul>
                             <li class="menu-title"><span>HRM</span></li>
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
+                                <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
@@ -2507,6 +2509,7 @@
 @if ($isHcmAdmin)
                                     <li><a href="{{url('departments')}}" class="{{ Request::is('departments') ? 'active' : '' }}">Departments</a></li>
                                     <li><a href="{{url('designations')}}" class="{{ Request::is('designations') ? 'active' : '' }}">Designations</a></li>
+                                    <li><a href="{{url('teams')}}" class="{{ Request::is('teams','teams/*') ? 'active' : '' }}">Teams</a></li>
                                     <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
 @endif
                                 </ul>

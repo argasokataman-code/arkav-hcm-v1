@@ -462,8 +462,15 @@ class HcmSmartAttendanceApiTest extends TestCase
             ->assertJsonPath('data.defaultRules.min_days_off_per_week', 3)
             ->assertJsonPath('data.forbiddenTransitions.1', 'afternoon:morning');
 
+        $settingsAdmin = User::query()->where('email', 'smart.settings.admin@example.com')->firstOrFail();
+
         $this->assertDatabaseHas('hcm_smart_planner_settings', [
             'company_id' => $company->id,
+            'company_uuid' => $company->uuid,
+            'created_by_user_id' => $settingsAdmin->id,
+            'created_by_user_uuid' => $settingsAdmin->uuid,
+            'updated_by_user_id' => $settingsAdmin->id,
+            'updated_by_user_uuid' => $settingsAdmin->uuid,
         ]);
     }
 

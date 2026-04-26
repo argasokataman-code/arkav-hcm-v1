@@ -1809,6 +1809,156 @@ paths:
         '409':
           $ref: '#/components/responses/ConflictError'
 
+  /v1/hcm/teams:
+    get:
+      tags: [HCM]
+      summary: List teams with pagination and search
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, inactive]
+            default: all
+          description: Filter teams by active status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [HCM]
+      summary: Create team
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpsertRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/hcm/teams/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TeamNumericIdPath'
+    get:
+      tags: [HCM]
+      summary: Get single team
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [HCM]
+      summary: Update team
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpsertRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [HCM]
+      summary: Delete team (blocks if team has members)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /v1/hcm/teams/{id}/members:
+    parameters:
+      - $ref: '#/components/parameters/TeamNumericIdPath'
+    get:
+      tags: [HCM]
+      summary: List members assigned to a team
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, probation, inactive]
+            default: all
+          description: Filter by employment status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMembersResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /v1/hcm/designations:
     get:
       tags: [HCM]
@@ -3767,6 +3917,9 @@ paths:
     get:
       tags: [Attendance]
       summary: Get smart planner default settings (admin only)
+      description: |
+        Tenant context tetap mengikuti runtime active company context (numeric legacy header/session resolver).
+        Persistence settings memakai dual-write (`company_id` + `company_uuid`) agar relasi tenant tetap enforceable pada environment UUID-cutover.
       security:
         - bearerAuth: []
       responses:
@@ -3799,6 +3952,9 @@ paths:
     put:
       tags: [Attendance]
       summary: Update smart planner default settings (admin only)
+      description: |
+        Kontrak payload tidak berubah.
+        Backend menyimpan actor dan tenant identifier dalam mode dual-write legacy+UUID untuk kompatibilitas transisi schema.
       security:
         - bearerAuth: []
       requestBody:
@@ -9485,6 +9641,17 @@ components:
         type: integer
         minimum: 1
       description: Numeric employee id (route enforces `whereNumber`). UUID fallback is tracked for a future identifier transition but is not accepted today.
+    TeamNumericIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        oneOf:
+          - type: integer
+            minimum: 1
+          - type: string
+            format: uuid
+      description: Numeric team id. Runtime currently also accepts UUID as fallback for transition compatibility.
     HolidayNumericIdPath:
       name: id
       in: path
@@ -9833,6 +10000,132 @@ components:
         description:
           type: string
           maxLength: 1000
+    TeamUpsertRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        department_id:
+          type: integer
+          nullable: true
+        team_lead_id:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+    Team:
+      type: object
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          format: uuid
+        company_id:
+          type: integer
+        name:
+          type: string
+        department_id:
+          type: integer
+          nullable: true
+        department_name:
+          type: string
+          nullable: true
+        team_lead_id:
+          type: integer
+          nullable: true
+        team_lead_name:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        member_count:
+          type: integer
+          description: Number of employees assigned to this team
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TeamResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/Team'
+    TeamListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            perPage:
+              type: integer
+            total:
+              type: integer
+    TeamMember:
+      type: object
+      properties:
+        employee_id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        nik:
+          type: string
+          nullable: true
+        department_name:
+          type: string
+          nullable: true
+        designation_name:
+          type: string
+          nullable: true
+        employment_status:
+          type: string
+    TeamMembersResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            team:
+              $ref: '#/components/schemas/Team'
+            members:
+              type: array
+              items:
+                $ref: '#/components/schemas/TeamMember'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            perPage:
+              type: integer
+            total:
+              type: integer
     DesignationUpsertRequest:
       allOf:
         - $ref: '#/components/schemas/DepartmentUpsertRequest'

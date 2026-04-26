@@ -49,6 +49,7 @@ use App\Http\Controllers\Api\HcmTerminationController;
 use App\Http\Controllers\Api\HcmSalaryComponentController;
 use App\Http\Controllers\Api\HcmSmartAttendanceController;
 use App\Http\Controllers\Api\HcmShiftController;
+use App\Http\Controllers\Api\HcmTeamController;
 use App\Http\Controllers\Api\HcmTicketController;
 use App\Http\Controllers\Api\HcmTrainingController;
 use App\Http\Controllers\Api\HcmUserManagementController;
@@ -139,6 +140,14 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/policies', [HcmEmployeeController::class, 'storePolicy']);
     Route::put('/policies/{id}', [HcmEmployeeController::class, 'updatePolicy'])->whereNumber('id');
     Route::delete('/policies/{id}', [HcmEmployeeController::class, 'destroyPolicy'])->whereNumber('id');
+
+    // Teams Master Data
+    Route::get('/teams', [HcmTeamController::class, 'index']);
+    Route::post('/teams', [HcmTeamController::class, 'store']);
+    Route::get('/teams/{id}/members', [HcmTeamController::class, 'members']);
+    Route::get('/teams/{id}', [HcmTeamController::class, 'show']);
+    Route::put('/teams/{id}', [HcmTeamController::class, 'update']);
+    Route::delete('/teams/{id}', [HcmTeamController::class, 'destroy']);
 
     Route::get('/attendance/admin', [AttendanceController::class, 'adminIndex']);
     Route::put('/attendance/admin/record', [AttendanceController::class, 'adminUpsertRecord']);

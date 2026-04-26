@@ -47,6 +47,7 @@ class EmployeeProfile extends Model
         'manager_user_uuid',
         'employment_status',
         'team',
+        'team_id',
         'designation',
         'phone',
         'address',
@@ -155,6 +156,11 @@ class EmployeeProfile extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function assignedTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     public function designationRef(): BelongsTo

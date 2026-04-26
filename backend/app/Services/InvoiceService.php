@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\InvoiceMailable;
 use App\Models\Invoice;
 use App\Models\CompanySetting;
+use App\Support\WebsiteSettings;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\File;
@@ -187,14 +188,36 @@ class InvoiceService
     private function invoiceHtml(Invoice $invoice): string
     {
         $invoice->loadMissing('company', 'purchaseTransaction', 'subscription');
-        $companyProfile = $this->resolveInvoiceCompanyProfile($invoice);
+        $context = $this->resolveInvoiceRenderContext($invoice);
 
         return View::make('pdf.invoice', [
             'invoice' => $invoice,
             'companyAddress' => config('hcm.organization_address'),
             'appName' => config('app.name'),
-            'companyProfile' => $companyProfile,
+            'companyProfile' => $context['companyProfile'],
+            'issuerProfile' => $context['issuerProfile'],
+            'invoiceDisplaySettings' => $context['invoiceDisplaySettings'],
         ])->render();
+    }
+
+    /**
+     * @return array{
+     *   companyProfile: array<string, string|null>,
+     *   issuerProfile: array<string, string|null>,
+     *   invoiceDisplaySettings: array<string, string|bool|null>
+     * }
+     */
+    public function resolveInvoiceRenderContext(Invoice $invoice): array
+    {
+        $invoice->loadMissing('company');
+
+        $companyProfile = $this->resolveInvoiceCompanyProfile($invoice);
+
+        return [
+            'companyProfile' => $companyProfile,
+            'issuerProfile' => $this->resolveIssuerProfile(),
+            'invoiceDisplaySettings' => $this->resolveInvoiceDisplaySettings((int) ($invoice->company_id ?? 0)),
+        ];
     }
 
     /**
@@ -234,6 +257,68 @@ class InvoiceService
             'state' => $settings->get('company_profile_state'),
             'country' => $settings->get('company_profile_country'),
             'postalCode' => $settings->get('company_profile_postal_code'),
+        ];
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function resolveIssuerProfile(): array
+    {
+        $businessSettings = WebsiteSettings::allBusinessSettings();
+
+        return [
+            'name' => $businessSettings['business_company_name'] ?: (string) config('app.name', 'Arkav'),
+            'email' => $businessSettings['business_email'] ?: null,
+            'phone' => $businessSettings['business_phone'] ?: null,
+            'fax' => $businessSettings['business_fax'] ?: null,
+            'website' => $businessSettings['business_website'] ?: null,
+            'address' => $businessSettings['business_address'] ?: null,
+            'city' => $businessSettings['business_city'] ?: null,
+            'state' => $businessSettings['business_state'] ?: null,
+            'country' => $businessSettings['business_country'] ?: null,
+            'postalCode' => $businessSettings['business_postal_code'] ?: null,
+        ];
+    }
+
+    /**
+     * @return array<string, string|bool|null>
+     */
+    private function resolveInvoiceDisplaySettings(int $companyId): array
+    {
+        if ($companyId <= 0) {
+            return [
+                'invoice_prefix' => WebsiteSettings::prefixInvoice(),
+                'invoice_due_days' => '30',
+                'invoice_round_off' => 'none',
+                'invoice_round_off_enabled' => false,
+                'invoice_show_tax' => true,
+                'invoice_header_terms' => null,
+                'invoice_footer_terms' => null,
+            ];
+        }
+
+        $settings = CompanySetting::query()
+            ->where('company_id', $companyId)
+            ->whereIn('key', [
+                'invoice_prefix',
+                'invoice_due_days',
+                'invoice_round_off',
+                'invoice_round_off_enabled',
+                'invoice_show_tax',
+                'invoice_header_terms',
+                'invoice_footer_terms',
+            ])
+            ->pluck('value', 'key');
+
+        return [
+            'invoice_prefix' => $settings->get('invoice_prefix') ?: WebsiteSettings::prefixInvoice(),
+            'invoice_due_days' => $settings->get('invoice_due_days') ?: '30',
+            'invoice_round_off' => $settings->get('invoice_round_off') ?: 'none',
+            'invoice_round_off_enabled' => (string) ($settings->get('invoice_round_off_enabled') ?? '0') === '1',
+            'invoice_show_tax' => (string) ($settings->get('invoice_show_tax') ?? '1') !== '0',
+            'invoice_header_terms' => $settings->get('invoice_header_terms') ?: null,
+            'invoice_footer_terms' => $settings->get('invoice_footer_terms') ?: null,
         ];
     }
 }

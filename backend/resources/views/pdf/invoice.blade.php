@@ -43,8 +43,37 @@
 </head>
 <body>
 @php
-    $issuer = trim((string) ($appName ?? config('app.name') ?? 'Arkav'));
-    $issuerAddress = trim((string) ($companyAddress ?? ''));
+    $issuerProfile = is_array($issuerProfile ?? null) ? $issuerProfile : [];
+    $invoiceDisplaySettings = is_array($invoiceDisplaySettings ?? null) ? $invoiceDisplaySettings : [];
+
+    $issuer = trim((string) ($issuerProfile['name'] ?? ($appName ?? config('app.name') ?? 'Arkav')));
+    $issuerAddress = trim((string) ($issuerProfile['address'] ?? ($companyAddress ?? '')));
+    $issuerCity = trim((string) ($issuerProfile['city'] ?? ''));
+    $issuerState = trim((string) ($issuerProfile['state'] ?? ''));
+    $issuerCountry = trim((string) ($issuerProfile['country'] ?? ''));
+    $issuerPostalCode = trim((string) ($issuerProfile['postalCode'] ?? ''));
+    $issuerPhone = trim((string) ($issuerProfile['phone'] ?? ''));
+    $issuerEmail = trim((string) ($issuerProfile['email'] ?? ''));
+    $issuerWebsite = trim((string) ($issuerProfile['website'] ?? ''));
+    $issuerFax = trim((string) ($issuerProfile['fax'] ?? ''));
+
+    $issuerLocationChunks = array_values(array_filter([$issuerCity, $issuerState, $issuerCountry], static fn ($value) => $value !== ''));
+    $issuerLocationLine = !empty($issuerLocationChunks) ? implode(', ', $issuerLocationChunks) : '';
+
+    $templateHeaderTerms = trim((string) ($invoiceDisplaySettings['invoice_header_terms'] ?? ''));
+    $templateFooterTerms = trim((string) ($invoiceDisplaySettings['invoice_footer_terms'] ?? ''));
+    $templateDueDays = trim((string) ($invoiceDisplaySettings['invoice_due_days'] ?? '30'));
+    $templatePrefix = trim((string) ($invoiceDisplaySettings['invoice_prefix'] ?? 'INV-'));
+    $templateShowTax = (bool) ($invoiceDisplaySettings['invoice_show_tax'] ?? true);
+    $templateRoundOffEnabled = (bool) ($invoiceDisplaySettings['invoice_round_off_enabled'] ?? false);
+    $templateRoundOffMode = trim((string) ($invoiceDisplaySettings['invoice_round_off'] ?? 'none'));
+
+    $termsSummary = [];
+    $termsSummary[] = 'Prefix: '.($templatePrefix !== '' ? $templatePrefix : 'INV-');
+    $termsSummary[] = 'Due in '.$templateDueDays.' days';
+    $termsSummary[] = 'Tax '.($templateShowTax ? 'shown' : 'hidden');
+    $termsSummary[] = 'Round-off '.($templateRoundOffEnabled ? $templateRoundOffMode : 'disabled');
+
     $company = $invoice->company;
     $companyName = trim((string) ($company?->name ?? 'Unknown Company'));
     $billTo = is_array($companyProfile ?? null) ? $companyProfile : [];
@@ -95,6 +124,17 @@
                     <div style="margin-top:14px;">
                         <div class="bold" style="font-size:11px; margin-bottom:4px;">{{ $issuer }}</div>
                         <div class="muted small">{{ $issuerAddress !== '' ? $issuerAddress : 'Billing & Finance Department' }}</div>
+                        @if ($issuerLocationLine !== '' || $issuerPostalCode !== '')
+                            <div class="muted small">{{ trim($issuerLocationLine.' '.($issuerPostalCode !== '' ? $issuerPostalCode : '')) }}</div>
+                        @endif
+                        @if ($issuerPhone !== '' || $issuerEmail !== '' || $issuerWebsite !== '' || $issuerFax !== '')
+                            <div class="muted small">
+                                @if ($issuerPhone !== '') Phone: {{ $issuerPhone }} @endif
+                                @if ($issuerFax !== '') | Fax: {{ $issuerFax }} @endif
+                                @if ($issuerEmail !== '') | Email: {{ $issuerEmail }} @endif
+                                @if ($issuerWebsite !== '') | Website: {{ $issuerWebsite }} @endif
+                            </div>
+                        @endif
                     </div>
                 </div>
             </td>
@@ -141,6 +181,7 @@
                         <tr><td>Invoice Number</td><td class="right bold">{{ $invoiceNumber }}</td></tr>
                         <tr><td>Issue Date</td><td class="right">{{ $issueDate }}</td></tr>
                         <tr><td>Due Date</td><td class="right">{{ $dueDate }}</td></tr>
+                        <tr><td>Payment Terms</td><td class="right">{{ $templateDueDays }} days</td></tr>
                         <tr><td>Payment Date</td><td class="right">{{ $paidDate ?: '-' }}</td></tr>
                         <tr><td>Package</td><td class="right">{{ $packageName !== '' ? $packageName : '-' }}</td></tr>
                         <tr><td>Billing Cycle</td><td class="right">{{ $billingCycleLabel }}</td></tr>
@@ -184,7 +225,22 @@
                 </tr>
             </tbody>
         </table>
+        <div class="muted small" style="margin-top:8px;">
+            {{ implode(' | ', $termsSummary) }}
+        </div>
     </div>
+
+    @if ($templateHeaderTerms !== '' || $templateFooterTerms !== '')
+        <div class="section-card">
+            <p class="section-title">Invoice Terms</p>
+            @if ($templateHeaderTerms !== '')
+                <div class="small" style="margin-bottom:8px;">{{ $templateHeaderTerms }}</div>
+            @endif
+            @if ($templateFooterTerms !== '')
+                <div class="small muted">{{ $templateFooterTerms }}</div>
+            @endif
+        </div>
+    @endif
 
     <table class="meta-table" cellspacing="0" cellpadding="0">
         <tr>
@@ -197,7 +253,9 @@
             <td class="meta-box" style="padding-left:10px;">
                 <div class="section-card">
                     <p class="section-title">Notes</p>
-                    <div class="notes-box small {{ $notes === '' ? 'muted' : '' }}">{{ $notes !== '' ? $notes : 'Tidak ada catatan tambahan untuk invoice ini.' }}</div>
+                    <div class="notes-box small {{ $notes === '' && $templateFooterTerms === '' ? 'muted' : '' }}">
+                        {{ $notes !== '' ? $notes : ($templateFooterTerms !== '' ? $templateFooterTerms : 'Tidak ada catatan tambahan untuk invoice ini.') }}
+                    </div>
                 </div>
             </td>
         </tr>

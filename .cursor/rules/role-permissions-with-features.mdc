@@ -40,6 +40,8 @@ alwaysApply: true
 | `/employee-details` | Detail employee | hcm-pages-data | `GET/PUT /employees/{id}`, `GET /training/users/{id}/trainings`, `GET /promotions/users/{id}/promotions`, `GET /resignations/users/{id}/resignations`, `GET /terminations/users/{id}/terminations` | Admin semua ID; karyawan **self** | Ownership + subset self-`PUT`; list training/promotion/resignation/termination per user sesuai RBAC endpoint | API + USE-CASES §5.2 |
 | `/departments` | Department | hcm-pages-data | `departments` CRUD | **HCM Admin** (→ `/employee-dashboard`) | Semua verb **hcmAdmin** | `me.hcmAdmin` + API |
 | `/designations` | Designation | hcm-pages-data | `designations` CRUD | **HCM Admin** | Semua verb **hcmAdmin** | idem |
+| `/teams` | Team master | team-master-data | `teams` CRUD | **HCM Admin** | Semua verb **hcmAdmin** (`employee.manage`) | Team lead opsional via `team_lead_id` |
+| `/teams/{id}/members` | Team members view | team-master-data (mode members) | `GET /teams/{id}/members` | Authenticated (deep-link) | **HCM Admin** atau team lead pemilik team | API enforce ownership (`team_lead_id == user login`) |
 | `/policy` | Policies | hcm-pages-data | `policies` CRUD | **HCM Admin** | Semua verb **hcmAdmin** | idem |
 | `/ticket-master` | Master Ticket | tickets-data | `tickets/categories`, `tickets/category-options` | **HCM Admin** | CRUD kategori **hcmAdmin** | Master kategori untuk form ticket |
 | `/tickets-admin` | Tickets (Admin) | tickets-data | `GET/POST /tickets`, `PUT/DELETE /tickets/{id}` | **HCM Admin** (non-admin → `/tickets-employee`) | Admin all scope + status/assign/SLA | Jalur admin |

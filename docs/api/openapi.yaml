@@ -2151,6 +2151,7 @@ paths:
         Requires active tenant context (`activeCompanyId`).
         Global Super Admin (`users.is_super_admin = 1`) can create employee lintas tenant without being blocked by subscription employee-limit validation (`EMPLOYEE_COUNT_EXCEEDED`).
         Assignment to inactive teams is rejected with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
+        Free-text team assignment without `teamId` is rejected with `TEAM_MASTER_SELECTION_REQUIRED`.
       security:
         - bearerAuth: []
       requestBody:
@@ -2189,6 +2190,12 @@ paths:
                     error:
                       code: TEAM_INACTIVE_NOT_ASSIGNABLE
                       message: Inactive team cannot receive member assignments.
+                teamMasterSelectionRequired:
+                  value:
+                    success: false
+                    error:
+                      code: TEAM_MASTER_SELECTION_REQUIRED
+                      message: Team assignment must use teamId from team master. Leave team empty to keep unassigned.
   /v1/hcm/employees/{id}:
     parameters:
       - $ref: '#/components/parameters/EmployeeIdentifierPath'
@@ -2213,7 +2220,9 @@ paths:
     put:
       tags: [HCM]
       summary: Update employee
-      description: Assignment to inactive teams is rejected with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
+      description: |
+        Assignment to inactive teams is rejected with `TEAM_INACTIVE_NOT_ASSIGNABLE`.
+        Free-text team assignment without `teamId` is rejected with `TEAM_MASTER_SELECTION_REQUIRED`.
       security:
         - bearerAuth: []
       parameters:
@@ -2250,6 +2259,12 @@ paths:
                     error:
                       code: TEAM_INACTIVE_NOT_ASSIGNABLE
                       message: Inactive team cannot receive member assignments.
+                teamMasterSelectionRequired:
+                  value:
+                    success: false
+                    error:
+                      code: TEAM_MASTER_SELECTION_REQUIRED
+                      message: Team assignment must use teamId from team master. Leave team empty to keep unassigned.
 
   /v1/hcm/employees/bulk-template:
     get:

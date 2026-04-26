@@ -8,6 +8,7 @@ use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
@@ -118,6 +119,12 @@ class GlobalSuperAdminBypassTest extends TestCase
         [, $company, $token] = $this->seedGlobalAdminWithToken();
 
         [$department, $designation] = $this->seedEmployeeOrgCatalog();
+        $team = Team::query()->create([
+            'company_id' => $company->id,
+            'department_id' => $department->id,
+            'name' => 'Platform Ops',
+            'is_active' => true,
+        ]);
         $region = $this->seedWilayahSelection();
 
         $response = $this->withHeader('Authorization', 'Bearer '.$token)
@@ -127,6 +134,7 @@ class GlobalSuperAdminBypassTest extends TestCase
                 'password' => 'StrongPass1',
                 'confirmPassword' => 'StrongPass1',
                 'team' => 'Platform Ops',
+                'teamId' => $team->id,
                 'departmentId' => $department->id,
                 'designationId' => $designation->id,
                 'employeeType' => 'permanent',

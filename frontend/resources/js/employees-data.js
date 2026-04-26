@@ -678,6 +678,56 @@
         box.textContent = message;
     }
 
+    function resolveBulkSourceTeamGuard(selectedIds) {
+        var rows = Array.prototype.slice.call(document.querySelectorAll("[data-employee-profile-id]"))
+            .filter(function (row) {
+                var employeeProfileId = String(row.getAttribute("data-employee-profile-id") || "");
+                return employeeProfileId && selectedEmployeeProfilesMap[employeeProfileId];
+            });
+
+        if (!rows.length || rows.length !== selectedIds.length) {
+            return {
+                ok: false,
+                message: "Untuk menjaga akurasi bulk reassign, pilih ulang employee dari halaman list yang sama.",
+            };
+        }
+
+        var sourceTeamKeys = rows
+            .map(function (row) {
+                return String(row.getAttribute("data-employee-team-id") || "");
+            })
+            .filter(function (value, index, values) {
+                return values.indexOf(value) === index;
+            });
+
+        if (sourceTeamKeys.length > 1) {
+            return {
+                ok: false,
+                message: "Bulk reassign aman hanya untuk employee dari source team yang sama. Silakan filter dan pilih ulang.",
+            };
+        }
+
+        if (!sourceTeamKeys.length || sourceTeamKeys[0] === "") {
+            return {
+                ok: true,
+                sourceTeamId: null,
+            };
+        }
+
+        var sourceTeamId = Number(sourceTeamKeys[0]);
+        if (!Number.isFinite(sourceTeamId) || sourceTeamId <= 0) {
+            return {
+                ok: false,
+                message: "Source team pada selection tidak valid.",
+            };
+        }
+
+        return {
+            ok: true,
+            sourceTeamId: sourceTeamId,
+        };
+    }
+
     function submitBulkTeamReassign() {
         var selectedIds = getSelectedEmployeeProfileIds();
         if (!selectedIds.length) {
@@ -699,6 +749,12 @@
             return Promise.resolve();
         }
 
+        var sourceGuard = resolveBulkSourceTeamGuard(selectedIds);
+        if (!sourceGuard.ok) {
+            renderBulkReassignResult("warning", sourceGuard.message);
+            return Promise.resolve();
+        }
+
         if (submitBtn) {
             submitBtn.disabled = true;
         }
@@ -706,6 +762,7 @@
 
         return requestJson("post", "/v1/hcm/teams/reassign-members", {
             employee_ids: selectedIds,
+            source_team_id: sourceGuard.sourceTeamId,
             target_team_id: targetTeamId,
         }).then(function (payload) {
             if (!payload || payload.success !== true) {

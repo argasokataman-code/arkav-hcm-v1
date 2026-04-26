@@ -439,7 +439,7 @@ class HcmEmployeeController extends Controller
         $this->normalizeEmployeeWritePayload($request);
         $validated = $request->validate($this->employeeWriteRules($request, true));
 
-        if ($teamAssignmentError = $this->ensureAssignableTeamIsActive($activeCompanyId, $validated['teamId'] ?? null)) {
+        if ($teamAssignmentError = $this->normalizeTeamAssignmentPayload($activeCompanyId, $validated)) {
             return $teamAssignmentError;
         }
 
@@ -678,8 +678,8 @@ class HcmEmployeeController extends Controller
         $this->normalizeEmployeeWritePayload($request);
         $validated = $request->validate($this->employeeWriteRules($request, false, $user));
 
-        if (array_key_exists('teamId', $validated)) {
-            if ($teamAssignmentError = $this->ensureAssignableTeamIsActive($this->activeCompanyId($request), $validated['teamId'])) {
+        if (array_key_exists('teamId', $validated) || array_key_exists('team', $validated)) {
+            if ($teamAssignmentError = $this->normalizeTeamAssignmentPayload($this->activeCompanyId($request), $validated)) {
                 return $teamAssignmentError;
             }
         }
@@ -2753,6 +2753,77 @@ class HcmEmployeeController extends Controller
                     'message' => 'Inactive team cannot receive member assignments.',
                 ],
             ], 422);
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     */
+    private function normalizeTeamAssignmentPayload(?int $activeCompanyId, array &$validated): ?JsonResponse
+    {
+        $teamName = array_key_exists('team', $validated)
+            ? $this->nullableString($validated['team'])
+            : null;
+        $hasTeamIdKey = array_key_exists('teamId', $validated);
+
+        if ($hasTeamIdKey) {
+            $teamId = $validated['teamId'];
+            if ($teamId === null || (int) $teamId <= 0) {
+                if ($teamName !== null) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => [
+                            'code' => 'TEAM_MASTER_SELECTION_REQUIRED',
+                            'message' => 'Team assignment must use teamId from team master. Leave team empty to keep unassigned.',
+                        ],
+                    ], 422);
+                }
+
+                $validated['teamId'] = null;
+                $validated['team'] = null;
+
+                return null;
+            }
+
+            if ($teamAssignmentError = $this->ensureAssignableTeamIsActive($activeCompanyId, $teamId)) {
+                return $teamAssignmentError;
+            }
+
+            $team = Team::query()
+                ->where('company_id', $activeCompanyId)
+                ->whereKey((int) $teamId)
+                ->first();
+
+            if (! $team) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'TEAM_NOT_FOUND',
+                        'message' => 'Selected team is not available in active company.',
+                    ],
+                ], 422);
+            }
+
+            $validated['teamId'] = (int) $team->id;
+            $validated['team'] = (string) $team->name;
+
+            return null;
+        }
+
+        if ($teamName !== null) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TEAM_MASTER_SELECTION_REQUIRED',
+                    'message' => 'Team assignment must use teamId from team master. Leave team empty to keep unassigned.',
+                ],
+            ], 422);
+        }
+
+        if (array_key_exists('team', $validated)) {
+            $validated['team'] = null;
         }
 
         return null;

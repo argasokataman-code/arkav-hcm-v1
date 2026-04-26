@@ -167,7 +167,7 @@ Dokumen teknis pendamping:
 ### Data Quality & Constraints
 - **Team name unique per company**: dua tenant boleh punya team dengan nama sama, tapi dalam 1 company, team name harus unik (UNIQUE constraint `(company_id, name)`).
 - **Team status**: active/inactive (soft delete bisa defer ke phase 2).
-- **Orphan handling**: jika team di-delete, employee yang assigned akan berubah `team_id = NULL` (cascade logic atau manual admin action dengan warning).
+- **Orphan handling**: delete team diblok jika masih ada member aktif (`TEAM_DELETION_BLOCKED`), sehingga tidak terjadi orphan assignment.
 - **Audit trail** (optional phase 2): track create/update/delete team + reason.
 
 ### Integration Point: Backward Compatibility
@@ -373,18 +373,18 @@ Note: ref sheet 'ref_teams' dengan team master
 | Employee Main List (`/employees`) | Sudah menampilkan kolom Team di tabel utama + Team filter | `backend/resources/views/employees.blade.php` | ✅ Clear | Monitor UX dan data quality lintas tenant |
 | Employee Report Table | Renderer report sudah fallback `teamName || team` | `frontend/resources/js/employees-data.js` | ✅ Clear | Pertahankan backward compatibility field |
 | Employee Create/Edit Form | Dropdown Team mutation hanya tampilkan team aktif; fallback aman untuk employee legacy yang masih di team inactive | `frontend/resources/js/employees-data.js` + runtime form employees | ✅ Clear | Monitor hanya untuk exceptional tenant policy |
-| Bulk Team Mutation UX | API bulk reassign sudah live + mass-action UI sudah tersedia di employee list | `POST /v1/hcm/teams/reassign-members` + `employees.blade.php` | ✅ Clear | Tambah source-team guard optional untuk safety tambahan |
+| Bulk Team Mutation UX | API bulk reassign sudah live + mass-action UI sudah enforce source-team guard sebelum submit | `POST /v1/hcm/teams/reassign-members` + `employees.blade.php` | ✅ Clear | Monitoring UX selection lintas halaman |
 
 ### Remaining Backlog (Post Phase 3)
 - Tidak ada blocker mayor tersisa untuk team management runtime saat ini.
 - Monitoring lane tetap aktif untuk kebutuhan tenant-specific custom role mapping.
 
 ### Gap & Risk Mitigation
-1. **Free-text team field conflict**: legacy `EmployeeProfile::team` (string) dapat conflict dengan structured `team_id`. Mitigation: Policy clear jika `team_id` null, display `team` string; prefer `team_id` untuk new data.
-2. **Orphan employee post-team-delete**: jika team deleted, employee `team_id` set NULL. Mitigation: UI warning + cascade policy clear di delete endpoint.
-3. **Team lead delegation future work**: granular permission sudah aktif; risiko tersisa pada governance rollout tenant lama yang belum sinkron role default.
-4. **Bulk operation UX**: mass-action UI sudah tersedia, namun source-team guard masih bisa ditambah untuk safety.
-5. **Inactive team assignment policy**: sudah hard-block di backend; risiko residual hanya data legacy yang perlu reassign terencana.
+1. **Free-text team field conflict**: write path admin sekarang wajib assignment via `teamId` master (`TEAM_MASTER_SELECTION_REQUIRED` jika hanya kirim free-text `team`). Legacy `team` string tetap dipertahankan untuk read compatibility.
+2. **Orphan employee post-team-delete**: mitigasi runtime aktif dengan block delete team ber-member (`TEAM_DELETION_BLOCKED`), jadi orphan assignment tidak terjadi.
+3. **Team lead governance rollout**: baseline role default (`TEAM_LEAD`, `MANAGER`) sudah tersedia; tenant lama bisa disinkronkan via command `hcm:sync-team-role-defaults`.
+4. **Bulk operation UX safety**: mass-action reassign sekarang enforce source-team guard di UI dan mengirim `source_team_id` ke API.
+5. **Inactive team assignment policy**: hard-block sudah aktif lintas create/update/import/reassign (`TEAM_INACTIVE_NOT_ASSIGNABLE`).
 
 ## Data Model Ringkas
 

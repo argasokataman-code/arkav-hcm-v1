@@ -107,12 +107,24 @@ class HcmEmployeeApiTest extends TestCase
             ['department_id' => $department->id, 'name' => 'Developer', 'is_active' => true],
         );
 
+        $team = Team::query()->firstOrCreate(
+            [
+                'company_id' => $this->company?->id,
+                'name' => 'Engineering Team',
+            ],
+            [
+                'department_id' => $department->id,
+                'is_active' => true,
+            ],
+        );
+
         return array_merge([
             'name' => 'Valid Employee',
             'email' => 'valid.employee@example.com',
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
-            'team' => 'Engineering',
+            'team' => $team->name,
+            'teamId' => $team->id,
             'departmentId' => $department->id,
             'designationId' => $designation->id,
             'employeeType' => 'permanent',
@@ -311,7 +323,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $this->assertDatabaseHas('employee_profiles', [
             'user_id' => $id,
-            'team' => 'Engineering',
+            'team' => 'Engineering Team',
             'designation' => 'Developer',
             'employment_status' => 'probation',
         ]);
@@ -697,6 +709,49 @@ class HcmEmployeeApiTest extends TestCase
 
         $response->assertUnprocessable();
         $this->assertEquals('TEAM_INACTIVE_NOT_ASSIGNABLE', $response->json('error.code'));
+    }
+
+    public function test_employee_create_rejects_free_text_team_without_team_id(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'email' => 'free-text-team-create@example.com',
+            'teamId' => null,
+            'team' => 'Legacy Team Manual',
+        ]));
+
+        $response->assertUnprocessable();
+        $this->assertEquals('TEAM_MASTER_SELECTION_REQUIRED', $response->json('error.code'));
+    }
+
+    public function test_employee_update_rejects_free_text_team_without_team_id(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $create = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'email' => 'free-text-team-update@example.com',
+        ]));
+
+        $create->assertCreated();
+        $userId = (int) $create->json('data.id');
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/employees/'.$userId, [
+            'teamId' => null,
+            'team' => 'Manual Legacy Name',
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertEquals('TEAM_MASTER_SELECTION_REQUIRED', $response->json('error.code'));
     }
 
     public function test_employee_update_persists_normalized_history_tables(): void

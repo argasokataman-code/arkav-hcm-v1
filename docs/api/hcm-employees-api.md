@@ -58,8 +58,8 @@ Body:
 - `email` required email:rfc max 255 unique
 - `password` required regex `password_strong`
 - `confirmPassword` required same:password
-- `team` optional string max 100
-- `teamId` optional int exists `teams.id` pada tenant aktif
+- `team` optional string max 100 (legacy read compatibility; untuk write admin tidak boleh jadi satu-satunya sumber assignment)
+- `teamId` optional int exists `teams.id` pada tenant aktif (canonical field untuk assignment)
 - `departmentId` **required** int exists `departments.id`
 - `designationId` **required** int exists `designations.id` (atau kirim `designation` label legacy jika memang belum memakai master, tetapi UI produksi sekarang mewajibkan master designation)
 - `designation` optional string max 150 (fallback legacy jika tanpa `designationId`)
@@ -102,6 +102,7 @@ Success `201`:
 Error `422`:
 - `DESIGNATION_DEPARTMENT_MISMATCH` — `designationId` tidak termasuk `departmentId` yang dikirim.
 - `TEAM_INACTIVE_NOT_ASSIGNABLE` — `teamId` mengacu ke team inactive.
+- `TEAM_MASTER_SELECTION_REQUIRED` — payload mengirim free-text `team` tanpa `teamId` master.
 
 ### GET `/employees/{id}`
 
@@ -142,7 +143,7 @@ RBAC:
 Admin body (semua `sometimes`):
 - `name` string min 2 max 150
 - `email` email:rfc unique ignore current id
-- `team` string max 100
+- `team` string max 100 (legacy compatibility; jika dipakai tanpa `teamId` akan ditolak)
 - `teamId` nullable int exists `teams.id` pada tenant aktif
 - `departmentId` nullable int exists `departments.id`
 - `designationId` nullable int exists `designations.id` (aturan sinkron sama seperti POST)
@@ -184,6 +185,7 @@ Success `200`:
 
 Error `422`:
 - `TEAM_INACTIVE_NOT_ASSIGNABLE` — assignment ke team inactive ditolak.
+- `TEAM_MASTER_SELECTION_REQUIRED` — assignment wajib memakai `teamId` dari master teams.
 
 ## Bulk
 

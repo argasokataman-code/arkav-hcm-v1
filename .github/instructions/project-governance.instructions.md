@@ -28,7 +28,7 @@ Sebelum menyelesaikan pekerjaan substantif (fitur, API, migrasi, RBAC, UI HCM te
 
 ## Rule komunikasi agen (wajib)
 
-- Jika memberi "next steps" / "saran", agen wajib menuliskan seluruh langkah/opsi relevan sekaligus dalam satu list lengkap.
+- Jika memberi langkah tindak lanjut / saran, agen wajib menuliskan seluruh langkah/opsi relevan sekaligus dalam satu list lengkap.
 - Hindari saran bertahap satu-per-satu bila konteksnya bisa dirangkum langsung.
 - Susun prioritas jelas dari mandatory ke opsional.
 

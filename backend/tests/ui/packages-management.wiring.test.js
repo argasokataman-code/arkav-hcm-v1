@@ -332,4 +332,143 @@ describe('Packages management wiring', () => {
     expect(alert.textContent).toContain('Invalid package');
     expect(window.__toastExecuted).toBeUndefined();
   });
+
+  it('renders active subscribers column and counts from API payload', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: 'pkg-uuid',
+                code: 'starter',
+                name: 'Starter',
+                description: 'Starter package',
+                monthlyPrice: 50,
+                yearlyPrice: 500,
+                billingUnit: 'company',
+                status: 'active',
+                activeSubscriptionsCount: 12,
+                totalSubscriptionsCount: 19,
+                features: [],
+              },
+            ],
+            pagination: { last_page: 1 },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    await loadPackagesManager(fetchMock);
+
+    const headText = Array.from(document.querySelectorAll('thead th'))
+      .map((th) => th.textContent.trim())
+      .join(' | ');
+    expect(headText).toContain('Active Subscribers');
+
+    const rowText = document.querySelector('tbody tr')?.textContent || '';
+    expect(rowText).toContain('12');
+    expect(rowText).toContain('Total riwayat: 19');
+  });
+
+  it('shows info popup when package delete is blocked with PACKAGE_IN_USE', async () => {
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: 'pkg-uuid',
+                code: 'starter',
+                name: 'Starter',
+                description: 'Starter package',
+                monthlyPrice: 50,
+                yearlyPrice: 500,
+                billingUnit: 'company',
+                status: 'active',
+                activeSubscriptionsCount: 3,
+                totalSubscriptionsCount: 5,
+                features: [],
+              },
+            ],
+            pagination: { last_page: 1 },
+          }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/pkg-uuid' && options.method === 'DELETE') {
+        return {
+          ok: false,
+          status: 422,
+          json: async () => ({
+            success: false,
+            error: {
+              code: 'PACKAGE_IN_USE',
+              message: 'Package cannot be deleted while subscription history still references it.',
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    const confirmDelete = vi.fn(async () => true);
+    const showInfo = vi.fn();
+    window.ArcavUi = {
+      confirmDelete,
+      showInfo,
+    };
+
+    const manager = await loadPackagesManager(fetchMock);
+
+    await manager.deletePackage('pkg-uuid');
+    await flush();
+
+    expect(confirmDelete).toHaveBeenCalled();
+    expect(showInfo).toHaveBeenCalledWith(
+      'Package Masih Digunakan',
+      'Package cannot be deleted while subscription history still references it.'
+    );
+
+    const alert = document.querySelector('.alert');
+    expect(alert).toBeTruthy();
+    expect(alert.textContent).toContain('Package cannot be deleted while subscription history still references it.');
+  });
 });

@@ -564,6 +564,18 @@
           `;
         }
 
+        function subscribersCell(pkg) {
+          const activeCount = Number(pkg.activeSubscriptionsCount || 0);
+          const totalCount = Number(pkg.totalSubscriptionsCount || 0);
+
+          return `
+            <div class="d-flex flex-column">
+              <span class="fw-medium">${activeCount.toLocaleString("id-ID")}</span>
+              <span class="fs-12 text-muted">Total riwayat: ${totalCount.toLocaleString("id-ID")}</span>
+            </div>
+          `;
+        }
+
         html = `
           <div class="card">
             <div class="custom-datatable-filter table-responsive">
@@ -579,6 +591,7 @@
                     <th>Price</th>
                     <th>Billing Unit</th>
                     <th>Status</th>
+                    <th>Active Subscribers</th>
                     <th>Features</th>
                     <th>Actions</th>
                   </tr>
@@ -602,6 +615,7 @@
                       <td>${priceCell(pkg)}</td>
                       <td>${esc(pkg.billingUnit || "-")}</td>
                       <td>${statusBadge(pkg.status)}</td>
+                      <td>${subscribersCell(pkg)}</td>
                       <td>${featuresCell(pkg)}</td>
                       <td>
                         <div class="action-icon d-inline-flex align-items-center">
@@ -1651,7 +1665,23 @@
         })
         .catch(function (err) {
           console.error(err);
-          self.showError("Error deleting package");
+
+          const errorCode = err?.data?.error?.code;
+          const errorMessage =
+            err?.data?.error?.message ||
+            err?.data?.message ||
+            "Error deleting package";
+
+          if (errorCode === "PACKAGE_IN_USE") {
+            if (window.ArcavUi && typeof window.ArcavUi.showInfo === "function") {
+              window.ArcavUi.showInfo("Package Masih Digunakan", errorMessage);
+            }
+            self.showError(errorMessage);
+            self.loadPackages();
+            return;
+          }
+
+          self.showError(errorMessage);
         });
     },
 

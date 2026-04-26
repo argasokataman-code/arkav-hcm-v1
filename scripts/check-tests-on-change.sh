@@ -32,6 +32,7 @@ fi
 
 all_test_changes="$(echo "${staged_files}" | awk '
   $0 ~ /^backend\/tests\/.*\.php$/ { print; next }
+  $0 ~ /^backend\/tests\/.*\.(js|ts|tsx)$/ { print; next }
   $0 ~ /^frontend\/.*(test|spec)\.(js|ts|tsx)$/ { print; next }
 ')"
 

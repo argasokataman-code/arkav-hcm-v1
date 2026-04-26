@@ -97,6 +97,17 @@ php artisan test --filter=AuthApiTest
 
 Project rules live in `.cursor/rules/` (`*.mdc`). For agent behavior, **`alwaysApply: true`** on those files plus optional **User rules** (Cursor **Settings → Rules**) is the closest Cursor gets to “read project rules first” every time. See **`.cursor/rules/AGENTS.md`** for a short pointer.
 
+## Format jawaban wajib
+
+Untuk seluruh panduan internal (agent maupun non-agent), format rekomendasi harus mengikuti standar berikut:
+
+1. Jika memberi next step atau saran, tampilkan seluruh langkah relevan sekaligus dalam satu list lengkap.
+2. Jangan beri rekomendasi bertahap satu-per-satu jika konteksnya dapat dijelaskan sekaligus.
+3. Urutkan dari mandatory ke opsional agar prioritas reviewer/operator jelas.
+4. Saat konteks deploy, jangan dorong auto-push; status harus berhenti di ready to push sampai ada konfirmasi operator.
+
+Lint helper untuk membantu review cepat ada di `scripts/lint-next-step-format.sh`.
+
 ## Documentation
 
 Project planning and API docs are centralized in `docs/`.

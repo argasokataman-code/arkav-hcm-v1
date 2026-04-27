@@ -10,7 +10,7 @@ Master data untuk **nama komponen** pada slip gaji beserta **metadata peraturan 
 ## Model data
 
 - `kind`: `addition` (pendapatan) | `deduction` (potongan).
-- `category`: salah satu nilai yang diizinkan per `kind` (lihat `App\Models\HcmSalaryComponent::ADDITION_CATEGORIES` / `DEDUCTION_CATEGORIES`).
+- `category`: kode kategori aktif dari master kategori `hcm_salary_component_categories` sesuai `kind`. Bila tabel master kategori belum ada, runtime fallback ke daftar seed bawaan.
 - **Flag perhitungan (boolean):**
   - `includeBpjsHealthWageBase` — masuk pertimbangan dasar upah BPJS Kesehatan (untuk engine mendatang).
   - `includeBpjsTkWageBase` — dasar upah BPJS Ketenagakerjaan.
@@ -23,7 +23,7 @@ Master data untuk **nama komponen** pada slip gaji beserta **metadata peraturan 
 - **Persen default (opsional):**
   - `defaultPercent` — angka 0–100 (disimpan empat desimal); `null` jika nilai di slip diisi nominal (bukan rumus % di master).
   - `percentBasis` — dasar perhitungan jika `defaultPercent` terisi: `basic_wage`, `wage_bpjs_health`, `wage_bpjs_tk`, `gross_monthly_ter`, `thr_calculation_base`. **Wajib berpasangan:** keduanya diisi atau keduanya kosong (`null`), selain itu `422`.
-- `isSystemLocked`: baris seed bawaan; **tidak bisa dihapus**; `PUT` terbatas: `name`, `description`, `isActive`, `sortOrder`, serta **`defaultPercent` / `percentBasis`** (agar tarif BPJS dll. bisa disesuaikan tanpa mengubah kategori).
+- `isSystemLocked`: penanda origin seed/legacy untuk kebutuhan observasi UI. Setelah hardening CRUD 2026-04-27, flag ini **tidak lagi memblokir update atau delete**.
 
 ## Endpoints
 
@@ -48,17 +48,37 @@ Body (JSON):
 
 ### `PUT /v1/hcm/salary-components/{id}`
 
-- Jika **tidak locked:** body penuh seperti mutasi master: `code`, `name`, `kind`, `category`, `description`, `legalBasis`, `legalNotes`, `defaultPercent`, `percentBasis`, semua flag boolean (wajib eksplisit), `isActive`, `sortOrder`.
-- Jika **locked:** `name`, `description`, `isActive`, `sortOrder`, `defaultPercent`, `percentBasis`.
+- Body selalu payload penuh seperti mutasi master: `code`, `name`, `kind`, `category`, `description`, `legalBasis`, `legalNotes`, `defaultPercent`, `percentBasis`, semua flag boolean (wajib eksplisit), `isActive`, `sortOrder`.
+- Kategori tetap harus valid terhadap master kategori aktif untuk `kind` terkait.
 
 **200** | **403** | **404** | **422**.
 
 ### `DELETE /v1/hcm/salary-components/{id}`
 
-- Jika `isSystemLocked`: **422** `error.code: DOMAIN_LOCKED`.
-- Selain itu: hapus permanen.
+- Semua baris dapat dihapus permanen, termasuk komponen seed/legacy dan komponen yang sebelumnya ditandai integrasi/managed.
+- Relasi downstream yang memakai foreign key `nullOnDelete` (mis. payroll items, overtime requests, payroll lines) akan otomatis dilepas tanpa mengubah histori slip lama.
 
 **200** | **403** | **404** | **422**.
+
+### `GET /v1/hcm/salary-component-categories`
+
+- Mengembalikan master kategori dinamis per `kind`, termasuk row seed yang diberi badge sistem di UI.
+
+### `POST /v1/hcm/salary-component-categories`
+
+- Wajib: `kind`, `code`, `name`.
+- Opsional: `description`, `isActive`, `sortOrder`.
+
+### `PUT /v1/hcm/salary-component-categories/{id}`
+
+- Body: `kind`, `code`, `name`, `description`, `isActive`, `sortOrder`.
+- Jika `kind`/`code` berubah, runtime ikut memindahkan komponen yang masih memakai pasangan lama ke pasangan baru.
+
+### `DELETE /v1/hcm/salary-component-categories/{id}`
+
+- Semua kategori dapat dihapus, termasuk kategori seed/legacy bertanda sistem.
+- Delete kategori akan ikut menghapus seluruh komponen yang memakai kategori tersebut agar runtime tidak menyisakan referensi kategori yatim.
+- Relasi turunan dari komponen yang ikut terhapus tetap aman karena foreign key runtime memakai `nullOnDelete`.
 
 ## Seed
 
@@ -68,8 +88,8 @@ Migrasi `2026_04_11_120000_add_percent_fields_to_hcm_salary_components_table` me
 
 ## Tes
 
-`HcmSalaryComponentApiTest` — admin CRUD, non-admin 403 pada list, hapus locked ditolak, update locked terbatas.
+`HcmSalaryComponentApiTest` — admin CRUD penuh untuk komponen + kategori, non-admin 403 pada list, delete kategori menghapus komponen turunannya.
 
 ## OpenAPI (Swagger UI)
 
-`docs/api/openapi.yaml` — tag **Payroll**: path `/v1/hcm/salary-components` & `.../{id}` dengan `requestBody`, respons `200/201`, `oneOf` untuk `PUT` (payload penuh vs baris terkunci), serta skema `SalaryComponent*` di `components/schemas` (impor di `/api-docs`).
+`docs/api/openapi.yaml` — tag **Payroll**: path `/v1/hcm/salary-components`, `/v1/hcm/salary-components/{id}`, `/v1/hcm/salary-component-categories`, dan `/v1/hcm/salary-component-categories/{id}` beserta skema request/response terkait.

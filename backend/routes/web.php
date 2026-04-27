@@ -1380,9 +1380,70 @@ Route::get( '/payment-gateways', function () {
     return view( 'payment-gateways');
 })->middleware('hcm.web.global-admin')->name( 'payment-gateways');
 
-Route::get( '/tax-rates', function () {
-    return view( 'tax-rates');
-})->middleware('hcm.web.admin')->name( 'tax-rates');
+Route::prefix('tax-rates')->middleware('hcm.web.admin')->group(function (): void {
+    Route::get('/', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'landing',
+        ]);
+    })->name('tax-rates');
+
+    Route::get('/policies', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'tenant-policies',
+        ]);
+    })->name('tax-rates.policies');
+
+    Route::get('/policies/{policyUuid}/edit', function (string $policyUuid) {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'policy-editor',
+            'taxGovernancePolicyUuid' => $policyUuid,
+        ]);
+    })->whereUuid('policyUuid')->name('tax-rates.policies.edit');
+
+    Route::get('/approvals', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'approvals',
+        ]);
+    })->name('tax-rates.approvals');
+
+    Route::get('/publications', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'publications',
+        ]);
+    })->name('tax-rates.publications');
+
+    Route::get('/reports', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'tenant-reports',
+        ]);
+    })->name('tax-rates.reports');
+
+    Route::get('/komponen-pajak', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'komponen-pajak',
+        ]);
+    })->name('tax-rates.komponen-pajak');
+});
+
+Route::prefix('tax-rates')->middleware('hcm.web.global-admin')->group(function (): void {
+    Route::get('/governance', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'global-governance',
+        ]);
+    })->name('tax-rates.governance');
+
+    Route::get('/platform-billing/policies', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'platform-policies',
+        ]);
+    })->name('tax-rates.platform-billing.policies');
+
+    Route::get('/platform-billing/reports', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'platform-reports',
+        ]);
+    })->name('tax-rates.platform-billing.reports');
+});
 
 Route::get( '/pages', function () {
     return view( 'pages');

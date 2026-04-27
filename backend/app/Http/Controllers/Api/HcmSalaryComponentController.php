@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
+use App\Models\HcmSalaryComponentCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -14,6 +15,150 @@ use Illuminate\Validation\Rule;
 class HcmSalaryComponentController extends Controller
 {
     use ChecksPermissions;
+
+    public function categories(Request $request): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.view');
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $rows = HcmSalaryComponentCategory::query()
+            ->orderBy('kind')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(function (HcmSalaryComponentCategory $c): array {
+                return [
+                    'id' => (int) $c->id,
+                    'kind' => (string) $c->kind,
+                    'code' => (string) $c->code,
+                    'name' => (string) $c->name,
+                    'description' => $c->description,
+                    'isSystem' => (bool) $c->is_system,
+                    'isActive' => (bool) $c->is_active,
+                    'sortOrder' => (int) $c->sort_order,
+                    'usageCount' => HcmSalaryComponent::query()
+                        ->where('kind', $c->kind)
+                        ->where('category', $c->code)
+                        ->count(),
+                ];
+            })
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $rows]);
+    }
+
+    public function storeCategory(Request $request): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $validated = $request->validate([
+            'kind' => ['required', 'string', Rule::in(['addition', 'deduction'])],
+            'code' => ['required', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'isActive' => ['nullable', 'boolean'],
+            'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
+        ]);
+
+        $code = (string) $validated['code'];
+        if (HcmSalaryComponentCategory::query()->where('kind', $validated['kind'])->where('code', $code)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Kategori dengan kode tersebut sudah ada pada jenis yang sama.'],
+            ], 422);
+        }
+
+        $row = HcmSalaryComponentCategory::query()->create([
+            'kind' => (string) $validated['kind'],
+            'code' => $code,
+            'name' => trim((string) $validated['name']),
+            'description' => isset($validated['description']) ? trim((string) $validated['description']) : null,
+            'is_system' => false,
+            'is_active' => (bool) ($validated['isActive'] ?? true),
+            'sort_order' => (int) ($validated['sortOrder'] ?? 0),
+        ]);
+
+        return response()->json(['success' => true, 'data' => ['id' => (int) $row->id]], 201);
+    }
+
+    public function updateCategory(Request $request, int $id): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $row = HcmSalaryComponentCategory::query()->findOrFail($id);
+
+        $validated = $request->validate([
+            'kind' => ['required', 'string', Rule::in(['addition', 'deduction'])],
+            'code' => ['required', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'isActive' => ['nullable', 'boolean'],
+            'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
+        ]);
+
+        if (HcmSalaryComponentCategory::query()
+            ->where('kind', $validated['kind'])
+            ->where('code', (string) $validated['code'])
+            ->whereKeyNot($row->id)
+            ->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Kategori dengan kode tersebut sudah ada pada jenis yang sama.'],
+            ], 422);
+        }
+
+        $oldKind = (string) $row->kind;
+        $oldCode = (string) $row->code;
+
+        $row->update([
+            'kind' => (string) $validated['kind'],
+            'code' => (string) $validated['code'],
+            'name' => trim((string) $validated['name']),
+            'description' => isset($validated['description']) ? trim((string) $validated['description']) : null,
+            'is_active' => (bool) ($validated['isActive'] ?? true),
+            'sort_order' => (int) ($validated['sortOrder'] ?? 0),
+        ]);
+
+        // Keep existing components in sync when category code/kind is adjusted.
+        if ($oldKind !== $row->kind || $oldCode !== $row->code) {
+            HcmSalaryComponent::query()
+                ->where('kind', $oldKind)
+                ->where('category', $oldCode)
+                ->update([
+                    'kind' => $row->kind,
+                    'category' => $row->code,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyCategory(Request $request, int $id): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $row = HcmSalaryComponentCategory::query()->findOrFail($id);
+        HcmSalaryComponent::query()
+            ->where('kind', $row->kind)
+            ->where('category', $row->code)
+            ->delete();
+
+        $row->delete();
+
+        return response()->json(['success' => true]);
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -75,7 +220,7 @@ class HcmSalaryComponentController extends Controller
             'category' => [
                 'required',
                 'string',
-                Rule::in(array_merge(HcmSalaryComponent::ADDITION_CATEGORIES, HcmSalaryComponent::DEDUCTION_CATEGORIES)),
+                Rule::in(HcmSalaryComponent::allCategoryCodes()),
             ],
             'legalBasis' => ['nullable', 'string', 'max:500'],
             'legalNotes' => ['nullable', 'string', 'max:5000'],
@@ -168,44 +313,6 @@ class HcmSalaryComponentController extends Controller
 
         $c = HcmSalaryComponent::query()->findOrFail($id);
 
-        if ($this->isManagedBySourceModule($c)) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'INTEGRATION_LOCKED',
-                    'message' => 'Komponen ini dikelola dari modul sumber: '.$this->managedModuleLabel($c).'. Ubah dari modul tersebut, bukan dari Master Components.',
-                ],
-            ], 422);
-        }
-
-        if ($c->is_system_locked) {
-            $validated = $request->validate([
-                'name' => ['required', 'string', 'max:200'],
-                'description' => ['nullable', 'string', 'max:2000'],
-                'isActive' => ['nullable', 'boolean'],
-                'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
-                'defaultPercent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-                'percentBasis' => ['nullable', 'string', Rule::in(HcmSalaryComponent::PERCENT_BASES)],
-            ]);
-            $pairErr = $this->percentPairError($validated['defaultPercent'] ?? null, $validated['percentBasis'] ?? null);
-            if ($pairErr !== null) {
-                return response()->json([
-                    'success' => false,
-                    'error' => ['code' => 'VALIDATION_ERROR', 'message' => $pairErr],
-                ], 422);
-            }
-            $c->update([
-                'name' => $validated['name'],
-                'description' => $validated['description'] ?? null,
-                'is_active' => (bool) ($validated['isActive'] ?? $c->is_active),
-                'sort_order' => (int) ($validated['sortOrder'] ?? $c->sort_order),
-                'default_percent' => $this->nullablePercent($validated['defaultPercent'] ?? null),
-                'percent_basis' => $this->nullablePercentBasis($validated['defaultPercent'] ?? null, $validated['percentBasis'] ?? null),
-            ]);
-
-            return response()->json(['success' => true]);
-        }
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
             'code' => ['required', 'string', 'max:64', 'regex:/^[a-z0-9_\-]+$/'],
@@ -214,7 +321,7 @@ class HcmSalaryComponentController extends Controller
             'category' => [
                 'required',
                 'string',
-                Rule::in(array_merge(HcmSalaryComponent::ADDITION_CATEGORIES, HcmSalaryComponent::DEDUCTION_CATEGORIES)),
+                Rule::in(HcmSalaryComponent::allCategoryCodes()),
             ],
             'legalBasis' => ['nullable', 'string', 'max:500'],
             'legalNotes' => ['nullable', 'string', 'max:5000'],
@@ -304,26 +411,48 @@ class HcmSalaryComponentController extends Controller
         }
 
         $c = HcmSalaryComponent::query()->findOrFail($id);
-        if ($this->isManagedBySourceModule($c)) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'INTEGRATION_LOCKED',
-                    'message' => 'Komponen ini dikelola dari modul sumber: '.$this->managedModuleLabel($c).'. Hapus/ubah dari modul tersebut, bukan dari Master Components.',
-                ],
-            ], 422);
+
+        $c->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * PATCH /salary-components/{id}/tax-flags
+     * Update only the PPh21 tax classification flags from the Tax Rate settings page.
+     */
+    public function patchTaxFlags(Request $request, int $id): JsonResponse
+    {
+        $forbidden = $this->ensurePermission($request, 'payroll.manage');
+        if ($forbidden) {
+            return $forbidden;
         }
-        if ($c->is_system_locked) {
+
+        $c = HcmSalaryComponent::query()->findOrFail($id);
+
+        $validated = $request->validate([
+            'includePph21TerGross' => ['nullable', 'boolean'],
+            'includePph21AnnualReconciliation' => ['nullable', 'boolean'],
+        ]);
+
+        if (! array_key_exists('includePph21TerGross', $validated) && ! array_key_exists('includePph21AnnualReconciliation', $validated)) {
             return response()->json([
                 'success' => false,
-                'error' => [
-                    'code' => 'DOMAIN_LOCKED',
-                    'message' => 'System-defined component cannot be deleted.',
-                ],
+                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'At least one tax flag is required.'],
             ], 422);
         }
 
-        $c->delete();
+        $updates = [];
+        if (array_key_exists('includePph21TerGross', $validated) && $validated['includePph21TerGross'] !== null) {
+            $updates['include_pph21_ter_gross'] = (bool) $validated['includePph21TerGross'];
+        }
+        if (array_key_exists('includePph21AnnualReconciliation', $validated) && $validated['includePph21AnnualReconciliation'] !== null) {
+            $updates['include_pph21_annual_reconciliation'] = (bool) $validated['includePph21AnnualReconciliation'];
+        }
+
+        if (! empty($updates)) {
+            $c->update($updates);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -342,6 +471,7 @@ class HcmSalaryComponentController extends Controller
             'description' => $c->description ?? '',
             'kind' => $c->kind,
             'category' => $c->category,
+            'categoryName' => $this->categoryName($c->kind, $c->category),
             'legalBasis' => $c->legal_basis ?? '',
             'legalNotes' => $c->legal_notes ?? '',
             'includeBpjsHealthWageBase' => (bool) $c->include_bpjs_health_wage_base,
@@ -489,5 +619,13 @@ class HcmSalaryComponentController extends Controller
         }
 
         return $query->exists();
+    }
+
+    private function categoryName(string $kind, string $code): string
+    {
+        return (string) (HcmSalaryComponentCategory::query()
+            ->where('kind', $kind)
+            ->where('code', $code)
+            ->value('name') ?? $code);
     }
 }

@@ -14,16 +14,16 @@
                                 <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                             </li>
                             <li class="breadcrumb-item">
-                                <a href="{{ url('employee-salary') }}">Payroll</a>
+                                <a href="{{ url('payment-gateways') }}">Financial Settings</a>
                             </li>
-                            <li class="breadcrumb-item active" aria-current="page">Salary components</li>
+                            <li class="breadcrumb-item active" aria-current="page">Master Komponen Gaji</li>
                         </ol>
                     </nav>
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
                     <div class="me-2 mb-2">
-                        <a href="{{ url('employee-salary') }}" class="btn btn-white d-inline-flex align-items-center">
-                            <i class="ti ti-currency-dollar me-1"></i>Employee salary
+                        <a href="{{ url('tax-rates') }}" class="btn btn-white d-inline-flex align-items-center">
+                            <i class="ti ti-receipt-tax me-1"></i>Tax Rates
                         </a>
                     </div>
                     <div class="mb-2">
@@ -41,46 +41,46 @@
 
             @include('hcm.partials.payroll-lifecycle-alert', ['variant' => 'info', 'title' => 'Efek perubahan komponen'])
 
-            <div class="d-flex flex-wrap gy-2 justify-content-between my-4">
-                @include('hcm.partials.payroll-section-tabs', ['payrollTab' => 'master'])
-            </div>
-
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                     <div>
                         <h5 class="mb-1">Salary components</h5>
-                        <span class="text-muted small">Definisi untuk mesin penggajian; komponen kunci sistem tidak dapat dihapus dari daftar ini.</span>
+                        <span class="text-muted small">Daftar dikelompokkan mengikuti praktik payroll Indonesia: penghasilan rutin/tidak rutin, benefit, potongan wajib (PPh21/BPJS), dan potongan internal.</span>
                     </div>
-                    <a href="javascript:void(0);" class="btn btn-light btn-sm d-inline-flex align-items-center"
-                       data-bs-toggle="modal" data-bs-target="#arcav_salary_component_guide">
-                        <i class="ti ti-info-circle me-1"></i>Panduan &amp; rujukan
-                    </a>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="javascript:void(0);" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center"
+                           data-bs-toggle="modal" data-bs-target="#arcav_salary_component_category_master">
+                            <i class="ti ti-tags me-1"></i>Master kategori
+                        </a>
+                        <a href="javascript:void(0);" class="btn btn-light btn-sm d-inline-flex align-items-center"
+                           data-bs-toggle="modal" data-bs-target="#arcav_salary_component_guide">
+                            <i class="ti ti-info-circle me-1"></i>Panduan &amp; rujukan
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
+                    <div class="px-3 pt-3 pb-0 border-bottom bg-light">
+                        <div class="nav nav-pills flex-nowrap gap-2 overflow-auto pb-2" data-hcm-salary-category-tabs role="tablist" aria-label="Filter komponen gaji per kelompok">
+                            <button type="button" class="btn btn-sm btn-primary" role="tab" aria-selected="true">Semua kategori</button>
+                        </div>
+                    </div>
                     <div class="custom-datatable-filter table-responsive">
                         <table class="table">
                             <thead class="thead-light">
                                 <tr>
-                                    <th class="no-sort">
-                                        <div class="form-check form-check-md">
-                                            <input class="form-check-input" type="checkbox" id="select-all">
-                                        </div>
-                                    </th>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Category</th>
+                                    <th>Kode</th>
+                                    <th>Nama</th>
+                                    <th>Jenis</th>
+                                    <th>Kategori</th>
                                     <th>Integrasi</th>
                                     <th>Default %</th>
-                                    <th>Legal basis</th>
+                                    <th>Dasar hukum</th>
                                     <th>Status</th>
-                                    <th></th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody data-hcm-salary-components-body>
-                                <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">Loading…</td>
-                                </tr>
+                                <tr><td colspan="9" class="text-center text-muted py-4">Loading…</td></tr>
                             </tbody>
                         </table>
                     </div>

@@ -63,6 +63,53 @@ class GlobalSuperAdminBypassTest extends TestCase
         ]);
     }
 
+    public function test_global_admin_without_explicit_tenant_uses_prioritized_default_company(): void
+    {
+        config()->set('hcm.super_admin_default_company_code', 'default_company');
+
+        $globalAdmin = User::factory()->create([
+            'email' => 'platform.dev@example.com',
+            'is_super_admin' => true,
+        ]);
+
+        $otherCompany = Company::create([
+            'code' => 'alpha_company',
+            'name' => 'Alpha Company',
+            'slug' => 'alpha-company',
+        ]);
+
+        $preferredCompany = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'slug' => 'default-company',
+            ]
+        );
+
+        CompanyUser::create([
+            'user_id' => $globalAdmin->id,
+            'company_id' => $otherCompany->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        CompanyUser::create([
+            'user_id' => $globalAdmin->id,
+            'company_id' => $preferredCompany->id,
+            'role' => 'owner',
+            'status' => 'active',
+        ]);
+
+        $request = Request::create('/api/whatever', 'GET');
+
+        $resolver = app(TenantContextResolver::class);
+        $result = $resolver->resolve($request, $globalAdmin);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame($preferredCompany->id, $result['company']->id);
+        $this->assertSame($preferredCompany->code, $result['company']->code);
+    }
+
     public function test_employee_list_returns_employees_from_every_tenant_for_global_admin(): void
     {
         [, $companyA, $token] = $this->seedGlobalAdminWithToken();

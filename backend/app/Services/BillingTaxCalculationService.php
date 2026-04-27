@@ -28,6 +28,13 @@ class BillingTaxCalculationService
             ->count();
 
         $totalInvoiceAmount = (float) ((clone $invoiceQuery)->sum('amount_due') ?? 0);
+        $paidInvoiceAmount = (float) ((clone $invoiceQuery)
+            ->where(function ($query): void {
+                $query->where('is_paid', true)
+                    ->orWhere('status', 'paid');
+            })
+            ->sum('amount_due') ?? 0);
+        $outstandingInvoiceAmount = max(0, round($totalInvoiceAmount - $paidInvoiceAmount, 2));
         $taxRatePercentage = (float) ($policy?->tax_rate_percentage ?? 0);
         $taxAmount = round($totalInvoiceAmount * ($taxRatePercentage / 100), 2);
 
@@ -42,6 +49,8 @@ class BillingTaxCalculationService
             'paid_invoice_count' => (int) $paidInvoiceCount,
             'unpaid_invoice_count' => max(0, (int) $invoiceCount - (int) $paidInvoiceCount),
             'total_invoice_amount' => $totalInvoiceAmount,
+            'paid_invoice_amount' => round($paidInvoiceAmount, 2),
+            'outstanding_invoice_amount' => $outstandingInvoiceAmount,
             'tax_amount' => $taxAmount,
         ];
     }

@@ -130,4 +130,48 @@ class HcmTaxGovernanceApiTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
+
+    public function test_reject_requires_note_and_returns_policy_to_draft(): void
+    {
+        $maker = $this->createHcmAdminWithCompany(['email' => 'tax-maker-reject@example.com']);
+        $approver = $this->createHcmAdminWithCompany(['email' => 'tax-approver-reject@example.com'], $maker['company']);
+
+        $create = $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$maker['token'],
+        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies', [
+            'policyCode' => 'PPh21-TER-REJECT',
+            'name' => 'PPh 21 TER Reject Flow',
+            'effectiveStartDate' => '2026-02-01',
+            'effectiveEndDate' => null,
+            'rules' => [
+                'scheme' => 'TER',
+                'currency' => 'IDR',
+            ],
+            'rateSchedules' => [
+                ['bracket' => 'A', 'rate' => 6],
+            ],
+        ])->assertStatus(201);
+
+        $policyUuid = (string) $create->json('data.uuid');
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$maker['token'],
+        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/submit', [
+            'submissionNote' => 'Submit for reject test',
+        ])->assertOk()->assertJsonPath('data.status', 'submitted');
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$approver['token'],
+        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/reject', [])
+            ->assertStatus(422);
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$approver['token'],
+        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/reject', [
+            'rejectionNote' => 'Rate schedule must be revised before approval',
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'draft');
+    }
 }

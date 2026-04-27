@@ -180,8 +180,7 @@ class HcmRbacIsolationTest extends TestCase
         $token = (string) $login->json('data.accessToken');
 
         // Tenant admin (CompanyUser role='admin') passes the backward-compat permission check
-        // and is NOT blocked by ensureTenantRoleSetupBoundary (which only blocks global admin).
-        // New design: tenant admins manage their own role structures; global admin cannot.
+        // and can manage role setup inside the active tenant context.
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $company->id,
@@ -196,7 +195,7 @@ class HcmRbacIsolationTest extends TestCase
     }
 
     #[Test]
-    public function global_admin_cannot_directly_manage_tenant_role_setup()
+    public function global_admin_can_manage_tenant_role_setup_with_active_context()
     {
         $company = Company::factory()->create();
         $email = 'super@admin.com';
@@ -263,7 +262,7 @@ class HcmRbacIsolationTest extends TestCase
         ])->assertOk();
         $token = (string) $login->json('data.accessToken');
 
-        // New design: global admin is BLOCKED from directly mutating tenant role setup.
+        // Global admin can manage role setup when operating inside active tenant context.
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $company->id,
@@ -273,7 +272,8 @@ class HcmRbacIsolationTest extends TestCase
             'name' => 'Super Created Role',
         ]);
 
-        $response->assertStatus(403)
-            ->assertJsonPath('error.code', 'TENANT_ROLE_SETUP_FORBIDDEN');
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.code', 'SUPER_CREATED_ROLE');
     }
 }

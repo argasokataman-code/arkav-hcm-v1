@@ -13,12 +13,15 @@ use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
 use App\Services\BillingTaxCalculationService;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 class HcmTaxGovernanceController extends Controller
 {
@@ -286,6 +289,51 @@ class HcmTaxGovernanceController extends Controller
         );
     }
 
+    public function reject(Request $request, string $policyRef): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.approve')) {
+            return $response;
+        }
+
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
+        if (! $policy) {
+            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
+        }
+
+        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_SUBMITTED) {
+            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only submitted policy can be rejected.', 422);
+        }
+
+        $validated = $request->validate([
+            'rejectionNote' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+        if ($actorId && (int) $policy->created_by_user_id === $actorId) {
+            return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot reject their own policy.', 403);
+        }
+
+        $before = $this->policyStateSnapshot($policy);
+        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
+            $policy->status = HcmTaxGovernancePolicy::STATUS_DRAFT;
+            $policy->last_note = $validated['rejectionNote'];
+            $policy->save();
+
+            $this->recordEvent($policy, 'rejected', $before, $this->policyStateSnapshot($policy), $validated['rejectionNote'], $actorId);
+        });
+
+        $policy->refresh();
+
+        // Dispatch event for projection sync
+        // TaxGovernancePolicyTransitioned::dispatch($policy, 'submitted', $policy->status, $actorId);
+
+        return $this->withNumericPolicyDeprecationHeaders(
+            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
+            $usedNumericLegacy
+        );
+    }
+
     public function publish(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.publish')) {
@@ -535,7 +583,7 @@ class HcmTaxGovernanceController extends Controller
 
         // Verify tenant access (global admin can resolve any, tenant user can only resolve own)
         $userCompanyId = $this->activeCompanyId($request);
-        $isGlobalAdmin = in_array('tax.governance.anomaly.view_all', $request->user()?->permissions ?? []);
+        $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
         if (!$isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot resolve anomaly in other tenant.', 403);
         }
@@ -551,11 +599,22 @@ class HcmTaxGovernanceController extends Controller
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
 
         DB::transaction(function () use ($anomaly, $validated, $actorId): void {
+            $evidenceSnapshot = is_array($anomaly->evidence_snapshot) ? $anomaly->evidence_snapshot : [];
+            $resolutionLog = is_array($evidenceSnapshot['resolution_audit'] ?? null)
+                ? $evidenceSnapshot['resolution_audit']
+                : [];
+            $resolutionLog[] = [
+                'resolved_at' => now()->toIso8601String(),
+                'resolved_by_user_id' => $actorId,
+                'resolution_note' => $validated['resolution_note'],
+            ];
+
             $anomaly->resolved_at = now();
             $anomaly->resolution_note = $validated['resolution_note'];
+            $anomaly->evidence_snapshot = array_merge($evidenceSnapshot, [
+                'resolution_audit' => $resolutionLog,
+            ]);
             $anomaly->save();
-
-            // TODO: Log resolution event to audit trail
         });
 
         return response()->json([
@@ -581,7 +640,7 @@ class HcmTaxGovernanceController extends Controller
 
         // Verify tenant access
         $userCompanyId = $this->activeCompanyId($request);
-        $isGlobalAdmin = in_array('tax.governance.anomaly.view_all', $request->user()?->permissions ?? []);
+        $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
         if (!$isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot acknowledge anomaly in other tenant.', 403);
         }
@@ -609,7 +668,7 @@ class HcmTaxGovernanceController extends Controller
         $userCompanyId = $this->activeCompanyId($request);
 
         // Authorization: tenant user can only view own tenant; global admin can view any
-        $isGlobalAdmin = in_array('tax.governance.dashboard.view_all', $request->user()?->permissions ?? []);
+        $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
         if (!$isGlobalAdmin && $companyId && $companyId !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant self-audit report.', 403);
         }
@@ -704,6 +763,102 @@ class HcmTaxGovernanceController extends Controller
         ]);
     }
 
+    public function tenantComplianceStatus(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.tenant.report.export')) {
+            return $response;
+        }
+
+        $companyId = $request->input('company_id');
+        $userCompanyId = $this->activeCompanyId($request);
+        $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
+
+        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant compliance status.', 403);
+        }
+
+        if (!$companyId && $userCompanyId) {
+            $companyId = $userCompanyId;
+        }
+
+        if (!$companyId) {
+            return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
+        }
+
+        $company = Company::find((int) $companyId);
+        if (!$company) {
+            return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
+        }
+
+        $currentPolicy = HcmTaxGovernancePolicy::query()
+            ->where('company_id', (int) $companyId)
+            ->where('status', HcmTaxGovernancePolicy::STATUS_PUBLISHED)
+            ->orderByDesc('version')
+            ->first();
+
+        $unresolvedAnomalies = HcmTaxGovernanceAnomaly::query()
+            ->where('company_id', (int) $companyId)
+            ->whereNull('resolved_at')
+            ->count();
+
+        $billingCompliance = app(BillingTaxCalculationService::class)
+            ->calculateBillingTax((int) $companyId, now()->format('Y-m'));
+
+        $overallStatus = ($currentPolicy && $unresolvedAnomalies === 0 && (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0)
+            ? 'compliant'
+            : 'attention_required';
+
+        $recommendedActions = [];
+        if (!$currentPolicy) {
+            $recommendedActions[] = [
+                'priority' => 'high',
+                'action' => 'Publish active statutory tax policy.',
+                'target_date' => now()->addDays(7)->toDateString(),
+            ];
+        }
+        if ($unresolvedAnomalies > 0) {
+            $recommendedActions[] = [
+                'priority' => 'high',
+                'action' => 'Resolve unresolved tax governance anomalies.',
+                'target_date' => now()->addDays(5)->toDateString(),
+            ];
+        }
+        if ((int) ($billingCompliance['unpaid_invoice_count'] ?? 0) > 0) {
+            $recommendedActions[] = [
+                'priority' => 'medium',
+                'action' => 'Reconcile unpaid billing tax invoices.',
+                'target_date' => now()->addDays(10)->toDateString(),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'company_id' => (int) $companyId,
+                'company_name' => $company->name,
+                'reporting_period' => now()->format('Y-\QQ'),
+                'compliance_status' => [
+                    'statutory_tax_compliance' => [
+                        'has_active_policy' => (bool) $currentPolicy,
+                        'policy_version' => $currentPolicy?->version,
+                        'last_publication_date' => optional($currentPolicy?->published_at)?->toDateString(),
+                        'anomalies_unresolved' => $unresolvedAnomalies,
+                    ],
+                    'billing_tax_compliance' => [
+                        'billing_cycle_active' => !empty($billingCompliance['policy_uuid']),
+                        'invoices_issued' => (int) ($billingCompliance['invoice_count'] ?? 0),
+                        'invoices_paid' => (int) ($billingCompliance['paid_invoice_count'] ?? 0),
+                        'amount_outstanding' => (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0),
+                        'payment_status' => ((int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0) ? 'current' : 'overdue',
+                    ],
+                    'overall_status' => $overallStatus,
+                    'next_review_date' => now()->addMonth()->toDateString(),
+                ],
+                'recommended_actions' => $recommendedActions,
+            ],
+        ]);
+    }
+
     private function validateUpsertRequest(Request $request, bool $isCreate): array
     {
         $rules = [
@@ -792,7 +947,7 @@ class HcmTaxGovernanceController extends Controller
 
         return $payload;
     }
-    public function tenantSelfAuditReportExport(Request $request): JsonResponse
+    public function tenantSelfAuditReportExport(Request $request): JsonResponse|Response
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.report.export')) {
             return $response;
@@ -803,7 +958,7 @@ class HcmTaxGovernanceController extends Controller
         $format = $request->input('format', 'json'); // json or pdf
 
         // Authorization: tenant user can only export own tenant; global admin can export any
-        $isGlobalAdmin = in_array('tax.governance.dashboard.view_all', $request->user()?->permissions ?? []);
+        $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
         if (!$isGlobalAdmin && $companyId && $companyId !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot export other tenant audit report.', 403);
         }
@@ -840,13 +995,11 @@ class HcmTaxGovernanceController extends Controller
         $reportData = $reportService->generateTenantSelfAuditReport($companyId, $periodStart, $periodEnd);
 
         if ($format === 'pdf') {
-            // TODO: Implement PDF export using mPDF
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'message' => 'PDF export not yet implemented',
-                    'report_data' => $reportData,
-                ],
+            $pdfBinary = $this->renderTenantSelfAuditPdf($reportData);
+
+            return response($pdfBinary, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="tenant-self-audit-' . ((string) $companyId) . '-' . now()->format('Ymd-His') . '.pdf"',
             ]);
         }
 
@@ -863,7 +1016,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
-            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can access platform billing tax policies.', 403);
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
         $validated = $request->validate([
@@ -916,7 +1069,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
-            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can manage platform billing tax policies.', 403);
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
         $validated = $request->validate([
@@ -976,7 +1129,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
-            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can view platform billing tax reports.', 403);
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
         $validated = $request->validate([
@@ -998,7 +1151,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
-            return $this->errorResponse('AUTH_FORBIDDEN', 'Only global admin can view platform billing tax invoices.', 403);
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
         $validated = $request->validate([
@@ -1074,6 +1227,37 @@ class HcmTaxGovernanceController extends Controller
             ->header('Deprecation', self::NUMERIC_POLICY_ID_DEPRECATION)
             ->header('Sunset', self::NUMERIC_POLICY_ID_SUNSET_AT)
             ->header('Warning', '299 - "Numeric policy identifier is deprecated. Use UUID."');
+    }
+
+    private function renderTenantSelfAuditPdf(array $reportData): string
+    {
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+
+        $dompdf = new Dompdf($options);
+
+        $companyName = (string) ($reportData['company_name'] ?? 'Unknown Company');
+        $generatedAt = (string) ($reportData['report_generated_at'] ?? now()->toIso8601String());
+        $periodStart = (string) ($reportData['period']['start'] ?? '-');
+        $periodEnd = (string) ($reportData['period']['end'] ?? '-');
+        $policyVersion = (string) ($reportData['policy_snapshot']['current_version'] ?? '-');
+        $readinessScore = (string) ($reportData['compliance_checklist']['readiness_score'] ?? '-');
+        $anomalyCount = (int) count($reportData['anomalies_detected'] ?? []);
+
+        $html = '<html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:12px;}h1{font-size:18px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #ccc;padding:6px;vertical-align:top;}th{background:#f5f5f5;text-align:left;}</style></head><body>';
+        $html .= '<h1>Tenant Self-Audit Report</h1>';
+        $html .= '<p><strong>Company:</strong> ' . e($companyName) . '<br><strong>Generated At:</strong> ' . e($generatedAt) . '</p>';
+        $html .= '<table><tr><th>Period Start</th><th>Period End</th><th>Current Policy Version</th><th>Readiness Score</th><th>Unresolved Anomalies</th></tr>';
+        $html .= '<tr><td>' . e($periodStart) . '</td><td>' . e($periodEnd) . '</td><td>' . e($policyVersion) . '</td><td>' . e($readinessScore) . '</td><td>' . e((string) $anomalyCount) . '</td></tr>';
+        $html .= '</table>';
+        $html .= '<p>Generated by Arkav Tax Governance Reporting.</p>';
+        $html .= '</body></html>';
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return $dompdf->output();
     }
     private function policyStateSnapshot(HcmTaxGovernancePolicy $policy): array
     {

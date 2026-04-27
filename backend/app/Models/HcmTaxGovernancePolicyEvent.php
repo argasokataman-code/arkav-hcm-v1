@@ -35,4 +35,14 @@ class HcmTaxGovernancePolicyEvent extends Model
     {
         return $this->belongsTo(HcmTaxGovernancePolicy::class, 'hcm_tax_governance_policy_id');
     }
+
+    public function actorUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_user_id');
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->actorUser();
+    }
 }

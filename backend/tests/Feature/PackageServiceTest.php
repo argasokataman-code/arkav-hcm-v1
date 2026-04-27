@@ -78,8 +78,80 @@ class PackageServiceTest extends TestCase
 
         $response->assertOk();
         $response->assertJson(['success' => true]);
-        $this->assertCount(2, $response->json('data'));
-        $this->assertEquals('basic', $response->json('data.0.code'));
+        $codes = collect($response->json('data'))->pluck('code')->all();
+        $this->assertContains('basic', $codes);
+        $this->assertContains('pro', $codes);
+        $this->assertNotContains('archived', $codes);
+    }
+
+    public function test_non_admin_cannot_see_global_admin_only_package_in_list_or_detail(): void
+    {
+        $public = Package::create([
+            'code' => 'starter_public',
+            'name' => 'Starter Public',
+            'monthly_price' => 99000,
+            'yearly_price' => 990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => false,
+        ]);
+
+        $internal = Package::create([
+            'code' => 'unlimited_internal',
+            'name' => 'Unlimited Internal',
+            'monthly_price' => 0,
+            'yearly_price' => 0,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => true,
+        ]);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant User',
+            'email' => 'tenant.user@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'tenant.user@example.com',
+            'password' => 'StrongPass1',
+        ]);
+        $tenantToken = $login->json('data.accessToken');
+
+        $list = $this->withHeader('Authorization', 'Bearer '.$tenantToken)
+            ->getJson('/v1/saas/packages?status=active&per_page=50');
+
+        $list->assertOk();
+        $codes = collect($list->json('data'))->pluck('code')->all();
+        $this->assertContains($public->code, $codes);
+        $this->assertNotContains($internal->code, $codes);
+
+        $detail = $this->withHeader('Authorization', 'Bearer '.$tenantToken)
+            ->getJson('/v1/saas/packages/'.$internal->uuid);
+        $detail->assertStatus(404);
+    }
+
+    public function test_global_admin_can_see_global_admin_only_package(): void
+    {
+        $internal = Package::create([
+            'code' => 'unlimited_visible_admin',
+            'name' => 'Unlimited Visible Admin',
+            'monthly_price' => 0,
+            'yearly_price' => 0,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => true,
+        ]);
+
+        $list = $this->request()->getJson('/v1/saas/packages?status=active&per_page=50');
+        $list->assertOk();
+        $codes = collect($list->json('data'))->pluck('code')->all();
+        $this->assertContains($internal->code, $codes);
+
+        $detail = $this->request()->getJson('/v1/saas/packages/'.$internal->uuid);
+        $detail->assertOk();
+        $detail->assertJsonPath('data.isGlobalAdminOnly', true);
     }
 
     /**

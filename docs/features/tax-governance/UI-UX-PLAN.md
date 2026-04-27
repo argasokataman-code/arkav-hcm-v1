@@ -3,10 +3,27 @@
 ## Status
 
 - Tanggal: 2026-04-27
-- Status: planned (execution pending)
+- Status: in-progress (interactive lifecycle screens active, hardening lanjutan ongoing)
 - Scope: tenant statutory tax + platform billing tax
 - Referensi keputusan: [DECISION.md](DECISION.md)
 - Referensi tracking fase: [tracker.md](tracker.md)
+
+Catatan eksekusi terbaru:
+- Screen 1 (`/tax-rates`) sudah aktif sebagai landing governance runtime.
+- Route dedicated screen map sudah aktif:
+   - `/tax-rates/policies`
+   - `/tax-rates/approvals`
+   - `/tax-rates/publications`
+   - `/tax-rates/reports`
+   - `/tax-rates/governance`
+   - `/tax-rates/platform-billing/policies`
+   - `/tax-rates/platform-billing/reports`
+- Screen 8 dan 9 sekarang bisa diakses sebagai route dedicated, sambil tetap tersedia di landing untuk transisi operasional.
+- Screen 3 Policy Editor sudah mendukung validation preview + save draft + submit approval.
+- Screen 4 Approval Inbox sudah mendukung approve/reject dengan reason capture.
+- Screen 5 Publication Timeline sudah mendukung publish action dengan reason + effective date.
+- Screen 7 Governance Drilldown sudah read-only lintas tenant dengan state loading/empty/error.
+- RBAC route-level split sudah memisahkan screen global (`/tax-rates/governance`, `/tax-rates/platform-billing/*`) dari screen tenant.
 
 ## Tujuan UI/UX
 

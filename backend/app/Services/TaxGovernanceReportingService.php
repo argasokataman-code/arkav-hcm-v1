@@ -8,14 +8,13 @@ use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceAnomaly;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class TaxGovernanceReportingService
 {
     /**
      * Generate tenant self-audit report
      *
-     * @param string $companyId UUID
+    * @param string $companyId Company numeric ID in tenant context
      * @param Carbon $periodStart
      * @param Carbon $periodEnd
      * @return array
@@ -55,9 +54,9 @@ class TaxGovernanceReportingService
             ],
             'policy_snapshot' => $currentPolicy ? [
                 'current_version' => $currentPolicy->version,
-                'effective_from' => $currentPolicy->effective_date?->format('Y-m-d'),
-                'effective_to' => $currentPolicy->end_date?->format('Y-m-d'),
-                'rule_count' => $currentPolicy->rule_count ?? 0,
+                'effective_from' => $currentPolicy->effective_start_date?->format('Y-m-d'),
+                'effective_to' => $currentPolicy->effective_end_date?->format('Y-m-d'),
+                'rule_count' => count($currentPolicy->rules ?? []),
                 'last_published_by' => $currentPolicy->published_by_user_id,
                 'last_published_at' => $currentPolicy->published_at?->toIso8601String(),
             ] : null,
@@ -90,7 +89,7 @@ class TaxGovernanceReportingService
 
         foreach ($policies as $policy) {
             // Get events for this policy version
-            $events = HcmTaxGovernancePolicyEvent::where('policy_id', $policy->id)
+            $events = HcmTaxGovernancePolicyEvent::where('hcm_tax_governance_policy_id', $policy->id)
                 ->whereBetween('created_at', [$periodStart, $periodEnd])
                 ->orderBy('created_at', 'asc')
                 ->get();
@@ -102,7 +101,7 @@ class TaxGovernanceReportingService
                     'actor_user_id' => $event->actor_user_id,
                     'actor_name' => $event->actorUser?->name ?? 'Unknown',
                     'timestamp' => $event->created_at->toIso8601String(),
-                    'change_summary' => $event->change_description ?? '',
+                    'change_summary' => (string) ($event->note ?? ''),
                 ];
             }
         }
@@ -181,7 +180,7 @@ class TaxGovernanceReportingService
             return [];
         }
 
-        $events = HcmTaxGovernancePolicyEvent::where('policy_id', $policyId)
+        $events = HcmTaxGovernancePolicyEvent::where('hcm_tax_governance_policy_id', $policyId)
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -189,9 +188,9 @@ class TaxGovernanceReportingService
             'event_type' => $event->event_type,
             'timestamp' => $event->created_at->toIso8601String(),
             'actor' => $event->actorUser?->name ?? 'System',
-            'details' => $event->change_description ?? '',
-            'before_state' => $event->before_state ? json_decode($event->before_state, true) : null,
-            'after_state' => $event->after_state ? json_decode($event->after_state, true) : null,
+            'details' => (string) ($event->note ?? ''),
+            'before_state' => $event->before_state,
+            'after_state' => $event->after_state,
         ])->toArray();
     }
 

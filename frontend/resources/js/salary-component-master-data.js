@@ -4,6 +4,8 @@
     var CATEGORY_LABELS = {
         basic_wage: "Upah pokok",
         fixed_allowance: "Tunjangan tetap",
+        common_allowance: "Tunjangan umum",
+        family_allowance: "Tunjangan keluarga",
         irregular_allowance: "Tunjangan tidak tetap / insentif",
         overtime: "Upah lembur",
         thr: "THR",
@@ -69,6 +71,49 @@
     ];
 
     var rowCache = {};
+    var categoryRows = [];
+    var categoryLabelByCode = Object.assign({}, CATEGORY_LABELS);
+    var selectedCategoryTabKey = "all";
+    var componentRows = [];
+
+    var CATEGORY_UI_GROUPS = {
+        basic_wage: "earning_routine",
+        fixed_allowance: "earning_routine",
+        common_allowance: "earning_routine",
+        family_allowance: "earning_routine",
+        irregular_allowance: "earning_non_routine",
+        overtime: "earning_non_routine",
+        thr: "earning_non_routine",
+        bonus: "earning_non_routine",
+        natura_taxable: "benefit",
+        natura_non_taxable: "benefit",
+        special_allowance: "benefit",
+        reimbursement: "benefit",
+        termination_benefit: "benefit",
+        employer_cost_display: "benefit",
+        other_addition: "earning_non_routine",
+        bpjs_health_employee: "statutory_deduction",
+        bpjs_jht_employee: "statutory_deduction",
+        bpjs_jp_employee: "statutory_deduction",
+        pension_employee: "statutory_deduction",
+        pph21_ter: "statutory_deduction",
+        pph21_december_recon: "statutory_deduction",
+        other_statutory: "statutory_deduction",
+        internal_advance: "internal_deduction",
+        internal_loan: "internal_deduction",
+        internal_cooperative: "internal_deduction",
+        internal_other: "internal_deduction",
+        other_deduction: "internal_deduction",
+    };
+
+    var UI_GROUP_LABELS = {
+        earning_routine: "Penghasilan Rutin",
+        earning_non_routine: "Penghasilan Tidak Rutin",
+        benefit: "Benefit & Reimbursement",
+        statutory_deduction: "Potongan Wajib (PPh21/BPJS)",
+        internal_deduction: "Potongan Internal",
+        other: "Lainnya",
+    };
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -154,10 +199,29 @@
         if (!selectEl) {
             return;
         }
-        var list = kind === "deduction" ? DEDUCTION_CATS : ADDITION_CATS;
+        var dynamic = categoryRows
+            .filter(function (c) {
+                return c && c.kind === kind && c.isActive !== false;
+            })
+            .sort(function (a, b) {
+                var ao = Number(a.sortOrder || 0);
+                var bo = Number(b.sortOrder || 0);
+                if (ao !== bo) {
+                    return ao - bo;
+                }
+                return String(a.name || "").localeCompare(String(b.name || ""));
+            })
+            .map(function (c) {
+                return String(c.code || "");
+            })
+            .filter(function (code) {
+                return code !== "";
+            });
+        var fallback = kind === "deduction" ? DEDUCTION_CATS : ADDITION_CATS;
+        var list = dynamic.length ? dynamic : fallback;
         selectEl.innerHTML = list
             .map(function (c) {
-                return '<option value="' + esc(c) + '">' + esc(CATEGORY_LABELS[c] || c) + "</option>";
+                return '<option value="' + esc(c) + '">' + esc(categoryLabelByCode[c] || CATEGORY_LABELS[c] || c) + "</option>";
             })
             .join("");
         if (current && list.indexOf(current) >= 0) {
@@ -169,14 +233,20 @@
 
     function setBool(form, field, v) {
         var el = form.querySelector('[data-hcm-field="' + field + '"]');
-        if (el && el.type === "checkbox") {
+        if (!el) return;
+        if (el.type === "checkbox") {
             el.checked = !!v;
+        } else if (el.type === "hidden") {
+            el.value = v ? "1" : "0";
         }
     }
 
     function getBool(form, field) {
         var el = form.querySelector('[data-hcm-field="' + field + '"]');
-        return el && el.type === "checkbox" ? el.checked : false;
+        if (!el) return false;
+        if (el.type === "checkbox") return el.checked;
+        if (el.type === "hidden") return el.value === "1" || el.value === "true";
+        return false;
     }
 
     function setLockedFields(form, locked) {
@@ -266,80 +336,343 @@
         }).join("");
     }
 
+    function kindLabel(kind) {
+        return kind === "deduction" ? "Potongan" : "Pendapatan";
+    }
+
+    function categoryLabel(code, fallbackName) {
+        if (fallbackName) {
+            return String(fallbackName);
+        }
+        return categoryLabelByCode[code] || CATEGORY_LABELS[code] || code;
+    }
+
+    function categorySortMap(kind) {
+        var map = {};
+        categoryRows
+            .filter(function (c) {
+                return c && c.kind === kind;
+            })
+            .forEach(function (c) {
+                map[String(c.code)] = Number(c.sortOrder || 0);
+            });
+        return map;
+    }
+
+    function hydrateCategoryLabelMap(rows) {
+        categoryLabelByCode = Object.assign({}, CATEGORY_LABELS);
+        (rows || []).forEach(function (c) {
+            if (c && c.code && c.name) {
+                categoryLabelByCode[String(c.code)] = String(c.name);
+            }
+        });
+    }
+
+    function groupTabKey(group) {
+        return String(group.kind || "") + "::" + String(group.category || "");
+    }
+
+    function uiGroupKeyForCategory(categoryCode, kind) {
+        var key = CATEGORY_UI_GROUPS[String(categoryCode || "")];
+        if (key) {
+            return key;
+        }
+        return kind === "deduction" ? "internal_deduction" : "other";
+    }
+
+    function uiGroupSortOrder(key) {
+        return {
+            earning_routine: 10,
+            earning_non_routine: 20,
+            benefit: 30,
+            statutory_deduction: 40,
+            internal_deduction: 50,
+            other: 60,
+        }[key] || 999;
+    }
+
+    function renderCategoryTabs(groups, totalRows) {
+        var host = document.querySelector("[data-hcm-salary-category-tabs]");
+        if (!host) {
+            return;
+        }
+
+        var aggregate = {};
+        (groups || []).forEach(function (g) {
+            var key = uiGroupKeyForCategory(g.category, g.kind);
+            if (!aggregate[key]) {
+                aggregate[key] = { key: key, count: 0 };
+            }
+            aggregate[key].count += (g.rows || []).length;
+        });
+
+        var groupTabs = Object.keys(aggregate)
+            .map(function (key) {
+                return aggregate[key];
+            })
+            .sort(function (a, b) {
+                return uiGroupSortOrder(a.key) - uiGroupSortOrder(b.key);
+            });
+
+        var exists = groupTabs.some(function (g) {
+            return g.key === selectedCategoryTabKey;
+        });
+        if (selectedCategoryTabKey !== "all" && !exists) {
+            selectedCategoryTabKey = "all";
+        }
+
+        var tabs = [];
+        tabs.push(
+            '<button type="button" class="btn btn-sm ' +
+                (selectedCategoryTabKey === "all" ? "btn-primary" : "btn-outline-primary") +
+                '" data-hcm-tab-category="all" role="tab" aria-selected="' +
+                (selectedCategoryTabKey === "all" ? "true" : "false") +
+                '" tabindex="' +
+                (selectedCategoryTabKey === "all" ? "0" : "-1") +
+                '">Semua kategori (' +
+                esc(String(totalRows || 0)) +
+                ")</button>"
+        );
+
+        groupTabs.forEach(function (group) {
+            var key = group.key;
+            var label = UI_GROUP_LABELS[key] || key;
+            tabs.push(
+                '<button type="button" class="btn btn-sm ' +
+                    (selectedCategoryTabKey === key ? "btn-primary" : "btn-outline-primary") +
+                    '" data-hcm-tab-category="' +
+                    esc(key) +
+                    '" role="tab" aria-selected="' +
+                    (selectedCategoryTabKey === key ? "true" : "false") +
+                    '" tabindex="' +
+                    (selectedCategoryTabKey === key ? "0" : "-1") +
+                    '">' +
+                    esc(label) +
+                    " (" +
+                    esc(String(group.count || 0)) +
+                    ")</button>"
+            );
+        });
+
+        host.innerHTML = tabs.join("");
+    }
+
     function bind() {
         var body = document.querySelector("[data-hcm-salary-components-body]");
         var addForm = document.querySelector('[data-hcm-salary-component-form="add"]');
         var editForm = document.querySelector('[data-hcm-salary-component-form="edit"]');
+        var categoryForm = document.querySelector('[data-hcm-salary-category-form="edit"]');
+        var categoryBody = document.querySelector("[data-hcm-salary-category-body]");
         var addKind = addForm && addForm.querySelector('[data-hcm-field="kind"]');
         var editKind = editForm && editForm.querySelector('[data-hcm-field="kind"]');
 
         function render(rows) {
+            componentRows = Array.isArray(rows) ? rows.slice() : [];
             rowCache = {};
-            (rows || []).forEach(function (r) {
+            componentRows.forEach(function (r) {
                 rowCache[r.id] = r;
             });
             if (!body) {
                 return;
             }
-            body.innerHTML =
-                (rows || [])
-                    .map(function (r) {
-                        var badge = r.isActive ? "success" : "danger";
-                        var st = r.isActive ? "Active" : "Inactive";
-                        var kindLabel = r.kind === "deduction" ? "Deduction" : "Addition";
-                        if (r.employerCostLine) {
-                            kindLabel = "Info (Employer cost)";
-                        }
-                        var lockBadge = r.isSystemLocked
-                            ? ' <span class="badge badge-secondary badge-xs ms-1" title="System">System</span>'
-                            : "";
-                        var legal = truncate(r.legalBasis || "—", 56);
-                        var canEdit = !r.integrationLocked;
-                        var del =
-                            r.isSystemLocked || r.integrationLocked
-                                ? ""
-                                : '<a href="#" class="ms-2" data-hcm-salary-component-delete="' +
-                                  esc(String(r.id)) +
-                                  '"><i class="ti ti-trash"></i></a>';
-                        var edit = canEdit
-                            ? '<a href="#" class="me-2" data-hcm-salary-component-edit="' +
+            var grouped = {};
+            componentRows.forEach(function (r) {
+                var key = String(r.kind || "") + "::" + String(r.category || "");
+                if (!grouped[key]) {
+                    grouped[key] = { kind: r.kind, category: r.category, rows: [] };
+                }
+                grouped[key].rows.push(r);
+            });
+
+            var additionSort = categorySortMap("addition");
+            var deductionSort = categorySortMap("deduction");
+
+            var groups = Object.keys(grouped)
+                .map(function (key) {
+                    return grouped[key];
+                })
+                .sort(function (a, b) {
+                    if (a.kind !== b.kind) {
+                        return a.kind === "addition" ? -1 : 1;
+                    }
+                    var sortMap = a.kind === "deduction" ? deductionSort : additionSort;
+                    var as = sortMap[String(a.category)] != null ? sortMap[String(a.category)] : 9999;
+                    var bs = sortMap[String(b.category)] != null ? sortMap[String(b.category)] : 9999;
+                    if (as !== bs) {
+                        return as - bs;
+                    }
+                    return categoryLabel(String(a.category)).localeCompare(categoryLabel(String(b.category)));
+                });
+
+            renderCategoryTabs(groups, componentRows.length);
+
+            var visibleRows = componentRows.filter(function (row) {
+                if (selectedCategoryTabKey === "all") {
+                    return true;
+                }
+                return uiGroupKeyForCategory(row.category, row.kind) === selectedCategoryTabKey;
+            });
+
+            visibleRows.sort(function (a, b) {
+                var ag = uiGroupKeyForCategory(a.category, a.kind);
+                var bg = uiGroupKeyForCategory(b.category, b.kind);
+                if (ag !== bg) {
+                    return uiGroupSortOrder(ag) - uiGroupSortOrder(bg);
+                }
+                if (a.kind !== b.kind) {
+                    return a.kind === "addition" ? -1 : 1;
+                }
+                var sortMap = a.kind === "deduction" ? deductionSort : additionSort;
+                var as = sortMap[String(a.category)] != null ? sortMap[String(a.category)] : 9999;
+                var bs = sortMap[String(b.category)] != null ? sortMap[String(b.category)] : 9999;
+                if (as !== bs) {
+                    return as - bs;
+                }
+                return String(a.name || "").localeCompare(String(b.name || ""));
+            });
+
+            var currentSection = "";
+            var html = visibleRows
+                .map(function (r) {
+                    var badge = r.isActive ? "success" : "danger";
+                    var st = r.isActive ? "Aktif" : "Nonaktif";
+                    var kindLabelText = r.kind === "deduction" ? "Potongan" : "Pendapatan";
+                    if (r.employerCostLine) {
+                        kindLabelText = "Info beban perusahaan";
+                    }
+                    var lockBadge = r.isSystemLocked
+                        ? ' <span class="badge badge-secondary badge-xs ms-1" title="System">System</span>'
+                        : "";
+                    var legal = truncate(r.legalBasis || "—", 56);
+                    var del =
+                        r.isSystemLocked || r.integrationLocked
+                            ? ""
+                            : '<a href="#" class="ms-2" data-hcm-salary-component-delete="' +
                               esc(String(r.id)) +
-                              '" data-bs-toggle="modal" data-bs-target="#arcav_edit_salary_component"><i class="ti ti-edit"></i></a>'
-                            : '<span class="text-muted me-2" title="Kelola dari modul sumber"><i class="ti ti-lock"></i></span>';
+                              '"><i class="ti ti-trash"></i></a>';
+                    var edit = '<a href="#" class="me-2" data-hcm-salary-component-edit="' +
+                        esc(String(r.id)) +
+                        '" data-bs-toggle="modal" data-bs-target="#arcav_edit_salary_component"><i class="ti ti-edit"></i></a>';
+                    var sectionHtml = "";
+                    var sectionKey = uiGroupKeyForCategory(r.category, r.kind);
+                    if (selectedCategoryTabKey === "all" && sectionKey !== currentSection) {
+                        currentSection = sectionKey;
+                        sectionHtml = '<tr class="table-secondary"><td colspan="9" class="fw-semibold">' +
+                            esc(UI_GROUP_LABELS[sectionKey] || "Lainnya") +
+                            '</td></tr>';
+                    }
+                    return sectionHtml + (
+                        "<tr><td><code>" +
+                        esc(r.code) +
+                        "</code></td><td><h6 class=\"fw-medium mb-0\">" +
+                        esc(r.name) +
+                        lockBadge +
+                        "</h6></td><td>" +
+                        esc(kindLabelText) +
+                        "</td><td><span class=\"text-muted small\">" +
+                        esc(categoryLabel(r.category, r.categoryName)) +
+                        "</span></td><td>" +
+                        formatIntegrationCell(r) +
+                        "</td><td class=\"small\">" +
+                        formatPercentCell(r) +
+                        "</td><td><span class=\"small\" title=\"" +
+                        esc(r.legalBasis || "") +
+                        "\">" +
+                        esc(legal) +
+                        "</span></td><td><span class=\"badge badge-" +
+                        badge +
+                        ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
+                        esc(st) +
+                        "</span></td><td><div class=\"action-icon d-inline-flex\">" +
+                        edit +
+                        del +
+                        "</div></td></tr>"
+                    );
+                })
+                .join("");
+
+            body.innerHTML = html || '<tr><td colspan="9" class="text-center py-4 text-muted">Belum ada komponen pada filter ini.</td></tr>';
+        }
+
+        function resetCategoryForm() {
+            if (!categoryForm) {
+                return;
+            }
+            categoryForm.querySelector('[data-hcm-category-field="id"]').value = "";
+            categoryForm.querySelector('[data-hcm-category-field="kind"]').value = "addition";
+            categoryForm.querySelector('[data-hcm-category-field="code"]').value = "";
+            categoryForm.querySelector('[data-hcm-category-field="name"]').value = "";
+            categoryForm.querySelector('[data-hcm-category-field="description"]').value = "";
+            categoryForm.querySelector('[data-hcm-category-field="sortOrder"]').value = "0";
+            categoryForm.querySelector('[data-hcm-category-field="isActive"]').checked = true;
+        }
+
+        function renderCategories(rows) {
+            categoryRows = Array.isArray(rows) ? rows : [];
+            hydrateCategoryLabelMap(categoryRows);
+
+            if (addForm && addKind) {
+                fillCategorySelect(addForm.querySelector('[data-hcm-field="category"]'), addKind.value, addForm.querySelector('[data-hcm-field="category"]').value);
+            }
+            if (editForm && editKind) {
+                fillCategorySelect(editForm.querySelector('[data-hcm-field="category"]'), editKind.value, editForm.querySelector('[data-hcm-field="category"]').value);
+            }
+
+            if (!categoryBody) {
+                return;
+            }
+
+            categoryBody.innerHTML =
+                categoryRows
+                    .map(function (c) {
+                        var status = c.isActive ? "Active" : "Inactive";
+                        var statusBadge = c.isActive ? "success" : "danger";
+                        var lock = c.isSystem
+                            ? ' <span class="badge badge-secondary badge-xs ms-1">System</span>'
+                            : "";
+                        var del = '<a href="#" data-hcm-category-delete="' + esc(String(c.id)) + '" class="text-danger"><i class="ti ti-trash"></i></a>';
                         return (
-                            "<tr><td><div class=\"form-check form-check-md\"><input class=\"form-check-input\" type=\"checkbox\"></div></td><td><code>" +
-                            esc(r.code) +
-                            "</code></td><td><h6 class=\"fw-medium mb-0\">" +
-                            esc(r.name) +
-                            lockBadge +
-                            "</h6></td><td>" +
-                            esc(kindLabel) +
-                            "</td><td><span class=\"text-muted small\">" +
-                            esc(CATEGORY_LABELS[r.category] || r.category) +
-                            "</span></td><td>" +
-                            formatIntegrationCell(r) +
-                            "</td><td class=\"small\">" +
-                            formatPercentCell(r) +
-                            "</td><td><span class=\"small\" title=\"" +
-                            esc(r.legalBasis || "") +
-                            "\">" +
-                            esc(legal) +
-                            "</span></td><td><span class=\"badge badge-" +
-                            badge +
-                            ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
-                            esc(st) +
-                            "</span></td><td><div class=\"action-icon d-inline-flex\">" +
-                            edit +
+                            "<tr><td>" +
+                            esc(kindLabel(c.kind)) +
+                            "</td><td><code>" +
+                            esc(c.code) +
+                            "</code></td><td>" +
+                            esc(c.name) +
+                            lock +
+                            (c.description ? '<div class="text-muted small">' + esc(c.description) + "</div>" : "") +
+                            "</td><td>" +
+                            esc(String(c.usageCount || 0)) +
+                            "</td><td><span class=\"badge badge-" +
+                            statusBadge +
+                            '\">' +
+                            esc(status) +
+                            "</span></td><td><div class=\"d-inline-flex gap-2\"><a href=\"#\" data-hcm-category-edit=\"" +
+                            esc(String(c.id)) +
+                            '\"><i class=\"ti ti-edit\"></i></a>' +
                             del +
                             "</div></td></tr>"
                         );
                     })
-                    .join("") || '<tr><td colspan="10" class="text-center py-4 text-muted">No salary components yet.</td></tr>';
+                    .join("") || '<tr><td colspan="6" class="text-center text-muted py-3">Belum ada kategori.</td></tr>';
+        }
+
+        function reloadCategories() {
+            return apiRequest("get", "/v1/hcm/salary-component-categories", null)
+                .then(function (p) {
+                    if (!p || p.success !== true) {
+                        throw { status: 0, data: p };
+                    }
+                    renderCategories(p.data || []);
+                });
         }
 
         function reload() {
-            apiRequest("get", "/v1/hcm/salary-components", null)
-                .then(function (p) {
+            Promise.all([
+                reloadCategories(),
+                apiRequest("get", "/v1/hcm/salary-components", null),
+            ])
+                .then(function (result) {
+                    var p = result[1];
                     if (!p) {
                         notify("Silakan masuk kembali.", true);
                         return;
@@ -355,6 +688,10 @@
                 });
         }
 
+        function rerenderCurrentRows() {
+            render(componentRows);
+        }
+
         if (addKind && addForm) {
             addKind.addEventListener("change", function () {
                 fillCategorySelect(addForm.querySelector('[data-hcm-field="category"]'), addKind.value, null);
@@ -366,6 +703,52 @@
             editKind.addEventListener("change", function () {
                 var cur = editForm.querySelector('[data-hcm-field="category"]').value;
                 fillCategorySelect(editForm.querySelector('[data-hcm-field="category"]'), editKind.value, cur);
+            });
+        }
+
+        if (categoryForm) {
+            var resetBtn = categoryForm.querySelector('[data-hcm-category-action="reset"]');
+            if (resetBtn) {
+                resetBtn.addEventListener("click", function () {
+                    resetCategoryForm();
+                });
+            }
+
+            categoryForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+                var id = categoryForm.querySelector('[data-hcm-category-field="id"]').value.trim();
+                var kind = categoryForm.querySelector('[data-hcm-category-field="kind"]').value;
+                var code = categoryForm.querySelector('[data-hcm-category-field="code"]').value.trim();
+                var name = categoryForm.querySelector('[data-hcm-category-field="name"]').value.trim();
+                if (!kind || !code || !name) {
+                    notify("Lengkapi jenis, kode, dan nama kategori.", true);
+                    return;
+                }
+                var payload = {
+                    kind: kind,
+                    code: code,
+                    name: name,
+                    description: categoryForm.querySelector('[data-hcm-category-field="description"]').value.trim() || null,
+                    sortOrder: parseInt(categoryForm.querySelector('[data-hcm-category-field="sortOrder"]').value, 10) || 0,
+                    isActive: !!categoryForm.querySelector('[data-hcm-category-field="isActive"]').checked,
+                };
+                var method = id ? "put" : "post";
+                var url = id
+                    ? "/v1/hcm/salary-component-categories/" + encodeURIComponent(id)
+                    : "/v1/hcm/salary-component-categories";
+                apiRequest(method, url, payload)
+                    .then(function (p) {
+                        if (!p || p.success !== true) {
+                            notify(formatApiError(p, 0) || "Gagal menyimpan kategori.", true);
+                            return;
+                        }
+                        notify(id ? "Kategori diperbarui." : "Kategori ditambahkan.", false);
+                        resetCategoryForm();
+                        reload();
+                    })
+                    .catch(function (err) {
+                        notify(formatApiError(err.data, err.status), true);
+                    });
             });
         }
 
@@ -422,8 +805,10 @@
                         }
                         addForm.reset();
                         setBool(addForm, "isActive", true);
-                        setBool(addForm, "includePph21TerGross", true);
                         setBool(addForm, "affectsNetPay", true);
+                        // PPh21 flags ada di hidden input; reset ke default (TerGross=1, AnnualRecon=0)
+                        setBool(addForm, "includePph21TerGross", true);
+                        setBool(addForm, "includePph21AnnualReconciliation", false);
                         if (addKind) {
                             fillCategorySelect(addForm.querySelector('[data-hcm-field="category"]'), addKind.value, null);
                         }
@@ -444,6 +829,63 @@
         }
 
         document.addEventListener("click", function (e) {
+            var tabBtn = e.target.closest("[data-hcm-tab-category]");
+            if (tabBtn) {
+                e.preventDefault();
+                selectedCategoryTabKey = String(tabBtn.getAttribute("data-hcm-tab-category") || "all");
+                rerenderCurrentRows();
+                return;
+            }
+
+            var catEdit = e.target.closest("[data-hcm-category-edit]");
+            if (catEdit && categoryForm) {
+                e.preventDefault();
+                var cid = parseInt(catEdit.getAttribute("data-hcm-category-edit"), 10);
+                var c = (categoryRows || []).find(function (row) {
+                    return Number(row.id) === cid;
+                });
+                if (!c) {
+                    return;
+                }
+                categoryForm.querySelector('[data-hcm-category-field="id"]').value = String(c.id);
+                categoryForm.querySelector('[data-hcm-category-field="kind"]').value = c.kind || "addition";
+                categoryForm.querySelector('[data-hcm-category-field="code"]').value = c.code || "";
+                categoryForm.querySelector('[data-hcm-category-field="name"]').value = c.name || "";
+                categoryForm.querySelector('[data-hcm-category-field="description"]').value = c.description || "";
+                categoryForm.querySelector('[data-hcm-category-field="sortOrder"]').value = String(c.sortOrder != null ? c.sortOrder : 0);
+                categoryForm.querySelector('[data-hcm-category-field="isActive"]').checked = !!c.isActive;
+                return;
+            }
+
+            var catDel = e.target.closest("[data-hcm-category-delete]");
+            if (catDel) {
+                e.preventDefault();
+                var delId = catDel.getAttribute("data-hcm-category-delete");
+                var confirmDeleteCategory =
+                    window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
+                        ? window.ArcavUi.confirmDelete("Hapus kategori ini? Semua komponen di kategori ini ikut dihapus dan link runtime akan dilepas otomatis.", "Hapus kategori")
+                        : Promise.resolve(false);
+                confirmDeleteCategory.then(function (ok) {
+                    if (!ok) {
+                        return;
+                    }
+                    apiRequest("delete", "/v1/hcm/salary-component-categories/" + encodeURIComponent(delId), null)
+                        .then(function (p) {
+                            if (!p || p.success !== true) {
+                                notify(formatApiError(p, 0) || "Gagal menghapus kategori.", true);
+                                return;
+                            }
+                            notify("Kategori dihapus.", false);
+                            resetCategoryForm();
+                            reload();
+                        })
+                        .catch(function (err) {
+                            notify(formatApiError(err.data, err.status), true);
+                        });
+                });
+                return;
+            }
+
             var btn = e.target.closest("[data-hcm-salary-component-edit]");
             if (!btn || !editForm) {
                 return;
@@ -453,7 +895,7 @@
             if (!r) {
                 return;
             }
-            setLockedFields(editForm, r.isSystemLocked);
+            setLockedFields(editForm, false);
             editForm.querySelector('[data-hcm-field="id"]').value = String(r.id);
             editForm.querySelector('[data-hcm-field="name"]').value = r.name || "";
             editForm.querySelector('[data-hcm-field="code"]').value = r.code || "";
@@ -492,6 +934,13 @@
             });
         }
 
+        var categoryModal = document.getElementById("arcav_salary_component_category_master");
+        if (categoryModal && categoryForm) {
+            categoryModal.addEventListener("hidden.bs.modal", function () {
+                resetCategoryForm();
+            });
+        }
+
         if (editForm) {
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
@@ -505,39 +954,27 @@
                     notify(pctEd.message || "Periksa kolom persen.", true);
                     return;
                 }
-                var payload;
-                if (r && r.isSystemLocked) {
-                    payload = {
-                        name: editForm.querySelector('[data-hcm-field="name"]').value.trim(),
-                        description: editForm.querySelector('[data-hcm-field="description"]').value.trim() || null,
-                        isActive: getBool(editForm, "isActive"),
-                        sortOrder: parseInt(editForm.querySelector('[data-hcm-field="sortOrder"]').value, 10) || 0,
-                        defaultPercent: pctEd.defaultPercent,
-                        percentBasis: pctEd.percentBasis,
-                    };
-                } else {
-                    payload = {
-                        code: editForm.querySelector('[data-hcm-field="code"]').value.trim(),
-                        name: editForm.querySelector('[data-hcm-field="name"]').value.trim(),
-                        kind: editForm.querySelector('[data-hcm-field="kind"]').value,
-                        category: editForm.querySelector('[data-hcm-field="category"]').value,
-                        description: editForm.querySelector('[data-hcm-field="description"]').value.trim() || null,
-                        legalBasis: editForm.querySelector('[data-hcm-field="legalBasis"]').value.trim() || null,
-                        legalNotes: editForm.querySelector('[data-hcm-field="legalNotes"]').value.trim() || null,
-                        includeBpjsHealthWageBase: getBool(editForm, "includeBpjsHealthWageBase"),
-                        includeBpjsTkWageBase: getBool(editForm, "includeBpjsTkWageBase"),
-                        includeThrCalculationBase: getBool(editForm, "includeThrCalculationBase"),
-                        includePph21TerGross: getBool(editForm, "includePph21TerGross"),
-                        includePph21AnnualReconciliation: getBool(editForm, "includePph21AnnualReconciliation"),
-                        subjectOvertimeRegulation: getBool(editForm, "subjectOvertimeRegulation"),
-                        affectsNetPay: getBool(editForm, "affectsNetPay"),
-                        employerCostLine: getBool(editForm, "employerCostLine"),
-                        isActive: getBool(editForm, "isActive"),
-                        sortOrder: parseInt(editForm.querySelector('[data-hcm-field="sortOrder"]').value, 10) || 0,
-                        defaultPercent: pctEd.defaultPercent,
-                        percentBasis: pctEd.percentBasis,
-                    };
-                }
+                var payload = {
+                    code: editForm.querySelector('[data-hcm-field="code"]').value.trim(),
+                    name: editForm.querySelector('[data-hcm-field="name"]').value.trim(),
+                    kind: editForm.querySelector('[data-hcm-field="kind"]').value,
+                    category: editForm.querySelector('[data-hcm-field="category"]').value,
+                    description: editForm.querySelector('[data-hcm-field="description"]').value.trim() || null,
+                    legalBasis: editForm.querySelector('[data-hcm-field="legalBasis"]').value.trim() || null,
+                    legalNotes: editForm.querySelector('[data-hcm-field="legalNotes"]').value.trim() || null,
+                    includeBpjsHealthWageBase: getBool(editForm, "includeBpjsHealthWageBase"),
+                    includeBpjsTkWageBase: getBool(editForm, "includeBpjsTkWageBase"),
+                    includeThrCalculationBase: getBool(editForm, "includeThrCalculationBase"),
+                    includePph21TerGross: getBool(editForm, "includePph21TerGross"),
+                    includePph21AnnualReconciliation: getBool(editForm, "includePph21AnnualReconciliation"),
+                    subjectOvertimeRegulation: getBool(editForm, "subjectOvertimeRegulation"),
+                    affectsNetPay: getBool(editForm, "affectsNetPay"),
+                    employerCostLine: getBool(editForm, "employerCostLine"),
+                    isActive: getBool(editForm, "isActive"),
+                    sortOrder: parseInt(editForm.querySelector('[data-hcm-field="sortOrder"]').value, 10) || 0,
+                    defaultPercent: pctEd.defaultPercent,
+                    percentBasis: pctEd.percentBasis,
+                };
                 apiRequest("put", "/v1/hcm/salary-components/" + encodeURIComponent(id), payload)
                     .then(function (p) {
                         if (!p || p.success !== true) {

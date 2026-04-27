@@ -85,7 +85,7 @@
                     </div>
 
                     <h6 class="fw-semibold mb-1">Flag perhitungan</h6>
-                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti.</p>
+                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-rates') }}?screen=komponen-pajak" class="text-primary">Tax Rate → Komponen Pajak</a>.</p>
                     <div class="border rounded p-3 mb-3 bg-light">
                         <div class="row g-2">
                             <div class="col-md-6">
@@ -108,14 +108,6 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" data-hcm-field="includePph21TerGross" id="sc_add_ter" checked>
-                                    <label class="form-check-label" for="sc_add_ter">Masuk bruto bulanan (lapisan TER / PPh 21)</label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" data-hcm-field="includePph21AnnualReconciliation" id="sc_add_recon">
-                                    <label class="form-check-label" for="sc_add_recon">Relevansi rekonsiliasi tahunan / Desember</label>
-                                </div>
-                                <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="affectsNetPay" id="sc_add_net" checked>
                                     <label class="form-check-label" for="sc_add_net">Memengaruhi THP (take-home)</label>
                                 </div>
@@ -126,6 +118,9 @@
                             </div>
                         </div>
                     </div>
+                    {{-- PPh21 flags dipindah ke Tax Rate > Komponen Pajak; nilai default di-inject via JS dari rowCache --}}
+                    <input type="hidden" data-hcm-field="includePph21TerGross" value="1">
+                    <input type="hidden" data-hcm-field="includePph21AnnualReconciliation" value="0">
 
                     <div class="row align-items-end">
                         <div class="col-md-6 mb-0">
@@ -217,7 +212,7 @@
                     </div>
 
                     <h6 class="fw-semibold mb-1">Flag perhitungan</h6>
-                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti.</p>
+                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-rates') }}?screen=komponen-pajak" class="text-primary">Tax Rate → Komponen Pajak</a>.</p>
                     <div class="border rounded p-3 mb-3 bg-light">
                         <div class="row g-2">
                             <div class="col-md-6">
@@ -240,14 +235,6 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" data-hcm-field="includePph21TerGross" id="sc_ed_ter">
-                                    <label class="form-check-label" for="sc_ed_ter">Masuk bruto (TER / PPh 21)</label>
-                                </div>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" data-hcm-field="includePph21AnnualReconciliation" id="sc_ed_recon">
-                                    <label class="form-check-label" for="sc_ed_recon">Rekonsiliasi tahunan</label>
-                                </div>
-                                <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="affectsNetPay" id="sc_ed_net">
                                     <label class="form-check-label" for="sc_ed_net">Memengaruhi THP</label>
                                 </div>
@@ -258,6 +245,9 @@
                             </div>
                         </div>
                     </div>
+                    {{-- PPh21 flags dipindah ke Tax Rate > Komponen Pajak; diisi dari rowCache via JS --}}
+                    <input type="hidden" data-hcm-field="includePph21TerGross" value="">
+                    <input type="hidden" data-hcm-field="includePph21AnnualReconciliation" value="">
 
                     <div class="row align-items-end">
                         <div class="col-md-6 mb-0">
@@ -275,6 +265,84 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Perbarui</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade arcav-salary-master-modal" id="arcav_salary_component_category_master" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <form class="arcav-salary-master-modal__form" data-hcm-salary-category-form="edit">
+                <div class="modal-header">
+                    <h5 class="modal-title">Master kategori komponen gaji</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Kelola kategori agar struktur komponen lebih rapi (mis. common allowance, family allowance, BPJS, dll). Kategori bawaan sistem tidak bisa dihapus.</p>
+
+                    <div class="border rounded p-3 mb-3 bg-light">
+                        <input type="hidden" data-hcm-category-field="id" value="">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label">Jenis</label>
+                                <select class="form-select" data-hcm-category-field="kind" required>
+                                    <option value="addition">Pendapatan</option>
+                                    <option value="deduction">Potongan</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Kode</label>
+                                <input type="text" class="form-control" data-hcm-category-field="code" maxlength="64" pattern="[a-z0-9_\-]+" placeholder="contoh: family_allowance" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Nama kategori</label>
+                                <input type="text" class="form-control" data-hcm-category-field="name" maxlength="150" placeholder="Contoh: Tunjangan keluarga" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Urutan</label>
+                                <input type="number" class="form-control" data-hcm-category-field="sortOrder" min="0" max="65535" value="0">
+                            </div>
+                            <div class="col-md-10">
+                                <label class="form-label">Deskripsi</label>
+                                <input type="text" class="form-control" data-hcm-category-field="description" maxlength="500" placeholder="Opsional">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" data-hcm-category-field="isActive" id="sc_category_active" checked>
+                                    <label class="form-check-label" for="sc_category_active">Aktif</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary btn-sm" data-hcm-category-action="save">Simpan kategori</button>
+                            <button type="button" class="btn btn-light btn-sm" data-hcm-category-action="reset">Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Jenis</th>
+                                    <th>Kode</th>
+                                    <th>Nama</th>
+                                    <th>Dipakai</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody data-hcm-salary-category-body>
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">Loading kategori…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
                 </div>
             </form>
         </div>

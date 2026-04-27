@@ -201,7 +201,7 @@ class HcmPayrollItemController extends Controller
             'category' => [
                 'required',
                 'string',
-                Rule::in(array_merge(HcmSalaryComponent::ADDITION_CATEGORIES, HcmSalaryComponent::DEDUCTION_CATEGORIES)),
+                Rule::in(HcmSalaryComponent::allCategoryCodes()),
             ],
             'notes' => ['nullable', 'string', 'max:5000'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
@@ -270,7 +270,7 @@ class HcmPayrollItemController extends Controller
                     'category' => [
                         'required',
                         'string',
-                        Rule::in(array_merge(HcmSalaryComponent::ADDITION_CATEGORIES, HcmSalaryComponent::DEDUCTION_CATEGORIES)),
+                        Rule::in(HcmSalaryComponent::allCategoryCodes()),
                     ],
                     'notes' => ['nullable', 'string', 'max:5000'],
                     'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],
@@ -344,7 +344,7 @@ class HcmPayrollItemController extends Controller
                 'sometimes',
                 'required',
                 'string',
-                Rule::in(array_merge(HcmSalaryComponent::ADDITION_CATEGORIES, HcmSalaryComponent::DEDUCTION_CATEGORIES)),
+                Rule::in(HcmSalaryComponent::allCategoryCodes()),
             ],
             'notes' => ['nullable', 'string', 'max:5000'],
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:65535'],

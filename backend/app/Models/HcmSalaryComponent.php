@@ -4,6 +4,7 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Master komponen penggajian (Indonesia-oriented flags for future payroll engine).
@@ -125,13 +126,44 @@ class HcmSalaryComponent extends Model
         ];
     }
 
-    public static function categoriesForKind(string $kind): array
+    public static function categoriesForKind(string $kind, bool $activeOnly = false): array
     {
-        return match ($kind) {
+        $fallback = match ($kind) {
             'addition' => self::ADDITION_CATEGORIES,
             'deduction' => self::DEDUCTION_CATEGORIES,
             default => [],
         };
+
+        if (! Schema::hasTable('hcm_salary_component_categories')) {
+            return $fallback;
+        }
+
+        $query = HcmSalaryComponentCategory::query()
+            ->where('kind', $kind);
+
+        if ($activeOnly) {
+            $query->where('is_active', true);
+        }
+
+        $custom = $query
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('code')
+            ->map(static fn ($code): string => (string) $code)
+            ->filter()
+            ->values()
+            ->all();
+
+        return $custom;
+    }
+
+    /** @return list<string> */
+    public static function allCategoryCodes(bool $activeOnly = false): array
+    {
+        return array_values(array_unique(array_merge(
+            self::categoriesForKind('addition', $activeOnly),
+            self::categoriesForKind('deduction', $activeOnly),
+        )));
     }
 
     public static function isValidCategoryForKind(string $kind, string $category): bool

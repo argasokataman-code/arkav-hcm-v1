@@ -16,15 +16,17 @@ Halaman admin yang aktif untuk CRUD master tetap berada di `/salary-component-ma
 
 - Blade aktif: `salary-component-master.blade.php`.
 - JS aktif: `salary-component-master-data.js`, dimuat dari `footer-scripts.blade.php` saat route `salary-component-master`.
+- Halaman yang sama sekarang juga mengelola **master kategori komponen** (`/v1/hcm/salary-component-categories`) agar pengelompokan payroll bisa murni CRUD dari UI, tanpa kategori hardcoded permanen.
 - Consumer aktif lain: `/payroll` dan `/payroll-deduction` mengambil daftar master aktif untuk linking dan filter, tetapi tidak menjalankan CRUD master langsung di layar yang sama.
 
 ## Flow Bisnis End-to-End
 
 1. HCM Admin membuka `/salary-component-master` untuk melihat daftar komponen aktif dan non-aktif.
 2. Admin membuat atau mengubah master komponen untuk memastikan istilah payroll yang dipakai tenant konsisten dengan kebutuhan bisnis dan aturan internal.
-3. Saat tenant membangun payroll item di `/payroll`, admin dapat memilih master aktif agar payroll item mewarisi kode/nama/jenis dari master resmi.
-4. Jika payroll run bulan aktif perlu dikoreksi setelah finalize tetapi sebelum pembayaran, admin melakukan `void` pada payroll run lalu menghitung draft ulang agar perubahan master komponen dipakai secara eksplisit.
-5. Fitur lain seperti overtime dapat menyimpan referensi ke `hcm_salary_component_id` agar komponen yang dipakai pada slip tetap terhubung ke master yang sama.
+3. Admin dapat membuat, mengubah, dan menghapus kategori master untuk menata struktur komponen sesuai kebutuhan tenant tanpa menunggu perubahan kode.
+4. Saat tenant membangun payroll item di `/payroll`, admin dapat memilih master aktif agar payroll item mewarisi kode/nama/jenis dari master resmi.
+5. Jika payroll run bulan aktif perlu dikoreksi setelah finalize tetapi sebelum pembayaran, admin melakukan `void` pada payroll run lalu menghitung draft ulang agar perubahan master komponen dipakai secara eksplisit.
+6. Fitur lain seperti overtime dapat menyimpan referensi ke `hcm_salary_component_id` agar komponen yang dipakai pada slip tetap terhubung ke master yang sama.
 
 ## Lifecycle Dan Keputusan Bisnis
 
@@ -32,7 +34,9 @@ Halaman admin yang aktif untuk CRUD master tetap berada di `/salary-component-ma
 - Update: dipakai saat metadata komponen perlu dibenahi tanpa membuat item payroll custom baru.
 - Active vs inactive: komponen non-aktif tetap bisa dipertahankan untuk histori, tetapi tidak seharusnya muncul lagi di dropdown linking baru.
 - Efek perubahan: perubahan master komponen memengaruhi draft berikutnya atau draft yang dihitung ulang; run yang sudah paid tidak boleh di-void hanya demi menyesuaikan metadata komponen.
-- Delete: penghapusan harus hati-hati karena master dapat sudah direferensikan payroll item atau flow turunan lain; UI consumer tetap memakai pola konfirmasi sebelum `DELETE` dikirim.
+- Delete komponen: semua row dapat dihapus; foreign key turunan seperti payroll item/overtime/payroll line akan otomatis dilepas (`nullOnDelete`) sehingga histori lama tidak pecah.
+- Delete kategori: kategori dapat dihapus penuh; runtime ikut menghapus semua komponen pada kategori itu agar tidak ada kategori yatim.
+- Badge `system` sekarang hanya penanda origin seed/legacy, bukan lock CRUD.
 
 ## Decision Matrix
 
@@ -71,8 +75,10 @@ Halaman admin yang aktif untuk CRUD master tetap berada di `/salary-component-ma
 ### Existing runtime yang sudah aktif
 
 - `/salary-component-master` tetap menjadi source of truth CRUD untuk master komponen gaji;
+- `/salary-component-master` juga menjadi source of truth CRUD untuk master kategori komponen;
 - consumer seperti `/payroll`, `/payroll-deduction`, dan overtime sudah memakai master ini sebagai referensi linking atau resolver komponen;
 - linking baru hanya memakai master aktif, sehingga layar turunan tidak menempel ke komponen yang sudah di-nonaktifkan;
+- kategori tidak lagi dipaksa oleh daftar hardcoded permanen selama tabel master kategori tersedia;
 - UI sekarang menegaskan bahwa koreksi komponen untuk payroll reguler harus lewat void + recalculation selama run belum paid, bukan dengan menganggap run paid masih bisa dibatalkan;
 - pemisahan tanggung jawab antara master komponen vs payroll item operasional sekarang sudah tertulis jelas di dokumentasi feature.
 

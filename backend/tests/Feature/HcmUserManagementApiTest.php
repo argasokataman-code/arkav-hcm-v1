@@ -505,7 +505,7 @@ class HcmUserManagementApiTest extends TestCase
             ->assertJsonPath('data.code', 'TENANT_ONLY_ROLE');
     }
 
-    public function test_global_super_admin_cannot_modify_tenant_role_setup(): void
+    public function test_global_super_admin_can_modify_tenant_role_setup_with_active_context(): void
     {
         $company = Company::factory()->create(['code' => 'tenant_role_guard']);
 
@@ -545,8 +545,9 @@ class HcmUserManagementApiTest extends TestCase
         ])->postJson('/v1/hcm/user-management/roles', [
             'code' => 'BLOCKED_FOR_GLOBAL',
             'name' => 'Blocked For Global',
-        ])->assertStatus(403)
-            ->assertJsonPath('error.code', 'TENANT_ROLE_SETUP_FORBIDDEN');
+        ])->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.code', 'BLOCKED_FOR_GLOBAL');
     }
 
     public function test_tenant_admin_permissions_catalog_hides_system_module(): void

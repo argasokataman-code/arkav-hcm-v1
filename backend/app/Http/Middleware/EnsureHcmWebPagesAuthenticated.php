@@ -32,7 +32,7 @@ class EnsureHcmWebPagesAuthenticated
                 return $redirect;
             }
 
-            if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
+            if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
                 return $redirect;
             }
 
@@ -50,7 +50,7 @@ class EnsureHcmWebPagesAuthenticated
                     return $redirect;
                 }
 
-                if ($redirect = $this->pendingPaymentRedirectResponse($request)) {
+                if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
                     return $redirect;
                 }
             }
@@ -133,24 +133,7 @@ class EnsureHcmWebPagesAuthenticated
         $company = $result['company'] ?? null;
         $membership = $result['membership'] ?? null;
         if (! $company || ! $membership) {
-            // For global admins without explicit company request, use first membership
-            if ($user->isGlobalHcmAdmin()) {
-                $firstMembership = \App\Models\CompanyUser::query()
-                    ->with('company')
-                    ->where('user_id', $user->id)
-                    ->where('status', 'active')
-                    ->orderBy('company_id')
-                    ->first();
-                
-                if ($firstMembership) {
-                    $company = $firstMembership->company;
-                    $membership = $firstMembership;
-                }
-            }
-            
-            if (! $company || ! $membership) {
-                return;
-            }
+            return;
         }
 
         $request->attributes->set('activeCompany', $company);
@@ -160,7 +143,7 @@ class EnsureHcmWebPagesAuthenticated
         $request->attributes->set('activeCompanyRole', $membership->role);
     }
 
-    private function pendingPaymentRedirectResponse(Request $request): ?Response
+    private function subscriptionLockRedirectResponse(Request $request): ?Response
     {
         if ($request->expectsJson() || $request->ajax()) {
             return null;
@@ -187,6 +170,10 @@ class EnsureHcmWebPagesAuthenticated
             ->first(['id', 'company_id', 'status']);
 
         if (($latestSubscription?->status ?? null) !== 'pending_payment') {
+            return null;
+        }
+
+        if ($path === 'logout' || $path === 'signout') {
             return null;
         }
 

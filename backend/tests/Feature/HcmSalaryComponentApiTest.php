@@ -183,8 +183,21 @@ class HcmSalaryComponentApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->putJson('/v1/hcm/salary-components/'.$locked->id, [
+                'code' => 'tunjangan_tetap_jabatan',
                 'name' => 'Tunjangan tetap jabatan (label)',
+                'kind' => 'addition',
+                'category' => 'fixed_allowance',
                 'description' => 'updated desc',
+                'legalBasis' => null,
+                'legalNotes' => null,
+                'includeBpjsHealthWageBase' => true,
+                'includeBpjsTkWageBase' => true,
+                'includeThrCalculationBase' => true,
+                'includePph21TerGross' => true,
+                'includePph21AnnualReconciliation' => true,
+                'subjectOvertimeRegulation' => false,
+                'affectsNetPay' => true,
+                'employerCostLine' => false,
                 'isActive' => true,
                 'sortOrder' => 5,
                 'defaultPercent' => null,
@@ -200,20 +213,35 @@ class HcmSalaryComponentApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->putJson('/v1/hcm/salary-components/'.$integrationLocked->id, [
+                'code' => 'upah_pokok',
                 'name' => 'Upah pokok (label)',
+                'kind' => 'addition',
+                'category' => 'basic_wage',
                 'description' => 'updated desc',
+                'legalBasis' => null,
+                'legalNotes' => null,
+                'includeBpjsHealthWageBase' => true,
+                'includeBpjsTkWageBase' => true,
+                'includeThrCalculationBase' => true,
+                'includePph21TerGross' => true,
+                'includePph21AnnualReconciliation' => true,
+                'subjectOvertimeRegulation' => false,
+                'affectsNetPay' => true,
+                'employerCostLine' => false,
                 'isActive' => true,
                 'sortOrder' => 5,
                 'defaultPercent' => null,
                 'percentBasis' => null,
             ])
-            ->assertStatus(422)
-            ->assertJsonPath('error.code', 'INTEGRATION_LOCKED');
+            ->assertOk()
+            ->assertJsonPath('success', true);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->deleteJson('/v1/hcm/salary-components/'.$integrationLocked->id)
-            ->assertStatus(422)
-            ->assertJsonPath('error.code', 'INTEGRATION_LOCKED');
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertNull(HcmSalaryComponent::query()->find($integrationLocked->id));
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token])
             ->deleteJson('/v1/hcm/salary-components/'.$newId)
@@ -244,5 +272,99 @@ class HcmSalaryComponentApiTest extends TestCase
             ])
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
+    public function test_admin_can_manage_salary_component_categories(): void
+    {
+        $token = $this->hcmAdminBearerToken('cat-sc-admin@example.com');
+
+        $list = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/v1/hcm/salary-component-categories')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $rows = collect($list->json('data'));
+        $this->assertTrue($rows->contains(fn ($r) => ($r['code'] ?? null) === 'fixed_allowance'));
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/salary-component-categories', [
+                'kind' => 'addition',
+                'code' => 'team_allowance',
+                'name' => 'Tunjangan tim',
+                'description' => 'Kategori custom untuk tunjangan berbasis tim.',
+                'sortOrder' => 510,
+                'isActive' => true,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $newCategoryId = (int) $create->json('data.id');
+        $this->assertGreaterThan(0, $newCategoryId);
+
+        $componentCreate = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/salary-components', [
+                'name' => 'Tunjangan squad alpha',
+                'code' => 'tunj_squad_alpha',
+                'kind' => 'addition',
+                'category' => 'team_allowance',
+                'isActive' => true,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $newComponentId = (int) $componentCreate->json('data.id');
+        $this->assertGreaterThan(0, $newComponentId);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->putJson('/v1/hcm/salary-component-categories/'.$newCategoryId, [
+                'kind' => 'addition',
+                'code' => 'team_allowance_custom',
+                'name' => 'Tunjangan tim custom',
+                'description' => 'renamed',
+                'sortOrder' => 520,
+                'isActive' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $component = HcmSalaryComponent::query()->findOrFail($newComponentId);
+        $this->assertSame('team_allowance_custom', $component->category);
+
+        $fixed = collect($this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/v1/hcm/salary-component-categories')
+            ->assertOk()
+            ->json('data'))->firstWhere('code', 'fixed_allowance');
+        $this->assertNotNull($fixed);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->putJson('/v1/hcm/salary-component-categories/'.$fixed['id'], [
+                'kind' => 'addition',
+                'code' => 'fixed_allowance',
+                'name' => 'Tunjangan Tetap',
+                'description' => 'Kategori sistem yang sekarang bisa diedit.',
+                'sortOrder' => 20,
+                'isActive' => true,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->deleteJson('/v1/hcm/salary-component-categories/'.$fixed['id'])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('hcm_salary_component_categories', [
+            'id' => $fixed['id'],
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->deleteJson('/v1/hcm/salary-component-categories/'.$newCategoryId)
+            ->assertOk();
+
+        $this->assertNull(HcmSalaryComponent::query()->find($newComponentId));
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->deleteJson('/v1/hcm/salary-component-categories/'.$newCategoryId)
+            ->assertNotFound();
     }
 }

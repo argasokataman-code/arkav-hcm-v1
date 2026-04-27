@@ -19,6 +19,7 @@ class PackageFactory extends Factory
             'yearly_price' => $this->faker->numberBetween(500000, 5000000),
             'billing_unit' => 'company',
             'status' => 'active',
+            'is_global_admin_only' => false,
             'color' => $this->faker->hexcolor(),
             'sort_order' => $this->faker->numberBetween(0, 10),
             'created_at' => now(),

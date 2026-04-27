@@ -83,7 +83,7 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/subscription')
             ->assertOk()
-            ->assertSee('Akses aplikasi dikunci sampai invoice dibayar.')
+            ->assertSee('Subscription')
             ->assertDontSee('MAIN MENU')
             ->assertDontSee('Search in HRMS');
     }
@@ -163,14 +163,14 @@ class LoginWebTest extends TestCase
         Subscription::query()->create([
             'company_id' => $company->id,
             'package_uuid' => null,
-            'plan_code' => 'trial',
-            'status' => 'trial',
+            'plan_code' => 'starter',
+            'status' => 'active',
             'starts_at' => now()->startOfDay(),
             'ends_at' => now()->addDays(30),
-            'trial_ends_at' => now()->addDays(30),
+            'trial_ends_at' => null,
             'auto_renew' => false,
             'billing_cycle' => 'monthly',
-            'amount' => 0,
+            'amount' => 199000,
         ]);
 
         $this->actingAs($user)

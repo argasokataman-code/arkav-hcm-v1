@@ -28,27 +28,6 @@ class ResolveTenantContext
             if ($this->shouldBypassMissingTenantContextForTesting($request, $user, (string) $result['error'])) {
                 return $next($request);
             }
-
-            // For global admins without explicit company request, use first membership
-            if ($user->isGlobalHcmAdmin()) {
-                $firstMembership = \App\Models\CompanyUser::query()
-                    ->with('company')
-                    ->where('user_id', $user->id)
-                    ->where('status', 'active')
-                    ->orderBy('company_id')
-                    ->first();
-                
-                if ($firstMembership && $firstMembership->company) {
-                    $company = $firstMembership->company;
-                    $request->attributes->set('activeCompany', $company);
-                    $request->attributes->set('activeCompanyId', $company->id);
-                    $request->attributes->set('activeCompanyUuid', $company->uuid);
-                    $request->attributes->set('activeCompanyCode', $company->code);
-                    $request->attributes->set('activeCompanyRole', $firstMembership->role);
-                    
-                    return $next($request);
-                }
-            }
             
             $traceId = $request->attributes->get('traceId');
             $errorCode = (string) $result['error'];

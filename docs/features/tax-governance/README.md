@@ -2,7 +2,7 @@
 
 ## Ringkasan
 
-Feature pajak di aplikasi ini belum berdiri sebagai satu modul kontrol tunggal. Surface `/tax-rates` memang ada dan hanya bisa dibuka HCM Admin tenant, tetapi halaman itu saat ini masih berupa shell statis legacy dan belum menjadi source of truth untuk tarif atau aturan pajak payroll Indonesia.
+Feature pajak di aplikasi ini masih dalam transisi menuju modul kontrol tunggal. Surface `/tax-rates` sudah terhubung ke endpoint runtime governance (tenant compliance, self-audit JSON/PDF, platform billing tax policy/report), tetapi belum seluruh peta screen terpisah sesuai rencana UI/UX multi-route.
 
 Kontrol pajak runtime yang benar-benar memengaruhi hasil payroll saat ini tersebar di tiga lapisan utama:
 
@@ -51,13 +51,19 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 ## Akses
 
 - Web: `/tax-rates` berada di middleware `hcm.web.admin`; non-admin diarahkan keluar dari surface admin.
-- API: belum ada endpoint API khusus `tax-rates` atau tax governance yang menjadi kontrak mutasi resmi.
-- Runtime tax mutation yang aktif saat ini terjadi lewat endpoint employee dan salary component yang sudah ada.
+- API: endpoint tax governance aktif berada di namespace `/v1/hcm/tax-governance` untuk compliance snapshot, self-audit export, platform billing policy, dan platform billing reports.
+- Runtime tax mutation payroll tenant tetap terjadi lewat endpoint employee dan salary component yang sudah ada.
 
 ## UI Aktif
 
 - Halaman aktif: `/tax-rates` (`backend/resources/views/tax-rates.blade.php`).
-- Status UI: tabel, filter, dan modal add/edit/delete masih statis berbasis template Blade + `components.modal-popup`; belum ada JS atau API tenant-aware yang memuat/menyimpan data pajak aktual.
+- Status UI saat ini:
+  - compliance summary tenant + recommended actions + anomaly register;
+  - policy event history;
+  - export tenant self-audit JSON/PDF;
+  - panel platform billing tax master (list + create policy untuk global admin);
+  - panel platform billing tax report per bulan lintas tenant.
+- Halaman ini sudah memiliki JS runtime (`frontend/resources/js/tax-governance-dashboard.js`) yang memanggil API tax governance secara langsung.
 - Consumer runtime yang benar-benar aktif justru berada di:
   - `/employees` dan flow import employee untuk tax status/NPWP.
   - `/salary-component-master` untuk flag PPh21 TER/rekonsiliasi.
@@ -108,7 +114,9 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Kontrak API
 
-- Tidak ada kontrak API khusus untuk `/tax-rates` saat ini.
+- Kontrak API tax governance sudah tersedia di:
+  - `docs/api/tax-governance-api.md`
+  - `docs/api/openapi.yaml` (path `/hcm/tax-governance/**`)
 - Kontrak API yang berdampak ke domain pajak tersebar di:
   - `docs/api/hcm-employees-api.md` untuk data employee/tax profile.
   - `docs/api/hcm-salary-components-api.md` untuk flag komponen terkait PPh21.
@@ -166,16 +174,16 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 ### Existing runtime yang sudah aktif
 
 - Web guard `/tax-rates` sudah server-side dan tenant-admin only.
+- `/tax-rates` sudah menampilkan runtime tenant compliance + self-audit export sebagai governance evidence.
+- `/tax-rates` sudah menampilkan panel platform billing tax policy/report untuk global admin (permission-aware).
 - Employee tax profile sudah tersimpan terpisah dan dipakai engine payroll.
 - Salary component master sudah punya flag yang relevan untuk basis PPh21 TER.
 - Payroll run sudah mengeluarkan anomaly missing tax profile dan metadata tax calculation yang cukup untuk audit teknis.
 
 ### Gap yang masih terbuka
 
-- Belum ada source of truth tunggal untuk taxonomy/rule/tarif pajak lintas payroll surface.
-- `/tax-rates` belum punya API, persistence, tenant data model, atau hubungan ke engine payroll.
-- Belum ada dashboard governance untuk mengecek coverage tax profile, drift komponen taxable, atau readiness rekonsiliasi tahunan.
-- Belum ada negative-path test yang secara eksplisit menjaga agar `/tax-rates` tidak diasumsikan sebagai control plane aktif.
+- Dashboard governance lintas tenant sudah tersedia, namun insight lintas modul (tax profile coverage, taxable component drift, readiness rekonsiliasi tahunan) masih perlu pendalaman metrik.
+- Negative-path authorization sudah diperketat di web route + API lifecycle, tetapi cakupan test misuse lintas role masih perlu diperluas.
 
 ### Target yang disarankan
 
@@ -188,8 +196,8 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Status
 
-- Status implementation: **in progress (product decision locked)**
+- Status implementation: **in progress (phase 1-9 done, hardening lanjutan ongoing)**
 - Tracker: [tracker.md](tracker.md)
 - UI/UX plan: [UI-UX-PLAN.md](UI-UX-PLAN.md)
 - Decision log: [DECISION.md](DECISION.md)
-- Snapshot saat ini: runtime pajak payroll existing sudah ada, keputusan arsitektur produk sudah final, UI/UX planning sudah tersedia, phase 3 (API contract + permission mapping) sudah dikunci, dan implementasi runtime control plane (phase 4) sudah berjalan baseline di backend.
+- Snapshot saat ini: runtime pajak payroll existing sudah ada, keputusan arsitektur produk sudah final, UI/UX planning sudah ter-wire ke route dedicated (`/tax-rates/*`), lifecycle policy interaktif (draft-save-submit-approve-reject-publish) sudah aktif, dan guard RBAC web-route untuk global vs tenant screen sudah dipisahkan.

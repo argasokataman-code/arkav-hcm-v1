@@ -50,15 +50,9 @@ class HcmUserManagementController extends Controller
 
     private function ensureTenantRoleSetupBoundary(Request $request): ?JsonResponse
     {
-        $user = $request->user();
-        if ($user && $user->isGlobalHcmAdmin()) {
-            return $this->errorResponse(
-                'TENANT_ROLE_SETUP_FORBIDDEN',
-                'Global admin cannot modify tenant role or permission setup.',
-                403,
-            );
-        }
-
+        // Role setup follows active tenant context + permission checks.
+        // Global admins are allowed to manage tenant role/permission setup
+        // when operating inside a tenant context.
         return null;
     }
 

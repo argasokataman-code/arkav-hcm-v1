@@ -6,6 +6,76 @@
     var baseURL = "/v1";
     var authRedirectScheduled = false;
     var forbiddenModalScheduled = false;
+    var lockModalHideHandler = null;
+    var lockModalHiddenHandler = null;
+    var lockInteractionGuardHandler = null;
+    var lockKeydownGuardHandler = null;
+    var lockModalShownHandler = null;
+
+    function isLockAllowlistedTarget(target, modalEl) {
+        if (!target || !modalEl) {
+            return false;
+        }
+        if (modalEl.contains(target)) {
+            return true;
+        }
+        var primary = modalEl.querySelector("[data-arcav-upgrade-primary]");
+        var secondary = modalEl.querySelector("[data-arcav-upgrade-secondary]");
+        return (primary && primary.contains(target)) || (secondary && secondary.contains(target));
+    }
+
+    function applyLockInteractionGuards(modalEl) {
+        if (!modalEl || lockInteractionGuardHandler || lockKeydownGuardHandler) {
+            return;
+        }
+
+        lockInteractionGuardHandler = function (event) {
+            if (!modalEl.dataset || modalEl.dataset.arcavUpgradeLockMode !== "1") {
+                return;
+            }
+            if (isLockAllowlistedTarget(event.target, modalEl)) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
+        lockKeydownGuardHandler = function (event) {
+            if (!modalEl.dataset || modalEl.dataset.arcavUpgradeLockMode !== "1") {
+                return;
+            }
+            if (event.key === "Tab" || event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            if (event.key === "Enter" && !isLockAllowlistedTarget(event.target, modalEl)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        };
+
+        document.addEventListener("click", lockInteractionGuardHandler, true);
+        document.addEventListener("keydown", lockKeydownGuardHandler, true);
+    }
+
+    function clearLockInteractionGuards() {
+        if (lockInteractionGuardHandler) {
+            document.removeEventListener("click", lockInteractionGuardHandler, true);
+            lockInteractionGuardHandler = null;
+        }
+        if (lockKeydownGuardHandler) {
+            document.removeEventListener("keydown", lockKeydownGuardHandler, true);
+            lockKeydownGuardHandler = null;
+        }
+    }
+
+    function isSubscriptionRestrictionCode(code) {
+        return code === "SUBSCRIPTION_REQUIRED"
+            || code === "SUBSCRIPTION_INACTIVE"
+            || code === "PACKAGE_FEATURE_REQUIRED"
+            || code === "EMPLOYEE_LIMIT_EXCEEDED";
+    }
 
     function getToken() {
         try {
@@ -85,8 +155,10 @@
         var tipEl = el.querySelector("[data-arcav-upgrade-tip]");
         var secondaryEl = el.querySelector("[data-arcav-upgrade-secondary]");
         var primaryEl = el.querySelector("[data-arcav-upgrade-primary]");
-        var mode = payload && payload.mode ? String(payload.mode) : "upgrade";
-        var isUpgradeMode = mode === "upgrade";
+        var closeEls = Array.prototype.slice.call(el.querySelectorAll("[data-arcav-upgrade-close]"));
+        var mode = payload && payload.mode ? String(payload.mode) : "permission";
+        var isUpgradeMode = mode === "upgrade" || mode === "upgrade-lock";
+        var isLockMode = mode === "upgrade-lock";
 
         if (titleEl) {
             titleEl.textContent = (payload && payload.title) || "Akses dibatasi";
@@ -103,7 +175,69 @@
         if (primaryEl) {
             primaryEl.classList.toggle("d-none", !isUpgradeMode);
         }
-        window.bootstrap.Modal.getOrCreateInstance(el).show();
+
+        closeEls.forEach(function (button) {
+            button.classList.toggle("d-none", isLockMode);
+            if (isLockMode) {
+                button.setAttribute("disabled", "disabled");
+                button.removeAttribute("data-bs-dismiss");
+            } else {
+                button.removeAttribute("disabled");
+                button.setAttribute("data-bs-dismiss", "modal");
+            }
+        });
+
+        el.dataset.arcavUpgradeLockMode = isLockMode ? "1" : "0";
+
+        if (lockModalHideHandler) {
+            el.removeEventListener("hide.bs.modal", lockModalHideHandler);
+            lockModalHideHandler = null;
+        }
+
+        if (lockModalHiddenHandler) {
+            el.removeEventListener("hidden.bs.modal", lockModalHiddenHandler);
+            lockModalHiddenHandler = null;
+        }
+
+        if (lockModalShownHandler) {
+            el.removeEventListener("shown.bs.modal", lockModalShownHandler);
+            lockModalShownHandler = null;
+        }
+
+        if (isLockMode) {
+            lockModalHideHandler = function (event) {
+                event.preventDefault();
+            };
+            el.addEventListener("hide.bs.modal", lockModalHideHandler);
+
+            lockModalHiddenHandler = function () {
+                var modalAgain = window.bootstrap.Modal.getOrCreateInstance(el, {
+                    backdrop: "static",
+                    keyboard: false,
+                });
+                modalAgain.show();
+            };
+            el.addEventListener("hidden.bs.modal", lockModalHiddenHandler);
+
+            lockModalShownHandler = function () {
+                var primary = el.querySelector("[data-arcav-upgrade-primary]");
+                if (primary && typeof primary.focus === "function") {
+                    primary.focus();
+                }
+            };
+            el.addEventListener("shown.bs.modal", lockModalShownHandler);
+            applyLockInteractionGuards(el);
+        } else {
+            clearLockInteractionGuards();
+        }
+
+        forbiddenModalScheduled = false;
+
+        var modal = window.bootstrap.Modal.getOrCreateInstance(el, {
+            backdrop: "static",
+            keyboard: false,
+        });
+        modal.show();
     }
 
     function handleForbiddenFromApi(status, data) {
@@ -123,29 +257,27 @@
         var isTrial = subStatus === "trial";
         var code = data && data.error && data.error.code ? String(data.error.code) : "";
         var title = "Akses dibatasi";
-        var message = "Fitur ini terkunci untuk paket saat ini. Yuk subscribe sekarang untuk akses lebih lengkap.";
-        var mode = "upgrade";
+        var message = "Akses ke fitur ini tidak tersedia untuk akun Anda saat ini.";
+        var mode = "permission";
+        var isSubscriptionCode = isSubscriptionRestrictionCode(code);
+        var isSubscriptionLock = isTrial || isSubscriptionCode;
 
-        // If it looks like a role-only restriction, keep the UX friendly but not misleading.
-        if (!isTrial && roleScope !== "hcm-admin") {
-            message = "Fitur ini hanya bisa diakses oleh HCM Admin. Jika kamu butuh akses, hubungi admin perusahaan.";
-            mode = "permission";
+        if (isSubscriptionLock) {
+            title = "Aktivasi paket diperlukan";
+            message = "Akses ke fitur ini memerlukan paket aktif. Lanjutkan aktivasi paket untuk membuka fitur ini.";
+            mode = "upgrade-lock";
+        } else if (roleScope !== "hcm-admin") {
+            message = "Anda tidak memiliki izin untuk menjalankan aksi ini. Hubungi administrator perusahaan jika membutuhkan akses.";
         }
 
         if (!isTrial && (code === "FORBIDDEN" || code === "AUTH_FORBIDDEN")) {
             mode = "permission";
+            message = "Anda tidak memiliki izin untuk menjalankan aksi ini.";
         }
 
-        // If API provides a safe message, surface it.
-        if (data && data.error && typeof data.error.message === "string" && data.error.message.trim()) {
+        // Prevent accidental leakage of internal role details from raw API messages.
+        if (data && data.error && typeof data.error.message === "string" && data.error.message.trim() && isSubscriptionCode) {
             message = data.error.message.trim();
-            if (isTrial && mode === "upgrade") {
-                // Keep the subscribe CTA framing for trial users.
-                message += " Yuk subscribe sekarang untuk akses lebih lengkap.";
-            }
-            if (!isTrial && message.toLowerCase().indexOf("only hcm admin") !== -1) {
-                mode = "permission";
-            }
         }
 
         showUpgradeRequiredModal({ title: title, message: message, mode: mode });
@@ -491,6 +623,7 @@
         redirectToLoginAfterAuthFailure: redirectToLoginAfterAuthFailure,
         handleUnauthorizedFromApi: handleUnauthorizedFromApi,
         handleForbiddenFromApi: handleForbiddenFromApi,
+        showUpgradeRequiredModal: showUpgradeRequiredModal,
     };
 
     window.ArcavUi = window.ArcavUi || {};

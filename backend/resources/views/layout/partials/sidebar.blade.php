@@ -58,7 +58,7 @@
     $isSuperAdminDeveloperMode = $featureBypass;
     $superAdminUnlockedPayroll = $hasPayroll || $isSuperAdminDeveloperMode;
     $superAdminUnlockedPerformance = $hasPerformance || $isSuperAdminDeveloperMode;
-    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && $isHcmAdmin);
+    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
 @endphp
 <div class="sidebar" id="sidebar">
     <!-- Logo -->
@@ -502,10 +502,13 @@
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
+                                        <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
+                                        <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
+                                        <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                     </ul>
                                 </li>
@@ -651,7 +654,7 @@
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
@@ -1570,10 +1573,13 @@
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
+                                        <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
+                                        <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
+                                        <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                     </ul>
                                 </li>
@@ -1689,7 +1695,7 @@
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
@@ -2682,10 +2688,13 @@
                                         </ul>
                                     </li>
                                     <li class="submenu submenu-two">
-                                        <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                        <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                         <ul>
                                             <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                             <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
+                                            <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
+                                            <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
+                                            <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
                                             <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                         </ul>
                                     </li>
@@ -2822,7 +2831,7 @@
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                     @endif
-                                    <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                    <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                     @endif
@@ -3895,10 +3904,13 @@
                                             </ul>
                                         </li>
                                         <li class="submenu submenu-two">
-                                            <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                            <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
                                                 <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                 <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
+                                                <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
+                                                <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
+                                                <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
                                                 <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                             </ul>
                                         </li>
@@ -4025,7 +4037,7 @@
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif

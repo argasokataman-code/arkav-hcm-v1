@@ -33,15 +33,19 @@ Query params:
 
 Response highlights:
 - `data[]` berisi package + nested features
+- `data[].isGlobalAdminOnly` menandai package internal khusus global admin
 - `data[].activeSubscriptionsCount` total subscriber aktif (`active|trial`) per package
 - `data[].totalSubscriptionsCount` total seluruh histori subscriber per package
 - `pagination` berisi `total`, `per_page`, `current_page`, `last_page`
+- Caller non-global-admin tidak menerima package internal (`is_global_admin_only=true`) di list.
 
 ### 2. Package Detail
 
 `GET /v1/saas/packages/{package}`
 
 Kontrak aktif memakai `package` UUID. Mengembalikan detail package + full list feature + agregat subscriber (`activeSubscriptionsCount`, `totalSubscriptionsCount`).
+
+Jika package bertanda internal (`is_global_admin_only=true`) dan caller bukan global admin, endpoint mengembalikan `404 NOT_FOUND` (masked visibility).
 
 ### 3. Create Package (Admin)
 
@@ -54,6 +58,7 @@ Validation:
 - `yearly_price` numeric >= 0
 - `billing_unit` in `user|company|flat`
 - `status` optional in `active|inactive|archived`
+- `is_global_admin_only` optional boolean (default false)
 
 Jika user bukan HCM admin -> `403 ADMIN_REQUIRED`.
 
@@ -122,6 +127,7 @@ Catatan implementasi penting:
 - Operasi mutasi package/feature dilindungi check `isHcmAdmin()` di controller.
 - Operasi mutasi add-on dilindungi check `isHcmAdmin()` di controller.
 - List/detail package dapat diakses user bertoken non-admin (sesuai implementasi saat ini).
+- Exception: package bertanda `is_global_admin_only=true` hanya terlihat untuk global admin; caller non-global-admin akan ter-filter di list dan menerima 404 di detail.
 - List/detail add-on juga dapat diakses user bertoken non-admin, sedangkan mutasi tetap admin-only.
 - Server-side feature gating memperlakukan `PackageFeature.limit = 0` sebagai **disabled** (setara feature tidak tersedia) saat evaluasi akses modul.
 - FE toast/error packages merender pesan backend sebagai text node, bukan `innerHTML`, agar pesan error yang mengandung HTML tidak menjadi XSS UI.

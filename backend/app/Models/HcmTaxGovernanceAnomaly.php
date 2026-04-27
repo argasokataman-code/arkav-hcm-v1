@@ -6,12 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Concerns\AssignsUuid;
+use Illuminate\Support\Str;
 
 class HcmTaxGovernanceAnomaly extends Model
 {
     use AssignsUuid, HasFactory;
 
     protected $table = 'hcm_tax_governance_anomalies';
+
+    public $incrementing = false;
+
+    protected $keyType = 'string';
 
     protected $fillable = [
         'id',
@@ -46,6 +51,15 @@ class HcmTaxGovernanceAnomaly extends Model
     const SEVERITY_INFO = 'info';
     const SEVERITY_WARNING = 'warning';
     const SEVERITY_CRITICAL = 'critical';
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model): void {
+            if (!is_string($model->id) || $model->id === '') {
+                $model->id = (string) Str::uuid();
+            }
+        });
+    }
 
     public function company(): BelongsTo
     {

@@ -25,11 +25,10 @@ Tracker ini dipakai untuk melacak status implementasi user-management, gap yang 
 
 ## Evidence Log
 
-- 2026-04-26 (tenant-owned role setup governance): role/permission mutation boundary corrected so tenant admin/owner keeps authority over tenant role setup, while global admin cannot mutate tenant-owned role/permission.
-  - `HcmUserManagementController` mutating endpoints (`createRole`, `updateRole`, `deleteRole`, `syncRolePermissions`) now enforce `TENANT_ROLE_SETUP_FORBIDDEN` when actor is global admin.
-  - Tenant admins with manage permission (`role.*`, `role.sync_permission`, `user_management.manage`) can configure tenant role setup without legacy super-user gate.
-  - API docs synchronized: `docs/api/user-management-api.md` and `docs/api/openapi.yaml` now describe tenant-owned setup + global-admin block explicitly.
-  - Regression coverage updated in `HcmUserManagementApiTest`: tenant admin allowed path + global super admin blocked path.
+- 2026-04-26 (tenant role setup boundary realignment): role/permission mutation remains tenant-context based, and global admin is allowed when operating in active tenant context with tenant-manage permission.
+  - `HcmUserManagementController` mutating endpoints (`createRole`, `updateRole`, `deleteRole`, `syncRolePermissions`) now follow active tenant context + permission checks for global admin and tenant admin consistently.
+  - API docs synchronized: `docs/api/user-management-api.md` and `docs/api/openapi.yaml` now describe tenant-context permission model without global-admin hard block.
+  - Regression coverage updated in `HcmUserManagementApiTest` and `HcmRbacIsolationTest`: tenant admin allowed path + global super admin allowed path.
 
 - 2026-04-26 (employee/member web guard hardening): web-layer routing/menu alignment updated so employee/member users no longer receive admin-only links in additional sidebar variants, and legacy shortcuts now resolve to role-appropriate destination.
   - `layout/partials/sidebar.blade.php` now treats `company_users.role=member` as employee-scoped and hides admin-only menu targets (holidays/timesheets/policy/admin-ticket/admin-overtime/admin-leave settings) for employee/member users in the stacked menu section.

@@ -27,6 +27,7 @@ class Package extends Model
         'yearly_price',
         'billing_unit',
         'status',
+        'is_global_admin_only',
         'color',
         'sort_order',
     ];
@@ -34,6 +35,7 @@ class Package extends Model
     protected $casts = [
         'monthly_price' => 'decimal:2',
         'yearly_price' => 'decimal:2',
+        'is_global_admin_only' => 'boolean',
     ];
 
 

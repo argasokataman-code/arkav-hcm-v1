@@ -22,6 +22,7 @@ class PackageController extends Controller
     {
         $status = (string) $request->get('status', 'active');
         $search = trim((string) $request->get('search', ''));
+        $isGlobalAdmin = $this->isHcmAdmin($request);
         $perPage = (int) $request->get('per_page', 15);
         if ($perPage < 1) {
             $perPage = 15;
@@ -31,6 +32,9 @@ class PackageController extends Controller
         }
 
         $query = Package::query();
+        if (! $isGlobalAdmin) {
+            $query->where('is_global_admin_only', false);
+        }
         if ($status !== '' && $status !== 'all') {
             $query->where('status', $status);
         } elseif ($status === '' || $status === null) {
@@ -66,6 +70,7 @@ class PackageController extends Controller
             'yearlyPrice' => (float)$pkg->yearly_price,
             'billingUnit' => $pkg->billing_unit,
             'status' => $pkg->status,
+            'isGlobalAdminOnly' => (bool) $pkg->is_global_admin_only,
             'color' => $pkg->color,
             'sortOrder' => $pkg->sort_order,
             'activeSubscriptionsCount' => (int) ($pkg->active_subscriptions_count ?? 0),
@@ -168,8 +173,15 @@ class PackageController extends Controller
      * GET /v1/saas/packages/{id}
      * Get package details with features
      */
-    public function show(Package $package): JsonResponse
+    public function show(Request $request, Package $package): JsonResponse
     {
+        if ((bool) $package->is_global_admin_only && ! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package not found.'],
+            ], 404);
+        }
+
         $package->load('features')
             ->loadCount([
                 'subscriptions as active_subscriptions_count' => function (Builder $subQuery): void {
@@ -189,6 +201,7 @@ class PackageController extends Controller
                 'yearlyPrice' => (float)$package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
+                'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
                 'color' => $package->color,
                 'sortOrder' => $package->sort_order,
                 'activeSubscriptionsCount' => (int) ($package->active_subscriptions_count ?? 0),
@@ -228,6 +241,7 @@ class PackageController extends Controller
             'yearly_price' => 'required|numeric|min:0',
             'billing_unit' => 'required|in:user,company,flat',
             'status' => 'sometimes|in:active,inactive,archived',
+            'is_global_admin_only' => 'sometimes|boolean',
             'color' => 'nullable|string|max:7',
             'sort_order' => 'nullable|integer|min:0',
         ]);
@@ -244,6 +258,7 @@ class PackageController extends Controller
                 'monthlyPrice' => (float)$package->monthly_price,
                 'yearlyPrice' => (float)$package->yearly_price,
                 'billingUnit' => $package->billing_unit,
+                'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
                 'color' => $package->color,
                 'sortOrder' => $package->sort_order,
                 'createdAt' => $package->created_at->toIso8601String(),
@@ -272,6 +287,7 @@ class PackageController extends Controller
             'yearly_price' => 'sometimes|numeric|min:0',
             'billing_unit' => 'sometimes|in:user,company,flat',
             'status' => 'sometimes|in:active,inactive,archived',
+            'is_global_admin_only' => 'sometimes|boolean',
             'color' => 'nullable|string|max:7',
             'sort_order' => 'nullable|integer|min:0',
         ]);
@@ -289,6 +305,7 @@ class PackageController extends Controller
                 'yearlyPrice' => (float)$package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
+                'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
                 'color' => $package->color,
                 'sortOrder' => $package->sort_order,
                 'updatedAt' => $package->updated_at->toIso8601String(),

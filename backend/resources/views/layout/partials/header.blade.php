@@ -40,7 +40,7 @@
     $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
     $canSeeTicketsMenu = $featureBypass || $hasTickets;
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
-    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && $isHcmAdmin);
+    $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
     $isQaSuperAdmin = $authUser
         && (
@@ -57,6 +57,10 @@
     $headerActiveCompanyName = trim((string) ($activeCompany?->name ?? ''));
     $headerActiveCompanyCode = trim((string) ($activeCompany?->code ?? ''));
     $headerRoleBadge = strtoupper($activeCompanyRole !== '' ? $activeCompanyRole : 'member');
+    $headerPackageCode = strtoupper(trim((string) ($activeCompanySubscription?->package?->code ?? $activeCompanySubscription?->plan_code ?? '')));
+    $headerPackageName = trim((string) ($activeCompanySubscription?->package?->name ?? ''));
+    $headerPackageIsInternal = (bool) ($activeCompanySubscription?->package?->is_global_admin_only ?? false);
+    $headerPackageBadgeClass = $headerPackageIsInternal ? 'bg-dark text-white' : 'bg-light text-dark border';
 @endphp
 <div class="header">
     <div class="main-header">
@@ -430,10 +434,13 @@
                                                     </ul>
                                                 </li>
                                                 <li class="submenu submenu-two">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                                     <ul>
                                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
+                                                        <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
+                                                        <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
+                                                        <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
                                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                                     </ul>
                                                 </li>
@@ -542,12 +549,13 @@
                                                 </li>
                                                 @endif
                                                 <li class="submenu">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','tax-rates*','currencies','salary-component-master') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
                                                     <ul>
                                                         @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                                         @endif
-                                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates') ? 'active' : '' }}">Tax Rate</a></li>
+                                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
+                                                        <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Master Komponen Gaji</a></li>
                                                         @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                                         @endif
@@ -1247,6 +1255,14 @@
                             </a>
                         </div>
                     @endif
+                    @if ($headerPackageCode !== '')
+                        <div class="me-2 d-none d-md-flex align-items-center">
+                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 text-nowrap px-2" title="Paket aktif: {{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">
+                                <i class="ti ti-package"></i>
+                                <span class="badge {{ $headerPackageBadgeClass }} rounded-pill">{{ $headerPackageCode }}</span>
+                            </a>
+                        </div>
+                    @endif
                     <div class="dropdown profile-dropdown">
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -1270,6 +1286,9 @@
                                                         {{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
                                                     </span>
                                                     <span class="badge bg-soft-secondary text-secondary ms-1">{{ $headerRoleBadge }}</span>
+                                                    @if ($headerPackageCode !== '')
+                                                        <span class="badge {{ $headerPackageBadgeClass }} ms-1" title="Paket aktif: {{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">{{ $headerPackageCode }}</span>
+                                                    @endif
                                                 </p>
                                             @endif
                                         </div>

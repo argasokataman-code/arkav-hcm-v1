@@ -28,9 +28,11 @@ Query:
 Behavior:
 - Return list package dengan nested features.
 - `data[].id` adalah UUID package.
+- `data[].isGlobalAdminOnly` menandai paket internal khusus global admin.
 - `data[].activeSubscriptionsCount` menghitung subscription `active|trial`.
 - `data[].totalSubscriptionsCount` menghitung seluruh histori subscription.
 - Bila `status=all`, runtime tidak memfilter status.
+- Caller non-global-admin tidak akan menerima package dengan `isGlobalAdminOnly=true` pada list ini.
 
 Success `200` (ringkas):
 ```json
@@ -46,6 +48,7 @@ Success `200` (ringkas):
       "yearlyPrice": 990000,
       "billingUnit": "flat",
       "status": "active",
+      "isGlobalAdminOnly": false,
       "color": "#007bff",
       "sortOrder": 1,
       "activeSubscriptionsCount": 24,
@@ -80,6 +83,7 @@ Path:
 Behavior:
 - Mengembalikan detail package + seluruh features.
 - Counter subscription memakai agregat runtime yang sama dengan list endpoint.
+- Jika package bertanda `isGlobalAdminOnly=true`, caller non-global-admin menerima `404 NOT_FOUND` (masked).
 
 Success `200`:
 ```json
@@ -94,6 +98,7 @@ Success `200`:
     "yearlyPrice": 1990000,
     "billingUnit": "flat",
     "status": "active",
+    "isGlobalAdminOnly": false,
     "color": "#28a745",
     "sortOrder": 2,
     "activeSubscriptionsCount": 80,
@@ -135,6 +140,7 @@ Body:
 - `yearly_price` required numeric >= 0
 - `billing_unit` required enum `user|company|flat`
 - `status` optional enum `active|inactive|archived`
+- `is_global_admin_only` optional boolean (default `false`)
 - `color` optional string max 7
 - `sort_order` optional int >= 0
 
@@ -147,6 +153,7 @@ Request contoh:
   "monthly_price": 499000,
   "yearly_price": 4990000,
   "billing_unit": "flat",
+  "is_global_admin_only": true,
   "color": "#dc3545",
   "sort_order": 3
 }
@@ -164,6 +171,7 @@ Success `201`:
     "monthlyPrice": 499000,
     "yearlyPrice": 4990000,
     "billingUnit": "flat",
+    "isGlobalAdminOnly": true,
     "color": "#dc3545",
     "sortOrder": 3,
     "createdAt": "2026-04-13T10:00:00Z"
@@ -182,6 +190,7 @@ Path:
 Body:
 - Semua field bersifat optional (`sometimes`).
 - Field yang diterima sama dengan create endpoint.
+- `is_global_admin_only` dapat diubah hanya oleh global admin.
 
 Catatan UI aktif:
 - Modal packages hanya mengekspos satu harga berbasis billing cycle pada satu waktu.

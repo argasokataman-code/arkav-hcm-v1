@@ -18,6 +18,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Global Admin Default Tenant Context
+    |--------------------------------------------------------------------------
+    |
+    | Saat global super admin login tanpa header tenant eksplisit, resolver
+    | memilih membership aktif berdasarkan prioritas company code ini.
+    |
+    */
+    'super_admin_default_company_code' => env('HCM_SUPER_ADMIN_DEFAULT_COMPANY_CODE', 'default_company'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Alamat organisasi (slip PDF / surat resmi)
     |--------------------------------------------------------------------------
     */

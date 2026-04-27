@@ -21,12 +21,13 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 
 1. Super admin membuat atau mengubah package beserta pricing dan statusnya.
 2. Super admin menyusun feature assignment per package dan add-on yang relevan.
-3. Package aktif muncul sebagai pilihan di landing/trial onboarding.
+3. Package aktif muncul sebagai pilihan di landing/trial onboarding, kecuali package internal yang ditandai `is_global_admin_only=true`.
 4. Saat tenant membuat subscription atau onboarding baru, sistem mereferensikan package yang dipilih untuk menentukan plan code, limit, dan feature gate.
 
 ## Lifecycle Dan Keputusan Bisnis
 
 - Active vs inactive: hanya package aktif yang boleh dipakai onboarding/subscription baru.
+- Global-admin-only package: package internal (`is_global_admin_only=true`) hanya boleh terlihat untuk login global admin dan disembunyikan dari katalog tenant/public.
 - Feature assignment: disusun di level package agar gating fitur tenant tidak disebar ke banyak tempat.
 - Add-on catalog: dipisah dari package inti agar billing tambahan bisa diatur tanpa mengubah paket dasar.
 - Delete guard: package yang masih direferensikan riwayat subscription tidak boleh dihapus agar histori billing, dashboard, dan onboarding audit trail tidak rusak.
@@ -53,6 +54,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 - Existing: relasi utama package feature dibaca lewat `package_uuid`, dengan `package_id` masih dipertahankan untuk kompatibilitas legacy.
 - Existing: path package runtime memakai `package` UUID, sedangkan route feature mutation memakai numeric feature id aktif dengan fallback UUID bila ada caller lama.
 - Existing: path add-on menerima numeric id aktif dengan fallback UUID legacy/transisi.
+- Existing: package internal `unlimited` ditandai `is_global_admin_only=true` agar tidak bocor ke katalog publik.
 - Target: pricing simulation calculator dan workflow pricing yang lebih kompleks masih out of scope.
 
 ## Ringkasan Fungsi
@@ -79,6 +81,7 @@ Out of scope saat ini:
 - `yearly_price`
 - `billing_unit` (`user|company|flat`)
 - `status` (`active|inactive|archived`)
+- `is_global_admin_only` (boolean, default `false`)
 - `color`
 - `sort_order`
 - `created_at`, `updated_at`

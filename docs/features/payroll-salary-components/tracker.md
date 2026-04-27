@@ -1,5 +1,21 @@
 # Payroll Salary Components Tracker
 
+## Snapshot 2026-04-27
+
+- Status: salary component dan category master sekarang sudah murni CRUD; lock delete legacy/hardcoded dihapus dari runtime.
+
+### Evidence Runtime
+
+- `HcmSalaryComponent::categoriesForKind()` sekarang membaca master kategori dinamis apa adanya saat tabel `hcm_salary_component_categories` tersedia, tanpa merge paksa daftar default.
+- `DELETE /v1/hcm/salary-components/{id}` sekarang mengizinkan hapus semua komponen, termasuk seed/system dan komponen dengan integrasi legacy.
+- `DELETE /v1/hcm/salary-component-categories/{id}` sekarang menghapus kategori beserta seluruh komponen di kategori itu agar tidak menyisakan referensi kategori yatim.
+- UI `salary-component-master-data.js` sekarang menampilkan aksi hapus untuk semua row kategori/komponen, dengan konfirmasi eksplisit untuk delete kategori yang bersifat cascading.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/HcmSalaryComponentApiTest.php`
+- Suite ini sekarang mencakup delete komponen integrated/system dan delete kategori dengan efek cascade ke komponennya.
+
 ## Snapshot Status
 
 - Tanggal: 2026-04-20

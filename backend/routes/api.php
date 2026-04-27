@@ -167,9 +167,14 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::put('/shifts/{id}', [HcmShiftController::class, 'update'])->whereNumber('id');
     Route::delete('/shifts/{id}', [HcmShiftController::class, 'destroy'])->whereNumber('id');
     Route::get('/salary-components', [HcmSalaryComponentController::class, 'index']);
+    Route::get('/salary-component-categories', [HcmSalaryComponentController::class, 'categories']);
+    Route::post('/salary-component-categories', [HcmSalaryComponentController::class, 'storeCategory']);
+    Route::put('/salary-component-categories/{id}', [HcmSalaryComponentController::class, 'updateCategory'])->whereNumber('id');
+    Route::delete('/salary-component-categories/{id}', [HcmSalaryComponentController::class, 'destroyCategory'])->whereNumber('id');
     Route::post('/salary-components', [HcmSalaryComponentController::class, 'store']);
     Route::get('/salary-components/{id}', [HcmSalaryComponentController::class, 'show'])->whereNumber('id');
     Route::put('/salary-components/{id}', [HcmSalaryComponentController::class, 'update'])->whereNumber('id');
+    Route::patch('/salary-components/{id}/tax-flags', [HcmSalaryComponentController::class, 'patchTaxFlags'])->whereNumber('id');
     Route::delete('/salary-components/{id}', [HcmSalaryComponentController::class, 'destroy'])->whereNumber('id');
 
     Route::prefix('tax-governance')->group(function (): void {
@@ -179,6 +184,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::patch('/policies/{policyRef}', [HcmTaxGovernanceController::class, 'update'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::post('/policies/{policyRef}/submit', [HcmTaxGovernanceController::class, 'submit'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::post('/policies/{policyRef}/approve', [HcmTaxGovernanceController::class, 'approve'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
+        Route::post('/policies/{policyRef}/reject', [HcmTaxGovernanceController::class, 'reject'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::post('/policies/{policyRef}/publish', [HcmTaxGovernanceController::class, 'publish'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::get('/policies/{policyRef}/events', [HcmTaxGovernanceController::class, 'policyEventHistory'])->where('policyRef', '[0-9]+|[0-9a-fA-F\-]{36}');
         Route::get('/governance/dashboard', [HcmTaxGovernanceController::class, 'dashboardSummary']);
@@ -187,6 +193,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::post('/governance/anomalies/{anomalyId}/acknowledge', [HcmTaxGovernanceController::class, 'acknowledgeAnomaly'])->whereUuid('anomalyId');
         Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);
         Route::get('/reports/tenant-self-audit-export', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportExport']);
+        Route::get('/reports/tenant-compliance-status', [HcmTaxGovernanceController::class, 'tenantComplianceStatus']);
         Route::get('/platform-billing/policies', [HcmTaxGovernanceController::class, 'platformBillingPolicies']);
         Route::post('/platform-billing/policies', [HcmTaxGovernanceController::class, 'storePlatformBillingPolicy']);
         Route::get('/platform-billing/reports', [HcmTaxGovernanceController::class, 'platformBillingReports']);

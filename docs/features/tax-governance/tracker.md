@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-04-27
+- Tanggal: 2026-04-26
 - Status: phase 1 done, phase 2 done, phase 3 done, phase 4 done, phase 5 done, phase 7 done, phase 8 done, phase 9 done
-- Ringkasan: runtime tenant lifecycle, observability dashboard, audit evidence pack, UUID bridge migration, dan platform billing tax runtime sudah aktif end-to-end dengan regression gate lokal lulus.
+- Ringkasan: runtime tenant lifecycle, observability dashboard, audit evidence pack (JSON/PDF export + anomaly resolution trail), UUID bridge migration, platform billing tax runtime, serta hardening UI interaktif policy editor + approval inbox + publication timeline + governance drilldown sudah aktif dengan route guard RBAC per role.
 
 ## Progress Phase (Live)
 
@@ -15,7 +15,7 @@
 | 3 | API Contract dan Permission Mapping | done | Kontrak API UUID-only, endpoint-permission map, dan sinkronisasi OpenAPI phase 3 sudah dikunci. |
 | 4 | Runtime Control Plane Foundation | done | Runtime lifecycle + SoD + tenant boundary sudah stabil dan regression-tested. |
 | 5 | Governance Dashboard Lintas Tenant | done | Dashboard summary + anomaly registry aktif dengan projection read model. |
-| 6 | Negative Path Hardening | not-started | Menunggu wiring runtime + UX warning implementation. |
+| 6 | Negative Path Hardening | in-progress | Warning dan permission-aware UX sudah aktif, hardening misuse flow lanjutan masih berjalan. |
 | 7 | Audit Evidence Pack | done | Self-audit export + anomaly acknowledge/resolve + policy event history endpoint sudah tersedia. |
 | 8 | UUID Migration Execution | done | Policy endpoint bridge UUID+numeric + deprecation headers + telemetry + migration docs aktif. |
 | 9 | Platform Billing Tax + Tenant Self-Reporting Finalization | done | Billing tax policy model/migration/service + report/invoice endpoints aktif dan tervalidasi oleh local test gate. |
@@ -67,15 +67,23 @@
 - Runtime phase 8 mengaktifkan policy path bridge (`{policyRef}`), telemetry numeric usage, dan header deprecation sunset.
 - Runtime phase 9 menambahkan `hcm_billing_tax_policies` + BillingTaxCalculationService + endpoint `/platform-billing/reports` dan `/platform-billing/invoices`.
 - Tenant self-audit enhanced sekarang menyertakan `billing_tax_compliance` section untuk monthly compliance readout.
+- Endpoint `/reports/tenant-compliance-status` menambahkan snapshot readiness statutory + billing dengan recommended actions.
+- Export enhanced tenant self-audit sekarang mendukung format `pdf` selain `json`.
+- Route dedicated tax governance screen map sekarang aktif di web (`/tax-rates/*`) sesuai baseline UI/UX plan.
+- Landing `/tax-rates` sekarang memuat panel `Platform Billing Tax Master` (list + create policy) dengan guard global admin.
+- Landing `/tax-rates` sekarang memuat panel `Platform Billing Tax Reports` by month dengan summary dan tabel tenant.
+- Policy editor `/tax-rates/policies/{uuid}/edit` sekarang mendukung validation preview, save draft, dan submit approval.
+- Approval inbox `/tax-rates/approvals` sekarang mendukung approve/reject dengan reason capture.
+- Publication timeline `/tax-rates/publications` sekarang mendukung publish action dengan reason + effective date.
+- Governance drilldown `/tax-rates/governance` sekarang read-only lintas tenant dengan loading/empty/error handling dan risk filter.
+- RBAC route split web tax governance menempatkan screen global (`governance`, `platform billing`) di guard global admin, bukan hanya bergantung API 403.
+- Endpoint lifecycle reject policy (`POST /policies/{policyRef}/reject`) sudah aktif untuk alur reviewer mengembalikan policy ke draft.
 
 ## Gap Aktif
 
-1. `/tax-rates` belum punya backing model/API sehingga tidak bisa dianggap source of truth audit.
-2. Governance pajak tersebar ke employee master, salary component master, dan payroll engine tanpa dashboard kontrol terpadu.
-3. Belum ada register anomaly terpusat untuk coverage tax profile, drift komponen taxable, dan annual reconciliation readiness.
-4. Belum ada test negatif/UX warning yang menegaskan bahwa `/tax-rates` bukan control plane aktif.
-5. Belum ada billing tax engine formal untuk biaya layanan aplikasi berbasis package cycle monthly/yearly/custom.
-6. Belum ada reporting pack standar tenant self-audit vs platform billing tax.
+1. Governance pajak tetap tersebar ke employee master, salary component master, dan payroll engine sehingga konsolidasi insight lintas modul masih perlu pendalaman.
+2. Register anomaly terpusat sudah ada, tetapi automation source feed (employee profile drift + annual reconciliation readiness) belum sepenuhnya otomatis.
+3. Negative-path test/UX warning sudah mulai ada, tetapi skenario misuse lintas role masih perlu coverage tambahan.
 
 Update keputusan:
 - Gap keputusan arsitektur dinyatakan CLOSED karena dual-plane + dual-domain sudah dikunci di DECISION.

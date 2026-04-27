@@ -1,10 +1,10 @@
-# HCM — Tax Governance API (Phase 9 In Progress)
+# HCM — Tax Governance API (Phase 9 Done)
 
 Prefix utama: `/v1/hcm/tax-governance`  
 Prefix platform billing: `/v1/hcm/tax-governance/platform-billing`  
 Middleware: `api.token` + tenant scope resolver + server-side RBAC guardrails
 
-Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 done (UUID bridge + deprecation), phase-9 in-progress (platform billing tax runtime)`.
+Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 done (UUID bridge + deprecation), phase-9 done (platform billing tax runtime + tenant compliance snapshot)`.
 
 ## Progress Phase 5 (Governance Dashboard Lintas Tenant)
 
@@ -24,7 +24,7 @@ Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenan
 ## Progress Phase 4 (Runtime Baseline)
 
 1. Selesai (phase-4 done):
-   - endpoint runtime tenant lifecycle terpasang untuk `GET/POST /policies`, `GET/PATCH /policies/{policyRef}`, `POST /submit`, `POST /approve`, `POST /publish`;
+   - endpoint runtime tenant lifecycle terpasang untuk `GET/POST /policies`, `GET/PATCH /policies/{policyRef}`, `POST /submit`, `POST /approve`, `POST /reject`, `POST /publish`;
    - baseline guardrail server-side untuk `AUTH_FORBIDDEN`, `TAX_POLICY_SOD_VIOLATION`, `TAX_POLICY_NOT_FOUND`, `TAX_POLICY_INVALID_STATE_TRANSITION`, `TAX_POLICY_VERSION_CONFLICT`;
    - migration persistence policy + event immutable;
    - model HcmTaxGovernancePolicy + HcmTaxGovernancePolicyEvent;
@@ -34,7 +34,7 @@ Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenan
    - server-side enforcement RBAC, SoD, tenant scope;
 
 1. Selesai (phase-3 done):
-   - kontrak endpoint UUID-only untuk policy lifecycle (`list/create/detail/update/submit/approve/publish`);
+   - kontrak endpoint UUID-only untuk policy lifecycle (`list/create/detail/update/submit/approve/reject/publish`);
    - kontrak governance observability (`dashboard` + `anomalies`);
    - kontrak privileged flow (`break-glass request/approve`);
    - kontrak reporting (`tenant self-audit`, `platform billing reports`, `platform billing export`);
@@ -72,9 +72,12 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/DECISION.md
 | `PATCH /policies/{policyRef}` | Ubah draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
 | `POST /policies/{policyRef}/submit` | Submit approval | `tax.tenant.policy.draft.manage` | Tenant sendiri |
 | `POST /policies/{policyRef}/approve` | Approve policy | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
+| `POST /policies/{policyRef}/reject` | Reject submitted policy kembali ke draft | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
 | `POST /policies/{policyRef}/publish` | Publish policy | `tax.tenant.policy.publish` | Tenant sendiri + SoD |
 | `GET /policies/{policyRef}/events` | Event history immutable | `tax.tenant.policy.view` | Tenant sendiri |
 | `GET /reports/tenant-self-audit` | Export tenant self-audit | `tax.tenant.report.export` | Tenant sendiri |
+| `GET /reports/tenant-self-audit-export` | Export enhanced tenant self-audit (`json|pdf`) | `tax.tenant.report.export` | Tenant sendiri |
+| `GET /reports/tenant-compliance-status` | Snapshot compliance tenant statutory + billing | `tax.tenant.report.export` | Tenant sendiri / Global admin |
 | `GET /governance/dashboard` | Dashboard lintas tenant subscribe | `tax.governance.dashboard.view_all` | Global observability |
 | `GET /governance/anomalies` | Anomaly lintas tenant | `tax.governance.anomaly.view_all` | Global observability |
 | `POST /governance/break-glass/requests` | Request break-glass | `tax.governance.break_glass.request` | Global privileged flow |
@@ -90,9 +93,10 @@ State minimum:
 1. `draft`
 2. `submitted`
 3. `approved`
-4. `published`
-5. `superseded`
-6. `void`
+4. `rejected` (event action, state kembali ke `draft`)
+5. `published`
+6. `superseded`
+7. `void`
 
 Guardrails wajib:
 1. Maker-checker (SoD): actor pembuat draft tidak boleh approve/publish item yang sama.
@@ -159,6 +163,14 @@ Body minimum:
 
 Response `200`:
 - status berubah menjadi `approved`.
+
+### `POST /v1/hcm/tax-governance/policies/{policyRef}/reject`
+
+Body minimum:
+1. `rejectionNote` (string)
+
+Response `200`:
+- policy ditolak dan state kembali ke `draft` untuk perbaikan.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/publish`
 
@@ -247,12 +259,10 @@ Response `201`:
 ### `GET /v1/hcm/tax-governance/platform-billing/reports`
 
 Query minimum:
-1. `period_start`
-2. `period_end`
-3. `group_by`: `cycle|package|tenant_segment`
+1. `month` dengan format `YYYY-MM`
 
 Response `200`:
-- summary tax by cycle, package, segment.
+- summary report lintas tenant untuk billing month.
 
 ### `GET /v1/hcm/tax-governance/platform-billing/invoices`
 
@@ -263,6 +273,26 @@ Query minimum:
 
 Response `200`:
 - snapshot invoice billing tax lintas tenant untuk evidence dan rekonsiliasi.
+
+### `GET /v1/hcm/tax-governance/reports/tenant-self-audit-export`
+
+Query opsional:
+1. `company_id` (global admin dapat override; tenant user tetap tenant aktif)
+2. `period_start` (date)
+3. `period_end` (date)
+4. `format`: `json|pdf` (default `json`)
+
+Response `200`:
+- `json`: payload report tenant self-audit enhanced.
+- `pdf`: file attachment report tenant self-audit.
+
+### `GET /v1/hcm/tax-governance/reports/tenant-compliance-status`
+
+Query opsional:
+1. `company_id` (hanya global admin)
+
+Response `200`:
+- snapshot `statutory_tax_compliance`, `billing_tax_compliance`, `overall_status`, dan `recommended_actions`.
 
 ## Negative/Forbidden Contract (Mandatory)
 

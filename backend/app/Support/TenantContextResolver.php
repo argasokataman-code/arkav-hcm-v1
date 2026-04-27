@@ -128,12 +128,7 @@ final class TenantContextResolver
 
         if ($company === null && $requestedCompanyId === null
             && $requestedCompanyUuid === null && $requestedCompanyCode === null) {
-            $membership = CompanyUser::query()
-                ->with('company')
-                ->where('user_id', $user->id)
-                ->where('status', 'active')
-                ->orderBy('company_id')
-                ->first();
+            $membership = $this->preferredActiveMembershipForUser($user);
 
             if ($membership && $membership->company) {
                 return ['membership' => $membership, 'company' => $membership->company];
@@ -183,5 +178,21 @@ final class TenantContextResolver
         $raw = trim((string) $request->header('X-Company-UUID', ''));
 
         return $raw !== '' ? $raw : null;
+    }
+
+    private function preferredActiveMembershipForUser(User $user): ?CompanyUser
+    {
+        $preferredCompanyCode = trim((string) config('hcm.super_admin_default_company_code', 'default_company'));
+
+        return CompanyUser::query()
+            ->with('company')
+            ->join('companies', 'companies.id', '=', 'company_users.company_id')
+            ->where('company_users.user_id', $user->id)
+            ->where('company_users.status', 'active')
+            ->orderByRaw('CASE WHEN companies.code = ? THEN 0 ELSE 1 END', [$preferredCompanyCode])
+            ->orderByRaw("CASE WHEN company_users.role = 'owner' THEN 0 WHEN company_users.role = 'admin' THEN 1 ELSE 2 END")
+            ->orderBy('company_users.company_id')
+            ->select('company_users.*')
+            ->first();
     }
 }

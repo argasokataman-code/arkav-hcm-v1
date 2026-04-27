@@ -1,5 +1,35 @@
 # Packages Status Tracker
 
+## Snapshot 2026-04-27
+
+- Status umum: hardening visibility package internal selesai untuk mencegah package super-admin bocor ke katalog tenant/public.
+
+### Evidence Runtime
+
+- Migration menambah kolom `packages.is_global_admin_only` + seed package internal `unlimited` + feature unlimited:
+	- `backend/database/migrations/2026_04_27_210000_add_global_admin_only_to_packages_and_seed_unlimited.php`
+- Endpoint `/v1/saas/packages` sekarang otomatis filter package internal untuk caller non-global-admin.
+- Endpoint `/v1/saas/packages/{package}` sekarang return `404 NOT_FOUND` bila caller non-global-admin mengakses package internal.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/PackageServiceTest.php`
+- Regression baru:
+	- non-admin tidak melihat package `is_global_admin_only=true` di list.
+	- non-admin menerima `404` saat akses detail package internal.
+	- global admin tetap bisa melihat package internal.
+
+### Dokumen Yang Disinkronkan
+
+- `docs/api/packages-api.md`
+- `docs/api/openapi.yaml`
+- `docs/features/packages/README.md`
+- `docs/features/packages/IMPLEMENTATION.md`
+
+### Gap Yang Masih Tersisa
+
+- UI packages management belum menampilkan toggle eksplisit untuk `is_global_admin_only`; saat ini field tetap bisa diatur via API admin.
+
 ## Snapshot 2026-04-20
 
 - Status umum: runtime packages flow sudah diaudit dan di-hardening untuk package CRUD, feature mutation, identifier add-on, dan guard penghapusan package yang masih dipakai subscription.

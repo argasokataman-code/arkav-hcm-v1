@@ -17,8 +17,7 @@ Last updated: 2026-04-26
 
 - View endpoints: butuh salah satu permission `user.view`, `role.view`, atau `user_management.view`.
 - Manage endpoints: butuh salah satu permission `user.create|user.update|user.assign_role|role.create|role.update|role.delete|role.sync_permission|user_management.manage`.
-- Setup role/permission tenant (`create role`, `update role`, `delete role`, `sync role permissions`) mengikuti permission tenant manage di company aktif.
-- Global HCM admin **tidak boleh** mengubah role/permission milik tenant (`TENANT_ROLE_SETUP_FORBIDDEN`) untuk menjaga boundary governance global vs tenant.
+- Setup role/permission tenant (`create role`, `update role`, `delete role`, `sync role permissions`) mengikuti permission tenant manage di company aktif, termasuk untuk global HCM admin saat berada pada tenant context aktif.
 - `GET /permissions` tetap bisa dipakai tenant admin untuk builder role tenant, tetapi response sekarang otomatis menyembunyikan semua permission dengan `module = system` kecuali pemanggil adalah **global HCM admin** (`users.is_super_admin` / `User::isGlobalHcmAdmin()`).
 
 ## Endpoints
@@ -63,18 +62,15 @@ Last updated: 2026-04-26
 - `POST /roles`
   - Body: `code`, `name`, `description?`, `status?`
   - Requires tenant manage permission pada company aktif.
-  - Ditolak untuk global HCM admin (`TENANT_ROLE_SETUP_FORBIDDEN`).
 
 - `PUT /roles/{id}`
   - `{id}`: UUID role atau numeric legacy id
   - Body (partial): `name`, `description`, `status(active|inactive|archived)`
   - Requires tenant manage permission pada company aktif.
-  - Ditolak untuk global HCM admin (`TENANT_ROLE_SETUP_FORBIDDEN`).
 
 - `DELETE /roles/{id}`
   - `{id}`: UUID role atau numeric legacy id
   - Requires tenant manage permission pada company aktif.
-  - Ditolak untuk global HCM admin (`TENANT_ROLE_SETUP_FORBIDDEN`).
   - Rule:
     - role system -> `ROLE_LOCKED` (422)
     - role in-use -> archive (`status=archived`)
@@ -96,7 +92,6 @@ Last updated: 2026-04-26
 }
 ```
   - Requires tenant manage permission pada company aktif.
-  - Ditolak untuk global HCM admin (`TENANT_ROLE_SETUP_FORBIDDEN`).
 
 ### User Role Assignment
 
@@ -123,7 +118,6 @@ Last updated: 2026-04-26
 
 - `TENANT_CONTEXT_REQUIRED` (422)
 - `AUTH_FORBIDDEN` (403)
-- `TENANT_ROLE_SETUP_FORBIDDEN` (403)
 - `USER_NOT_FOUND` (404)
 - `ROLE_NOT_FOUND` (404)
 - `PERMISSION_NOT_FOUND` (404)

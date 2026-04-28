@@ -92,45 +92,39 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0">Konfigurasi Government Tax & Compliance</h5>
-                <small class="text-muted">Kebijakan pajak platform untuk perhitungan payable ke pemerintah</small>
+                <small class="text-muted">Konfigurasi tarif pajak platform ke pemerintah (PPh Badan, PPN, dll)</small>
             </div>
             <div class="card-body">
                 <form class="row g-3" data-tax-platform-policy-form>
-                    <div class="col-md-3">
-                        <label class="form-label">Platform Revenue Tax Rate (%)</label>
-                        <input type="number" class="form-control" name="subscription_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 15.00" required>
-                        <small class="text-muted">Tarif pajak atas basis revenue platform</small>
+                    {{-- Revenue stream fields bukan domain halaman ini; dikirim sebagai hidden agar API contract terpenuhi --}}
+                    <input type="hidden" name="payroll_service_fee" value="0">
+                    <input type="hidden" name="addon_markup_rate" value="0">
+                    <div class="col-md-4">
+                        <label class="form-label">Tarif Pajak Platform ke Pemerintah (%)</label>
+                        <input type="number" class="form-control" name="subscription_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 22.00" required>
+                        <small class="text-muted">Tarif pajak atas gross revenue platform (PPh Badan, dsb)</small>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Tarif Komponen Payroll Service (%)</label>
-                        <input type="number" class="form-control" name="payroll_service_fee" min="0" max="100" step="0.01" placeholder="Misal: 2.00" required>
-                        <small class="text-muted">Komponen tarif untuk stream payroll service</small>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Tarif Komponen Add-on (%)</label>
-                        <input type="number" class="form-control" name="addon_markup_rate" min="0" max="100" step="0.01" placeholder="Misal: 22.00" required>
-                        <small class="text-muted">Komponen tarif untuk stream add-on</small>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label class="form-label">Status Regulasi</label>
                         <select class="form-select" name="status">
                             <option value="active">Aktif</option>
                             <option value="draft">Draft</option>
                             <option value="inactive">Nonaktif</option>
                         </select>
-                        <small class="text-muted">Kontrol penerapan kebijakan</small>
+                        <small class="text-muted">Kontrol penerapan kebijakan pajak</small>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Efektif Berlaku</label>
                         <input type="date" class="form-control" name="effective_from">
+                        <small class="text-muted">Tanggal mulai berlaku regulasi</small>
                     </div>
-                    <div class="col-md-8">
+                    <div class="col-12">
                         <label class="form-label">Catatan Perubahan Regulasi</label>
                         <input type="text" class="form-control" name="notes" placeholder="Misal: Penyesuaian PMK terbaru untuk periode Q3 2026">
                     </div>
                     <div class="col-12 d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary" data-tax-platform-policy-submit>
-                            <i class="ti ti-device-floppy me-1"></i>Simpan Kebijakan Compliance
+                            <i class="ti ti-device-floppy me-1"></i>Simpan Tarif Pajak Pemerintah
                         </button>
                     </div>
                 </form>
@@ -191,18 +185,16 @@
                     <table class="table mb-0">
                         <thead class="thead-light">
                             <tr>
-                                <th>Scope Revenue</th>
-                                <th>Taxable Revenue (Rp)</th>
-                                <th>Komponen Payroll Service (Rp)</th>
-                                <th>Komponen Add-on (Rp)</th>
-                                <th>Total Tax Payable (Rp)</th>
-                                <th>Net Revenue (Rp)</th>
-                                <th>Compliance State</th>
+                                <th>Tenant</th>
+                                <th>Gross Revenue Base (Rp)</th>
+                                <th>Kewajiban Pajak (Rp)</th>
+                                <th>Net Setelah Pajak (Rp)</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody data-tax-platform-report-table>
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Memuat rekap compliance per tenant scope...</td>
+                                <td colspan="5" class="text-center text-muted py-4">Memuat rekap kewajiban pajak platform per tenant...</td>
                             </tr>
                         </tbody>
                     </table>

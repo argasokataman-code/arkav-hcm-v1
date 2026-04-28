@@ -384,9 +384,10 @@
             tbody.innerHTML = "<tr><td colspan=\"" + emptyColspan + "\" class=\"text-center text-muted py-4\">Tidak ada data laporan pada bulan terpilih.</td></tr>";
             return;
         }
-        var isGovernmentTable = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
-            ? tbody.closest("table").tHead.rows[0].cells.length === 7
-            : false;
+        var tableColCount = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
+            ? tbody.closest("table").tHead.rows[0].cells.length
+            : 8;
+        var isGovernmentTable = tableColCount === 5;
         tbody.innerHTML = rows.map(function (item) {
             var taxableRevenue = Number(item.taxable_revenue_amount || 0);
             var grossRevenue = Number(item.gross_revenue || 0);
@@ -396,8 +397,16 @@
             var firstCol = item.tenant || item.company_name || "-";
             var secondCol = item.plan || item.plan_name || "-";
             if (isGovernmentTable) {
-                var complianceStatus = Number(item.tax_amount_due || 0) > 0 ? "Calculated" : "No Tax Due";
-                return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(formatMoney(item.taxable_revenue || effectiveGrossRevenue)) + "</td><td>" + escapeHtml(formatMoney(item.payroll_component || item.payroll_service_fee || 0)) + "</td><td>" + escapeHtml(formatMoney(item.addon_component || item.addon_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(item.total_tax_payable || item.tax_amount_due || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td><td>" + escapeHtml(complianceStatus) + "</td></tr>";
+                var taxDue = Number(item.total_tax_payable || item.tax_amount_due || 0);
+                var complianceStatus = taxDue > 0 ? "Terhitung" : "Tidak Ada Pajak";
+                var statusClass = taxDue > 0 ? "badge bg-warning-subtle text-warning" : "badge bg-secondary-subtle text-secondary";
+                return "<tr>"
+                    + "<td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td>"
+                    + "<td>" + escapeHtml(formatMoney(item.taxable_revenue || effectiveGrossRevenue)) + "</td>"
+                    + "<td class=\"fw-semibold\">" + escapeHtml(formatMoney(taxDue)) + "</td>"
+                    + "<td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td>"
+                    + "<td><span class=\"" + statusClass + "\">" + escapeHtml(complianceStatus) + "</span></td>"
+                    + "</tr>";
             }
             return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(secondCol) + "</td><td>" + escapeHtml(formatMoney(item.subscription_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(item.payroll_service_fee || 0)) + "</td><td>" + escapeHtml(formatMoney(item.addon_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveGrossRevenue)) + "</td><td>" + escapeHtml(formatMoney(item.tax_amount_due || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td></tr>";
         }).join("");

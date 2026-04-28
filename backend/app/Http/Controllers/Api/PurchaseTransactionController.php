@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\AddonPurchased;
 use App\Http\Controllers\Controller;
 use App\Models\PackageAddon;
 use App\Models\PurchaseTransaction;
@@ -113,6 +114,9 @@ class PurchaseTransactionController extends Controller
         $validated['total_amount'] = $validated['amount'] + $tax - $discount;
 
         $transaction = PurchaseTransaction::create($validated);
+        if (($validated['transaction_type'] ?? null) === 'addon') {
+            AddonPurchased::dispatch((int) $transaction->id, (int) ($request->user()?->id ?? 0));
+        }
         $transaction->load('company', 'subscription', 'packageAddon');
 
         return response()->json([

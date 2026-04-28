@@ -1378,4 +1378,30 @@ class HcmEmployeeApiTest extends TestCase
             ->getJson('/v1/hcm/employees/999999')
             ->assertNotFound();
     }
+
+    public function test_non_admin_cannot_access_export_endpoints(): void
+    {
+        $token = $this->bearerToken(false);
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/employees/export?format=csv')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/departments/export?format=xlsx')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/designations/export?format=pdf')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/policies/export?format=xlsx')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
 }

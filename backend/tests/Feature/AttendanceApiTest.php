@@ -529,6 +529,39 @@ class AttendanceApiTest extends TestCase
             ]);
     }
 
+    public function test_timesheets_and_schedule_timing_endpoints_are_forbidden_for_non_admin_user(): void
+    {
+        $token = $this->bearerToken(false, 'attendance.nonadmin.scope@example.com');
+
+        $headers = [
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/timesheets')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/schedule-timing')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->putJson('/v1/hcm/schedule-timing/1', [
+                'startTime' => '08:00',
+                'endTime' => '17:00',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->deleteJson('/v1/hcm/schedule-timing/1')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
     public function test_schedule_timing_admin_can_upsert_manual_override(): void
     {
         $token = $this->bearerToken(true, 'scheduletiming-edit@example.com');

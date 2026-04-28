@@ -284,6 +284,16 @@ class HcmPayrollItemApiTest extends TestCase
         $this->assertStringContainsString('PK', substr($xlsx->streamedContent(), 0, 2));
     }
 
+    public function test_export_is_forbidden_for_non_admin(): void
+    {
+        $emp = $this->employeeToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$emp])
+            ->getJson('/v1/hcm/payroll-items/export?kind=addition&format=csv')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
     public function test_cannot_link_inactive_salary_component(): void
     {
         $token = $this->adminToken();

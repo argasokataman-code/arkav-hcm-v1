@@ -12,6 +12,7 @@ use App\Models\HcmResignation;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
+use App\Models\HcmTaxGovernancePolicy;
 use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -614,6 +615,151 @@ class HcmPayrollApiTest extends TestCase
             $this->assertSame($case['category'], $line->meta['pph21TerCategory'] ?? null);
             $this->assertSame('pph21_ter_lookup', $line->meta['source'] ?? null);
         }
+    }
+
+    public function test_pph21_uses_published_tax_governance_schedule_when_effective_for_period(): void
+    {
+        $token = $this->adminToken();
+
+        $employee = User::factory()->create([
+            'name' => 'Policy Driven User',
+            'email' => 'policy-driven@example.com',
+        ]);
+
+        $profile = EmployeeProfile::query()->create([
+            'user_id' => $employee->id,
+            'company_id' => $this->company?->id,
+            'employment_status' => 'active',
+            'base_salary' => 5_500_000,
+            'fixed_allowance' => 0,
+        ]);
+
+        EmployeeTaxProfile::query()->create([
+            'employee_id' => $profile->id,
+            'tax_status' => 'TK0',
+            'ptkp_status' => 'TK/0',
+            'effective_date' => '2026-04-01',
+        ]);
+
+        $policy = HcmTaxGovernancePolicy::query()->create([
+            'company_id' => $this->company?->id,
+            'policy_code' => 'PPH21-APR-OVERRIDE',
+            'name' => 'April TER Override',
+            'status' => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
+            'effective_start_date' => '2026-04-01',
+            'effective_end_date' => null,
+            'rules' => [
+                'scheme' => 'TER',
+                'currency' => 'IDR',
+            ],
+            'rate_schedules' => [
+                [
+                    'bracket' => 'A',
+                    'rate' => 5,
+                ],
+            ],
+            'version' => 3,
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $draft = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk();
+
+        $run = HcmPayrollRun::query()->findOrFail((int) $draft->json('data.run.id'));
+        $line = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $run->id)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'pph21_ter')
+            ->first();
+
+        $this->assertNotNull($line);
+        $this->assertSame($policy->id, $run->hcm_tax_governance_policy_id);
+        $this->assertSame($policy->version, $run->hcm_tax_governance_policy_version);
+        $this->assertSame($policy->uuid, data_get($run->meta, 'taxGovernancePolicy.uuid'));
+        $this->assertSame($policy->policy_code, data_get($run->meta, 'taxGovernancePolicy.policyCode'));
+        $this->assertEquals(275_000.0, (float) $line->amount);
+        $this->assertSame('tax_governance_policy_schedule', $line->meta['source'] ?? null);
+        $this->assertSame('policy_flat', $line->meta['taxRateMode'] ?? null);
+        $this->assertSame($policy->version, $line->meta['taxPolicyVersion'] ?? null);
+    }
+
+    public function test_pph21_ignores_future_dated_published_tax_governance_policy_for_current_period(): void
+    {
+        $token = $this->adminToken();
+
+        $employee = User::factory()->create([
+            'name' => 'Future Policy User',
+            'email' => 'future-policy@example.com',
+        ]);
+
+        $profile = EmployeeProfile::query()->create([
+            'user_id' => $employee->id,
+            'company_id' => $this->company?->id,
+            'employment_status' => 'active',
+            'base_salary' => 5_500_000,
+            'fixed_allowance' => 0,
+        ]);
+
+        EmployeeTaxProfile::query()->create([
+            'employee_id' => $profile->id,
+            'tax_status' => 'TK0',
+            'ptkp_status' => 'TK/0',
+            'effective_date' => '2026-04-01',
+        ]);
+
+        HcmTaxGovernancePolicy::query()->create([
+            'company_id' => $this->company?->id,
+            'policy_code' => 'PPH21-MAY-FUTURE',
+            'name' => 'May TER Override',
+            'status' => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
+            'effective_start_date' => '2026-05-01',
+            'effective_end_date' => null,
+            'rules' => [
+                'scheme' => 'TER',
+                'currency' => 'IDR',
+            ],
+            'rate_schedules' => [
+                [
+                    'bracket' => 'A',
+                    'rate' => 5,
+                ],
+            ],
+            'version' => 4,
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 4,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $draft = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk();
+
+        $run = HcmPayrollRun::query()->findOrFail((int) $draft->json('data.run.id'));
+        $line = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $run->id)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'pph21_ter')
+            ->first();
+
+        $this->assertNotNull($line);
+        $this->assertNull($run->hcm_tax_governance_policy_id);
+        $this->assertNull(data_get($run->meta, 'taxGovernancePolicy'));
+        $this->assertEquals(13_750.0, (float) $line->amount);
+        $this->assertSame('pph21_ter_lookup', $line->meta['source'] ?? null);
+        $this->assertSame('lookup', $line->meta['taxRateMode'] ?? null);
     }
 
     public function test_pph21_ter_boundaries_are_inclusive_per_table_thresholds(): void

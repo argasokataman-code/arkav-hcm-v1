@@ -84,6 +84,22 @@
         return String(root.getAttribute("data-tax-governance-screen") || "landing");
     }
 
+    function platformAccessMessage(screen, context) {
+        if (screen === "platform-tax-compliance") {
+            return context === "report"
+                ? "Akses ke laporan government tax compliance dibatasi pada akun global admin berizin."
+                : "Akses ke kebijakan government tax compliance dibatasi pada akun global admin berizin.";
+        }
+
+        return context === "report"
+            ? "Akses ke laporan billing dan revenue platform dibatasi pada akun global admin berizin."
+            : "Akses ke kebijakan billing dan revenue platform dibatasi pada akun global admin berizin.";
+    }
+
+    function isPlatformScreen(screen) {
+        return screen === "platform-billing" || screen === "platform-tax-compliance";
+    }
+
     function getPolicyUuid(root) {
         var value = String(root.getAttribute("data-tax-governance-policy-uuid") || "").trim();
         return value || null;
@@ -244,13 +260,20 @@
         if (!tbody) {
             return;
         }
+        var table = tbody.closest("table");
+        var columnCount = table && table.tHead && table.tHead.rows && table.tHead.rows[0]
+            ? table.tHead.rows[0].cells.length
+            : 4;
         var anomalies = Array.isArray(auditData && auditData.anomalies_detected) ? auditData.anomalies_detected : [];
         if (!anomalies.length) {
-            tbody.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-4\">Tidak ada anomali terdeteksi.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan=\"" + columnCount + "\" class=\"text-center text-muted py-4\">Tidak ada anomali terdeteksi.</td></tr>";
             return;
         }
         tbody.innerHTML = anomalies.slice(0, 10).map(function (item) {
             var severityClass = item.severity === "critical" ? "badge bg-danger-subtle text-danger" : (item.severity === "warning" ? "badge bg-warning-subtle text-warning" : "badge bg-secondary-subtle text-secondary");
+            if (columnCount <= 3) {
+                return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(toTitleCase(item.type)) + "</div><small class=\"text-muted\">" + escapeHtml(item.description || "") + "</small></td><td><span class=\"" + severityClass + "\">" + escapeHtml(toTitleCase(item.severity)) + "</span></td><td>" + escapeHtml(item.resolved ? "Selesai" : "Terbuka") + "</td></tr>";
+            }
             return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(toTitleCase(item.type)) + "</div><small class=\"text-muted\">" + escapeHtml(item.description || "") + "</small></td><td><span class=\"" + severityClass + "\">" + escapeHtml(toTitleCase(item.severity)) + "</span></td><td>" + escapeHtml(formatDate(item.detected_at)) + "</td><td>" + escapeHtml(item.resolved ? "Selesai" : "Terbuka") + "</td></tr>";
         }).join("");
     }
@@ -269,6 +292,23 @@
         }
         tbody.innerHTML = events.slice(0, 12).map(function (event) {
             return "<tr><td>v" + escapeHtml(event.version || "-") + "</td><td>" + escapeHtml(toTitleCase(event.action)) + "</td><td>" + escapeHtml(event.actor_name || "Sistem") + "</td><td>" + escapeHtml(formatDate(event.timestamp)) + "</td><td>" + escapeHtml(event.change_summary || "-") + "</td></tr>";
+        }).join("");
+    }
+
+    function renderTenantAuditReportTable(root, auditData) {
+        var tbody = qs("[data-tax-report-audit-table]", root);
+        if (!tbody) {
+            return;
+        }
+
+        var anomalies = Array.isArray(auditData && auditData.anomalies_detected) ? auditData.anomalies_detected : [];
+        if (!anomalies.length) {
+            tbody.innerHTML = "<tr><td colspan=\"5\" class=\"text-center text-muted py-4\">Tidak ada anomali pada periode terpilih.</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = anomalies.slice(0, 25).map(function (item) {
+            return "<tr><td>" + escapeHtml(item.tenant_name || "Tenant Aktif") + "</td><td>" + escapeHtml(toTitleCase(item.type || "unknown")) + "</td><td>" + escapeHtml(String(item.count || 1)) + "</td><td>" + escapeHtml(item.resolved ? "Resolved" : "Open") + "</td><td>" + escapeHtml(formatDate(item.detected_at)) + "</td></tr>";
         }).join("");
     }
 
@@ -294,33 +334,72 @@
         if (!tbody) {
             return;
         }
-        var rows = Array.isArray(response && response.data && response.data.items) ? response.data.items : [];
+        var screen = getActiveScreen(root);
+        var emptyLabel = screen === "platform-tax-compliance"
+            ? "Belum ada kebijakan government tax compliance platform."
+            : "Belum ada kebijakan billing dan revenue platform.";
+        var data = response && response.data ? response.data : {};
+        var rows = Array.isArray(data.items_global) && data.items_global.length ? data.items_global : (Array.isArray(data.items) ? data.items : []);
         if (!rows.length) {
-            tbody.innerHTML = "<tr><td colspan=\"6\" class=\"text-center text-muted py-4\">Belum ada kebijakan billing platform.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan=\"7\" class=\"text-center text-muted py-4\">" + escapeHtml(emptyLabel) + "</td></tr>";
             return;
         }
         tbody.innerHTML = rows.map(function (item) {
-            return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(item.company_name || "-") + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(item.billing_month || "-") + "</td><td>" + escapeHtml(toTitleCase(item.billing_cycle_type || "-")) + "</td><td>" + escapeHtml(String(item.tax_rate_percentage || 0)) + "%</td><td>" + escapeHtml(toTitleCase(item.status || "-")) + "</td><td>" + escapeHtml(item.effective_from || "-") + "</td></tr>";
+            return "<tr><td>" + escapeHtml(item.version || "-") + "</td><td>" + escapeHtml(String(item.subscription_tax_rate ?? item.tax_rate_percentage ?? 0)) + "%</td><td>" + escapeHtml(String(item.payroll_service_fee ?? 0)) + "%</td><td>" + escapeHtml(String(item.addon_markup_rate ?? 0)) + "%</td><td>" + escapeHtml(toTitleCase(item.status || "-")) + "</td><td>" + escapeHtml(formatDate(item.created_at)) + "</td><td>" + escapeHtml(item.effective_from || "-") + "</td></tr>";
         }).join("");
     }
 
     function renderPlatformReport(root, reportResponse) {
-        var summary = reportResponse && reportResponse.data && reportResponse.data.summary ? reportResponse.data.summary : {};
-        var rows = Array.isArray(reportResponse && reportResponse.data && reportResponse.data.tenants) ? reportResponse.data.tenants : [];
-        setText(qs("[data-tax-platform-summary-tenant-count]", root), Number(summary.tenant_count || 0));
-        setText(qs("[data-tax-platform-summary-tenant-with-policy]", root), Number(summary.tenant_count_with_policy || 0));
-        setText(qs("[data-tax-platform-summary-tax-due]", root), formatMoney(summary.total_tax_due || 0));
-        setText(qs("[data-tax-platform-summary-unpaid]", root), Number(summary.unpaid_invoice_count || 0));
+        var data = reportResponse && reportResponse.data ? reportResponse.data : {};
+        var summary = data.summary_global || data.summary || {};
+        var rows = Array.isArray(data.tenants_global) ? data.tenants_global : (Array.isArray(data.tenants) ? data.tenants : []);
+
+        var grossRevenueTotal = Number(summary.total_gross_revenue || 0);
+        var taxableRevenueTotal = Number(summary.total_taxable_revenue_amount || 0);
+        var effectiveGrossRevenueTotal = grossRevenueTotal > 0 ? grossRevenueTotal : taxableRevenueTotal;
+        var effectiveNetRevenueTotal = Number(summary.total_net_revenue || 0);
+        if (effectiveNetRevenueTotal <= 0 && effectiveGrossRevenueTotal > 0) {
+            effectiveNetRevenueTotal = Math.max(0, effectiveGrossRevenueTotal - Number(summary.total_tax_due || 0));
+        }
+        var complianceSummary = data.summary_compliance || {};
+
+        setText(qs("[data-tax-platform-summary-subscription-revenue]", root), formatMoney(summary.total_subscription_revenue || summary.total_invoice_amount || 0));
+        setText(qs("[data-tax-platform-summary-payroll-fee]", root), formatMoney(summary.total_payroll_service_fee || summary.total_cleared_revenue_amount || 0));
+        setText(qs("[data-tax-platform-summary-addon-revenue]", root), formatMoney(summary.total_addon_revenue || summary.total_uncleared_revenue_amount || 0));
+        setText(qs("[data-tax-platform-summary-net-revenue]", root), formatMoney(effectiveGrossRevenueTotal));
+
+        setText(qs("[data-tax-compliance-summary-gross]", root), formatMoney(effectiveGrossRevenueTotal));
+        setText(qs("[data-tax-compliance-summary-tax-due]", root), formatMoney(summary.total_tax_due || 0));
+        setText(qs("[data-tax-compliance-summary-net-profit]", root), formatMoney(effectiveNetRevenueTotal));
+        setText(qs("[data-tax-compliance-summary-effective-rate]", root), String(Number(complianceSummary.effective_tax_rate || summary.effective_tax_rate || 0)) + "%");
+
         var tbody = qs("[data-tax-platform-report-table]", root);
         if (!tbody) {
             return;
         }
         if (!rows.length) {
-            tbody.innerHTML = "<tr><td colspan=\"8\" class=\"text-center text-muted py-4\">Tidak ada data laporan pada bulan terpilih.</td></tr>";
+            var emptyColspan = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
+                ? tbody.closest("table").tHead.rows[0].cells.length
+                : 8;
+            tbody.innerHTML = "<tr><td colspan=\"" + emptyColspan + "\" class=\"text-center text-muted py-4\">Tidak ada data laporan pada bulan terpilih.</td></tr>";
             return;
         }
+        var isGovernmentTable = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
+            ? tbody.closest("table").tHead.rows[0].cells.length === 7
+            : false;
         tbody.innerHTML = rows.map(function (item) {
-            return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(item.company_name || "-") + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(item.billing_month || "-") + "</td><td>" + escapeHtml(String(item.tax_rate_percentage || 0)) + "%</td><td>" + escapeHtml(String(item.invoice_count || 0)) + "</td><td>" + escapeHtml(String(item.paid_invoice_count || 0)) + "</td><td>" + escapeHtml(String(item.unpaid_invoice_count || 0)) + "</td><td>" + escapeHtml(formatMoney(item.total_invoice_amount || 0)) + "</td><td>" + escapeHtml(formatMoney(item.tax_amount_due || 0)) + "</td></tr>";
+            var taxableRevenue = Number(item.taxable_revenue_amount || 0);
+            var grossRevenue = Number(item.gross_revenue || 0);
+            var effectiveGrossRevenue = grossRevenue > 0 ? grossRevenue : taxableRevenue;
+            var netRevenue = Number(item.net_revenue || 0);
+            var effectiveNetRevenue = netRevenue > 0 ? netRevenue : Math.max(0, effectiveGrossRevenue - Number(item.tax_amount_due || 0));
+            var firstCol = item.tenant || item.company_name || "-";
+            var secondCol = item.plan || item.plan_name || "-";
+            if (isGovernmentTable) {
+                var complianceStatus = Number(item.tax_amount_due || 0) > 0 ? "Calculated" : "No Tax Due";
+                return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(formatMoney(item.taxable_revenue || effectiveGrossRevenue)) + "</td><td>" + escapeHtml(formatMoney(item.payroll_component || item.payroll_service_fee || 0)) + "</td><td>" + escapeHtml(formatMoney(item.addon_component || item.addon_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(item.total_tax_payable || item.tax_amount_due || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td><td>" + escapeHtml(complianceStatus) + "</td></tr>";
+            }
+            return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(secondCol) + "</td><td>" + escapeHtml(formatMoney(item.subscription_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(item.payroll_service_fee || 0)) + "</td><td>" + escapeHtml(formatMoney(item.addon_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveGrossRevenue)) + "</td><td>" + escapeHtml(formatMoney(item.tax_amount_due || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td></tr>";
         }).join("");
     }
 
@@ -666,6 +745,10 @@
         var policyForm = qs("[data-tax-platform-policy-form]", root);
         var monthInput = qs("[data-tax-platform-report-month]", root);
         var reportRefreshBtn = qs("[data-tax-platform-report-refresh]", root);
+        var screen = getActiveScreen(root);
+        var policyEndpoint = screen === "platform-tax-compliance"
+            ? "/hcm/tax-governance/platform-tax-compliance/policies"
+            : "/hcm/tax-governance/platform-billing/policies";
 
         if (monthInput && !monthInput.value) {
             monthInput.value = getCurrentMonthValue();
@@ -691,23 +774,38 @@
                     submitBtn.disabled = true;
                 }
 
-                apiPost("/hcm/tax-governance/platform-billing/policies", {
-                    company_id: Number(policyForm.company_id.value),
-                    billing_month: String(policyForm.billing_month.value || "").trim(),
-                    billing_cycle_type: String(policyForm.billing_cycle_type.value || "monthly"),
-                    tax_rate_percentage: Number(policyForm.tax_rate_percentage.value),
-                    base_calculation_method: "invoice_amount_due",
-                    effective_from: String(policyForm.effective_from.value || "").trim(),
-                    status: String(policyForm.status.value || "active"),
-                }).then(function (response) {
+                var subscriptionField = qs("[name=\"subscription_tax_rate\"]", policyForm);
+                var payload = subscriptionField
+                    ? {
+                        subscription_tax_rate: Number(subscriptionField.value || 0),
+                        payroll_service_fee: Number((qs("[name=\"payroll_service_fee\"]", policyForm) || {}).value || 0),
+                        addon_markup_rate: Number((qs("[name=\"addon_markup_rate\"]", policyForm) || {}).value || 0),
+                        status: String((qs("[name=\"status\"]", policyForm) || {}).value || "active"),
+                        notes: String((qs("[name=\"notes\"]", policyForm) || {}).value || "").trim(),
+                        effective_from: String((qs("[name=\"effective_from\"]", policyForm) || {}).value || "").trim(),
+                        billing_month: monthInput && monthInput.value ? monthInput.value : getCurrentMonthValue(),
+                    }
+                    : {
+                        company_id: Number(policyForm.company_id.value),
+                        billing_month: String(policyForm.billing_month.value || "").trim(),
+                        billing_cycle_type: String(policyForm.billing_cycle_type.value || "monthly"),
+                        tax_rate_percentage: Number(policyForm.tax_rate_percentage.value),
+                        base_calculation_method: "invoice_amount_due",
+                        effective_from: String(policyForm.effective_from.value || "").trim(),
+                        status: String(policyForm.status.value || "active"),
+                    };
+
+                apiPost(policyEndpoint, payload).then(function (response) {
                     if (!response.success) {
                         throw new Error("Gagal menyimpan kebijakan platform.");
                     }
                     refreshAll();
                 }).catch(function (error) {
-                    var parsed = parseApiError(error, "Gagal menyimpan kebijakan billing platform.");
+                    var parsed = parseApiError(error, screen === "platform-tax-compliance"
+                        ? "Gagal menyimpan kebijakan government tax compliance platform."
+                        : "Gagal menyimpan kebijakan billing dan revenue platform.");
                     if (parsed.status === 403) {
-                        showPlatformGate(root, "Akses ke kebijakan pajak billing platform dibatasi pada akun berizin.");
+                        showPlatformGate(root, platformAccessMessage(screen, "policy"));
                         return;
                     }
                     showError(root, parsed.message);
@@ -851,6 +949,12 @@
     function loadLandingAndPlatform(root, activeScreen) {
         var reportMonthInput = qs("[data-tax-platform-report-month]", root);
         var reportMonth = reportMonthInput && reportMonthInput.value ? reportMonthInput.value : getCurrentMonthValue();
+        var policyPath = activeScreen === "platform-tax-compliance"
+            ? "/hcm/tax-governance/platform-tax-compliance/policies"
+            : "/hcm/tax-governance/platform-billing/policies";
+        var reportPath = activeScreen === "platform-tax-compliance"
+            ? "/hcm/tax-governance/platform-tax-compliance/reports"
+            : "/hcm/tax-governance/platform-billing/reports";
 
         if (activeScreen === "komponen-pajak") {
             loadKomponenPajak(root);
@@ -867,11 +971,11 @@
             (activeScreen === "tenant-policies")
                 ? apiGet("/hcm/tax-governance/policies", { per_page: 50 })
                 : Promise.resolve({ success: true, data: { items: [] } }),
-            (activeScreen === "landing" || activeScreen === "platform-policies")
-                ? apiGet("/hcm/tax-governance/platform-billing/policies", { per_page: 20 })
+            (isPlatformScreen(activeScreen))
+                ? apiGet(policyPath, { per_page: 20, global_mode: 1 })
                 : Promise.resolve({ success: true, data: { items: [] } }),
-            (activeScreen === "landing" || activeScreen === "platform-reports")
-                ? apiGet("/hcm/tax-governance/platform-billing/reports", { month: reportMonth })
+            (isPlatformScreen(activeScreen))
+                ? apiGet(reportPath, { month: reportMonth })
                 : Promise.resolve({ success: true, data: { summary: {}, tenants: [] } }),
         ]).then(function (responses) {
             var complianceResponse = responses[0] && responses[0].status === "fulfilled" ? responses[0].value : {};
@@ -881,6 +985,7 @@
                 renderRecommendedActions(root, complianceResponse.data || {});
                 renderAnomalyTable(root, auditResponse.data || {});
                 renderEventTable(root, auditResponse.data || {});
+                renderTenantAuditReportTable(root, auditResponse.data || {});
             }
 
             var tenantPoliciesResult = responses[2] || {};
@@ -894,7 +999,7 @@
             } else {
                 var policyError = parseApiError(platformPoliciesResult.reason || {}, "");
                 if (policyError.status === 403) {
-                    showPlatformGate(root, "Akses ke kebijakan pajak billing platform dibatasi pada akun berizin.");
+                    showPlatformGate(root, platformAccessMessage(activeScreen, "policy"));
                 }
             }
 
@@ -904,7 +1009,7 @@
             } else {
                 var reportError = parseApiError(platformReportResult.reason || {}, "");
                 if (reportError.status === 403) {
-                    showPlatformGate(root, "Akses ke laporan pajak billing platform dibatasi pada akun berizin.");
+                    showPlatformGate(root, platformAccessMessage(activeScreen, "report"));
                 }
             }
         }).catch(function (error) {

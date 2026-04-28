@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\ExportReconciliationEvidence;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
+use App\Models\HcmPayrollRun;
 use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -252,15 +254,16 @@ class ReconciliationExportController extends Controller
         }
 
         $payrollLines = $query->get();
+        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
 
         // Build CSV header
         $lines = [
-            'run_id,user_id,user_name,kind,component_code,component_name,amount,affects_net_pay,dataset_checksum',
+            'run_id,user_id,user_name,kind,component_code,component_name,amount,affects_net_pay,service_fee_rate_percent,service_fee_base_amount,service_fee_amount,service_fee_billing_month,dataset_checksum',
         ];
 
         // Add metadata row
         $lines[] = sprintf(
-            '%s,%s,%s,%s,%s,%s,%s,%s,%s',
+            '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
             $this->csvEscape((string) $runId),
             '',
             '',
@@ -269,6 +272,10 @@ class ReconciliationExportController extends Controller
             'METADATA',
             '',
             '',
+            $this->csvEscape((string) round($serviceFeeRate, 2)),
+            $this->csvEscape((string) round($serviceFeeBase, 2)),
+            $this->csvEscape((string) round($serviceFeeAmount, 2)),
+            $this->csvEscape($serviceFeeBillingMonth),
             $this->csvEscape($datasetChecksum),
         );
 
@@ -278,7 +285,7 @@ class ReconciliationExportController extends Controller
         // Add payroll line rows
         foreach ($payrollLines as $line) {
             $lines[] = sprintf(
-                '%s,%s,%s,%s,%s,%s,%s,%s,%s',
+                '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
                 $this->csvEscape((string) $runId),
                 $this->csvEscape((string) $line->user_id),
                 $this->csvEscape((string) ($line->user_name ?? '')),
@@ -287,6 +294,10 @@ class ReconciliationExportController extends Controller
                 $this->csvEscape((string) ($line->component_name ?? '')),
                 $this->csvEscape((string) $line->amount),
                 $this->csvEscape($line->affects_net_pay ? 'yes' : 'no'),
+                $this->csvEscape((string) round($serviceFeeRate, 2)),
+                $this->csvEscape((string) round($serviceFeeBase, 2)),
+                $this->csvEscape((string) round($serviceFeeAmount, 2)),
+                $this->csvEscape($serviceFeeBillingMonth),
                 '',
             );
         }
@@ -301,6 +312,69 @@ class ReconciliationExportController extends Controller
         }
 
         return $value;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, HcmPayrollLine>  $payrollLines
+     * @return array{0: float, 1: float, 2: float, 3: string}
+     */
+    private function resolvePayrollServiceFeeSnapshot(int $runId, ?int $companyId, $payrollLines): array
+    {
+        $runQuery = HcmPayrollRun::query()->with('period')->whereKey($runId);
+        if ($companyId !== null) {
+            $runQuery->where('company_id', $companyId);
+        }
+
+        $run = $runQuery->first();
+        if (! $run) {
+            return [0.0, 0.0, 0.0, ''];
+        }
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $billingMonth = $run->period
+            ? sprintf('%04d-%02d', (int) $run->period->period_year, (int) $run->period->period_month)
+            : now()->format('Y-m');
+
+        $serviceFeeBase = round((float) $payrollLines
+            ->filter(function (HcmPayrollLine $line): bool {
+                $kind = (string) ($line->kind ?? '');
+
+                return $kind === 'addition' || $kind === 'earning';
+            })
+            ->sum('amount'), 2);
+
+        $serviceFeeRate = (float) ($meta['platform_service_fee_rate'] ?? 0);
+        if ($serviceFeeRate <= 0 && $companyId !== null) {
+            $policy = HcmBillingTaxPolicy::query()
+                ->where('company_id', $companyId)
+                ->where('billing_month', $billingMonth)
+                ->where('status', 'active')
+                ->orderByDesc('effective_from')
+                ->orderByDesc('created_at')
+                ->first();
+
+            $notes = json_decode((string) ($policy?->notes ?? ''), true);
+            if (is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])) {
+                $serviceFeeRate = (float) ($notes['global_rates']['payroll_service_fee'] ?? 0);
+            }
+        }
+
+        $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
+        if ($serviceFeeAmount <= 0 && $serviceFeeBase > 0 && $serviceFeeRate > 0) {
+            $serviceFeeAmount = round($serviceFeeBase * ($serviceFeeRate / 100), 2);
+        }
+
+        $metaBillingMonth = (string) ($meta['platform_service_fee_billing_month'] ?? '');
+        if ($metaBillingMonth !== '') {
+            $billingMonth = $metaBillingMonth;
+        }
+
+        return [
+            round($serviceFeeRate, 2),
+            round($serviceFeeBase, 2),
+            round($serviceFeeAmount, 2),
+            $billingMonth,
+        ];
     }
 
     public function index(Request $request): JsonResponse

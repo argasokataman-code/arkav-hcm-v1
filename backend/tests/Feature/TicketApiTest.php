@@ -443,4 +443,40 @@ class TicketApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
     }
+
+    public function test_non_admin_cannot_access_ticket_admin_only_endpoints(): void
+    {
+        $employee = $this->loginWithRole(false, 'ticket-nonadmin-catforbid@example.com');
+        $companyId = (int) CompanyUser::query()->where('user_id', $employee['user']->id)->value('company_id');
+        $headers = [
+            'Authorization' => 'Bearer '.$employee['token'],
+            'X-Company-Id' => (string) $companyId,
+        ];
+
+        // assignable users — admin-only
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tickets/assignable-users')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        // store category — admin-only
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/tickets/categories', ['name' => 'Forbidden Category'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        // update category — admin-only
+        $category = TicketCategory::query()->create(['name' => 'Existing Cat', 'is_active' => true, 'sort_order' => 0]);
+        $this->withHeaders($headers)
+            ->putJson('/v1/hcm/tickets/categories/'.$category->id, ['name' => 'Renamed Cat'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        // destroy category — admin-only
+        $this->withHeaders($headers)
+            ->deleteJson('/v1/hcm/tickets/categories/'.$category->id)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
 }
+

@@ -12,6 +12,8 @@ use App\Jobs\CheckEmployeeCountLimitsJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
 use App\Jobs\ProcessRecurringSubscriptionBilling;
 use App\Jobs\ApplySubscriptionChangeJob;
+use App\Jobs\ClearRevenueTransactionsJob;
+use App\Jobs\CloseMonthlyFinancialReportJob;
 use App\Models\HcmSubscriptionChangeRequest;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Foundation\Inspiring;
@@ -184,3 +186,26 @@ $emailInboundPollingTask = Schedule::command('email:poll-imap-inbox')
 if (($emailInboundPolling['enabled'] ?? true) !== true) {
     $emailInboundPollingTask->skip(fn (): bool => true);
 }
+
+$taxRevenueClearing = CronjobSettings::get('tax_revenue_clearing');
+$taxRevenueClearingTask = Schedule::job(new ClearRevenueTransactionsJob())
+    ->name('tax-revenue-clearing')
+    ->description('Mark posted uncleared platform revenue transactions as cleared after grace window')
+    ->timezone((string) ($taxRevenueClearing['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($taxRevenueClearing['time'] ?? '01:10'))
+    ->withoutOverlapping(30);
+if (($taxRevenueClearing['enabled'] ?? true) !== true) {
+    $taxRevenueClearingTask->skip(fn (): bool => true);
+}
+
+// AN-002 / AN-015 / AN-016: Lock monthly platform financial summary after 24h grace period.
+// Dispatched on the first day of every month at 01:30 AM for the previous month.
+$monthlyFinancialClose = CronjobSettings::get('tax_monthly_financial_close');
+Schedule::call(function (): void {
+    $prevMonth = now()->subMonth();
+    dispatch(new CloseMonthlyFinancialReportJob((int) $prevMonth->year, (int) $prevMonth->month));
+})->name('tax-monthly-financial-close')
+    ->description('Lock monthly platform financial report with 24h grace period (AN-002/AN-015/AN-016)')
+    ->timezone((string) ($monthlyFinancialClose['timezone'] ?? 'Asia/Jakarta'))
+    ->monthlyOn(1, (string) ($monthlyFinancialClose['time'] ?? '01:30'))
+    ->withoutOverlapping(120);

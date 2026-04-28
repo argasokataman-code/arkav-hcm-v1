@@ -168,6 +168,14 @@ Field audit yang kini relevan untuk run `void`:
 
 **200** `data`: `run` (detail + `period` jika termuat), `lines[]` semua karyawan — urut `userId`, `sortOrder`.
 
+Objek `run` kini juga memuat snapshot biaya layanan payroll (jika tersedia di metadata run):
+- `platformServiceFeeRate`
+- `platformServiceFeeBase`
+- `platformServiceFeeAmount`
+- `platformServiceFeeBillingMonth`
+
+Objek `run.totals` membawa field fee yang sama untuk konsumsi UI ringkasan payroll run.
+
 Untuk run `purpose=monthly`, objek `run` kini dapat memuat `policySnapshot` agar halaman admin/history dan audit trail dapat menjelaskan payday/cutoff yang berlaku pada saat draft tersebut dibangun.
 
 Objek `run` juga dapat memuat `lateArrivalBuffer` untuk menampilkan backlog aktivitas post-cutoff yang sengaja tidak masuk perhitungan run periode berjalan.
@@ -183,6 +191,14 @@ Elemen `lines[]`: `id`, `userId`, `userName`, `salaryComponentId`, `componentCod
 ### `POST /payroll-runs/{id}/finalize`
 
 Menyetel run menjadi `finalized`, `finalized_at`, `finalized_by_user_id` = user admin pemanggil. Periode induk (`hcm_payroll_periods.status`) di-set ke **`posted`**.
+
+Saat finalize sukses, backend menyimpan snapshot biaya layanan payroll ke metadata run:
+- `platform_service_fee_rate`
+- `platform_service_fee_base`
+- `platform_service_fee_amount`
+- `platform_service_fee_billing_month`
+
+Snapshot tersebut ikut dipublish ke payload API dalam bentuk camelCase (`platformServiceFee*`) pada response run.
 
 **422**
 
@@ -242,6 +258,16 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 - `PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN` jika run `monthly` dibayar sebelum `resolvedPaydayDate` saat policy tenant melarang early disburse
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
+
+### Export reconciliation payroll run (`POST /v1/reconciliation/exports`)
+
+Untuk request dengan `featureKey=payroll_run` dan `actionKey=disburse`, CSV yang di-generate server kini menyertakan snapshot fee payroll:
+- `service_fee_rate_percent`
+- `service_fee_base_amount`
+- `service_fee_amount`
+- `service_fee_billing_month`
+
+Kolom ini melengkapi kolom line payroll existing (`run_id`, `user_id`, `component_code`, `amount`, dll.) agar tim finance dapat rekonsiliasi payroll lines dan fee platform dalam satu export evidence.
 
 ### `POST /payroll/thr-calculate`
 

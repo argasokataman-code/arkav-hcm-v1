@@ -169,6 +169,72 @@ class HcmSmartAttendanceApiTest extends TestCase
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
+    public function test_non_admin_cannot_access_smart_attendance_settings_publish_and_roster_endpoints(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'SMART_ATTENDANCE_GUARD_EXT',
+            'name' => 'Smart Attendance Guard Extended',
+            'legal_name' => 'Smart Attendance Guard Extended LLC',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $employee = User::factory()->create([
+            'name' => 'Regular Smart User',
+            'email' => 'regular.smart.ext@example.com',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'regular.smart.ext@example.com',
+            'password' => 'password',
+            'companyCode' => $company->code,
+        ]);
+        $login->assertOk();
+
+        $token = (string) $login->json('data.accessToken');
+
+        $headers = [
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/smart-attendance-shifting/settings')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->putJson('/v1/hcm/smart-attendance-shifting/settings', [
+                'defaultRules' => [
+                    'max_work_days_per_week' => 5,
+                ],
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/smart-attendance-shifting/publish-roster', [
+                'weeklySchedule' => [],
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/schedule-rosters?dateFrom=2026-04-01&dateTo=2026-04-07')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
     public function test_generate_shifting_mode_distributes_multiple_shift_types(): void
     {
         $company = Company::query()->create([

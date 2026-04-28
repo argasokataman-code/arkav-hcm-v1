@@ -2,8 +2,14 @@
 
 namespace App\Providers;
 
+use App\Events\AddonPurchased;
+use App\Events\PayrollFinalized;
+use App\Events\SubscriptionCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use App\Events\TaxGovernancePolicyTransitioned;
+use App\Listeners\CaptureAddonRevenue;
+use App\Listeners\CapturePayrollServiceRevenue;
+use App\Listeners\CaptureSubscriptionRevenue;
 use App\Listeners\TaxGovernancePolicyEventListener;
 
 class EventServiceProvider extends ServiceProvider
@@ -16,6 +22,15 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         TaxGovernancePolicyTransitioned::class => [
             TaxGovernancePolicyEventListener::class,
+        ],
+        SubscriptionCreated::class => [
+            CaptureSubscriptionRevenue::class,
+        ],
+        PayrollFinalized::class => [
+            CapturePayrollServiceRevenue::class,
+        ],
+        AddonPurchased::class => [
+            CaptureAddonRevenue::class,
         ],
     ];
 

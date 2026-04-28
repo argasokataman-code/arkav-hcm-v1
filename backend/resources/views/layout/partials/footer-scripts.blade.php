@@ -393,6 +393,8 @@
 
 @if (request()->is('tax-rates*'))
     <script src="{{ URL::asset('build/js/tax-governance-dashboard.js') }}?v={{ file_exists(public_path('build/js/tax-governance-dashboard.js')) ? filemtime(public_path('build/js/tax-governance-dashboard.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/tax-employee-profiles.js') }}?v={{ file_exists(public_path('build/js/tax-employee-profiles.js')) ? filemtime(public_path('build/js/tax-employee-profiles.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/tax-tenant-compliance.js') }}?v={{ file_exists(public_path('build/js/tax-tenant-compliance.js')) ? filemtime(public_path('build/js/tax-tenant-compliance.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['invoice-report', 'payment-report', 'expenses-report', 'user-report', 'daily-report']))

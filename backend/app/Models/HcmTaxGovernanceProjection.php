@@ -12,6 +12,10 @@ class HcmTaxGovernanceProjection extends Model
 
     protected $table = 'hcm_tax_governance_projections';
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     protected $fillable = [
         'id',
         'company_id',
@@ -61,7 +65,7 @@ class HcmTaxGovernanceProjection extends Model
 
     public function policy(): BelongsTo
     {
-        return $this->belongsTo(HcmTaxGovernancePolicy::class, 'policy_uuid', 'id');
+        return $this->belongsTo(HcmTaxGovernancePolicy::class, 'policy_uuid', 'uuid');
     }
 
     public function lastActor(): BelongsTo

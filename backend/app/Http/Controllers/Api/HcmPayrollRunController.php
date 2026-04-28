@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use Closure;
+use App\Events\PayrollFinalized;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
@@ -185,12 +187,22 @@ class HcmPayrollRunController extends Controller
             }
         }
 
+        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeCharges($run, $companyId);
+
         $user = $request->user();
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $meta['platform_service_fee_rate'] = $serviceFeeRate;
+        $meta['platform_service_fee_base'] = $serviceFeeBase;
+        $meta['platform_service_fee_amount'] = $serviceFeeAmount;
+        $meta['platform_service_fee_billing_month'] = $serviceFeeBillingMonth;
+
         $run->update([
             'status' => HcmPayrollRun::STATUS_FINALIZED,
             'finalized_at' => now(),
             'finalized_by_user_id' => $user?->id,
+            'meta' => $meta,
         ]);
+        PayrollFinalized::dispatch((int) $run->id, (int) ($user?->id ?? 0));
 
         $periodQuery = HcmPayrollPeriod::query()->whereKey($run->hcm_payroll_period_id);
         $this->applyTenantScope($periodQuery, $companyId);
@@ -568,6 +580,17 @@ class HcmPayrollRunController extends Controller
             return $forbidden;
         }
 
+        $companyId = $this->activeCompanyId($request);
+        if ($companyId === null || $companyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_RESET_ACTIVE_COMPANY_REQUIRED',
+                    'message' => 'Reset pembayaran hanya diizinkan dalam konteks tenant aktif.',
+                ],
+            ], 403);
+        }
+
         if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
             return response()->json([
                 'success' => false,
@@ -588,30 +611,15 @@ class HcmPayrollRunController extends Controller
             ], 403);
         }
 
-        $companyId = $this->activeCompanyId($request);
         $result = DB::transaction(function () use ($id, $companyId, $request): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
 
-            // Get primary super admin user ID for filtering
-            $primaryAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
-            $primaryAdminUser = User::query()
-                ->whereRaw('LOWER(email) = ?', [$primaryAdminEmail])
-                ->first();
-            
-            $primaryAdminUserId = $primaryAdminUser?->id;
-
-            // Build query to get only primary super admin's payroll lines
             $linesQuery = HcmPayrollLine::query()
                 ->where('hcm_payroll_run_id', $run->id)
                 ->lockForUpdate();
-            
-            // Filter to only primary super admin if they exist
-            if ($primaryAdminUserId) {
-                $linesQuery->where('user_id', $primaryAdminUserId);
-            }
-            
+
             $lines = $linesQuery->get();
 
             $resetLineCount = 0;
@@ -1421,6 +1429,7 @@ class HcmPayrollRunController extends Controller
     {
         $payment = $this->paymentSummary($r);
         $meta = is_array($r->meta) ? $r->meta : [];
+        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
 
         return [
             'id' => $r->id,
@@ -1436,6 +1445,10 @@ class HcmPayrollRunController extends Controller
             'gatewayReference' => $payment['gatewayReference'],
             'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
             'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
+            'platformServiceFeeRate' => $serviceFee['rate'],
+            'platformServiceFeeBase' => $serviceFee['base'],
+            'platformServiceFeeAmount' => $serviceFee['amount'],
+            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
         ];
     }
 
@@ -1447,6 +1460,7 @@ class HcmPayrollRunController extends Controller
         $payment = $this->paymentSummary($r);
         $totals = $this->runTotals($r);
         $meta = is_array($r->meta) ? $r->meta : [];
+        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
         $out = [
             'id' => $r->id,
             'payrollPeriodId' => $r->hcm_payroll_period_id,
@@ -1466,6 +1480,10 @@ class HcmPayrollRunController extends Controller
             'gatewayReference' => $payment['gatewayReference'],
             'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
             'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
+            'platformServiceFeeRate' => $serviceFee['rate'],
+            'platformServiceFeeBase' => $serviceFee['base'],
+            'platformServiceFeeAmount' => $serviceFee['amount'],
+            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
             'totals' => $totals,
         ];
         if ($r->relationLoaded('period') && $r->period) {
@@ -1644,6 +1662,8 @@ class HcmPayrollRunController extends Controller
         $lines = $run->relationLoaded('lines')
             ? $run->lines
             : $run->lines()->get(['kind', 'amount', 'user_id', 'category', 'meta']);
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
 
         $earningsTotal = 0.0;
         $deductionsTotal = 0.0;
@@ -1667,6 +1687,10 @@ class HcmPayrollRunController extends Controller
             'earningsTotal' => $earningsTotal,
             'deductionsTotal' => $deductionsTotal,
             'netPay' => round($earningsTotal - $deductionsTotal, 2),
+            'platformServiceFeeRate' => $serviceFee['rate'],
+            'platformServiceFeeBase' => $serviceFee['base'],
+            'platformServiceFeeAmount' => $serviceFee['amount'],
+            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
         ];
     }
 
@@ -1733,14 +1757,103 @@ class HcmPayrollRunController extends Controller
 
         return [
             'totals' => $totals,
+            'serviceFee' => [
+                'rate' => $totals['platformServiceFeeRate'] ?? 0,
+                'base' => $totals['platformServiceFeeBase'] ?? 0,
+                'amount' => $totals['platformServiceFeeAmount'] ?? 0,
+                'billingMonth' => $totals['platformServiceFeeBillingMonth'] ?? null,
+            ],
             'employeeBreakdown' => $employeeBreakdown,
             'componentBreakdown' => $componentBreakdown,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array{rate: float, base: float, amount: float, billingMonth: ?string}
+     */
+    private function serviceFeeSnapshotFromMeta(array $meta): array
+    {
+        $billingMonth = isset($meta['platform_service_fee_billing_month'])
+            ? (string) $meta['platform_service_fee_billing_month']
+            : null;
+
+        if ($billingMonth === '') {
+            $billingMonth = null;
+        }
+
+        return [
+            'rate' => round((float) ($meta['platform_service_fee_rate'] ?? 0), 2),
+            'base' => round((float) ($meta['platform_service_fee_base'] ?? 0), 2),
+            'amount' => round((float) ($meta['platform_service_fee_amount'] ?? 0), 2),
+            'billingMonth' => $billingMonth,
         ];
     }
 
     private function activeCompanyId(Request $request): ?int
     {
         return $request->attributes->get('activeCompanyId');
+    }
+
+    /**
+     * @return array{0: float, 1: float, 2: float, 3: string}
+     */
+    private function resolvePayrollServiceFeeCharges(HcmPayrollRun $run, ?int $companyId): array
+    {
+        $period = HcmPayrollPeriod::query()->find($run->hcm_payroll_period_id);
+        $billingMonth = $period
+            ? sprintf('%04d-%02d', (int) $period->period_year, (int) $period->period_month)
+            : now()->format('Y-m');
+
+        $serviceFeeBase = round((float) HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $run->id)
+            ->whereIn('kind', ['addition', 'earning'])
+            ->sum('amount'), 2);
+
+        if ($serviceFeeBase <= 0) {
+            return [0.0, 0.0, 0.0, $billingMonth];
+        }
+
+        $effectiveCompanyId = (int) ($companyId ?? $run->company_id ?? 0);
+        if ($effectiveCompanyId <= 0) {
+            return [0.0, $serviceFeeBase, 0.0, $billingMonth];
+        }
+
+        $policy = HcmBillingTaxPolicy::query()
+            ->where('company_id', $effectiveCompanyId)
+            ->where('billing_month', $billingMonth)
+            ->where('status', 'active')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $policy) {
+            $globalPolicyCandidates = HcmBillingTaxPolicy::query()
+                ->where('billing_month', $billingMonth)
+                ->where('status', 'active')
+                ->orderByDesc('effective_from')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+
+            foreach ($globalPolicyCandidates as $candidate) {
+                $decoded = json_decode((string) ($candidate->notes ?? ''), true);
+                if (is_array($decoded) && isset($decoded['global_rates']) && is_array($decoded['global_rates'])) {
+                    $policy = $candidate;
+                    break;
+                }
+            }
+        }
+
+        $serviceFeeRate = 0.0;
+        $notes = json_decode((string) ($policy?->notes ?? ''), true);
+        if (is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])) {
+            $serviceFeeRate = (float) ($notes['global_rates']['payroll_service_fee'] ?? 0);
+        }
+
+        $serviceFeeAmount = round($serviceFeeBase * ($serviceFeeRate / 100), 2);
+
+        return [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $billingMonth];
     }
 
     /**

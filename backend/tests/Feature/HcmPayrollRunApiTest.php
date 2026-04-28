@@ -6,9 +6,11 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
 use App\Models\CompanySetting;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\PlatformRevenueTransaction;
 use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -259,6 +261,68 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame('finalized', $response->json('data.status'));
+    }
+
+    public function test_finalize_stores_payroll_service_fee_metadata_from_active_policy(): void
+    {
+        $this->employeeToken('employee-fee@example.com', 6_000_000);
+        $admin = $this->adminToken();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
+
+        HcmBillingTaxPolicy::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'company_id' => $this->company?->id,
+            'billing_month' => '2026-07',
+            'billing_cycle_type' => 'monthly',
+            'tax_rate_percentage' => 0,
+            'base_calculation_method' => 'subscription_revenue',
+            'effective_from' => '2026-07-01',
+            'effective_to' => null,
+            'status' => 'active',
+            'notes' => json_encode([
+                'global_rates' => [
+                    'payroll_service_fee' => 2,
+                ],
+            ]),
+        ]);
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertOk();
+
+        $response->assertJsonPath('data.platformServiceFeeRate', 2);
+        $response->assertJsonPath('data.platformServiceFeeBillingMonth', '2026-07');
+
+        $run = HcmPayrollRun::query()->findOrFail($data['runId']);
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $serviceFeeBase = (float) ($meta['platform_service_fee_base'] ?? 0);
+        $serviceFeeRate = (float) ($meta['platform_service_fee_rate'] ?? 0);
+        $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
+
+        $expectedBase = round((float) HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $data['runId'])
+            ->whereIn('kind', ['addition', 'earning'])
+            ->sum('amount'), 2);
+        $expectedAmount = round($expectedBase * 0.02, 2);
+
+        $this->assertGreaterThan(0, $serviceFeeBase);
+        $this->assertSame(2.0, $serviceFeeRate);
+        $this->assertSame('2026-07', (string) ($meta['platform_service_fee_billing_month'] ?? ''));
+        $this->assertEqualsWithDelta($expectedBase, $serviceFeeBase, 0.01);
+        $this->assertEqualsWithDelta($expectedAmount, $serviceFeeAmount, 0.01);
+
+        $capturedRevenue = PlatformRevenueTransaction::query()
+            ->where('source_event_type', 'payroll.finalized')
+            ->where('source_entity_type', 'hcm_payroll_runs')
+            ->where('source_entity_id', $data['runId'])
+            ->where('transaction_type', PlatformRevenueTransaction::TYPE_PAYROLL_SERVICE)
+            ->where('idempotency_key', 'payroll_finalized:'.$data['runId'])
+            ->first();
+
+        $this->assertNotNull($capturedRevenue);
+        $this->assertGreaterThan(0, (float) $capturedRevenue->amount);
+        $this->assertEqualsWithDelta($expectedAmount, (float) $capturedRevenue->amount, 0.01);
+        $this->assertEqualsWithDelta($expectedAmount, (float) $capturedRevenue->net_amount, 0.01);
     }
 
     public function test_shared_global_period_latest_run_and_draft_reuse_are_scoped_by_active_company(): void
@@ -1242,6 +1306,41 @@ class HcmPayrollRunApiTest extends TestCase
             'Authorization' => 'Bearer '.$superAdminToken,
             'X-Company-Id' => (string) $this->company->id, // company A
         ])->postJson('/v1/hcm/payroll-runs/'.$otherRun->id.'/disburse', ['applyAll' => true])
+            ->assertNotFound();
+    }
+
+    public function test_global_super_admin_cannot_reset_payments_for_other_company_payroll_run(): void
+    {
+        $otherCompany = Company::query()->create([
+            'code' => 'payroll_sec_reset_b',
+            'name' => 'Payroll Security Reset B',
+            'legal_name' => 'Payroll Security Reset B LLC',
+            'status' => 'active',
+            'owner_user_id' => null,
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherPeriod = HcmPayrollPeriod::query()->create([
+            'company_id' => $otherCompany->id,
+            'period_year' => 2026,
+            'period_month' => 10,
+            'status' => 'posted',
+        ]);
+        $otherRun = HcmPayrollRun::query()->create([
+            'company_id' => $otherCompany->id,
+            'hcm_payroll_period_id' => $otherPeriod->id,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
+        ]);
+
+        $superAdminToken = $this->primarySuperAdminCodeOneToken();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$superAdminToken,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/payroll-runs/'.$otherRun->id.'/reset-payments')
             ->assertNotFound();
     }
 

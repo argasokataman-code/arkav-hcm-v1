@@ -648,13 +648,17 @@
                                     </ul>
                                 </li>
                                 @endif
+                                <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') && !Request::is('tax-rates/platform-billing*') && !Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll Tenant</a></li>
+                                @if ($isGlobalHcmAdmin)
+                                <li><a href="{{ route('tax-rates.platform-billing.policies') }}" class="{{ Request::is('tax-rates/platform-billing*') ? 'active' : '' }}">Platform Finance - Billing & Revenue</a></li>
+                                <li><a href="{{ route('tax-rates.platform-tax-compliance.policies') }}" class="{{ Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
+                                @endif
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
@@ -1689,13 +1693,17 @@
                                     </ul>
                                 </li>
                                 @endif
+                                                <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') && !Request::is('tax-rates/platform-billing*') && !Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll Tenant</a></li>
+                                @if ($isGlobalHcmAdmin)
+                                                <li><a href="{{ route('tax-rates.platform-billing.policies') }}" class="{{ Request::is('tax-rates/platform-billing*') ? 'active' : '' }}">Platform Finance - Billing & Revenue</a></li>
+                                                <li><a href="{{ route('tax-rates.platform-tax-compliance.policies') }}" class="{{ Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
+                                @endif
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
                                     <ul>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
@@ -2831,7 +2839,7 @@
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                     @endif
-                                    <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
+                                    <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll</a></li>
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                     @endif
@@ -4037,7 +4045,7 @@
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Tax Rate</a></li>
+                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif

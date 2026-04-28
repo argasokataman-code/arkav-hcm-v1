@@ -8,6 +8,7 @@ use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceAnomaly;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class TaxGovernanceReportingService
 {
@@ -21,7 +22,12 @@ class TaxGovernanceReportingService
      */
     public function generateTenantSelfAuditReport(string $companyId, Carbon $periodStart, Carbon $periodEnd): array
     {
-        $company = Company::find($companyId);
+        // AN-014: Defensive tenant isolation — reject calls with no/zero companyId.
+        if (empty($companyId) || (int) $companyId <= 0) {
+            throw new \InvalidArgumentException('TaxGovernanceReportingService: companyId is required.');
+        }
+
+        $company = Company::find((int) $companyId);
         if (! $company) {
             return [];
         }
@@ -110,17 +116,37 @@ class TaxGovernanceReportingService
     }
 
     /**
-     * Get payroll coverage statistics
+     * Get payroll coverage statistics for a company in a given period.
+     * AN-011: Replaced hardcoded placeholder with actual payroll_runs query.
      */
     private function getPayrollCoverageStats(string $companyId, Carbon $periodStart, Carbon $periodEnd): array
     {
-        // TODO: Query payroll_runs table to count coverage
-        // This is a placeholder that will integrate with payroll module
+        if (! \Illuminate\Support\Facades\Schema::hasTable('hcm_payroll_runs')) {
+            return [
+                'total_payroll_runs' => 0,
+                'runs_under_current_policy' => 0,
+                'runs_under_superseded_policy' => 0,
+                'coverage_percentage' => 100.0,
+            ];
+        }
+
+        $runs = DB::table('hcm_payroll_runs')
+            ->where('company_id', (int) $companyId)
+            ->whereBetween('finalized_at', [$periodStart->toDateTimeString(), $periodEnd->toDateTimeString()])
+            ->whereIn('status', ['finalized'])
+            ->select('id', 'hcm_tax_governance_policy_id')
+            ->get();
+
+        $total = $runs->count();
+        $covered = $runs->whereNotNull('hcm_tax_governance_policy_id')->count();
+        $superseded = $total - $covered;
+        $coveragePercentage = $total > 0 ? round($covered / $total * 100, 2) : 100.0;
+
         return [
-            'total_payroll_runs' => 45,
-            'runs_under_current_policy' => 40,
-            'runs_under_superseded_policy' => 5,
-            'coverage_percentage' => 88.9,
+            'total_payroll_runs' => $total,
+            'runs_under_current_policy' => $covered,
+            'runs_under_superseded_policy' => $superseded,
+            'coverage_percentage' => $coveragePercentage,
         ];
     }
 

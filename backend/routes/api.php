@@ -198,6 +198,9 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         Route::post('/platform-billing/policies', [HcmTaxGovernanceController::class, 'storePlatformBillingPolicy']);
         Route::get('/platform-billing/reports', [HcmTaxGovernanceController::class, 'platformBillingReports']);
         Route::get('/platform-billing/invoices', [HcmTaxGovernanceController::class, 'platformBillingInvoices']);
+        Route::get('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'platformTaxCompliancePolicies']);
+        Route::post('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'storePlatformTaxCompliancePolicy']);
+        Route::get('/platform-tax-compliance/reports', [HcmTaxGovernanceController::class, 'platformTaxComplianceReports']);
     });
 
     Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\SubscriptionCreated;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Package;
@@ -152,6 +153,7 @@ class SubscriptionController extends Controller
         }
 
         $subscription = Subscription::create($validated);
+        SubscriptionCreated::dispatch((int) $subscription->id, (int) ($request->user()?->id ?? 0));
         $subscription->load('company', 'package');
 
         return response()->json([

@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Company;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
-use App\Jobs\SendInvoiceEmailJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class HcmSubscriptionCheckoutController
@@ -67,12 +69,14 @@ class HcmSubscriptionCheckoutController
         /** @var Company $company */
         $company = Company::query()->findOrFail($activeCompanyId);
         $billingCycle = (string) $validated['billing_cycle'];
-        $amount = $billingCycle === 'yearly' ? (float) $package->yearly_price : (float) $package->monthly_price;
+        $baseAmount = $billingCycle === 'yearly' ? (float) $package->yearly_price : (float) $package->monthly_price;
+        $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
+        $amountDue = (float) $pricingBreakdown['total_amount'];
 
         // 24-hour payment window by default.
         $dueDate = now()->addDay()->toDateString();
 
-        return DB::transaction(function () use ($company, $package, $billingCycle, $amount, $dueDate, $validated): JsonResponse {
+        return DB::transaction(function () use ($company, $package, $billingCycle, $baseAmount, $amountDue, $pricingBreakdown, $dueDate, $validated): JsonResponse {
             // Global guard: if there is ANY unpaid invoice for this company, reuse it and
             // never create a duplicate — regardless of subscription status.
             $anyUnpaid = Invoice::query()
@@ -162,7 +166,7 @@ class HcmSubscriptionCheckoutController
             $subscription->plan_code = $package->code;
             $subscription->status = 'pending_payment';
             $subscription->billing_cycle = $billingCycle;
-            $subscription->amount = $amount;
+            $subscription->amount = $baseAmount;
             $subscription->trial_ends_at = null;
             $subscription->ends_at = now()->addHours(24);
             $subscription->save();
@@ -173,9 +177,13 @@ class HcmSubscriptionCheckoutController
                 'purchase_transaction_id' => null,
                 'issue_date' => now()->toDateString(),
                 'due_date' => $dueDate,
-                'amount_due' => $amount,
+                'amount_due' => $amountDue,
                 'status' => 'draft',
-                'notes' => 'Created from tenant subscription checkout.',
+                'notes' => $this->buildInvoicePricingNotes(
+                    'tenant_subscription_checkout',
+                    $pricingBreakdown,
+                    'Created from tenant subscription checkout.'
+                ),
             ]);
 
             $billingEmail = $validated['billingEmail'] ?? null;
@@ -207,5 +215,132 @@ class HcmSubscriptionCheckoutController
             ], 201);
         });
     }
-}
 
+    private function buildSubscriptionPricingBreakdown(int $companyId, float $baseAmount): array
+    {
+        $billingMonth = now()->format('Y-m');
+
+        $policy = HcmBillingTaxPolicy::query()
+            ->where('company_id', $companyId)
+            ->where('billing_month', $billingMonth)
+            ->where('status', 'active')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $policy) {
+            $globalPolicyCandidates = HcmBillingTaxPolicy::query()
+                ->where('billing_month', $billingMonth)
+                ->where('status', 'active')
+                ->orderByDesc('effective_from')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+
+            foreach ($globalPolicyCandidates as $candidate) {
+                $decoded = json_decode((string) ($candidate->notes ?? ''), true);
+                if (is_array($decoded) && isset($decoded['global_rates']) && is_array($decoded['global_rates'])) {
+                    $policy = $candidate;
+                    break;
+                }
+            }
+        }
+
+        $defaultSubscriptionTaxRate = (float) ($policy?->tax_rate_percentage ?? 0);
+        [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount] =
+            $this->resolvePricingComponents($policy, $baseAmount, $defaultSubscriptionTaxRate);
+
+        $totalAdjustments = round((float) collect($components)->sum(fn (array $component): float => (float) ($component['amount'] ?? 0)), 2);
+        $totalAmount = round($baseAmount + $totalAdjustments, 2);
+
+        return [
+            'billing_month' => $billingMonth,
+            'policy_id' => $policy?->id,
+            'base_amount' => round($baseAmount, 2),
+            'components' => $components,
+            'total_adjustments' => $totalAdjustments,
+            'service_fee_rate' => $serviceFeeRate,
+            'service_fee_amount' => $serviceFeeAmount,
+            'subscription_tax_rate' => $subscriptionTaxRate,
+            'subscription_tax_amount' => $subscriptionTaxAmount,
+            'total_amount' => $totalAmount,
+        ];
+    }
+
+    private function resolvePricingComponents(?HcmBillingTaxPolicy $policy, float $baseAmount, float $defaultSubscriptionTaxRate): array
+    {
+        $notes = json_decode((string) ($policy?->notes ?? ''), true);
+        $globalRates = is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])
+            ? $notes['global_rates']
+            : [];
+        $customLabels = is_array($notes) && isset($notes['global_rate_labels']) && is_array($notes['global_rate_labels'])
+            ? $notes['global_rate_labels']
+            : [];
+
+        $resolvedRates = [];
+        foreach ($globalRates as $key => $value) {
+            if (! is_numeric($value)) {
+                continue;
+            }
+
+            $componentKey = Str::snake((string) $key);
+            if ($componentKey === '') {
+                continue;
+            }
+
+            $resolvedRates[$componentKey] = (float) $value;
+        }
+
+        if (! array_key_exists('subscription_tax_rate', $resolvedRates)) {
+            $resolvedRates['subscription_tax_rate'] = $defaultSubscriptionTaxRate;
+        }
+
+        $defaultLabels = [
+            'subscription_tax_rate' => 'Pajak langganan',
+            'payroll_service_fee' => 'Biaya layanan',
+            'addon_markup_rate' => 'Corporate tax',
+        ];
+
+        $components = [];
+        foreach ($resolvedRates as $componentKey => $rate) {
+            $amount = round($baseAmount * ($rate / 100), 2);
+            $label = $customLabels[$componentKey] ?? $defaultLabels[$componentKey] ?? Str::title(str_replace('_', ' ', $componentKey));
+
+            $components[] = [
+                'key' => $componentKey,
+                'label' => (string) $label,
+                'rate' => $rate,
+                'amount' => $amount,
+            ];
+        }
+
+        $serviceFeeRate = 0.0;
+        $serviceFeeAmount = 0.0;
+        $subscriptionTaxRate = 0.0;
+        $subscriptionTaxAmount = 0.0;
+        foreach ($components as $component) {
+            if (($component['key'] ?? null) === 'payroll_service_fee') {
+                $serviceFeeRate = (float) ($component['rate'] ?? 0);
+                $serviceFeeAmount = (float) ($component['amount'] ?? 0);
+            }
+            if (($component['key'] ?? null) === 'subscription_tax_rate') {
+                $subscriptionTaxRate = (float) ($component['rate'] ?? 0);
+                $subscriptionTaxAmount = (float) ($component['amount'] ?? 0);
+            }
+        }
+
+        return [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount];
+    }
+
+    private function buildInvoicePricingNotes(string $source, array $pricingBreakdown, string $fallbackMessage): string
+    {
+        $payload = [
+            'source' => $source,
+            'message' => $fallbackMessage,
+            'pricing_breakdown' => $pricingBreakdown,
+        ];
+
+        $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        return is_string($encoded) ? $encoded : $fallbackMessage;
+    }
+}

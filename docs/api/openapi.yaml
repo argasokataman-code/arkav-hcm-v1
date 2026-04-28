@@ -5206,6 +5206,22 @@ paths:
                                     nullable: true
                                     properties:
                                       totalCount: { type: integer, example: 0 }
+                          platformServiceFeeRate:
+                            type: number
+                            format: float
+                            example: 2
+                          platformServiceFeeBase:
+                            type: number
+                            format: float
+                            example: 6000000
+                          platformServiceFeeAmount:
+                            type: number
+                            format: float
+                            example: 120000
+                          platformServiceFeeBillingMonth:
+                            type: string
+                            nullable: true
+                            example: '2026-07'
                           period:
                             type: object
                             nullable: true
@@ -5388,6 +5404,22 @@ paths:
                                 nullable: true
                                 properties:
                                   totalCount: { type: integer, example: 0 }
+                      platformServiceFeeRate:
+                        type: number
+                        format: float
+                        example: 2
+                      platformServiceFeeBase:
+                        type: number
+                        format: float
+                        example: 6000000
+                      platformServiceFeeAmount:
+                        type: number
+                        format: float
+                        example: 120000
+                      platformServiceFeeBillingMonth:
+                        type: string
+                        nullable: true
+                        example: '2026-07'
                       period:
                         type: object
                         nullable: true
@@ -6716,6 +6748,9 @@ paths:
         **Kompatibilitas UI:** klien payroll/THR/PKWT mengirim `format` (alias `fileFormat`) dan `filterPayload`.
         Jika `filePath` tidak dikirim dan `fileFormat`/`format` adalah **`csv`**, server akan **menulis file CSV evidence**
         ke disk `local` pada path `reconciliation/generated/...` lalu menyimpan evidence.
+
+        Untuk `featureKey=payroll_run` + `actionKey=disburse`, CSV otomatis membawa snapshot biaya layanan payroll pada kolom:
+        `service_fee_rate_percent`, `service_fee_base_amount`, `service_fee_amount`, `service_fee_billing_month`.
 
         Untuk `xlsx` / `pdf`, `filePath` tetap **wajib** (server tidak auto-generate).
       security:
@@ -10221,32 +10256,31 @@ paths:
   /v1/hcm/tax-governance/reports/tenant-self-audit:
     get:
       tags: [Tax Governance]
-      summary: Export tenant self-audit report
+      summary: Get tenant self-audit enhanced snapshot
       description: |
-        Runtime baseline returns tenant-scoped audit summary payload while report pack expansion remains in-progress.
+        Returns tenant-scoped enhanced self-audit snapshot including policy snapshot,
+        change history, compliance checklist, and billing tax compliance summary.
       security:
         - bearerAuth: []
       parameters:
-        - name: period_year
+        - name: company_id
           in: query
-          required: true
-          schema:
-            type: integer
-            minimum: 2000
-            maximum: 2100
-        - name: period_month
-          in: query
-          required: true
+          required: false
           schema:
             type: integer
             minimum: 1
-            maximum: 12
-        - name: format
+        - name: period_start
           in: query
-          required: true
+          required: false
           schema:
             type: string
-            enum: [json, csv, xlsx, pdf]
+            format: date
+        - name: period_end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
       responses:
         '200':
           description: OK
@@ -10256,6 +10290,7 @@ paths:
                 $ref: '#/components/schemas/TaxGovernanceReportResponse'
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/tax-governance/reports/tenant-self-audit-export:
@@ -10436,12 +10471,30 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: billing_cycle
+        - name: billing_month
           in: query
           required: false
           schema:
             type: string
-            enum: [monthly, yearly, custom]
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, active, inactive]
+        - name: global_mode
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         '200':
           description: OK
@@ -10473,10 +10526,96 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/tax-governance/platform-tax-compliance/policies:
+    get:
+      tags: [Tax Governance]
+      summary: List platform tax and compliance policies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: billing_month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, active, inactive]
+        - name: global_mode
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyListResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Tax Governance]
+      summary: Create platform tax and compliance policy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxGovernancePlatformBillingPolicyUpsertRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/platform-tax-compliance/reports:
+    get:
+      tags: [Tax Governance]
+      summary: Platform tax and compliance reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernanceReportResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/hcm/tax-governance/platform-billing/reports:
     get:
       tags: [Tax Governance]
       summary: Platform billing tax reports
+      description: >
+        Returns aggregated platform revenue summary for the requested month.
+        Revenue aggregation is based on `platform_revenue_transactions` rows
+        with `clearing_status = cleared` only. Uncleared, disputed, or reversed
+        transactions are excluded from revenue totals. Clearing is performed
+        nightly by the scheduled `ClearRevenueTransactionsJob` after a 2-day
+        grace window from the `occurred_at` date.
       security:
         - bearerAuth: []
       parameters:
@@ -13197,23 +13336,31 @@ components:
               additionalProperties: true
     TaxGovernancePlatformBillingPolicyUpsertRequest:
       type: object
-      required: [policyCode, billingCycle, effectiveStartDate, rateSchedules]
+      required: [subscription_tax_rate, payroll_service_fee, addon_markup_rate]
       properties:
-        policyCode:
+        subscription_tax_rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        payroll_service_fee:
+          type: number
+          minimum: 0
+          maximum: 100
+        addon_markup_rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        status:
           type: string
-          maxLength: 100
-        billingCycle:
+          enum: [draft, active, inactive]
+        billing_month:
           type: string
-          enum: [monthly, yearly, custom]
-        effectiveStartDate:
-          type: string
-          format: date
-        effectiveEndDate:
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+          nullable: true
+        effective_from:
           type: string
           format: date
           nullable: true
-        rateSchedules:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
+        notes:
+          type: string
+          nullable: true

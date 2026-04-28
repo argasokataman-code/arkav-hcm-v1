@@ -1423,6 +1423,18 @@ Route::prefix('tax-rates')->middleware('hcm.web.admin')->group(function (): void
             'taxGovernanceScreen' => 'komponen-pajak',
         ]);
     })->name('tax-rates.komponen-pajak');
+
+    Route::get('/employee-tax-profiles', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'employee-tax-profiles',
+        ]);
+    })->name('tax-rates.employee-tax-profiles');
+
+    Route::get('/tenant-compliance', function () {
+        return view('tax-rates', [
+            'taxGovernanceScreen' => 'tenant-compliance',
+        ]);
+    })->name('tax-rates.tenant-compliance');
 });
 
 Route::prefix('tax-rates')->middleware('hcm.web.global-admin')->group(function (): void {
@@ -1433,16 +1445,28 @@ Route::prefix('tax-rates')->middleware('hcm.web.global-admin')->group(function (
     })->name('tax-rates.governance');
 
     Route::get('/platform-billing/policies', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'platform-policies',
+        return view('tax-billing-subscribers-settings', [
+            'taxGovernanceScreen' => 'platform-billing',
         ]);
     })->name('tax-rates.platform-billing.policies');
 
     Route::get('/platform-billing/reports', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'platform-reports',
+        return view('tax-billing-subscribers-settings', [
+            'taxGovernanceScreen' => 'platform-billing',
         ]);
     })->name('tax-rates.platform-billing.reports');
+
+    Route::get('/platform-tax-compliance/policies', function () {
+        return view('tax-platform-compliance-settings', [
+            'taxGovernanceScreen' => 'platform-tax-compliance',
+        ]);
+    })->name('tax-rates.platform-tax-compliance.policies');
+
+    Route::get('/platform-tax-compliance/reports', function () {
+        return view('tax-platform-compliance-settings', [
+            'taxGovernanceScreen' => 'platform-tax-compliance',
+        ]);
+    })->name('tax-rates.platform-tax-compliance.reports');
 });
 
 Route::get( '/pages', function () {

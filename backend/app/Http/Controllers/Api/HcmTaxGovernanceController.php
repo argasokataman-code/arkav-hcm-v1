@@ -6,6 +6,7 @@ use App\Events\TaxGovernancePolicyTransitioned;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
@@ -115,7 +116,7 @@ class HcmTaxGovernanceController extends Controller
         });
 
         // Dispatch event for projection sync
-        // TaxGovernancePolicyTransitioned::dispatch($policy, HcmTaxGovernancePolicy::STATUS_DRAFT, $policy->status, $actorId);
+        TaxGovernancePolicyTransitioned::dispatch($policy, HcmTaxGovernancePolicy::STATUS_DRAFT, $policy->status, (int) ($actorId ?? 0));
 
         return response()->json([
             'success' => true,
@@ -232,7 +233,7 @@ class HcmTaxGovernanceController extends Controller
         $policy->refresh();
         
         // Dispatch event for projection sync
-        // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
+        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
 
         return $this->withNumericPolicyDeprecationHeaders(
             response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
@@ -261,6 +262,13 @@ class HcmTaxGovernanceController extends Controller
         ]);
 
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        // Tenant isolation: approver must be a member of the policy's own company.
+        // Blocks global admins from participating in tenant approval workflows.
+        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
+            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Approver must be an active member of the policy tenant.', 403);
+        }
+
         if ($actorId && (int) $policy->created_by_user_id === $actorId) {
             return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot approve their own policy.', 403);
         }
@@ -281,7 +289,7 @@ class HcmTaxGovernanceController extends Controller
         $policy->refresh();
 
         // Dispatch event for projection sync
-        // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
+        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
 
         return $this->withNumericPolicyDeprecationHeaders(
             response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
@@ -310,6 +318,12 @@ class HcmTaxGovernanceController extends Controller
         ]);
 
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        // Tenant isolation: rejector must be a member of the policy's own company.
+        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
+            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Rejector must be an active member of the policy tenant.', 403);
+        }
+
         if ($actorId && (int) $policy->created_by_user_id === $actorId) {
             return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot reject their own policy.', 403);
         }
@@ -326,7 +340,7 @@ class HcmTaxGovernanceController extends Controller
         $policy->refresh();
 
         // Dispatch event for projection sync
-        // TaxGovernancePolicyTransitioned::dispatch($policy, 'submitted', $policy->status, $actorId);
+        TaxGovernancePolicyTransitioned::dispatch($policy, 'submitted', $policy->status, (int) ($actorId ?? 0));
 
         return $this->withNumericPolicyDeprecationHeaders(
             response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
@@ -356,6 +370,12 @@ class HcmTaxGovernanceController extends Controller
         ]);
 
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        // Tenant isolation: publisher must be a member of the policy's own company.
+        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
+            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Publisher must be an active member of the policy tenant.', 403);
+        }
+
         if ($actorId && (int) $policy->created_by_user_id === $actorId) {
             return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot publish their own policy.', 403);
         }
@@ -377,7 +397,7 @@ class HcmTaxGovernanceController extends Controller
         $policy->refresh();
         
         // Dispatch event for projection sync
-        // TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, $actorId);
+        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
 
         return $this->withNumericPolicyDeprecationHeaders(
             response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
@@ -439,6 +459,7 @@ class HcmTaxGovernanceController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 50);
 
         $query = HcmTaxGovernanceProjection::query()
+            ->with(['company:id,name', 'lastActor:id,email'])
             ->orderByDesc('updated_at');
 
         if (!empty($validated['risk_level_filter'])) {
@@ -446,6 +467,22 @@ class HcmTaxGovernanceController extends Controller
         }
 
         $projections = $query->paginate($perPage);
+        $companyIds = collect($projections->items())
+            ->pluck('company_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $anomalyCountByCompany = HcmTaxGovernanceAnomaly::query()
+            ->select('company_id')
+            ->selectRaw('COUNT(*) as anomaly_count')
+            ->selectRaw("SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical_anomaly_count")
+            ->whereNull('resolved_at')
+            ->whereIn('company_id', $companyIds)
+            ->groupBy('company_id')
+            ->get()
+            ->keyBy('company_id');
 
         // Build summary metrics
         $allProjections = HcmTaxGovernanceProjection::query()->get();
@@ -481,7 +518,9 @@ class HcmTaxGovernanceController extends Controller
                 'summary' => $summary,
                 'risk_heatmap' => $riskHeatmap,
                 'billing_tax_health' => $billingTaxHealth,
-                'tenants' => collect($projections->items())->map(function (HcmTaxGovernanceProjection $proj) {
+                'tenants' => collect($projections->items())->map(function (HcmTaxGovernanceProjection $proj) use ($anomalyCountByCompany) {
+                    $anomalyCounts = $anomalyCountByCompany->get($proj->company_id);
+
                     return [
                         'company_id' => $proj->company_id,
                         'company_name' => optional($proj->company)->name ?? 'Unknown',
@@ -490,8 +529,8 @@ class HcmTaxGovernanceController extends Controller
                         'effective_since' => optional($proj->effective_date)?->toDateString(),
                         'policy_complexity_score' => $proj->policy_complexity_score,
                         'risk_level' => $proj->tenant_risk_level,
-                        'anomaly_count' => HcmTaxGovernanceAnomaly::where('company_id', $proj->company_id)->whereNull('resolved_at')->count(),
-                        'critical_anomaly_count' => HcmTaxGovernanceAnomaly::where('company_id', $proj->company_id)->whereNull('resolved_at')->where('severity', 'critical')->count(),
+                        'anomaly_count' => (int) ($anomalyCounts->anomaly_count ?? 0),
+                        'critical_anomaly_count' => (int) ($anomalyCounts->critical_anomaly_count ?? 0),
                         'last_change_at' => optional($proj->last_actor_timestamp)?->toIso8601String(),
                         'last_change_by' => optional($proj->lastActor)->email ?? 'System',
                     ];
@@ -641,7 +680,7 @@ class HcmTaxGovernanceController extends Controller
         // Verify tenant access
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
+        if (!$isGlobalAdmin && (int) $anomaly->company_id !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot acknowledge anomaly in other tenant.', 403);
         }
 
@@ -664,12 +703,16 @@ class HcmTaxGovernanceController extends Controller
 
     public function tenantSelfAuditReportEnhanced(Request $request): JsonResponse
     {
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.view')) {
+            return $response;
+        }
+
         $companyId = $request->input('company_id');
         $userCompanyId = $this->activeCompanyId($request);
 
         // Authorization: tenant user can only view own tenant; global admin can view any
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $companyId && $companyId !== $userCompanyId) {
+        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant self-audit report.', 403);
         }
 
@@ -681,23 +724,24 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
+        $company = Company::find((int) $companyId);
+        if (!$company) {
+            return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
+        }
+
         $validated = $request->validate([
             'period_start' => ['nullable', 'date'],
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = $validated['period_start'] ? Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = $validated['period_end'] ? Carbon::parse($validated['period_end']) : now();
+        $periodStart = !empty($validated['period_start']) ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = !empty($validated['period_end']) ? Carbon::parse($validated['period_end']) : now();
 
-        $policies = HcmTaxGovernancePolicy::where('company_id', $companyId)->get();
+        $policies = HcmTaxGovernancePolicy::where('company_id', (int) $companyId)->get();
         $currentPublishedPolicy = $policies->where('status', 'published')->first();
 
-        if (!$currentPublishedPolicy) {
-            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'No published policy found for this tenant.', 404);
-        }
-
         // Build change history from events
-        $events = HcmTaxGovernancePolicyEvent::where('company_id', $companyId)
+        $events = HcmTaxGovernancePolicyEvent::where('company_id', (int) $companyId)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->orderByDesc('created_at')
             ->get();
@@ -714,11 +758,27 @@ class HcmTaxGovernanceController extends Controller
             ->values();
 
         // Compute compliance checklist
+        // AN-011: Replaced hardcoded all_payroll_runs_covered=true with real payroll query
+        $payrollRunsInPeriod = 0;
+        $payrollRunsUsingPolicy = 0;
+        $allPayrollRunsCovered = true;
+        if (\Illuminate\Support\Facades\Schema::hasTable('hcm_payroll_runs')) {
+            $payrollRuns = \Illuminate\Support\Facades\DB::table('hcm_payroll_runs')
+                ->where('company_id', (int) $companyId)
+                ->whereBetween('finalized_at', [$periodStart->toDateTimeString(), $periodEnd->toDateTimeString()])
+                ->where('status', 'finalized')
+                ->select('id', 'hcm_tax_governance_policy_id')
+                ->get();
+            $payrollRunsInPeriod = $payrollRuns->count();
+            $payrollRunsUsingPolicy = $payrollRuns->whereNotNull('hcm_tax_governance_policy_id')->count();
+            $allPayrollRunsCovered = $payrollRunsInPeriod === 0 || $payrollRunsUsingPolicy === $payrollRunsInPeriod;
+        }
+
         $complianceChecklist = [
             'has_published_policy' => (bool) $currentPublishedPolicy,
             'has_recent_publication' => $currentPublishedPolicy && $currentPublishedPolicy->published_at && $currentPublishedPolicy->published_at->diffInDays(now()) < 90,
-            'all_payroll_runs_covered' => true, // Placeholder
-            'no_unresolved_anomalies' => HcmTaxGovernanceAnomaly::where('company_id', $companyId)->whereNull('resolved_at')->count() === 0,
+            'all_payroll_runs_covered' => $allPayrollRunsCovered,
+            'no_unresolved_anomalies' => HcmTaxGovernanceAnomaly::where('company_id', (int) $companyId)->whereNull('resolved_at')->count() === 0,
         ];
 
         $billingService = app(BillingTaxCalculationService::class);
@@ -728,7 +788,7 @@ class HcmTaxGovernanceController extends Controller
             'success' => true,
             'data' => [
                 'company_id' => $companyId,
-                'company_name' => optional(Company::find($companyId))->name ?? 'Unknown',
+                'company_name' => $company->name,
                 'period' => [
                     'start' => $periodStart->toDateString(),
                     'end' => $periodEnd->toDateString(),
@@ -744,8 +804,8 @@ class HcmTaxGovernanceController extends Controller
                 ],
                 'change_history' => $changeHistory,
                 'payroll_impact' => [
-                    'payroll_runs_in_period' => 0, // Placeholder
-                    'payroll_runs_using_published_policy' => 0, // Placeholder
+                    'payroll_runs_in_period' => $payrollRunsInPeriod,
+                    'payroll_runs_using_published_policy' => $payrollRunsUsingPolicy,
                     'anomalies_in_period' => [],
                 ],
                 'compliance_checklist' => $complianceChecklist,
@@ -756,6 +816,11 @@ class HcmTaxGovernanceController extends Controller
                     'paid_invoice_count' => (int) ($billingTaxCompliance['paid_invoice_count'] ?? 0),
                     'unpaid_invoice_count' => (int) ($billingTaxCompliance['unpaid_invoice_count'] ?? 0),
                     'total_invoice_amount' => (float) ($billingTaxCompliance['total_invoice_amount'] ?? 0),
+                    'taxable_revenue_amount' => (float) ($billingTaxCompliance['taxable_revenue_amount'] ?? 0),
+                    'cleared_revenue_amount' => (float) ($billingTaxCompliance['cleared_revenue_amount'] ?? 0),
+                    'uncleared_revenue_amount' => (float) ($billingTaxCompliance['uncleared_revenue_amount'] ?? 0),
+                    'disputed_revenue_amount' => (float) ($billingTaxCompliance['disputed_revenue_amount'] ?? 0),
+                    'reversed_revenue_amount' => (float) ($billingTaxCompliance['reversed_revenue_amount'] ?? 0),
                     'tax_amount_due' => (float) ($billingTaxCompliance['tax_amount'] ?? 0),
                     'tax_rate_percentage' => (float) ($billingTaxCompliance['tax_rate_percentage'] ?? 0),
                 ],
@@ -849,6 +914,11 @@ class HcmTaxGovernanceController extends Controller
                         'invoices_issued' => (int) ($billingCompliance['invoice_count'] ?? 0),
                         'invoices_paid' => (int) ($billingCompliance['paid_invoice_count'] ?? 0),
                         'amount_outstanding' => (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0),
+                        'taxable_revenue_amount' => (float) ($billingCompliance['taxable_revenue_amount'] ?? 0),
+                        'cleared_revenue_amount' => (float) ($billingCompliance['cleared_revenue_amount'] ?? 0),
+                        'uncleared_revenue_amount' => (float) ($billingCompliance['uncleared_revenue_amount'] ?? 0),
+                        'disputed_revenue_amount' => (float) ($billingCompliance['disputed_revenue_amount'] ?? 0),
+                        'reversed_revenue_amount' => (float) ($billingCompliance['reversed_revenue_amount'] ?? 0),
                         'payment_status' => ((int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0) ? 'current' : 'overdue',
                     ],
                     'overall_status' => $overallStatus,
@@ -867,7 +937,12 @@ class HcmTaxGovernanceController extends Controller
             'effectiveStartDate' => ['required', 'date'],
             'effectiveEndDate' => ['nullable', 'date', 'after_or_equal:effectiveStartDate'],
             'rules' => ['required', 'array'],
+            'rules.scheme' => ['required', 'string', 'in:TER'],
+            'rules.currency' => ['nullable', 'string', 'in:IDR'],
             'rateSchedules' => ['required', 'array'],
+            'rateSchedules.*.bracket' => ['required', 'string', 'in:A,B,C'],
+            'rateSchedules.*.rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'rateSchedules.*.upperBound' => ['nullable', 'numeric', 'gt:0'],
             'version' => ['nullable', 'integer', 'min:1'],
         ];
 
@@ -1022,6 +1097,7 @@ class HcmTaxGovernanceController extends Controller
         $validated = $request->validate([
             'billing_month' => ['nullable', 'date_format:Y-m'],
             'status' => ['nullable', Rule::in(['draft', 'active', 'inactive'])],
+            'global_mode' => ['nullable', 'boolean'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
@@ -1038,10 +1114,14 @@ class HcmTaxGovernanceController extends Controller
 
         $rows = $query->paginate((int) ($validated['per_page'] ?? 20));
 
+        $rawItems = collect($rows->items());
+        $globalMode = (bool) ($validated['global_mode'] ?? false);
+        $globalItems = $this->buildGlobalPlatformPolicyItems($rawItems);
+
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => collect($rows->items())->map(fn (HcmBillingTaxPolicy $policy): array => [
+                'items' => $rawItems->map(fn (HcmBillingTaxPolicy $policy): array => [
                     'id' => $policy->id,
                     'company_id' => $policy->company_id,
                     'company_name' => optional($policy->company)->name,
@@ -1052,7 +1132,11 @@ class HcmTaxGovernanceController extends Controller
                     'effective_from' => optional($policy->effective_from)?->toDateString(),
                     'effective_to' => optional($policy->effective_to)?->toDateString(),
                     'status' => $policy->status,
+                    'notes' => $policy->notes,
+                    'created_at' => optional($policy->created_at)?->toIso8601String(),
                 ])->values(),
+                'items_global' => $globalItems,
+                'view_mode' => $globalMode ? 'global' : 'company',
                 'meta' => [
                     'page' => $rows->currentPage(),
                     'per_page' => $rows->perPage(),
@@ -1070,6 +1154,90 @@ class HcmTaxGovernanceController extends Controller
 
         if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $isGlobalPayload = $request->hasAny(['subscription_tax_rate', 'payroll_service_fee', 'addon_markup_rate']);
+
+        if ($isGlobalPayload) {
+            $validated = $request->validate([
+                'subscription_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+                'payroll_service_fee' => ['required', 'numeric', 'min:0', 'max:100'],
+                'addon_markup_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+                'billing_month' => ['nullable', 'date_format:Y-m'],
+                'effective_from' => ['nullable', 'date'],
+                'status' => ['nullable', Rule::in(['draft', 'active', 'inactive'])],
+                'notes' => ['nullable', 'string', 'max:1000'],
+            ]);
+
+            $service = app(BillingTaxCalculationService::class);
+            if (! $service->validateBillingTaxPolicy([
+                'tax_rate_percentage' => $validated['subscription_tax_rate'],
+                'billing_cycle_type' => 'monthly',
+                'base_calculation_method' => 'invoice_amount_due',
+            ])) {
+                return $this->errorResponse('BILLING_TAX_POLICY_INVALID', 'Billing tax policy validation failed.', 422);
+            }
+
+            $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+            $billingMonth = (string) ($validated['billing_month'] ?? now()->format('Y-m'));
+            $effectiveFrom = (string) ($validated['effective_from'] ?? now()->toDateString());
+            $status = (string) ($validated['status'] ?? 'active');
+
+            $companyIds = Company::query()->orderBy('id')->pluck('id')->map(fn ($id): int => (int) $id)->values();
+            if ($companyIds->isEmpty()) {
+                return $this->errorResponse('COMPANY_NOT_FOUND', 'No company available for global policy propagation.', 422);
+            }
+
+            $globalRates = [
+                'subscription_tax_rate' => (float) $validated['subscription_tax_rate'],
+                'payroll_service_fee' => (float) $validated['payroll_service_fee'],
+                'addon_markup_rate' => (float) $validated['addon_markup_rate'],
+            ];
+
+            $notesPayload = [
+                'global_rates' => $globalRates,
+                'notes' => $validated['notes'] ?? null,
+                'source' => 'global_platform_policy',
+            ];
+
+            DB::transaction(function () use ($companyIds, $billingMonth, $effectiveFrom, $status, $globalRates, $notesPayload, $actorId): void {
+                foreach ($companyIds as $companyId) {
+                    $policy = HcmBillingTaxPolicy::query()->firstOrNew([
+                        'company_id' => $companyId,
+                        'billing_month' => $billingMonth,
+                        'billing_cycle_type' => 'monthly',
+                    ]);
+
+                    if (! $policy->exists) {
+                        $policy->id = (string) Str::uuid();
+                        $policy->created_by_user_id = $actorId;
+                    }
+
+                    $policy->tax_rate_percentage = $globalRates['subscription_tax_rate'];
+                    $policy->base_calculation_method = 'invoice_amount_due';
+                    $policy->effective_from = $effectiveFrom;
+                    $policy->effective_to = null;
+                    $policy->status = $status;
+                    $policy->notes = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
+                    $policy->updated_by_user_id = $actorId;
+                    $policy->save();
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'version' => 'v' . now()->format('YmdHis'),
+                    'billing_month' => $billingMonth,
+                    'effective_from' => $effectiveFrom,
+                    'status' => $status,
+                    'subscription_tax_rate' => $globalRates['subscription_tax_rate'],
+                    'payroll_service_fee' => $globalRates['payroll_service_fee'],
+                    'addon_markup_rate' => $globalRates['addon_markup_rate'],
+                    'affected_company_count' => $companyIds->count(),
+                    'notes' => $validated['notes'] ?? null,
+                ],
+            ], 201);
         }
 
         $validated = $request->validate([
@@ -1138,10 +1306,122 @@ class HcmTaxGovernanceController extends Controller
 
         $report = app(BillingTaxCalculationService::class)->generateCrossTenantMonthlyReport($validated['month']);
 
+        $tenantGlobal = collect($report['tenants'] ?? [])->map(function (array $item): array {
+            return [
+                'tenant' => $item['company_name'] ?? '-',
+                'plan' => $item['plan_name'] ?? '-',
+                'subscription_revenue' => (float) ($item['subscription_revenue'] ?? 0),
+                'payroll_service_fee' => (float) ($item['payroll_service_fee'] ?? 0),
+                'addon_revenue' => (float) ($item['addon_revenue'] ?? 0),
+                'gross_revenue' => (float) ($item['gross_revenue'] ?? 0),
+                'tax_amount_due' => (float) ($item['tax_amount_due'] ?? 0),
+                'net_revenue' => (float) ($item['net_revenue'] ?? 0),
+                'company_id' => $item['company_id'] ?? null,
+                'company_name' => $item['company_name'] ?? '-',
+            ];
+        })->values();
+
+        $summary = $report['summary'] ?? [];
+        $summaryGlobal = [
+            'total_subscription_revenue' => (float) ($summary['total_subscription_revenue'] ?? 0),
+            'total_payroll_service_fee' => (float) ($summary['total_payroll_service_fee'] ?? 0),
+            'total_addon_revenue' => (float) ($summary['total_addon_revenue'] ?? 0),
+            'total_gross_revenue' => (float) ($summary['total_gross_revenue'] ?? 0),
+            'total_tax_due' => (float) ($summary['total_tax_due'] ?? 0),
+            'total_net_revenue' => (float) ($summary['total_net_revenue'] ?? 0),
+            'effective_tax_rate' => (float) ($summary['effective_tax_rate'] ?? 0),
+        ];
+
         return response()->json([
             'success' => true,
-            'data' => $report,
+            'data' => array_merge($report, [
+                'summary_global' => $summaryGlobal,
+                'tenants_global' => $tenantGlobal,
+            ]),
         ]);
+    }
+
+    public function platformTaxCompliancePolicies(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.policy.view')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $request->merge(['global_mode' => true]);
+        $baseResponse = $this->platformBillingPolicies($request);
+        $payload = $baseResponse->getData(true);
+
+        if (isset($payload['data']['items_global']) && is_array($payload['data']['items_global'])) {
+            $payload['data']['items_global'] = array_map(function (array $item): array {
+                $item['government_tax_rate'] = (float) ($item['subscription_tax_rate'] ?? $item['tax_rate_percentage'] ?? 0);
+                $item['payroll_component_rate'] = (float) ($item['payroll_service_fee'] ?? 0);
+                $item['addon_component_rate'] = (float) ($item['addon_markup_rate'] ?? 0);
+
+                return $item;
+            }, $payload['data']['items_global']);
+        }
+
+        $payload['data']['view_context'] = 'government_tax_compliance';
+
+        return response()->json($payload, $baseResponse->getStatusCode());
+    }
+
+    public function storePlatformTaxCompliancePolicy(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.policy.manage')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $request->merge(['global_mode' => true]);
+
+        return $this->storePlatformBillingPolicy($request);
+    }
+
+    public function platformTaxComplianceReports(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.platform.report.view_all')) {
+            return $response;
+        }
+
+        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $baseResponse = $this->platformBillingReports($request);
+        $payload = $baseResponse->getData(true);
+
+        $summaryGlobal = $payload['data']['summary_global'] ?? [];
+        $payload['data']['summary_compliance'] = [
+            'total_taxable_revenue' => (float) ($summaryGlobal['total_gross_revenue'] ?? 0),
+            'total_payroll_component' => (float) ($summaryGlobal['total_payroll_service_fee'] ?? 0),
+            'total_addon_component' => (float) ($summaryGlobal['total_addon_revenue'] ?? 0),
+            'total_tax_payable' => (float) ($summaryGlobal['total_tax_due'] ?? 0),
+            'total_net_revenue' => (float) ($summaryGlobal['total_net_revenue'] ?? 0),
+            'effective_tax_rate' => (float) ($summaryGlobal['effective_tax_rate'] ?? 0),
+        ];
+
+        if (isset($payload['data']['tenants_global']) && is_array($payload['data']['tenants_global'])) {
+            $payload['data']['tenants_compliance'] = array_map(function (array $item): array {
+                return array_merge($item, [
+                    'taxable_revenue' => (float) ($item['gross_revenue'] ?? $item['taxable_revenue_amount'] ?? 0),
+                    'payroll_component' => (float) ($item['payroll_service_fee'] ?? 0),
+                    'addon_component' => (float) ($item['addon_revenue'] ?? 0),
+                    'total_tax_payable' => (float) ($item['tax_amount_due'] ?? 0),
+                ]);
+            }, $payload['data']['tenants_global']);
+        }
+
+        $payload['data']['view_context'] = 'government_tax_compliance';
+
+        return response()->json($payload, $baseResponse->getStatusCode());
     }
 
     public function platformBillingInvoices(Request $request): JsonResponse
@@ -1227,6 +1507,65 @@ class HcmTaxGovernanceController extends Controller
             ->header('Deprecation', self::NUMERIC_POLICY_ID_DEPRECATION)
             ->header('Sunset', self::NUMERIC_POLICY_ID_SUNSET_AT)
             ->header('Warning', '299 - "Numeric policy identifier is deprecated. Use UUID."');
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, HcmBillingTaxPolicy> $policies
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildGlobalPlatformPolicyItems($policies): array
+    {
+        $items = [];
+        $seen = [];
+
+        foreach ($policies as $policy) {
+            $rates = $this->extractGlobalRatesFromPolicy($policy);
+            $key = implode('|', [
+                (string) $rates['subscription_tax_rate'],
+                (string) $rates['payroll_service_fee'],
+                (string) $rates['addon_markup_rate'],
+                (string) $policy->status,
+                (string) optional($policy->effective_from)?->toDateString(),
+                (string) optional($policy->created_at)?->toDateTimeString(),
+            ]);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $items[] = [
+                'version' => 'v' . optional($policy->created_at)->format('YmdHis'),
+                'subscription_tax_rate' => $rates['subscription_tax_rate'],
+                'payroll_service_fee' => $rates['payroll_service_fee'],
+                'addon_markup_rate' => $rates['addon_markup_rate'],
+                'status' => $policy->status,
+                'created_at' => optional($policy->created_at)?->toIso8601String(),
+                'effective_from' => optional($policy->effective_from)?->toDateString(),
+                'notes' => $rates['notes'],
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string}
+     */
+    private function extractGlobalRatesFromPolicy(HcmBillingTaxPolicy $policy): array
+    {
+        $rawNotes = $policy->notes;
+        $decoded = json_decode((string) $rawNotes, true);
+        $globalRates = is_array($decoded) && isset($decoded['global_rates']) && is_array($decoded['global_rates'])
+            ? $decoded['global_rates']
+            : [];
+
+        return [
+            'subscription_tax_rate' => (float) ($globalRates['subscription_tax_rate'] ?? $policy->tax_rate_percentage ?? 0),
+            'payroll_service_fee' => (float) ($globalRates['payroll_service_fee'] ?? 0),
+            'addon_markup_rate' => (float) ($globalRates['addon_markup_rate'] ?? 0),
+            'notes' => (string) ($decoded['notes'] ?? (string) ($rawNotes ?? '')),
+        ];
     }
 
     private function renderTenantSelfAuditPdf(array $reportData): string

@@ -8,6 +8,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmResignation;
 use App\Models\HcmSalaryComponent;
+use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTermination;
 use App\Models\OvertimeRequest;
 use App\Models\User;
@@ -182,17 +183,31 @@ final class PayrollDraftBuilder
                 $draft->delete();
             }
 
+            $monthlySettingsSnapshot = app(PayrollMonthlySettingsService::class)->snapshotForPeriod(
+                (int) $period->period_year,
+                (int) $period->period_month,
+                $companyId,
+            );
+            $payrollTimezone = (string) ($monthlySettingsSnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
+            $periodStart = Carbon::create($period->period_year, $period->period_month, 1, 0, 0, 0, $payrollTimezone)->startOfMonth();
+            $periodEnd = $periodStart->copy()->endOfMonth();
+            $asOfDate = (string) ($monthlySettingsSnapshot['draftDataAsOfDate'] ?? $periodEnd->copy()->toDateString());
+            $asOf = Carbon::parse($asOfDate, $payrollTimezone)->endOfDay();
+
+            // AN-004: Snapshot active tax governance policy with sharedLock() to prevent
+            // mixed-rate contamination when two payroll builds run concurrently.
+            $taxPolicy = self::resolveApplicableTaxPolicy($companyId, $asOf);
+
             $run = HcmPayrollRun::query()->create([
                 'company_id' => $companyId,
                 'hcm_payroll_period_id' => $period->id,
                 'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
                 'status' => HcmPayrollRun::STATUS_DRAFT,
+                'hcm_tax_governance_policy_id' => $taxPolicy?->id,
+                'hcm_tax_governance_policy_version' => $taxPolicy?->version,
                 'meta' => [
-                    'policySnapshot' => app(PayrollMonthlySettingsService::class)->snapshotForPeriod(
-                        (int) $period->period_year,
-                        (int) $period->period_month,
-                        $companyId,
-                    ),
+                    'policySnapshot' => $monthlySettingsSnapshot,
+                    'taxGovernancePolicy' => self::serializeTaxGovernancePolicySnapshot($taxPolicy),
                 ],
                 'calculated_at' => now(),
             ]);
@@ -237,14 +252,6 @@ final class PayrollDraftBuilder
             $snapshotService = app(EmployeeSnapshotService::class);
             $leaveHolidayAdjuster = app(PayrollLeaveHolidayAdjuster::class);
             $workRuleResolver = app(PayrollWorkRuleResolver::class);
-            $policySnapshot = is_array($run->meta['policySnapshot'] ?? null)
-                ? $run->meta['policySnapshot']
-                : [];
-            $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
-            $periodStart = Carbon::create($period->period_year, $period->period_month, 1, 0, 0, 0, $payrollTimezone)->startOfMonth();
-            $periodEnd = $periodStart->copy()->endOfMonth();
-            $asOfDate = (string) ($policySnapshot['draftDataAsOfDate'] ?? $periodStart->copy()->endOfMonth()->toDateString());
-            $asOf = Carbon::parse($asOfDate, $payrollTimezone)->endOfDay();
 
             $resignedUserIds = HcmResignation::query()
                 ->where('status', 'approved')
@@ -690,9 +697,10 @@ final class PayrollDraftBuilder
                     'basisAmount' => round($bpjsTkBase, 2),
                 ], $companyId);
 
-                $pph21Amount = self::calculateMonthlyPph21($taxableGross, (string) ($taxProfile?->tax_status ?? 'TK0'));
+                $taxStatusUsed = (string) ($taxProfile?->tax_status ?? 'TK0');
+                $pph21Calculation = self::resolveMonthlyPph21Calculation($taxableGross, $taxStatusUsed, $taxPolicy);
+                $pph21Amount = (float) ($pph21Calculation['amount'] ?? 0);
                 if ($pph21Component !== null && $pph21Amount > 0) {
-                    $taxStatusUsed = (string) ($taxProfile?->tax_status ?? 'TK0');
                     HcmPayrollLine::query()->create([
                         'company_id' => $companyId,
                         'hcm_payroll_run_id' => $run->id,
@@ -705,15 +713,21 @@ final class PayrollDraftBuilder
                         'amount' => round($pph21Amount, 2),
                         'sort_order' => $sortOrder++,
                         'meta' => [
-                            'source' => 'pph21_ter_lookup',
+                            'source' => $pph21Calculation['source'] ?? 'pph21_ter_lookup',
                             'userName' => $user->name,
                             'affectsNetPay' => (bool) ($pph21Component->affects_net_pay ?? true),
                             'monthlyTaxableGross' => round($taxableGross, 2),
-                            'pph21TerCategory' => self::resolveTerCategory($taxStatusUsed),
+                            'pph21TerCategory' => $pph21Calculation['category'] ?? self::resolveTerCategory($taxStatusUsed),
                             'ptkpAnnual' => self::resolvePtkpAnnual($taxStatusUsed),
                             'taxStatusUsed' => $taxStatusUsed,
                             'taxStatusSource' => $taxProfile?->tax_status ? 'employee_tax_profiles' : 'fallback_tk0',
                             'missingTaxProfile' => $taxProfile?->tax_status ? false : true,
+                            'taxRateApplied' => round((float) ($pph21Calculation['rate'] ?? 0), 6),
+                            'taxRateMode' => $pph21Calculation['rateMode'] ?? 'lookup',
+                            'taxPolicyId' => $taxPolicy?->id,
+                            'taxPolicyUuid' => $taxPolicy?->uuid,
+                            'taxPolicyCode' => $taxPolicy?->policy_code,
+                            'taxPolicyVersion' => $taxPolicy?->version,
                         ],
                     ]);
                 }
@@ -830,6 +844,213 @@ final class PayrollDraftBuilder
         }
 
         return round($monthlyTaxableGross * $rate, 2);
+    }
+
+    /**
+     * @return array{amount: float, source: string, category: string, rate: float, rateMode: string}
+     */
+    private static function resolveMonthlyPph21Calculation(
+        float $monthlyTaxableGross,
+        string $taxStatus = 'TK0',
+        ?HcmTaxGovernancePolicy $taxPolicy = null
+    ): array {
+        $category = self::resolveTerCategory($taxStatus);
+
+        if ($monthlyTaxableGross <= 0) {
+            return [
+                'amount' => 0.0,
+                'source' => 'pph21_ter_lookup',
+                'category' => $category,
+                'rate' => 0.0,
+                'rateMode' => 'lookup',
+            ];
+        }
+
+        $policyRate = self::resolvePolicyScheduleRate($taxPolicy, $monthlyTaxableGross, $category);
+        if ($policyRate !== null) {
+            return [
+                'amount' => round($monthlyTaxableGross * $policyRate['rate'], 2),
+                'source' => 'tax_governance_policy_schedule',
+                'category' => $category,
+                'rate' => $policyRate['rate'],
+                'rateMode' => $policyRate['mode'],
+            ];
+        }
+
+        $table = self::TER_TABLES[$category] ?? self::TER_TABLES['A'];
+        $rate = 0.0;
+
+        foreach ($table as [$upperBound, $tableRate]) {
+            $rate = $tableRate;
+            if ($monthlyTaxableGross <= $upperBound) {
+                break;
+            }
+        }
+
+        return [
+            'amount' => round($monthlyTaxableGross * $rate, 2),
+            'source' => 'pph21_ter_lookup',
+            'category' => $category,
+            'rate' => $rate,
+            'rateMode' => 'lookup',
+        ];
+    }
+
+    private static function resolveApplicableTaxPolicy(?int $companyId, Carbon $asOf): ?HcmTaxGovernancePolicy
+    {
+        if ($companyId === null) {
+            return null;
+        }
+
+        return HcmTaxGovernancePolicy::query()
+            ->where('company_id', $companyId)
+            ->where('status', HcmTaxGovernancePolicy::STATUS_PUBLISHED)
+            ->whereDate('effective_start_date', '<=', $asOf->toDateString())
+            ->where(function ($query) use ($asOf): void {
+                $query->whereNull('effective_end_date')
+                    ->orWhereDate('effective_end_date', '>=', $asOf->toDateString());
+            })
+            ->orderByDesc('effective_start_date')
+            ->orderByDesc('version')
+            ->sharedLock()
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function serializeTaxGovernancePolicySnapshot(?HcmTaxGovernancePolicy $taxPolicy): ?array
+    {
+        if ($taxPolicy === null) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $taxPolicy->id,
+            'uuid' => (string) $taxPolicy->uuid,
+            'policyCode' => (string) $taxPolicy->policy_code,
+            'status' => (string) $taxPolicy->status,
+            'version' => (int) $taxPolicy->version,
+            'effectiveStartDate' => optional($taxPolicy->effective_start_date)?->toDateString(),
+            'effectiveEndDate' => optional($taxPolicy->effective_end_date)?->toDateString(),
+            'rules' => is_array($taxPolicy->rules) ? $taxPolicy->rules : [],
+            'rateSchedules' => is_array($taxPolicy->rate_schedules) ? $taxPolicy->rate_schedules : [],
+        ];
+    }
+
+    /**
+     * @return array{rate: float, mode: string}|null
+     */
+    private static function resolvePolicyScheduleRate(?HcmTaxGovernancePolicy $taxPolicy, float $monthlyTaxableGross, string $category): ?array
+    {
+        if ($taxPolicy === null) {
+            return null;
+        }
+
+        $rules = is_array($taxPolicy->rules) ? $taxPolicy->rules : [];
+        $scheme = strtoupper((string) ($rules['scheme'] ?? 'TER'));
+        if ($scheme !== 'TER') {
+            return null;
+        }
+
+        $schedules = is_array($taxPolicy->rate_schedules) ? $taxPolicy->rate_schedules : [];
+        if ($schedules === []) {
+            return null;
+        }
+
+        $matched = [];
+        foreach ($schedules as $schedule) {
+            if (! is_array($schedule)) {
+                continue;
+            }
+
+            $scheduleCategory = self::normalizeScheduleCategory($schedule);
+            if ($scheduleCategory !== null && $scheduleCategory !== $category) {
+                continue;
+            }
+
+            $rate = self::normalizeScheduleRate($schedule['rate'] ?? $schedule['value'] ?? $schedule['percent'] ?? $schedule['percentage'] ?? null);
+            if ($rate === null) {
+                continue;
+            }
+
+            $upperBound = self::normalizeScheduleUpperBound($schedule);
+            $matched[] = [
+                'rate' => $rate,
+                'upperBound' => $upperBound,
+            ];
+        }
+
+        if ($matched === []) {
+            return null;
+        }
+
+        $bounded = array_values(array_filter($matched, static fn (array $row): bool => $row['upperBound'] !== null));
+        if ($bounded !== []) {
+            usort($bounded, static function (array $left, array $right): int {
+                return $left['upperBound'] <=> $right['upperBound'];
+            });
+
+            $selectedRate = $bounded[array_key_last($bounded)]['rate'];
+            foreach ($bounded as $row) {
+                $selectedRate = $row['rate'];
+                if ($monthlyTaxableGross <= $row['upperBound']) {
+                    break;
+                }
+            }
+
+            return [
+                'rate' => $selectedRate,
+                'mode' => 'policy_bounded',
+            ];
+        }
+
+        return [
+            'rate' => (float) $matched[0]['rate'],
+            'mode' => 'policy_flat',
+        ];
+    }
+
+    private static function normalizeScheduleCategory(array $schedule): ?string
+    {
+        $raw = $schedule['bracket']
+            ?? $schedule['category']
+            ?? $schedule['terCategory']
+            ?? $schedule['taxCategory']
+            ?? null;
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return strtoupper(trim($raw));
+    }
+
+    private static function normalizeScheduleRate(mixed $rawRate): ?float
+    {
+        if (! is_numeric($rawRate)) {
+            return null;
+        }
+
+        $rate = (float) $rawRate;
+        if ($rate < 0) {
+            return null;
+        }
+
+        return $rate > 1 ? ($rate / 100) : $rate;
+    }
+
+    private static function normalizeScheduleUpperBound(array $schedule): ?float
+    {
+        foreach (['upperBound', 'maxGross', 'maxGrossMonthly', 'monthlyGrossUpTo', 'threshold'] as $key) {
+            if (! array_key_exists($key, $schedule) || ! is_numeric($schedule[$key])) {
+                continue;
+            }
+
+            return (float) $schedule[$key];
+        }
+
+        return null;
     }
 
     private static function resolveTerCategory(string $taxStatus): string

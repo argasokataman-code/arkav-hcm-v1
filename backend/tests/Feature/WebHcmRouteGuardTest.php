@@ -188,6 +188,9 @@ class WebHcmRouteGuardTest extends TestCase
             '/maintenance-mode',
             '/payment-gateways',
             '/tax-rates',
+            '/tax-rates/platform-billing/policies',
+            '/tax-rates/platform-tax-compliance/policies',
+            '/tax-rates/platform-tax-compliance/reports',
             '/currencies',
             '/custom-css',
             '/custom-js',
@@ -508,6 +511,9 @@ class WebHcmRouteGuardTest extends TestCase
             '/add-language',
             '/authentication-settings',
             '/ai-settings',
+            '/tax-rates/platform-billing/policies',
+            '/tax-rates/platform-tax-compliance/policies',
+            '/tax-rates/platform-tax-compliance/reports',
         ] as $path) {
             $this->actingAs($user)
                 ->withHeader('X-Company-Code', $company->code)

@@ -13,15 +13,48 @@ type PayrollLine = {
     paymentStatus?: string;
     paidAt?: string | null;
     gatewayReference?: string | null;
-    meta?: { userName?: string };
+    meta?: {
+        userName?: string;
+        taxPolicyId?: number;
+        taxPolicyUuid?: string;
+        taxPolicyCode?: string;
+        taxPolicyVersion?: number;
+    };
 };
+
+type TaxGovernancePolicySnapshot = {
+    id?: number | null;
+    uuid?: string | null;
+    policyCode?: string | null;
+    version?: number | null;
+    effectiveStartDate?: string | null;
+    effectiveEndDate?: string | null;
+    status?: string | null;
+};
+
+type TenantContextSnapshot = {
+    companyId: number | null;
+    companyName: string | null;
+};
+
 type PayrollRun = {
     id: number;
     status?: string;
     paymentStatus?: string;
     finalizedAt?: string | null;
+    platformServiceFeeRate?: number;
+    platformServiceFeeBase?: number;
+    platformServiceFeeAmount?: number;
+    platformServiceFeeBillingMonth?: string | null;
+    totals?: {
+        platformServiceFeeRate?: number;
+        platformServiceFeeBase?: number;
+        platformServiceFeeAmount?: number;
+        platformServiceFeeBillingMonth?: string | null;
+    };
     period?: { periodYear: number; periodMonth: number; status: string };
     policySnapshot?: PayrollPolicySnapshot | null;
+    taxGovernancePolicy?: TaxGovernancePolicySnapshot | null;
 };
 
 type PayrollSettings = {
@@ -226,7 +259,10 @@ const _state: {
     /** Run status from API (`draft` | `finalized` | …); dipakai untuk tombol Calculate vs Export. */
     currentRunStatus: string | null;
     currentPolicySnapshot: PayrollPolicySnapshot | null;
+    currentTaxGovernancePolicy: TaxGovernancePolicySnapshot | null;
+    activeTenantContext: TenantContextSnapshot;
     currentRows: EmployeeRow[];
+    currentRunServiceFeeAmount: number;
     loading: boolean;
     /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
     reconciliationDownloadedForRunId: number | null;
@@ -235,7 +271,13 @@ const _state: {
     currentRunId: null,
     currentRunStatus: null,
     currentPolicySnapshot: null,
+    currentTaxGovernancePolicy: null,
+    activeTenantContext: {
+        companyId: null,
+        companyName: null,
+    },
     currentRows: [],
+    currentRunServiceFeeAmount: 0,
     loading: false,
     reconciliationDownloadedForRunId: null,
 };
@@ -276,6 +318,44 @@ function markReconciliationDownloadedForCurrentRun(): void {
 
 function _getRoot(): HTMLElement | null {
     return document.querySelector<HTMLElement>("[data-payroll-run-panel]");
+}
+
+function readActiveTenantContext(): TenantContextSnapshot {
+    const AuthApi = (window as unknown as { AuthApi?: { getTenantContext?: () => unknown } }).AuthApi;
+    if (!AuthApi || typeof AuthApi.getTenantContext !== "function") {
+        return { companyId: null, companyName: null };
+    }
+
+    const raw = AuthApi.getTenantContext() as Record<string, unknown> | null;
+    if (!raw || typeof raw !== "object") {
+        return { companyId: null, companyName: null };
+    }
+
+    const candidateId = raw.activeCompanyId ?? raw.companyId ?? raw.id ?? null;
+    const parsedId = Number(candidateId);
+    const companyId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+    const rawName = raw.activeCompanyName ?? raw.companyName ?? raw.name ?? null;
+    const companyName = typeof rawName === "string" && rawName.trim() ? rawName.trim() : null;
+
+    return { companyId, companyName };
+}
+
+function extractTaxGovernancePolicyFromLines(lines: PayrollLine[] | null): TaxGovernancePolicySnapshot | null {
+    if (!Array.isArray(lines) || lines.length === 0) {
+        return null;
+    }
+
+    const taxLine = lines.find((line) => line.componentCode === "pph21_ter" && line.meta && (line.meta.taxPolicyId || line.meta.taxPolicyUuid || line.meta.taxPolicyCode));
+    if (!taxLine || !taxLine.meta) {
+        return null;
+    }
+
+    return {
+        id: Number.isFinite(Number(taxLine.meta.taxPolicyId)) ? Number(taxLine.meta.taxPolicyId) : null,
+        uuid: taxLine.meta.taxPolicyUuid || null,
+        policyCode: taxLine.meta.taxPolicyCode || null,
+        version: Number.isFinite(Number(taxLine.meta.taxPolicyVersion)) ? Number(taxLine.meta.taxPolicyVersion) : null,
+    };
 }
 
 function getWorkConfigRoot(): HTMLElement | null {
@@ -1140,6 +1220,75 @@ function setPayrollReconciliationHint(message: string): void {
     hintEl.classList.remove("d-none");
 }
 
+function setPayrollTenantHint(message: string): void {
+    const root = _getRoot();
+    if (!root) return;
+    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-tenant-hint]");
+    if (!hintEl) return;
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
+}
+
+function setPayrollTaxPolicyHint(message: string): void {
+    const root = _getRoot();
+    if (!root) return;
+    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-tax-policy-hint]");
+    if (!hintEl) return;
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
+}
+
+function renderRunContextSummary(): void {
+    const root = _getRoot();
+    if (!root) {
+        return;
+    }
+
+    const tenantEl = root.querySelector<HTMLElement>("[data-payroll-run-tenant-context]");
+    const policyEl = root.querySelector<HTMLElement>("[data-payroll-run-tax-policy]");
+
+    const tenantId = _state.activeTenantContext.companyId;
+    const tenantName = _state.activeTenantContext.companyName;
+    if (tenantEl) {
+        tenantEl.textContent = tenantId
+            ? `${tenantName ? `${tenantName} ` : ""}(ID ${tenantId})`
+            : "Tenant tidak terdeteksi";
+    }
+
+    if (!tenantId) {
+        setPayrollTenantHint("Tenant aktif tidak terdeteksi dari sesi login. Pastikan global super admin memilih tenant yang benar sebelum Calculate Draft.");
+    } else {
+        setPayrollTenantHint("");
+    }
+
+    const policy = _state.currentTaxGovernancePolicy;
+    if (policyEl) {
+        if (policy?.policyCode || policy?.version) {
+            const code = policy.policyCode || "POLICY";
+            const version = policy.version ? `v${policy.version}` : "v?";
+            policyEl.textContent = `${code} (${version})`;
+        } else {
+            policyEl.textContent = "Tidak ada snapshot policy";
+        }
+    }
+
+    if (_state.currentRunId && !policy) {
+        setPayrollTaxPolicyHint("Run ini belum menyimpan snapshot policy tax governance. Pastikan tenant punya policy published yang efektif sebelum Calculate Draft.");
+    } else {
+        setPayrollTaxPolicyHint("");
+    }
+}
+
 function showEvidenceIndicator(evidence: any): void {
     const root = _getRoot();
     if (!root) return;
@@ -1397,9 +1546,18 @@ function syncCalculateDraftButton(): void {
     const calculateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-calculate]");
     if (!calculateBtn) return;
     const st = String(_state.currentRunStatus || "").toLowerCase();
-    /** Backend mengizinkan hitung ulang / reuse draft (`reusedExistingDraft`) selama status `draft`. */
-    const canCalculate = !!_state.currentPeriodId && (!_state.currentRunId || st === "draft" || st === "void");
-    console.log("[syncCalculateDraftButton]", { periodId: _state.currentPeriodId, runId: _state.currentRunId, status: st, canCalculate });
+    const hasPaidRows = _state.currentRows.some((row) => row.paymentStatus === "paid");
+    /**
+     * Backend dev flow juga mengizinkan recalculation untuk finalized run yang belum dibayar.
+     * UI harus mengikuti agar tombol tidak terkunci padahal endpoint calculate-draft tetap valid.
+     */
+    const canCalculate = !!_state.currentPeriodId && (
+        !_state.currentRunId
+        || st === "draft"
+        || st === "void"
+        || (st === "finalized" && !hasPaidRows)
+    );
+    console.log("[syncCalculateDraftButton]", { periodId: _state.currentPeriodId, runId: _state.currentRunId, status: st, hasPaidRows, canCalculate });
     calculateBtn.disabled = !canCalculate;
 }
 
@@ -1410,9 +1568,15 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     if (runData) {
         _state.currentRunStatus = deriveRunLifecycleStatus(runData);
         _state.currentPolicySnapshot = runData.policySnapshot || null;
+        _state.currentTaxGovernancePolicy = runData.taxGovernancePolicy || extractTaxGovernancePolicyFromLines(lines) || null;
+        const feeFromTotals = Number(runData.totals?.platformServiceFeeAmount || 0);
+        const feeFromRoot = Number(runData.platformServiceFeeAmount || 0);
+        _state.currentRunServiceFeeAmount = Number.isFinite(feeFromTotals) && feeFromTotals > 0 ? feeFromTotals : feeFromRoot;
     } else if (!_state.currentRunId) {
         _state.currentRunStatus = null;
         _state.currentPolicySnapshot = null;
+        _state.currentTaxGovernancePolicy = null;
+        _state.currentRunServiceFeeAmount = 0;
     }
 
     const empCountEl = root.querySelector<HTMLElement>("[data-payroll-run-emp-count]");
@@ -1420,6 +1584,7 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     const lineCountEl = root.querySelector<HTMLElement>("[data-payroll-run-line-count]");
     const periodStatusEl = root.querySelector<HTMLElement>("[data-payroll-run-status]");
     const paymentStatusEl = root.querySelector<HTMLElement>("[data-payroll-run-payment-status]");
+    const serviceFeeEl = root.querySelector<HTMLElement>("[data-payroll-run-service-fee]");
     const emptyEl = root.querySelector<HTMLElement>("[data-payroll-run-empty]");
     const gridEl = root.querySelector<HTMLElement>("[data-payroll-run-grid]");
     const tbody = gridEl?.querySelector("tbody");
@@ -1457,10 +1622,14 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
         const badgeClass = paymentStatus === "paid" ? "success" : paymentStatus === "partial" ? "warning text-dark" : "secondary";
         paymentStatusEl.innerHTML = `<span class="badge bg-${badgeClass}">${String(paymentStatus).toUpperCase()}</span>`;
     }
+    if (serviceFeeEl) {
+        serviceFeeEl.textContent = formatIdr(_state.currentRunServiceFeeAmount || 0);
+    }
 
     syncCalculateDraftButton();
     syncExportReconciliationButton();
     syncVoidButton();
+    renderRunContextSummary();
 
     if (emptyEl && (!runData || _state.currentRows.length === 0)) {
         emptyEl.textContent = runData
@@ -1632,6 +1801,8 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
     if (!yearInput || !monthSelect) return;
 
     _state.loading = true;
+    _state.activeTenantContext = readActiveTenantContext();
+    renderRunContextSummary();
     showErr("");
     console.log("[loadPeriod] Starting to load period...");
 
@@ -1815,6 +1986,7 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     setText("[data-payroll-gateway-gross]", formatIdr(totalGross));
     setText("[data-payroll-gateway-deductions]", formatIdr(totalDeductions));
     setText("[data-payroll-gateway-total]", formatIdr(totalNet));
+    setText("[data-payroll-gateway-service-fee]", formatIdr(_state.currentRunServiceFeeAmount || 0));
     setText("[data-payroll-gateway-status]", (_state.currentRows.some((row) => row.paymentStatus === "paid") ? "Partial / Ongoing" : "Ready to pay"));
 
     const listEl = modal.querySelector<HTMLElement>("[data-payroll-gateway-list]");

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\Invoice;
+use App\Models\PlatformRevenueTransaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -110,5 +111,67 @@ class HcmTaxGovernancePhase7Test extends TestCase
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.invoices_paid', 1)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.amount_outstanding', 0)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.payment_status', 'current');
+    }
+
+    public function test_tenant_compliance_status_returns_clearing_aware_revenue_metrics(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-phase7-clearing-metrics@example.com']);
+
+        PlatformRevenueTransaction::query()->create([
+            'company_id' => $admin['company_id'],
+            'source_event_type' => 'subscription.created',
+            'source_entity_type' => 'subscriptions',
+            'source_entity_id' => 3001,
+            'transaction_type' => PlatformRevenueTransaction::TYPE_SUBSCRIPTION,
+            'amount' => 500000,
+            'tax_amount' => 0,
+            'net_amount' => 500000,
+            'status' => PlatformRevenueTransaction::STATUS_POSTED,
+            'clearing_status' => PlatformRevenueTransaction::CLEARING_CLEARED,
+            'occurred_at' => now()->startOfMonth()->addDays(2),
+            'idempotency_key' => 'phase7-clearing-metric-cleared',
+        ]);
+
+        PlatformRevenueTransaction::query()->create([
+            'company_id' => $admin['company_id'],
+            'source_event_type' => 'addon.purchased',
+            'source_entity_type' => 'purchase_transactions',
+            'source_entity_id' => 3002,
+            'transaction_type' => PlatformRevenueTransaction::TYPE_ADDON_FEATURE,
+            'amount' => 120000,
+            'tax_amount' => 0,
+            'net_amount' => 120000,
+            'status' => PlatformRevenueTransaction::STATUS_POSTED,
+            'clearing_status' => PlatformRevenueTransaction::CLEARING_DISPUTED,
+            'occurred_at' => now()->startOfMonth()->addDays(3),
+            'idempotency_key' => 'phase7-clearing-metric-disputed',
+        ]);
+
+        PlatformRevenueTransaction::query()->create([
+            'company_id' => $admin['company_id'],
+            'source_event_type' => 'addon.purchased',
+            'source_entity_type' => 'purchase_transactions',
+            'source_entity_id' => 3003,
+            'transaction_type' => PlatformRevenueTransaction::TYPE_ADDON_FEATURE,
+            'amount' => 80000,
+            'tax_amount' => 0,
+            'net_amount' => 80000,
+            'status' => PlatformRevenueTransaction::STATUS_POSTED,
+            'clearing_status' => PlatformRevenueTransaction::CLEARING_REVERSED,
+            'occurred_at' => now()->startOfMonth()->addDays(4),
+            'idempotency_key' => 'phase7-clearing-metric-reversed',
+        ]);
+
+        $response = $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $admin['token'],
+        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.taxable_revenue_amount', 500000)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.cleared_revenue_amount', 500000)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.uncleared_revenue_amount', 0)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.disputed_revenue_amount', 120000)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.reversed_revenue_amount', 80000);
     }
 }

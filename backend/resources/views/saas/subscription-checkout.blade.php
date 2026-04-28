@@ -265,6 +265,7 @@
                                     <div class="checkout-invoice-due" data-checkout-invoice-due>—</div>
                                 </div>
                             </div>
+                            <div class="small text-muted mt-2 d-none" data-checkout-invoice-breakdown></div>
                             <div class="checkout-focus-actions">
                                 <div class="checkout-focus-footnote">Begitu pembayaran berhasil, kamu akan langsung bisa masuk ke dashboard.</div>
                                 <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -309,6 +310,7 @@
                                         <div class="checkout-invoice-due" data-checkout-invoice-due>—</div>
                                     </div>
                                 </div>
+                                <div class="small text-muted mt-2 d-none" data-checkout-invoice-breakdown></div>
                                 <div class="d-flex align-items-center justify-content-end gap-2 mt-3 flex-wrap">
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ url('/company/invoices') }}" data-checkout-open-invoices>Buka invoice</a>
                                     <button type="button" class="btn btn-sm btn-primary d-none" data-checkout-pay-now>

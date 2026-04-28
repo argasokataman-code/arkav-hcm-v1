@@ -3,72 +3,117 @@
     $taxGovernanceScreen = $taxGovernanceScreen ?? 'landing';
     $taxGovernancePolicyUuid = $taxGovernancePolicyUuid ?? null;
     $isGlobalHcmAdmin = auth()->user()?->isGlobalHcmAdmin() ?? false;
+
 @endphp
 @extends('layout.mainlayout')
 @section('content')
-<div class="page-wrapper" data-tax-governance-page data-tax-governance-screen="{{ $taxGovernanceScreen }}" data-tax-governance-policy-uuid="{{ $taxGovernancePolicyUuid }}">
+<div class="page-wrapper" data-tax-governance-page data-tax-governance-screen="{{ $taxGovernanceScreen }}" data-tax-governance-policy-uuid="{{ $taxGovernancePolicyUuid }}" role="main" aria-label="Pajak dan kepatuhan payroll tenant">
     <div class="content">
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Pengaturan Pajak Indonesia (PPh 21)</h2>
+                <h2 class="mb-1">Pajak & Kepatuhan Payroll Tenant</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
                             <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                         </li>
-                        <li class="breadcrumb-item">Administrasi</li>
-                        <li class="breadcrumb-item active" aria-current="page">Pengaturan Pajak</li>
+                        <li class="breadcrumb-item">HR / Payroll</li>
+                        <li class="breadcrumb-item active" aria-current="page">Pajak & Kepatuhan</li>
                     </ol>
                 </nav>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-primary" data-tax-governance-refresh>
-                    <i class="ti ti-refresh me-1"></i>Muat Ulang
-                </button>
-                <button type="button" class="btn btn-white" data-tax-governance-export-json>
-                    <i class="ti ti-file-type-json me-1"></i>Export JSON
-                </button>
-                <button type="button" class="btn btn-primary" data-tax-governance-export-pdf>
-                    <i class="ti ti-file-type-pdf me-1"></i>Export PDF
-                </button>
-            </div>
-        </div>
-
-        <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
-            <i class="ti ti-alert-triangle mt-1"></i>
-            <div>
-                <div class="fw-semibold">Menu pajak sedang dimigrasi dari tax-rates lama ke pengaturan runtime.</div>
-                <div class="small">Wording dan alur diselaraskan untuk konteks pajak Indonesia (PPh 21/TER) per role.</div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-body py-2">
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ route('tax-rates') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'landing' ? 'btn-primary' : 'btn-light' }}">Ringkasan</a>
-                    <a href="{{ route('tax-rates.policies') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'tenant-policies' ? 'btn-primary' : 'btn-light' }}">Kebijakan PPh 21</a>
-                    <a href="{{ route('tax-rates.approvals') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'approvals' ? 'btn-primary' : 'btn-light' }}">Persetujuan</a>
-                    <a href="{{ route('tax-rates.publications') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'publications' ? 'btn-primary' : 'btn-light' }}">Publikasi</a>
-                    <a href="{{ url('tax-rates/komponen-pajak') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'komponen-pajak' ? 'btn-primary' : 'btn-light' }}">Komponen Pajak</a>
-                    <a href="{{ route('tax-rates.reports') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'tenant-reports' ? 'btn-primary' : 'btn-light' }}">Audit Tenant</a>
-                    @if ($isGlobalHcmAdmin)
-                        <a href="{{ route('tax-rates.governance') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'global-governance' ? 'btn-primary' : 'btn-light' }}">Global Governance</a>
-                        <a href="{{ route('tax-rates.platform-billing.policies') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'platform-policies' ? 'btn-primary' : 'btn-light' }}">Platform Billing Policy</a>
-                        <a href="{{ route('tax-rates.platform-billing.reports') }}" class="btn btn-sm {{ $taxGovernanceScreen === 'platform-reports' ? 'btn-primary' : 'btn-light' }}">Platform Billing Reports</a>
-                    @endif
+            <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
+                <div class="mb-2">
+                    <div class="dropdown">
+                        <a href="javascript:void(0);" class="dropdown-toggle btn btn-white d-inline-flex align-items-center" data-bs-toggle="dropdown">
+                            <i class="ti ti-file-export me-1"></i>Export
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end p-3">
+                            <li>
+                                <a href="javascript:void(0);" class="dropdown-item rounded-1" data-tax-governance-export-pdf>
+                                    <i class="ti ti-file-type-pdf me-1"></i>Ekspor PDF
+                                </a>
+                            </li>
+                            <li>
+                                <a href="javascript:void(0);" class="dropdown-item rounded-1" data-tax-governance-export-json>
+                                    <i class="ti ti-file-type-json me-1"></i>Ekspor JSON
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
+                <div class="head-icons ms-2">
+                    <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
+                        <i class="ti ti-chevrons-up"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
+            <i class="ti ti-info-circle mt-1"></i>
+            <div>
+                <div class="fw-semibold">Pajak & Kepatuhan Payroll per Tenant</div>
+                <div class="small">Kelola kebijakan PPh 21, komponen payroll, profil pajak karyawan, dan audit kepatuhan per perusahaan tenant.</div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gy-2 justify-content-between my-4">
+            <ul class="nav nav-pills gap-2" role="navigation" aria-label="Submenu Tenant Tax">
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'landing' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'landing' ? 'page' : 'false' }}">Ringkasan Kepatuhan</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates.policies') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-policies' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'tenant-policies' ? 'page' : 'false' }}">Kebijakan PPh 21</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates.tenant-compliance') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-compliance' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'tenant-compliance' ? 'page' : 'false' }}">Rekonsiliasi Billing Pajak</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url('tax-rates/komponen-pajak') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'komponen-pajak' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'komponen-pajak' ? 'page' : 'false' }}">Komponen Pajak Payroll</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates.approvals') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'approvals' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'approvals' ? 'page' : 'false' }}">Workflow Persetujuan</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates.employee-tax-profiles') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'page' : 'false' }}">Profil Pajak Karyawan</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('tax-rates.reports') }}"
+                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-reports' ? 'active' : '' }}"
+                       aria-current="{{ $taxGovernanceScreen === 'tenant-reports' ? 'page' : 'false' }}">Laporan Audit</a>
+                </li>
+            </ul>
+            <div class="mb-2">
+                <button type="button" class="btn btn-primary d-inline-flex align-items-center" data-tax-policy-create>
+                    <i class="ti ti-circle-plus me-2"></i>Buat Kebijakan
+                </button>
             </div>
         </div>
 
         <div class="alert alert-danger d-none" data-tax-governance-error></div>
         <div class="alert alert-info d-none" data-tax-platform-gate></div>
 
-        @if (in_array($taxGovernanceScreen, ['landing', 'tenant-reports', 'global-governance'], true))
+        @if ($taxGovernanceScreen === 'landing')
             <div class="row g-3 mb-3" data-tax-governance-summary>
                 <div class="col-md-6 col-xl-3">
                     <div class="card h-100">
                         <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Status Kepatuhan Pajak</div>
+                            <div class="text-muted fs-13 mb-1">Status Kepatuhan PPh 21</div>
                             <div class="d-flex align-items-center justify-content-between">
                                 <h4 class="mb-0" data-tax-overall-status>-</h4>
                                 <span class="badge bg-secondary-subtle text-secondary" data-tax-overall-badge>Unknown</span>
@@ -98,46 +143,44 @@
                 <div class="col-md-6 col-xl-3">
                     <div class="card h-100">
                         <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Tagihan Pajak Platform</div>
-                            <h4 class="mb-1" data-tax-billing-outstanding>Rp 0</h4>
-                            <div class="small text-muted" data-tax-billing-status>-</div>
+                            <div class="text-muted fs-13 mb-1">Karyawan Terdaftar</div>
+                            <h4 class="mb-1" data-tax-employee-count>0</h4>
+                            <div class="small text-muted" data-tax-employee-hint>Dengan profil pajak</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="row g-3">
-                <div class="col-xl-5">
+                <div class="col-xl-6">
                     <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="card-header">
                             <h5 class="mb-0">Tindak Lanjut Prioritas</h5>
-                            <span class="badge bg-info-subtle text-info" data-tax-reporting-period>-</span>
                         </div>
                         <div class="card-body">
-                            <ol class="list-group list-group-numbered" data-tax-action-list>
+                            <ol class="list-group list-group-numbered small" data-tax-action-list>
                                 <li class="list-group-item text-muted">Memuat rekomendasi tindakan...</li>
                             </ol>
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-7">
+                <div class="col-xl-6">
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">Daftar Anomali Pajak</h5>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table mb-0">
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm mb-0" role="grid" aria-label="Daftar Anomali Pajak">
                                     <thead class="thead-light">
                                         <tr>
-                                            <th>Tipe</th>
-                                            <th>Prioritas</th>
-                                            <th>Terdeteksi</th>
-                                            <th>Status</th>
+                                            <th scope="col" style="font-size: 11px;">Tipe</th>
+                                            <th scope="col" style="font-size: 11px;">Prioritas</th>
+                                            <th scope="col" style="font-size: 11px;">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody data-tax-anomaly-table>
-                                        <tr><td colspan="4" class="text-center text-muted py-4">Memuat data anomali...</td></tr>
+                                        <tr><td colspan="3" class="text-center text-muted py-3" style="font-size: 12px;">Memuat data anomali...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -147,24 +190,49 @@
             </div>
 
             <div class="card mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <h5 class="mb-0">Riwayat Perubahan Kebijakan</h5>
-                    <small class="text-muted" data-tax-audit-period>-</small>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0">
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm mb-0" role="grid" aria-label="Riwayat Perubahan Kebijakan">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Versi</th>
-                                    <th>Aksi</th>
-                                    <th>Pelaku</th>
-                                    <th>Waktu</th>
-                                    <th>Ringkasan</th>
+                                    <th scope="col" style="font-size: 11px;">Versi</th>
+                                    <th scope="col" style="font-size: 11px;">Aksi</th>
+                                    <th scope="col" style="font-size: 11px;">Pelaku</th>
+                                    <th scope="col" style="font-size: 11px;">Waktu</th>
+                                    <th scope="col" style="font-size: 11px;">Ringkasan</th>
                                 </tr>
                             </thead>
                             <tbody data-tax-event-table>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Memuat riwayat perubahan...</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Memuat riwayat perubahan...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($taxGovernanceScreen === 'tenant-reports')
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Laporan Audit Tenant</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                        <table class="table table-sm mb-0" role="grid" aria-label="Laporan Audit">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th scope="col" style="font-size: 11px;">Tenant</th>
+                                    <th scope="col" style="font-size: 11px;">Tipe Anomali</th>
+                                    <th scope="col" style="font-size: 11px;">Jumlah</th>
+                                    <th scope="col" style="font-size: 11px;">Status</th>
+                                    <th scope="col" style="font-size: 11px;">Waktu Terdeteksi</th>
+                                </tr>
+                            </thead>
+                            <tbody data-tax-report-audit-table>
+                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Memuat laporan audit...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -353,170 +421,283 @@
             </div>
         @endif
 
-        @if ($taxGovernanceScreen === 'global-governance')
-            <div class="card mt-3">
+
+
+        {{-- ================================================================ --}}
+        {{-- SCREEN: employee-tax-profiles                                    --}}
+        {{-- Role: Tenant Admin / HR. Shows per-employee PTKP / NPWP data     --}}
+        {{-- ================================================================ --}}
+        @if ($taxGovernanceScreen === 'employee-tax-profiles')
+            <div class="card mb-3" role="region" aria-label="Filter Profil Pajak Karyawan">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <input type="text" class="form-control w-auto" placeholder="Cari nama / email..." data-emp-tax-search aria-label="Cari karyawan">
+                        <select class="form-select w-auto" data-emp-tax-filter aria-label="Filter kelengkapan data pajak">
+                            <option value="">Semua Karyawan</option>
+                            <option value="missing_npwp">NPWP Kosong</option>
+                            <option value="missing_ptkp">PTKP Kosong</option>
+                            <option value="incomplete">Data Tidak Lengkap</option>
+                            <option value="complete">Data Lengkap</option>
+                        </select>
+                        <button type="button" class="btn btn-outline-primary" data-emp-tax-refresh aria-label="Muat ulang data">
+                            <i class="ti ti-refresh me-1" aria-hidden="true"></i>Muat Ulang
+                        </button>
+                        <div class="ms-auto">
+                            <span class="badge bg-info-subtle text-info" data-emp-tax-count aria-live="polite">Memuat...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3" role="region" aria-label="KPI Kelengkapan Pajak Karyawan">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted fs-13 mb-1" id="kpi-emp-total">Total Karyawan</div>
+                            <h4 class="mb-0" data-emp-tax-kpi-total aria-labelledby="kpi-emp-total">-</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted fs-13 mb-1" id="kpi-emp-npwp">NPWP Terisi</div>
+                            <h4 class="mb-0" data-emp-tax-kpi-npwp aria-labelledby="kpi-emp-npwp">-</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-muted fs-13 mb-1" id="kpi-emp-ptkp">Status PTKP Terisi</div>
+                            <h4 class="mb-0" data-emp-tax-kpi-ptkp aria-labelledby="kpi-emp-ptkp">-</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h5 class="mb-0">Drilldown Tata Kelola Global</h5>
-                    <select class="form-select w-auto" data-tax-governance-risk-filter>
-                        <option value="">Semua Level Risiko</option>
-                        <option value="green">Green</option>
-                        <option value="yellow">Yellow</option>
-                        <option value="red">Red</option>
-                    </select>
+                    <h5 class="mb-0">Data Profil Pajak Per Karyawan</h5>
+                    <small class="text-muted">NPWP, PTKP, dan kelengkapan data pajak</small>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table mb-0">
+                        <table class="table mb-0" role="grid" aria-label="Profil Pajak Karyawan">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Perusahaan</th>
-                                    <th>Status Kebijakan</th>
-                                    <th>Risk</th>
-                                    <th>Anomaly</th>
-                                    <th>Pajak Billing Terutang</th>
+                                    <th scope="col">Karyawan</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">NPWP</th>
+                                    <th scope="col">Status PTKP</th>
+                                    <th scope="col">Status Pajak</th>
+                                    <th scope="col">Kelengkapan</th>
+                                    <th scope="col">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody data-tax-governance-drilldown-table>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Memuat data drilldown governance...</td></tr>
+                            <tbody data-emp-tax-tbody>
+                                <tr><td colspan="7" class="text-center text-muted py-4" aria-live="polite">Memuat data profil pajak karyawan...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
-        @endif
-
-        @if (in_array($taxGovernanceScreen, ['landing', 'platform-policies'], true))
-            <div class="card mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h5 class="mb-0">Master Pajak Billing Platform</h5>
-                    <small class="text-muted">Hanya global admin</small>
-                </div>
-                <div class="card-body border-bottom">
-                    <form class="row g-3" data-tax-platform-policy-form>
-                        <div class="col-md-2">
-                            <label class="form-label">ID Perusahaan</label>
-                            <input type="number" min="1" class="form-control" name="company_id" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Bulan Billing</label>
-                            <input type="month" class="form-control" name="billing_month" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Siklus</label>
-                            <select class="form-select" name="billing_cycle_type" required>
-                                <option value="monthly">Bulanan</option>
-                                <option value="yearly">Tahunan</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Tarif Pajak (%)</label>
-                            <input type="number" class="form-control" name="tax_rate_percentage" min="0" max="100" step="0.01" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Berlaku Mulai</label>
-                            <input type="date" class="form-control" name="effective_from" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status" required>
-                                <option value="active">Aktif</option>
-                                <option value="draft">Draft</option>
-                                <option value="inactive">Nonaktif</option>
-                            </select>
-                        </div>
-                        <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                            <div class="small text-muted">Master kebijakan ini menjadi basis perhitungan pajak billing platform per bulan.</div>
-                            <button type="submit" class="btn btn-primary" data-tax-platform-policy-submit>
-                                <i class="ti ti-device-floppy me-1"></i>Simpan Kebijakan
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>Perusahaan</th>
-                                    <th>Bulan</th>
-                                    <th>Siklus</th>
-                                    <th>Tarif</th>
-                                    <th>Status</th>
-                                    <th>Masa Berlaku</th>
-                                </tr>
-                            </thead>
-                            <tbody data-tax-platform-policy-table>
-                                <tr><td colspan="6" class="text-center text-muted py-4">Memuat kebijakan platform...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        @if (in_array($taxGovernanceScreen, ['landing', 'platform-reports'], true))
-            <div class="card mt-3 mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h5 class="mb-0">Laporan Pajak Billing Platform</h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="month" class="form-control" data-tax-platform-report-month>
-                        <button type="button" class="btn btn-outline-primary" data-tax-platform-report-refresh>
-                            <i class="ti ti-refresh me-1"></i>Muat
+                <div class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span class="text-muted small" data-emp-tax-pagination-info></span>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-light" data-emp-tax-prev aria-label="Halaman sebelumnya" disabled>
+                            <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light" data-emp-tax-next aria-label="Halaman berikutnya" disabled>
+                            <i class="ti ti-chevron-right" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
-                <div class="card-body border-bottom">
+            </div>
+
+            <div class="modal fade" id="empTaxEditModal" tabindex="-1" aria-labelledby="empTaxEditModalLabel" aria-modal="true" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="empTaxEditModalLabel">Edit Profil Pajak Karyawan</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup modal"></button>
+                        </div>
+                        <form id="empTaxEditForm" data-emp-tax-edit-form novalidate>
+                            <div class="modal-body">
+                                <input type="hidden" name="userId" data-emp-tax-edit-user-id>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="emp-tax-edit-name">Karyawan</label>
+                                    <input type="text" class="form-control" id="emp-tax-edit-name" data-emp-tax-edit-name readonly aria-readonly="true">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="emp-tax-edit-npwp">NPWP</label>
+                                    <input type="text" class="form-control" id="emp-tax-edit-npwp" name="npwp" maxlength="30" placeholder="XX.XXX.XXX.X-XXX.XXX" data-emp-tax-edit-npwp aria-describedby="npwp-hint">
+                                    <div id="npwp-hint" class="form-text">Format 15 atau 16 digit. Kosongkan jika belum tersedia.</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="emp-tax-edit-tax-status">Status PTKP / Pajak</label>
+                                    <select class="form-select" id="emp-tax-edit-tax-status" name="taxStatus" data-emp-tax-edit-tax-status>
+                                        <option value="">— Pilih Status —</option>
+                                        <option value="TK0">TK/0 (Tidak Kawin, 0 tanggungan)</option>
+                                        <option value="TK1">TK/1 (Tidak Kawin, 1 tanggungan)</option>
+                                        <option value="TK2">TK/2 (Tidak Kawin, 2 tanggungan)</option>
+                                        <option value="TK3">TK/3 (Tidak Kawin, 3 tanggungan)</option>
+                                        <option value="K0">K/0 (Kawin, 0 tanggungan)</option>
+                                        <option value="K1">K/1 (Kawin, 1 tanggungan)</option>
+                                        <option value="K2">K/2 (Kawin, 2 tanggungan)</option>
+                                        <option value="K3">K/3 (Kawin, 3 tanggungan)</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-danger d-none" data-emp-tax-edit-error role="alert" aria-live="assertive"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-primary" data-emp-tax-edit-submit>
+                                    <span class="spinner-border spinner-border-sm me-1 d-none" data-emp-tax-edit-spinner role="status" aria-hidden="true"></span>
+                                    Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- ================================================================ --}}
+        {{-- SCREEN: tenant-compliance                                        --}}
+        {{-- Dedicated compliance summary: checklist + event history + billing --}}
+        {{-- ================================================================ --}}
+        @if ($taxGovernanceScreen === 'tenant-compliance')
+            <div class="card mb-3" role="region" aria-label="Checklist Kepatuhan Pajak Tenant">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0">Checklist Kepatuhan Pajak Tenant</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="month" class="form-control w-auto" data-compliance-period-start aria-label="Mulai periode">
+                        <span class="text-muted small">s/d</span>
+                        <input type="month" class="form-control w-auto" data-compliance-period-end aria-label="Akhir periode">
+                        <button type="button" class="btn btn-outline-primary" data-compliance-refresh aria-label="Muat ulang data kepatuhan">
+                            <i class="ti ti-refresh me-1" aria-hidden="true"></i>Muat
+                        </button>
+                        <a href="#" class="btn btn-primary" data-compliance-export-pdf aria-label="Ekspor PDF" target="_blank">
+                            <i class="ti ti-file-type-pdf me-1" aria-hidden="true"></i>Export PDF
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body" data-compliance-checklist-area>
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted fs-13 mb-1">Jumlah Tenant</div>
-                                <h5 class="mb-0" data-tax-platform-summary-tenant-count>0</h5>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Kebijakan Dipublikasikan">
+                                <span class="fs-4" data-compliance-check-icon-policy aria-hidden="true">&#x23F3;</span>
+                                <div>
+                                    <div class="fw-semibold">Kebijakan Aktif Dipublikasikan</div>
+                                    <div class="small text-muted" data-compliance-check-label-policy>Memeriksa...</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted fs-13 mb-1">Tenant Dengan Kebijakan</div>
-                                <h5 class="mb-0" data-tax-platform-summary-tenant-with-policy>0</h5>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Publikasi Terbaru">
+                                <span class="fs-4" data-compliance-check-icon-recent aria-hidden="true">&#x23F3;</span>
+                                <div>
+                                    <div class="fw-semibold">Publikasi Terkini (&lt;90 hari)</div>
+                                    <div class="small text-muted" data-compliance-check-label-recent>Memeriksa...</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted fs-13 mb-1">Total Pajak Terutang</div>
-                                <h5 class="mb-0" data-tax-platform-summary-tax-due>Rp 0</h5>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Cakupan Payroll Run">
+                                <span class="fs-4" data-compliance-check-icon-payroll aria-hidden="true">&#x23F3;</span>
+                                <div>
+                                    <div class="fw-semibold">Semua Payroll Run Tercakup</div>
+                                    <div class="small text-muted" data-compliance-check-label-payroll>Memeriksa...</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted fs-13 mb-1">Invoice Belum Dibayar</div>
-                                <h5 class="mb-0" data-tax-platform-summary-unpaid>0</h5>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Anomali Aktif">
+                                <span class="fs-4" data-compliance-check-icon-anomaly aria-hidden="true">&#x23F3;</span>
+                                <div>
+                                    <div class="fw-semibold">Tidak Ada Anomali Aktif</div>
+                                    <div class="small text-muted" data-compliance-check-label-anomaly>Memeriksa...</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Snapshot Kebijakan Aktif</h5>
+                        </div>
+                        <div class="card-body" data-compliance-policy-snapshot>
+                            <dl class="row mb-0">
+                                <dt class="col-5">Kode Kebijakan</dt>
+                                <dd class="col-7" data-compliance-policy-code>-</dd>
+                                <dt class="col-5">Nama Kebijakan</dt>
+                                <dd class="col-7" data-compliance-policy-name>-</dd>
+                                <dt class="col-5">Versi</dt>
+                                <dd class="col-7" data-compliance-policy-version>-</dd>
+                                <dt class="col-5">Berlaku Mulai</dt>
+                                <dd class="col-7" data-compliance-policy-effective>-</dd>
+                                <dt class="col-5">Payroll Run Tercakup</dt>
+                                <dd class="col-7" data-compliance-payroll-runs>-</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Rekonsiliasi Pajak Billing</h5>
+                        </div>
+                        <div class="card-body" data-compliance-billing-area>
+                            <dl class="row mb-0">
+                                <dt class="col-6">Total Invoice</dt>
+                                <dd class="col-6" data-compliance-billing-invoice-count>-</dd>
+                                <dt class="col-6">Invoice Dibayar</dt>
+                                <dd class="col-6" data-compliance-billing-paid>-</dd>
+                                <dt class="col-6">Invoice Belum Dibayar</dt>
+                                <dd class="col-6" data-compliance-billing-unpaid>-</dd>
+                                <dt class="col-6">Pendapatan Terverifikasi</dt>
+                                <dd class="col-6" data-compliance-billing-cleared>-</dd>
+                                <dt class="col-6">Total Pajak Layanan ke Pemerintah</dt>
+                                <dd class="col-6 fw-semibold text-danger" data-compliance-billing-tax-due>Rp 0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Riwayat Perubahan Kebijakan (Periode Terpilih)</h5>
+                    <small class="text-muted" data-compliance-change-period>-</small>
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table mb-0">
+                        <table class="table mb-0" role="grid" aria-label="Riwayat Perubahan Kebijakan">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Perusahaan</th>
-                                    <th>Bulan</th>
-                                    <th>Tarif</th>
-                                    <th>Invoice</th>
-                                    <th>Dibayar</th>
-                                    <th>Belum Dibayar</th>
-                                    <th>Total Invoice</th>
-                                    <th>Pajak Terutang</th>
+                                    <th scope="col">Waktu</th>
+                                    <th scope="col">Tipe Event</th>
+                                    <th scope="col">Pelaku</th>
+                                    <th scope="col">Catatan</th>
                                 </tr>
                             </thead>
-                            <tbody data-tax-platform-report-table>
-                                <tr><td colspan="8" class="text-center text-muted py-4">Memuat laporan pajak billing...</td></tr>
+                            <tbody data-compliance-history-tbody>
+                                <tr><td colspan="4" class="text-center text-muted py-4" aria-live="polite">Pilih periode dan klik Muat.</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
+
+            <div class="alert alert-danger d-none mt-3" data-compliance-error role="alert" aria-live="assertive"></div>
         @endif
+
+
+
     </div>
 </div>
 @endsection

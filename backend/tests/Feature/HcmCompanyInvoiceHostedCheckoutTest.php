@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\Api\HcmCompanyInvoiceController;
 use App\Http\Controllers\Api\MockPaymentController;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Payment;
@@ -198,5 +199,64 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
         $this->assertSame('monthly', $payload['data']['billingCycle']);
         $this->assertSame('Bulanan', $payload['data']['billingCycleLabel']);
         $this->assertSame($subscription->ends_at?->toDateString(), $payload['data']['nextBillingDate']);
+    }
+
+    public function test_non_admin_user_cannot_access_company_invoice_endpoints(): void
+    {
+        $company = $this->createIsolatedTestCompany();
+
+        $employee = User::factory()->create([
+            'email' => 'invoice-non-admin@example.com',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $invoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => null,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'amount_due' => 150000,
+            'status' => 'draft',
+            'is_paid' => false,
+        ]);
+
+        $controller = app(HcmCompanyInvoiceController::class);
+
+        $makeRequest = function (string $uri, string $method) use ($company, $employee): Request {
+            $request = Request::create($uri, $method);
+            $request->attributes->set('activeCompanyId', $company->id);
+            $request->attributes->set('activeCompany', $company);
+            $request->attributes->set('activeCompanyCode', $company->code);
+            $request->setUserResolver(fn () => $employee);
+
+            return $request;
+        };
+
+        $indexResponse = $controller->index($makeRequest('/v1/hcm/billing/invoices', 'GET'));
+        $this->assertSame(403, $indexResponse->getStatusCode());
+        $this->assertSame('AUTH_FORBIDDEN', data_get(json_decode((string) $indexResponse->getContent(), true), 'error.code'));
+
+        $showResponse = $controller->show($makeRequest('/v1/hcm/billing/invoices/'.$invoice->id, 'GET'), $invoice->id);
+        $this->assertSame(403, $showResponse->getStatusCode());
+        $this->assertSame('AUTH_FORBIDDEN', data_get(json_decode((string) $showResponse->getContent(), true), 'error.code'));
+
+        $downloadResponse = $controller->download($makeRequest('/v1/hcm/billing/invoices/'.$invoice->id.'/download', 'GET'), $invoice->id);
+        $this->assertSame(403, $downloadResponse->getStatusCode());
+        $this->assertSame('AUTH_FORBIDDEN', data_get(json_decode((string) $downloadResponse->getContent(), true), 'error.code'));
+
+        $checkoutResponse = $controller->mockHostedCheckout($makeRequest('/v1/hcm/billing/invoices/'.$invoice->id.'/mock-hosted-checkout', 'POST'), $invoice->id);
+        $this->assertSame(403, $checkoutResponse->getStatusCode());
+        $this->assertSame('AUTH_FORBIDDEN', data_get(json_decode((string) $checkoutResponse->getContent(), true), 'error.code'));
+
+        $mockPayResponse = $controller->mockPay($makeRequest('/v1/hcm/billing/invoices/'.$invoice->id.'/mock-pay', 'POST'), $invoice->id);
+        $this->assertSame(403, $mockPayResponse->getStatusCode());
+        $this->assertSame('AUTH_FORBIDDEN', data_get(json_decode((string) $mockPayResponse->getContent(), true), 'error.code'));
     }
 }

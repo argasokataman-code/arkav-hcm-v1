@@ -1,39 +1,130 @@
-# Tax Governance & Taxonomy
+# Tax Governance & SaaS Financial Platform
 
-## Ringkasan
+**Status:** Architecture designed (Phase 0 pending); 45% complete (payroll only)  
+**Decision Date:** 2026-04-27 (Locked for Phase 0-9)  
+**Last Updated:** 2026-04-27
 
-Feature pajak di aplikasi ini masih dalam transisi menuju modul kontrol tunggal. Surface `/tax-rates` sudah terhubung ke endpoint runtime governance (tenant compliance, self-audit JSON/PDF, platform billing tax policy/report), tetapi belum seluruh peta screen terpisah sesuai rencana UI/UX multi-route.
+## Ringkasan Eksekutif
 
-Kontrol pajak runtime yang benar-benar memengaruhi hasil payroll saat ini tersebar di tiga lapisan utama:
+Tax Governance adalah bagian dari **SaaS Financial Platform** — sistem revenue management + tax compliance untuk aplikasi multi-tenant. Platform mengelola:
 
-1. `employee_tax_profiles` untuk status pajak karyawan (`TK0`-`TK3`, `K0`-`K3`) dan NPWP.
-2. `hcm_salary_components` untuk menentukan komponen mana yang masuk bruto TER (`includePph21TerGross`) atau rekonsiliasi tahunan (`includePph21AnnualReconciliation`).
-3. `PayrollDraftBuilder` untuk menghitung PPh21 bulanan berbasis lookup TER A/B/C saat draft payroll dibentuk.
+1. **Platform Revenue** (3 streams) — dari subscription, payroll service, dan add-on features
+2. **Platform Expense Tax** — potongan pajak ke pemerintah atas total revenue
+3. **Tenant Statutory Tax** — domain mandiri setiap tenant untuk payroll karyawan mereka
 
-Artinya, risiko audit terbesar saat ini bukan sekadar siapa yang dapat membuka `/tax-rates`, tetapi apakah tiga surface runtime itu konsisten, terdokumentasi, dan punya guard yang cukup ketika ada perubahan data payroll.
+### Current Implementation Status
+
+**✅ What Works:**
+- Tenant statutory tax: Employee tax profiles + payroll engine calculates PPh21 TER
+- Tax policy CRUD: Policy lifecycle (draft → submitted → approved → published)
+- Permission system: RBAC architecture in place
+
+**❌ What's Missing:**
+- Platform revenue capture: 0% (no subscription/payroll/addon tax auto-capture)
+- SaaS Financial Platform model: 0% (8 tables + 4 automation flows missing)
+- Governance dashboard: 10% (tables exist but projection never written)
+- Authorization: 1 permission check missing + domain violations found
+- Event dispatch: Commented out (5 locations), so projection never syncs
+
+**Critical Issues Found:** 16 anomalies identified (4 CRITICAL, 6 HIGH, 5 MEDIUM) — see IMPLEMENTATION.md for details.
+
+Dokumentasi ini menjelaskan **architecture, data model, E2E flows, dan authorization rules** untuk SaaS Financial Platform.
+
+## Revenue Streams (Platform)
+
+### Stream 1: Subscription/Package Tax
+- **Trigger:** Saat tenant membeli/renew paket (monthly, yearly, custom)
+- **Calculation:** `package_price × subscription_tax_rate` (e.g., 5%)
+- **Storage:** `platform_revenue_transactions` dengan type='subscription'
+- **Table master:** `subscription_packages` + `platform_subscription_tax_configs`
+
+### Stream 2: Payroll Service Tax
+- **Trigger:** Saat tenant menjalankan payroll run (setiap bulan)
+- **Calculation:** `payroll_total × payroll_service_tax_rate` (e.g., 0.5%)
+- **Storage:** `platform_revenue_transactions` dengan type='payroll_service'
+- **Table master:** `platform_payroll_service_tax_config` (platform-wide singleton)
+
+### Stream 3: Add-on Feature Tax
+- **Trigger:** Saat tenant subscribe/purchase fitur tambahan (reporting, hrms, dll)
+- **Calculation:** `addon_price × addon_tax_rate` (per feature)
+- **Storage:** `platform_revenue_transactions` dengan type='addon_feature'
+- **Table master:** `addon_features` + `platform_addon_feature_tax_configs`
+
+### Platform Expense Tax (Government)
+- **Basis:** Total dari 3 revenue streams di atas
+- **Rate:** Configurable per bulan (e.g., 15% dari total revenue)
+- **Tax codes:** PPh 21, PPN, PPh 22, dll — configurable
+- **Storage:** `platform_expense_tax_codes` + `platform_monthly_tax_breakdowns`
+- **Calculation:** Revenue × platform_tax_rate → Monthly expense
+
+### Monthly Financial Report (Auto-generated)
+```
+Gross Revenue = Stream1 + Stream2 + Stream3
+Platform Tax Due = Gross Revenue × Tax Rate
+Net Revenue = Gross Revenue - Tax Due
+```
+Stored in `platform_monthly_financial_summaries` (projection/read-model).
+
+## Domain Isolation (Critical)
+
+Tiga domain yang **HARUS DIPISAH** untuk audit dan legal compliance:
+
+| Domain | Owner | Scope | Ledger | Report |
+|---|---|---|---|---|
+| **Platform Revenue** | Global Admin | Global, all tenants | `platform_revenue_transactions` | `platform_monthly_financial_summaries` |
+| **Platform Expense Tax** | Global Admin | Global, all tenants | `platform_expense_tax_codes` + `platform_monthly_tax_breakdowns` | Platform tax obligation report |
+| **Tenant Statutory Tax** | Tenant Admin | Per-tenant only | `employee_tax_profiles` + payroll tax lines | Tenant self-audit report |
+
+**Rule:** Tenant TIDAK bisa melihat platform revenue atau platform tax numbers. Tenant HANYA melihat charges yang dia tanggung (subscription fee + payroll service fee + add-on fee pada invoice mereka).
 
 ## Keputusan Produk Final
 
-Keputusan produk sudah dikunci: tax governance akan berjalan sebagai **dua plane sekaligus**.
+Keputusan produk final dan implikasi teknis dirangkum di IMPLEMENTATION.md (Part 2-9).
 
-1. Runtime control plane untuk aturan/tarif pajak yang authoritative ke engine payroll.
-2. Governance dashboard untuk monitoring lintas tenant subscribe oleh global admin.
+## Known Limitations & Scalability Ceiling
 
-Detail keputusan ada di [DECISION.md](DECISION.md).
+**Current Status:** Designed for ≤ 1000 employees per tenant; scaling issues identified at 5000+ employees.
 
-## Ruang Lingkup Domain Pajak
+### Critical Issues (Must Fix in Phase 0-1)
 
-Fitur ini mencakup dua domain pajak berbeda yang harus dipisah tegas:
+| Issue | Severity | Impact at 1K Emp | When Breaks | Fix Phase |
+|-------|----------|------------------|-------------|-----------|
+| No transaction atomicity on event listeners | 🔴 CRITICAL | $50-100K loss possible | Phase 1 live | Phase 1 |
+| Monthly close race condition (missing payroll) | 🔴 CRITICAL | $50K revenue missing | Every month | Phase 4 |
+| Payroll policy concurrency (mixed tax rates) | 🔴 CRITICAL | 1-5% employees wrong tax | Phase 3 live | Phase 3 |
+| Dashboard N+1 query (anomaly count) | 🟠 HIGH | 20-30 second timeout | 500+ tenants | Phase 4 |
+| Event queue backpressure (revenue loss) | 🟠 HIGH | 500 events dropped | High concurrency | Phase 1 |
+| No idempotency key (2x capture) | 🟠 HIGH | Duplicate revenue | Phase 1 live | Phase 1 |
+| Tenant isolation leak potential | 🟠 HIGH | Data breach | Phase 4 live | Phase 4 |
+| No payment clearing status | 🔴 CRITICAL | $10-50K reconciliation gap | All phases | Phase 1 |
 
-1. **Pajak tenant (statutory tax)**
-  - Dipakai tenant untuk payroll/company tax domain mereka sendiri.
-  - Tenant dapat audit dan report per company secara mandiri.
+### Performance Benchmarks (Projected)
 
-2. **Pajak layanan aplikasi (platform billing tax)**
-  - Dipakai penyelenggara platform untuk pajak atas revenue layanan aplikasi.
-  - Perhitungan mengikuti skema paket billing (monthly, yearly, custom).
+| Scenario | Query | Time | Status |
+|----------|-------|------|--------|
+| 100 employees, monthly revenue agg | 1 query | 5-10ms | ✅ Safe |
+| 500 employees, dashboard anomalies | 501 queries | 5s | ⚠️ Borderline |
+| 1000 employees, payroll draft | 1 query (eager load) | <1s | ✅ Safe |
+| 5000 employees, dashboard | 5001 queries | 20-30s | 🔴 **TIMEOUT** |
+| 10K employees, all combined | - | - | 💥 **CRASHED** |
 
-Keduanya dipantau dari governance global, tetapi tidak boleh bercampur ledger dan kewajiban legalnya.
+### Scaling Ceiling
+
+**✅ Safe to 1000 employees** (with fixes applied)  
+**⚠️ Risky at 5000 employees** (needs query optimization + monitoring)  
+**🔴 Broken at 10K+ employees** (fundamental architecture changes needed)
+
+### Recommended Mitigations (Phase 0-1)
+
+Before production launch:
+1. **Phase 0:** Add all indexes + increase connection pool (10 → 50)
+2. **Phase 1:** Implement atomicity + idempotency + queue monitoring
+3. **Phase 3:** Implement pessimistic locking on policy reads
+4. **Phase 4:** Fix N+1 query + implement advisory lock on monthly close
+
+For detailed analysis, see IMPLEMENTATION.md Part 3 (Performance & Scalability Analysis).
+
+---
 
 ## Pola Umum Industri Yang Dipakai
 
@@ -74,9 +165,10 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 1. HCM Admin menyiapkan data identitas pajak karyawan melalui data employee, termasuk `taxStatus` dan NPWP.
 2. HCM Admin memastikan master komponen gaji sudah benar, terutama komponen yang harus masuk bruto TER atau annual reconciliation.
 3. Saat payroll draft bulanan dihitung, engine payroll membangun taxable gross dari komponen yang di-flag masuk TER.
-4. Engine payroll membaca `employee_tax_profiles.tax_status`; jika kosong, sistem fallback ke `TK0` dan menandai anomaly `missingTaxProfile` di metadata payroll line serta ringkasan anomaly run.
-5. Payroll line `pph21_ter` dibuat otomatis sebagai deduction dengan `meta.source = pph21_ter_lookup`.
-6. Operator payroll meninjau hasil draft, anomaly missing tax profile, dan hanya sesudah itu melanjutkan finalize/disburse sesuai flow payroll run.
+4. Engine payroll membaca policy tax governance tenant yang statusnya `published` dan efektif pada periode draft. Jika policy menyediakan `rateSchedules` yang bisa dipetakan ke kategori TER (`A/B/C`), rate policy tersebut dipakai sebagai sumber tarif pajak run itu.
+5. Jika tidak ada policy efektif atau `rateSchedules` policy tidak bisa dipakai, engine fallback ke lookup TER bawaan berbasis `employee_tax_profiles.tax_status`; jika tax status kosong, sistem fallback ke `TK0` dan menandai anomaly `missingTaxProfile` di metadata payroll line serta ringkasan anomaly run.
+6. Payroll line `pph21_ter` dibuat otomatis sebagai deduction. Metadata line sekarang membedakan sumber perhitungan: `tax_governance_policy_schedule` untuk policy tenant yang aktif, atau `pph21_ter_lookup` untuk fallback lookup bawaan.
+7. Operator payroll meninjau hasil draft, snapshot policy pada run, anomaly missing tax profile, dan hanya sesudah itu melanjutkan finalize/disburse sesuai flow payroll run.
 
 ## Flow Billing Tax Layanan Aplikasi
 
@@ -102,8 +194,10 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
   - flag `includePph21TerGross` menentukan komponen addition mana yang menambah bruto TER.
   - flag `includePph21AnnualReconciliation` sudah tersedia sebagai metadata master, tetapi kontrol rekonsiliasi tahunannya belum dipusatkan ke modul governance pajak.
 - Payroll runs:
-  - `PayrollDraftBuilder` menghitung PPh21 bulanan dari taxable gross dan tax status.
-  - hasilnya muncul sebagai payroll line `pph21_ter` dengan metadata audit seperti `taxStatusSource`, `pph21TerCategory`, dan `missingTaxProfile`.
+  - `PayrollDraftBuilder` memilih policy tax governance tenant yang `published` dan efektif pada `draftDataAsOfDate` run monthly.
+  - jika policy menyimpan `rateSchedules` yang cocok dengan kategori TER, payroll memakai rate policy itu; jika tidak, engine fallback ke tabel TER bawaan.
+  - run monthly menyimpan snapshot policy di `hcm_tax_governance_policy_id`, `hcm_tax_governance_policy_version`, dan `meta.taxGovernancePolicy` agar audit tetap stabil walau policy tenant berubah setelah draft terbentuk.
+  - hasilnya muncul sebagai payroll line `pph21_ter` dengan metadata audit seperti `source`, `taxRateMode`, `taxPolicyVersion`, `taxStatusSource`, `pph21TerCategory`, dan `missingTaxProfile`.
 - Employee import bulk:
   - validasi import menolak tax status di luar enum yang diizinkan, tetapi alias kompatibilitas lama (`TK`/`K`) masih diterima dan dinormalisasi.
 - Reporting/audit:
@@ -121,7 +215,7 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
   - `docs/api/hcm-employees-api.md` untuk data employee/tax profile.
   - `docs/api/hcm-salary-components-api.md` untuk flag komponen terkait PPh21.
   - `docs/api/hcm-payroll-api.md` untuk kalkulasi PPh21 di payroll run.
-- Target implementasi baru: kontrak tax governance wajib UUID-only (lihat [DECISION.md](DECISION.md)).
+- Target implementasi baru: kontrak tax governance wajib UUID-only (lihat IMPLEMENTATION.md Part 6).
 
 ## Dampak Ke Modul Lain
 
@@ -196,8 +290,7 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Status
 
-- Status implementation: **in progress (phase 1-9 done, hardening lanjutan ongoing)**
+- Status implementation: **architecture designed; eksekusi Phase 0-9 belum dimulai penuh**
 - Tracker: [tracker.md](tracker.md)
-- UI/UX plan: [UI-UX-PLAN.md](UI-UX-PLAN.md)
-- Decision log: [DECISION.md](DECISION.md)
-- Snapshot saat ini: runtime pajak payroll existing sudah ada, keputusan arsitektur produk sudah final, UI/UX planning sudah ter-wire ke route dedicated (`/tax-rates/*`), lifecycle policy interaktif (draft-save-submit-approve-reject-publish) sudah aktif, dan guard RBAC web-route untuk global vs tenant screen sudah dipisahkan.
+- Implementation guide: [IMPLEMENTATION.md](IMPLEMENTATION.md)
+- Snapshot saat ini: runtime pajak payroll existing sudah ada, keputusan arsitektur produk sudah final, dan dokumentasi implementasi + UI/UX sudah dikonsolidasikan penuh ke 3 dokumen inti.

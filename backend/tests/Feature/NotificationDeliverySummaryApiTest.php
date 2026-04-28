@@ -110,4 +110,34 @@ class NotificationDeliverySummaryApiTest extends TestCase
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
 
+    public function test_non_global_admin_cannot_access_delivery_details_export_retry_and_templates(): void
+    {
+        $ctx = $this->authContext('notification-nonplain@example.com');
+
+        $headers = [
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Id' => (string) $ctx['companyId'],
+        ];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/notifications/delivery-details')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/notifications/delivery-export')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/notifications/delivery/99999/retry')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/notifications/templates')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+    }
+
 }

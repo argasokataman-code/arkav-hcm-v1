@@ -21,6 +21,7 @@
     var invoiceSubtitle = document.querySelector("[data-checkout-invoice-subtitle]");
     var invoiceAmount = document.querySelector("[data-checkout-invoice-amount]");
     var invoiceDue = document.querySelector("[data-checkout-invoice-due]");
+    var invoiceBreakdowns = Array.prototype.slice.call(document.querySelectorAll("[data-checkout-invoice-breakdown]"));
     var openInvoicesBtn = document.querySelector("[data-checkout-open-invoices]");
     var payNowBtn = document.querySelector("[data-checkout-pay-now]");
     var goDashboardBtn = document.querySelector("[data-checkout-go-dashboard]");
@@ -114,6 +115,53 @@
         return checked ? String(checked.value || "monthly") : "monthly";
     }
 
+    function parsePricingBreakdown(invoice) {
+        if (!invoice || !invoice.notes) return null;
+        try {
+            var payload = typeof invoice.notes === "string" ? JSON.parse(invoice.notes) : invoice.notes;
+            var breakdown = payload && payload.pricing_breakdown ? payload.pricing_breakdown : null;
+            if (!breakdown) return null;
+
+            var baseAmount = Number(breakdown.base_amount || 0);
+            var serviceFeeRate = Number(breakdown.service_fee_rate || 0);
+            var serviceFeeAmount = Number(breakdown.service_fee_amount || 0);
+            var taxRate = Number(breakdown.subscription_tax_rate || 0);
+            var taxAmount = Number(breakdown.subscription_tax_amount || 0);
+            var totalAmount = Number(breakdown.total_amount || 0);
+
+            if (!Number.isFinite(baseAmount) || !Number.isFinite(serviceFeeRate) || !Number.isFinite(serviceFeeAmount) || !Number.isFinite(taxRate) || !Number.isFinite(taxAmount) || !Number.isFinite(totalAmount)) {
+                return null;
+            }
+
+            var components = Array.isArray(breakdown.components) ? breakdown.components
+                .map(function (item) {
+                    var rate = Number(item && item.rate);
+                    var amount = Number(item && item.amount);
+                    if (!Number.isFinite(rate) || !Number.isFinite(amount)) return null;
+                    return {
+                        key: item && item.key ? String(item.key) : "",
+                        label: item && item.label ? String(item.label) : "Komponen",
+                        rate: rate,
+                        amount: amount,
+                    };
+                })
+                .filter(Boolean)
+                : [];
+
+            return {
+                baseAmount: baseAmount,
+                serviceFeeRate: serviceFeeRate,
+                serviceFeeAmount: serviceFeeAmount,
+                taxRate: taxRate,
+                taxAmount: taxAmount,
+                totalAmount: totalAmount,
+                components: components,
+            };
+        } catch (_e) {
+            return null;
+        }
+    }
+
     function api(method, path, payload) {
         if (window.AuthApi && typeof window.AuthApi.request === "function") {
             return window.AuthApi.request(method, path, payload).then(function (res) {
@@ -184,6 +232,52 @@
                 ? (currentInvoice.paidDate ? ("Dibayar: " + currentInvoice.paidDate) : "Status: paid")
                 : (currentInvoice.dueDate ? ("Jatuh tempo: " + currentInvoice.dueDate) : "—");
         }
+
+        if (invoiceBreakdowns.length > 0) {
+            var breakdown = parsePricingBreakdown(currentInvoice);
+            var breakdownText = "";
+            if (breakdown) {
+                var lineItems = Array.isArray(breakdown.components) && breakdown.components.length > 0
+                    ? breakdown.components
+                    : [
+                        {
+                            key: "payroll_service_fee",
+                            label: "Biaya layanan",
+                            rate: breakdown.serviceFeeRate,
+                            amount: breakdown.serviceFeeAmount,
+                        },
+                        {
+                            key: "subscription_tax_rate",
+                            label: "Pajak",
+                            rate: breakdown.taxRate,
+                            amount: breakdown.taxAmount,
+                        },
+                    ];
+
+                var componentText = lineItems
+                    .map(function (item) {
+                        return String(item.label || "Komponen")
+                            + " " + String(item.rate) + "% (" + formatRupiah(item.amount) + ")";
+                    })
+                    .join(" + ");
+
+                breakdownText = "Subtotal " + formatRupiah(breakdown.baseAmount)
+                    + (componentText ? " + " + componentText : "")
+                    + " = Total " + formatRupiah(breakdown.totalAmount);
+            }
+
+            invoiceBreakdowns.forEach(function (node) {
+                if (!node) return;
+                if (breakdown) {
+                    node.classList.remove("d-none");
+                    node.textContent = breakdownText;
+                } else {
+                    node.classList.add("d-none");
+                    node.textContent = "";
+                }
+            });
+        }
+
         updateInvoiceActions(currentInvoice);
 
         // Once an invoice is the active focus of this page, keep the creation form locked.
@@ -396,6 +490,9 @@
 
             showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice berhasil dibuat. Silakan lanjut bayar.");
             renderInvoice(body.data, !!(body.data && body.data.reused));
+            if (body.data && body.data.invoice && body.data.invoice.id) {
+                await loadInvoiceById(body.data.invoice.id);
+            }
             // Lock the form after invoice is shown — user must pay, not create another.
         } catch (e) {
             showFeedback("danger", e && e.message ? e.message : "Gagal membuat invoice.");

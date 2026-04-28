@@ -6,8 +6,7 @@ use App\Events\TaxGovernancePolicyTransitioned;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class TaxGovernancePolicyEventListener
 {
@@ -29,13 +28,14 @@ class TaxGovernancePolicyEventListener
 
         // Update or create projection  
         $projection = HcmTaxGovernanceProjection::firstOrCreate(
-            ['policy_uuid' => $policy->id],
+            ['policy_uuid' => $policy->uuid],
             [
+                'id' => (string) Str::uuid(),
                 'company_id' => $policy->company_id,
                 'status' => $policy->status,
                 'version' => $policy->version,
-                'effective_date' => $policy->effective_date,
-                'end_date' => $policy->end_date,
+                'effective_date' => $policy->effective_start_date,
+                'end_date' => $policy->effective_end_date,
                 'last_actor_user_id' => $event->actorUserId,
                 'last_actor_action' => $action,
                 'last_actor_timestamp' => now(),
@@ -49,8 +49,8 @@ class TaxGovernancePolicyEventListener
             $projection->update([
                 'status' => $policy->status,
                 'version' => $policy->version,
-                'effective_date' => $policy->effective_date,
-                'end_date' => $policy->end_date,
+                'effective_date' => $policy->effective_start_date,
+                'end_date' => $policy->effective_end_date,
                 'last_actor_user_id' => $event->actorUserId,
                 'last_actor_action' => $action,
                 'last_actor_timestamp' => now(),
@@ -71,7 +71,7 @@ class TaxGovernancePolicyEventListener
     private function detectAnomalies(HcmTaxGovernancePolicy $policy, HcmTaxGovernanceProjection $projection): void
     {
         // Clear previously detected anomalies for this policy when it transitions
-        HcmTaxGovernanceAnomaly::where('affected_policy_id', $policy->id)
+        HcmTaxGovernanceAnomaly::where('affected_policy_id', $policy->uuid)
             ->whereNull('resolved_at')
             ->delete();
 
@@ -85,7 +85,7 @@ class TaxGovernancePolicyEventListener
                     'company_id' => $policy->company_id,
                     'anomaly_type' => HcmTaxGovernanceAnomaly::TYPE_POLICY_DRAFT_STALE,
                     'severity' => HcmTaxGovernanceAnomaly::SEVERITY_INFO,
-                    'affected_policy_id' => $policy->id,
+                    'affected_policy_id' => $policy->uuid,
                     'description' => sprintf(
                         'Draft policy created %d days ago but not submitted for approval.',
                         $policy->created_at->diffInDays(now())
@@ -109,7 +109,7 @@ class TaxGovernancePolicyEventListener
                     'company_id' => $policy->company_id,
                     'anomaly_type' => HcmTaxGovernanceAnomaly::TYPE_DRIFT_DETECTED,
                     'severity' => HcmTaxGovernanceAnomaly::SEVERITY_WARNING,
-                    'affected_policy_id' => $policy->id,
+                    'affected_policy_id' => $policy->uuid,
                     'description' => sprintf(
                         'Published policy version %d last updated %d days ago; may need review for updates.',
                         $policy->version,

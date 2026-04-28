@@ -207,7 +207,7 @@ describe('Payroll run wiring', function () {
     expect(disburseCall[2]).toEqual({ userIds: [7] });
   });
 
-  it('voids finalized unpaid run and re-enables calculate draft', async function () {
+  it('keeps calculate draft enabled for finalized unpaid run and still supports void', async function () {
     function wrap(payload) {
       return { data: payload };
     }
@@ -287,7 +287,7 @@ describe('Payroll run wiring', function () {
     var disburseButton = document.querySelector('[data-payroll-run-disburse]');
 
     expect(voidButton.disabled).toBe(false);
-    expect(calculateButton.disabled).toBe(true);
+    expect(calculateButton.disabled).toBe(false);
 
     voidButton.click();
     await flush();

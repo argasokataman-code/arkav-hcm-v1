@@ -15,6 +15,73 @@ class HcmPayrollWorkArrangementApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_non_admin_user_cannot_access_payroll_work_arrangement_endpoints(): void
+    {
+        $company = Company::factory()->create(['code' => 'PWARF'.strtoupper(substr(bin2hex(random_bytes(2)), 0, 4))]);
+
+        $employee = User::factory()->create([
+            'name' => 'Payroll Non Admin',
+            'email' => 'payroll-non-admin@example.com',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'employment_status' => 'active',
+            'team' => 'Ops',
+            'designation' => 'Staff',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'payroll-non-admin@example.com',
+            'password' => 'password',
+            'companyCode' => $company->code,
+        ]);
+        $login->assertOk();
+
+        $headers = [
+            'Authorization' => 'Bearer '.(string) $login->json('data.accessToken'),
+            'X-Company-Code' => $company->code,
+        ];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/payroll/work-profiles')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/payroll/work-profiles', [
+                'code' => 'unauthorized_profile',
+                'name' => 'Unauthorized Profile',
+                'arrangementMode' => 'office_hour',
+                'defaultDayType' => 'workday',
+                'weeklyWorkDays' => 5,
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/payroll/work-arrangements')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/payroll/work-arrangements', [
+                'userId' => $employee->id,
+                'arrangementMode' => 'office_hour',
+                'effectiveFrom' => '2026-05-01',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
     public function test_admin_can_create_profile_and_employee_arrangement(): void
     {
         $company = Company::factory()->create(['code' => 'PWARR'.strtoupper(substr(bin2hex(random_bytes(2)), 0, 4))]);

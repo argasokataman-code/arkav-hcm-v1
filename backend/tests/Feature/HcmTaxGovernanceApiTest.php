@@ -174,4 +174,81 @@ class HcmTaxGovernanceApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'draft');
     }
+
+    public function test_create_policy_requires_structured_rate_schedule_payload(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-invalid-schedule@example.com']);
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']))->postJson('/v1/hcm/tax-governance/policies', [
+            'policyCode' => 'PPh21-TER-INVALID-SCHEDULE',
+            'name' => 'PPh 21 TER Invalid Schedule',
+            'effectiveStartDate' => '2026-03-01',
+            'effectiveEndDate' => null,
+            'rules' => [
+                'scheme' => 'FLAT',
+                'currency' => 'USD',
+            ],
+            'rateSchedules' => [
+                ['bracket' => 'X', 'rate' => 5],
+                ['bracket' => 'A'],
+                ['rate' => -1],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_tenant_self_audit_enhanced_requires_permission(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-report-enhanced@example.com']);
+        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-report-enhanced@example.com');
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$employeeToken,
+        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_tenant_self_audit_enhanced_blocks_cross_tenant_access(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-own-tenant@example.com']);
+        $otherTenant = $this->createHcmAdminWithCompany(['email' => 'tax-admin-other-tenant@example.com']);
+
+        $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit?company_id='.$otherTenant['company_id'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_non_permitted_user_cannot_access_governance_admin_endpoints(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-gov@example.com']);
+        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-gov@example.com');
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer '.$employeeToken,
+        ], $admin['company_id']);
+
+        // dashboard
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/governance/dashboard')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        // anomaly registry
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/governance/anomalies')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        // tenant-self-audit export
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit-export')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
 }

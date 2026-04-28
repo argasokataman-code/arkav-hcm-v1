@@ -307,6 +307,8 @@
 
                     <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-run-error></div>
                     <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-payroll-run-reconciliation-hint></div>
+                    <div class="alert alert-warning d-none py-2 small mb-3" role="alert" data-payroll-run-tenant-hint></div>
+                    <div class="alert alert-info d-none py-2 small mb-3" role="alert" data-payroll-run-tax-policy-hint></div>
                     <div class="alert alert-info d-none py-2 small mb-3" role="alert" data-payroll-run-void-hint></div>
                     <div class="d-none mb-3" role="status" data-payroll-run-evidence-indicator>
                         <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
@@ -327,8 +329,11 @@
                         <div><span class="text-muted">Total Karyawan:</span> <strong data-payroll-run-emp-count>0</strong></div>
                         <div><span class="text-muted">Dipilih:</span> <strong data-payroll-run-selected-count>0</strong></div>
                         <div><span class="text-muted">Total Line (Rincian):</span> <strong data-payroll-run-line-count>0</strong></div>
+                        <div><span class="text-muted">Biaya Layanan Payroll:</span> <strong data-payroll-run-service-fee>Rp0</strong></div>
                         <div><span class="text-muted">Status Periode:</span> <strong data-payroll-run-status>—</strong></div>
                         <div><span class="text-muted">Status Pembayaran:</span> <strong data-payroll-run-payment-status>—</strong></div>
+                        <div><span class="text-muted">Tenant Aktif:</span> <strong data-payroll-run-tenant-context>—</strong></div>
+                        <div><span class="text-muted">Policy Pajak Run:</span> <strong data-payroll-run-tax-policy>—</strong></div>
                     </div>
                 </div>
                 <div class="card-body p-0 border-top">
@@ -384,6 +389,7 @@
                                 <div class="d-flex justify-content-between mb-2"><span class="text-muted">Total Penghasilan</span><span class="text-success fw-semibold" data-payroll-gateway-gross>Rp0</span></div>
                                 <div class="d-flex justify-content-between mb-2"><span class="text-muted">Total Potongan</span><span class="text-danger fw-semibold" data-payroll-gateway-deductions>Rp0</span></div>
                                 <div class="d-flex justify-content-between mb-2 border-top pt-2"><span class="text-muted fw-semibold">Total THP</span><strong data-payroll-gateway-total>Rp0</strong></div>
+                                <div class="d-flex justify-content-between mb-2"><span class="text-muted">Biaya Layanan Payroll (run)</span><strong data-payroll-gateway-service-fee>Rp0</strong></div>
                                 <div class="d-flex justify-content-between"><span class="text-muted">Status run</span><strong data-payroll-gateway-status>—</strong></div>
                             </div>
                             <div class="list-group list-group-flush small" data-payroll-gateway-list></div>

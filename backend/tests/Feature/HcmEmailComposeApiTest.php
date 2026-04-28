@@ -13,6 +13,23 @@ class HcmEmailComposeApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function nonAdminToken(): string
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Compose Non Admin',
+            'email' => 'compose-non-admin@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'compose-non-admin@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        return (string) $login->json('data.accessToken');
+    }
+
     private function globalAdminToken(): string
     {
         $this->postJson('/v1/identity/auth/register', [
@@ -93,5 +110,53 @@ class HcmEmailComposeApiTest extends TestCase
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
 
         Mail::assertNothingSent();
+    }
+
+    public function test_non_global_admin_cannot_access_email_settings_endpoints(): void
+    {
+        $token = $this->nonAdminToken();
+
+        $headers = [
+            'Authorization' => 'Bearer '.$token,
+        ];
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/email-settings')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->putJson('/v1/hcm/email-settings', [
+                'provider' => 'smtp',
+                'smtp' => ['host' => 'smtp.example.com', 'username' => 'tester'],
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/email-settings/mailtrap-status')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/email-settings/test-connection', [
+                'provider' => 'smtp',
+                'smtp' => [
+                    'host' => 'smtp.example.com',
+                    'username' => 'tester',
+                    'password' => 'secret',
+                ],
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/email-settings/compose', [
+                'to' => 'someone@example.com',
+                'subject' => 'forbidden',
+                'message' => 'forbidden',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
 }

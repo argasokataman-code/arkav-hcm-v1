@@ -34,6 +34,8 @@ class HcmPayrollRun extends Model
         'finalized_by_user_id',
         'voided_at',
         'voided_by_user_id',
+        'hcm_tax_governance_policy_id',
+        'hcm_tax_governance_policy_version',
     ];
 
     protected function casts(): array
@@ -44,6 +46,8 @@ class HcmPayrollRun extends Model
             'calculated_at' => 'datetime',
             'finalized_at' => 'datetime',
             'voided_at' => 'datetime',
+            'hcm_tax_governance_policy_id' => 'integer',
+            'hcm_tax_governance_policy_version' => 'integer',
         ];
     }
 
@@ -66,4 +70,10 @@ class HcmPayrollRun extends Model
     {
         return $this->hasMany(HcmPayrollLine::class, 'hcm_payroll_run_id');
     }
+
+    public function taxGovernancePolicy(): BelongsTo
+    {
+        return $this->belongsTo(HcmTaxGovernancePolicy::class, 'hcm_tax_governance_policy_id');
+    }
+
 }

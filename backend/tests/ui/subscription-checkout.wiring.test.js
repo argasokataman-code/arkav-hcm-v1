@@ -29,6 +29,7 @@ describe('subscription checkout wiring', () => {
       <div data-checkout-invoice-subtitle></div>
       <div data-checkout-invoice-amount></div>
       <div data-checkout-invoice-due></div>
+      <div class="d-none" data-checkout-invoice-breakdown></div>
       <a data-checkout-open-invoices href="/company/invoices"></a>
       <button type="button" class="d-none" data-checkout-pay-now>Bayar sekarang</button>
       <a class="d-none" data-checkout-go-dashboard href="/index">Masuk dashboard</a>
@@ -47,6 +48,36 @@ describe('subscription checkout wiring', () => {
                 dueDate: '2026-05-01',
                 status: 'draft',
                 isPaid: false,
+                notes: JSON.stringify({
+                  pricing_breakdown: {
+                    base_amount: 1000000,
+                    components: [
+                      {
+                        key: 'payroll_service_fee',
+                        label: 'Biaya layanan',
+                        rate: 1,
+                        amount: 10000,
+                      },
+                      {
+                        key: 'subscription_tax_rate',
+                        label: 'Pajak langganan',
+                        rate: 7,
+                        amount: 70000,
+                      },
+                      {
+                        key: 'addon_markup_rate',
+                        label: 'Corporate tax',
+                        rate: 22,
+                        amount: 220000,
+                      },
+                    ],
+                    service_fee_rate: 1,
+                    service_fee_amount: 10000,
+                    subscription_tax_rate: 7,
+                    subscription_tax_amount: 70000,
+                    total_amount: 1300000,
+                  },
+                }),
                 createdAt: '2026-04-21T10:00:00Z',
                 updatedAt: '2026-04-21T10:00:00Z',
               }],
@@ -143,6 +174,10 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-box]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice pending ditemukan');
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Biaya layanan 1%');
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Pajak langganan 7%');
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Corporate tax 22%');
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.classList.contains('d-none')).toBe(false);
 
     // Form must be locked (hidden) when a pending invoice exists — prevents double invoice creation.
     expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);

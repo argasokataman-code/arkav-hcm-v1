@@ -1,0 +1,79 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-output-leave.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "backend/routes/web/leave.php",
+    "backend/routes/api/leave.php",
+    "backend/app/Http/Controllers/Api/HcmLeaveRequestController.php",
+    "backend/app/Http/Controllers/Api/HcmLeaveTypeController.php",
+    "backend/app/Http/Controllers/Api/HcmLeaveSettingController.php",
+    "backend/app/Http/Controllers/Api/HcmHolidayController.php",
+    "backend/app/Models/AttendanceRecord.php",
+    "backend/app/Models/CompanyUser.php",
+    "backend/app/Models/EmployeeLeaveBalance.php",
+    "backend/app/Models/HcmLeaveCustomPolicy.php",
+    "backend/app/Models/HcmLeaveTypeSetting.php",
+    "backend/app/Models/Holiday.php",
+    "backend/app/Models/HolidayCalendar.php",
+    "backend/app/Models/LeaveLedger.php",
+    "backend/app/Models/LeavePolicy.php",
+    "backend/app/Models/LeavePolicyAssignment.php",
+    "backend/app/Models/LeaveRequest.php",
+    "backend/app/Models/LeaveRequestBreakdown.php",
+    "backend/app/Models/LeaveType.php",
+    "backend/app/Models/User.php",
+    "backend/app/Services/Hcm/LeaveLedgerService.php",
+    "backend/app/Services/Hcm/LeaveWorkingDayCalculator.php",
+    "docs/database/SCHEMA-SNAPSHOT.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "frontend/resources/img/**",
+      "backend/public/**",
+      "backend/storage/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-output*.xml",
+      "repomix-hcm*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

@@ -18,7 +18,7 @@ class CustomAuthController extends Controller
     public function index()
     {
         
-        return view('login');
+        return view('auth.login');
     }  
       
 
@@ -76,7 +76,7 @@ class CustomAuthController extends Controller
 
     public function registration()
     {
-        return view('register');
+        return view('auth.register');
     }
       
 
@@ -118,7 +118,7 @@ class CustomAuthController extends Controller
     public function dashboard()
     {
         if(Auth::check()){
-            return view('index');
+            return view('misc.index');
         }
   
         return redirect("login")->withSuccess('You are not allowed to access');

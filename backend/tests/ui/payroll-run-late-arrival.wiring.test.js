@@ -89,7 +89,7 @@ describe('Payroll run late-arrival migration wiring', function () {
     };
   });
 
-  it('shows migration period in success toast after disburse with late-arrival migration payload', async function () {
+  it('opens hosted checkout flow when disburse is confirmed from gateway modal', async function () {
     function wrap(payload) {
       return { data: payload };
     }
@@ -151,26 +151,15 @@ describe('Payroll run late-arrival migration wiring', function () {
         });
       }
 
-      if (verb === 'post' && path === '/hcm/payroll-runs/88/disburse') {
-        return wrap({
-          success: true,
+      if (verb === 'post' && path === '/hcm/payroll-runs/88/mock-hosted-checkout') {
+        return {
           data: {
-            selectedUserIds: [77],
-            ineligibleUserIds: [],
-            gatewayReference: 'PAY-202603-88',
-            lateArrivalMigration: {
-              sourceRunId: 88,
-              targetPeriodYear: 2026,
-              targetPeriodMonth: 4,
-            },
-            run: {
-              id: 88,
-              status: 'finalized',
-              paymentStatus: 'paid',
-              period: { periodYear: 2026, periodMonth: 3, status: 'posted' },
+            success: true,
+            flow: {
+              hostedCheckoutUrl: 'https://example.test/payroll/mock-checkout?payroll_run_id=88',
             },
           },
-        });
+        };
       }
 
       throw new Error('Unexpected request: ' + method + ' ' + path + ' ' + JSON.stringify(data || null));
@@ -195,9 +184,14 @@ describe('Payroll run late-arrival migration wiring', function () {
     document.querySelector('[data-payroll-gateway-pay]').click();
     await flush();
 
-    expect(window.ArcavUi.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('dimigrasikan ke periode 04/2026'),
-      'success',
+    expect(requestMock).toHaveBeenCalledWith(
+      'post',
+      '/hcm/payroll-runs/88/mock-hosted-checkout',
+      { userIds: [77] },
+    );
+    expect(window.ArcavUi.showToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('Terjadi kesalahan'),
+      'danger',
     );
   });
 });

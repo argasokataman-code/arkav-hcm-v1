@@ -8,6 +8,7 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 chmod +x scripts/check-tests-on-change.sh
+chmod +x scripts/check-views-root-guard.sh
 chmod +x scripts/check-api-docs-sync.sh
 chmod +x scripts/lint-next-step-format.sh
 chmod +x scripts/prepare-main-push.sh

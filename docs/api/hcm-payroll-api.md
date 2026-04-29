@@ -38,7 +38,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 | `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET /payroll/settings`, `PUT /payroll/settings` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif |
-| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
+| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
 | `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
 | `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji milik sendiri untuk periode query; `404` bila belum ada run final |
@@ -221,6 +221,12 @@ Identifier saat ini masih menerima **numeric legacy** pada runtime controller (`
 
 Eksekusi gateway pembayaran payroll bulanan untuk subset **`userIds[]`** yang dicentang pada halaman run. Jika run masih `draft`, endpoint ini akan **otomatis finalize + post period** lebih dulu, lalu menandai karyawan terpilih sebagai **`paid`** secara idempotent.
 
+Mulai April 2026, flow pembayaran payroll run wajib melewati hosted mock checkout dua langkah:
+1. `POST /payroll-runs/{id}/mock-hosted-checkout` untuk membuat sesi hosted payment + callback token.
+2. `POST /payroll-runs/{id}/mock-hosted-checkout/confirm` setelah user kembali dari hosted page.
+
+Endpoint `disburse` wajib menerima `mockApprovalToken` yang sama dengan token sesi hosted payment terkonfirmasi. Jika token belum ada/invalid, server menolak request dengan error `PAYROLL_MOCK_PAYMENT_REQUIRED` atau `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID`.
+
 Karyawan hanya dianggap **eligible** jika total net pay periodenya **`> 0`** (hanya komponen yang memengaruhi net pay). User dengan THP `<= 0` otomatis dikeluarkan dari target pembayaran.
 
 Untuk run `purpose=monthly`, endpoint juga menegakkan payday policy dari `policySnapshot` run. Jika `disburseBeforePaydayAllowed=false`, request sebelum `resolvedPaydayDate` akan ditolak server dengan policy error eksplisit. Jika snapshot belum ada pada run lama, controller fallback ke setting tenant payroll bulanan saat ini.
@@ -243,6 +249,7 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 |-------|--------|--------|
 | `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
 | `applyAll` | kondisional | boolean; kirim `true` untuk disburse seluruh karyawan **eligible** di run |
+| `mockApprovalToken` | ya (runtime mock active) | string token dari flow `mock-hosted-checkout` yang sudah dikonfirmasi |
 
 **200** `data`:
 - `run` — ringkasan run dengan `paymentStatus`, `paidEmployeeCount`, `employeeCount`, `paidAt`, `gatewayReference`
@@ -258,6 +265,49 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 - `PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN` jika run `monthly` dibayar sebelum `resolvedPaydayDate` saat policy tenant melarang early disburse
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
+- `PAYROLL_MOCK_PAYMENT_REQUIRED` jika sesi hosted payment belum dibuat/terkonfirmasi
+- `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID` jika `mockApprovalToken` tidak cocok dengan sesi hosted payment
+- `PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH` jika daftar user berbeda dari sesi hosted payment
+
+### `POST /payroll-runs/{id}/mock-hosted-checkout`
+
+Membuat sesi hosted mock payment untuk payroll run aktif dan daftar user yang dipilih.
+
+**Body JSON**
+
+| Field | Wajib | Aturan |
+|-------|--------|--------|
+| `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
+| `applyAll` | kondisional | boolean; kirim `true` untuk seluruh user eligible |
+
+**200** `data`:
+- `runId`
+- `selectedUserIds[]`
+- `flow.mode = hosted`
+- `flow.hostedCheckoutUrl`
+- `flow.callbackToken`
+
+**422**
+- `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada user eligible untuk sesi payment.
+
+### `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`
+
+Mengonfirmasi bahwa sesi hosted payment sudah selesai sebelum disburse dijalankan.
+
+**Body JSON**
+
+| Field | Wajib | Aturan |
+|-------|--------|--------|
+| `callbackToken` | ya | token dari flow hosted checkout |
+| `userIds` | ya | array int user yang harus sama persis dengan sesi hosted checkout |
+
+**200** `data`: `runId`, `selectedUserIds[]`, `status=completed`.
+
+**422**
+- `PAYROLL_MOCK_PAYMENT_NOT_FOUND`
+- `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID`
+- `PAYROLL_MOCK_PAYMENT_EXPIRED`
+- `PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH`
 
 ### Export reconciliation payroll run (`POST /v1/reconciliation/exports`)
 

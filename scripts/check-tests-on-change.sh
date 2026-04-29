@@ -22,12 +22,17 @@ fi
 source_changes="$(echo "${staged_files}" | awk '
   $0 ~ /^backend\/app\/.*\.php$/ { print; next }
   $0 ~ /^backend\/routes\/.*\.php$/ { print; next }
+  $0 ~ /^backend\/resources\/views\/.*\.blade\.php$/ { print; next }
   $0 ~ /^frontend\/resources\/js\/.*\.js$/ { print; next }
 ')"
 
 if [[ -z "${source_changes}" ]]; then
   echo "check-tests-on-change: docs/chore-only changes detected; skipping."
   exit 0
+fi
+
+if [[ -x "scripts/check-views-root-guard.sh" ]]; then
+  bash scripts/check-views-root-guard.sh
 fi
 
 all_test_changes="$(echo "${staged_files}" | awk '

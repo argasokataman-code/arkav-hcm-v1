@@ -1,3 +1,121 @@
+var __arcavRenderPlatformReportModuleRef = null;
+var __arcavRenderPlatformReportModulePromise = null;
+var __arcavLoadPricingPlansScreenModuleRef = null;
+var __arcavLoadPricingPlansScreenModulePromise = null;
+var __arcavBindKomponentCrudModuleRef = null;
+var __arcavBindKomponentCrudModulePromise = null;
+
+function resolveRenderPlatformReportModule() {
+    if (typeof __arcavRenderPlatformReportModuleRef === "function") {
+        return __arcavRenderPlatformReportModuleRef;
+    }
+    if (window.ArcavTaxGovernanceModules && typeof window.ArcavTaxGovernanceModules.renderPlatformReportModule === "function") {
+        __arcavRenderPlatformReportModuleRef = window.ArcavTaxGovernanceModules.renderPlatformReportModule;
+        return __arcavRenderPlatformReportModuleRef;
+    }
+    return null;
+}
+
+function loadRenderPlatformReportModule() {
+    var resolved = resolveRenderPlatformReportModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavRenderPlatformReportModulePromise) {
+        return __arcavRenderPlatformReportModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavRenderPlatformReportModulePromise = dynamicImport("./tax-governance/tax-governance-platform-report.js")
+            .then(function (mod) {
+                if (mod && typeof mod.renderPlatformReportModule === "function") {
+                    __arcavRenderPlatformReportModuleRef = mod.renderPlatformReportModule;
+                }
+                return resolveRenderPlatformReportModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavRenderPlatformReportModulePromise = Promise.resolve(null);
+    }
+    return __arcavRenderPlatformReportModulePromise;
+}
+
+function resolveLoadPricingPlansScreenModule() {
+    if (typeof __arcavLoadPricingPlansScreenModuleRef === "function") {
+        return __arcavLoadPricingPlansScreenModuleRef;
+    }
+    if (window.ArcavTaxGovernanceModules && typeof window.ArcavTaxGovernanceModules.loadPricingPlansScreenModule === "function") {
+        __arcavLoadPricingPlansScreenModuleRef = window.ArcavTaxGovernanceModules.loadPricingPlansScreenModule;
+        return __arcavLoadPricingPlansScreenModuleRef;
+    }
+    return null;
+}
+
+function loadPricingPlansScreenModuleLoader() {
+    var resolved = resolveLoadPricingPlansScreenModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavLoadPricingPlansScreenModulePromise) {
+        return __arcavLoadPricingPlansScreenModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavLoadPricingPlansScreenModulePromise = dynamicImport("./tax-governance/tax-governance-platform-pricing.js")
+            .then(function (mod) {
+                if (mod && typeof mod.loadPricingPlansScreenModule === "function") {
+                    __arcavLoadPricingPlansScreenModuleRef = mod.loadPricingPlansScreenModule;
+                }
+                return resolveLoadPricingPlansScreenModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavLoadPricingPlansScreenModulePromise = Promise.resolve(null);
+    }
+    return __arcavLoadPricingPlansScreenModulePromise;
+}
+
+function resolveBindKomponentCrudModule() {
+    if (typeof __arcavBindKomponentCrudModuleRef === "function") {
+        return __arcavBindKomponentCrudModuleRef;
+    }
+    if (window.ArcavTaxGovernanceModules && typeof window.ArcavTaxGovernanceModules.bindKomponentCrudModule === "function") {
+        __arcavBindKomponentCrudModuleRef = window.ArcavTaxGovernanceModules.bindKomponentCrudModule;
+        return __arcavBindKomponentCrudModuleRef;
+    }
+    return null;
+}
+
+function loadBindKomponentCrudModule() {
+    var resolved = resolveBindKomponentCrudModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavBindKomponentCrudModulePromise) {
+        return __arcavBindKomponentCrudModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavBindKomponentCrudModulePromise = dynamicImport("./tax-governance/tax-governance-komponen-crud.js")
+            .then(function (mod) {
+                if (mod && typeof mod.bindKomponentCrudModule === "function") {
+                    __arcavBindKomponentCrudModuleRef = mod.bindKomponentCrudModule;
+                }
+                return resolveBindKomponentCrudModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavBindKomponentCrudModulePromise = Promise.resolve(null);
+    }
+    return __arcavBindKomponentCrudModulePromise;
+}
+
 (function (window, document) {
     "use strict";
 
@@ -585,110 +703,31 @@
     }
 
     function renderPlatformReport(root, reportResponse) {
-        var data = reportResponse && reportResponse.data ? reportResponse.data : {};
-        var complianceConfigured = data.policy_configured !== false;
-        var summary = data.summary_global || data.summary || {};
-        var rows = Array.isArray(data.tenants_global) ? data.tenants_global : (Array.isArray(data.tenants) ? data.tenants : []);
+        var moduleFn = resolveRenderPlatformReportModule();
+        var moduleArgs = [
+            {
+                qs: qs,
+                setText: setText,
+                formatMoney: formatMoney,
+                getActiveScreen: getActiveScreen,
+                showPlatformGate: showPlatformGate,
+                escapeHtml: escapeHtml,
+                renderBillingCycleDetail: renderBillingCycleDetail,
+            },
+            root,
+            reportResponse
+        ];
 
-        var grossRevenueTotal = Number(summary.total_gross_revenue || 0);
-        var taxableRevenueTotal = Number(summary.total_taxable_revenue_amount || 0);
-        var effectiveGrossRevenueTotal = grossRevenueTotal > 0 ? grossRevenueTotal : taxableRevenueTotal;
-        var effectiveNetRevenueTotal = Number(summary.total_net_revenue || 0);
-        if (effectiveNetRevenueTotal <= 0 && effectiveGrossRevenueTotal > 0) {
-            effectiveNetRevenueTotal = Math.max(0, effectiveGrossRevenueTotal - Number(summary.total_tax_due || 0));
-        }
-        var complianceSummary = data.summary_compliance || {};
-        var totalTaxLiability = Number(summary.total_collected_tax_liability || complianceSummary.total_collected_tax_liability || 0);
-        var totalCorporateTaxExpense = Number(summary.total_tax_due || complianceSummary.total_tax_payable || 0);
-        var netRevenueExcludingTax = Math.max(0, effectiveGrossRevenueTotal - totalTaxLiability);
-        var netProfitTotal = Number(summary.total_net_profit || complianceSummary.total_net_profit || 0);
-        if (netProfitTotal <= 0) {
-            netProfitTotal = Math.max(0, netRevenueExcludingTax - totalCorporateTaxExpense);
-        }
-        var installmentRows = Array.isArray(data.tax_installments) ? data.tax_installments : [];
-
-        setText(qs("[data-tax-platform-summary-subscription-revenue]", root), formatMoney(summary.total_subscription_revenue || summary.total_invoice_amount || 0));
-        setText(qs("[data-tax-platform-summary-addon-revenue]", root), formatMoney(summary.total_addon_revenue || summary.total_uncleared_revenue_amount || 0));
-        setText(qs("[data-tax-platform-summary-net-revenue]", root), formatMoney(effectiveGrossRevenueTotal));
-
-        setText(qs("[data-tax-compliance-summary-gross]", root), formatMoney(effectiveGrossRevenueTotal));
-        setText(qs("[data-tax-compliance-summary-tax-due]", root), formatMoney(totalCorporateTaxExpense));
-        setText(qs("[data-tax-compliance-summary-gross-revenue]", root), formatMoney(effectiveGrossRevenueTotal));
-        setText(qs("[data-tax-compliance-summary-tax-liability]", root), formatMoney(totalTaxLiability));
-        setText(qs("[data-tax-compliance-summary-net-revenue]", root), formatMoney(netRevenueExcludingTax));
-        setText(qs("[data-tax-compliance-summary-corporate-tax-expense]", root), formatMoney(totalCorporateTaxExpense));
-        setText(qs("[data-tax-compliance-summary-net-profit]", root), formatMoney(netProfitTotal));
-        setText(qs("[data-tax-compliance-summary-effective-rate]", root), String(Number(complianceSummary.effective_tax_rate || summary.effective_tax_rate || 0)) + "%");
-
-        if (!complianceConfigured && getActiveScreen(root) === "platform-tax-compliance") {
-            showPlatformGate(root, "Belum ada kebijakan Government Tax untuk bulan ini. Kewajiban pajak ditampilkan 0 sampai policy compliance disimpan.");
+        if (moduleFn) {
+            return moduleFn.apply(null, moduleArgs);
         }
 
-        var installmentTbody = qs("[data-tax-compliance-installment-table]", root);
-        if (installmentTbody) {
-            if (!installmentRows.length) {
-                installmentTbody.innerHTML = "<tr><td colspan=\"4\" class=\"text-center text-muted py-3\">Belum ada histori pembayaran installment pada periode ini.</td></tr>";
-            } else {
-                installmentTbody.innerHTML = installmentRows.map(function (row) {
-                    var paid = String(row.status || "").toLowerCase() === "paid";
-                    var statusClass = paid ? "badge bg-success-subtle text-success" : "badge bg-warning-subtle text-warning";
-                    var statusLabel = paid ? "Paid" : "Pending";
-                    return "<tr><td>" + escapeHtml(row.period || "-") + "</td><td>" + escapeHtml(formatMoney(row.amount_paid || 0)) + "</td><td><span class=\"" + statusClass + "\">" + escapeHtml(statusLabel) + "</span></td><td>" + escapeHtml(row.payment_date || "-") + "</td></tr>";
-                }).join("");
+        loadRenderPlatformReportModule().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn.apply(null, moduleArgs);
             }
-        }
-
-        var tbody = qs("[data-tax-platform-report-table]", root);
-        if (!tbody) {
-            return;
-        }
-        if (!rows.length) {
-            var emptyColspan = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
-                ? tbody.closest("table").tHead.rows[0].cells.length
-                : 8;
-            tbody.innerHTML = "<tr><td colspan=\"" + emptyColspan + "\" class=\"text-center text-muted py-4\">Tidak ada data laporan pada bulan terpilih.</td></tr>";
-            return;
-        }
-        var tableColCount = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0]
-            ? tbody.closest("table").tHead.rows[0].cells.length
-            : 8;
-        // Always treat platform-tax-compliance screen as government table.
-        // Column-count fallback remains for safety across partial template updates.
-        var isGovernmentTable = getActiveScreen(root) === "platform-tax-compliance" || tableColCount === 6 || tableColCount === 7;
-        tbody.innerHTML = rows.map(function (item) {
-            var taxableRevenue = Number(item.taxable_revenue_amount || 0);
-            var grossRevenue = Number(item.gross_revenue || 0);
-            var effectiveGrossRevenue = grossRevenue > 0 ? grossRevenue : taxableRevenue;
-            var netRevenue = Number(item.net_revenue || 0);
-            var effectiveNetRevenue = netRevenue > 0 ? netRevenue : Math.max(0, effectiveGrossRevenue - Number(item.tax_amount_due || 0));
-            var taxLiability = Number(item.collected_tax_liability || 0);
-            var corporateTaxExpense = Number(item.total_tax_payable || item.tax_amount_due || 0);
-            var netProfit = Number(item.net_profit || 0);
-            if (netProfit <= 0) {
-                netProfit = Math.max(0, (effectiveGrossRevenue - taxLiability) - corporateTaxExpense);
-            }
-            var firstCol = item.tenant || item.company_name || "-";
-            var secondCol = item.plan || item.plan_name || "-";
-            if (isGovernmentTable) {
-                var taxDue = corporateTaxExpense;
-                var complianceStatus = !complianceConfigured
-                    ? "Belum Dikonfigurasi"
-                    : (taxDue > 0 ? "Terhitung" : "Tidak Ada Pajak");
-                var statusClass = !complianceConfigured
-                    ? "badge bg-info-subtle text-info"
-                    : (taxDue > 0 ? "badge bg-warning-subtle text-warning" : "badge bg-secondary-subtle text-secondary");
-                return "<tr>"
-                    + "<td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td>"
-                    + "<td>" + renderBillingCycleDetail(item) + "</td>"
-                    + "<td>" + escapeHtml(formatMoney(item.taxable_revenue || effectiveGrossRevenue)) + "</td>"
-                    + "<td>" + escapeHtml(formatMoney(taxLiability)) + "</td>"
-                    + "<td class=\"fw-semibold\">" + escapeHtml(formatMoney(taxDue)) + "</td>"
-                    + "<td>" + escapeHtml(formatMoney(netProfit)) + "</td>"
-                    + "<td><span class=\"" + statusClass + "\">" + escapeHtml(complianceStatus) + "</span></td>"
-                    + "</tr>";
-            }
-            return "<tr><td><div class=\"fw-semibold\">" + escapeHtml(firstCol) + "</div><small class=\"text-muted\">ID " + escapeHtml(item.company_id || "-") + "</small></td><td>" + escapeHtml(secondCol) + "</td><td>" + escapeHtml(formatMoney(item.subscription_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(item.addon_revenue || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveGrossRevenue)) + "</td><td>" + escapeHtml(formatMoney(item.tax_amount_due || 0)) + "</td><td>" + escapeHtml(formatMoney(effectiveNetRevenue)) + "</td></tr>";
-        }).join("");
+        });
+        return null;
     }
 
     function buildPolicyEditorPayload(root) {
@@ -1657,10 +1696,6 @@
     }
 
     // ─────────────────────────────────────────────────────
-    // Pricing & Plans screen (platform-billing)
-    // ─────────────────────────────────────────────────────
-
-    // ─────────────────────────────────────────────────────
     // Komponen Pajak CRUD (full create / edit / delete)
     // ─────────────────────────────────────────────────────
 
@@ -1668,523 +1703,67 @@
         return apiRequest("delete", path, null);
     }
 
-    var komponentCategoryRows = [];
-
-    var KOMPONEN_CATEGORY_LABELS = {
-        basic_wage: "Upah pokok", fixed_allowance: "Tunjangan tetap", common_allowance: "Tunjangan umum",
-        family_allowance: "Tunjangan keluarga", irregular_allowance: "Tunjangan tidak tetap / insentif",
-        overtime: "Upah lembur", thr: "THR", bonus: "Bonus (luar THR)",
-        natura_taxable: "Natura kena pajak", natura_non_taxable: "Natura tidak kena pajak",
-        special_allowance: "Tunjangan khusus / insidentil", reimbursement: "Reimbursement",
-        termination_benefit: "Kompensasi terminasi", employer_cost_display: "Beban perusahaan (info slip)",
-        other_addition: "Pendapatan lain", bpjs_health_employee: "BPJS Kesehatan (pekerja)",
-        bpjs_jht_employee: "JHT (pekerja)", bpjs_jp_employee: "JP / pensiun (pekerja)",
-        pension_employee: "Iuran pensiun pekerja", pph21_ter: "PPh 21 — TER bulanan",
-        pph21_december_recon: "PPh 21 — rekonsiliasi", other_statutory: "Potongan wajib lain",
-        internal_advance: "Kasbon / uang muka", internal_loan: "Pinjaman internal",
-        internal_cooperative: "Koperasi / internal", internal_other: "Potongan internal lain",
-        other_deduction: "Potongan lain",
-    };
-
-    var KOMPONEN_ADDITION_CATS = [
-        "basic_wage", "fixed_allowance", "common_allowance", "family_allowance",
-        "irregular_allowance", "overtime", "thr", "bonus", "natura_taxable", "natura_non_taxable",
-        "special_allowance", "reimbursement", "termination_benefit", "employer_cost_display", "other_addition",
-    ];
-
-    var KOMPONEN_DEDUCTION_CATS = [
-        "bpjs_health_employee", "bpjs_jht_employee", "bpjs_jp_employee", "pension_employee",
-        "pph21_ter", "pph21_december_recon", "other_statutory", "internal_advance",
-        "internal_loan", "internal_cooperative", "internal_other", "other_deduction",
-    ];
-
-    function notifyKomponen(message, isError) {
-        if (window.ApiClient && typeof window.ApiClient.toast === "function") {
-            window.ApiClient.toast(message, isError);
-            return;
-        }
-        if (window.notify && typeof window.notify === "function") {
-            window.notify(message, isError);
-        }
-    }
-
-    function fillKomponentCategorySelect(selectEl, kind, current) {
-        if (!selectEl) { return; }
-        var dynamic = komponentCategoryRows
-            .filter(function (c) { return c && c.kind === kind && c.isActive !== false; })
-            .sort(function (a, b) { return Number(a.sortOrder || 0) - Number(b.sortOrder || 0); })
-            .map(function (c) { return String(c.code || ""); })
-            .filter(Boolean);
-        var fallback = kind === "deduction" ? KOMPONEN_DEDUCTION_CATS : KOMPONEN_ADDITION_CATS;
-        var items = dynamic.length ? dynamic : fallback;
-        selectEl.innerHTML = items.map(function (code) {
-            var match = null;
-            for (var i = 0; i < komponentCategoryRows.length; i++) {
-                if (komponentCategoryRows[i].code === code) { match = komponentCategoryRows[i]; break; }
-            }
-            var label = (match && match.name) ? match.name : (KOMPONEN_CATEGORY_LABELS[code] || code);
-            return '<option value="' + escapeHtml(code) + '">' + escapeHtml(label) + '</option>';
-        }).join("");
-        if (current) { selectEl.value = current; }
-    }
-
-    function getKomponentBool(form, field) {
-        var el = form.querySelector('[data-hcm-field="' + field + '"]');
-        if (!el) { return false; }
-        if (el.type === "checkbox") { return el.checked; }
-        if (el.type === "hidden") { return el.value === "1" || el.value === "true"; }
-        return false;
-    }
-
-    function setKomponentBool(form, field, v) {
-        var el = form.querySelector('[data-hcm-field="' + field + '"]');
-        if (!el) { return; }
-        if (el.type === "checkbox") { el.checked = !!v; }
-        else if (el.type === "hidden") { el.value = v ? "1" : "0"; }
-    }
-
-    function buildKomponentPayload(form) {
-        var pctEl = form.querySelector('[data-hcm-field="defaultPercent"]');
-        var basisEl = form.querySelector('[data-hcm-field="percentBasis"]');
-        var pctRaw = pctEl ? String(pctEl.value || "").trim().replace(",", ".") : "";
-        var basis = basisEl ? String(basisEl.value || "").trim() : "";
-        var defaultPercent = null;
-        var percentBasis = null;
-        if (pctRaw) {
-            var n = parseFloat(pctRaw);
-            if (isNaN(n) || n < 0 || n > 100) { return { invalid: true, message: "Persen harus antara 0 dan 100." }; }
-            if (!basis) { return { invalid: true, message: "Pilih dasar perhitungan jika mengisi persen." }; }
-            defaultPercent = n;
-            percentBasis = basis;
-        }
-        function fieldVal(name) {
-            var el = form.querySelector('[data-hcm-field="' + name + '"]');
-            return el ? el.value : "";
-        }
-        return {
-            name: fieldVal("name").trim(),
-            code: fieldVal("code").trim(),
-            kind: fieldVal("kind") || "addition",
-            category: fieldVal("category"),
-            description: fieldVal("description").trim() || null,
-            legalBasis: fieldVal("legalBasis").trim() || null,
-            legalNotes: fieldVal("legalNotes").trim() || null,
-            defaultPercent: defaultPercent,
-            percentBasis: percentBasis,
-            includeBpjsHealthWageBase: getKomponentBool(form, "includeBpjsHealthWageBase"),
-            includeBpjsTkWageBase: getKomponentBool(form, "includeBpjsTkWageBase"),
-            includeThrCalculationBase: getKomponentBool(form, "includeThrCalculationBase"),
-            includePph21TerGross: getKomponentBool(form, "includePph21TerGross"),
-            includePph21AnnualReconciliation: getKomponentBool(form, "includePph21AnnualReconciliation"),
-            subjectOvertimeRegulation: getKomponentBool(form, "subjectOvertimeRegulation"),
-            affectsNetPay: getKomponentBool(form, "affectsNetPay"),
-            employerCostLine: getKomponentBool(form, "employerCostLine"),
-            isActive: getKomponentBool(form, "isActive"),
-            sortOrder: parseInt(fieldVal("sortOrder") || "0", 10) || 0,
-        };
-    }
-
     function bindKomponentCrud(root) {
-        if (root._komponentCrudBound) { return; }
-        root._komponentCrudBound = true;
+        var moduleFn = resolveBindKomponentCrudModule();
+        var moduleArgs = {
+            escapeHtml: escapeHtml,
+            apiGet: apiGet,
+            apiPost: apiPost,
+            apiPut: apiPut,
+            apiDelete: apiDelete,
+            parseApiError: parseApiError,
+            loadKomponenPajak: loadKomponenPajak,
+            getKomponentData: function () {
+                return komponentData;
+            },
+        };
 
-        apiGet("/hcm/salary-component-categories", { per_page: 200 }).then(function (resp) {
-            if (resp && resp.success && Array.isArray(resp.data)) {
-                komponentCategoryRows = resp.data;
-            }
-            var addForm = document.querySelector('[data-hcm-salary-component-form="add"]');
-            var editForm = document.querySelector('[data-hcm-salary-component-form="edit"]');
-            if (addForm) {
-                var addKind = addForm.querySelector('[data-hcm-field="kind"]');
-                if (addKind) {
-                    fillKomponentCategorySelect(addForm.querySelector('[data-hcm-field="category"]'), addKind.value, null);
-                    if (!addKind._komponentKindBound) {
-                        addKind._komponentKindBound = true;
-                        addKind.addEventListener("change", function () {
-                            fillKomponentCategorySelect(addForm.querySelector('[data-hcm-field="category"]'), addKind.value, null);
-                        });
-                    }
-                }
-            }
-            if (editForm) {
-                var editKind = editForm.querySelector('[data-hcm-field="kind"]');
-                if (editKind && !editKind._komponentKindBound) {
-                    editKind._komponentKindBound = true;
-                    editKind.addEventListener("change", function () {
-                        var cur = editForm.querySelector('[data-hcm-field="category"]') ? editForm.querySelector('[data-hcm-field="category"]').value : null;
-                        fillKomponentCategorySelect(editForm.querySelector('[data-hcm-field="category"]'), editKind.value, cur);
-                    });
-                }
-            }
-        }).catch(function () {});
-
-        var addForm = document.querySelector('[data-hcm-salary-component-form="add"]');
-        if (addForm && !addForm._komponentCrudBound) {
-            addForm._komponentCrudBound = true;
-            addForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                var payload = buildKomponentPayload(addForm);
-                if (payload.invalid) { notifyKomponen(payload.message, true); return; }
-                if (!payload.name || !payload.kind || !payload.category) {
-                    notifyKomponen("Lengkapi nama, jenis, dan kategori.", true);
-                    return;
-                }
-                if (!payload.code) { delete payload.code; }
-                apiPost("/hcm/salary-components", payload).then(function (resp) {
-                    if (!resp || !resp.success) {
-                        notifyKomponen((resp && resp.message) || "Gagal menyimpan.", true);
-                        return;
-                    }
-                    notifyKomponen("Komponen tersimpan.", false);
-                    var el = document.getElementById("arcav_add_salary_component");
-                    var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                    if (mi) { mi.hide(); }
-                    addForm.reset();
-                    loadKomponenPajak(root);
-                }).catch(function (err) {
-                    notifyKomponen(parseApiError(err, "Gagal menyimpan komponen.").message, true);
-                });
-            });
+        if (moduleFn) {
+            return moduleFn(moduleArgs, root);
         }
 
-        var editForm = document.querySelector('[data-hcm-salary-component-form="edit"]');
-        if (editForm && !editForm._komponentCrudBound) {
-            editForm._komponentCrudBound = true;
-            editForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                var idField = editForm.querySelector('[data-hcm-field="id"]');
-                var id = idField ? String(idField.value || "").trim() : "";
-                if (!id) { return; }
-                var payload = buildKomponentPayload(editForm);
-                if (payload.invalid) { notifyKomponen(payload.message, true); return; }
-                apiPut("/hcm/salary-components/" + encodeURIComponent(id), payload).then(function (resp) {
-                    if (!resp || !resp.success) {
-                        notifyKomponen((resp && resp.message) || "Gagal memperbarui.", true);
-                        return;
-                    }
-                    notifyKomponen("Komponen diperbarui.", false);
-                    var el = document.getElementById("arcav_edit_salary_component");
-                    var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                    if (mi) { mi.hide(); }
-                    loadKomponenPajak(root);
-                }).catch(function (err) {
-                    notifyKomponen(parseApiError(err, "Gagal memperbarui komponen.").message, true);
-                });
-            });
-        }
-
-        document.addEventListener("click", function (e) {
-            var editBtn = e.target.closest("[data-komponen-edit-id]");
-            if (editBtn) {
-                var id = parseInt(editBtn.getAttribute("data-komponen-edit-id"), 10);
-                var raw = null;
-                for (var i = 0; i < komponentData.length; i++) {
-                    if (Number(komponentData[i].id) === id) { raw = komponentData[i]; break; }
-                }
-                if (!raw) { return; }
-                var ef = document.querySelector('[data-hcm-salary-component-form="edit"]');
-                if (!ef) { return; }
-                var idF = ef.querySelector('[data-hcm-field="id"]');
-                if (idF) { idF.value = String(raw.id); }
-                function setF(name, val) {
-                    var el = ef.querySelector('[data-hcm-field="' + name + '"]');
-                    if (el && el.type !== "checkbox" && el.type !== "hidden") { el.value = val != null ? String(val) : ""; }
-                }
-                setF("name", raw.name || "");
-                setF("code", raw.code || "");
-                setF("kind", raw.kind || "addition");
-                setF("description", raw.description || "");
-                setF("legalBasis", raw.legalBasis || "");
-                setF("legalNotes", raw.legalNotes || "");
-                setF("sortOrder", raw.sortOrder != null ? raw.sortOrder : 0);
-                var dpe = ef.querySelector('[data-hcm-field="defaultPercent"]');
-                if (dpe) { dpe.value = raw.defaultPercent != null && raw.defaultPercent !== "" ? String(parseFloat(parseFloat(raw.defaultPercent).toFixed(4))) : ""; }
-                var pbe = ef.querySelector('[data-hcm-field="percentBasis"]');
-                if (pbe) { pbe.value = raw.percentBasis || ""; }
-                var kindEl = ef.querySelector('[data-hcm-field="kind"]');
-                fillKomponentCategorySelect(ef.querySelector('[data-hcm-field="category"]'), kindEl ? kindEl.value : "addition", raw.category);
-                ["includeBpjsHealthWageBase", "includeBpjsTkWageBase", "includeThrCalculationBase",
-                    "includePph21TerGross", "includePph21AnnualReconciliation", "subjectOvertimeRegulation",
-                    "affectsNetPay", "employerCostLine", "isActive"].forEach(function (f) {
-                    setKomponentBool(ef, f, raw[f]);
-                });
-                return;
-            }
-
-            var delBtn = e.target.closest("[data-komponen-delete-id]");
-            if (delBtn) {
-                e.preventDefault();
-                var delId = delBtn.getAttribute("data-komponen-delete-id");
-                var confirmFn = window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
-                    ? window.ArcavUi.confirmDelete("Hapus komponen gaji ini? Tindakan tidak memengaruhi slip lama.", "Hapus komponen")
-                    : Promise.resolve(window.confirm("Hapus komponen gaji ini?"));
-                confirmFn.then(function (ok) {
-                    if (!ok) { return; }
-                    apiDelete("/hcm/salary-components/" + encodeURIComponent(delId)).then(function (resp) {
-                        if (!resp || !resp.success) {
-                            notifyKomponen((resp && resp.message) || "Gagal menghapus.", true);
-                            return;
-                        }
-                        notifyKomponen("Komponen dihapus.", false);
-                        loadKomponenPajak(root);
-                    }).catch(function (err) {
-                        notifyKomponen(parseApiError(err, "Gagal menghapus komponen.").message, true);
-                    });
-                });
-                return;
+        loadBindKomponentCrudModule().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn(moduleArgs, root);
             }
         });
+        return null;
     }
 
     // ─────────────────────────────────────────────────────
     // Pricing & Plans screen (platform-billing)
     // ─────────────────────────────────────────────────────
 
-    var addonEditState = { id: null };
-
     function apiPut(path, payload) {
         return apiRequest("put", path, payload);
     }
-
-    function renderSubscriptionPlansTable(root, plans) {
-        var tbody = qs("[data-pricing-plans-table]", root);
-        if (!tbody) { return; }
-        if (!plans.length) {
-            tbody.innerHTML = "<tr><td colspan=\"7\" class=\"text-center text-muted py-4\">Belum ada subscription plan. <a href=\"/saas/packages\">Buat plan baru</a> di halaman Packages.</td></tr>";
-            return;
-        }
-        tbody.innerHTML = plans.map(function (plan) {
-            var statusClass = plan.status === "active"
-                ? "badge bg-success-subtle text-success"
-                : "badge bg-secondary-subtle text-secondary";
-            var monthlyLabel = plan.monthlyPrice > 0 ? formatMoney(plan.monthlyPrice) : "-";
-            var yearlyLabel = plan.yearlyPrice > 0 ? formatMoney(plan.yearlyPrice) : "-";
-            var featureCount = Array.isArray(plan.features) ? plan.features.length : 0;
-            var featureLabel = featureCount > 0 ? featureCount + " fitur" : "-";
-            return "<tr>"
-                + "<td><div class=\"fw-semibold\">" + escapeHtml(plan.name || "-") + "</div><small class=\"text-muted\">" + escapeHtml(plan.code || "") + "</small></td>"
-                + "<td>" + escapeHtml(monthlyLabel) + "</td>"
-                + "<td>" + escapeHtml(yearlyLabel) + "</td>"
-                + "<td><span class=\"text-muted small\">" + escapeHtml(toTitleCase(plan.billingUnit || "flat")) + "</span></td>"
-                + "<td><span class=\"text-muted small\">" + escapeHtml(featureLabel) + "</span></td>"
-                + "<td><span class=\"" + statusClass + "\">" + escapeHtml(toTitleCase(plan.status || "-")) + "</span></td>"
-                + "<td><a href=\"/saas/packages\" class=\"btn btn-sm btn-outline-primary\"><i class=\"ti ti-external-link me-1\"></i>Edit Plan</a></td>"
-                + "</tr>";
-        }).join("");
-    }
-
-    function renderAddonCatalogTable(root, addons, refreshFn) {
-        var tbody = qs("[data-pricing-addons-table]", root);
-        if (!tbody) { return; }
-        if (!addons.length) {
-            tbody.innerHTML = "<tr><td colspan=\"6\" class=\"text-center text-muted py-4\">Belum ada add-on. Klik <strong>Tambah Add-on</strong> untuk membuat yang baru.</td></tr>";
-            return;
-        }
-        tbody.innerHTML = addons.map(function (addon) {
-            var statusClass = addon.status === "active"
-                ? "badge bg-success-subtle text-success"
-                : "badge bg-secondary-subtle text-secondary";
-            var toggleLabel = addon.status === "active" ? "Nonaktifkan" : "Aktifkan";
-            var toggleCls = addon.status === "active" ? "btn-outline-warning" : "btn-outline-success";
-            return "<tr>"
-                + "<td><div class=\"fw-semibold\">" + escapeHtml(addon.name || "-") + "</div><small class=\"text-muted\">" + escapeHtml(addon.code || "") + "</small></td>"
-                + "<td>" + escapeHtml(formatMoney(addon.pricePerUnit || 0)) + "</td>"
-                + "<td><span class=\"text-muted small\">" + escapeHtml(addon.unitName || "-") + "</span></td>"
-                + "<td><span class=\"" + statusClass + "\">" + escapeHtml(toTitleCase(addon.status || "-")) + "</span></td>"
-                + "<td><span class=\"text-muted small\">" + escapeHtml(formatDate(addon.createdAt)) + "</span></td>"
-                + "<td><div class=\"d-flex gap-1\">"
-                + "<button type=\"button\" class=\"btn btn-sm btn-outline-primary\""
-                + " data-pricing-addon-edit=\"" + escapeHtml(String(addon.id)) + "\""
-                + " data-addon-code=\"" + escapeHtml(addon.code || "") + "\""
-                + " data-addon-name=\"" + escapeHtml(addon.name || "") + "\""
-                + " data-addon-description=\"" + escapeHtml(addon.description || "") + "\""
-                + " data-addon-price=\"" + escapeHtml(String(addon.pricePerUnit || 0)) + "\""
-                + " data-addon-unit-name=\"" + escapeHtml(addon.unitName || "") + "\""
-                + " data-addon-status=\"" + escapeHtml(addon.status || "active") + "\""
-                + " data-bs-toggle=\"modal\" data-bs-target=\"#addonCrudModal\">Edit</button>"
-                + "<button type=\"button\" class=\"btn btn-sm " + toggleCls + "\""
-                + " data-pricing-addon-toggle=\"" + escapeHtml(String(addon.id)) + "\""
-                + " data-addon-status=\"" + escapeHtml(addon.status || "active") + "\">"
-                + escapeHtml(toggleLabel) + "</button>"
-                + "</div></td>"
-                + "</tr>";
-        }).join("");
-
-        // Bind toggle buttons
-        Array.prototype.slice.call(tbody.querySelectorAll("[data-pricing-addon-toggle]")).forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                var addonId = btn.getAttribute("data-pricing-addon-toggle");
-                var currentStatus = btn.getAttribute("data-addon-status");
-                var newStatus = currentStatus === "active" ? "inactive" : "active";
-                btn.disabled = true;
-                apiPut("/saas/package-addons/" + addonId, { status: newStatus }).then(function () {
-                    refreshFn();
-                }).catch(function (error) {
-                    var parsed = parseApiError(error, "Gagal mengubah status add-on.");
-                    showError(root, parsed.message);
-                    btn.disabled = false;
-                });
-            });
-        });
-
-        // Bind edit buttons — populate modal form
-        Array.prototype.slice.call(tbody.querySelectorAll("[data-pricing-addon-edit]")).forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                var addonId = btn.getAttribute("data-pricing-addon-edit");
-                var form = qs("[data-pricing-addon-form]", root);
-                if (!form) { return; }
-                addonEditState.id = addonId;
-                var modalTitle = document.getElementById("addonCrudModalLabel");
-                if (modalTitle) { modalTitle.textContent = "Edit Add-on"; }
-                var codeField = document.getElementById("addonCodeField");
-                if (codeField) { codeField.style.display = "none"; }
-                form.querySelector("[name=\"addon_id\"]").value = addonId;
-                form.querySelector("[name=\"code\"]").value = btn.getAttribute("data-addon-code") || "";
-                form.querySelector("[name=\"name\"]").value = btn.getAttribute("data-addon-name") || "";
-                form.querySelector("[name=\"description\"]").value = btn.getAttribute("data-addon-description") || "";
-                form.querySelector("[name=\"price_per_unit\"]").value = btn.getAttribute("data-addon-price") || "";
-                form.querySelector("[name=\"unit_name\"]").value = btn.getAttribute("data-addon-unit-name") || "";
-                form.querySelector("[name=\"status\"]").value = btn.getAttribute("data-addon-status") || "active";
-                var errorNode = qs("[data-pricing-addon-form-error]", form);
-                if (errorNode) { errorNode.classList.add("d-none"); }
-            });
-        });
-    }
-
-    function bindAddonCRUD(root, refreshFn) {
-        var form = qs("[data-pricing-addon-form]", root);
-        var createBtn = qs("[data-pricing-addon-create]", root);
-        if (!form) { return; }
-
-        if (createBtn) {
-            createBtn.addEventListener("click", function () {
-                addonEditState.id = null;
-                form.reset();
-                form.querySelector("[name=\"addon_id\"]").value = "";
-                var modalTitle = document.getElementById("addonCrudModalLabel");
-                if (modalTitle) { modalTitle.textContent = "Tambah Add-on"; }
-                var codeField = document.getElementById("addonCodeField");
-                if (codeField) { codeField.style.display = ""; }
-                var errorNode = qs("[data-pricing-addon-form-error]", form);
-                if (errorNode) { errorNode.classList.add("d-none"); }
-            });
-        }
-
-        form.addEventListener("submit", function (event) {
-            event.preventDefault();
-            var errorNode = qs("[data-pricing-addon-form-error]", form);
-            if (errorNode) { errorNode.classList.add("d-none"); }
-            var submitBtn = qs("[data-pricing-addon-submit]", root);
-            if (submitBtn) { submitBtn.disabled = true; }
-
-            var addonId = String((form.querySelector("[name=\"addon_id\"]") || {}).value || "").trim();
-            var isCreate = !addonId;
-
-            var nameVal = String((form.querySelector("[name=\"name\"]") || {}).value || "").trim();
-            var descVal = String((form.querySelector("[name=\"description\"]") || {}).value || "").trim();
-            var priceVal = Number((form.querySelector("[name=\"price_per_unit\"]") || {}).value || 0);
-            var unitVal = String((form.querySelector("[name=\"unit_name\"]") || {}).value || "").trim();
-            var statusVal = String((form.querySelector("[name=\"status\"]") || {}).value || "active");
-
-            if (!nameVal || !unitVal) {
-                if (errorNode) {
-                    errorNode.textContent = "Nama add-on dan nama unit wajib diisi.";
-                    errorNode.classList.remove("d-none");
-                }
-                if (submitBtn) { submitBtn.disabled = false; }
-                return;
-            }
-
-            var payload = {
-                name: nameVal,
-                description: descVal || null,
-                price_per_unit: priceVal,
-                unit_name: unitVal,
-                status: statusVal,
-            };
-
-            if (isCreate) {
-                var codeVal = String((form.querySelector("[name=\"code\"]") || {}).value || "").trim();
-                if (!codeVal) {
-                    if (errorNode) {
-                        errorNode.textContent = "Kode add-on wajib diisi saat membuat baru.";
-                        errorNode.classList.remove("d-none");
-                    }
-                    if (submitBtn) { submitBtn.disabled = false; }
-                    return;
-                }
-                payload.code = codeVal;
-            }
-
-            var request = isCreate
-                ? apiPost("/saas/package-addons", payload)
-                : apiPut("/saas/package-addons/" + addonId, payload);
-
-            request.then(function (response) {
-                if (!response.success) {
-                    throw new Error(isCreate ? "Gagal membuat add-on." : "Gagal memperbarui add-on.");
-                }
-                form.reset();
-                addonEditState.id = null;
-                var modal = document.getElementById("addonCrudModal");
-                if (modal && window.bootstrap && window.bootstrap.Modal) {
-                    var bsModal = window.bootstrap.Modal.getInstance(modal);
-                    if (bsModal) { bsModal.hide(); }
-                }
-                refreshFn();
-            }).catch(function (error) {
-                var parsed = parseApiError(error, isCreate ? "Gagal membuat add-on." : "Gagal memperbarui add-on.");
-                if (errorNode) {
-                    errorNode.textContent = parsed.message;
-                    errorNode.classList.remove("d-none");
-                } else {
-                    showError(root, parsed.message);
-                }
-            }).finally(function () {
-                if (submitBtn) { submitBtn.disabled = false; }
-            });
-        });
-    }
-
     function loadPricingPlansScreen(root) {
-        var reportMonthInput = qs("[data-tax-platform-report-month]", root);
-        var reportMonth = reportMonthInput && reportMonthInput.value ? reportMonthInput.value : getCurrentMonthValue();
+        var moduleFn = resolveLoadPricingPlansScreenModule();
+        var moduleArgs = {
+            qs: qs,
+            apiGet: apiGet,
+            apiPost: apiPost,
+            apiPut: apiPut,
+            parseApiError: parseApiError,
+            showError: showError,
+            getCurrentMonthValue: getCurrentMonthValue,
+            formatMoney: formatMoney,
+            formatDate: formatDate,
+            toTitleCase: toTitleCase,
+            escapeHtml: escapeHtml,
+            renderPlatformReport: renderPlatformReport,
+        };
 
-        Promise.allSettled([
-            apiGet("/saas/packages", { status: "all", per_page: 100 }),
-            apiGet("/saas/package-addons", { status: "all", per_page: 100 }),
-            apiGet("/hcm/tax-governance/platform-billing/reports", { month: reportMonth }),
-        ]).then(function (results) {
-            var plansResult = results[0];
-            var addonsResult = results[1];
-            var reportResult = results[2];
+        if (moduleFn) {
+            return moduleFn(moduleArgs, root);
+        }
 
-            if (plansResult.status === "fulfilled" && plansResult.value && plansResult.value.success) {
-                renderSubscriptionPlansTable(root, Array.isArray(plansResult.value.data) ? plansResult.value.data : []);
-            } else {
-                var plansTbody = qs("[data-pricing-plans-table]", root);
-                if (plansTbody) {
-                    plansTbody.innerHTML = "<tr><td colspan=\"7\" class=\"text-center text-muted py-4\">Gagal memuat subscription plans.</td></tr>";
-                }
+        loadPricingPlansScreenModuleLoader().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn(moduleArgs, root);
             }
-
-            if (addonsResult.status === "fulfilled" && addonsResult.value && addonsResult.value.success) {
-                var addons = Array.isArray(addonsResult.value.data) ? addonsResult.value.data : [];
-                renderAddonCatalogTable(root, addons, function () { loadPricingPlansScreen(root); });
-            } else {
-                var addonsTbody = qs("[data-pricing-addons-table]", root);
-                if (addonsTbody) {
-                    addonsTbody.innerHTML = "<tr><td colspan=\"6\" class=\"text-center text-muted py-4\">Gagal memuat add-on catalog.</td></tr>";
-                }
-            }
-
-            if (reportResult.status === "fulfilled" && reportResult.value && reportResult.value.success) {
-                renderPlatformReport(root, reportResult.value);
-            }
-        }).catch(function (error) {
-            var parsed = parseApiError(error, "Gagal memuat Pricing & Plans.");
-            showError(root, parsed.message);
         });
+        return null;
     }
 
     function loadLandingAndPlatform(root, activeScreen) {
@@ -2292,7 +1871,6 @@
         bindPlatformActions(root, refreshAll);
         bindPolicyCreateButton(root);
         bindPolicyEditor(root, refreshAll);
-        bindAddonCRUD(root, refreshAll);
         refreshAll();
     }
 

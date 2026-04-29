@@ -1,0 +1,76 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-output-billing.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "backend/routes/web/billing.php",
+    "backend/routes/api/billing.php",
+    "backend/app/Http/Controllers/ApiTokenController.php",
+    "backend/app/Http/Controllers/Api/HcmSubscriptionCheckoutController.php",
+    "backend/app/Http/Controllers/Api/HcmSubscriptionChangeController.php",
+    "backend/app/Http/Controllers/Api/HcmCompanyInvoiceController.php",
+    "backend/app/Models/AuthToken.php",
+    "backend/app/Models/Company.php",
+    "backend/app/Models/HcmBillingTaxPolicy.php",
+    "backend/app/Models/HcmSubscriptionChangeRequest.php",
+    "backend/app/Models/Invoice.php",
+    "backend/app/Models/Package.php",
+    "backend/app/Models/Payment.php",
+    "backend/app/Models/Subscription.php",
+    "backend/app/Models/User.php",
+    "backend/app/Services/BillingTaxCalculationService.php",
+    "backend/app/Services/InvoiceService.php",
+    "backend/app/Services/MockPaymentGatewayService.php",
+    "backend/app/Services/SubscriptionActivationFromInvoiceService.php",
+    "docs/database/SCHEMA-SNAPSHOT.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "frontend/resources/img/**",
+      "backend/public/**",
+      "backend/storage/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-output*.xml",
+      "repomix-hcm*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

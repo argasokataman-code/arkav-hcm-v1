@@ -1,0 +1,92 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 2000000
+  },
+  "output": {
+    "filePath": "repomix-output-super-admin.xml",
+    "style": "xml",
+    "compress": false,
+    "truncateBase64": true,
+    "topFilesLength": 10,
+    "git": {
+      "includeDiffs": false,
+      "includeLogs": false
+    }
+  },
+  "include": [
+    "backend/routes/web/saas.php",
+    "backend/routes/web/dashboard.php",
+    "backend/routes/api/saas.php",
+    "backend/app/Http/Controllers/Api/PackageController.php",
+    "backend/app/Http/Controllers/Api/SubscriptionController.php",
+    "backend/app/Http/Controllers/Api/HcmSubscriptionChangeController.php",
+    "backend/app/Http/Controllers/Api/TransactionController.php",
+    "backend/app/Http/Controllers/Api/DomainController.php",
+    "backend/app/Http/Controllers/Api/InvoiceController.php",
+    "backend/app/Http/Controllers/Api/PaymentController.php",
+    "backend/app/Http/Controllers/Api/BulkPaymentImportController.php",
+    "backend/app/Http/Controllers/Api/SuperAdminDashboardController.php",
+    "backend/app/Http/Controllers/Api/ReportController.php",
+    "backend/app/Http/Controllers/Api/SaasCompanyBillingOverviewController.php",
+    "backend/app/Models/AuditLog.php",
+    "backend/app/Models/Company.php",
+    "backend/app/Models/CompanyUser.php",
+    "backend/app/Models/DashboardMetric.php",
+    "backend/app/Models/Domain.php",
+    "backend/app/Models/HcmSubscriptionChangeRequest.php",
+    "backend/app/Models/Invoice.php",
+    "backend/app/Models/InvoiceEmailLog.php",
+    "backend/app/Models/Package.php",
+    "backend/app/Models/PackageAddon.php",
+    "backend/app/Models/PackageFeature.php",
+    "backend/app/Models/Payment.php",
+    "backend/app/Models/PurchaseTransaction.php",
+    "backend/app/Models/Subscription.php",
+    "backend/app/Models/Transaction.php",
+    "backend/app/Models/User.php",
+    "backend/app/Services/InvoiceService.php",
+    "backend/app/Services/NotificationDeliveryRecorder.php",
+    "backend/app/Services/NotificationService.php",
+    "backend/app/Services/Reconciliation/Exceptions/ExportReconciliationException.php",
+    "backend/app/Services/Reconciliation/ReconciliationGateService.php",
+    "docs/database/SCHEMA-SNAPSHOT.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/public/build/**",
+      "frontend/resources/img/**",
+      "backend/public/**",
+      "backend/storage/**",
+      "**/*.min.js",
+      "**/*.map",
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.ico",
+      "**/*.bmp",
+      "**/*.tiff",
+      "**/*.avif",
+      "**/*.svg",
+      "**/*.pdf",
+      "**/*.zip",
+      "**/*.tar",
+      "**/*.gz",
+      "repomix-output*.xml",
+      "repomix-hcm*.xml"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

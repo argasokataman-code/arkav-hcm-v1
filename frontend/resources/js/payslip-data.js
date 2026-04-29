@@ -1,4 +1,9 @@
 (function () {
+  const audienceState = {
+    isGlobalAdmin: false,
+    canViewPayroll: false,
+  };
+
   const formatIdr = (value) => new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -59,6 +64,8 @@
   async function ensureSelfPayslipAudience() {
     try {
       const payload = await apiGet('/v1/identity/auth/me');
+      audienceState.isGlobalAdmin = payload?.success && payload?.data?.hcmGlobalAdmin === true;
+      audienceState.canViewPayroll = !!payload?.data?.permissions?.['payroll.view'];
       if (payload?.success && payload?.data?.permissions?.['payroll.view']) {
         window.location.assign('/payslip-report');
         return false;
@@ -76,6 +83,7 @@
     const monthInput = document.querySelector('[data-payslip-month]');
     const errorBox = document.querySelector('[data-payslip-error]');
     const emptyBox = document.querySelector('[data-payslip-empty]');
+    const contextHint = document.querySelector('[data-payslip-context-hint]');
     const content = document.querySelector('[data-payslip-content]');
     const downloadBtn = document.querySelector('[data-payslip-download]');
 
@@ -138,6 +146,15 @@
       }
 
       if (emptyBox) emptyBox.classList.toggle('d-none', hasSlip);
+      if (contextHint) {
+        if (!hasSlip && audienceState.isGlobalAdmin && audienceState.canViewPayroll) {
+          contextHint.classList.remove('d-none');
+          contextHint.textContent = 'Tidak ada slip di company aktif untuk periode ini. Gunakan "Payslip Report" untuk mengecek data seluruh karyawan lintas payroll run.';
+        } else {
+          contextHint.classList.add('d-none');
+          contextHint.textContent = '';
+        }
+      }
       if (content) content.classList.toggle('d-none', !hasSlip);
 
       if (hasSlip && downloadBtn && data.downloadUrl) {
@@ -147,6 +164,10 @@
       }
     } catch (error) {
       if (emptyBox) emptyBox.classList.remove('d-none');
+      if (contextHint) {
+        contextHint.classList.add('d-none');
+        contextHint.textContent = '';
+      }
       if (content) content.classList.add('d-none');
       if (errorBox) {
         errorBox.classList.remove('d-none');
@@ -157,15 +178,23 @@
 
   window.payslipLoad = loadPayslip;
 
+  function syncAdminShortcut() {
+    const shortcut = document.querySelector('[data-payslip-admin-shortcut]');
+    if (!shortcut) return;
+    shortcut.classList.toggle('d-none', !(audienceState.isGlobalAdmin && audienceState.canViewPayroll));
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {
       const isSelfAudience = await ensureSelfPayslipAudience();
       if (!isSelfAudience) return;
+      syncAdminShortcut();
       loadPayslip({ allowLatestFallback: true });
     });
   } else {
     ensureSelfPayslipAudience().then((isSelfAudience) => {
       if (!isSelfAudience) return;
+      syncAdminShortcut();
       loadPayslip({ allowLatestFallback: true });
     });
   }

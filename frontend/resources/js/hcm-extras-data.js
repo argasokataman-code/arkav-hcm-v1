@@ -1,3 +1,121 @@
+var __arcavBindHolidaysModuleRef = null;
+var __arcavBindHolidaysModulePromise = null;
+var __arcavBindOvertimeCalculatorModuleRef = null;
+var __arcavBindOvertimeCalculatorModulePromise = null;
+var __arcavBindOvertimeModuleRef = null;
+var __arcavBindOvertimeModulePromise = null;
+
+function resolveBindHolidaysModule() {
+    if (typeof __arcavBindHolidaysModuleRef === "function") {
+        return __arcavBindHolidaysModuleRef;
+    }
+    if (window.ArcavHcmExtrasModules && typeof window.ArcavHcmExtrasModules.bindHolidaysModule === "function") {
+        __arcavBindHolidaysModuleRef = window.ArcavHcmExtrasModules.bindHolidaysModule;
+        return __arcavBindHolidaysModuleRef;
+    }
+    return null;
+}
+
+function loadBindHolidaysModule() {
+    var resolved = resolveBindHolidaysModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavBindHolidaysModulePromise) {
+        return __arcavBindHolidaysModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavBindHolidaysModulePromise = dynamicImport("./hcm-extras/hcm-extras-holidays.js")
+            .then(function (mod) {
+                if (mod && typeof mod.bindHolidaysModule === "function") {
+                    __arcavBindHolidaysModuleRef = mod.bindHolidaysModule;
+                }
+                return resolveBindHolidaysModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavBindHolidaysModulePromise = Promise.resolve(null);
+    }
+    return __arcavBindHolidaysModulePromise;
+}
+
+function resolveBindOvertimeCalculatorModule() {
+    if (typeof __arcavBindOvertimeCalculatorModuleRef === "function") {
+        return __arcavBindOvertimeCalculatorModuleRef;
+    }
+    if (window.ArcavHcmExtrasModules && typeof window.ArcavHcmExtrasModules.bindOvertimeCalculatorModule === "function") {
+        __arcavBindOvertimeCalculatorModuleRef = window.ArcavHcmExtrasModules.bindOvertimeCalculatorModule;
+        return __arcavBindOvertimeCalculatorModuleRef;
+    }
+    return null;
+}
+
+function loadBindOvertimeCalculatorModule() {
+    var resolved = resolveBindOvertimeCalculatorModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavBindOvertimeCalculatorModulePromise) {
+        return __arcavBindOvertimeCalculatorModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavBindOvertimeCalculatorModulePromise = dynamicImport("./hcm-extras/hcm-extras-overtime-calculator.js")
+            .then(function (mod) {
+                if (mod && typeof mod.bindOvertimeCalculatorModule === "function") {
+                    __arcavBindOvertimeCalculatorModuleRef = mod.bindOvertimeCalculatorModule;
+                }
+                return resolveBindOvertimeCalculatorModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavBindOvertimeCalculatorModulePromise = Promise.resolve(null);
+    }
+    return __arcavBindOvertimeCalculatorModulePromise;
+}
+
+function resolveBindOvertimeModule() {
+    if (typeof __arcavBindOvertimeModuleRef === "function") {
+        return __arcavBindOvertimeModuleRef;
+    }
+    if (window.ArcavHcmExtrasModules && typeof window.ArcavHcmExtrasModules.bindOvertimeModule === "function") {
+        __arcavBindOvertimeModuleRef = window.ArcavHcmExtrasModules.bindOvertimeModule;
+        return __arcavBindOvertimeModuleRef;
+    }
+    return null;
+}
+
+function loadBindOvertimeModule() {
+    var resolved = resolveBindOvertimeModule();
+    if (resolved) {
+        return Promise.resolve(resolved);
+    }
+    if (__arcavBindOvertimeModulePromise) {
+        return __arcavBindOvertimeModulePromise;
+    }
+    try {
+        var dynamicImport = new Function("modulePath", "return import(modulePath);");
+        __arcavBindOvertimeModulePromise = dynamicImport("./hcm-extras/hcm-extras-overtime.js")
+            .then(function (mod) {
+                if (mod && typeof mod.bindOvertimeModule === "function") {
+                    __arcavBindOvertimeModuleRef = mod.bindOvertimeModule;
+                }
+                return resolveBindOvertimeModule();
+            })
+            .catch(function () {
+                return null;
+            });
+    } catch (_error) {
+        __arcavBindOvertimeModulePromise = Promise.resolve(null);
+    }
+    return __arcavBindOvertimeModulePromise;
+}
+
 (function (window, document) {
     "use strict";
 
@@ -288,384 +406,27 @@
     }
 
     function bindHolidays() {
-        var body = document.querySelector("[data-hcm-holidays-body]");
-        var holidaysCache = [];
-        var holidaysFilter = { search: "", source: "", status: "" };
-        var latestLinkageMeta = null;
+        var moduleFn = resolveBindHolidaysModule();
+        var moduleArgs = {
+            apiRequest: apiRequest,
+            esc: esc,
+            notify: notify,
+            downloadCsv: downloadCsv,
+            downloadFileFromUrl: downloadFileFromUrl,
+            formatApiError: formatApiError,
+            formatOvertimeComplianceError: formatOvertimeComplianceError,
+        };
 
-        function toInt(val, fallback) {
-            var parsed = parseInt(val, 10);
-            return Number.isFinite(parsed) ? parsed : fallback;
+        if (moduleFn) {
+            return moduleFn(moduleArgs);
         }
 
-        function renderHolidaySignals(rows) {
-            var prevName = document.querySelector("[data-hcm-holiday-prev-name]");
-            var prevDate = document.querySelector("[data-hcm-holiday-prev-date]");
-            var nextName = document.querySelector("[data-hcm-holiday-next-name]");
-            var nextDate = document.querySelector("[data-hcm-holiday-next-date]");
-            if (!prevName || !prevDate || !nextName || !nextDate) {
-                return;
+        loadBindHolidaysModule().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn(moduleArgs);
             }
-
-            var today = new Date();
-            var t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            var validRows = (rows || []).filter(function (h) {
-                return h && h.holidayDate;
-            });
-
-            var prev = null;
-            var next = null;
-            validRows.forEach(function (h) {
-                var d = new Date(String(h.holidayDate) + "T00:00:00");
-                if (!(d instanceof Date) || Number.isNaN(d.getTime())) {
-                    return;
-                }
-                if (d < t && (!prev || d > prev.__dateObj)) {
-                    prev = Object.assign({ __dateObj: d }, h);
-                }
-                if (d >= t && (!next || d < next.__dateObj)) {
-                    next = Object.assign({ __dateObj: d }, h);
-                }
-            });
-
-            prevName.textContent = prev ? String(prev.title || "-") : "Belum ada data";
-            prevDate.textContent = prev ? String(prev.holidayDate || "-") : "-";
-            nextName.textContent = next ? String(next.title || "-") : "Belum ada data";
-            nextDate.textContent = next ? String(next.holidayDate || "-") : "-";
-        }
-
-        function renderLinkageSummary(meta) {
-            var linkage = (meta && meta.linkage) || {};
-            var holidayRows = holidaysCache.length;
-            var manualRows = holidaysCache.filter(function (h) {
-                return String(h && h.source || "manual").toLowerCase() !== "api";
-            }).length;
-            var apiRows = holidaysCache.filter(function (h) {
-                return String(h && h.source || "").toLowerCase() === "api";
-            }).length;
-            var calendarRowsFallback = holidayRows;
-            var linkedRowsFallback = calendarRowsFallback;
-
-            var resolved = {
-                holidayRows: toInt(linkage.holidayRows, holidayRows),
-                calendarRows: toInt(linkage.calendarRows, calendarRowsFallback),
-                linkedRows: toInt(linkage.linkedRows, linkedRowsFallback),
-                unlinkedRows: 0,
-                manualRows: toInt(linkage.manualRows, manualRows),
-                apiRows: toInt(linkage.apiRows, apiRows),
-            };
-            resolved.unlinkedRows = toInt(linkage.unlinkedRows, Math.max(0, resolved.calendarRows - resolved.linkedRows));
-
-            var keys = ["holidayRows", "calendarRows", "linkedRows", "unlinkedRows", "manualRows", "apiRows"];
-            keys.forEach(function (key) {
-                var node = document.querySelector('[data-hcm-holiday-linkage="' + key + '"]');
-                if (!node) {
-                    return;
-                }
-                var val = resolved[key];
-                node.textContent = val == null ? "0" : String(val);
-            });
-        }
-
-        function renderListCount(filteredCount) {
-            var filteredEl = document.querySelector("[data-hcm-holidays-filtered-count]");
-            var totalEl = document.querySelector("[data-hcm-holidays-total-count]");
-            if (filteredEl) {
-                filteredEl.textContent = String(filteredCount);
-            }
-            if (totalEl) {
-                totalEl.textContent = String(holidaysCache.length);
-            }
-        }
-
-        function render(rows) {
-            if (!body) {
-                return;
-            }
-            body.innerHTML =
-                (rows || []).map(function (h) {
-                    var badge = h.isActive ? "success" : "danger";
-                    var st = h.isActive ? "Active" : "Inactive";
-                    return (
-                        "<tr><td><div class=\"form-check form-check-md\"><input class=\"form-check-input\" type=\"checkbox\"></div></td><td><h6 class=\"fw-medium\">" +
-                        esc(h.title) +
-                        "</h6></td><td>" +
-                        esc(h.holidayDate) +
-                        "</td><td>" +
-                        esc(h.description) +
-                        '</td><td><span class="badge badge-soft-dark">' +
-                        esc(h.source || "manual") +
-                        "</span></td><td><span class=\"badge badge-" +
-                        badge +
-                        ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
-                        esc(st) +
-                        "</td><td><span class=\"badge badge-" +
-                        'secondary d-inline-flex align-items-center badge-xs">' +
-                        esc(h.lastSyncedAt ? new Date(h.lastSyncedAt).toLocaleString("id-ID") : "—") +
-                        "</span></td><td><div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-holiday-edit data-id=\"" +
-                        esc(h.id) +
-                        "\" data-title=\"" +
-                        esc(h.title) +
-                        "\" data-date=\"" +
-                        esc(h.holidayDate) +
-                        "\" data-desc=\"" +
-                        esc(h.description) +
-                        "\" data-active=\"" +
-                        (h.isActive ? "1" : "0") +
-                        "\" data-bs-toggle=\"modal\" data-bs-target=\"#arcav_edit_holiday\"><i class=\"ti ti-edit\"></i></a><a href=\"#\" data-hcm-holiday-delete=\"" +
-                        esc(h.id) +
-                        "\"><i class=\"ti ti-trash\"></i></a></div></td></tr>"
-                    );
-                }).join("") || '<tr><td colspan="8" class="text-center py-4 text-muted">No holidays.</td></tr>';
-        }
-
-        function reload() {
-            apiRequest("get", "/v1/hcm/holidays", null)
-                .then(function (p) {
-                    if (!p) {
-                        notify("Please sign in.", true);
-                        return;
-                    }
-                    if (p.success !== true) {
-                        notify("Failed to load holidays.", true);
-                        return;
-                    }
-                    holidaysCache = Array.isArray(p.data) ? p.data.slice() : [];
-                    latestLinkageMeta = p.meta || {};
-                    renderFiltered();
-                    renderHolidaySignals(holidaysCache);
-                    renderLinkageSummary(latestLinkageMeta);
-                })
-                .catch(function (e) {
-                    notify(formatApiError(e.data, e.status), true);
-                });
-        }
-
-        function renderFiltered() {
-            var s = holidaysFilter.search.toLowerCase().trim();
-            var src = holidaysFilter.source.toLowerCase();
-            var st = holidaysFilter.status.toLowerCase();
-            var rows = holidaysCache.filter(function (h) {
-                if (s && !(
-                    (h.title || "").toLowerCase().includes(s) ||
-                    (h.holidayDate || "").includes(s) ||
-                    (h.description || "").toLowerCase().includes(s)
-                )) {
-                    return false;
-                }
-                if (src) {
-                    var hsrc = (h.source || "manual").toLowerCase();
-                    if (src === "api" && hsrc !== "api") return false;
-                    if (src === "manual" && hsrc === "api") return false;
-                }
-                if (st) {
-                    if (st === "active" && !h.isActive) return false;
-                    if (st === "inactive" && h.isActive) return false;
-                }
-                return true;
-            });
-            render(rows);
-            renderListCount(rows.length);
-            renderLinkageSummary(latestLinkageMeta);
-        }
-
-        // Attach filter inputs
-        document.querySelectorAll("[data-hcm-holidays-filter]").forEach(function (el) {
-            var key = el.getAttribute("data-hcm-holidays-filter");
-            var evt = el.tagName === "SELECT" ? "change" : "input";
-            el.addEventListener(evt, function () {
-                holidaysFilter[key] = el.value;
-                renderFiltered();
-            });
         });
-        var holidaysResetBtn = document.querySelector("[data-hcm-holidays-filter-reset]");
-        if (holidaysResetBtn) {
-            holidaysResetBtn.addEventListener("click", function () {
-                holidaysFilter = { search: "", source: "", status: "" };
-                document.querySelectorAll("[data-hcm-holidays-filter]").forEach(function (el) {
-                    el.value = "";
-                });
-                renderFiltered();
-            });
-        }
-
-        var addForm = document.querySelector('[data-hcm-holiday-form="add"]');
-        var syncBtn = document.querySelector("[data-hcm-holiday-sync]");
-        var syncYearInput = document.querySelector("[data-hcm-holiday-sync-year]");
-        var exportBtn = document.querySelector("[data-hcm-holiday-export]");
-        if (syncYearInput && !syncYearInput.value) {
-            syncYearInput.value = String(new Date().getFullYear());
-        }
-        if (exportBtn) {
-            exportBtn.addEventListener("click", function () {
-                if (!holidaysCache.length) {
-                    notify("Belum ada data holiday untuk diexport.", true);
-                    return;
-                }
-                var headers = ["Title", "Date", "Description", "Source", "Status", "Synced At"];
-                var rows = holidaysCache.map(function (h) {
-                    return [
-                        h.title || "",
-                        h.holidayDate || "",
-                        h.description || "",
-                        h.source || "manual",
-                        h.isActive ? "Active" : "Inactive",
-                        h.lastSyncedAt ? new Date(h.lastSyncedAt).toLocaleString("id-ID") : "",
-                    ];
-                });
-                var yearTag = String((syncYearInput && syncYearInput.value) || new Date().getFullYear());
-                downloadCsv("holidays-" + yearTag + ".csv", headers, rows);
-                notify("Export CSV berhasil.", false);
-            });
-        }
-        if (syncBtn) {
-            syncBtn.addEventListener("click", function () {
-                var year = parseInt((syncYearInput && syncYearInput.value) || String(new Date().getFullYear()), 10);
-                if (!year || year < 2000 || year > 2100) {
-                    notify("Year must be between 2000 and 2100.", true);
-                    return;
-                }
-                syncBtn.disabled = true;
-                apiRequest("post", "/v1/hcm/holidays/sync-indonesia", { year: year })
-                    .then(function (p) {
-                        if (!p || p.success !== true) {
-                            notify(formatApiError(p, 0) || "Sync failed.", true);
-                            return;
-                        }
-                        var d = p.data || {};
-                        notify(
-                            "Sync " +
-                                String(d.year || year) +
-                                " selesai. Created: " +
-                                String(d.created || 0) +
-                                ", Updated: " +
-                                String(d.updated || 0) +
-                                ", Stale cleaned: " +
-                                String(d.cleanedStaleApi || 0) +
-                                ", Skipped manual: " +
-                                String(d.skippedManual || 0) +
-                                ", Skipped non-primary: " +
-                                String(d.skippedNonPrimary || 0),
-                            false
-                        );
-                        reload();
-                    })
-                    .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
-                    })
-                    .finally(function () {
-                        syncBtn.disabled = false;
-                    });
-            });
-        }
-
-        if (addForm) {
-            addForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                var title = addForm.querySelector('[data-hcm-field="title"]').value.trim();
-                var hd = addForm.querySelector('[data-hcm-field="holidayDate"]').value;
-                var desc = addForm.querySelector('[data-hcm-field="description"]').value.trim();
-                var active = addForm.querySelector('[data-hcm-field="isActive"]').value === "1";
-                apiRequest("post", "/v1/hcm/holidays", { title: title, holidayDate: hd, description: desc || null, isActive: active })
-                    .then(function (p) {
-                        if (!p || p.success !== true) {
-                            notify("Save failed.", true);
-                            return;
-                        }
-                        notify("Saved.", false);
-                        (function () {
-                            var el = document.getElementById("arcav_add_holiday");
-                            var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                            if (mi) {
-                                mi.hide();
-                            }
-                        })();
-                        addForm.reset();
-                        reload();
-                    })
-                    .catch(function (err) {
-                        notify(formatOvertimeComplianceError(err.data, err.status), true);
-                    });
-            });
-        }
-
-        var editForm = document.querySelector('[data-hcm-holiday-form="edit"]');
-        if (editForm) {
-            document.addEventListener("click", function (e) {
-                var btn = e.target.closest("[data-hcm-holiday-edit]");
-                if (!btn) {
-                    return;
-                }
-                editForm.querySelector('[data-hcm-field="id"]').value = btn.dataset.id || "";
-                editForm.querySelector('[data-hcm-field="title"]').value = btn.dataset.title || "";
-                editForm.querySelector('[data-hcm-field="holidayDate"]').value = btn.dataset.date || "";
-                editForm.querySelector('[data-hcm-field="description"]').value = btn.dataset.desc || "";
-                editForm.querySelector('[data-hcm-field="isActive"]').value = btn.dataset.active === "1" ? "1" : "0";
-            });
-            editForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                var id = editForm.querySelector('[data-hcm-field="id"]').value;
-                if (!id) {
-                    return;
-                }
-                var payload = {
-                    title: editForm.querySelector('[data-hcm-field="title"]').value.trim(),
-                    holidayDate: editForm.querySelector('[data-hcm-field="holidayDate"]').value,
-                    description: editForm.querySelector('[data-hcm-field="description"]').value.trim() || null,
-                    isActive: editForm.querySelector('[data-hcm-field="isActive"]').value === "1",
-                };
-                apiRequest("put", "/v1/hcm/holidays/" + encodeURIComponent(id), payload)
-                    .then(function (p) {
-                        if (!p || p.success !== true) {
-                            notify("Update failed.", true);
-                            return;
-                        }
-                        notify("Updated.", false);
-                        (function () {
-                            var el = document.getElementById("arcav_edit_holiday");
-                            var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                            if (mi) {
-                                mi.hide();
-                            }
-                        })();
-                        reload();
-                    })
-                    .catch(function (err) {
-                        notify(formatOvertimeComplianceError(err.data, err.status), true);
-                    });
-            });
-            document.addEventListener("click", function (e) {
-                var del = e.target.closest("[data-hcm-holiday-delete]");
-                if (!del) {
-                    return;
-                }
-                e.preventDefault();
-                var hid = del.getAttribute("data-hcm-holiday-delete");
-                var run =
-                    window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
-                        ? window.ArcavUi.confirmDelete("Libur ini akan dihapus. Lanjutkan?", "Hapus libur")
-                        : Promise.resolve(false);
-                run.then(function (ok) {
-                    if (!ok) {
-                        return;
-                    }
-                    apiRequest("delete", "/v1/hcm/holidays/" + encodeURIComponent(hid), null)
-                        .then(function (p) {
-                            if (!p || p.success !== true) {
-                                notify("Delete failed.", true);
-                                return;
-                            }
-                            notify("Deleted.", false);
-                            reload();
-                        })
-                        .catch(function (err) {
-                            notify(formatApiError(err.data, err.status), true);
-                        });
-                });
-            });
-        }
-
-        reload();
+        return null;
     }
 
     function bindLeaves(scope, isAdmin) {
@@ -2193,576 +1954,54 @@
     }
 
     function bindOvertime(isAdmin) {
-        var otPage = 1;
-        var otPerPage = 20;
-        var otFilters = {
-            status: "",
-            requestType: "",
+        var moduleArgs = {
+            notify: notify,
+            formatApiError: formatApiError,
+            apiRequest: apiRequest,
+            loadEmployeeOptions: loadEmployeeOptions,
+            overtimeStatusMeta: overtimeStatusMeta,
+            isPendingOlderThan24h: isPendingOlderThan24h,
+            overtimePolicyTypeLabel: overtimePolicyTypeLabel,
+            esc: esc,
         };
-        function buildOtUrl() {
-            var q = "page=" + encodeURIComponent(String(otPage)) + "&perPage=" + encodeURIComponent(String(otPerPage));
-            if (isAdmin) {
-                return "/v1/hcm/overtime-requests?" + q;
-            }
-            return "/v1/hcm/overtime-requests?scope=me&" + q;
-        }
-        var body = document.querySelector("[data-hcm-overtime-body]");
-        var typeListCache = [];
 
-        function fillOvertimeTypeSelects() {
-            var head = '<option value="">— (opsional) —</option>';
-            var opts = head;
-            (typeListCache || []).forEach(function (t) {
-                if (!t || t.id == null) {
-                    return;
-                }
-                opts +=
-                    '<option value="' +
-                    esc(String(t.id)) +
-                    '">' +
-                    esc(t.name) +
-                    " (" +
-                    esc(String(t.paymentMultiplier != null ? t.paymentMultiplier : "1")) +
-                    "×)</option>";
-            });
-            var addForm = document.querySelector('[data-hcm-ot-form="add"]');
-            var editForm = document.querySelector('[data-hcm-ot-form="edit"]');
-            if (addForm) {
-                var sa = addForm.querySelector('[data-hcm-field="overtimeTypeId"]');
-                if (sa) {
-                    sa.innerHTML = opts;
-                }
-            }
-            if (editForm) {
-                var se = editForm.querySelector('[data-hcm-field="overtimeTypeId"]');
-                if (se) {
-                    se.innerHTML = opts;
-                }
-            }
+        var moduleFn = resolveBindOvertimeModule();
+        if (moduleFn) {
+            return moduleFn(moduleArgs, isAdmin);
         }
 
-        function updateOvertimeStats(rows, summary) {
-            function setStat(key, text) {
-                var el = document.querySelector('[data-hcm-ot-stat="' + key + '"]');
-                if (el) {
-                    el.textContent = text;
-                }
+        loadBindOvertimeModule().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn(moduleArgs, isAdmin);
             }
-            if (summary && isAdmin) {
-                var am = parseInt(summary.approvedMinutes, 10) || 0;
-                setStat("distinctUsers", String(summary.distinctUsers != null ? summary.distinctUsers : 0));
-                setStat("approvedHours", (am / 60).toFixed(1) + " h");
-                setStat("pending", String(summary.pending != null ? summary.pending : 0));
-                setStat("declined", String(summary.declined != null ? summary.declined : 0));
-                return;
-            }
-            var distinct = new Set();
-            var pending = 0;
-            var declined = 0;
-            var approvedMin = 0;
-            (rows || []).forEach(function (r) {
-                if (r && r.userId != null) {
-                    distinct.add(String(r.userId));
-                }
-                if (r.status === "pending") {
-                    pending += 1;
-                } else if (r.status === "declined") {
-                    declined += 1;
-                }
-                if (r.status === "approved") {
-                    approvedMin += parseInt(r.minutes, 10) || 0;
-                }
-            });
-            setStat("distinctUsers", isAdmin ? String(distinct.size) : "1");
-            setStat("approvedHours", (approvedMin / 60).toFixed(1) + " h");
-            setStat("pending", String(pending));
-            setStat("declined", String(declined));
-        }
-
-        function render(rows) {
-            if (!body) {
-                return;
-            }
-            var filteredRows = (rows || []).filter(function (r) {
-                var statusOk = !otFilters.status || String(r.status || "").toLowerCase() === otFilters.status;
-                var requestTypeOk = !otFilters.requestType || String(r.requestType || "employee_request").toLowerCase() === otFilters.requestType;
-                return statusOk && requestTypeOk;
-            });
-            body.innerHTML =
-                filteredRows
-                    .map(function (r) {
-                        var statusMeta = overtimeStatusMeta(r.status);
-                        var isUrgent = isPendingOlderThan24h(r);
-                        var hrs = (r.minutes / 60).toFixed(2);
-                        var emp = isAdmin ? "<td>" + esc(r.employeeName) + "</td>" : "";
-                        var tid = r.overtimeTypeId != null && r.overtimeTypeId !== "" ? String(r.overtimeTypeId) : "";
-                        var policyLine = isAdmin
-                            ? '<div class="text-muted small mt-1">' +
-                              esc(overtimePolicyTypeLabel(r.requestType)) +
-                              (r.policyNote ? ' - ' + esc(String(r.policyNote)) : "") +
-                              "</div>"
-                            : "";
-                        return (
-                            "<tr" + (isUrgent ? ' class="table-warning"' : "") + ">" +
-                            emp +
-                            "<td>" +
-                            esc(r.workDate) +
-                            "</td><td>" +
-                            esc(hrs + " h") +
-                            "</td><td>" +
-                            esc(r.projectName || "—") +
-                            "</td><td>" +
-                            esc(r.overtimeTypeName || "—") +
-                            "</td><td class=\"small\">" +
-                            (r.salaryComponentCode
-                                ? "<code>" +
-                                  esc(r.salaryComponentCode) +
-                                  "</code><div class=\"text-muted\">" +
-                                  esc(r.salaryComponentName || "") +
-                                  "</div>"
-                                : '<span class="text-muted">—</span>') +
-                            "</td><td>" +
-                            esc(r.notes || "—") +
-                            "</td><td><span class=\"badge badge-" +
-                            statusMeta.badge +
-                            ' badge-xs">' +
-                            esc(statusMeta.label) +
-                            "</span><div class=\"text-muted small mt-1\">" +
-                            esc(statusMeta.note) +
-                            "</div>" +
-                            (isUrgent
-                                ? '<div class="text-danger small fw-semibold mt-1">Prioritas: pending >24 jam</div>'
-                                : "") +
-                            policyLine +
-                            "</td><td><a href=\"#\" data-hcm-ot-edit data-id=\"" +
-                            esc(r.id) +
-                            "\" data-user=\"" +
-                            esc(r.userId) +
-                            "\" data-date=\"" +
-                            esc(r.workDate) +
-                            "\" data-min=\"" +
-                            esc(String(r.minutes)) +
-                            "\" data-proj=\"" +
-                            esc(r.projectName) +
-                            "\" data-ot-type=\"" +
-                            esc(tid) +
-                            "\" data-request-type=\"" +
-                            esc(r.requestType || "employee_request") +
-                            "\" data-policy-note=\"" +
-                            esc(r.policyNote || "") +
-                            "\" data-status=\"" +
-                            esc(r.status) +
-                            "\" data-notes=\"" +
-                            esc(r.notes) +
-                            "\" data-bs-toggle=\"modal\" data-bs-target=\"#arcav_edit_overtime\"><i class=\"ti ti-edit\"></i></a> " +
-                            (r.status === "pending"
-                                ? '<a href="#" data-hcm-ot-delete="' + esc(r.id) + '"><i class="ti ti-trash"></i></a>'
-                                : "") +
-                            "</td></tr>"
-                        );
-                    })
-                    .join("") ||
-                    '<tr><td colspan="' +
-                    (isAdmin ? "9" : "8") +
-                    '" class="text-center py-4 text-muted">No overtime requests for current filter.</td></tr>';
-        }
-
-        function setupOtFilters() {
-            var wrap = document.querySelector("[data-hcm-ot-filters]");
-            if (!wrap || wrap.getAttribute("data-bound") === "1") {
-                return;
-            }
-            wrap.setAttribute("data-bound", "1");
-            var statusSel = wrap.querySelector('[data-hcm-ot-filter="status"]');
-            var requestTypeSel = wrap.querySelector('[data-hcm-ot-filter="requestType"]');
-            var resetBtn = wrap.querySelector("[data-hcm-ot-filter-reset]");
-
-            function syncFilters() {
-                otFilters.status = String((statusSel && statusSel.value) || "").trim().toLowerCase();
-                otFilters.requestType = String((requestTypeSel && requestTypeSel.value) || "").trim().toLowerCase();
-                otPage = 1;
-                reload();
-            }
-
-            if (statusSel) {
-                statusSel.addEventListener("change", syncFilters);
-            }
-            if (requestTypeSel) {
-                requestTypeSel.addEventListener("change", syncFilters);
-            }
-            if (resetBtn) {
-                resetBtn.addEventListener("click", function () {
-                    otFilters = { status: "", requestType: "" };
-                    if (statusSel) {
-                        statusSel.value = "";
-                    }
-                    if (requestTypeSel) {
-                        requestTypeSel.value = "";
-                    }
-                    otPage = 1;
-                    reload();
-                });
-            }
-        }
-
-        function renderOtPagination(meta) {
-            var foot = document.querySelector("[data-hcm-overtime-pagination]");
-            var info = document.querySelector("[data-hcm-overtime-page-info]");
-            if (!foot) {
-                return;
-            }
-            var pag = (meta && meta.pagination) || {};
-            if (pag.total == null) {
-                foot.style.display = "none";
-                return;
-            }
-            var total = parseInt(pag.total, 10) || 0;
-            var page = parseInt(pag.page, 10) || 1;
-            var perPage = parseInt(pag.perPage, 10) || otPerPage;
-            var totalPages = parseInt(pag.totalPages, 10) || 1;
-            if (totalPages <= 1) {
-                foot.style.display = "none";
-                return;
-            }
-            foot.style.display = "";
-            if (info) {
-                var from = total === 0 ? 0 : (page - 1) * perPage + 1;
-                var to = Math.min(page * perPage, total);
-                info.textContent = "Menampilkan " + from + "–" + to + " dari " + total;
-            }
-            var prev = foot.querySelector("[data-hcm-overtime-prev]");
-            var next = foot.querySelector("[data-hcm-overtime-next]");
-            if (prev) {
-                prev.disabled = page <= 1;
-            }
-            if (next) {
-                next.disabled = page >= totalPages;
-            }
-        }
-
-        function setupOtPagination() {
-            var foot = document.querySelector("[data-hcm-overtime-pagination]");
-            if (!foot) {
-                return;
-            }
-            var prev = foot.querySelector("[data-hcm-overtime-prev]");
-            var next = foot.querySelector("[data-hcm-overtime-next]");
-            if (prev && !prev.getAttribute("data-bound")) {
-                prev.setAttribute("data-bound", "1");
-                prev.addEventListener("click", function () {
-                    if (otPage > 1) {
-                        otPage -= 1;
-                        reload();
-                    }
-                });
-            }
-            if (next && !next.getAttribute("data-bound")) {
-                next.setAttribute("data-bound", "1");
-                next.addEventListener("click", function () {
-                    otPage += 1;
-                    reload();
-                });
-            }
-        }
-
-        function reload() {
-            apiRequest("get", buildOtUrl(), null)
-                .then(function (p) {
-                    if (!p || p.success !== true) {
-                        notify("Failed to load overtime.", true);
-                        return;
-                    }
-                    var pag = (p.meta && p.meta.pagination) || {};
-                    if (pag.totalPages != null && otPage > pag.totalPages && pag.totalPages > 0) {
-                        otPage = pag.totalPages;
-                        reload();
-                        return;
-                    }
-                    var list = p.data || [];
-                    render(list);
-                    updateOvertimeStats(
-                        list,
-                        isAdmin && p.meta && p.meta.summary ? p.meta.summary : null
-                    );
-                    renderOtPagination(p.meta || {});
-                })
-                .catch(function (e) {
-                    notify(formatApiError(e.data, e.status), true);
-                });
-        }
-
-        setupOtPagination();
-        setupOtFilters();
-
-        var addForm = document.querySelector('[data-hcm-ot-form="add"]');
-        if (addForm) {
-            var userSel = addForm.querySelector('[data-hcm-field="userId"]');
-            if (userSel && isAdmin) {
-                loadEmployeeOptions(userSel);
-            }
-            addForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                if (isAdmin && userSel && !userSel.value) {
-                    notify("Pilih karyawan.", true);
-                    return;
-                }
-                var payload = {
-                    workDate: addForm.querySelector('[data-hcm-field="workDate"]').value,
-                    minutes: parseInt(addForm.querySelector('[data-hcm-field="minutes"]').value, 10),
-                    projectName: addForm.querySelector('[data-hcm-field="projectName"]').value.trim() || null,
-                    notes: addForm.querySelector('[data-hcm-field="notes"]').value.trim() || null,
-                };
-                var reqTypeA = addForm.querySelector('[data-hcm-field="requestType"]');
-                var policyNoteA = addForm.querySelector('[data-hcm-field="policyNote"]');
-                var statusA = addForm.querySelector('[data-hcm-field="status"]');
-                if (isAdmin && reqTypeA) {
-                    payload.requestType = reqTypeA.value || "employee_request";
-                }
-                if (isAdmin && policyNoteA) {
-                    payload.policyNote = policyNoteA.value.trim() || null;
-                }
-                if (isAdmin && statusA) {
-                    payload.status = statusA.value || "pending";
-                }
-                var otSel = addForm.querySelector('[data-hcm-field="overtimeTypeId"]');
-                if (otSel && otSel.value) {
-                    payload.overtimeTypeId = parseInt(otSel.value, 10);
-                }
-                if (isAdmin && userSel && userSel.value) {
-                    payload.userId = parseInt(userSel.value, 10);
-                }
-                apiRequest("post", "/v1/hcm/overtime-requests", payload)
-                    .then(function (p) {
-                        if (!p || p.success !== true) {
-                            notify("Submit failed.", true);
-                            return;
-                        }
-                        notify("Submitted.", false);
-                        (function () {
-                            var el = document.getElementById("arcav_add_overtime");
-                            var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                            if (mi) {
-                                mi.hide();
-                            }
-                        })();
-                        addForm.reset();
-                        fillOvertimeTypeSelects();
-                        reload();
-                    })
-                    .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
-                    });
-            });
-        }
-
-        var editForm = document.querySelector('[data-hcm-ot-form="edit"]');
-        if (editForm) {
-            document.addEventListener("click", function (e) {
-                var btn = e.target.closest("[data-hcm-ot-edit]");
-                if (!btn) {
-                    return;
-                }
-                editForm.querySelector('[data-hcm-field="id"]').value = btn.dataset.id || "";
-                editForm.querySelector('[data-hcm-field="ownerUserId"]').value = btn.dataset.user || "";
-                editForm.querySelector('[data-hcm-field="workDate"]').value = btn.dataset.date || "";
-                editForm.querySelector('[data-hcm-field="minutes"]').value = btn.dataset.min || "";
-                editForm.querySelector('[data-hcm-field="projectName"]').value = btn.dataset.proj || "";
-                editForm.querySelector('[data-hcm-field="status"]').value = btn.dataset.status || "pending";
-                editForm.querySelector('[data-hcm-field="notes"]').value = btn.dataset.notes || "";
-                var reqTypeE = editForm.querySelector('[data-hcm-field="requestType"]');
-                if (reqTypeE) {
-                    reqTypeE.value = btn.getAttribute("data-request-type") || "employee_request";
-                }
-                var policyNoteE = editForm.querySelector('[data-hcm-field="policyNote"]');
-                if (policyNoteE) {
-                    policyNoteE.value = btn.getAttribute("data-policy-note") || "";
-                }
-                var otSelE = editForm.querySelector('[data-hcm-field="overtimeTypeId"]');
-                if (otSelE) {
-                    otSelE.value = btn.getAttribute("data-ot-type") || "";
-                }
-            });
-            editForm.addEventListener("submit", function (e) {
-                e.preventDefault();
-                var id = editForm.querySelector('[data-hcm-field="id"]').value;
-                var owner = editForm.querySelector('[data-hcm-field="ownerUserId"]').value;
-                if (!id) {
-                    return;
-                }
-                var me = window.__arcav_me_id;
-                var payload;
-                if (isAdmin && String(owner) !== String(me)) {
-                    payload = {
-                        status: editForm.querySelector('[data-hcm-field="status"]').value,
-                        notes: editForm.querySelector('[data-hcm-field="notes"]').value.trim() || null,
-                    };
-                } else {
-                    payload = {
-                        workDate: editForm.querySelector('[data-hcm-field="workDate"]').value,
-                        minutes: parseInt(editForm.querySelector('[data-hcm-field="minutes"]').value, 10),
-                        projectName: editForm.querySelector('[data-hcm-field="projectName"]').value.trim() || null,
-                        notes: editForm.querySelector('[data-hcm-field="notes"]').value.trim() || null,
-                    };
-                    var reqType = editForm.querySelector('[data-hcm-field="requestType"]');
-                    if (reqType) {
-                        payload.requestType = reqType.value || "employee_request";
-                    }
-                    var policyNote = editForm.querySelector('[data-hcm-field="policyNote"]');
-                    if (policyNote) {
-                        payload.policyNote = policyNote.value.trim() || null;
-                    }
-                    var otE = editForm.querySelector('[data-hcm-field="overtimeTypeId"]');
-                    if (otE) {
-                        payload.overtimeTypeId = otE.value ? parseInt(otE.value, 10) : null;
-                    }
-                }
-                apiRequest("put", "/v1/hcm/overtime-requests/" + encodeURIComponent(id), payload)
-                    .then(function (p) {
-                        if (!p || p.success !== true) {
-                            notify("Update failed.", true);
-                            return;
-                        }
-                        notify("Updated.", false);
-                        (function () {
-                            var el = document.getElementById("arcav_edit_overtime");
-                            var mi = el && window.bootstrap && window.bootstrap.Modal.getInstance(el);
-                            if (mi) {
-                                mi.hide();
-                            }
-                        })();
-                        reload();
-                    })
-                    .catch(function (err) {
-                        notify(formatApiError(err.data, err.status), true);
-                    });
-            });
-            document.addEventListener("click", function (e) {
-                var del = e.target.closest("[data-hcm-ot-delete]");
-                if (!del) {
-                    return;
-                }
-                e.preventDefault();
-                var oid = del.getAttribute("data-hcm-ot-delete");
-                var run =
-                    window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function"
-                        ? window.ArcavUi.confirmDelete("Pengajuan lembur pending ini akan dihapus. Lanjutkan?", "Hapus lembur")
-                        : Promise.resolve(false);
-                run.then(function (ok) {
-                    if (!ok) {
-                        return;
-                    }
-                    apiRequest("delete", "/v1/hcm/overtime-requests/" + encodeURIComponent(oid), null)
-                        .then(function (p) {
-                            if (!p || p.success !== true) {
-                                notify("Delete failed.", true);
-                                return;
-                            }
-                            notify("Deleted.", false);
-                            reload();
-                        })
-                        .catch(function (err) {
-                            notify(formatApiError(err.data, err.status), true);
-                        });
-                });
-            });
-        }
-
-        apiRequest("get", "/v1/hcm/overtime-types", null)
-            .then(function (tp) {
-                if (tp && tp.success === true && Array.isArray(tp.data)) {
-                    typeListCache = tp.data;
-                } else {
-                    typeListCache = [];
-                }
-                fillOvertimeTypeSelects();
-            })
-            .catch(function () {
-                typeListCache = [];
-                fillOvertimeTypeSelects();
-            })
-            .then(function () {
-                reload();
-            });
+        });
+        return null;
     }
 
     function bindOvertimeCalculator() {
-        var resultEl = document.querySelector('[data-hcm-ot-calc="result"]');
-        var btn = document.querySelector('[data-hcm-ot-calc="run"]');
-        var employeeSelect = document.querySelector('[data-hcm-ot-calc="employeeId"]');
-        var baseSalaryInput = document.querySelector('[data-hcm-ot-calc="baseSalary"]');
-        var fixedAllowanceInput = document.querySelector('[data-hcm-ot-calc="fixedAllowance"]');
-        if (!resultEl || !btn) {
-            return;
+        var moduleFn = resolveBindOvertimeCalculatorModule();
+        var moduleArgs = {
+            notify: notify,
+            apiRequest: apiRequest,
+            normalizeOvertimeDayType: normalizeOvertimeDayType,
+            overtimeDayTypeLabel: overtimeDayTypeLabel,
+            formatOvertimeComplianceError: formatOvertimeComplianceError,
+            loadEmployeeOptions: loadEmployeeOptions,
+            getEmployeeCompensationById: function () {
+                return employeeCompensationById;
+            },
+        };
+
+        if (moduleFn) {
+            return moduleFn(moduleArgs);
         }
 
-        function applyCompensationFromEmployee() {
-            if (!employeeSelect || !baseSalaryInput || !fixedAllowanceInput) {
-                return;
+        loadBindOvertimeCalculatorModule().then(function (loadedFn) {
+            if (typeof loadedFn === "function") {
+                loadedFn(moduleArgs);
             }
-            var emp = employeeCompensationById[String(employeeSelect.value || "")];
-            if (!emp) {
-                return;
-            }
-            baseSalaryInput.value = String(Math.round(emp.baseSalary));
-            fixedAllowanceInput.value = String(Math.round(emp.fixedAllowance));
-        }
-
-        if (employeeSelect) {
-            employeeSelect.addEventListener("change", applyCompensationFromEmployee);
-        }
-
-        btn.addEventListener("click", function () {
-            var selectedDayType = normalizeOvertimeDayType((document.querySelector('[data-hcm-ot-calc="dayType"]') || {}).value || "workday");
-            var payload = {
-                baseMonthlySalary: parseFloat((document.querySelector('[data-hcm-ot-calc="baseSalary"]') || {}).value || "0"),
-                fixedAllowance: parseFloat((document.querySelector('[data-hcm-ot-calc="fixedAllowance"]') || {}).value || "0"),
-                minutes: parseInt((document.querySelector('[data-hcm-ot-calc="minutes"]') || {}).value || "0", 10),
-                dayType: selectedDayType,
-                weeklyWorkDays: parseInt((document.querySelector('[data-hcm-ot-calc="weeklyWorkDays"]') || {}).value || "5", 10),
-            };
-            if (!payload.baseMonthlySalary || !payload.minutes) {
-                notify("Isi dulu gaji pokok dan menit lembur.", true);
-                return;
-            }
-            if (payload.minutes > 240) {
-                notify("Catatan: pengajuan lembur legal dibatasi 4 jam per hari, kalkulator ini tetap menjalankan simulasi.", false);
-            }
-            apiRequest("post", "/v1/hcm/overtime-requests/calculate", payload)
-                .then(function (r) {
-                    if (!r || r.success !== true) {
-                        resultEl.textContent = "Gagal menghitung.";
-                        return;
-                    }
-                    var d = r.data || {};
-                    var seg = (d.segments || []).map(function (s) {
-                        return (s.label || "-") + ": " + (s.hours || 0) + " jam x " + (s.multiplier || 0) + "x";
-                    }).join(" | ");
-                    var sc = d.salaryComponent;
-                    var scPart =
-                        sc && (sc.code || sc.name)
-                            ? " | Komponen slip: " + (sc.code || "") + (sc.name ? " — " + sc.name : "")
-                            : "";
-                    resultEl.textContent =
-                        "Tipe hari: " + overtimeDayTypeLabel(selectedDayType) +
-                        " | " +
-                        "Upah sejam Rp" + Number(d.hourlyWage || 0).toLocaleString("id-ID") +
-                        " | Segment: " + seg +
-                        " | Total lembur Rp" + Number(d.totalOvertimePay || 0).toLocaleString("id-ID") +
-                        scPart;
-                })
-                .catch(function (e) {
-                    resultEl.textContent = formatOvertimeComplianceError(e.data, e.status, "Perhitungan gagal.");
-                });
         });
-
-        // Load employee list for compensation auto-fill (UI helper only).
-        if (employeeSelect) {
-            loadEmployeeOptions(employeeSelect).then(function () {
-                if (employeeSelect.value) {
-                    applyCompensationFromEmployee();
-                }
-            });
-        }
+        return null;
     }
 
     function init() {

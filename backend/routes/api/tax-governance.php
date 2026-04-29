@@ -1,0 +1,16 @@
+<?php
+
+use App\Http\Controllers\Api\HcmTaxGovernanceController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {
+    Route::get('/governance/anomalies', [HcmTaxGovernanceController::class, 'anomalyRegistry']);
+    Route::patch('/governance/anomalies/{anomalyId}/resolve', [HcmTaxGovernanceController::class, 'resolveAnomaly']);
+    Route::patch('/governance/anomalies/{anomalyId}/acknowledge', [HcmTaxGovernanceController::class, 'acknowledgeAnomaly']);
+    Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);
+    Route::get('/reports/tenant-self-audit-export', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportExport']);
+    Route::get('/reports/tenant-compliance-status', [HcmTaxGovernanceController::class, 'tenantComplianceStatus']);
+    Route::get('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'platformTaxCompliancePolicies']);
+    Route::post('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'storePlatformTaxCompliancePolicy']);
+    Route::get('/platform-tax-compliance/reports', [HcmTaxGovernanceController::class, 'platformTaxComplianceReports']);
+});

@@ -71,6 +71,11 @@ type PayrollPolicySnapshot = PayrollSettings & {
     draftDataAsOfDate?: string | null;
 };
 
+type WorkflowBadge = {
+    label: string;
+    badgeClass: string;
+};
+
 /** Normalisasi status run dari payload API (varian key / null) + infer aman bila `status` kosong. */
 function deriveRunLifecycleStatus(run: unknown): string {
     if (!run || typeof run !== "object") {
@@ -292,6 +297,198 @@ const _payrollSettingsState: {
 
 function currentRunStatus(): string {
     return String(_state.currentRunStatus || "").toLowerCase();
+}
+
+function setBadgeState(element: HTMLElement | null, state: WorkflowBadge): void {
+    if (!element) {
+        return;
+    }
+
+    element.className = `badge ${state.badgeClass}`;
+    element.textContent = state.label;
+}
+
+function toneButton(button: HTMLButtonElement | null, activeClass: string, inactiveClass: string, isActive: boolean): void {
+    if (!button) {
+        return;
+    }
+
+    button.classList.remove(...activeClass.split(" "), ...inactiveClass.split(" "));
+    button.classList.add(...(isActive ? activeClass : inactiveClass).split(" "));
+}
+
+function applyWorkflowStepState(stepKey: string, state: WorkflowBadge, highlight: boolean): void {
+    const root = _getRoot();
+    const stepEl = root?.querySelector<HTMLElement>(`[data-payroll-step="${stepKey}"]`);
+    const badgeEl = stepEl?.querySelector<HTMLElement>("[data-payroll-step-status]") || null;
+    if (!stepEl) {
+        return;
+    }
+
+    stepEl.classList.toggle("border-primary", highlight);
+    stepEl.classList.toggle("bg-primary-subtle", highlight);
+    stepEl.classList.toggle("bg-white", !highlight);
+    setBadgeState(badgeEl, state);
+}
+
+function renderPayrollWorkflow(): void {
+    const root = _getRoot();
+    if (!root) {
+        return;
+    }
+
+    const hasPeriod = !!_state.currentPeriodId;
+    const hasRun = !!_state.currentRunId;
+    const hasRows = _state.currentRows.length > 0;
+    const selectedCount = getSelectedUserIds().length;
+    const runStatus = currentRunStatus();
+    const hasPaidRows = _state.currentRows.some((row) => row.paymentStatus === "paid");
+    const tenantReady = !!_state.activeTenantContext.companyId;
+    const policyReady = !_state.currentRunId || !!_state.currentTaxGovernancePolicy || !!_state.currentPolicySnapshot;
+    const reviewOnly = isPostCutoffReviewOnlyMode();
+    const evidenceDownloaded = hasDownloadedReconciliationForCurrentRun();
+    const canExport = hasRun && hasRows && runStatus === "draft" && !reviewOnly;
+    const canPayWindow = hasRun && hasRows && (runStatus === "draft" || runStatus === "finalized") && !reviewOnly;
+
+    let stageTitle = "Langkah berikutnya: Calculate Draft";
+    let stageDescription = "Mulai atau refresh draft payroll untuk periode aktif sebelum operator meninjau rincian payroll.";
+    let stageBadge: WorkflowBadge = { label: "BUTUH TINDAKAN", badgeClass: "bg-primary" };
+    let primaryActionTitle = "Hitung draft payroll periode aktif";
+    let primaryActionNote = "Gunakan Calculate Draft untuk membuat atau me-refresh draft sebelum review payroll.";
+    let primaryActionState: WorkflowBadge = { label: "PRIMARY ACTION", badgeClass: "bg-primary" };
+    let guidance = "Gunakan Calculate Draft untuk memulai run payroll aktif.";
+    let readinessBadge: WorkflowBadge = { label: "PERLU TINDAKAN", badgeClass: "bg-warning text-dark" };
+
+    if (!hasRun) {
+        stageTitle = "Langkah berikutnya: Calculate Draft";
+        stageDescription = "Belum ada run aktif. Operator perlu menghitung draft terlebih dahulu sebelum review atau payment.";
+        primaryActionTitle = "Hitung draft payroll periode aktif";
+        primaryActionNote = "Draft dapat direfresh ulang selama run masih draft atau finalized tetapi belum paid.";
+        guidance = "Setelah draft tersedia, operator akan lanjut ke review payroll lalu export evidence.";
+        readinessBadge = { label: hasPeriod ? "DRAFT BELUM DIBUAT" : "MENUNGGU PERIODE", badgeClass: hasPeriod ? "bg-warning text-dark" : "bg-secondary" };
+    } else if (!hasRows) {
+        stageTitle = "Review setup payroll";
+        stageDescription = "Run aktif ada, tetapi belum menghasilkan baris payroll yang bisa diproses. Cek setup kompensasi, eligibility, atau hitung ulang draft.";
+        stageBadge = { label: "PERLU REVIEW", badgeClass: "bg-warning text-dark" };
+        primaryActionTitle = "Review setup lalu Calculate Draft ulang";
+        primaryActionNote = "Tidak ada baris payroll yang eligible. Operator perlu koreksi setup sebelum lanjut.";
+        primaryActionState = { label: "REVIEW", badgeClass: "bg-warning text-dark" };
+        guidance = "Kalau run finalized tetapi belum paid, operator masih bisa void lalu calculate ulang sesuai kebutuhan.";
+        readinessBadge = { label: "DRAFT KOSONG", badgeClass: "bg-warning text-dark" };
+    } else if (reviewOnly) {
+        stageTitle = "Mode post-cutoff: review-only";
+        stageDescription = "Operator masih bisa meninjau draft payroll, tetapi export evidence dan payment menunggu payday sesuai snapshot policy run aktif.";
+        stageBadge = { label: "REVIEW-ONLY", badgeClass: "bg-warning text-dark" };
+        primaryActionTitle = "Review payroll hingga payday tiba";
+        primaryActionNote = POST_CUTOFF_REVIEW_ONLY_HINT;
+        primaryActionState = { label: "DITAHAN POLICY", badgeClass: "bg-warning text-dark" };
+        guidance = "Gunakan periode ini untuk audit hasil draft, tenant aktif, serta snapshot policy sebelum window disburse terbuka.";
+        readinessBadge = { label: "WAITING PAYDAY", badgeClass: "bg-warning text-dark" };
+    } else if (!evidenceDownloaded) {
+        stageTitle = "Langkah berikutnya: Export Reconciliation";
+        stageDescription = "Draft payroll sudah siap ditinjau. Operator wajib membuat dan mengunduh evidence reconciliation sebelum payment.";
+        stageBadge = { label: "EXPORT EVIDENCE", badgeClass: "bg-secondary" };
+        primaryActionTitle = "Buat dan unduh evidence reconciliation";
+        primaryActionNote = "Evidence harus diunduh dengan sukses. Tanpa unduhan sukses, Pay via Gateway tetap terkunci.";
+        primaryActionState = { label: "WAJIB EXPORT", badgeClass: "bg-secondary" };
+        guidance = "Urutan operasional: review payroll → export reconciliation → unduh CSV → payment.";
+        readinessBadge = { label: "SIAP EXPORT", badgeClass: "bg-info text-dark" };
+    } else if (!hasPaidRows) {
+        stageTitle = "Langkah berikutnya: Pay via Gateway";
+        stageDescription = selectedCount > 0
+            ? "Evidence sudah terunduh dan employee sudah dipilih. Operator bisa lanjut ke batch payment gateway."
+            : "Evidence sudah terunduh. Pilih employee yang akan dibayar lalu lanjut ke gateway payment.";
+        stageBadge = { label: "SIAP BAYAR", badgeClass: "bg-success" };
+        primaryActionTitle = "Lanjutkan payment via gateway";
+        primaryActionNote = "Batch transfer hanya terbuka setelah evidence payroll run ini terunduh dengan sukses.";
+        primaryActionState = { label: "READY TO PAY", badgeClass: "bg-success" };
+        guidance = selectedCount > 0
+            ? "Review selection sudah siap. Buka modal gateway untuk memproses batch payment." 
+            : "Pilih minimal satu employee eligible pada tabel payroll untuk memulai payment.";
+        readinessBadge = { label: "PAYMENT READY", badgeClass: "bg-success" };
+    } else {
+        stageTitle = "Run payment sedang berjalan / selesai";
+        stageDescription = "Sebagian atau seluruh employee pada run ini sudah dibayar. Operator dapat audit hasil atau lanjutkan payment untuk baris yang masih unpaid.";
+        stageBadge = { label: "PAYMENT ONGOING", badgeClass: "bg-success" };
+        primaryActionTitle = "Audit hasil payment atau lanjutkan batch tersisa";
+        primaryActionNote = "Jika masih ada baris unpaid, pilih employee yang tersisa lalu lanjutkan payment dengan evidence terbaru.";
+        primaryActionState = { label: "AUDIT / CONTINUE", badgeClass: "bg-success" };
+        guidance = "Setelah payment atau reset DEV, evidence perlu dibuat ulang sebelum batch berikutnya.";
+        readinessBadge = { label: "PAYMENT RECORDED", badgeClass: "bg-success" };
+    }
+
+    const titleEl = root.querySelector<HTMLElement>("[data-payroll-run-stage-title]");
+    const descEl = root.querySelector<HTMLElement>("[data-payroll-run-stage-description]");
+    const stageBadgeEl = root.querySelector<HTMLElement>("[data-payroll-run-stage-badge]");
+    const actionTitleEl = root.querySelector<HTMLElement>("[data-payroll-run-primary-action-title]");
+    const actionNoteEl = root.querySelector<HTMLElement>("[data-payroll-run-primary-action-note]");
+    const actionStateEl = root.querySelector<HTMLElement>("[data-payroll-run-primary-action-state]");
+    const actionGuidanceEl = root.querySelector<HTMLElement>("[data-payroll-run-action-guidance]");
+    const readinessBadgeEl = root.querySelector<HTMLElement>("[data-payroll-run-readiness-badge]");
+
+    if (titleEl) titleEl.textContent = stageTitle;
+    if (descEl) descEl.textContent = stageDescription;
+    if (actionTitleEl) actionTitleEl.textContent = primaryActionTitle;
+    if (actionNoteEl) actionNoteEl.textContent = primaryActionNote;
+    if (actionGuidanceEl) actionGuidanceEl.textContent = guidance;
+    setBadgeState(stageBadgeEl, stageBadge);
+    setBadgeState(actionStateEl, primaryActionState);
+    setBadgeState(readinessBadgeEl, readinessBadge);
+
+    applyWorkflowStepState("period", hasPeriod ? { label: "READY", badgeClass: "bg-success" } : { label: "WAITING", badgeClass: "bg-secondary" }, !hasRun);
+    applyWorkflowStepState("calculate", hasRun ? { label: "DONE", badgeClass: "bg-success" } : { label: "ACTIVE", badgeClass: "bg-primary" }, !hasRun && hasPeriod);
+    applyWorkflowStepState("review", !hasRun ? { label: "WAITING", badgeClass: "bg-secondary" } : hasRows ? { label: evidenceDownloaded || hasPaidRows ? "DONE" : "ACTIVE", badgeClass: evidenceDownloaded || hasPaidRows ? "bg-success" : "bg-primary" } : { label: "CHECK", badgeClass: "bg-warning text-dark" }, hasRun && hasRows && !evidenceDownloaded && !hasPaidRows);
+    applyWorkflowStepState("export", !hasRun || !hasRows ? { label: "WAITING", badgeClass: "bg-secondary" } : reviewOnly ? { label: "BLOCKED", badgeClass: "bg-warning text-dark" } : evidenceDownloaded ? { label: "DONE", badgeClass: "bg-success" } : canExport ? { label: "ACTIVE", badgeClass: "bg-primary" } : { label: "LOCKED", badgeClass: "bg-secondary" }, canExport && !evidenceDownloaded);
+    applyWorkflowStepState("pay", !hasRun || !hasRows ? { label: "WAITING", badgeClass: "bg-secondary" } : reviewOnly ? { label: "BLOCKED", badgeClass: "bg-warning text-dark" } : hasPaidRows ? { label: "IN PROGRESS", badgeClass: "bg-success" } : evidenceDownloaded ? { label: selectedCount > 0 ? "ACTIVE" : "READY", badgeClass: selectedCount > 0 ? "bg-primary" : "bg-success" } : { label: "WAITING", badgeClass: "bg-secondary" }, evidenceDownloaded && !reviewOnly);
+
+    const tenantNote = root.querySelector<HTMLElement>("[data-payroll-checklist-tenant-note]");
+    const policyNote = root.querySelector<HTMLElement>("[data-payroll-checklist-policy-note]");
+    const evidenceNote = root.querySelector<HTMLElement>("[data-payroll-checklist-evidence-note]");
+    const disburseNote = root.querySelector<HTMLElement>("[data-payroll-checklist-disburse-note]");
+    const tenantBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-tenant]");
+    const policyBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-policy]");
+    const evidenceBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-evidence]");
+    const disburseBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-disburse]");
+
+    if (tenantNote) {
+        tenantNote.textContent = tenantReady
+            ? `${_state.activeTenantContext.companyName || "Tenant aktif"} (ID ${_state.activeTenantContext.companyId}) terdeteksi dari sesi login.`
+            : "Tenant aktif belum terdeteksi dari sesi login. Global super admin perlu memastikan tenant sudah dipilih dengan benar.";
+    }
+    if (policyNote) {
+        policyNote.textContent = policyReady
+            ? (_state.currentTaxGovernancePolicy?.policyCode
+                ? `Snapshot policy ${_state.currentTaxGovernancePolicy.policyCode}${_state.currentTaxGovernancePolicy.version ? ` v${_state.currentTaxGovernancePolicy.version}` : ""} terpasang pada run aktif.`
+                : "Snapshot payroll policy untuk run aktif tersedia dan dapat dipakai sebagai referensi operasional.")
+            : "Run aktif belum menyimpan snapshot policy yang jelas. Review policy tenant sebelum calculate ulang atau payment.";
+    }
+    if (evidenceNote) {
+        evidenceNote.textContent = evidenceDownloaded
+            ? "Evidence reconciliation payroll run ini sudah terunduh. Payment dapat dibuka sesuai selection employee."
+            : canExport
+                ? "Evidence belum terunduh. Operator wajib export lalu menyelesaikan unduhan CSV sebelum payment."
+                : "Evidence belum siap karena draft belum lengkap atau window payment belum terbuka.";
+    }
+    if (disburseNote) {
+        disburseNote.textContent = reviewOnly
+            ? POST_CUTOFF_REVIEW_ONLY_HINT
+            : canPayWindow
+                ? (selectedCount > 0 ? `${selectedCount} employee dipilih untuk payment berikutnya.` : "Window disburse terbuka. Pilih employee eligible dari tabel payroll untuk lanjut.")
+                : "Window disburse masih menunggu draft/evidence atau run belum berada pada status yang bisa dibayar.";
+    }
+
+    setBadgeState(tenantBadge, tenantReady ? { label: "OK", badgeClass: "bg-success" } : { label: "CHECK", badgeClass: "bg-warning text-dark" });
+    setBadgeState(policyBadge, policyReady ? { label: "READY", badgeClass: "bg-success" } : { label: "MISSING", badgeClass: "bg-warning text-dark" });
+    setBadgeState(evidenceBadge, evidenceDownloaded ? { label: "DOWNLOADED", badgeClass: "bg-success" } : canExport ? { label: "PENDING", badgeClass: "bg-primary" } : { label: "WAITING", badgeClass: "bg-secondary" });
+    setBadgeState(disburseBadge, reviewOnly ? { label: "BLOCKED", badgeClass: "bg-warning text-dark" } : canPayWindow ? { label: "OPEN", badgeClass: "bg-success" } : { label: "WAITING", badgeClass: "bg-secondary" });
+
+    const calculateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-calculate]");
+    const exportBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-export-evidence]");
+    const disburseBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-disburse]");
+
+    toneButton(calculateBtn, "btn-primary", "btn-outline-primary", !hasRun || (!hasRows && !reviewOnly));
+    toneButton(exportBtn, "btn-secondary", "btn-outline-secondary", canExport && !evidenceDownloaded);
+    toneButton(disburseBtn, "btn-success", "btn-outline-success", evidenceDownloaded && !reviewOnly);
 }
 
 function canVoidCurrentRun(): boolean {
@@ -1287,6 +1484,8 @@ function renderRunContextSummary(): void {
     } else {
         setPayrollTaxPolicyHint("");
     }
+
+    renderPayrollWorkflow();
 }
 
 function showEvidenceIndicator(evidence: any): void {
@@ -1328,6 +1527,7 @@ function showEvidenceIndicator(evidence: any): void {
     }
 
     indicatorEl.classList.remove("d-none");
+    renderPayrollWorkflow();
 }
 
 async function fetchLatestEvidence(): Promise<void> {
@@ -1495,6 +1695,8 @@ function refreshSelectionSummary(): void {
     if (resetBtn) {
         resetBtn.disabled = !_state.currentRunId;
     }
+
+    renderPayrollWorkflow();
 }
 
 function syncVoidButton(): void {
@@ -1526,6 +1728,7 @@ function syncVoidButton(): void {
     }
 
     setPayrollVoidHint("");
+    renderPayrollWorkflow();
 }
 
 function syncExportReconciliationButton(): void {
@@ -1538,6 +1741,8 @@ function syncExportReconciliationButton(): void {
         console.log("[syncExportReconciliationButton]", { runId: _state.currentRunId, rows: _state.currentRows.length, status: st, exportAllowed });
         exportBtn.disabled = !exportAllowed;
     }
+
+    renderPayrollWorkflow();
 }
 
 function syncCalculateDraftButton(): void {
@@ -1559,6 +1764,7 @@ function syncCalculateDraftButton(): void {
     );
     console.log("[syncCalculateDraftButton]", { periodId: _state.currentPeriodId, runId: _state.currentRunId, status: st, hasPaidRows, canCalculate });
     calculateBtn.disabled = !canCalculate;
+    renderPayrollWorkflow();
 }
 
 function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = null, specialRecipients: SpecialRecipients | null = null): void {
@@ -1987,7 +2193,12 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     setText("[data-payroll-gateway-deductions]", formatIdr(totalDeductions));
     setText("[data-payroll-gateway-total]", formatIdr(totalNet));
     setText("[data-payroll-gateway-service-fee]", formatIdr(_state.currentRunServiceFeeAmount || 0));
-    setText("[data-payroll-gateway-status]", (_state.currentRows.some((row) => row.paymentStatus === "paid") ? "Partial / Ongoing" : "Ready to pay"));
+    const statusEl = modal.querySelector<HTMLElement>("[data-payroll-gateway-status]");
+    if (statusEl) {
+        const hasPaid = _state.currentRows.some((row) => row.paymentStatus === "paid");
+        statusEl.textContent = hasPaid ? "PARTIAL / ONGOING" : "READY TO PAY";
+        statusEl.className = `badge ${hasPaid ? "bg-info text-dark border" : "bg-success"}`;
+    }
 
     const listEl = modal.querySelector<HTMLElement>("[data-payroll-gateway-list]");
     if (listEl) {
@@ -2003,28 +2214,45 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
                 const label = l.componentName || l.componentCode || (isDeduction ? "Potongan" : "Penghasilan");
                 const sign = isDeduction ? "−" : "+";
                 const cls = isDeduction ? "text-danger" : "text-success";
-                return `<div class="d-flex justify-content-between ${cls}" style="font-size:0.78rem;padding:1px 0">
+                return `<div class="d-flex align-items-start justify-content-between ${cls} small py-1">
                     <span>${label}</span>
-                    <span>${sign} ${formatIdr(l.amount)}</span>
+                    <span class="fw-semibold ms-3 text-nowrap">${sign} ${formatIdr(l.amount)}</span>
                 </div>`;
             };
 
-            const addRows = additions.map((l) => renderLine(l, false)).join("");
-            const dedRows = deductions.map((l) => renderLine(l, true)).join("");
+            const addRows = additions.length
+                ? `
+                    <div class="mb-2">
+                        <div class="small text-muted text-uppercase fw-semibold mb-1">Penambah</div>
+                        ${additions.map((l) => renderLine(l, false)).join("")}
+                    </div>
+                `
+                : "";
+            const dedRows = deductions.length
+                ? `
+                    <div>
+                        <div class="small text-muted text-uppercase fw-semibold mb-1">Pengurang</div>
+                        ${deductions.map((l) => renderLine(l, true)).join("")}
+                    </div>
+                `
+                : "";
 
-            return `${addRows}${deductions.length > 0 && additions.length > 0 ? `<div style="border-top:1px dashed #dee2e6;margin:4px 0"></div>` : ""}${dedRows}`;
+            return `${addRows}${addRows && dedRows ? '<div class="border-top pt-2 mt-2"></div>' : ""}${dedRows}`;
         };
 
         listEl.innerHTML = rows.map((row) => `
-            <div class="list-group-item py-2">
-                <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="list-group-item py-3 px-3">
+                <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
                     <div>
-                        <div class="fw-semibold">${row.name}</div>
-                        <div class="text-muted" style="font-size:0.72rem">UID: ${row.userId}</div>
+                        <div class="fw-semibold text-dark">${row.name}</div>
+                        <div class="text-muted small">UID: ${row.userId}</div>
                     </div>
-                    <strong>${formatIdr(row.net)}</strong>
+                    <div class="text-end">
+                        <div class="small text-muted">Take Home Pay</div>
+                        <div class="fw-bold text-dark">${formatIdr(row.net)}</div>
+                    </div>
                 </div>
-                <div class="ms-1 ps-2" style="border-left:3px solid #dee2e6">
+                <div class="border-start border-3 ps-3">
                     ${renderComponents(row)}
                 </div>
             </div>
@@ -2093,49 +2321,25 @@ async function disburseSelected(): Promise<void> {
     }
 
     try {
-        const resp = await apiRequest("post", `/v1/hcm/payroll-runs/${_state.currentRunId}/disburse`, { userIds: ids }) as ApiResponse<any>;
-        if (!resp.success) {
-            const code = getApiErrorCode(resp);
-            if (code && code.startsWith("EXPORT_RECON_")) {
-                setPayrollReconciliationHint(formatApiError(resp, 400));
-            }
-            toast(formatApiError(resp, 400), true);
+        const hosted = await apiRequest(
+            "post",
+            `/v1/hcm/payroll-runs/${_state.currentRunId}/mock-hosted-checkout`,
+            { userIds: ids },
+        ) as ApiResponse<any>;
+
+        if (!hosted.success) {
+            toast(formatApiError(hosted, 400), true);
             return;
         }
 
-        setPayrollReconciliationHint("");
-        clearReconciliationDownloaded();
-
-        const selectedUserIds = Array.isArray(resp.data?.selectedUserIds)
-            ? resp.data.selectedUserIds.map((value: unknown) => Number(value)).filter((value: number) => Number.isFinite(value) && value > 0)
-            : ids;
-        const paidSet = new Set<number>(selectedUserIds);
-        const ineligibleCount = Array.isArray(resp.data?.ineligibleUserIds) ? resp.data.ineligibleUserIds.length : 0;
-        const gatewayReference = String(resp.data?.gatewayReference || "");
-        const paidAtIso = new Date().toISOString();
-
-        _state.currentRows = _state.currentRows.map((row) => {
-            if (!paidSet.has(row.userId)) {
-                return row;
-            }
-
-            return {
-                ...row,
-                paymentStatus: "paid",
-                paidAt: row.paidAt || paidAtIso,
-                gatewayReference: row.gatewayReference || gatewayReference || null,
-            };
-        });
-
-        updateRunUI((resp.data?.run || null) as PayrollRun | null, null);
-        const migration = resp.data?.lateArrivalMigration || null;
-        const migrationSuffix = migration && migration.targetPeriodYear && migration.targetPeriodMonth
-            ? ` Carryover late-arrival dimigrasikan ke periode ${String(migration.targetPeriodMonth).padStart(2, "0")}/${migration.targetPeriodYear}.`
-            : "";
-        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"})${ineligibleCount > 0 ? `, ${ineligibleCount} user tidak eligible dilewati.` : ""}.${migrationSuffix}`, false);
-        if ((window as any).bootstrap?.Modal) {
-            (window as any).bootstrap.Modal.getOrCreateInstance(modal).hide();
+        const hostedCheckoutUrl = String((hosted as any)?.flow?.hostedCheckoutUrl || "").trim();
+        if (hostedCheckoutUrl.length === 0) {
+            toast("Gagal membuka hosted payment gateway.", true);
+            return;
         }
+
+        window.location.assign(hostedCheckoutUrl);
+        return;
     } catch (e: any) {
         const code = getApiErrorCode(e.response?.data || {});
         if (code && code.startsWith("EXPORT_RECON_")) {
@@ -2148,6 +2352,95 @@ async function disburseSelected(): Promise<void> {
             payBtn.disabled = !canPay;
             payBtn.textContent = "Pay now";
         }
+    }
+}
+
+async function settleMockHostedReturnAndDisburse(): Promise<void> {
+    const params = new URLSearchParams(window.location.search);
+    const status = String(params.get("payroll_mock_payment_status") || "").trim().toLowerCase();
+    const runId = Number(params.get("payroll_run_id") || 0);
+    const callbackToken = String(params.get("callback_token") || "").trim();
+    const selectedCsv = String(params.get("selected_user_ids") || "").trim();
+
+    if (!status || !runId) {
+        return;
+    }
+
+    const clearHostedParams = (): void => {
+        const next = new URL(window.location.href);
+        [
+            "payroll_mock_payment_status",
+            "payroll_run_id",
+            "callback_token",
+            "selected_user_ids",
+            "mock_payment_status",
+            "payment_uuid",
+            "invoice_uuid",
+            "settled_at",
+        ].forEach((key) => next.searchParams.delete(key));
+        window.history.replaceState({}, document.title, next.pathname + next.search + next.hash);
+    };
+
+    if (status !== "completed") {
+        if (status === "failed") {
+            toast("Pembayaran mock gateway belum berhasil. Silakan ulangi proses Pay via Gateway.", true);
+        } else {
+            toast("Pembayaran mock gateway belum selesai.", true);
+        }
+        clearHostedParams();
+        return;
+    }
+
+    const ids = selectedCsv
+        .split(",")
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0);
+
+    if (!callbackToken || ids.length === 0) {
+        toast("Sesi hosted payment tidak lengkap. Silakan ulangi pembayaran.", true);
+        clearHostedParams();
+        return;
+    }
+
+    try {
+        const confirmResp = await apiRequest(
+            "post",
+            `/v1/hcm/payroll-runs/${runId}/mock-hosted-checkout/confirm`,
+            {
+                callbackToken,
+                userIds: ids,
+            },
+        ) as ApiResponse<any>;
+
+        if (!confirmResp.success) {
+            toast(formatApiError(confirmResp, 400), true);
+            clearHostedParams();
+            return;
+        }
+
+        const resp = await apiRequest(
+            "post",
+            `/v1/hcm/payroll-runs/${runId}/disburse`,
+            {
+                userIds: ids,
+                mockApprovalToken: callbackToken,
+            },
+        ) as ApiResponse<any>;
+
+        if (!resp.success) {
+            toast(formatApiError(resp, 400), true);
+            clearHostedParams();
+            return;
+        }
+
+        setPayrollReconciliationHint("");
+        clearReconciliationDownloaded();
+        toast(`Pembayaran gateway selesai (${resp.data?.gatewayReference || "OK"}).`, false);
+        clearHostedParams();
+        await loadPeriod(false);
+    } catch (e: any) {
+        toast(formatApiError(e.response?.data || {}, 500), true);
+        clearHostedParams();
     }
 }
 
@@ -2330,6 +2623,8 @@ function bindEvents(): void {
     });
 
     bindWorkConfigurator();
+
+    void settleMockHostedReturnAndDisburse();
 
     void loadPayrollSettings();
     void loadPeriod(false);

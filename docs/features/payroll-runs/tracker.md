@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-04-26
-- Status: ready for deployment + cutoff/payday MVP blocker closed
-- Ringkasan: runtime actual payroll inti tetap aktif end-to-end untuk surface yang dipublikasikan. Fondasi runtime policy cutoff/payday tenant-level tetap aktif (settings API, policy snapshot, scheduler tenant-aware, UI admin payroll run, dan payday holiday strategy tenant-level), enforcement cutoff-scoped untuk perhitungan draft monthly sudah berjalan, guard payday server-side untuk disburse monthly sudah aktif, regression matrix inti cutoff/payday sudah terkunci, dan kontrak operasional exception kini sudah dibakukan sebagai hard-block murni tanpa override inline.
+- Tanggal: 2026-04-29
+- Status: ready for deployment + payroll workflow UX shell aktif + hosted mock disburse enforced
+- Ringkasan: runtime actual payroll inti tetap aktif end-to-end untuk surface yang dipublikasikan. Fondasi runtime policy cutoff/payday tenant-level tetap aktif (settings API, policy snapshot, scheduler tenant-aware, UI admin payroll run, dan payday holiday strategy tenant-level), enforcement cutoff-scoped untuk perhitungan draft monthly sudah berjalan, guard payday server-side untuk disburse monthly sudah aktif, regression matrix inti cutoff/payday sudah terkunci, kontrak operasional exception kini sudah dibakukan sebagai hard-block murni tanpa override inline, halaman `/payroll-run` tetap memakai workflow shell terarah, dan flow pembayaran payroll run sekarang wajib melewati hosted mock checkout + server-side approval token sebelum disburse diproses.
 
 ## Evidence Terbaru
 
@@ -71,6 +71,25 @@
 	- PHPUnit `tests/Feature/PayrollLateArrivalMigrationRegressionTest.php` pass;
 	- Vitest `tests/ui/payroll-run-late-arrival.wiring.test.js` pass;
 	- local gate + docs sync guard dijalankan ulang pada closure GAP-OPS-04.
+- **UX shell update (2026-04-29)**: surface `/payroll-run` kini memisahkan workflow menjadi stepper operasional, checklist readiness, primary action kontekstual, dan panel aksi lanjutan agar alur Calculate Draft → review → Export Reconciliation → Pay via Gateway lebih terbaca tetapi tetap selaras dengan template Bootstrap aktif.
+- Evidence update:
+	- Blade shell: `backend/resources/views/payroll-run.blade.php`.
+	- Runtime renderer: `frontend/resources/ts/payroll-run.ts`.
+	- Vitest `backend/tests/ui/payroll-run.wiring.test.js` pass dan menambah coverage untuk stage workflow + checklist readiness.
+- **UX polish modal gateway (2026-04-29)**: modal `Pay via Gateway` dirapikan agar ringkasan batch dan rincian komponen per karyawan lebih mudah dibaca (hierarki heading, status badge, grouping penambah/pengurang, dan spacing list).
+- Evidence update:
+	- Modal shell: `backend/resources/views/payroll-run.blade.php` (`#payroll_gateway_modal`, dialog `modal-xl`, ringkasan batch + rincian karyawan).
+	- Runtime renderer list: `frontend/resources/ts/payroll-run.ts` (`populateGatewayModal`).
+	- Validasi: Vitest `backend/tests/ui/payroll-run.wiring.test.js` pass (11 tests) + `npm run build` pass.
+- **Payment flow enforcement (2026-04-29)**: payroll disburse sekarang wajib lewat hosted mock payment terlebih dahulu (`mock-hosted-checkout` + `confirm`), lalu endpoint disburse menerima `mockApprovalToken` yang divalidasi server-side.
+- Evidence update:
+	- Controller: `backend/app/Http/Controllers/Api/HcmPayrollRunController.php`.
+	- Route: `backend/routes/api.php`.
+	- Frontend flow: `frontend/resources/ts/payroll-run.ts` + `backend/public/mock-hosted-payment.html`.
+	- Kontrak API: `docs/api/hcm-payroll-api.md` + `docs/api/openapi.yaml`.
+- **Payslip audience fix (2026-04-29)**: global super admin tidak lagi otomatis di-redirect dari `/payslip` ke `/payslip-report`, sehingga tetap bisa akses self-payslip pada tenant aktif.
+- Evidence update:
+	- Frontend audience guard: `frontend/resources/js/payslip-data.js`.
 
 ## Status Revisi Gap CP-01..CP-04
 

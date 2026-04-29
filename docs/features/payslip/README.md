@@ -1,15 +1,21 @@
-# Payslip
+# Payslip (My Payslip)
 
 ## Ringkasan
 
-Halaman `/payslip` adalah surface self-service karyawan untuk membaca slip gaji bulanan yang sudah final. UI ini tidak membentuk payroll baru; tugasnya membaca hasil final dari run payroll yang sudah diposting dan menampilkannya sebagai ringkasan pendapatan, potongan, total bersih, lalu menyediakan unduhan PDF.
+Halaman `/payslip` adalah surface **My Payslip** untuk karyawan membaca slip gaji pribadinya yang sudah final. UI ini tidak membentuk payroll baru; tugasnya membaca hasil final dari run payroll yang sudah diposting dan menampilkannya sebagai ringkasan pendapatan, potongan, total bersih, lalu menyediakan unduhan PDF.
 
 Halaman ini memakai fallback ke periode final terbaru agar employee tidak berhenti di layar kosong saat bulan yang dipilih belum punya slip. Status dokumentasi dan evidence terbaru dicatat di `tracker.md`.
 
+## Terminologi UI (Anti-Ambigu)
+
+- **My Payslip**: slip gaji milik user yang sedang login (self-service employee).
+- **Payslip Report (All Employees)**: daftar slip lintas karyawan untuk kebutuhan admin/reporting.
+- **Payroll Run History**: riwayat eksekusi payroll run (bukan detail slip pribadi).
+
 ## Akses
 
-- Employee: mengakses `/payslip` untuk slip miliknya sendiri.
-- HCM Admin dengan permission `payroll.view` akan diarahkan ke `/payslip-report` karena audience `/payslip` memang self-service.
+- Employee: mengakses `/payslip` untuk **My Payslip** (slip miliknya sendiri).
+- HCM Admin dengan permission `payroll.view` akan diarahkan ke `/payslip-report` (**Payslip Report (All Employees)**) karena audience `/payslip` memang self-service.
 - API self-service hanya mengembalikan data user yang sedang login.
 
 ## UI Aktif

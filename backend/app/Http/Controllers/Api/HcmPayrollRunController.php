@@ -322,12 +322,14 @@ class HcmPayrollRunController extends Controller
                 }
             }],
             'applyAll' => ['nullable', 'boolean'],
+            'mockApprovalToken' => ['nullable', 'string', 'min:16', 'max:120'],
         ]);
 
         $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
         $applyAll = (bool) ($validated['applyAll'] ?? false);
+        $mockApprovalToken = isset($validated['mockApprovalToken']) ? (string) $validated['mockApprovalToken'] : '';
         $companyId = $this->activeCompanyId($request);
-        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId): array {
+        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId, $mockApprovalToken): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
@@ -460,6 +462,18 @@ class HcmPayrollRunController extends Controller
                 ];
             }
 
+            $approvalError = $this->guardMockDisburseApproval(
+                $run,
+                $effectiveSelectedUserIds->values()->all(),
+                $mockApprovalToken
+            );
+            if ($approvalError !== null) {
+                return [
+                    'error' => $approvalError,
+                    'status' => 422,
+                ];
+            }
+
             $selectedSet = $effectiveSelectedUserIds->flip();
             $alreadyPaidUserIds = [];
             foreach ($lines->groupBy('user_id') as $userId => $items) {
@@ -569,6 +583,238 @@ class HcmPayrollRunController extends Controller
                 'gatewayReference' => $result['gatewayReference'],
                 'payment' => $paymentSummary,
                 'lateArrivalMigration' => $lateArrivalMigration,
+            ],
+        ]);
+    }
+
+    public function startMockHostedCheckout(Request $request, int $id): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
+            return $forbidden;
+        }
+
+        if (! $this->isMockPaymentFlowEnabled()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_MOCK_PAYMENT_DISABLED',
+                    'message' => 'Mock payment flow tidak aktif pada environment ini.',
+                ],
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'userIds' => ['nullable', 'array', 'min:1'],
+            'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
+                if (! $this->userIdentifierExists($value)) {
+                    $fail("The selected {$attribute} is invalid.");
+                }
+            }],
+            'applyAll' => ['nullable', 'boolean'],
+        ]);
+
+        $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
+        $applyAll = (bool) ($validated['applyAll'] ?? false);
+        $companyId = $this->activeCompanyId($request);
+
+        $runQuery = HcmPayrollRun::query()->whereKey($id)->with(['period', 'lines.user:id,name']);
+        $this->applyTenantScope($runQuery, $companyId);
+        $run = $runQuery->firstOrFail();
+
+        if ($error = $this->guardPayrollReconciliation($request, $run, 'disburse')) {
+            return response()->json([
+                'success' => false,
+                'error' => $error->getData(true)['error'] ?? [
+                    'code' => 'EXPORT_RECON_REQUIRED',
+                    'message' => 'Export reconciliation evidence is required before this action.',
+                ],
+            ], $error->getStatusCode());
+        }
+
+        $lines = $run->lines;
+        if ($lines->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_RUN_EMPTY',
+                    'message' => 'Tidak ada karyawan eligible di payroll run ini.',
+                ],
+            ], 422);
+        }
+
+        $netByUser = [];
+        foreach ($lines->groupBy('user_id') as $userId => $items) {
+            $net = 0.0;
+            foreach ($items as $line) {
+                $meta = is_array($line->meta) ? $line->meta : [];
+                $affectsNetPay = array_key_exists('affectsNetPay', $meta)
+                    ? (bool) $meta['affectsNetPay']
+                    : ((string) $line->category !== 'employer_cost_display');
+                if (! $affectsNetPay) {
+                    continue;
+                }
+
+                $amount = (float) $line->amount;
+                if ((string) $line->kind === 'addition') {
+                    $net += $amount;
+                } elseif ((string) $line->kind === 'deduction') {
+                    $net -= $amount;
+                }
+            }
+            $netByUser[(int) $userId] = round($net, 2);
+        }
+
+        $eligibleUserIds = collect($netByUser)
+            ->filter(fn ($net) => (float) $net > 0)
+            ->keys()
+            ->map(fn ($userId) => (int) $userId)
+            ->values();
+
+        $effectiveSelectedUserIds = $selectedUserIds->isNotEmpty()
+            ? $selectedUserIds->intersect($eligibleUserIds)->values()
+            : ($applyAll ? $eligibleUserIds : collect());
+
+        if ($effectiveSelectedUserIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_DISBURSE_NO_EMPLOYEES',
+                    'message' => 'Tidak ada karyawan eligible untuk dibayar. Hanya user dengan net pay positif yang bisa diproses.',
+                ],
+            ], 422);
+        }
+
+        $callbackToken = Str::random(40);
+        $selectedCsv = $effectiveSelectedUserIds->implode(',');
+        $runId = (int) $run->id;
+
+        $successUrl = url('/payroll-run').'?'.http_build_query([
+            'payroll_mock_payment_status' => 'completed',
+            'payroll_run_id' => $runId,
+            'callback_token' => $callbackToken,
+            'selected_user_ids' => $selectedCsv,
+        ]);
+        $failureUrl = url('/payroll-run').'?'.http_build_query([
+            'payroll_mock_payment_status' => 'failed',
+            'payroll_run_id' => $runId,
+            'callback_token' => $callbackToken,
+            'selected_user_ids' => $selectedCsv,
+        ]);
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $meta['mockPayrollDisburse'] = [
+            'status' => 'pending',
+            'callbackToken' => $callbackToken,
+            'selectedUserIds' => $effectiveSelectedUserIds->values()->all(),
+            'createdAt' => now()->toIso8601String(),
+            'expiresAt' => now()->addMinutes(30)->toIso8601String(),
+            'confirmedAt' => null,
+            'consumedAt' => null,
+        ];
+        $run->update(['meta' => $meta]);
+
+        $hostedCheckoutUrl = url('/mock-hosted-payment.html').'?'.http_build_query([
+            'flow' => 'payroll_disburse',
+            'run_id' => $runId,
+            'invoice_uuid' => 'payroll-run-'.$runId,
+            'invoice_number' => 'PAYROLL-RUN-'.$runId,
+            'amount' => (float) $effectiveSelectedUserIds
+                ->sum(fn (int $userId): float => (float) ($netByUser[$userId] ?? 0)),
+            'callback_token' => $callbackToken,
+            'success_url' => $successUrl,
+            'failure_url' => $failureUrl,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'runId' => $runId,
+                'selectedUserIds' => $effectiveSelectedUserIds->values()->all(),
+            ],
+            'flow' => [
+                'mode' => 'hosted',
+                'hostedCheckoutUrl' => $hostedCheckoutUrl,
+                'callbackToken' => $callbackToken,
+                'successRedirectUrl' => $successUrl,
+                'failureRedirectUrl' => $failureUrl,
+            ],
+        ]);
+    }
+
+    public function confirmMockHostedCheckout(Request $request, int $id): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
+            return $forbidden;
+        }
+
+        $validated = $request->validate([
+            'callbackToken' => ['required', 'string', 'min:16', 'max:120'],
+            'userIds' => ['required', 'array', 'min:1'],
+            'userIds.*' => ['integer', 'min:1'],
+        ]);
+
+        $companyId = $this->activeCompanyId($request);
+        $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
+        $this->applyTenantScope($runQuery, $companyId);
+        $run = $runQuery->firstOrFail();
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $approval = is_array($meta['mockPayrollDisburse'] ?? null) ? $meta['mockPayrollDisburse'] : null;
+        if ($approval === null) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_MOCK_PAYMENT_NOT_FOUND',
+                    'message' => 'Hosted mock payment belum dibuat untuk payroll run ini.',
+                ],
+            ], 422);
+        }
+
+        if ((string) ($approval['callbackToken'] ?? '') !== (string) $validated['callbackToken']) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_MOCK_PAYMENT_TOKEN_INVALID',
+                    'message' => 'Token hosted payment tidak valid.',
+                ],
+            ], 422);
+        }
+
+        $expiresAt = (string) ($approval['expiresAt'] ?? '');
+        if ($expiresAt !== '' && now()->greaterThan(Carbon::parse($expiresAt))) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_MOCK_PAYMENT_EXPIRED',
+                    'message' => 'Sesi hosted payment sudah kedaluwarsa, silakan mulai ulang.',
+                ],
+            ], 422);
+        }
+
+        $approvedIds = collect($approval['selectedUserIds'] ?? [])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values();
+        $requestedIds = collect($validated['userIds'])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values();
+
+        if ($approvedIds->all() !== $requestedIds->all()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH',
+                    'message' => 'Daftar karyawan tidak sesuai dengan sesi hosted payment.',
+                ],
+            ], 422);
+        }
+
+        $approval['status'] = 'completed';
+        $approval['confirmedAt'] = now()->toIso8601String();
+        $meta['mockPayrollDisburse'] = $approval;
+        $run->update(['meta' => $meta]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'runId' => (int) $run->id,
+                'selectedUserIds' => $approvedIds->all(),
+                'status' => 'completed',
             ],
         ]);
     }
@@ -701,6 +947,67 @@ class HcmPayrollRunController extends Controller
                 $resolvedPaydayDate
             ),
         ];
+    }
+
+    /**
+     * @param array<int> $selectedUserIds
+     */
+    private function guardMockDisburseApproval(HcmPayrollRun $run, array $selectedUserIds, string $approvalToken): ?array
+    {
+        if (app()->environment('testing') || ! $this->isMockPaymentFlowEnabled()) {
+            return null;
+        }
+
+        $meta = is_array($run->meta) ? $run->meta : [];
+        $approval = is_array($meta['mockPayrollDisburse'] ?? null) ? $meta['mockPayrollDisburse'] : null;
+        if ($approval === null) {
+            return [
+                'code' => 'PAYROLL_MOCK_PAYMENT_REQUIRED',
+                'message' => 'Payment wajib melalui hosted mock gateway sebelum disburse payroll.',
+            ];
+        }
+
+        if ((string) ($approval['status'] ?? '') !== 'completed') {
+            return [
+                'code' => 'PAYROLL_MOCK_PAYMENT_REQUIRED',
+                'message' => 'Hosted mock payment belum diselesaikan.',
+            ];
+        }
+
+        if ($approvalToken === '' || (string) ($approval['callbackToken'] ?? '') !== $approvalToken) {
+            return [
+                'code' => 'PAYROLL_MOCK_PAYMENT_TOKEN_INVALID',
+                'message' => 'Token hosted payment tidak valid.',
+            ];
+        }
+
+        $approvedIds = collect($approval['selectedUserIds'] ?? [])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values()->all();
+        $incomingIds = collect($selectedUserIds)->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values()->all();
+        if ($approvedIds !== $incomingIds) {
+            return [
+                'code' => 'PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH',
+                'message' => 'Daftar karyawan berbeda dari sesi hosted mock payment.',
+            ];
+        }
+
+        if (! empty($approval['consumedAt'])) {
+            return [
+                'code' => 'PAYROLL_MOCK_PAYMENT_ALREADY_USED',
+                'message' => 'Sesi hosted payment ini sudah dipakai. Buat sesi baru untuk retry.',
+            ];
+        }
+
+        $approval['consumedAt'] = now()->toIso8601String();
+        $meta['mockPayrollDisburse'] = $approval;
+        $run->meta = $meta;
+        $run->save();
+
+        return null;
+    }
+
+    private function isMockPaymentFlowEnabled(): bool
+    {
+        return app()->isLocal() || (bool) config('app.mock_payments_enabled');
     }
 
     private function isPrimarySuperAdminCodeOne(?User $user): bool

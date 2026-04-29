@@ -26,7 +26,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 3. Jika draft sudah ada dan statusnya masih `draft`, tombol Calculate tetap boleh dipakai untuk refresh atau reuse draft lama.
 4. Setelah draft tersedia, admin meninjau baris run dan hanya bisa melanjutkan export reconciliation ketika status tetap `draft`.
 5. Admin menjalankan Export Reconciliation untuk action `payroll_run` dengan `actionKey=disburse`, lalu wajib mengunduh file sampai sukses.
-6. Sesudah unduhan evidence berhasil, baru tombol Pay via Gateway atau Pay now dapat digunakan untuk batch pembayaran.
+6. Sesudah unduhan evidence berhasil, tombol Pay via Gateway akan membuka hosted mock payment terlebih dahulu; setelah user menyelesaikan hosted flow dan kembali ke `/payroll-run`, backend baru mengizinkan disburse batch.
 7. Jika draft sudah difinalisasi tetapi ternyata masih perlu koreksi setup, admin dapat melakukan `void` selama belum ada line yang berstatus `paid`, lalu menghitung draft ulang pada periode aktif yang sama.
 8. Setelah disburse atau reset pembayaran dev, admin harus export dan unduh lagi sebelum batch bayar berikutnya, supaya evidence tidak dipakai berulang tanpa jejak baru.
 9. Jika run sudah finalized, void, atau posted, histori dan audit trail dipantau dari `/payroll-run-history`.
@@ -58,7 +58,9 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 ## Existing Vs Target
 
 - Existing: implementasi aktif saat ini sudah menutup calculate draft, finalize, void finalized run yang belum dibayar, history, self-service slip lines, slip PDF, dan gate disburse berbasis reconciliation export.
+- Existing: halaman `/payroll-run` kini menampilkan shell workflow bertahap pada surface yang sama: stepper operasional, checklist readiness, primary action kontekstual, dan panel aksi lanjutan agar urutan Calculate Draft → review → export evidence → payment lebih mudah diikuti tanpa pindah halaman.
 - Existing: `/payslip` web sudah memakai runtime aktif `my-slip`, `my-slip-latest-period`, dan `my-slip-pdf` untuk audience employee.
+- Existing: audience `/payslip` tidak lagi memaksa redirect global super admin ke report, sehingga super admin global tetap bisa melakukan self-check slip terbaru di tenant aktif bila diperlukan.
 - Target: penguatan berikutnya lebih bersifat operasional dan governance, seperti audit append-only terpisah, hardening post-payroll controls lintas integrasi eksternal, dan review kebijakan payroll lintas tenant.
 
 ## Kondisi Existing vs Target Bisnis

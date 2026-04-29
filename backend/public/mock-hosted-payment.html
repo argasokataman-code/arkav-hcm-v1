@@ -68,6 +68,7 @@
         const invoiceNumber = params.get('invoice_number') || '';
         const amount = params.get('amount') || '';
         const callbackToken = params.get('callback_token') || '';
+        const flow = params.get('flow') || 'invoice';
         const successUrl = params.get('success_url') || `${window.location.origin}/mock-payment-tester.html`;
         const failureUrl = params.get('failure_url') || `${window.location.origin}/mock-payment-tester.html`;
 
@@ -137,6 +138,13 @@
         });
 
         document.getElementById('settleSuccessBtn').addEventListener('click', async () => {
+            if (flow === 'payroll_disburse') {
+                redirectWithState(successUrl, 'completed', {
+                    settled_at: new Date().toISOString(),
+                });
+                return;
+            }
+
             try {
                 const response = await fetch(`${window.location.origin}/v1/mock/webhook/charge-succeeded`, {
                     method: 'POST',

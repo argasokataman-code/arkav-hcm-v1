@@ -575,7 +575,9 @@
 
         if (window.AuthApi && window.AuthApi.request) {
             window.AuthApi.request("get", "/identity/auth/me").then(function (me) {
-                if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['payroll.view']) {
+                var isGlobalAdmin = !!(me && me.success && me.data && me.data.hcmGlobalAdmin === true);
+                var canViewPayroll = !!(me && me.success && me.data && me.data.permissions && me.data.permissions['payroll.view']);
+                if (!isGlobalAdmin && !canViewPayroll) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }

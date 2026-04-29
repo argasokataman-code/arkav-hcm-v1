@@ -2,9 +2,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
+function resolveBladeContent(bladePath, depth = 0) {
+  if (depth > 4) {
+    throw new Error('Exceeded Blade include depth while resolving business settings view');
+  }
+
+  const blade = fs.readFileSync(bladePath, 'utf8').trim();
+  const includeMatch = blade.match(/^@include\('([^']+)'\)$/);
+  if (!includeMatch) {
+    return blade;
+  }
+
+  const includePath = includeMatch[1].replace(/\./g, '/') + '.blade.php';
+  const resolved = path.resolve(process.cwd(), 'resources/views', includePath);
+  return resolveBladeContent(resolved, depth + 1);
+}
+
 function extractInlineScript() {
   const bladePath = path.resolve(process.cwd(), 'resources/views/bussiness-settings.blade.php');
-  const blade = fs.readFileSync(bladePath, 'utf8');
+  const blade = resolveBladeContent(bladePath);
   const match = blade.match(/<script>([\s\S]*?)<\/script>\s*@endsection/);
   if (!match || !match[1]) {
     throw new Error('Business settings inline script not found');

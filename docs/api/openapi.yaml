@@ -5626,6 +5626,8 @@ paths:
       tags: [Payroll]
       summary: Disburse monthly payroll via gateway (HCM admin)
       description: |
+        Wajib melalui flow hosted mock payment (`/mock-hosted-checkout` lalu `/mock-hosted-checkout/confirm`) saat mock flow aktif.
+        Token konfirmasi dikirim lewat `mockApprovalToken`.
         Menjalankan pembayaran gateway untuk subset `userIds` yang dipilih. Jika run masih `draft`, API akan
         otomatis memfinalkan run dan menandai periodenya sebagai `posted` sebelum menulis status pembayaran per karyawan.
         Pemanggilan berulang aman/idempotent: user yang sudah `paid` akan dilewati.
@@ -5656,6 +5658,10 @@ paths:
                 applyAll:
                   type: boolean
                   description: Set true to disburse all eligible employees in the run explicitly.
+                mockApprovalToken:
+                  type: string
+                  nullable: true
+                  description: Callback token dari flow hosted mock payment yang sudah terkonfirmasi.
       responses:
         '200':
           description: Gateway disbursement processed
@@ -5760,11 +5766,105 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422':
-          description: Validation/domain error termasuk PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
+          description: Validation/domain error termasuk PAYROLL_DISBURSE_NO_EMPLOYEES, PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN, PAYROLL_RUN_EMPTY, PAYROLL_FINALIZED_EXISTS, PAYROLL_MOCK_PAYMENT_REQUIRED, PAYROLL_MOCK_PAYMENT_TOKEN_INVALID, PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH, EXPORT_RECON_REQUIRED, EXPORT_RECON_EXPIRED, EXPORT_RECON_SCOPE_MISMATCH, EXPORT_RECON_STALE_DATA
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/hcm/payroll-runs/{id}/mock-hosted-checkout:
+    post:
+      tags: [Payroll]
+      summary: Start hosted mock payment session for payroll run disbursement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                applyAll:
+                  type: boolean
+      responses:
+        '200':
+          description: Hosted mock checkout session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      runId: { type: integer }
+                      selectedUserIds:
+                        type: array
+                        items: { type: integer }
+                  flow:
+                    type: object
+                    properties:
+                      mode: { type: string, example: hosted }
+                      hostedCheckoutUrl: { type: string }
+                      callbackToken: { type: string }
+                      successRedirectUrl: { type: string }
+                      failureRedirectUrl: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll-runs/{id}/mock-hosted-checkout/confirm:
+    post:
+      tags: [Payroll]
+      summary: Confirm hosted mock payment session before payroll disbursement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callbackToken, userIds]
+              properties:
+                callbackToken:
+                  type: string
+                userIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Hosted payment confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      runId: { type: integer }
+                      selectedUserIds:
+                        type: array
+                        items: { type: integer }
+                      status: { type: string, example: completed }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/payroll/work-profiles:
     get:
       tags: [Payroll]

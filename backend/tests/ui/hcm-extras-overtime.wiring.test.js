@@ -11,6 +11,17 @@ function mockJson(status, payload) {
 
 async function loadHcmExtrasModule() {
   vi.resetModules();
+
+  const [overtime, overtimeCalc] = await Promise.all([
+    import('../../../frontend/resources/js/hcm-extras/hcm-extras-overtime.js'),
+    import('../../../frontend/resources/js/hcm-extras/hcm-extras-overtime-calculator.js'),
+  ]);
+
+  window.ArcavHcmExtrasModules = {
+    bindOvertimeModule: overtime.bindOvertimeModule,
+    bindOvertimeCalculatorModule: overtimeCalc.bindOvertimeCalculatorModule,
+  };
+
   return import('../../../frontend/resources/js/hcm-extras-data.js');
 }
 

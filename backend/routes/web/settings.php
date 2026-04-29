@@ -1,0 +1,167 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+// Profile / account settings (any authenticated user)
+Route::get('/profile-settings', function () {
+    return view('settings.profile-settings');
+})->name('profile-settings');
+
+Route::get('/company-profile', function () {
+    return view('settings.company-profile');
+})->name('company-profile');
+
+Route::redirect('/profile-settingsrout', '/profile-settings', 301)->name('profile-settings.alias');
+
+Route::get('/security-settings', function () {
+    return view('settings.security-settings');
+})->name('security-settings');
+
+Route::get('/notification-settings', function () {
+    return view('settings.notification-settings');
+})->name('notification-settings');
+
+Route::get('/connected-apps', function () {
+    return view('settings.connected-apps');
+})->name('connected-apps');
+
+// Admin-level settings
+Route::get('/salary-settings', function () {
+    return view('settings.salary-settings');
+})->middleware('hcm.web.admin')->name('salary-settings');
+
+Route::get('/approval-settings', function () {
+    return view('settings.approval-settings');
+})->middleware('hcm.web.admin')->name('approval-settings');
+
+Route::get('/invoice-settings', function () {
+    return view('finance.invoice-settings');
+})->middleware('hcm.web.admin')->name('invoice-settings');
+
+Route::get('/custom-fields', function () {
+    return view('settings.custom-fields');
+})->middleware('hcm.web.admin')->name('custom-fields');
+
+Route::get('/prefixes', function () {
+    return view('settings.prefixes');
+})->middleware('hcm.web.admin')->name('prefixes');
+
+Route::get('/preferences', function () {
+    return view('settings.preferences');
+})->middleware('hcm.web.admin')->name('preferences');
+
+Route::get('/appearance', function () {
+    return view('settings.appearance');
+})->middleware('hcm.web.admin')->name('appearance');
+
+// Global-admin-only settings
+Route::get('/notification-observability', function () {
+    return view('administration.monitoring.notification-observability');
+})->middleware('hcm.web.global-admin')->name('notification-observability');
+
+Route::get('/bussiness-settings', function () {
+    return view('settings.bussiness-settings');
+})->middleware('hcm.web.global-admin')->name('bussiness-settings');
+
+Route::get('/business-settings', function () {
+    return redirect()->route('bussiness-settings');
+})->middleware('hcm.web.global-admin')->name('business-settings');
+
+Route::get('/seo-settings', function () {
+    return view('settings.seo-settings');
+})->middleware('hcm.web.global-admin')->name('seo-settings');
+
+Route::get('/localization-settings', function () {
+    return view('settings.localization-settings');
+})->middleware('hcm.web.global-admin')->name('localization-settings');
+
+Route::get('/language', function () {
+    return view('settings.language');
+})->middleware('hcm.web.global-admin')->name('language');
+
+Route::get('/language-web', function () {
+    return view('settings.language-web');
+})->middleware('hcm.web.global-admin')->name('language-web');
+
+Route::get('/add-language', function () {
+    return view('administration.localization.add-language');
+})->middleware('hcm.web.global-admin')->name('add-language');
+
+Route::get('/authentication-settings', function () {
+    return view('settings.authentication-settings');
+})->middleware('hcm.web.global-admin')->name('authentication-settings');
+
+Route::get('/ai-settings', function () {
+    return view('settings.ai-settings');
+})->middleware('hcm.web.global-admin')->name('ai-settings');
+
+Route::get('/email-settings', function () {
+    return view('settings.email-settings');
+})->middleware('hcm.web.global-admin')->name('email-settings');
+
+Route::get('/email-template', function () {
+    return view('settings.email-template');
+})->middleware('hcm.web.global-admin')->name('email-template');
+
+Route::get('/sms-settings', function () {
+    return view('settings.sms-settings');
+})->middleware('hcm.web.global-admin')->name('sms-settings');
+
+Route::get('/sms-template', function () {
+    return view('settings.sms-template');
+})->middleware('hcm.web.global-admin')->name('sms-template');
+
+Route::get('/otp-settings', function () {
+    return view('settings.otp-settings');
+})->middleware('hcm.web.global-admin')->name('otp-settings');
+
+Route::get('/gdpr', function () {
+    return view('settings.gdpr');
+})->middleware('hcm.web.global-admin')->name('gdpr');
+
+Route::get('/maintenance-mode', function () {
+    return view('settings.maintenance-mode');
+})->middleware('hcm.web.global-admin')->name('maintenance-mode');
+
+Route::get('/payment-gateways', function () {
+    return view('finance.payment-gateways');
+})->middleware('hcm.web.global-admin')->name('payment-gateways');
+
+Route::get('/storage-settings', function () {
+    return view('settings.storage-settings');
+})->middleware('hcm.web.global-admin')->name('storage-settings');
+
+Route::get('/ban-ip-address', function () {
+    return view('settings.ban-ip-address');
+})->middleware('hcm.web.global-admin')->name('ban-ip-address');
+
+Route::get('/backup', function () {
+    return view('settings.backup');
+})->middleware('hcm.web.global-admin')->name('backup');
+
+Route::get('/clear-cache', function () {
+    return view('settings.clear-cache');
+})->middleware('hcm.web.global-admin')->name('clear-cache');
+
+Route::get('/custom-css', function () {
+    return view('settings.custom-css');
+})->middleware('hcm.web.global-admin')->name('custom-css');
+
+Route::get('/custom-js', function () {
+    return view('settings.custom-js');
+})->middleware('hcm.web.global-admin')->name('custom-js');
+
+// Tax compliance (global-admin)
+Route::prefix('platform-tax-compliance')->middleware('hcm.web.global-admin')->group(function (): void {
+    Route::get('/policies', function () {
+        return view('tax-platform-compliance-settings', [
+            'taxGovernanceScreen' => 'platform-tax-compliance',
+        ]);
+    })->name('platform-tax-compliance.policies');
+
+    Route::get('/reports', function () {
+        return view('tax-platform-compliance-settings', [
+            'taxGovernanceScreen' => 'platform-tax-compliance',
+        ]);
+    })->name('platform-tax-compliance.reports');
+});

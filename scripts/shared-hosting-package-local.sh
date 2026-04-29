@@ -126,6 +126,7 @@ fi
 mkdir -p "$STAGING_DIR/scripts"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy.sh"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy-easy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy-easy.sh"
+cp "$ROOT_DIR/scripts/shared-hosting-fix-docroot.sh" "$STAGING_DIR/scripts/shared-hosting-fix-docroot.sh"
 cp "$ROOT_DIR/scripts/shared-hosting-queue-cron.sh" "$STAGING_DIR/scripts/shared-hosting-queue-cron.sh"
 
 cat > "$STAGING_DIR/RELEASE-METADATA.txt" <<EOF
@@ -155,6 +156,7 @@ EOF
 chmod +x \
   "$STAGING_DIR/scripts/shared-hosting-deploy.sh" \
   "$STAGING_DIR/scripts/shared-hosting-deploy-easy.sh" \
+  "$STAGING_DIR/scripts/shared-hosting-fix-docroot.sh" \
   "$STAGING_DIR/scripts/shared-hosting-queue-cron.sh"
 
 echo "[shared-hosting-package-local] creating artifact: $ARTIFACT"

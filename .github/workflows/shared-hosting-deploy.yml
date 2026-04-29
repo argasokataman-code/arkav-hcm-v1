@@ -69,6 +69,8 @@ jobs:
           tar -xzf "$ARTIFACT"
           bash scripts/shared-hosting-deploy-easy.sh
           echo "✅ Deploy complete!"
+           bash scripts/shared-hosting-fix-docroot.sh
+           echo "✅ Docroot bridge applied!"
           EOF
 
       - name: Cleanup SSH key

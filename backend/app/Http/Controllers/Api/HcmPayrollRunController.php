@@ -7,7 +7,6 @@ use App\Events\PayrollFinalized;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
-use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
@@ -1805,55 +1804,7 @@ class HcmPayrollRunController extends Controller
             ? sprintf('%04d-%02d', (int) $period->period_year, (int) $period->period_month)
             : now()->format('Y-m');
 
-        $serviceFeeBase = round((float) HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $run->id)
-            ->whereIn('kind', ['addition', 'earning'])
-            ->sum('amount'), 2);
-
-        if ($serviceFeeBase <= 0) {
-            return [0.0, 0.0, 0.0, $billingMonth];
-        }
-
-        $effectiveCompanyId = (int) ($companyId ?? $run->company_id ?? 0);
-        if ($effectiveCompanyId <= 0) {
-            return [0.0, $serviceFeeBase, 0.0, $billingMonth];
-        }
-
-        $policy = HcmBillingTaxPolicy::query()
-            ->where('company_id', $effectiveCompanyId)
-            ->where('billing_month', $billingMonth)
-            ->where('status', 'active')
-            ->orderByDesc('effective_from')
-            ->orderByDesc('created_at')
-            ->first();
-
-        if (! $policy) {
-            $globalPolicyCandidates = HcmBillingTaxPolicy::query()
-                ->where('billing_month', $billingMonth)
-                ->where('status', 'active')
-                ->orderByDesc('effective_from')
-                ->orderByDesc('created_at')
-                ->limit(20)
-                ->get();
-
-            foreach ($globalPolicyCandidates as $candidate) {
-                $decoded = json_decode((string) ($candidate->notes ?? ''), true);
-                if (is_array($decoded) && isset($decoded['global_rates']) && is_array($decoded['global_rates'])) {
-                    $policy = $candidate;
-                    break;
-                }
-            }
-        }
-
-        $serviceFeeRate = 0.0;
-        $notes = json_decode((string) ($policy?->notes ?? ''), true);
-        if (is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])) {
-            $serviceFeeRate = (float) ($notes['global_rates']['payroll_service_fee'] ?? 0);
-        }
-
-        $serviceFeeAmount = round($serviceFeeBase * ($serviceFeeRate / 100), 2);
-
-        return [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $billingMonth];
+        return [0.0, 0.0, 0.0, $billingMonth];
     }
 
     /**

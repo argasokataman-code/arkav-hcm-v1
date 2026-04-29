@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\BillingTaxCalculationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -103,6 +104,9 @@ class MockPaymentGatewayService
             ->first();
 
         // Create invoice
+        $taxRateSnapshot = app(BillingTaxCalculationService::class)
+            ->resolvePolicyRateSnapshot((int) $companyId, now()->format('Y-m'));
+
         $invoice = \App\Models\Invoice::create([
             'company_id' => $companyId,
             'subscription_id' => $subscription?->id,
@@ -111,6 +115,7 @@ class MockPaymentGatewayService
             'issue_date' => now(),
             'due_date' => now()->addDays(7),
             'amount_due' => $amount,
+            'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
             'is_paid' => false,
             'notes' => $description,
         ]);

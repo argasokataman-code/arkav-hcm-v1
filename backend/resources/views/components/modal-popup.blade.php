@@ -1749,7 +1749,7 @@
 	<!-- /Delete Modal -->
 @endif
 
-@if (Route::is(['tax-rates']))
+@if (Route::is(['tax-employees', 'tax-rates']))
     <!-- Add Tax Rate -->
     <div class="modal fade" id="add_tax_rate">
         <div class="modal-dialog modal-dialog-centered">
@@ -1760,7 +1760,7 @@
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{url('tax-rates')}}">
+                <form action="{{url('tax-employees')}}">
                     <div class="modal-body pb-0">
                         <div class="row">
                             <div class="col-md-12">
@@ -1803,7 +1803,7 @@
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{url('tax-rates')}}">
+                <form action="{{url('tax-employees')}}">
                     <div class="modal-body pb-0">
                         <div class="row">
                             <div class="col-md-12">
@@ -1848,7 +1848,7 @@
                     <p class="mb-3">You want to delete all the marked items, this cant be undone once you delete.</p>
                     <div class="d-flex justify-content-center">
                         <a href="javascript:void(0);" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</a>
-                        <a href="{{url('tax-rates')}}" class="btn btn-danger">Yes, Delete</a>
+                        <a href="{{url('tax-employees')}}" class="btn btn-danger">Yes, Delete</a>
                     </div>
                 </div>
             </div>

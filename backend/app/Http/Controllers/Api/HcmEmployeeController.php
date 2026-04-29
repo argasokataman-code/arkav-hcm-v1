@@ -232,6 +232,7 @@ class HcmEmployeeController extends Controller
             'designationId' => ['nullable', 'integer', 'exists:designations,id'],
             'teamId' => ['nullable', 'integer', 'exists:teams,id'],
             'scope' => ['nullable', Rule::in(['global', 'active_company'])],
+            'taxFilter' => ['nullable', Rule::in(['missing_npwp', 'missing_ptkp', 'incomplete', 'complete'])],
         ]);
 
         if ($forbidden = $this->ensurePermission($request, 'employee.view')) {
@@ -255,6 +256,7 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
         $teamId = $validated['teamId'] ?? null;
+        $taxFilter = $validated['taxFilter'] ?? null;
 
         $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
         $requestedScope = (string) ($validated['scope'] ?? ($isGlobalAdmin ? 'global' : 'active_company'));
@@ -357,6 +359,53 @@ class HcmEmployeeController extends Controller
 
         if ($teamId) {
             $query->whereHas('employeeProfile', fn ($p) => $statusScope($p)->where('team_id', (int) $teamId));
+        }
+
+        if ($taxFilter) {
+            $query->whereHas('employeeProfile', function ($profileQuery) use ($scopeCompanyId, $taxFilter): void {
+                if ($scopeCompanyId) {
+                    $profileQuery->where('company_id', $scopeCompanyId);
+                }
+
+                $profileQuery->where(function ($employeeProfileQuery) use ($taxFilter): void {
+                    $employeeProfileQuery->whereHas('taxProfile', function ($taxProfileQuery) use ($taxFilter): void {
+                        if ($taxFilter === 'missing_npwp') {
+                            $taxProfileQuery->where(function ($query): void {
+                                $query->whereNull('npwp')->orWhere('npwp', '');
+                            });
+                            return;
+                        }
+
+                        if ($taxFilter === 'missing_ptkp') {
+                            $taxProfileQuery->where(function ($query): void {
+                                $query->whereNull('tax_status')->orWhere('tax_status', '');
+                            });
+                            return;
+                        }
+
+                        if ($taxFilter === 'incomplete') {
+                            $taxProfileQuery->where(function ($query): void {
+                                $query->whereNull('npwp')
+                                    ->orWhere('npwp', '')
+                                    ->orWhereNull('tax_status')
+                                    ->orWhere('tax_status', '');
+                            });
+                            return;
+                        }
+
+                        if ($taxFilter === 'complete') {
+                            $taxProfileQuery->whereNotNull('npwp')
+                                ->where('npwp', '!=', '')
+                                ->whereNotNull('tax_status')
+                                ->where('tax_status', '!=', '');
+                        }
+                    });
+
+                    if (in_array($taxFilter, ['missing_npwp', 'missing_ptkp', 'incomplete'], true)) {
+                        $employeeProfileQuery->orWhereDoesntHave('taxProfile');
+                    }
+                });
+            });
         }
 
         $paginator = $query->orderByDesc('id')->paginate($perPage);
@@ -708,6 +757,16 @@ class HcmEmployeeController extends Controller
 
         $auth = $request->user();
         if ($this->canManageEmployee($request)) {
+            if ((int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'EMPLOYEE_NOT_FOUND',
+                        'message' => 'Employee not found.',
+                    ],
+                ], 404);
+            }
+
             return $this->updateEmployeeAsAdmin($request, $user);
         }
 
@@ -920,7 +979,8 @@ class HcmEmployeeController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        if (! $this->canManageEmployee($request) && $auth->id !== $id) {
+        $canManage = $this->canManageEmployee($request);
+        if (! $canManage && $auth->id !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -932,6 +992,16 @@ class HcmEmployeeController extends Controller
 
         $user = User::query()->find($id);
         if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'EMPLOYEE_NOT_FOUND',
+                    'message' => 'Employee not found.',
+                ],
+            ], 404);
+        }
+
+        if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -1061,7 +1131,8 @@ class HcmEmployeeController extends Controller
     public function uploadProfilePhoto(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        if (! $this->canManageEmployee($request) && $auth->id !== $id) {
+        $canManage = $this->canManageEmployee($request);
+        if (! $canManage && $auth->id !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -1073,6 +1144,16 @@ class HcmEmployeeController extends Controller
 
         $user = User::query()->find($id);
         if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'EMPLOYEE_NOT_FOUND',
+                    'message' => 'Employee not found.',
+                ],
+            ], 404);
+        }
+
+        if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -2527,6 +2608,23 @@ class HcmEmployeeController extends Controller
     private function canManageEmployee(Request $request): bool
     {
         return $this->hasAnyPermission($request, ['employee.manage', 'employee.admin']);
+    }
+
+    private function canManageEmployeeTarget(Request $request, User $user): bool
+    {
+        if ($request->user()?->isGlobalHcmAdmin()) {
+            return true;
+        }
+
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return false;
+        }
+
+        return EmployeeProfile::query()
+            ->where('user_id', $user->id)
+            ->where('company_id', $activeCompanyId)
+            ->exists();
     }
 
     private function normalizeEmployeeWritePayload(Request $request): void

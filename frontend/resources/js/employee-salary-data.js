@@ -61,6 +61,8 @@
 
     function buildListUrl(page, perPage) {
         var q = "page=" + encodeURIComponent(String(page)) + "&perPage=" + encodeURIComponent(String(perPage));
+        // Payroll compensation page must stay on active tenant scope.
+        q += "&scope=active_company";
         if (searchTerm) {
             q += "&search=" + encodeURIComponent(searchTerm);
         }

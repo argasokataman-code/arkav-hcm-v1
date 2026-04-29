@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\BillingTaxCalculationService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -118,7 +119,21 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
             ])
             ->first();
 
-        DB::transaction(function () use ($year, $month, $summary, $existing): void {
+        // Level 3: Snapshot per-tenant billing tax report at close time.
+        // After locking, BillingTaxCalculationService will return this frozen snapshot for the month
+        // so that future policy config changes cannot alter historical recap numbers.
+        $billingMonth = sprintf('%04d-%02d', $year, $month);
+        $tenantSnapshot = null;
+        try {
+            $tenantSnapshot = app(BillingTaxCalculationService::class)
+                ->generateCrossTenantMonthlyReport($billingMonth);
+        } catch (\Throwable $e) {
+            Log::warning('CloseMonthlyFinancialReportJob: tenant billing snapshot failed (non-fatal).', [
+                'year' => $year, 'month' => $month, 'error' => $e->getMessage(),
+            ]);
+        }
+
+        DB::transaction(function () use ($year, $month, $summary, $existing, $tenantSnapshot): void {
             $payload = [
                 'gross_revenue'     => (float) ($summary->gross_revenue ?? 0),
                 'cleared_revenue'   => (float) ($summary->cleared_revenue ?? 0),
@@ -130,6 +145,12 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
                 'report_status'     => 'locked',
                 'locked_at'         => now()->toDateTimeString(),
             ];
+
+            // Level 3: Persist per-tenant snapshot so the frozen data is served on future reads.
+            if ($tenantSnapshot !== null && Schema::hasColumn('platform_monthly_financial_summaries', 'tenant_billing_snapshots')) {
+                $payload['tenant_billing_snapshots'] = json_encode($tenantSnapshot);
+                $payload['tax_snapshots_locked_at']  = now()->toDateTimeString();
+            }
 
             if ($existing) {
                 DB::table('platform_monthly_financial_summaries')

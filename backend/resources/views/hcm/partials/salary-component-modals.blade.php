@@ -85,7 +85,7 @@
                     </div>
 
                     <h6 class="fw-semibold mb-1">Flag perhitungan</h6>
-                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-rates') }}?screen=komponen-pajak" class="text-primary">Tax Rate → Komponen Pajak</a>.</p>
+                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-employees') }}?screen=komponen-pajak" class="text-primary">Pajak Karyawan → Komponen Pajak</a>.</p>
                     <div class="border rounded p-3 mb-3 bg-light">
                         <div class="row g-2">
                             <div class="col-md-6">
@@ -212,7 +212,7 @@
                     </div>
 
                     <h6 class="fw-semibold mb-1">Flag perhitungan</h6>
-                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-rates') }}?screen=komponen-pajak" class="text-primary">Tax Rate → Komponen Pajak</a>.</p>
+                    <p class="text-muted small mb-3">Digunakan saat mesin penggajian dihitung nanti. Flag PPh 21 dikonfigurasi terpisah di <a href="{{ url('tax-employees') }}?screen=komponen-pajak" class="text-primary">Pajak Karyawan → Komponen Pajak</a>.</p>
                     <div class="border rounded p-3 mb-3 bg-light">
                         <div class="row g-2">
                             <div class="col-md-6">

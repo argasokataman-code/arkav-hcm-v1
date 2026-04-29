@@ -4490,7 +4490,12 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: OK
@@ -4510,7 +4515,12 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       requestBody:
         required: true
         content:
@@ -4537,7 +4547,12 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/UuidPath'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: OK
@@ -4545,6 +4560,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SalaryComponentOkResponse'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/salary-components/{id}/tax-flags:
+    patch:
+      tags: [Payroll]
+      summary: Patch salary component tax classification (HCM admin)
+      description: |
+        Menerima `taxTreatmentCode` eksplisit atau flag legacy PPh 21 untuk menyelaraskan klasifikasi pajak komponen.
+        Response mengembalikan serialize komponen terbaru agar UI tenant tax mapping dapat me-refresh state secara langsung.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryComponentTaxFlagsPatchRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryComponentDetailResponse'
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -9862,6 +9911,18 @@ paths:
           schema:
             type: string
             enum: [draft, submitted, approved, published, superseded, void]
+        - name: effective_from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: effective_to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
         - name: page
           in: query
           required: false
@@ -9889,6 +9950,7 @@ paths:
       summary: Create tax governance policy draft
       description: |
         Requires draft-manage permission and tenant scope match.
+        If `draftKey` already maps to an existing draft for the active company, runtime returns that draft instead of creating a duplicate.
       security:
         - bearerAuth: []
       requestBody:
@@ -9898,6 +9960,12 @@ paths:
             schema:
               $ref: '#/components/schemas/TaxGovernancePolicyUpsertRequest'
       responses:
+        '200':
+          description: Existing draft returned for same draftKey (idempotent create)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
         '201':
           description: Created
           content:
@@ -9973,9 +10041,9 @@ paths:
   /v1/hcm/tax-governance/policies/{policyRef}/publish:
     post:
       tags: [Tax Governance]
-      summary: Publish approved tax governance policy
+      summary: Publish tax governance policy (temporarily disabled)
       description: |
-        Draft contract. Requires publish permission and SoD guardrail checks.
+        Temporary mode: workflow publish is disabled and endpoint returns `409 TAX_POLICY_WORKFLOW_DISABLED`.
       security:
         - bearerAuth: []
       parameters:
@@ -10003,21 +10071,15 @@ paths:
                   type: string
                   format: date
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '409': { $ref: '#/components/responses/ConflictError' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/tax-governance/policies/{policyRef}/submit:
     post:
       tags: [Tax Governance]
-      summary: Submit tax governance draft for approval
+      summary: Submit tax governance draft for approval (temporarily disabled)
       security:
         - bearerAuth: []
       parameters:
@@ -10036,26 +10098,16 @@ paths:
           application/json:
             schema:
               type: object
-              properties:
-                submissionNote:
-                  type: string
-                  maxLength: 1000
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '409': { $ref: '#/components/responses/ConflictError' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/tax-governance/policies/{policyRef}/approve:
     post:
       tags: [Tax Governance]
-      summary: Approve submitted tax governance policy
+      summary: Approve submitted tax governance policy (temporarily disabled)
       security:
         - bearerAuth: []
       parameters:
@@ -10069,32 +10121,21 @@ paths:
               - type: integer
                 minimum: 1
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required: [approvalNote]
-              properties:
-                approvalNote:
-                  type: string
-                  maxLength: 1000
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '409': { $ref: '#/components/responses/ConflictError' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/tax-governance/policies/{policyRef}/reject:
     post:
       tags: [Tax Governance]
-      summary: Reject submitted tax governance policy to draft
+      summary: Reject submitted tax governance policy to draft (temporarily disabled)
       security:
         - bearerAuth: []
       parameters:
@@ -10108,27 +10149,16 @@ paths:
               - type: integer
                 minimum: 1
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
               type: object
-              required: [rejectionNote]
-              properties:
-                rejectionNote:
-                  type: string
-                  maxLength: 1000
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaxGovernancePolicyResponse'
+        '409': { $ref: '#/components/responses/ConflictError' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
-        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/tax-governance/governance/dashboard:
     get:
@@ -10562,6 +10592,10 @@ paths:
     post:
       tags: [Tax Governance]
       summary: Create platform tax and compliance policy
+      description: >
+        Government tax compliance policies currently use the global propagation mode.
+        Runtime writes one policy snapshot per tenant for the selected billing month.
+        `billing_cycle_type` can be set to `monthly`, `yearly`, or `custom` and is propagated into the report payload.
       security:
         - bearerAuth: []
       requestBody:
@@ -12463,6 +12497,8 @@ components:
         success:
           type: boolean
           enum: [true]
+        data:
+          $ref: '#/components/schemas/SalaryComponent'
     SalaryComponent:
       type: object
       properties:
@@ -12506,6 +12542,9 @@ components:
           type: boolean
         includePph21AnnualReconciliation:
           type: boolean
+        taxTreatmentCode:
+          $ref: '#/components/schemas/SalaryComponentTaxTreatmentCode'
+          nullable: true
         subjectOvertimeRegulation:
           type: boolean
         affectsNetPay:
@@ -12534,6 +12573,17 @@ components:
         - wage_bpjs_tk
         - gross_monthly_ter
         - thr_calculation_base
+    SalaryComponentTaxTreatmentCode:
+      type: string
+      description: Klasifikasi pajak eksplisit untuk tenant tax mapping; runtime tetap menurunkan flag legacy PPh 21 dari nilai ini.
+      enum:
+        - pph21_taxable_full
+        - pph21_taxable_partial
+        - non_object
+        - deductible
+        - pph21_final
+        - pph21_separate
+        - employer_display_only
     SalaryComponentCategory:
       type: string
       description: |
@@ -12621,6 +12671,9 @@ components:
         includePph21AnnualReconciliation:
           type: boolean
           default: false
+        taxTreatmentCode:
+          $ref: '#/components/schemas/SalaryComponentTaxTreatmentCode'
+          nullable: true
         subjectOvertimeRegulation:
           type: boolean
           default: false
@@ -12696,6 +12749,9 @@ components:
           type: boolean
         includePph21AnnualReconciliation:
           type: boolean
+        taxTreatmentCode:
+          $ref: '#/components/schemas/SalaryComponentTaxTreatmentCode'
+          nullable: true
         subjectOvertimeRegulation:
           type: boolean
         affectsNetPay:
@@ -12709,6 +12765,19 @@ components:
           type: integer
           minimum: 0
           maximum: 65535
+    SalaryComponentTaxFlagsPatchRequest:
+      type: object
+      properties:
+        includePph21TerGross:
+          type: boolean
+          nullable: true
+        includePph21AnnualReconciliation:
+          type: boolean
+          nullable: true
+        taxTreatmentCode:
+          $ref: '#/components/schemas/SalaryComponentTaxTreatmentCode'
+          nullable: true
+      description: Minimal satu field harus dikirim. Jika `taxTreatmentCode` ada, runtime menyelaraskan flag legacy PPh 21 dan employer cost line secara deterministik.
     SalaryComponentCategoryRow:
       type: object
       properties:
@@ -13119,10 +13188,6 @@ components:
         uuid:
           type: string
           format: uuid
-        tenantUuid:
-          type: string
-          format: uuid
-          nullable: true
         policyCode:
           type: string
         name:
@@ -13137,15 +13202,42 @@ components:
           type: string
           format: date
           nullable: true
+        rules:
+          type: object
+          additionalProperties: true
+        rateSchedules:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        draftKey:
+          type: string
+          nullable: true
         version:
           type: integer
-        updatedByUserUuid:
+        submittedAt:
           type: string
-          format: uuid
+          format: date-time
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
           nullable: true
         updatedAt:
           type: string
           format: date-time
+          nullable: true
     TaxGovernancePolicyResponse:
       type: object
       properties:
@@ -13193,16 +13285,21 @@ components:
           type: string
           format: date
           nullable: true
+        draftKey:
+          type: string
+          maxLength: 120
+          nullable: true
+          description: Idempotency fingerprint untuk draft authoring tenant.
         rules:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
+          type: object
+          additionalProperties: true
+          description: Objek aturan statutory. Runtime menerima `scheme`, `currency`, `regulationReference`, `regulation_reference`, `regulationSourceType`, dan `calculationMethod`.
         rateSchedules:
           type: array
           items:
             type: object
             additionalProperties: true
+          description: Schedule statutory per kategori TER/A-B-C atau payload legacy yang akan dinormalisasi runtime.
         version:
           type: integer
           nullable: true
@@ -13334,18 +13431,84 @@ components:
             summary:
               type: object
               additionalProperties: true
+            summary_global:
+              type: object
+              additionalProperties: true
+            summary_compliance:
+              type: object
+              additionalProperties: true
+            tenants_global:
+              type: array
+              items:
+                type: object
+                properties:
+                  tenant:
+                    type: string
+                  company_id:
+                    type: integer
+                    nullable: true
+                  company_name:
+                    type: string
+                  billing_month:
+                    type: string
+                    nullable: true
+                    pattern: '^[0-9]{4}-[0-9]{2}$'
+                  billing_cycle_type:
+                    type: string
+                    nullable: true
+                    enum: [monthly, yearly, custom]
+                  next_renewal_month:
+                    type: string
+                    nullable: true
+                    pattern: '^[0-9]{4}-[0-9]{2}$'
+                  subscription_revenue:
+                    type: number
+                  payroll_service_fee:
+                    type: number
+                  addon_revenue:
+                    type: number
+                  gross_revenue:
+                    type: number
+                  tax_amount_due:
+                    type: number
+                  collected_tax_liability:
+                    type: number
+                  net_revenue:
+                    type: number
+            tenants_compliance:
+              type: array
+              items:
+                type: object
+                properties:
+                  taxable_revenue:
+                    type: number
+                  collected_tax_liability:
+                    type: number
+                  payroll_component:
+                    type: number
+                  addon_component:
+                    type: number
+                  total_tax_payable:
+                    type: number
     TaxGovernancePlatformBillingPolicyUpsertRequest:
       type: object
-      required: [subscription_tax_rate, payroll_service_fee, addon_markup_rate]
+      required: [subscription_tax_rate, addon_markup_rate]
       properties:
         subscription_tax_rate:
           type: number
           minimum: 0
           maximum: 100
+        billing_cycle_type:
+          type: string
+          enum: [monthly, yearly, custom]
+          nullable: true
+          description: Optional for global platform compliance mode. Defaults to `monthly` when omitted.
         payroll_service_fee:
           type: number
           minimum: 0
           maximum: 100
+          deprecated: true
+          description: Deprecated compatibility field. Runtime ignores input and forces 0.
         addon_markup_rate:
           type: number
           minimum: 0

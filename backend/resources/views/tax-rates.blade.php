@@ -1,4 +1,4 @@
-<?php $page = 'tax-rates'; ?>
+<?php $page = 'tax-employees'; ?>
 @php
     $taxGovernanceScreen = $taxGovernanceScreen ?? 'landing';
     $taxGovernancePolicyUuid = $taxGovernancePolicyUuid ?? null;
@@ -7,18 +7,18 @@
 @endphp
 @extends('layout.mainlayout')
 @section('content')
-<div class="page-wrapper" data-tax-governance-page data-tax-governance-screen="{{ $taxGovernanceScreen }}" data-tax-governance-policy-uuid="{{ $taxGovernancePolicyUuid }}" role="main" aria-label="Pajak dan kepatuhan payroll tenant">
+<div class="page-wrapper" data-tax-governance-page data-tax-governance-screen="{{ $taxGovernanceScreen }}" data-tax-governance-policy-uuid="{{ $taxGovernancePolicyUuid }}" role="main" aria-label="Employee tax and payroll compliance">
     <div class="content">
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Pajak & Kepatuhan Payroll Tenant</h2>
+                <h2 class="mb-1">Employee Tax & Payroll Compliance</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
                             <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                         </li>
                         <li class="breadcrumb-item">HR / Payroll</li>
-                        <li class="breadcrumb-item active" aria-current="page">Pajak & Kepatuhan</li>
+                        <li class="breadcrumb-item active" aria-current="page">Employee Tax & Compliance</li>
                     </ol>
                 </nav>
             </div>
@@ -55,53 +55,59 @@
         <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
             <i class="ti ti-info-circle mt-1"></i>
             <div>
-                <div class="fw-semibold">Pajak & Kepatuhan Payroll per Tenant</div>
-                <div class="small">Kelola kebijakan PPh 21, komponen payroll, profil pajak karyawan, dan audit kepatuhan per perusahaan tenant.</div>
+                <div class="fw-semibold">
+                    {{ $taxGovernanceScreen === 'komponen-pajak' ? 'PPh 21 Component Mapping Workspace' : 'Tenant Employee Tax Setup' }}
+                </div>
+                <div class="small">
+                    {{ $taxGovernanceScreen === 'komponen-pajak'
+                        ? 'Review every payroll component, assign the right PPh 21 treatment, and close unmapped items before payroll is processed.'
+                        : 'Manage the active company\'s PPh 21 policy, employee tax profiles, component mapping, and compliance evidence without mixing it with platform billing tax flows.' }}
+                </div>
             </div>
         </div>
 
         <div class="d-flex flex-wrap gy-2 justify-content-between my-4">
             <ul class="nav nav-pills gap-2" role="navigation" aria-label="Submenu Tenant Tax">
                 <li class="nav-item">
-                    <a href="{{ route('tax-rates') }}"
+                    <a href="{{ route('tax-employees') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'landing' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'landing' ? 'page' : 'false' }}">Ringkasan Kepatuhan</a>
+                       aria-current="{{ $taxGovernanceScreen === 'landing' ? 'page' : 'false' }}">Compliance Overview</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('tax-rates.policies') }}"
+                    <a href="{{ route('tax-employees.policies') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-policies' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'tenant-policies' ? 'page' : 'false' }}">Kebijakan PPh 21</a>
+                       aria-current="{{ $taxGovernanceScreen === 'tenant-policies' ? 'page' : 'false' }}">PPh 21 Policies</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('tax-rates.tenant-compliance') }}"
+                    <a href="{{ route('tax-employees.tenant-compliance') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-compliance' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'tenant-compliance' ? 'page' : 'false' }}">Rekonsiliasi Billing Pajak</a>
+                      aria-current="{{ $taxGovernanceScreen === 'tenant-compliance' ? 'page' : 'false' }}">Platform Billing Tax</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ url('tax-rates/komponen-pajak') }}"
+                          <a href="{{ url('tax-employees/komponen-pajak') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'komponen-pajak' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'komponen-pajak' ? 'page' : 'false' }}">Komponen Pajak Payroll</a>
+                      aria-current="{{ $taxGovernanceScreen === 'komponen-pajak' ? 'page' : 'false' }}">PPh 21 Component Mapping</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('tax-rates.approvals') }}"
-                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'approvals' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'approvals' ? 'page' : 'false' }}">Workflow Persetujuan</a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('tax-rates.employee-tax-profiles') }}"
+                    <a href="{{ route('tax-employees.employee-tax-profiles') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'page' : 'false' }}">Profil Pajak Karyawan</a>
+                       aria-current="{{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'page' : 'false' }}">Employee Tax Profiles</a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ route('tax-rates.reports') }}"
+                    <a href="{{ route('tax-employees.reports') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-reports' ? 'active' : '' }}"
-                       aria-current="{{ $taxGovernanceScreen === 'tenant-reports' ? 'page' : 'false' }}">Laporan Audit</a>
+                       aria-current="{{ $taxGovernanceScreen === 'tenant-reports' ? 'page' : 'false' }}">Audit Reports</a>
                 </li>
             </ul>
-            <div class="mb-2">
-                <button type="button" class="btn btn-primary d-inline-flex align-items-center" data-tax-policy-create>
-                    <i class="ti ti-circle-plus me-2"></i>Buat Kebijakan
+            <div class="mb-2 d-flex gap-2">
+                <button type="button" class="btn btn-light d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#taxEmployeeGuideModal">
+                    <i class="ti ti-book me-2"></i>Usage Guide
                 </button>
+                @if ($taxGovernanceScreen === 'tenant-policies')
+                    <button type="button" class="btn btn-primary d-inline-flex align-items-center" data-tax-policy-create>
+                        <i class="ti ti-circle-plus me-2"></i>New Policy
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -159,7 +165,7 @@
                         </div>
                         <div class="card-body">
                             <ol class="list-group list-group-numbered small" data-tax-action-list>
-                                <li class="list-group-item text-muted">Memuat rekomendasi tindakan...</li>
+                                <li class="list-group-item text-muted">Rekomendasi tindakan akan ditampilkan di sini.</li>
                             </ol>
                         </div>
                     </div>
@@ -180,7 +186,7 @@
                                         </tr>
                                     </thead>
                                     <tbody data-tax-anomaly-table>
-                                        <tr><td colspan="3" class="text-center text-muted py-3" style="font-size: 12px;">Memuat data anomali...</td></tr>
+                                        <tr><td colspan="3" class="text-center text-muted py-3" style="font-size: 12px;">Belum ada data anomali untuk ditampilkan.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -206,7 +212,7 @@
                                 </tr>
                             </thead>
                             <tbody data-tax-event-table>
-                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Memuat riwayat perubahan...</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Belum ada riwayat perubahan untuk ditampilkan.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -232,7 +238,7 @@
                                 </tr>
                             </thead>
                             <tbody data-tax-report-audit-table>
-                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Memuat laporan audit...</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-3" style="font-size: 12px;">Laporan audit akan ditampilkan di sini.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -263,7 +269,7 @@
                                 </tr>
                             </thead>
                             <tbody data-tax-tenant-policy-table>
-                                <tr><td colspan="7" class="text-center text-muted py-4">Memuat kebijakan tenant...</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada kebijakan tenant untuk ditampilkan.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -272,46 +278,144 @@
         @endif
 
         @if ($taxGovernanceScreen === 'komponen-pajak')
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <h5 class="mb-1">Klasifikasi PPh 21 per Komponen Gaji</h5>
-                        <span class="text-muted small">Flag ini menentukan komponen mana yang masuk bruto kena pajak (TER) saat payroll run.</span>
+                        <h4 class="mb-1">PPh 21 Component Mapping</h4>
+                        <span class="text-muted small">Define how each payroll component is treated under PPh 21 taxation rules.</span>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tax-component-filter="all">Semua</button>
-                        <button type="button" class="btn btn-sm btn-outline-success" data-tax-component-filter="addition">Pendapatan</button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-tax-component-filter="deduction">Potongan</button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-tax-map-sync>
+                            <i class="ti ti-refresh me-1"></i>Sync Components
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" data-tax-map-audit>
+                            <i class="ti ti-alert-triangle me-1"></i>Audit Mapping
+                        </button>
+                        <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+                           data-bs-toggle="modal" data-bs-target="#arcav_salary_component_category_master">
+                            <i class="ti ti-tags me-1"></i>Master Kategori
+                        </a>
+                        <a href="javascript:void(0);" class="btn btn-sm btn-primary d-inline-flex align-items-center"
+                           data-bs-toggle="modal" data-bs-target="#arcav_add_salary_component">
+                            <i class="ti ti-circle-plus me-1"></i>Tambah Komponen
+                        </a>
                     </div>
                 </div>
+            </div>
+
+            <div class="row g-3 mb-3" data-tax-map-summary>
+                <div class="col-md-6 col-xl-2">
+                    <button type="button" class="card w-100 text-start border-0 shadow-sm" data-tax-map-card="all">
+                        <div class="card-body py-3">
+                            <p class="text-muted mb-1 fs-13">Total Components</p>
+                            <h4 class="mb-0" data-tax-map-total>0</h4>
+                        </div>
+                    </button>
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <button type="button" class="card w-100 text-start border-0 shadow-sm" data-tax-map-card="taxable">
+                        <div class="card-body py-3">
+                            <p class="text-muted mb-1 fs-13">Taxable Components</p>
+                            <h4 class="mb-0 text-success" data-tax-map-taxable>0</h4>
+                        </div>
+                    </button>
+                </div>
+                <div class="col-md-6 col-xl-2">
+                    <button type="button" class="card w-100 text-start border-0 shadow-sm" data-tax-map-card="non-taxable">
+                        <div class="card-body py-3">
+                            <p class="text-muted mb-1 fs-13">Non-Taxable Components</p>
+                            <h4 class="mb-0 text-secondary" data-tax-map-non-taxable>0</h4>
+                        </div>
+                    </button>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <button type="button" class="card w-100 text-start border border-danger shadow-sm" data-tax-map-card="unmapped">
+                        <div class="card-body py-3">
+                            <p class="text-danger mb-1 fs-13">Unmapped Components</p>
+                            <h4 class="mb-0 text-danger" data-tax-map-unmapped>0</h4>
+                        </div>
+                    </button>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <button type="button" class="card w-100 text-start border-0 shadow-sm" data-tax-map-card="bpjs">
+                        <div class="card-body py-3">
+                            <p class="text-muted mb-1 fs-13">BPJS Components</p>
+                            <h4 class="mb-0 text-info" data-tax-map-bpjs>0</h4>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-body py-3">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="flex-grow-1" style="min-width:220px;">
+                            <input type="search" class="form-control" placeholder="Search by component name or code" data-tax-map-search>
+                        </div>
+                        <div class="btn-group" role="group" aria-label="Quick filter">
+                            <button type="button" class="btn btn-outline-secondary active" data-tax-map-chip="all">All</button>
+                            <button type="button" class="btn btn-outline-success" data-tax-map-chip="income">Income</button>
+                            <button type="button" class="btn btn-outline-danger" data-tax-map-chip="deduction">Deduction</button>
+                            <button type="button" class="btn btn-outline-info" data-tax-map-chip="bpjs">BPJS</button>
+                            <button type="button" class="btn btn-outline-danger" data-tax-map-chip="unmapped">Unmapped</button>
+                        </div>
+                        <select class="form-select w-auto" data-tax-map-treatment>
+                            <option value="">All Tax Treatment</option>
+                            <option value="pph21_taxable_full">PPh 21 Taxable Full</option>
+                            <option value="pph21_taxable_partial">PPh 21 Taxable Partial</option>
+                            <option value="non_object">Non-Object</option>
+                            <option value="deductible">Deductible</option>
+                            <option value="pph21_final">PPh 21 Final</option>
+                            <option value="pph21_separate">Separate Handling</option>
+                            <option value="employer_display_only">Employer Display Only</option>
+                            <option value="unmapped">Unmapped</option>
+                        </select>
+                        <select class="form-select w-auto" data-tax-map-category>
+                            <option value="">All Categories</option>
+                        </select>
+                        <div class="form-check form-switch ms-1">
+                            <input class="form-check-input" type="checkbox" id="taxMapIncompleteOnly" data-tax-map-only-incomplete>
+                            <label class="form-check-label" for="taxMapIncompleteOnly">Show only incomplete mapping</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success d-none" data-tax-map-all-mapped role="status">
+                <i class="ti ti-circle-check me-1"></i>All components are properly mapped to tax rules.
+            </div>
+
+            <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table mb-0">
+                        <table class="table align-middle mb-0" role="grid" aria-label="PPh 21 Component Mapping Table">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Code</th>
-                                    <th>Nama Komponen</th>
-                                    <th>Jenis</th>
-                                    <th>Kategori</th>
-                                    <th class="text-center">
-                                        Masuk Bruto TER<br>
-                                        <span class="text-muted fw-normal" style="font-size:11px">(include_pph21_ter_gross)</span>
-                                    </th>
-                                    <th class="text-center">
-                                        Rekonsiliasi Tahunan<br>
-                                        <span class="text-muted fw-normal" style="font-size:11px">(include_pph21_annual_reconciliation)</span>
-                                    </th>
-                                    <th class="text-center">Status</th>
+                                    <th>Component</th>
+                                    <th>Type</th>
+                                    <th>Category</th>
+                                    <th>Tax Classification</th>
+                                    <th>Payroll Effect</th>
+                                    <th>BPJS Info</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody data-tax-komponen-table>
-                                <tr><td colspan="7" class="text-center text-muted py-4">Memuat komponen gaji...</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted py-4">Loading payroll components...</td></tr>
                             </tbody>
                         </table>
                     </div>
+                    <div class="text-center text-muted py-5 d-none" data-tax-map-empty>
+                        <i class="ti ti-database-off fs-24 d-block mb-2"></i>
+                        No payroll components found. Please create components in Salary Components first.
+                    </div>
                 </div>
-                <div class="card-footer text-muted small">
-                    <i class="ti ti-info-circle me-1"></i>Klik toggle untuk mengubah flag per komponen. Perubahan disimpan langsung dan berlaku pada payroll run berikutnya.
+                <div class="card-footer text-muted small d-flex flex-wrap gap-3">
+                    <span><i class="ti ti-square-rounded-check-filled text-success me-1"></i>PPh 21 taxable</span>
+                    <span><i class="ti ti-square-rounded-check-filled text-primary me-1"></i>Deductible</span>
+                    <span><i class="ti ti-square-rounded-check-filled text-secondary me-1"></i>Non-object / employer display only</span>
+                    <span><i class="ti ti-alert-triangle text-danger me-1"></i>Unmapped (requires action)</span>
                 </div>
             </div>
         @endif
@@ -319,12 +423,16 @@
         @if ($taxGovernanceScreen === 'policy-editor')
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Editor Kebijakan PPh 21</h5>
+                    <h5 class="mb-0">PPh 21 Policy Editor</h5>
                     <span class="badge bg-info-subtle text-info" data-tax-editor-mode>Draft</span>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-secondary mb-3" data-tax-editor-meta>
                         Referensi kebijakan: <strong data-tax-editor-policy-ref>{{ $taxGovernancePolicyUuid ?? 'draft-baru' }}</strong>
+                    </div>
+
+                    <div class="alert alert-info mb-3">
+                        Policy ini menyimpan referensi regulasi dan schedule efektif statutory PPh 21 untuk perusahaan aktif. Sistem akan melampirkan lookup TER kategori A/B/C resmi sesuai periode berlaku kebijakan.
                     </div>
 
                     <form class="row g-3" data-tax-policy-editor-form>
@@ -345,22 +453,22 @@
                             <input type="date" class="form-control" name="effectiveEndDate">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Kelompok TER</label>
-                            <input type="text" class="form-control" name="rateBracket" value="A" required>
+                            <label class="form-label">Sumber Regulasi</label>
+                            <select class="form-select" name="regulationSourceType" required>
+                                <option value="ministry_regulation">Ministerial Regulation</option>
+                                <option value="government_regulation">Government Regulation</option>
+                                <option value="director_general_regulation">Director General Regulation</option>
+                                <option value="company_policy_reference">Company Policy Reference</option>
+                            </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Tarif PPh 21 (%)</label>
-                            <input type="number" class="form-control" name="rateValue" min="0" max="100" step="0.01" value="5" required>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Catatan Pengajuan</label>
-                            <textarea class="form-control" rows="2" name="submissionNote" placeholder="Alasan submit untuk approver"></textarea>
+                        <div class="col-md-9">
+                            <label class="form-label">Referensi Regulasi</label>
+                            <input type="text" class="form-control" name="regulationReference" value="PP 58/2023 & PMK 168/PMK.03/2023" required>
                         </div>
                         <div class="col-12 d-flex gap-2 flex-wrap">
-                            <button type="button" class="btn btn-outline-secondary" data-tax-policy-validate>Pratinjau Validasi</button>
-                            <button type="submit" class="btn btn-primary" data-tax-policy-save>Simpan Draft</button>
-                            <button type="button" class="btn btn-outline-primary" data-tax-policy-submit>Ajukan Persetujuan</button>
-                            <a href="{{ route('tax-rates.policies') }}" class="btn btn-light">Kembali ke Daftar</a>
+                            <button type="button" class="btn btn-outline-secondary" data-tax-policy-validate>Validation Preview</button>
+                            <button type="submit" class="btn btn-primary" data-tax-policy-save>Save Configuration</button>
+                            <a href="{{ route('tax-employees.policies') }}" class="btn btn-light">Back to Policies</a>
                         </div>
                     </form>
 
@@ -368,59 +476,6 @@
                 </div>
             </div>
         @endif
-
-        @if ($taxGovernanceScreen === 'approvals')
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Kotak Persetujuan</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>Kebijakan</th>
-                                    <th>Pembuat</th>
-                                    <th>Status</th>
-                                    <th>Alasan</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody data-tax-approval-table>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Memuat antrian persetujuan...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        @endif
-
-        @if ($taxGovernanceScreen === 'publications')
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Timeline Publikasi</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th>Kebijakan</th>
-                                    <th>Status</th>
-                                    <th>Versi Saat Ini</th>
-                                    <th>Alasan Publikasi</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody data-tax-publication-table>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Memuat antrian publikasi...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        @endif
-
 
 
         {{-- ================================================================ --}}
@@ -496,7 +551,7 @@
                                 </tr>
                             </thead>
                             <tbody data-emp-tax-tbody>
-                                <tr><td colspan="7" class="text-center text-muted py-4" aria-live="polite">Memuat data profil pajak karyawan...</td></tr>
+                                <tr><td colspan="7" class="text-center text-muted py-4" aria-live="polite">Belum ada profil pajak karyawan untuk ditampilkan.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -567,6 +622,16 @@
         {{-- Dedicated compliance summary: checklist + event history + billing --}}
         {{-- ================================================================ --}}
         @if ($taxGovernanceScreen === 'tenant-compliance')
+            <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+                <i class="ti ti-building-bank mt-1"></i>
+                <div>
+                    <div class="fw-semibold">Platform billing tax is a separate control surface</div>
+                    <div class="small">
+                        Use this tab only to reconcile tax attached to tenant subscription invoices and service billing. Employee PPh 21 setup, payroll mapping, and employee tax profiles stay in the other tabs for the active company.
+                    </div>
+                </div>
+            </div>
+
             <div class="card mb-3" role="region" aria-label="Checklist Kepatuhan Pajak Tenant">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0">Checklist Kepatuhan Pajak Tenant</h5>
@@ -649,9 +714,10 @@
                 <div class="col-xl-6">
                     <div class="card h-100">
                         <div class="card-header">
-                            <h5 class="mb-0">Rekonsiliasi Pajak Billing</h5>
+                            <h5 class="mb-0">Rekonsiliasi Pajak Billing Platform</h5>
                         </div>
                         <div class="card-body" data-compliance-billing-area>
+                            <p class="text-muted small mb-3">Nilai di bawah ini berasal dari invoice langganan tenant dan kewajiban pajak layanan platform, bukan dari pemotongan PPh 21 karyawan.</p>
                             <dl class="row mb-0">
                                 <dt class="col-6">Total Invoice</dt>
                                 <dd class="col-6" data-compliance-billing-invoice-count>-</dd>
@@ -696,8 +762,30 @@
             <div class="alert alert-danger d-none mt-3" data-compliance-error role="alert" aria-live="assertive"></div>
         @endif
 
-
+        <div class="modal fade" id="taxEmployeeGuideModal" tabindex="-1" aria-labelledby="taxEmployeeGuideModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="taxEmployeeGuideModalLabel">Employee Tax Usage Guide</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ol class="mb-0 ps-3">
+                            <li>Open <strong>PPh 21 Component Mapping</strong> and click <strong>Sync Components</strong> to load the latest payroll components.</li>
+                            <li>Focus on rows marked <strong>Unmapped</strong> first, because they can create payroll tax risk.</li>
+                            <li>For each component, choose one explicit <strong>Tax Classification</strong> that matches the statutory handling of the component.</li>
+                            <li>Use <strong>Audit Mapping</strong> to instantly filter incomplete rows before payroll cut-off.</li>
+                            <li>For BPJS components, verify <strong>Employee</strong> vs <strong>Employer</strong> contribution treatment carefully.</li>
+                            <li>To add or edit a component, click <strong>Tambah Komponen</strong> or the edit icon on any row. Deletions are disabled for system-locked components.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
 </div>
+    @include('hcm.partials.salary-component-modals')
+    @include('hcm.partials.salary-component-guide-modal')
+
 @endsection

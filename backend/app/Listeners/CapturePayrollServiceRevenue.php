@@ -52,6 +52,9 @@ class CapturePayrollServiceRevenue implements ShouldQueue
             ->sum('amount');
 
         $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
+        if ($serviceFeeAmount <= 0) {
+            return;
+        }
 
         DB::transaction(function () use ($event, $run, $idempotencyKey, $grossPayrollBase, $serviceFeeAmount): void {
             $captured = PlatformRevenueTransaction::query()->firstOrCreate(

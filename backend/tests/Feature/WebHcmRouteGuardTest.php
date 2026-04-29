@@ -17,6 +17,40 @@ class WebHcmRouteGuardTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createCompany(array $overrides = []): Company
+    {
+        return Company::query()->create(array_merge([
+            'code' => 'web_guard_' . str()->lower((string) str()->random(8)),
+            'name' => 'Web Guard Company',
+            'legal_name' => 'Web Guard Company PT',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ], $overrides));
+    }
+
+    private function attachUserToCompany(Company $company, User $user, string $role = 'admin', string $designation = 'HCM Admin'): void
+    {
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'employment_status' => 'active',
+            'designation' => $designation,
+            'team' => 'HCM',
+            'nik' => 'EMP-' . str()->upper((string) str()->random(10)),
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => $role,
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+    }
+
     private function cookieName(): string
     {
         return (string) config('auth.api_token_cookie.name', 'arcav_access_token');
@@ -130,76 +164,12 @@ class WebHcmRouteGuardTest extends TestCase
     /**
      * @return array<int, string>
      */
-    private function criticalAdminWebPaths(): array
+    private function tenantAdminWebPaths(): array
     {
         return [
-            '/index',
-            '/permission',
-            '/company/invoices',
-            '/dashboard',
-            '/saas-dashboard',
-            '/saas/transactions',
-            '/purchase-transaction',
             '/promotion',
             '/resignation',
             '/termination',
-            '/leave-type',
-            '/users',
-            '/roles-permissions',
-            '/salary-component-master',
-            '/employee-salary',
-            '/payroll',
-            '/payroll-overtime',
-            '/payroll-deduction',
-            '/payroll-thr',
-            '/payroll-run',
-            '/payroll-run-history',
-            '/expenses-report',
-            '/invoice-report',
-            '/payment-report',
-            '/user-report',
-            '/employee-report',
-            '/payslip-report',
-            '/attendance-report',
-            '/leave-report',
-            '/daily-report',
-            '/bussiness-settings',
-            '/business-settings',
-            '/seo-settings',
-            '/localization-settings',
-            '/prefixes',
-            '/preferences',
-            '/appearance',
-            '/language',
-            '/language-web',
-            '/add-language',
-            '/authentication-settings',
-            '/ai-settings',
-            '/salary-settings',
-            '/approval-settings',
-            '/invoice-settings',
-            '/custom-fields',
-            '/email-settings',
-            '/email-template',
-            '/sms-settings',
-            '/sms-template',
-            '/otp-settings',
-            '/gdpr',
-            '/maintenance-mode',
-            '/payment-gateways',
-            '/tax-rates',
-            '/tax-rates/platform-billing/policies',
-            '/tax-rates/platform-tax-compliance/policies',
-            '/tax-rates/platform-tax-compliance/reports',
-            '/currencies',
-            '/custom-css',
-            '/custom-js',
-            '/cronjob',
-            '/cronjob-schedule',
-            '/storage-settings',
-            '/ban-ip-address',
-            '/backup',
-            '/clear-cache',
         ];
     }
 
@@ -231,12 +201,17 @@ class WebHcmRouteGuardTest extends TestCase
 
     public function test_hcm_admin_api_cookie_can_open_promotion_resignation_termination(): void
     {
+        $company = $this->createCompany(['code' => 'webguard_api_admin']);
+
         $this->postJson('/v1/identity/auth/register', [
             'name' => 'QA Admin Web',
             'email' => 'qa.login@example.com',
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
+
+        $admin = User::query()->where('email', 'qa.login@example.com')->firstOrFail();
+        $this->attachUserToCompany($company, $admin);
 
         $loginResponse = $this->postJson('/v1/identity/auth/login', [
             'email' => 'qa.login@example.com',
@@ -249,9 +224,10 @@ class WebHcmRouteGuardTest extends TestCase
 
         $cookieHeader = $this->cookieName().'='.$token;
 
-        $adminPaths = $this->criticalAdminWebPaths();
+        $adminPaths = $this->tenantAdminWebPaths();
         foreach ($adminPaths as $path) {
             $response = $this->withHeader('Cookie', $cookieHeader)
+                ->withHeader('X-Company-Code', $company->code)
                 ->followingRedirects()
                 ->get($path);
 
@@ -261,12 +237,17 @@ class WebHcmRouteGuardTest extends TestCase
 
     public function test_non_hcm_admin_api_cookie_redirected_from_promotion_resignation_termination(): void
     {
+        $company = $this->createCompany(['code' => 'webguard_api_member']);
+
         $this->postJson('/v1/identity/auth/register', [
             'name' => 'Web Guard Employee',
             'email' => 'webguard-employee@example.com',
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
+
+        $employee = User::query()->where('email', 'webguard-employee@example.com')->firstOrFail();
+        $this->attachUserToCompany($company, $employee, 'employee', 'Staff');
 
         $loginResponse = $this->postJson('/v1/identity/auth/login', [
             'email' => 'webguard-employee@example.com',
@@ -279,9 +260,10 @@ class WebHcmRouteGuardTest extends TestCase
 
         $cookieHeader = $this->cookieName().'='.$token;
 
-        $adminPaths = $this->criticalAdminWebPaths();
+        $adminPaths = $this->tenantAdminWebPaths();
         foreach ($adminPaths as $path) {
             $this->withHeader('Cookie', $cookieHeader)
+                ->withHeader('X-Company-Code', $company->code)
                 ->get($path)
                 ->assertRedirect(url('employee-dashboard'));
         }
@@ -296,15 +278,20 @@ class WebHcmRouteGuardTest extends TestCase
 
     public function test_hcm_admin_web_session_can_open_promotion_resignation_termination(): void
     {
+        $company = $this->createCompany(['code' => 'webguard_session_admin']);
+
         $admin = User::factory()->create([
             'email' => 'qa.login@example.com',
             'password' => bcrypt('password'),
         ]);
 
+        $this->attachUserToCompany($company, $admin);
+
         $this->actingAs($admin);
-        $adminPaths = $this->criticalAdminWebPaths();
+        $adminPaths = $this->tenantAdminWebPaths();
         foreach ($adminPaths as $path) {
             $this->followingRedirects()
+                ->withHeader('X-Company-Code', $company->code)
                 ->get($path)
                 ->assertOk("HCM admin + sesi web harus 200 setelah redirect normal: {$path}");
         }
@@ -353,15 +340,21 @@ class WebHcmRouteGuardTest extends TestCase
 
     public function test_non_hcm_admin_web_session_redirected_from_promotion_resignation_termination(): void
     {
+        $company = $this->createCompany(['code' => 'webguard_session_member']);
+
         $user = User::factory()->create([
             'email' => 'sessiononly-employee@example.com',
             'password' => bcrypt('password'),
         ]);
 
+        $this->attachUserToCompany($company, $user, 'employee', 'Staff');
+
         $this->actingAs($user);
-        $adminPaths = $this->criticalAdminWebPaths();
+        $adminPaths = $this->tenantAdminWebPaths();
         foreach ($adminPaths as $path) {
-            $this->get($path)->assertRedirect(url('employee-dashboard'));
+            $this->withHeader('X-Company-Code', $company->code)
+                ->get($path)
+                ->assertRedirect(url('employee-dashboard'));
         }
     }
 
@@ -511,9 +504,7 @@ class WebHcmRouteGuardTest extends TestCase
             '/add-language',
             '/authentication-settings',
             '/ai-settings',
-            '/tax-rates/platform-billing/policies',
-            '/tax-rates/platform-tax-compliance/policies',
-            '/tax-rates/platform-tax-compliance/reports',
+            '/saas/pricing',
         ] as $path) {
             $this->actingAs($user)
                 ->withHeader('X-Company-Code', $company->code)

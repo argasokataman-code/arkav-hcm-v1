@@ -270,9 +270,6 @@
 <script src="{{ URL::asset('build/js/asset-management-data.js') }}?v={{ file_exists(public_path('build/js/asset-management-data.js')) ? filemtime(public_path('build/js/asset-management-data.js')) : time() }}"></script>
 @endif
 
-@if (Route::is(['pricing']))
-<script src="{{ URL::asset('build/js/pricing-data.js') }}?v={{ file_exists(public_path('build/js/pricing-data.js')) ? filemtime(public_path('build/js/pricing-data.js')) : time() }}"></script>
-@endif
 
 <!-- Fancybox JS -->
 <script src="{{ URL::asset('build/plugins/fancybox/jquery.fancybox.min.js') }}"></script>
@@ -391,7 +388,7 @@
     <script src="{{ URL::asset('build/js/reports-hub.js') }}?v={{ file_exists(public_path('build/js/reports-hub.js')) ? filemtime(public_path('build/js/reports-hub.js')) : time() }}"></script>
 @endif
 
-@if (request()->is('tax-rates*'))
+@if (request()->is('tax-rates*') || request()->is('tax-employees*') || request()->is('platform-tax-compliance*') || request()->is('saas/pricing*'))
     <script src="{{ URL::asset('build/js/tax-governance-dashboard.js') }}?v={{ file_exists(public_path('build/js/tax-governance-dashboard.js')) ? filemtime(public_path('build/js/tax-governance-dashboard.js')) : time() }}"></script>
     <script src="{{ URL::asset('build/js/tax-employee-profiles.js') }}?v={{ file_exists(public_path('build/js/tax-employee-profiles.js')) ? filemtime(public_path('build/js/tax-employee-profiles.js')) : time() }}"></script>
     <script src="{{ URL::asset('build/js/tax-tenant-compliance.js') }}?v={{ file_exists(public_path('build/js/tax-tenant-compliance.js')) ? filemtime(public_path('build/js/tax-tenant-compliance.js')) : time() }}"></script>

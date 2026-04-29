@@ -136,9 +136,10 @@
         var params = {
             perPage: PAGE_SIZE,
             page: currentPage,
+            scope: 'active_company',
         };
         if (searchEl && searchEl.value.trim() !== '') {
-            params.q = searchEl.value.trim();
+            params.search = searchEl.value.trim();
         }
         if (filterEl && filterEl.value !== '') {
             params.taxFilter = filterEl.value;

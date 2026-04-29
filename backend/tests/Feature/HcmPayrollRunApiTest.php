@@ -263,7 +263,7 @@ class HcmPayrollRunApiTest extends TestCase
         $this->assertSame('finalized', $response->json('data.status'));
     }
 
-    public function test_finalize_stores_payroll_service_fee_metadata_from_active_policy(): void
+    public function test_finalize_always_stores_zero_payroll_service_fee_metadata(): void
     {
         $this->employeeToken('employee-fee@example.com', 6_000_000);
         $admin = $this->adminToken();
@@ -290,7 +290,7 @@ class HcmPayrollRunApiTest extends TestCase
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
             ->assertOk();
 
-        $response->assertJsonPath('data.platformServiceFeeRate', 2);
+        $response->assertJsonPath('data.platformServiceFeeRate', 0);
         $response->assertJsonPath('data.platformServiceFeeBillingMonth', '2026-07');
 
         $run = HcmPayrollRun::query()->findOrFail($data['runId']);
@@ -299,17 +299,10 @@ class HcmPayrollRunApiTest extends TestCase
         $serviceFeeRate = (float) ($meta['platform_service_fee_rate'] ?? 0);
         $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
 
-        $expectedBase = round((float) HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $data['runId'])
-            ->whereIn('kind', ['addition', 'earning'])
-            ->sum('amount'), 2);
-        $expectedAmount = round($expectedBase * 0.02, 2);
-
-        $this->assertGreaterThan(0, $serviceFeeBase);
-        $this->assertSame(2.0, $serviceFeeRate);
+        $this->assertSame(0.0, $serviceFeeBase);
+        $this->assertSame(0.0, $serviceFeeRate);
         $this->assertSame('2026-07', (string) ($meta['platform_service_fee_billing_month'] ?? ''));
-        $this->assertEqualsWithDelta($expectedBase, $serviceFeeBase, 0.01);
-        $this->assertEqualsWithDelta($expectedAmount, $serviceFeeAmount, 0.01);
+        $this->assertSame(0.0, $serviceFeeAmount);
 
         $capturedRevenue = PlatformRevenueTransaction::query()
             ->where('source_event_type', 'payroll.finalized')
@@ -319,10 +312,7 @@ class HcmPayrollRunApiTest extends TestCase
             ->where('idempotency_key', 'payroll_finalized:'.$data['runId'])
             ->first();
 
-        $this->assertNotNull($capturedRevenue);
-        $this->assertGreaterThan(0, (float) $capturedRevenue->amount);
-        $this->assertEqualsWithDelta($expectedAmount, (float) $capturedRevenue->amount, 0.01);
-        $this->assertEqualsWithDelta($expectedAmount, (float) $capturedRevenue->net_amount, 0.01);
+        $this->assertNull($capturedRevenue);
     }
 
     public function test_shared_global_period_latest_run_and_draft_reuse_are_scoped_by_active_company(): void

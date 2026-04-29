@@ -36,6 +36,20 @@ class HcmSalaryComponent extends Model
     use AssignsUuid;
     protected $table = 'hcm_salary_components';
 
+    public const TAX_TREATMENT_PPH21_TAXABLE_FULL = 'pph21_taxable_full';
+
+    public const TAX_TREATMENT_PPH21_TAXABLE_PARTIAL = 'pph21_taxable_partial';
+
+    public const TAX_TREATMENT_NON_OBJECT = 'non_object';
+
+    public const TAX_TREATMENT_DEDUCTIBLE = 'deductible';
+
+    public const TAX_TREATMENT_PPH21_FINAL = 'pph21_final';
+
+    public const TAX_TREATMENT_PPH21_SEPARATE = 'pph21_separate';
+
+    public const TAX_TREATMENT_EMPLOYER_DISPLAY_ONLY = 'employer_display_only';
+
 
     /** @var list<string> */
     public const ADDITION_CATEGORIES = [
@@ -83,6 +97,17 @@ class HcmSalaryComponent extends Model
         'thr_calculation_base',
     ];
 
+    /** @var list<string> */
+    public const TAX_TREATMENT_CODES = [
+        self::TAX_TREATMENT_PPH21_TAXABLE_FULL,
+        self::TAX_TREATMENT_PPH21_TAXABLE_PARTIAL,
+        self::TAX_TREATMENT_NON_OBJECT,
+        self::TAX_TREATMENT_DEDUCTIBLE,
+        self::TAX_TREATMENT_PPH21_FINAL,
+        self::TAX_TREATMENT_PPH21_SEPARATE,
+        self::TAX_TREATMENT_EMPLOYER_DISPLAY_ONLY,
+    ];
+
     protected $fillable = [
         'company_id',
         'code',
@@ -99,6 +124,7 @@ class HcmSalaryComponent extends Model
         'include_thr_calculation_base',
         'include_pph21_ter_gross',
         'include_pph21_annual_reconciliation',
+        'tax_treatment_code',
         'subject_overtime_regulation',
         'affects_net_pay',
         'employer_cost_line',
@@ -117,6 +143,7 @@ class HcmSalaryComponent extends Model
             'include_thr_calculation_base' => 'boolean',
             'include_pph21_ter_gross' => 'boolean',
             'include_pph21_annual_reconciliation' => 'boolean',
+            'tax_treatment_code' => 'string',
             'subject_overtime_regulation' => 'boolean',
             'affects_net_pay' => 'boolean',
             'employer_cost_line' => 'boolean',
@@ -169,6 +196,62 @@ class HcmSalaryComponent extends Model
     public static function isValidCategoryForKind(string $kind, string $category): bool
     {
         return in_array($category, self::categoriesForKind($kind), true);
+    }
+
+    /**
+     * @return array{include_pph21_ter_gross: bool, include_pph21_annual_reconciliation: bool}
+     */
+    public static function taxFlagsForTreatment(string $taxTreatmentCode): array
+    {
+        return match ($taxTreatmentCode) {
+            self::TAX_TREATMENT_PPH21_TAXABLE_FULL => [
+                'include_pph21_ter_gross' => true,
+                'include_pph21_annual_reconciliation' => true,
+            ],
+            self::TAX_TREATMENT_PPH21_TAXABLE_PARTIAL => [
+                'include_pph21_ter_gross' => true,
+                'include_pph21_annual_reconciliation' => false,
+            ],
+            self::TAX_TREATMENT_DEDUCTIBLE => [
+                'include_pph21_ter_gross' => false,
+                'include_pph21_annual_reconciliation' => true,
+            ],
+            self::TAX_TREATMENT_NON_OBJECT,
+            self::TAX_TREATMENT_PPH21_FINAL,
+            self::TAX_TREATMENT_PPH21_SEPARATE,
+            self::TAX_TREATMENT_EMPLOYER_DISPLAY_ONLY => [
+                'include_pph21_ter_gross' => false,
+                'include_pph21_annual_reconciliation' => false,
+            ],
+            default => [
+                'include_pph21_ter_gross' => false,
+                'include_pph21_annual_reconciliation' => false,
+            ],
+        };
+    }
+
+    public static function inferTaxTreatmentCode(
+        bool $includePph21TerGross,
+        bool $includePph21AnnualReconciliation,
+        bool $employerCostLine = false
+    ): string {
+        if ($employerCostLine) {
+            return self::TAX_TREATMENT_EMPLOYER_DISPLAY_ONLY;
+        }
+
+        if ($includePph21TerGross && $includePph21AnnualReconciliation) {
+            return self::TAX_TREATMENT_PPH21_TAXABLE_FULL;
+        }
+
+        if ($includePph21TerGross) {
+            return self::TAX_TREATMENT_PPH21_TAXABLE_PARTIAL;
+        }
+
+        if ($includePph21AnnualReconciliation) {
+            return self::TAX_TREATMENT_DEDUCTIBLE;
+        }
+
+        return self::TAX_TREATMENT_NON_OBJECT;
     }
 
     /**

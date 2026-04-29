@@ -6,7 +6,6 @@ use App\Events\TaxGovernancePolicyTransitioned;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
-use App\Models\CompanyUser;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
@@ -28,6 +27,30 @@ class HcmTaxGovernanceController extends Controller
 {
     use ChecksPermissions;
 
+    private const POLICY_REGULATION_SOURCE_TYPES = [
+        'government_regulation',
+        'ministry_regulation',
+        'director_general_regulation',
+        'company_policy_reference',
+    ];
+
+    private const POLICY_CALCULATION_METHODS = [
+        'monthly_ter_lookup',
+        'monthly_ter_with_year_end_reconciliation',
+        'final_rate',
+        'separate_calculation',
+    ];
+
+    private const POLICY_SCHEDULE_CATEGORIES = ['A', 'B', 'C', 'FINAL', 'SEPARATE', 'NON_OBJECT'];
+
+    private const POLICY_SCHEDULE_MODES = [
+        'ter_lookup',
+        'fixed_rate_override',
+        'final_rate',
+        'separate_rate',
+        'non_object',
+    ];
+
     private const NUMERIC_POLICY_ID_DEPRECATION = 'true';
 
     private const NUMERIC_POLICY_ID_SUNSET_AT = '2026-07-26T00:00:00Z';
@@ -42,6 +65,8 @@ class HcmTaxGovernanceController extends Controller
         if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Active company context is required.', 400);
         }
+
+        $this->ensureDefaultTenantPolicyTemplate($companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $validated = $request->validate([
             'status' => ['nullable', Rule::in([
@@ -87,24 +112,54 @@ class HcmTaxGovernanceController extends Controller
             return $response;
         }
 
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
         $companyId = $this->activeCompanyId($request);
         if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Active company context is required.', 400);
         }
 
         $validated = $this->validateUpsertRequest($request, true);
+        $normalized = $this->normalizeUpsertPayload($validated);
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
 
-        $policy = DB::transaction(function () use ($validated, $companyId, $actorId): HcmTaxGovernancePolicy {
+        if (! empty($normalized['draftKey'])) {
+            $existingDraft = HcmTaxGovernancePolicy::query()
+                ->where('company_id', $companyId)
+                ->where('draft_fingerprint', $normalized['draftKey'])
+                ->first();
+
+            if ($existingDraft) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $this->policyPayload($existingDraft),
+                ]);
+            }
+        }
+
+        $duplicateDraft = HcmTaxGovernancePolicy::query()
+            ->where('company_id', $companyId)
+            ->where('status', HcmTaxGovernancePolicy::STATUS_DRAFT)
+            ->where('policy_code', strtoupper((string) $normalized['policyCode']))
+            ->first();
+
+        if ($duplicateDraft) {
+            return $this->errorResponse('TAX_POLICY_DRAFT_EXISTS', 'A draft with the same policy code already exists for this tenant.', 409);
+        }
+
+        $policy = DB::transaction(function () use ($normalized, $companyId, $actorId): HcmTaxGovernancePolicy {
             $policy = HcmTaxGovernancePolicy::query()->create([
                 'company_id' => $companyId,
-                'policy_code' => strtoupper((string) $validated['policyCode']),
-                'name' => $validated['name'],
+                'policy_code' => strtoupper((string) $normalized['policyCode']),
+                'name' => $normalized['name'],
                 'status' => HcmTaxGovernancePolicy::STATUS_DRAFT,
-                'effective_start_date' => $validated['effectiveStartDate'],
-                'effective_end_date' => $validated['effectiveEndDate'] ?? null,
-                'rules' => $validated['rules'],
-                'rate_schedules' => $validated['rateSchedules'],
+                'draft_fingerprint' => $normalized['draftKey'],
+                'effective_start_date' => $normalized['effectiveStartDate'],
+                'effective_end_date' => $normalized['effectiveEndDate'] ?? null,
+                'rules' => $normalized['rules'],
+                'rate_schedules' => $normalized['rateSchedules'],
                 'version' => 1,
                 'created_by_user_id' => $actorId,
                 'last_note' => null,
@@ -148,6 +203,10 @@ class HcmTaxGovernanceController extends Controller
             return $response;
         }
 
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
         $usedNumericLegacy = false;
         $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
         if (! $policy) {
@@ -159,21 +218,22 @@ class HcmTaxGovernanceController extends Controller
         }
 
         $validated = $this->validateUpsertRequest($request, false);
-        if (array_key_exists('version', $validated) && (int) $validated['version'] !== (int) $policy->version) {
+        $normalized = $this->normalizeUpsertPayload($validated, $policy);
+        if (array_key_exists('version', $normalized) && (int) $normalized['version'] !== (int) $policy->version) {
             return $this->errorResponse('TAX_POLICY_VERSION_CONFLICT', 'Policy version conflict.', 409);
         }
 
         $before = $this->policyStateSnapshot($policy);
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
 
-        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
+        DB::transaction(function () use ($policy, $normalized, $before, $actorId): void {
             $policy->fill([
-                'policy_code' => strtoupper((string) $validated['policyCode']),
-                'name' => $validated['name'],
-                'effective_start_date' => $validated['effectiveStartDate'],
-                'effective_end_date' => $validated['effectiveEndDate'] ?? null,
-                'rules' => $validated['rules'],
-                'rate_schedules' => $validated['rateSchedules'],
+                'policy_code' => strtoupper((string) $normalized['policyCode']),
+                'name' => $normalized['name'],
+                'effective_start_date' => $normalized['effectiveStartDate'],
+                'effective_end_date' => $normalized['effectiveEndDate'] ?? null,
+                'rules' => $normalized['rules'],
+                'rate_schedules' => $normalized['rateSchedules'],
                 'version' => (int) $policy->version + 1,
             ]);
             $policy->save();
@@ -191,217 +251,37 @@ class HcmTaxGovernanceController extends Controller
 
     public function submit(Request $request, string $policyRef): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
-            return $response;
-        }
-
-        $usedNumericLegacy = false;
-        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (! $policy) {
-            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
-        }
-
-        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_DRAFT) {
-            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only draft policy can be submitted.', 422);
-        }
-
-        $validated = $request->validate([
-            'submissionNote' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $before = $this->policyStateSnapshot($policy);
-        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
-        $previousStatus = $policy->status;
-
-        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
-            $policy->status = HcmTaxGovernancePolicy::STATUS_SUBMITTED;
-            $policy->submitted_by_user_id = $actorId;
-            $policy->submitted_at = now();
-            $policy->last_note = $validated['submissionNote'] ?? null;
-            $policy->save();
-
-            $this->recordEvent(
-                $policy,
-                'submitted',
-                $before,
-                $this->policyStateSnapshot($policy),
-                $validated['submissionNote'] ?? null,
-                $actorId,
-            );
-        });
-
-        $policy->refresh();
-        
-        // Dispatch event for projection sync
-        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
-
-        return $this->withNumericPolicyDeprecationHeaders(
-            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
-            $usedNumericLegacy
+        return $this->errorResponse(
+            'TAX_POLICY_WORKFLOW_DISABLED',
+            'Workflow submission is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            409
         );
     }
 
     public function approve(Request $request, string $policyRef): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.approve')) {
-            return $response;
-        }
-
-        $usedNumericLegacy = false;
-        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (! $policy) {
-            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
-        }
-
-        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_SUBMITTED) {
-            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only submitted policy can be approved.', 422);
-        }
-
-        $validated = $request->validate([
-            'approvalNote' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
-
-        // Tenant isolation: approver must be a member of the policy's own company.
-        // Blocks global admins from participating in tenant approval workflows.
-        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
-            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Approver must be an active member of the policy tenant.', 403);
-        }
-
-        if ($actorId && (int) $policy->created_by_user_id === $actorId) {
-            return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot approve their own policy.', 403);
-        }
-
-        $before = $this->policyStateSnapshot($policy);
-        $previousStatus = $policy->status;
-
-        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
-            $policy->status = HcmTaxGovernancePolicy::STATUS_APPROVED;
-            $policy->approved_by_user_id = $actorId;
-            $policy->approved_at = now();
-            $policy->last_note = $validated['approvalNote'];
-            $policy->save();
-
-            $this->recordEvent($policy, 'approved', $before, $this->policyStateSnapshot($policy), $validated['approvalNote'], $actorId);
-        });
-
-        $policy->refresh();
-
-        // Dispatch event for projection sync
-        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
-
-        return $this->withNumericPolicyDeprecationHeaders(
-            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
-            $usedNumericLegacy
+        return $this->errorResponse(
+            'TAX_POLICY_WORKFLOW_DISABLED',
+            'Approval workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            409
         );
     }
 
     public function reject(Request $request, string $policyRef): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.approve')) {
-            return $response;
-        }
-
-        $usedNumericLegacy = false;
-        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (! $policy) {
-            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
-        }
-
-        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_SUBMITTED) {
-            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only submitted policy can be rejected.', 422);
-        }
-
-        $validated = $request->validate([
-            'rejectionNote' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
-
-        // Tenant isolation: rejector must be a member of the policy's own company.
-        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
-            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Rejector must be an active member of the policy tenant.', 403);
-        }
-
-        if ($actorId && (int) $policy->created_by_user_id === $actorId) {
-            return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot reject their own policy.', 403);
-        }
-
-        $before = $this->policyStateSnapshot($policy);
-        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
-            $policy->status = HcmTaxGovernancePolicy::STATUS_DRAFT;
-            $policy->last_note = $validated['rejectionNote'];
-            $policy->save();
-
-            $this->recordEvent($policy, 'rejected', $before, $this->policyStateSnapshot($policy), $validated['rejectionNote'], $actorId);
-        });
-
-        $policy->refresh();
-
-        // Dispatch event for projection sync
-        TaxGovernancePolicyTransitioned::dispatch($policy, 'submitted', $policy->status, (int) ($actorId ?? 0));
-
-        return $this->withNumericPolicyDeprecationHeaders(
-            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
-            $usedNumericLegacy
+        return $this->errorResponse(
+            'TAX_POLICY_WORKFLOW_DISABLED',
+            'Approval workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            409
         );
     }
 
     public function publish(Request $request, string $policyRef): JsonResponse
     {
-        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.publish')) {
-            return $response;
-        }
-
-        $usedNumericLegacy = false;
-        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (! $policy) {
-            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
-        }
-
-        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_APPROVED) {
-            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only approved policy can be published.', 422);
-        }
-
-        $validated = $request->validate([
-            'publishReason' => ['required', 'string', 'max:1000'],
-            'effectiveStartDate' => ['required', 'date'],
-        ]);
-
-        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
-
-        // Tenant isolation: publisher must be a member of the policy's own company.
-        if ($actorId && ! CompanyUser::where('user_id', $actorId)->where('company_id', $policy->company_id)->exists()) {
-            return $this->errorResponse('TAX_POLICY_TENANT_ISOLATION_VIOLATION', 'Publisher must be an active member of the policy tenant.', 403);
-        }
-
-        if ($actorId && (int) $policy->created_by_user_id === $actorId) {
-            return $this->errorResponse('TAX_POLICY_SOD_VIOLATION', 'Maker cannot publish their own policy.', 403);
-        }
-
-        $before = $this->policyStateSnapshot($policy);
-        $previousStatus = $policy->status;
-
-        DB::transaction(function () use ($policy, $validated, $before, $actorId): void {
-            $policy->status = HcmTaxGovernancePolicy::STATUS_PUBLISHED;
-            $policy->effective_start_date = $validated['effectiveStartDate'];
-            $policy->published_by_user_id = $actorId;
-            $policy->published_at = now();
-            $policy->last_note = $validated['publishReason'];
-            $policy->save();
-
-            $this->recordEvent($policy, 'published', $before, $this->policyStateSnapshot($policy), $validated['publishReason'], $actorId);
-        });
-
-        $policy->refresh();
-        
-        // Dispatch event for projection sync
-        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
-
-        return $this->withNumericPolicyDeprecationHeaders(
-            response()->json(['success' => true, 'data' => $this->policyPayload($policy)]),
-            $usedNumericLegacy
+        return $this->errorResponse(
+            'TAX_POLICY_WORKFLOW_DISABLED',
+            'Publication workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            409
         );
     }
 
@@ -724,6 +604,8 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
+        $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
+
         $company = Company::find((int) $companyId);
         if (!$company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
@@ -850,6 +732,8 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
+        $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
+
         $company = Company::find((int) $companyId);
         if (!$company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
@@ -936,13 +820,25 @@ class HcmTaxGovernanceController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'effectiveStartDate' => ['required', 'date'],
             'effectiveEndDate' => ['nullable', 'date', 'after_or_equal:effectiveStartDate'],
+            'draftKey' => ['nullable', 'string', 'max:120'],
             'rules' => ['required', 'array'],
-            'rules.scheme' => ['required', 'string', 'in:TER'],
+            'rules.scheme' => ['required', 'string', 'in:STATUTORY_PPH21,TER'],
             'rules.currency' => ['nullable', 'string', 'in:IDR'],
+            'rules.regulationReference' => ['nullable', 'string', 'max:255'],
+            'rules.regulation_reference' => ['nullable', 'string', 'max:255'],
+            'rules.regulationSourceType' => ['nullable', 'string', Rule::in(self::POLICY_REGULATION_SOURCE_TYPES)],
+            'rules.calculationMethod' => ['nullable', 'string', Rule::in(self::POLICY_CALCULATION_METHODS)],
             'rateSchedules' => ['required', 'array'],
-            'rateSchedules.*.bracket' => ['required', 'string', 'in:A,B,C'],
-            'rateSchedules.*.rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'rateSchedules.*.category' => ['nullable', 'string', Rule::in(self::POLICY_SCHEDULE_CATEGORIES)],
+            'rateSchedules.*.bracket' => ['nullable', 'string', 'in:A,B,C'],
+            'rateSchedules.*.calculationMode' => ['nullable', 'string', Rule::in(self::POLICY_SCHEDULE_MODES)],
+            'rateSchedules.*.lookupTableCode' => ['nullable', 'string', 'in:A,B,C'],
+            'rateSchedules.*.rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'rateSchedules.*.upperBound' => ['nullable', 'numeric', 'gt:0'],
+            'rateSchedules.*.effectiveStartDate' => ['nullable', 'date'],
+            'rateSchedules.*.effectiveEndDate' => ['nullable', 'date'],
+            'rateSchedules.*.regulationReference' => ['nullable', 'string', 'max:255'],
+            'rateSchedules.*.regulationSourceType' => ['nullable', 'string', Rule::in(self::POLICY_REGULATION_SOURCE_TYPES)],
             'version' => ['nullable', 'integer', 'min:1'],
         ];
 
@@ -951,6 +847,68 @@ class HcmTaxGovernanceController extends Controller
         }
 
         return $request->validate($rules);
+    }
+
+    private function ensureTenantOwnerOrGlobalAdmin(Request $request): ?JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNAUTHENTICATED',
+                    'message' => 'Authentication required.',
+                ],
+            ], 401);
+        }
+
+        if ($user->isGlobalHcmAdmin()) {
+            return null;
+        }
+
+        $activeCompanyRole = strtolower(trim((string) $request->attributes->get('activeCompanyRole', '')));
+        if ($activeCompanyRole === 'owner') {
+            return null;
+        }
+
+        return $this->errorResponse('AUTH_FORBIDDEN', 'Only tenant owner can manage employee tax policy at this stage.', 403);
+    }
+
+    private function ensureDefaultTenantPolicyTemplate(int $companyId, ?int $actorUserId): void
+    {
+        $hasAnyPolicy = HcmTaxGovernancePolicy::query()
+            ->where('company_id', $companyId)
+            ->exists();
+
+        if ($hasAnyPolicy) {
+            return;
+        }
+
+        DB::transaction(function () use ($companyId, $actorUserId): void {
+            $policy = HcmTaxGovernancePolicy::query()->create([
+                'company_id' => $companyId,
+                'policy_code' => 'PPH21-STATUTORY-DEFAULT',
+                'name' => 'Default PPh 21 Statutory Policy (Indonesia)',
+                'status' => HcmTaxGovernancePolicy::STATUS_DRAFT,
+                'draft_fingerprint' => 'tenant-pph21-statutory-default',
+                'effective_start_date' => now()->startOfMonth()->toDateString(),
+                'effective_end_date' => null,
+                'rules' => $this->buildStatutoryRules('PP 58/2023 & PMK 168/PMK.03/2023', 'ministry_regulation'),
+                'rate_schedules' => $this->buildDefaultStatutorySchedules(now()->startOfMonth()->toDateString(), null, 'PP 58/2023 & PMK 168/PMK.03/2023', 'ministry_regulation'),
+                'version' => 1,
+                'created_by_user_id' => $actorUserId,
+                'last_note' => 'Auto provisioned statutory PPh 21 baseline for the active company. Review regulation reference and effective period before production payroll usage.',
+            ]);
+
+            $this->recordEvent(
+                $policy,
+                'default_template_provisioned',
+                null,
+                $this->policyStateSnapshot($policy),
+                'Default employee tax template was auto-provisioned for onboarding baseline.',
+                $actorUserId,
+            );
+        });
     }
 
     private function findPolicyForRequest(Request $request, string $policyRef, bool &$usedNumericLegacy = false): ?HcmTaxGovernancePolicy
@@ -996,6 +954,7 @@ class HcmTaxGovernanceController extends Controller
             'effectiveEndDate' => optional($policy->effective_end_date)?->toDateString(),
             'rules' => $policy->rules ?? [],
             'rateSchedules' => $policy->rate_schedules ?? [],
+            'draftKey' => $policy->draft_fingerprint,
             'version' => (int) $policy->version,
             'submittedAt' => optional($policy->submitted_at)?->toIso8601String(),
             'approvedAt' => optional($policy->approved_at)?->toIso8601String(),
@@ -1021,6 +980,103 @@ class HcmTaxGovernanceController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalizeUpsertPayload(array $validated, ?HcmTaxGovernancePolicy $existingPolicy = null): array
+    {
+        $effectiveStartDate = (string) $validated['effectiveStartDate'];
+        $effectiveEndDate = $validated['effectiveEndDate'] ?? null;
+        $inputRules = is_array($validated['rules'] ?? null) ? $validated['rules'] : [];
+        $regulationReference = (string) ($inputRules['regulationReference'] ?? $inputRules['regulation_reference'] ?? 'PP 58/2023 & PMK 168/PMK.03/2023');
+        $regulationSourceType = (string) ($inputRules['regulationSourceType'] ?? 'ministry_regulation');
+
+        $rateSchedules = [];
+        foreach ((array) ($validated['rateSchedules'] ?? []) as $schedule) {
+            if (! is_array($schedule)) {
+                continue;
+            }
+
+            $category = strtoupper((string) ($schedule['category'] ?? $schedule['bracket'] ?? 'A'));
+            $calculationMode = (string) ($schedule['calculationMode'] ?? (isset($schedule['bracket']) ? 'ter_lookup' : 'fixed_rate_override'));
+            $rateSchedules[] = [
+                'category' => $category,
+                'lookupTableCode' => $schedule['lookupTableCode'] ?? (in_array($category, ['A', 'B', 'C'], true) ? $category : null),
+                'calculationMode' => $calculationMode,
+                'rate' => array_key_exists('rate', $schedule) ? $schedule['rate'] : null,
+                'upperBound' => $schedule['upperBound'] ?? null,
+                'effectiveStartDate' => $schedule['effectiveStartDate'] ?? $effectiveStartDate,
+                'effectiveEndDate' => $schedule['effectiveEndDate'] ?? $effectiveEndDate,
+                'regulationReference' => $schedule['regulationReference'] ?? $regulationReference,
+                'regulationSourceType' => $schedule['regulationSourceType'] ?? $regulationSourceType,
+            ];
+        }
+
+        if ($rateSchedules === []) {
+            $rateSchedules = $this->buildDefaultStatutorySchedules($effectiveStartDate, $effectiveEndDate, $regulationReference, $regulationSourceType);
+        }
+
+        $normalizedRules = array_merge(
+            $existingPolicy && is_array($existingPolicy->rules) ? $existingPolicy->rules : [],
+            $inputRules,
+            $this->buildStatutoryRules($regulationReference, $regulationSourceType),
+            [
+                'calculationMethod' => $inputRules['calculationMethod'] ?? 'monthly_ter_lookup',
+            ],
+        );
+
+        return [
+            'policyCode' => $validated['policyCode'],
+            'name' => $validated['name'],
+            'effectiveStartDate' => $effectiveStartDate,
+            'effectiveEndDate' => $effectiveEndDate,
+            'draftKey' => $validated['draftKey'] ?? null,
+            'rules' => $normalizedRules,
+            'rateSchedules' => $rateSchedules,
+            'version' => $validated['version'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildStatutoryRules(string $regulationReference, string $regulationSourceType): array
+    {
+        return [
+            'scheme' => 'STATUTORY_PPH21',
+            'currency' => 'IDR',
+            'country' => 'ID',
+            'calculationMethod' => 'monthly_ter_lookup',
+            'regulationReference' => $regulationReference,
+            'regulationSourceType' => $regulationSourceType,
+            'source' => 'tenant_statutory_policy',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function buildDefaultStatutorySchedules(string $effectiveStartDate, ?string $effectiveEndDate, string $regulationReference, string $regulationSourceType): array
+    {
+        $schedules = [];
+        foreach (['A', 'B', 'C'] as $category) {
+            $schedules[] = [
+                'category' => $category,
+                'lookupTableCode' => $category,
+                'calculationMode' => 'ter_lookup',
+                'rate' => null,
+                'upperBound' => null,
+                'effectiveStartDate' => $effectiveStartDate,
+                'effectiveEndDate' => $effectiveEndDate,
+                'regulationReference' => $regulationReference,
+                'regulationSourceType' => $regulationSourceType,
+            ];
+        }
+
+        return $schedules;
     }
     public function tenantSelfAuditReportExport(Request $request): JsonResponse|Response
     {
@@ -1156,23 +1212,25 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
-        $isGlobalPayload = $request->hasAny(['subscription_tax_rate', 'payroll_service_fee', 'addon_markup_rate']);
+        $isGlobalPayload = $request->hasAny(['subscription_tax_rate', 'addon_markup_rate']);
 
         if ($isGlobalPayload) {
             $validated = $request->validate([
                 'subscription_tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
-                'payroll_service_fee' => ['required', 'numeric', 'min:0', 'max:100'],
                 'addon_markup_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+                'billing_cycle_type' => ['nullable', Rule::in(['monthly', 'yearly', 'custom'])],
                 'billing_month' => ['nullable', 'date_format:Y-m'],
                 'effective_from' => ['nullable', 'date'],
                 'status' => ['nullable', Rule::in(['draft', 'active', 'inactive'])],
                 'notes' => ['nullable', 'string', 'max:1000'],
             ]);
 
+            $billingCycleType = (string) ($validated['billing_cycle_type'] ?? 'monthly');
+
             $service = app(BillingTaxCalculationService::class);
             if (! $service->validateBillingTaxPolicy([
                 'tax_rate_percentage' => $validated['subscription_tax_rate'],
-                'billing_cycle_type' => 'monthly',
+                'billing_cycle_type' => $billingCycleType,
                 'base_calculation_method' => 'invoice_amount_due',
             ])) {
                 return $this->errorResponse('BILLING_TAX_POLICY_INVALID', 'Billing tax policy validation failed.', 422);
@@ -1190,37 +1248,48 @@ class HcmTaxGovernanceController extends Controller
 
             $globalRates = [
                 'subscription_tax_rate' => (float) $validated['subscription_tax_rate'],
-                'payroll_service_fee' => (float) $validated['payroll_service_fee'],
+                'payroll_service_fee' => 0.0,
                 'addon_markup_rate' => (float) $validated['addon_markup_rate'],
             ];
+
+            $policySource = (string) $request->input('policy_source', 'global_platform_policy');
+            $policyDomain = (string) $request->input('policy_domain', 'platform_billing');
 
             $notesPayload = [
                 'global_rates' => $globalRates,
                 'notes' => $validated['notes'] ?? null,
-                'source' => 'global_platform_policy',
+                'source' => $policySource,
+                'domain' => $policyDomain,
             ];
 
-            DB::transaction(function () use ($companyIds, $billingMonth, $effectiveFrom, $status, $globalRates, $notesPayload, $actorId): void {
+            DB::transaction(function () use ($companyIds, $billingMonth, $billingCycleType, $effectiveFrom, $status, $globalRates, $notesPayload, $actorId): void {
                 foreach ($companyIds as $companyId) {
-                    $policy = HcmBillingTaxPolicy::query()->firstOrNew([
-                        'company_id' => $companyId,
-                        'billing_month' => $billingMonth,
-                        'billing_cycle_type' => 'monthly',
-                    ]);
-
-                    if (! $policy->exists) {
-                        $policy->id = (string) Str::uuid();
-                        $policy->created_by_user_id = $actorId;
+                    if ($status === 'active') {
+                        HcmBillingTaxPolicy::query()
+                            ->where('company_id', $companyId)
+                            ->where('billing_month', $billingMonth)
+                            ->where('status', 'active')
+                            ->update([
+                                'status' => 'inactive',
+                                'updated_by_user_id' => $actorId,
+                                'updated_at' => now(),
+                            ]);
                     }
 
-                    $policy->tax_rate_percentage = $globalRates['subscription_tax_rate'];
-                    $policy->base_calculation_method = 'invoice_amount_due';
-                    $policy->effective_from = $effectiveFrom;
-                    $policy->effective_to = null;
-                    $policy->status = $status;
-                    $policy->notes = json_encode($notesPayload, JSON_UNESCAPED_UNICODE);
-                    $policy->updated_by_user_id = $actorId;
-                    $policy->save();
+                    HcmBillingTaxPolicy::query()->create([
+                        'id' => (string) Str::uuid(),
+                        'company_id' => $companyId,
+                        'billing_month' => $billingMonth,
+                        'billing_cycle_type' => $billingCycleType,
+                        'tax_rate_percentage' => $globalRates['subscription_tax_rate'],
+                        'base_calculation_method' => 'invoice_amount_due',
+                        'effective_from' => $effectiveFrom,
+                        'effective_to' => null,
+                        'status' => $status,
+                        'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
+                        'created_by_user_id' => $actorId,
+                        'updated_by_user_id' => $actorId,
+                    ]);
                 }
             });
 
@@ -1229,6 +1298,7 @@ class HcmTaxGovernanceController extends Controller
                 'data' => [
                     'version' => 'v' . now()->format('YmdHis'),
                     'billing_month' => $billingMonth,
+                    'billing_cycle_type' => $billingCycleType,
                     'effective_from' => $effectiveFrom,
                     'status' => $status,
                     'subscription_tax_rate' => $globalRates['subscription_tax_rate'],
@@ -1310,6 +1380,9 @@ class HcmTaxGovernanceController extends Controller
             return [
                 'tenant' => $item['company_name'] ?? '-',
                 'plan' => $item['plan_name'] ?? '-',
+                'billing_month' => $item['billing_month'] ?? null,
+                'billing_cycle_type' => $item['billing_cycle_type'] ?? null,
+                'next_renewal_month' => $item['next_renewal_month'] ?? null,
                 'subscription_revenue' => (float) ($item['subscription_revenue'] ?? 0),
                 'payroll_service_fee' => (float) ($item['payroll_service_fee'] ?? 0),
                 'addon_revenue' => (float) ($item['addon_revenue'] ?? 0),
@@ -1356,13 +1429,47 @@ class HcmTaxGovernanceController extends Controller
         $payload = $baseResponse->getData(true);
 
         if (isset($payload['data']['items_global']) && is_array($payload['data']['items_global'])) {
-            $payload['data']['items_global'] = array_map(function (array $item): array {
+            $filteredItems = array_values(array_filter($payload['data']['items_global'], function (array $item): bool {
+                return (string) ($item['source'] ?? '') === 'government_tax_compliance_policy';
+            }));
+
+            $activeByMonth = [];
+            foreach ($filteredItems as $item) {
+                $status = strtolower((string) ($item['status'] ?? ''));
+                if ($status !== 'active') {
+                    continue;
+                }
+
+                $month = (string) ($item['billing_month'] ?? 'unknown');
+                if (! isset($activeByMonth[$month])) {
+                    $activeByMonth[$month] = (string) ($item['version'] ?? '');
+                }
+            }
+
+            $payload['data']['items_global'] = array_map(function (array $item) use ($activeByMonth): array {
                 $item['government_tax_rate'] = (float) ($item['subscription_tax_rate'] ?? $item['tax_rate_percentage'] ?? 0);
                 $item['payroll_component_rate'] = (float) ($item['payroll_service_fee'] ?? 0);
                 $item['addon_component_rate'] = (float) ($item['addon_markup_rate'] ?? 0);
 
+                $notesDecoded = json_decode((string) ($item['notes'] ?? ''), true);
+                $transactionTaxRate = 0.0;
+                if (is_array($notesDecoded)) {
+                    $rawNotes = $notesDecoded['notes'] ?? null;
+                    $notesPayload = is_array($rawNotes)
+                        ? $rawNotes
+                        : (is_string($rawNotes) ? json_decode($rawNotes, true) : null);
+                    if (is_array($notesPayload)) {
+                        $transactionTaxRate = (float) ($notesPayload['transaction_tax']['tax_rate'] ?? 0);
+                    }
+                }
+                $item['transaction_tax_rate'] = max(0.0, min(100.0, $transactionTaxRate));
+
+                $month = (string) ($item['billing_month'] ?? 'unknown');
+                $currentActiveVersion = (string) ($activeByMonth[$month] ?? '');
+                $item['is_current_active_rule'] = $currentActiveVersion !== '' && $currentActiveVersion === (string) ($item['version'] ?? '');
+
                 return $item;
-            }, $payload['data']['items_global']);
+            }, $filteredItems);
         }
 
         $payload['data']['view_context'] = 'government_tax_compliance';
@@ -1380,7 +1487,11 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
-        $request->merge(['global_mode' => true]);
+        $request->merge([
+            'global_mode' => true,
+            'policy_source' => 'government_tax_compliance_policy',
+            'policy_domain' => 'platform_tax_compliance',
+        ]);
 
         return $this->storePlatformBillingPolicy($request);
     }
@@ -1397,10 +1508,80 @@ class HcmTaxGovernanceController extends Controller
 
         $baseResponse = $this->platformBillingReports($request);
         $payload = $baseResponse->getData(true);
+        $selectedMonth = (string) $request->input('month', now()->format('Y-m'));
+        $compliancePolicyConfigured = $this->hasGovernmentCompliancePolicyForMonth($selectedMonth);
+        $policySnapshotsByCompany = $compliancePolicyConfigured
+            ? $this->governmentCompliancePolicySnapshotsForMonth($selectedMonth)
+            : [];
+        $invoiceSnapshots = isset($payload['data']['invoice_snapshots']) && is_array($payload['data']['invoice_snapshots'])
+            ? $payload['data']['invoice_snapshots']
+            : [];
+        $liabilityByCompany = [];
+
+        if ($compliancePolicyConfigured && $invoiceSnapshots !== []) {
+            foreach ($invoiceSnapshots as $invoice) {
+                if (! is_array($invoice)) {
+                    continue;
+                }
+
+                $companyId = (int) ($invoice['company_id'] ?? 0);
+                if ($companyId <= 0) {
+                    continue;
+                }
+
+                $amountDue = (float) ($invoice['amount_due'] ?? 0);
+                if ($amountDue <= 0) {
+                    continue;
+                }
+
+                $issueDate = is_string($invoice['issue_date'] ?? null) ? $invoice['issue_date'] : null;
+                $rate = $this->resolveGovernmentTransactionTaxRateForInvoice($companyId, $issueDate, $policySnapshotsByCompany);
+                $liability = round($amountDue * ($rate / 100), 2);
+                $liabilityByCompany[$companyId] = round(($liabilityByCompany[$companyId] ?? 0.0) + $liability, 2);
+            }
+        }
+
+        if (isset($payload['data']['tenants_global']) && is_array($payload['data']['tenants_global'])) {
+            $payload['data']['tenants_global'] = array_map(function (array $item) use ($liabilityByCompany): array {
+                $companyId = (int) ($item['company_id'] ?? 0);
+                $item['collected_tax_liability'] = (float) ($liabilityByCompany[$companyId] ?? 0.0);
+
+                return $item;
+            }, $payload['data']['tenants_global']);
+
+            $payload['data']['summary_global']['total_collected_tax_liability'] = round(
+                array_reduce($payload['data']['tenants_global'], function (float $carry, array $item): float {
+                    return $carry + (float) ($item['collected_tax_liability'] ?? 0);
+                }, 0.0),
+                2
+            );
+        }
+
+        if (! $compliancePolicyConfigured) {
+            $summaryGlobal = $payload['data']['summary_global'] ?? [];
+            $grossRevenue = (float) ($summaryGlobal['total_gross_revenue'] ?? 0);
+
+            $payload['data']['summary_global']['total_tax_due'] = 0.0;
+            $payload['data']['summary_global']['total_collected_tax_liability'] = 0.0;
+            $payload['data']['summary_global']['total_net_revenue'] = $grossRevenue;
+            $payload['data']['summary_global']['effective_tax_rate'] = 0.0;
+
+            if (isset($payload['data']['tenants_global']) && is_array($payload['data']['tenants_global'])) {
+                $payload['data']['tenants_global'] = array_map(function (array $item): array {
+                    $grossRevenue = (float) ($item['gross_revenue'] ?? 0);
+                    $item['tax_amount_due'] = 0.0;
+                    $item['collected_tax_liability'] = 0.0;
+                    $item['net_revenue'] = $grossRevenue;
+
+                    return $item;
+                }, $payload['data']['tenants_global']);
+            }
+        }
 
         $summaryGlobal = $payload['data']['summary_global'] ?? [];
         $payload['data']['summary_compliance'] = [
             'total_taxable_revenue' => (float) ($summaryGlobal['total_gross_revenue'] ?? 0),
+            'total_collected_tax_liability' => (float) ($summaryGlobal['total_collected_tax_liability'] ?? 0),
             'total_payroll_component' => (float) ($summaryGlobal['total_payroll_service_fee'] ?? 0),
             'total_addon_component' => (float) ($summaryGlobal['total_addon_revenue'] ?? 0),
             'total_tax_payable' => (float) ($summaryGlobal['total_tax_due'] ?? 0),
@@ -1412,6 +1593,7 @@ class HcmTaxGovernanceController extends Controller
             $payload['data']['tenants_compliance'] = array_map(function (array $item): array {
                 return array_merge($item, [
                     'taxable_revenue' => (float) ($item['gross_revenue'] ?? $item['taxable_revenue_amount'] ?? 0),
+                    'collected_tax_liability' => (float) ($item['collected_tax_liability'] ?? 0),
                     'payroll_component' => (float) ($item['payroll_service_fee'] ?? 0),
                     'addon_component' => (float) ($item['addon_revenue'] ?? 0),
                     'total_tax_payable' => (float) ($item['tax_amount_due'] ?? 0),
@@ -1420,6 +1602,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         $payload['data']['view_context'] = 'government_tax_compliance';
+        $payload['data']['policy_configured'] = $compliancePolicyConfigured;
 
         return response()->json($payload, $baseResponse->getStatusCode());
     }
@@ -1524,6 +1707,7 @@ class HcmTaxGovernanceController extends Controller
                 (string) $rates['subscription_tax_rate'],
                 (string) $rates['payroll_service_fee'],
                 (string) $rates['addon_markup_rate'],
+                (string) ($policy->billing_cycle_type ?? ''),
                 (string) $policy->status,
                 (string) optional($policy->effective_from)?->toDateString(),
                 (string) optional($policy->created_at)?->toDateTimeString(),
@@ -1536,9 +1720,13 @@ class HcmTaxGovernanceController extends Controller
 
             $items[] = [
                 'version' => 'v' . optional($policy->created_at)->format('YmdHis'),
+                'billing_month' => (string) ($policy->billing_month ?? ''),
+                'billing_cycle_type' => (string) ($policy->billing_cycle_type ?? ''),
                 'subscription_tax_rate' => $rates['subscription_tax_rate'],
                 'payroll_service_fee' => $rates['payroll_service_fee'],
                 'addon_markup_rate' => $rates['addon_markup_rate'],
+                'source' => $rates['source'],
+                'domain' => $rates['domain'],
                 'status' => $policy->status,
                 'created_at' => optional($policy->created_at)?->toIso8601String(),
                 'effective_from' => optional($policy->effective_from)?->toDateString(),
@@ -1550,7 +1738,7 @@ class HcmTaxGovernanceController extends Controller
     }
 
     /**
-     * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string}
+     * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string, source: string, domain: string}
      */
     private function extractGlobalRatesFromPolicy(HcmBillingTaxPolicy $policy): array
     {
@@ -1565,7 +1753,101 @@ class HcmTaxGovernanceController extends Controller
             'payroll_service_fee' => (float) ($globalRates['payroll_service_fee'] ?? 0),
             'addon_markup_rate' => (float) ($globalRates['addon_markup_rate'] ?? 0),
             'notes' => (string) ($decoded['notes'] ?? (string) ($rawNotes ?? '')),
+            'source' => (string) ($decoded['source'] ?? 'global_platform_policy'),
+            'domain' => (string) ($decoded['domain'] ?? 'platform_billing'),
         ];
+    }
+
+    private function hasGovernmentCompliancePolicyForMonth(string $month): bool
+    {
+        return HcmBillingTaxPolicy::query()
+            ->where('billing_month', $month)
+            ->whereIn('status', ['draft', 'active'])
+            ->where('notes', 'like', '%government_tax_compliance_policy%')
+            ->exists();
+    }
+
+    /**
+     * @return array<int, list<array{effective_from:?string, created_at:?string, transaction_tax_rate:float}>>
+     */
+    private function governmentCompliancePolicySnapshotsForMonth(string $month): array
+    {
+        $policies = HcmBillingTaxPolicy::query()
+            ->where('billing_month', $month)
+            ->whereIn('status', ['draft', 'active'])
+            ->where('notes', 'like', '%government_tax_compliance_policy%')
+            ->orderBy('company_id')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $snapshots = [];
+        foreach ($policies as $policy) {
+            $companyId = (int) $policy->company_id;
+            if ($companyId <= 0) {
+                continue;
+            }
+
+            if (! isset($snapshots[$companyId])) {
+                $snapshots[$companyId] = [];
+            }
+
+            $snapshots[$companyId][] = [
+                'effective_from' => optional($policy->effective_from)?->toDateString(),
+                'created_at' => optional($policy->created_at)?->toIso8601String(),
+                'transaction_tax_rate' => $this->extractGovernmentTransactionTaxRate($policy),
+            ];
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * @param array<int, list<array{effective_from:?string, created_at:?string, transaction_tax_rate:float}>> $policySnapshotsByCompany
+     */
+    private function resolveGovernmentTransactionTaxRateForInvoice(int $companyId, ?string $issueDate, array $policySnapshotsByCompany): float
+    {
+        $rows = $policySnapshotsByCompany[$companyId] ?? [];
+        if ($rows === []) {
+            return 0.0;
+        }
+
+        // Data sudah diurutkan latest-first; ambil yang effective_from <= issue date.
+        $targetTimestamp = $issueDate ? strtotime($issueDate) : false;
+        if ($targetTimestamp === false) {
+            return max(0.0, min(100.0, (float) ($rows[0]['transaction_tax_rate'] ?? 0.0)));
+        }
+
+        foreach ($rows as $row) {
+            $effectiveTs = isset($row['effective_from']) && is_string($row['effective_from'])
+                ? strtotime($row['effective_from'])
+                : false;
+
+            if ($effectiveTs === false || $effectiveTs <= $targetTimestamp) {
+                return max(0.0, min(100.0, (float) ($row['transaction_tax_rate'] ?? 0.0)));
+            }
+        }
+
+        return max(0.0, min(100.0, (float) ($rows[0]['transaction_tax_rate'] ?? 0.0)));
+    }
+
+    private function extractGovernmentTransactionTaxRate(HcmBillingTaxPolicy $policy): float
+    {
+        $decoded = json_decode((string) ($policy->notes ?? ''), true);
+        if (! is_array($decoded)) {
+            return 0.0;
+        }
+
+        $rawNotes = $decoded['notes'] ?? null;
+        $notesPayload = is_array($rawNotes)
+            ? $rawNotes
+            : (is_string($rawNotes) ? json_decode($rawNotes, true) : null);
+
+        $rate = is_array($notesPayload)
+            ? (float) ($notesPayload['transaction_tax']['tax_rate'] ?? 0)
+            : 0.0;
+
+        return max(0.0, min(100.0, $rate));
     }
 
     private function renderTenantSelfAuditPdf(array $reportData): string

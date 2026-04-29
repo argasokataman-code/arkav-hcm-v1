@@ -487,7 +487,7 @@
                         </li> -->
 @if ($canSeePayrollMenu)
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Payroll</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -498,11 +498,11 @@
                                         <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
                                         <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
                                         <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
-                                        <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Compensation Management</a></li>
+                                        <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Employee Salary</a></li>
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
@@ -590,7 +590,7 @@
                             <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps',
                             'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
-                            'payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'
+                            'payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'
 
 
                             ) ? 'active subdrop' : '' }}">
@@ -648,10 +648,9 @@
                                     </ul>
                                 </li>
                                 @endif
-                                <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') && !Request::is('tax-rates/platform-billing*') && !Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll Tenant</a></li>
                                 @if ($isGlobalHcmAdmin)
-                                <li><a href="{{ route('tax-rates.platform-billing.policies') }}" class="{{ Request::is('tax-rates/platform-billing*') ? 'active' : '' }}">Platform Finance - Billing & Revenue</a></li>
-                                <li><a href="{{ route('tax-rates.platform-tax-compliance.policies') }}" class="{{ Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
+                                <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
+                                <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
                                 @endif
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
@@ -756,11 +755,6 @@
                         <li  class="{{ Request::is('timeline') ? 'active' : '' }}">
                             <a href="{{url('timeline')}}">
                                 <i class="ti ti-timeline"></i><span>Timeline</span>
-                            </a>
-                        </li>
-                        <li class="{{ Request::is('pricing') ? 'active' : '' }}">
-                            <a href="{{url('pricing')}}" >
-                                <i class="ti ti-file-dollar"></i><span>Pricing</span>
                             </a>
                         </li>
                         <li class="{{ Request::is('coming-soon') ? 'active' : '' }}">
@@ -1532,7 +1526,7 @@
                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
                    'assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions','expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                    'profile-settings','company-profile','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                    'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
+                    'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                         <i class="ti ti-user-star"></i><span>Administration</span>
                         <span class="menu-arrow"></span>
                     </a>
@@ -1563,7 +1557,7 @@
                         </li>
 @if ($canSeePayrollMenu)
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
+                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
@@ -1573,11 +1567,11 @@
                                         <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
                                         <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
                                         <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
-                                        <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Compensation Management</a></li>
+                                        <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Employee Salary</a></li>
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
@@ -1639,7 +1633,7 @@
                         </li>
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
+                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
@@ -1693,10 +1687,9 @@
                                     </ul>
                                 </li>
                                 @endif
-                                                <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') && !Request::is('tax-rates/platform-billing*') && !Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll Tenant</a></li>
                                 @if ($isGlobalHcmAdmin)
-                                                <li><a href="{{ route('tax-rates.platform-billing.policies') }}" class="{{ Request::is('tax-rates/platform-billing*') ? 'active' : '' }}">Platform Finance - Billing & Revenue</a></li>
-                                                <li><a href="{{ route('tax-rates.platform-tax-compliance.policies') }}" class="{{ Request::is('tax-rates/platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
+                                                <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
+                                                <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
                                 @endif
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>
@@ -1729,7 +1722,7 @@
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#" class="{{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition',
+                    <a href="#" class="{{ Request::is('starter','profile','gallery','search-result','timeline','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition',
                     'pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? 'active' : '' }}">
                         <i class="ti ti-page-break"></i><span>Pages</span>
                         <span class="menu-arrow"></span>
@@ -1740,7 +1733,6 @@
                         <li><a href="{{url('gallery')}}" class="{{ Request::is('gallery') ? 'active' : '' }}"><span>Gallery</span></a></li>
                         <li><a href="{{url('search-result')}}" class="{{ Request::is('search-result') ? 'active' : '' }}"><span>Search Results</span></a></li>
                         <li><a href="{{url('timeline')}}" class="{{ Request::is('timeline') ? 'active' : '' }}"><span>Timeline</span></a></li>
-                        <li><a href="{{url('pricing')}}"  class="{{ Request::is('pricing') ? 'active' : '' }}"><span>Pricing</span></a></li>
                         <li><a href="{{url('coming-soon')}}" class="{{ Request::is('coming-soon') ? 'active' : '' }}"><span>Coming Soon</span></a></li>
                         <li><a href="{{url('under-maintenance')}}" class="{{ Request::is('under-maintenance') ? 'active' : '' }}"><span>Under Maintenance</span></a></li>
                         <li><a href="{{url('under-construction')}}" class="{{ Request::is('under-construction') ? 'active' : '' }}"><span>Under Construction</span></a></li>
@@ -2362,13 +2354,13 @@
                     <a href="#" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','company-profile','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
+                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
                         <i class="ti ti-cash"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#content">
                         <i class="ti ti-license"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" title="Pages" data-bs-toggle="tab" data-bs-target="#pages">
+                    <a href="#" class="nav-link {{ Request::is('starter','profile','gallery','search-result','timeline','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" title="Pages" data-bs-toggle="tab" data-bs-target="#pages">
                         <i class="ti ti-page-break"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('login','login-2','login-3','register','register-2','register-3',
@@ -2682,7 +2674,7 @@
                                 </ul>
                             </li>
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
+                                <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
@@ -2692,18 +2684,18 @@
                                             <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
                                             <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
                                             <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
-                                            <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Compensation Management</a></li>
+                                            <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Employee Salary</a></li>
                                         </ul>
                                     </li>
                                     <li class="submenu submenu-two">
-                                        <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                        <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                         <ul>
                                             <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                             <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
                                             <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
                                             <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
                                             <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
-                                            <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
+                                        <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -2719,7 +2711,7 @@
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                     'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields',
                     'email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
-                    'payment-gateways','tax-rates','currencies',
+                    'payment-gateways','currencies',
                     'custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'
                     ) ? ' show active ' : '' }}" id="administration">
                         <ul>
@@ -2831,7 +2823,7 @@
                             </li>
                             @endif
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">
+                                <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">
                                     Financial Settings
                                     <span class="menu-arrow"></span>
                                 </a>
@@ -2839,7 +2831,6 @@
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                     @endif
-                                    <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll</a></li>
                                     @if ($isGlobalHcmAdmin)
                                     <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                     @endif
@@ -2895,7 +2886,7 @@
                             <li><a href="{{url('faq')}}" class="{{ Request::is('faq') ? 'active' : '' }}">FAQ’S</a></li>
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition'
+                    <div class="tab-pane fade {{ Request::is('starter','profile','gallery','search-result','timeline','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition'
                     ) ? ' show active' : '' }} " id="pages">
                         <ul>
                             <li class="menu-title"><span>PAGES</span></li>
@@ -2904,7 +2895,6 @@
                             <li><a href="{{url('gallery')}}" class="{{ Request::is('gallery') ? 'active' : '' }}"><span>Gallery</span></a></li>
                             <li><a href="{{url('search-result')}}" class="{{ Request::is('search-result') ? 'active' : '' }}"><span>Search Results</span></a></li>
                             <li><a href="{{url('timeline')}}" class="{{ Request::is('timeline') ? 'active' : '' }}"><span>Timeline</span></a></li>
-                            <li><a href="{{url('pricing')}}" class="{{ Request::is('pricing') ? 'active' : '' }}"><span>Pricing</span></a></li>
                             <li><a href="{{url('coming-soon')}}" class="{{ Request::is('coming-soon') ? 'active' : '' }}"><span>Coming Soon</span></a></li>
                             <li><a href="{{url('under-maintenance')}}" class="{{ Request::is('under-maintenance') ? 'active' : '' }}"><span>Under Maintenance</span></a></li>
                             <li><a href="{{url('under-construction')}}" class="{{ Request::is('under-construction') ? 'active' : '' }}"><span>Under Construction</span></a></li>
@@ -3538,7 +3528,7 @@
                                 <a href="#menu-administration" role="tab" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','company-profile','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#menu-administration" aria-selected="false">
+                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#menu-administration" aria-selected="false">
                                     <span><i class="ti ti-cash"></i></span>
                                     <p>Administration</p>
                                 </a>
@@ -3550,7 +3540,7 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-pages" role="tab" class="nav-link {{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" title="Pages"
+                                <a href="#menu-pages" role="tab" class="nav-link {{ Request::is('starter','profile','gallery','search-result','timeline','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" title="Pages"
                                     data-bs-toggle="tab" data-bs-target="#menu-pages" aria-selected="false">
                                     <span><i class="ti ti-page-break"></i></span>
                                     <p>Pages</p>
@@ -3898,7 +3888,7 @@
                                 </li>
 @if ($canSeePayrollMenu)
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
+                                    <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}"><span>Payroll</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
@@ -3908,18 +3898,18 @@
                                                 <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
                                                 <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
                                                 <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
-                                                <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Compensation Management</a></li>
+                                                <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Employee Salary</a></li>
                                             </ul>
                                         </li>
                                         <li class="submenu submenu-two">
-                                            <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','salary-component-master','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                            <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll','payroll-overtime','payroll-deduction') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
                                                 <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                 <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
                                                 <li><a href="{{url('payroll')}}" class="{{ Request::is('payroll') ? 'active' : '' }}">Additions</a></li>
                                                 <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
                                                 <li><a href="{{url('payroll-deduction')}}" class="{{ Request::is('payroll-deduction') ? 'active' : '' }}">Deductions</a></li>
-                                                <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
+                                        <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                             </ul>
                                         </li>
                                     </ul>
@@ -3930,7 +3920,7 @@
                         <div class="tab-pane fade {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','company-profile','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','tax-rates','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" id="menu-administration">
+                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" id="menu-administration">
                             <ul class="stack-submenu">
 @if ($canSeeAssetManagementMenu)
                                 <li class="submenu">
@@ -4037,7 +4027,7 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','tax-rates','currencies') ? 'active subdrop' : '' }}">
+                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">
                                         Financial Settings
                                         <span class="menu-arrow"></span>
                                     </a>
@@ -4045,7 +4035,6 @@
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
-                                        <li><a href="{{url('tax-rates')}}" class="{{ Request::is('tax-rates*') ? 'active' : '' }}">Pajak & Kepatuhan Payroll</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
@@ -4094,14 +4083,13 @@
 
                             </ul>
                         </div>
-                        <div class="tab-pane fade {{ Request::is('starter','profile','gallery','search-result','timeline','pricing','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" id="menu-pages">
+                        <div class="tab-pane fade {{ Request::is('starter','profile','gallery','search-result','timeline','coming-soon','under-maintenance','under-construction','api-keys','privacy-policy','terms-condition') ? '  active subdrop' : '' }}" id="menu-pages">
                             <ul class="stack-submenu">
                                 <li class="{{ Request::is('starter') ? 'active' : '' }}"><a href="{{url('starter')}}"><span>Starter</span></a></li>
                         <li class="{{ Request::is('profile') ? 'active' : '' }}"><a href="{{url('profile')}}"><span>Profile</span></a></li>
                         <li class="{{ Request::is('gallery') ? 'active' : '' }}"><a href="{{url('gallery')}}"><span>Gallery</span></a></li>
                         <li class="{{ Request::is('search-result') ? 'active' : '' }}"><a href="{{url('search-result')}}"><span>Search Results</span></a></li>
                         <li class="{{ Request::is('timeline') ? 'active' : '' }}"><a href="{{url('timeline')}}"><span>Timeline</span></a></li>
-                        <li class="{{ Request::is('pricing') ? 'active' : '' }}"><a href="{{url('pricing')}}"><span>Pricing</span></a></li>
                         <li class="{{ Request::is('coming-soon') ? 'active' : '' }}"><a href="{{url('coming-soon')}}"><span>Coming Soon</span></a></li>
                         <li class="{{ Request::is('under-maintenance') ? 'active' : '' }}"><a href="{{url('under-maintenance')}}"><span>Under Maintenance</span></a></li>
                         <li class="{{ Request::is('under-construction') ? 'active' : '' }}"><a href="{{url('under-construction')}}"><span>Under Construction</span></a></li>

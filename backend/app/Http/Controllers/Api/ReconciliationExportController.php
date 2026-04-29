@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\ExportReconciliationEvidence;
-use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Services\Reconciliation\ReconciliationExportService;
@@ -330,51 +329,11 @@ class ReconciliationExportController extends Controller
             return [0.0, 0.0, 0.0, ''];
         }
 
-        $meta = is_array($run->meta) ? $run->meta : [];
         $billingMonth = $run->period
             ? sprintf('%04d-%02d', (int) $run->period->period_year, (int) $run->period->period_month)
             : now()->format('Y-m');
 
-        $serviceFeeBase = round((float) $payrollLines
-            ->filter(function (HcmPayrollLine $line): bool {
-                $kind = (string) ($line->kind ?? '');
-
-                return $kind === 'addition' || $kind === 'earning';
-            })
-            ->sum('amount'), 2);
-
-        $serviceFeeRate = (float) ($meta['platform_service_fee_rate'] ?? 0);
-        if ($serviceFeeRate <= 0 && $companyId !== null) {
-            $policy = HcmBillingTaxPolicy::query()
-                ->where('company_id', $companyId)
-                ->where('billing_month', $billingMonth)
-                ->where('status', 'active')
-                ->orderByDesc('effective_from')
-                ->orderByDesc('created_at')
-                ->first();
-
-            $notes = json_decode((string) ($policy?->notes ?? ''), true);
-            if (is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])) {
-                $serviceFeeRate = (float) ($notes['global_rates']['payroll_service_fee'] ?? 0);
-            }
-        }
-
-        $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
-        if ($serviceFeeAmount <= 0 && $serviceFeeBase > 0 && $serviceFeeRate > 0) {
-            $serviceFeeAmount = round($serviceFeeBase * ($serviceFeeRate / 100), 2);
-        }
-
-        $metaBillingMonth = (string) ($meta['platform_service_fee_billing_month'] ?? '');
-        if ($metaBillingMonth !== '') {
-            $billingMonth = $metaBillingMonth;
-        }
-
-        return [
-            round($serviceFeeRate, 2),
-            round($serviceFeeBase, 2),
-            round($serviceFeeAmount, 2),
-            $billingMonth,
-        ];
+        return [0.0, 0.0, 0.0, $billingMonth];
     }
 
     public function index(Request $request): JsonResponse

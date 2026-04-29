@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Invoice;
 use App\Models\Subscription;
+use App\Services\BillingTaxCalculationService;
 use App\Services\InvoiceService;
 use App\Jobs\SendInvoiceEmailJob;
 use Illuminate\Bus\Queueable;
@@ -53,6 +54,9 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                             : (float) $subscription->package->monthly_price;
                     }
 
+                    $taxRateSnapshot = app(BillingTaxCalculationService::class)
+                        ->resolvePolicyRateSnapshot($subscription->company_id, $now->format('Y-m'));
+
                     $invoice = Invoice::query()->create([
                         'company_id' => $subscription->company_id,
                         'subscription_id' => $subscription->id,
@@ -60,6 +64,7 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                         'issue_date' => $now->toDateString(),
                         'due_date' => $now->copy()->addDay()->toDateString(),
                         'amount_due' => $amountDue,
+                        'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
                         'status' => 'draft',
                         'notes' => 'Auto-generated after trial ended.',
                     ]);

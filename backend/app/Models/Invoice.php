@@ -23,6 +23,7 @@ class Invoice extends Model
         'issue_date',
         'due_date',
         'amount_due',
+        'billing_tax_rate_snapshot',
         'is_paid',
         'paid_date',
         'pdf_path',
@@ -32,6 +33,7 @@ class Invoice extends Model
 
     protected $casts = [
         'amount_due' => 'decimal:2',
+        'billing_tax_rate_snapshot' => 'decimal:2',
         'is_paid' => 'boolean',
         'issue_date' => 'date',
         'due_date' => 'date',

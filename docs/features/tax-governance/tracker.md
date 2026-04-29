@@ -1,19 +1,19 @@
 # Tax Governance & SaaS Financial Platform — Implementation Tracker
 
-**Last Updated:** 2026-04-28 (Platform domain boundary hardening UI+BE + full gate pass)  
+**Last Updated:** 2026-04-29 (Platform government compliance audit follow-up + billing cycle configuration hardening)  
 **Documentation Status:** Consolidated into 3 files (README.md, IMPLEMENTATION.md, tracker.md)
 
 ---
 
 ## Project Status Summary
 
-**Overall Completion:** ~70% (Phase 1-4 anomaly stream mostly closed)  
+**Overall Completion:** ~70% (platform government compliance runtime hardened; broader tax-governance backlog remains)  
 **Total Anomalies Found:** 16 (4 CRITICAL + 6 HIGH + 6 MEDIUM)  
 **Status:** Phase 1-4 anomaly fixes completed except AN-012 intentionally deferred; local full gate passes
 
 ### What's Done
 - ✅ Tenant statutory tax: Employee tax profiles + payroll engine (PPh21 TER calculation)
-- ✅ Tax policy CRUD: Lifecycle (draft → submitted → approved → published)
+- ✅ Tax policy CRUD: Owner-direct edit flow active for tenant domain (workflow endpoints temporarily disabled)
 - ✅ Employee import + validation
 - ✅ Salary component tax flags
 - ✅ RBAC architecture
@@ -71,6 +71,12 @@
 ### Execution Sprint Update (2026-04-28)
 
 Completed in current execution:
+- Enabled temporary owner-direct tenant statutory tax mode: server-side owner-only guard for policy create/update, workflow endpoints (`submit/approve/reject/publish`) return `409 TAX_POLICY_WORKFLOW_DISABLED`, and tenant page removes approval/publication UI.
+- Added default tenant policy template auto-provisioning when tenant has no policy (`default_template_provisioned` audit event).
+- Updated tax employee UI naming to English and added `Usage Guide` entry point for tenant onboarding.
+- Deprecated payroll service fee end-to-end: global policy input removed from billing UI, runtime policy write now forces `payroll_service_fee=0`, payroll finalize metadata now fixed zero, and payroll revenue capture listener skips transaction creation when fee is zero.
+- Updated platform billing report UI to remove payroll column/card while keeping add-on stream taxable.
+- Synced API contract docs so global policy request no longer requires payroll service fee input, with compatibility field documented as deprecated/forced-zero.
 - Clarified menu boundary labels into explicit Platform Finance domains: Billing & Revenue vs Government Tax & Compliance.
 - Refined wording on platform billing and government compliance pages so both screens no longer overlap conceptually.
 - Standardized tenant-facing tax menu/page naming (sidebar + tax rates page) to consistent professional business wording.

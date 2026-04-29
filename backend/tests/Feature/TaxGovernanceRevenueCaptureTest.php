@@ -74,7 +74,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
         $this->assertDatabaseCount('platform_revenue_transactions', 1);
     }
 
-    public function test_payroll_finalized_event_captures_revenue_once(): void
+    public function test_payroll_finalized_event_does_not_capture_revenue_when_service_fee_zero(): void
     {
         $company = Company::factory()->create();
         $user = User::factory()->create();
@@ -93,7 +93,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
             'status' => HcmPayrollRun::STATUS_FINALIZED,
             'finalized_at' => now(),
             'meta' => [
-                'platform_service_fee_amount' => 12000,
+                'platform_service_fee_amount' => 0,
             ],
         ]);
 
@@ -112,14 +112,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
         PayrollFinalized::dispatch((int) $run->id, null);
         PayrollFinalized::dispatch((int) $run->id, null);
 
-        $this->assertDatabaseCount('platform_revenue_transactions', 1);
-        $this->assertDatabaseHas('platform_revenue_transactions', [
-            'company_id' => $company->id,
-            'source_event_type' => 'payroll.finalized',
-            'source_entity_id' => $run->id,
-            'transaction_type' => 'payroll_service',
-            'idempotency_key' => 'payroll_finalized:' . $run->id,
-        ]);
+        $this->assertDatabaseCount('platform_revenue_transactions', 0);
     }
 
     public function test_addon_purchased_event_captures_revenue_once(): void

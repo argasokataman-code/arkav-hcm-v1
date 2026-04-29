@@ -354,6 +354,38 @@ class HcmEmployeeApiTest extends TestCase
             ->assertJsonPath('data.phone', '081234567800');
     }
 
+    public function test_tenant_admin_cannot_update_employee_outside_active_company(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $foreignCompany = Company::query()->create([
+            'name' => 'Foreign Tenant',
+            'code' => 'foreign_tenant',
+            'status' => 'active',
+        ]);
+
+        $foreignUser = User::query()->create([
+            'name' => 'Foreign Employee',
+            'email' => 'foreign.employee@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'user_id' => $foreignUser->id,
+            'company_id' => $foreignCompany->id,
+            'employment_status' => 'active',
+            'contract_type' => 'permanent',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/employees/'.$foreignUser->id, [
+            'baseSalary' => 1234567,
+        ])->assertStatus(404)
+            ->assertJsonPath('error.code', 'EMPLOYEE_NOT_FOUND');
+    }
+
     public function test_employee_profile_can_store_pkwt_contract_fields(): void
     {
         $token = $this->adminBearerToken();

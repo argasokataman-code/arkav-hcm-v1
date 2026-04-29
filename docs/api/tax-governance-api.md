@@ -102,10 +102,10 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/IMPLEMENTAT
 | `POST /policies` | Buat draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
 | `GET /policies/{policyRef}` | Detail policy | `tax.tenant.policy.view` | Tenant sendiri |
 | `PATCH /policies/{policyRef}` | Ubah draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `POST /policies/{policyRef}/submit` | Submit approval | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `POST /policies/{policyRef}/approve` | Approve policy | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
-| `POST /policies/{policyRef}/reject` | Reject submitted policy kembali ke draft | `tax.tenant.policy.approve` | Tenant sendiri + SoD |
-| `POST /policies/{policyRef}/publish` | Publish policy | `tax.tenant.policy.publish` | Tenant sendiri + SoD |
+| `POST /policies/{policyRef}/submit` | Workflow submit (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
+| `POST /policies/{policyRef}/approve` | Workflow approve (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
+| `POST /policies/{policyRef}/reject` | Workflow reject (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
+| `POST /policies/{policyRef}/publish` | Workflow publish (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
 | `GET /policies/{policyRef}/events` | Event history immutable | `tax.tenant.policy.view` | Tenant sendiri |
 | `GET /reports/tenant-self-audit` | Read tenant self-audit enhanced snapshot | `tax.tenant.policy.view` | Tenant sendiri / Global admin |
 | `GET /reports/tenant-self-audit-export` | Export enhanced tenant self-audit (`json|pdf`) | `tax.tenant.report.export` | Tenant sendiri |
@@ -124,19 +124,17 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/IMPLEMENTAT
 
 ## Lifecycle Policy Statutory Tax Tenant
 
-State minimum:
+State minimum (temporary owner-direct mode):
 1. `draft`
-2. `submitted`
-3. `approved`
-4. `rejected` (event action, state kembali ke `draft`)
-5. `published`
-6. `superseded`
-7. `void`
+2. `published`
+3. `superseded`
+4. `void`
 
 Guardrails wajib:
-1. Maker-checker (SoD): actor pembuat draft tidak boleh approve/publish item yang sama.
+1. Owner-first authoring: perubahan policy tenant dilakukan oleh tenant owner (global admin override tetap tersedia).
 2. Object scope: `resource.tenant_id == actor.active_tenant_id`.
 3. Semua perubahan policy menghasilkan immutable audit events.
+4. Endpoint workflow `submit/approve/reject/publish` sementara mengembalikan `409 TAX_POLICY_WORKFLOW_DISABLED`.
 
 ## Draft Endpoint Contract
 
@@ -160,11 +158,21 @@ Body minimum:
 2. `name` (string)
 3. `effectiveStartDate` (date)
 4. `effectiveEndDate` (date, nullable)
-5. `rules` (array)
-6. `rateSchedules` (array)
+5. `draftKey` (string, nullable, idempotency key untuk draft authoring tenant)
+6. `rules` (object)
+7. `rateSchedules` (array)
 
-Response `201`:
-- `data` policy object status `draft`.
+Aturan payload statutory saat ini:
+1. `rules.scheme` menerima `STATUTORY_PPH21` atau legacy `TER`; runtime akan dinormalisasi ke skema statutory tenant.
+2. `rules.currency` hanya `IDR`.
+3. `rules.regulationReference` / `rules.regulation_reference` menyimpan rujukan regulasi aktif, misalnya `PP 58/2023 & PMK 168/PMK.03/2023`.
+4. `rules.regulationSourceType` menerima `ministry_regulation`, `directorate_guideline`, `company_policy_reference`, atau kode valid lain yang di-whitelist runtime.
+5. `rateSchedules[]` menerima bentuk statutory seperti `category`, `lookupTableCode`, `calculationMode`, `effectiveStartDate`, `effectiveEndDate`, `regulationReference`, `regulationSourceType`; field legacy `bracket` + `rate` masih diterima untuk normalisasi transisi.
+
+Response:
+1. `201` untuk draft baru.
+2. `200` bila `draftKey` menunjuk draft tenant yang sudah ada, sehingga create bersifat idempotent.
+3. `data.draftKey` mengembalikan fingerprint draft yang tersimpan.
 
 ### `GET /v1/hcm/tax-governance/policies/{policyRef}`
 
@@ -179,48 +187,41 @@ Response `200`:
 Aturan:
 1. Hanya status `draft` yang bisa diubah.
 2. Optimistic lock via `version` wajib.
+3. Payload mengikuti kontrak statutory yang sama dengan endpoint create, termasuk `draftKey`, metadata regulasi, dan statutory `rateSchedules`.
+4. `policyRef` menerima UUID utama atau numeric legacy sementara selama migration window.
 
 Response `200`:
-- policy draft terbaru.
+- policy draft terbaru, termasuk `draftKey`, `rules`, `rateSchedules`, dan timestamp audit ringkas.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/submit`
 
-Body opsional:
-1. `submissionNote` (string, max 1000)
-
-Response `200`:
-- status berubah menjadi `submitted`.
+Temporary behavior:
+1. Endpoint lifecycle workflow sementara dinonaktifkan.
+2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/approve`
 
-Body minimum:
-1. `approvalNote` (string)
-
-Response `200`:
-- status berubah menjadi `approved`.
+Temporary behavior:
+1. Endpoint lifecycle workflow sementara dinonaktifkan.
+2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/reject`
 
-Body minimum:
-1. `rejectionNote` (string)
-
-Response `200`:
-- policy ditolak dan state kembali ke `draft` untuk perbaikan.
+Temporary behavior:
+1. Endpoint lifecycle workflow sementara dinonaktifkan.
+2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/publish`
+
+Temporary behavior:
+1. Endpoint lifecycle workflow sementara dinonaktifkan.
+2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
 
 ### `GET /v1/hcm/tax-governance/policies/{policyRef}/events`
 
 Response `200`:
 1. history event immutable dengan field `policy_uuid` dan `event_uuid`.
 2. jika path menggunakan numeric legacy, response menyertakan header deprecation + sunset.
-
-Body minimum:
-1. `publishReason` (string)
-2. `effectiveStartDate` (date)
-
-Response `200`:
-- status berubah menjadi `published`.
 
 ### `GET /v1/hcm/tax-governance/governance/dashboard`
 
@@ -281,19 +282,19 @@ Query opsional:
 
 Response `200`:
 - `data.items`: payload kompatibilitas legacy per company.
-- `data.items_global`: agregasi kebijakan global berisi `version`, `subscription_tax_rate`, `payroll_service_fee`, `addon_markup_rate`, `status`, `created_at`, `effective_from`.
+- `data.items_global`: agregasi kebijakan global berisi `version`, `subscription_tax_rate`, `payroll_service_fee` (selalu `0` sebagai field kompatibilitas), `addon_markup_rate`, `status`, `created_at`, `effective_from`.
 
 ### `POST /v1/hcm/tax-governance/platform-billing/policies`
 
 Body minimum:
 1. **Mode global (direkomendasikan untuk menu Platform Revenue):**
    - `subscription_tax_rate` (0..100)
-   - `payroll_service_fee` (0..100)
    - `addon_markup_rate` (0..100)
    - `status` (opsional)
    - `billing_month` (opsional, default bulan berjalan)
    - `effective_from` (opsional, default hari ini)
    - `notes` (opsional)
+   - catatan: `payroll_service_fee` tidak lagi dikonfigurasi; runtime memaksa nilai `0`.
 2. **Mode legacy per company (tetap didukung):**
    - `company_id`, `billing_month`, `billing_cycle_type`, `tax_rate_percentage`, `base_calculation_method`, `effective_from`
 
@@ -317,7 +318,7 @@ Response `200`:
 - setiap row tenant mencakup field clearing-aware paralel: `taxable_revenue_amount`, `cleared_revenue_amount`, `uncleared_revenue_amount`, `disputed_revenue_amount`, `reversed_revenue_amount`.
 - tambahan payload `summary_global` untuk UI global:
    - `total_subscription_revenue`
-   - `total_payroll_service_fee`
+   - `total_payroll_service_fee` (selalu `0` untuk kompatibilitas)
    - `total_addon_revenue`
    - `total_gross_revenue`
    - `total_tax_due`
@@ -327,7 +328,7 @@ Response `200`:
    - jika capture stream runtime pada bulan berjalan belum tersedia, `total_gross_revenue` mengikuti `total_taxable_revenue_amount` (invoice fallback) agar tidak terjadi kondisi `gross=0` tetapi `tax_due>0`.
    - pada kondisi fallback yang sama, `total_net_revenue` dihitung dari `total_gross_revenue - total_tax_due`.
 - tambahan payload `tenants_global[]` untuk tabel global:
-   - `tenant`, `plan`, `subscription_revenue`, `payroll_service_fee`, `addon_revenue`, `gross_revenue`, `tax_amount_due`, `net_revenue`
+   - `tenant`, `plan`, `subscription_revenue`, `payroll_service_fee` (selalu `0`), `addon_revenue`, `gross_revenue`, `tax_amount_due`, `net_revenue`
 
 ### `GET /v1/hcm/tax-governance/platform-tax-compliance/policies`
 
@@ -350,8 +351,12 @@ Response `200`:
 
 Body minimum:
 1. `subscription_tax_rate`
-2. `payroll_service_fee`
-3. `addon_markup_rate`
+2. `addon_markup_rate`
+3. `billing_cycle_type` (opsional: `monthly|yearly|custom`, default `monthly`)
+
+Catatan runtime saat ini:
+- endpoint ini memakai mode propagasi global yang menulis policy government layer per tenant untuk `billing_month` terpilih.
+- `billing_cycle_type` sekarang bisa dikonfigurasi dari form Government Tax & Compliance dan dipropagasikan ke snapshot policy per tenant.
 
 Response `201`:
 - snapshot kebijakan government layer + jumlah tenant scope terdampak.
@@ -368,13 +373,20 @@ Response `200`:
    - `data.view_context = government_tax_compliance`
    - `data.summary_compliance`:
       - `total_taxable_revenue`
+      - `total_collected_tax_liability`
       - `total_payroll_component`
       - `total_addon_component`
       - `total_tax_payable`
       - `total_net_revenue`
       - `effective_tax_rate`
+   - `data.tenants_global[]` untuk UI global compliance menambahkan:
+      - `billing_month`
+      - `billing_cycle_type`
+      - `next_renewal_month`
+      - `collected_tax_liability`
    - `data.tenants_compliance[]`:
       - `taxable_revenue`
+      - `collected_tax_liability`
       - `payroll_component`
       - `addon_component`
       - `total_tax_payable`

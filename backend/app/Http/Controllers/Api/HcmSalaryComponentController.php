@@ -172,7 +172,8 @@ class HcmSalaryComponentController extends Controller
             'isActive' => ['nullable', 'boolean'],
         ]);
 
-        $query = HcmSalaryComponent::query();
+        $query = $this->scopedComponentQuery($request);
+
         if (! empty($validated['kind'] ?? null)) {
             $query->where('kind', $validated['kind']);
         }
@@ -197,7 +198,7 @@ class HcmSalaryComponentController extends Controller
             return $forbidden;
         }
 
-        $c = HcmSalaryComponent::query()->findOrFail($id);
+        $c = $this->scopedComponentQuery($request)->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -229,6 +230,7 @@ class HcmSalaryComponentController extends Controller
             'includeThrCalculationBase' => ['nullable', 'boolean'],
             'includePph21TerGross' => ['nullable', 'boolean'],
             'includePph21AnnualReconciliation' => ['nullable', 'boolean'],
+            'taxTreatmentCode' => ['nullable', 'string', Rule::in(HcmSalaryComponent::TAX_TREATMENT_CODES)],
             'subjectOvertimeRegulation' => ['nullable', 'boolean'],
             'affectsNetPay' => ['nullable', 'boolean'],
             'employerCostLine' => ['nullable', 'boolean'],
@@ -277,8 +279,11 @@ class HcmSalaryComponentController extends Controller
         }
 
         $code = $this->uniqueCode($validated['code'] ?? null, $validated['name']);
+        $taxTreatmentCode = $this->resolveTaxTreatmentCodeFromValidated($validated);
+        $taxFlags = HcmSalaryComponent::taxFlagsForTreatment($taxTreatmentCode);
 
         $c = HcmSalaryComponent::query()->create([
+            'company_id' => $this->activeCompanyId($request),
             'code' => $code,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
@@ -289,8 +294,9 @@ class HcmSalaryComponentController extends Controller
             'include_bpjs_health_wage_base' => (bool) ($validated['includeBpjsHealthWageBase'] ?? false),
             'include_bpjs_tk_wage_base' => (bool) ($validated['includeBpjsTkWageBase'] ?? false),
             'include_thr_calculation_base' => (bool) ($validated['includeThrCalculationBase'] ?? false),
-            'include_pph21_ter_gross' => (bool) ($validated['includePph21TerGross'] ?? true),
-            'include_pph21_annual_reconciliation' => (bool) ($validated['includePph21AnnualReconciliation'] ?? false),
+            'include_pph21_ter_gross' => $taxFlags['include_pph21_ter_gross'],
+            'include_pph21_annual_reconciliation' => $taxFlags['include_pph21_annual_reconciliation'],
+            'tax_treatment_code' => $taxTreatmentCode,
             'subject_overtime_regulation' => (bool) ($validated['subjectOvertimeRegulation'] ?? false),
             'affects_net_pay' => (bool) ($validated['affectsNetPay'] ?? true),
             'employer_cost_line' => (bool) ($validated['employerCostLine'] ?? false),
@@ -311,7 +317,7 @@ class HcmSalaryComponentController extends Controller
             return $forbidden;
         }
 
-        $c = HcmSalaryComponent::query()->findOrFail($id);
+        $c = $this->scopedComponentQuery($request)->findOrFail($id);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:200'],
@@ -330,6 +336,7 @@ class HcmSalaryComponentController extends Controller
             'includeThrCalculationBase' => ['required', 'boolean'],
             'includePph21TerGross' => ['required', 'boolean'],
             'includePph21AnnualReconciliation' => ['required', 'boolean'],
+            'taxTreatmentCode' => ['nullable', 'string', Rule::in(HcmSalaryComponent::TAX_TREATMENT_CODES)],
             'subjectOvertimeRegulation' => ['required', 'boolean'],
             'affectsNetPay' => ['required', 'boolean'],
             'employerCostLine' => ['required', 'boolean'],
@@ -378,6 +385,9 @@ class HcmSalaryComponentController extends Controller
             ], 422);
         }
 
+        $taxTreatmentCode = $this->resolveTaxTreatmentCodeFromValidated($validated);
+        $taxFlags = HcmSalaryComponent::taxFlagsForTreatment($taxTreatmentCode);
+
         $c->update([
             'code' => $code,
             'name' => $validated['name'],
@@ -389,8 +399,9 @@ class HcmSalaryComponentController extends Controller
             'include_bpjs_health_wage_base' => $validated['includeBpjsHealthWageBase'],
             'include_bpjs_tk_wage_base' => $validated['includeBpjsTkWageBase'],
             'include_thr_calculation_base' => $validated['includeThrCalculationBase'],
-            'include_pph21_ter_gross' => $validated['includePph21TerGross'],
-            'include_pph21_annual_reconciliation' => $validated['includePph21AnnualReconciliation'],
+            'include_pph21_ter_gross' => $taxFlags['include_pph21_ter_gross'],
+            'include_pph21_annual_reconciliation' => $taxFlags['include_pph21_annual_reconciliation'],
+            'tax_treatment_code' => $taxTreatmentCode,
             'subject_overtime_regulation' => $validated['subjectOvertimeRegulation'],
             'affects_net_pay' => $validated['affectsNetPay'],
             'employer_cost_line' => $validated['employerCostLine'],
@@ -410,7 +421,7 @@ class HcmSalaryComponentController extends Controller
             return $forbidden;
         }
 
-        $c = HcmSalaryComponent::query()->findOrFail($id);
+        $c = $this->scopedComponentQuery($request)->findOrFail($id);
 
         $c->delete();
 
@@ -428,33 +439,50 @@ class HcmSalaryComponentController extends Controller
             return $forbidden;
         }
 
-        $c = HcmSalaryComponent::query()->findOrFail($id);
+        $c = $this->scopedComponentQuery($request)->findOrFail($id);
 
         $validated = $request->validate([
             'includePph21TerGross' => ['nullable', 'boolean'],
             'includePph21AnnualReconciliation' => ['nullable', 'boolean'],
+            'taxTreatmentCode' => ['nullable', 'string', Rule::in(HcmSalaryComponent::TAX_TREATMENT_CODES)],
         ]);
 
-        if (! array_key_exists('includePph21TerGross', $validated) && ! array_key_exists('includePph21AnnualReconciliation', $validated)) {
+        if (! array_key_exists('includePph21TerGross', $validated) && ! array_key_exists('includePph21AnnualReconciliation', $validated) && ! array_key_exists('taxTreatmentCode', $validated)) {
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'At least one tax flag is required.'],
+                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'At least one tax classification field is required.'],
             ], 422);
         }
 
         $updates = [];
-        if (array_key_exists('includePph21TerGross', $validated) && $validated['includePph21TerGross'] !== null) {
-            $updates['include_pph21_ter_gross'] = (bool) $validated['includePph21TerGross'];
-        }
-        if (array_key_exists('includePph21AnnualReconciliation', $validated) && $validated['includePph21AnnualReconciliation'] !== null) {
-            $updates['include_pph21_annual_reconciliation'] = (bool) $validated['includePph21AnnualReconciliation'];
+        if (array_key_exists('taxTreatmentCode', $validated) && $validated['taxTreatmentCode'] !== null) {
+            $updates['tax_treatment_code'] = (string) $validated['taxTreatmentCode'];
+            $updates += HcmSalaryComponent::taxFlagsForTreatment($updates['tax_treatment_code']);
+        } else {
+            $taxTreatmentCode = HcmSalaryComponent::inferTaxTreatmentCode(
+                array_key_exists('includePph21TerGross', $validated) && $validated['includePph21TerGross'] !== null
+                    ? (bool) $validated['includePph21TerGross']
+                    : (bool) $c->include_pph21_ter_gross,
+                array_key_exists('includePph21AnnualReconciliation', $validated) && $validated['includePph21AnnualReconciliation'] !== null
+                    ? (bool) $validated['includePph21AnnualReconciliation']
+                    : (bool) $c->include_pph21_annual_reconciliation,
+                (bool) $c->employer_cost_line,
+            );
+
+            $updates['tax_treatment_code'] = $taxTreatmentCode;
+            $updates += HcmSalaryComponent::taxFlagsForTreatment($taxTreatmentCode);
         }
 
         if (! empty($updates)) {
             $c->update($updates);
         }
 
-        return response()->json(['success' => true]);
+        $c->refresh();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->serialize($c),
+        ]);
     }
 
     /**
@@ -479,6 +507,11 @@ class HcmSalaryComponentController extends Controller
             'includeThrCalculationBase' => (bool) $c->include_thr_calculation_base,
             'includePph21TerGross' => (bool) $c->include_pph21_ter_gross,
             'includePph21AnnualReconciliation' => (bool) $c->include_pph21_annual_reconciliation,
+            'taxTreatmentCode' => $c->tax_treatment_code ?: HcmSalaryComponent::inferTaxTreatmentCode(
+                (bool) $c->include_pph21_ter_gross,
+                (bool) $c->include_pph21_annual_reconciliation,
+                (bool) $c->employer_cost_line,
+            ),
             'subjectOvertimeRegulation' => (bool) $c->subject_overtime_regulation,
             'affectsNetPay' => (bool) $c->affects_net_pay,
             'employerCostLine' => (bool) $c->employer_cost_line,
@@ -490,6 +523,19 @@ class HcmSalaryComponentController extends Controller
             'defaultPercent' => $c->default_percent !== null ? (string) $c->default_percent : null,
             'percentBasis' => $c->percent_basis,
         ];
+    }
+
+    private function resolveTaxTreatmentCodeFromValidated(array $validated): string
+    {
+        if (! empty($validated['taxTreatmentCode'])) {
+            return (string) $validated['taxTreatmentCode'];
+        }
+
+        return HcmSalaryComponent::inferTaxTreatmentCode(
+            (bool) ($validated['includePph21TerGross'] ?? true),
+            (bool) ($validated['includePph21AnnualReconciliation'] ?? false),
+            (bool) ($validated['employerCostLine'] ?? false),
+        );
     }
 
     /**
@@ -619,6 +665,18 @@ class HcmSalaryComponentController extends Controller
         }
 
         return $query->exists();
+    }
+
+    private function scopedComponentQuery(Request $request)
+    {
+        $query = HcmSalaryComponent::query();
+        $companyId = $this->activeCompanyId($request);
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query;
     }
 
     private function categoryName(string $kind, string $code): string

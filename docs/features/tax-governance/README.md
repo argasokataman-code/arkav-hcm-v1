@@ -1,8 +1,8 @@
 # Tax Governance & SaaS Financial Platform
 
-**Status:** Architecture designed (Phase 0 pending); 45% complete (payroll only)  
+**Status:** Production hardening in progress; platform finance government compliance runtime active; broader tax governance rollout still partial (~70% complete)  
 **Decision Date:** 2026-04-27 (Locked for Phase 0-9)  
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-04-29
 
 ## Ringkasan Eksekutif
 
@@ -16,7 +16,7 @@ Tax Governance adalah bagian dari **SaaS Financial Platform** — sistem revenue
 
 **✅ What Works:**
 - Tenant statutory tax: Employee tax profiles + payroll engine calculates PPh21 TER
-- Tax policy CRUD: Policy lifecycle (draft → submitted → approved → published)
+- Tax policy CRUD: owner-direct draft editing active, workflow endpoints (`submit/approve/reject/publish`) temporarily disabled (return `409`)
 - Permission system: RBAC architecture in place
 
 **❌ What's Missing:**
@@ -141,19 +141,21 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Akses
 
-- Web: `/tax-rates` berada di middleware `hcm.web.admin`; non-admin diarahkan keluar dari surface admin.
+- Web canonical: `/tax-employees` berada di middleware `hcm.web.admin`; non-admin diarahkan keluar dari surface admin.
+- Web legacy compatibility: `/tax-rates` tetap tersedia sebagai redirect ke route canonical untuk menjaga backward compatibility bookmark/link lama.
 - API: endpoint tax governance aktif berada di namespace `/v1/hcm/tax-governance` untuk compliance snapshot, self-audit export, platform billing policy, dan platform billing reports.
 - Runtime tax mutation payroll tenant tetap terjadi lewat endpoint employee dan salary component yang sudah ada.
 
 ## UI Aktif
 
-- Halaman aktif: `/tax-rates` (`backend/resources/views/tax-rates.blade.php`).
+- Halaman aktif canonical: `/tax-employees` (`backend/resources/views/tax-rates.blade.php`).
 - Status UI saat ini:
   - compliance summary tenant + recommended actions + anomaly register;
   - policy event history;
   - export tenant self-audit JSON/PDF;
   - panel platform billing tax master (list + create policy untuk global admin);
   - panel platform billing tax report per bulan lintas tenant.
+  - panel `PPh 21 Component Mapping` di route `/tax-employees/komponen-pajak` untuk memetakan perlakuan pajak setiap salary component tanpa membuat komponen baru.
 - Halaman ini sudah memiliki JS runtime (`frontend/resources/js/tax-governance-dashboard.js`) yang memanggil API tax governance secara langsung.
 - Consumer runtime yang benar-benar aktif justru berada di:
   - `/employees` dan flow import employee untuk tax status/NPWP.
@@ -180,19 +182,20 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Lifecycle Dan Keputusan Bisnis
 
-- Input tax identity: dikelola di data employee, bukan di `/tax-rates`.
-- Input tax basis: dikelola di master komponen gaji, bukan di `/tax-rates`.
-- Perhitungan tax deduction: dikelola di payroll runtime, bukan di `/tax-rates`.
-- `/tax-rates`: saat ini lebih tepat diperlakukan sebagai placeholder/legacy shell daripada panel kontrol pajak aktif.
-- Keputusan operasional saat ini: jangan gunakan `/tax-rates` sebagai bukti bahwa tarif atau taxonomy pajak sudah bisa dikelola penuh di aplikasi.
+- Input tax identity: dikelola di data employee, bukan di `/tax-employees`.
+- Input tax basis: dikelola di master komponen gaji, bukan di `/tax-employees`.
+- Perhitungan tax deduction: dikelola di payroll runtime, bukan di `/tax-employees`.
+- `/tax-employees`: panel governance pajak karyawan tenant; `/tax-rates` diperlakukan legacy alias/redirect.
+- Keputusan operasional saat ini: jangan gunakan halaman governance sebagai bukti bahwa seluruh tarif/taxonomy sudah terkelola penuh jika belum ada wiring runtime di engine payroll.
 
 ## Integrasi
 
 - Employee master:
   - tax status dan NPWP masuk melalui flow employee edit/import lalu disimpan ke `employee_tax_profiles`.
 - Salary component master:
-  - flag `includePph21TerGross` menentukan komponen addition mana yang menambah bruto TER.
-  - flag `includePph21AnnualReconciliation` sudah tersedia sebagai metadata master, tetapi kontrol rekonsiliasi tahunannya belum dipusatkan ke modul governance pajak.
+  - route mapping `/tax-employees/komponen-pajak` menampilkan semua komponen payroll dari master salary components, termasuk BPJS, dalam satu tabel audit.
+  - admin melakukan inline mapping untuk `Tax Treatment`, `Include in TER`, dan `Annual Reconciliation`; perubahan auto-save ke endpoint salary components tax flags.
+  - komponen `Unmapped` ditandai prioritas tinggi (highlight merah + audit filter) untuk mencegah run payroll dengan konfigurasi pajak yang belum jelas.
 - Payroll runs:
   - `PayrollDraftBuilder` memilih policy tax governance tenant yang `published` dan efektif pada `draftDataAsOfDate` run monthly.
   - jika policy menyimpan `rateSchedules` yang cocok dengan kategori TER, payroll memakai rate policy itu; jika tidak, engine fallback ke tabel TER bawaan.
@@ -248,7 +251,7 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 ## Anomali Yang Perlu Diwaspadai
 
 - `missingTaxProfile`: payroll fallback ke `TK0` saat tax profile karyawan belum lengkap.
-- Static-control illusion: admin melihat `/tax-rates` dan mengira tarif sudah terkelola, padahal runtime tidak memakai data dari halaman itu.
+- Static-control illusion: admin melihat `/tax-employees` dan mengira tarif sudah terkelola, padahal runtime tidak memakai semua data dari halaman itu.
 - Gross basis drift: komponen gaji berubah tetapi flag `includePph21TerGross` tidak ikut dikoreksi.
 - Input mismatch: tax status employee benar, tetapi salary component salah flag sehingga bruto TER tetap keliru.
 - Annual reconciliation gap: metadata rekonsiliasi tahunan ada di master komponen, tetapi belum ada panel governance untuk memastikan kapan dan bagaimana rekonsiliasi dijalankan.
@@ -256,20 +259,20 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 
 ## Negative Scenario
 
-- Admin memperbarui data di `/tax-rates` dan menganggap payroll bulan berikutnya otomatis ikut berubah, padahal engine tidak membaca halaman itu.
+- Admin memperbarui data di `/tax-employees` dan menganggap payroll bulan berikutnya otomatis ikut berubah, padahal engine tidak membaca semua bagian halaman itu.
 - Karyawan baru masuk tanpa tax profile; payroll tetap jalan dengan fallback `TK0`, sehingga potongan pajak berpotensi under/over deduct.
 - Komponen tunjangan baru dibuat tanpa `includePph21TerGross`, sehingga bruto TER terlalu rendah dan PPh21 terpotong lebih kecil dari seharusnya.
 - Komponen deduction atau irregular allowance salah ditandai masuk bruto TER, sehingga potongan pajak berlebihan.
 - Operator memperbaiki tax status setelah payroll finalized tetapi tidak melakukan void/recalculate, sehingga slip dan audit trail periode tersebut tetap memakai status lama.
-- Auditor meminta bukti master tarif/aturan pajak terpusat; tim hanya menunjukkan `/tax-rates`, padahal halaman itu tidak punya backing data runtime.
+- Auditor meminta bukti master tarif/aturan pajak terpusat; tim hanya menunjukkan `/tax-employees`, padahal halaman itu tidak punya seluruh backing data runtime.
 
 ## Existing Vs Target
 
 ### Existing runtime yang sudah aktif
 
-- Web guard `/tax-rates` sudah server-side dan tenant-admin only.
-- `/tax-rates` sudah menampilkan runtime tenant compliance + self-audit export sebagai governance evidence.
-- `/tax-rates` sudah menampilkan panel platform billing tax policy/report untuk global admin (permission-aware).
+- Web guard `/tax-employees` sudah server-side dan tenant-admin only.
+- `/tax-employees` sudah menampilkan runtime tenant compliance + self-audit export sebagai governance evidence.
+- `/tax-employees` sudah menampilkan panel platform billing tax policy/report untuk global admin (permission-aware).
 - Employee tax profile sudah tersimpan terpisah dan dipakai engine payroll.
 - Salary component master sudah punya flag yang relevan untuk basis PPh21 TER.
 - Payroll run sudah mengeluarkan anomaly missing tax profile dan metadata tax calculation yang cukup untuk audit teknis.
@@ -282,7 +285,7 @@ Riset benchmark lintas praktik SaaS menunjukkan pola yang paling stabil untuk do
 ### Target yang disarankan
 
 - Keputusan sudah final: implementasi harus menghadirkan runtime control plane dan governance dashboard sekaligus.
-- `/tax-rates` dipertahankan sebagai entry point, tetapi harus ditopang model data, API, audit trail, tenant scope, dan wiring runtime resmi.
+- `/tax-employees` menjadi entry point canonical, didukung redirect legacy dari `/tax-rates`, dan harus tetap ditopang model data, API, audit trail, tenant scope, serta wiring runtime resmi.
 - Governance dashboard wajib bisa menampilkan seluruh tenant yang subscribe untuk global admin dengan batas authorization yang ketat.
 - Semua entitas tax governance baru wajib UUID-only pada kontrak publik.
 - Tenant harus bisa generate laporan audit company sendiri langsung dari aplikasi.

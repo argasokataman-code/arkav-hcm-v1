@@ -20,6 +20,10 @@ Master data untuk **nama komponen** pada slip gaji beserta **metadata peraturan 
   - `subjectOvertimeRegulation` — komponen terkait aturan lembur (UU Ketenagakerjaan).
   - `affectsNetPay` — memengaruhi THP pekerja.
   - `employerCostLine` — baris informatif beban perusahaan (JKK, JKM, iuran PK, dll.).
+- **Klasifikasi pajak eksplisit:**
+  - `taxTreatmentCode` menyimpan klasifikasi audit-safe untuk tenant tax mapping.
+  - Nilai aktif: `pph21_taxable_full`, `pph21_taxable_partial`, `non_object`, `deductible`, `pph21_final`, `pph21_separate`, `employer_display_only`.
+  - Runtime tetap menurunkan flag legacy PPh 21 dari nilai ini untuk kompatibilitas payroll engine yang belum sepenuhnya dipindah.
 - **Persen default (opsional):**
   - `defaultPercent` — angka 0–100 (disimpan empat desimal); `null` jika nilai di slip diisi nominal (bukan rumus % di master).
   - `percentBasis` — dasar perhitungan jika `defaultPercent` terisi: `basic_wage`, `wage_bpjs_health`, `wage_bpjs_tk`, `gross_monthly_ter`, `thr_calculation_base`. **Wajib berpasangan:** keduanya diisi atau keduanya kosong (`null`), selain itu `422`.
@@ -48,8 +52,22 @@ Body (JSON):
 
 ### `PUT /v1/hcm/salary-components/{id}`
 
-- Body selalu payload penuh seperti mutasi master: `code`, `name`, `kind`, `category`, `description`, `legalBasis`, `legalNotes`, `defaultPercent`, `percentBasis`, semua flag boolean (wajib eksplisit), `isActive`, `sortOrder`.
+- Path `id` memakai numeric legacy internal (`whereNumber('id')`), bukan UUID.
+- Body selalu payload penuh seperti mutasi master: `code`, `name`, `kind`, `category`, `description`, `legalBasis`, `legalNotes`, `defaultPercent`, `percentBasis`, semua flag boolean (wajib eksplisit), `taxTreatmentCode` (opsional), `isActive`, `sortOrder`.
+- Bila `taxTreatmentCode` dikirim, runtime otomatis menyelaraskan flag legacy PPh 21 dan `employerCostLine` sesuai klasifikasi yang dipilih.
 - Kategori tetap harus valid terhadap master kategori aktif untuk `kind` terkait.
+
+**200** | **403** | **404** | **422**.
+
+### `PATCH /v1/hcm/salary-components/{id}/tax-flags`
+
+- Path `id` memakai numeric legacy internal (`whereNumber('id')`).
+- Body minimal salah satu dari:
+  1. `taxTreatmentCode` untuk klasifikasi eksplisit baru.
+  2. `includePph21TerGross`.
+  3. `includePph21AnnualReconciliation`.
+- Jika `taxTreatmentCode` dikirim, response `200` mengembalikan `data` komponen hasil serialize terbaru agar UI bisa langsung me-refresh klasifikasi, payroll effect, dan flag turunannya.
+- Jika hanya flag legacy yang dikirim, runtime tetap menghitung ulang `taxTreatmentCode` tersimpan secara deterministik.
 
 **200** | **403** | **404** | **422**.
 

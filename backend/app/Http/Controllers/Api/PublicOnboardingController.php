@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\HcmBillingTaxPolicy;
+use App\Services\BillingTaxCalculationService;
 use App\Models\HcmManualActivity;
 use App\Models\Invoice;
 use App\Models\Package;
@@ -287,6 +288,9 @@ class PublicOnboardingController
                 $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
                 $amountDue = (float) $pricingBreakdown['total_amount'];
 
+                $taxRateSnapshot = app(BillingTaxCalculationService::class)
+                    ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
+
                 $invoice = Invoice::query()->create([
                     'company_id' => $company->id,
                     'subscription_id' => $subscription->id,
@@ -294,6 +298,7 @@ class PublicOnboardingController
                     'issue_date' => now()->toDateString(),
                     'due_date' => now()->addDay()->toDateString(),
                     'amount_due' => $amountDue,
+                    'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
                     'status' => 'draft',
                     'notes' => $this->buildInvoicePricingNotes(
                         'public_onboarding',
@@ -425,9 +430,10 @@ class PublicOnboardingController
             $resolvedRates['subscription_tax_rate'] = $defaultSubscriptionTaxRate;
         }
 
+        unset($resolvedRates['payroll_service_fee']);
+
         $defaultLabels = [
             'subscription_tax_rate' => 'Pajak langganan',
-            'payroll_service_fee' => 'Biaya layanan',
             'addon_markup_rate' => 'Corporate tax',
         ];
 

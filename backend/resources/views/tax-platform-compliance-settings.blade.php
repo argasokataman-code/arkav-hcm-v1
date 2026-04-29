@@ -5,6 +5,69 @@
 @endphp
 @extends('layout.mainlayout')
 @section('content')
+<style>
+    .tax-platform-report-table th:nth-child(2),
+    .tax-platform-report-table td:nth-child(2) {
+        min-width: 240px;
+    }
+
+    .tax-cycle-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding: 0.8rem 0.9rem;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 0.85rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
+    .tax-cycle-card__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .tax-cycle-card__title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .tax-cycle-card__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .tax-cycle-card__item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+    }
+
+    .tax-cycle-card__label {
+        font-size: 0.78rem;
+        color: #64748b;
+    }
+
+    .tax-cycle-card__value {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.35;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .tax-cycle-card__value--muted {
+        color: #475569;
+    }
+</style>
 <div class="page-wrapper"
     data-tax-governance-page
     data-tax-governance-screen="{{ $taxGovernanceScreen }}"
@@ -81,8 +144,8 @@
         <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
             <i class="ti ti-shield-check mt-1"></i>
             <div>
-                <div class="fw-semibold">Layer ini khusus domain kewajiban pajak platform ke pemerintah.</div>
-                <div class="small">Perhitungan tenant billing tetap dikelola di menu Billing & Revenue.</div>
+                <div class="fw-semibold">Pemisahan layer pajak: PPN transaksi, PPh Badan, dan tracking pembayaran PPh 25.</div>
+                <div class="small">Jangan gabungkan pajak yang dipungut dari tenant dengan pajak yang menjadi beban platform.</div>
             </div>
         </div>
 
@@ -92,79 +155,209 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0">Konfigurasi Government Tax & Compliance</h5>
-                <small class="text-muted">Konfigurasi tarif pajak platform ke pemerintah (PPh Badan, PPN, dll)</small>
+                <small class="text-muted">Pisahkan layer pajak tidak langsung, pajak langsung, dan histori pembayaran</small>
             </div>
             <div class="card-body">
                 <form class="row g-3" data-tax-platform-policy-form>
-                    {{-- Revenue stream fields bukan domain halaman ini; dikirim sebagai hidden agar API contract terpenuhi --}}
-                    <input type="hidden" name="payroll_service_fee" value="0">
                     <input type="hidden" name="addon_markup_rate" value="0">
-                    <div class="col-md-4">
-                        <label class="form-label">Tarif Pajak Platform ke Pemerintah (%)</label>
-                        <input type="number" class="form-control" name="subscription_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 22.00" required>
-                        <small class="text-muted">Tarif pajak atas gross revenue platform (PPh Badan, dsb)</small>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Status Regulasi</label>
-                        <select class="form-select" name="status">
-                            <option value="active">Aktif</option>
-                            <option value="draft">Draft</option>
-                            <option value="inactive">Nonaktif</option>
-                        </select>
-                        <small class="text-muted">Kontrol penerapan kebijakan pajak</small>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Efektif Berlaku</label>
-                        <input type="date" class="form-control" name="effective_from">
-                        <small class="text-muted">Tanggal mulai berlaku regulasi</small>
-                    </div>
+
                     <div class="col-12">
-                        <label class="form-label">Catatan Perubahan Regulasi</label>
-                        <input type="text" class="form-control" name="notes" placeholder="Misal: Penyesuaian PMK terbaru untuk periode Q3 2026">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                <h6 class="mb-0">Transaction Tax (PPN)</h6>
+                                <span class="badge bg-info-subtle text-info">Collected from tenant (Tax Liability)</span>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Tax Name</label>
+                                    <div class="form-control-plaintext fw-semibold px-2">PPN</div>
+                                    <input type="hidden" name="transaction_tax_name" value="PPN">
+                                    <small class="text-muted">Pajak tidak langsung per transaksi.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tax Rate (%)</label>
+                                    <input type="number" class="form-control" name="transaction_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 11.00">
+                                    <small class="text-muted">Dipungut dari tenant, bukan expense platform.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Applies To (Backend-Governed)</label>
+                                    <div class="d-flex flex-wrap gap-2 pt-1">
+                                        <span class="badge bg-primary-subtle text-primary">Subscription</span>
+                                        <span class="badge bg-primary-subtle text-primary">Add-ons</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">Scope komponen mengikuti rule taxability di backend billing, bukan checklist manual di halaman ini.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" class="form-control" name="transaction_tax_description" placeholder="Contoh: PPN keluaran dipungut saat invoice diterbitkan">
+                                    <small class="text-muted">Catatan basis pemungutan dan pengakuan liability.</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="col-12">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                <h6 class="mb-0">Corporate Tax (PPh Badan)</h6>
+                                <span class="badge bg-warning-subtle text-warning">Paid by platform (Tax Expense)</span>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Tax Name</label>
+                                    <div class="form-control-plaintext fw-semibold px-2">PPh Badan</div>
+                                    <input type="hidden" name="corporate_tax_name" value="PPh Badan">
+                                    <small class="text-muted">Pajak langsung atas laba perusahaan.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tax Rate (%)</label>
+                                    <input type="number" class="form-control" name="subscription_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 22.00" required>
+                                    <small class="text-muted">Tarif diterapkan ke basis Net Profit.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tax Base</label>
+                                    <input type="text" class="form-control" value="Net Profit" readonly>
+                                    <small class="text-muted">Basis tetap untuk corporate tax.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" name="status">
+                                        <option value="active">Aktif</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="inactive">Nonaktif</option>
+                                    </select>
+                                    <small class="text-muted">Kontrol penerapan kebijakan.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Billing Cycle Type</label>
+                                    <select class="form-select" name="billing_cycle_type">
+                                        <option value="monthly">Bulanan</option>
+                                        <option value="yearly">Tahunan</option>
+                                        <option value="custom">Custom Contract</option>
+                                    </select>
+                                    <small class="text-muted">Menentukan pola renewal kewajiban tenant pada rekap compliance.</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Effective Date</label>
+                                    <input type="date" class="form-control" name="effective_from">
+                                    <small class="text-muted">Tanggal mulai berlaku regulasi.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Notes (Regulation Changes)</label>
+                                    <input type="text" class="form-control" name="notes" placeholder="Misal: Perubahan tarif PPh Badan PMK Q3 2026">
+                                    <small class="text-muted">Cantumkan perubahan regulasi untuk kebutuhan audit.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                <h6 class="mb-0">Tax Installments Tracking (PPh 25)</h6>
+                                <span class="badge bg-secondary-subtle text-secondary">Payment activity only (not tax rule)</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Period</th>
+                                            <th>Amount Paid</th>
+                                            <th>Status</th>
+                                            <th>Payment Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-tax-compliance-installment-table>
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-3">Belum ada histori pembayaran installment pada periode ini.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="small text-muted mt-2">PPh 25 adalah tracking pembayaran berkala, bukan parameter tarif pajak.</div>
+                        </div>
+                    </div>
+
                     <div class="col-12 d-flex justify-content-end">
                         <button type="submit" class="btn btn-primary" data-tax-platform-policy-submit>
-                            <i class="ti ti-device-floppy me-1"></i>Simpan Tarif Pajak Pemerintah
+                            <i class="ti ti-device-floppy me-1"></i>Simpan Konfigurasi Tax Layers
                         </button>
                     </div>
                 </form>
             </div>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0">History Setup Aturan Tax</h5>
+                <span class="badge bg-success-subtle text-success" data-tax-platform-active-rule>Aturan aktif saat ini: belum tersedia</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Versi</th>
+                                <th>Corporate Tax Rate (%)</th>
+                                <th>Transaction Tax (PPN) (%)</th>
+                                <th>Status Rule</th>
+                                <th>Dibuat</th>
+                                <th>Effective Date</th>
+                            </tr>
+                        </thead>
+                        <tbody data-tax-platform-policy-table>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Memuat history setup aturan tax...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <div class="row g-3 mb-3">
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <div class="text-muted fs-13 mb-1">Gross Revenue Platform</div>
-                        <h4 class="mb-1" data-tax-compliance-summary-gross>Rp 0</h4>
-                        <div class="small text-muted">Sebelum potongan pajak</div>
+                        <div class="text-muted fs-13 mb-1">Gross Revenue</div>
+                        <h4 class="mb-1" data-tax-compliance-summary-gross-revenue>Rp 0</h4>
+                        <div class="small text-muted">Revenue kotor sebelum tax liability.</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-4">
                 <div class="card h-100">
                     <div class="card-body">
-                        <div class="text-muted fs-13 mb-1">Pajak Terutang</div>
-                        <h4 class="mb-1" data-tax-compliance-summary-tax-due>Rp 0</h4>
-                        <div class="small text-muted">Akumulasi kewajiban pajak berdasarkan policy aktif</div>
+                        <div class="text-muted fs-13 mb-1">Collected Tax (PPN) - Tax Liability</div>
+                        <h4 class="mb-1" data-tax-compliance-summary-tax-liability>Rp 0</h4>
+                        <div class="small text-muted">Dipungut dari tenant, bukan revenue platform.</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-4">
                 <div class="card h-100">
                     <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Net Revenue Setelah Pajak</div>
-                        <h4 class="mb-1" data-tax-compliance-summary-net-profit>Rp 0</h4>
-                        <div class="small text-muted">Setelah kewajiban pajak</div>
+                        <div class="text-muted fs-13 mb-1">Net Revenue (Excluding Tax)</div>
+                        <h4 class="mb-1" data-tax-compliance-summary-net-revenue>Rp 0</h4>
+                        <div class="small text-muted">Gross revenue dikurangi collected tax.</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6 col-xl-3">
+            <div class="col-md-6 col-xl-6">
                 <div class="card h-100">
                     <div class="card-body">
-                        <div class="text-muted fs-13 mb-1">Effective Tax Rate</div>
-                        <h4 class="mb-1" data-tax-compliance-summary-effective-rate>0%</h4>
-                        <div class="small text-muted">Rasio pajak terhadap gross revenue</div>
+                        <div class="text-muted fs-13 mb-1">Corporate Tax Expense (PPh Badan)</div>
+                        <h4 class="mb-1" data-tax-compliance-summary-corporate-tax-expense>Rp 0</h4>
+                        <div class="small text-muted">Expense pajak langsung berbasis Net Profit.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-6">
+                <div class="card h-100 border-success">
+                    <div class="card-body">
+                        <div class="text-muted fs-13 mb-1">Net Profit</div>
+                        <h4 class="mb-1 text-success" data-tax-compliance-summary-net-profit>Rp 0</h4>
+                        <div class="small text-muted">Net revenue setelah dikurangi corporate tax expense.</div>
                     </div>
                 </div>
             </div>
@@ -172,7 +365,10 @@
 
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="mb-0">Rekap Kewajiban Pajak Platform</h5>
+                <div>
+                    <h5 class="mb-0">Rekap Kewajiban Pajak Platform</h5>
+                    <small class="text-muted">Tipe kewajiban dan renewal tenant ditampilkan langsung agar bulanan vs tahunan tidak tertukar.</small>
+                </div>
                 <div class="d-flex align-items-center gap-2">
                     <input type="month" class="form-control" data-tax-platform-report-month>
                     <button type="button" class="btn btn-outline-primary" data-tax-platform-report-refresh>
@@ -182,19 +378,21 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table mb-0">
+                    <table class="table align-middle mb-0 tax-platform-report-table">
                         <thead class="thead-light">
                             <tr>
                                 <th>Tenant</th>
-                                <th>Gross Revenue Base (Rp)</th>
-                                <th>Kewajiban Pajak (Rp)</th>
-                                <th>Net Setelah Pajak (Rp)</th>
+                                <th>Tipe Kewajiban &amp; Renewal</th>
+                                <th>Gross Revenue (Rp)</th>
+                                <th>Tax Liability - PPN (Rp)</th>
+                                <th>Corporate Tax Expense (Rp)</th>
+                                <th>Net Profit (Rp)</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody data-tax-platform-report-table>
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">Memuat rekap kewajiban pajak platform per tenant...</td>
+                                <td colspan="7" class="text-center text-muted py-4">Memuat rekap layer pajak per tenant...</td>
                             </tr>
                         </tbody>
                     </table>

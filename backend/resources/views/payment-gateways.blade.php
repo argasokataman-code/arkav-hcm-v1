@@ -64,11 +64,11 @@
                                 <a href="{{ url('payment-gateways') }}"
                                     class="d-inline-flex align-items-center active rounded py-2 px-3"><i
                                         class="ti ti-arrow-badge-right me-2"></i>Payment Gateways</a>
-                                <a href="{{ url('tax-rates') }}"
+                                <a href="{{ url('tax-employees') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-receipt-tax me-2"></i>PPh 21 Payroll</a>
-                                <a href="{{ url('tax-rates/platform-billing/policies') }}"
+                                <a href="{{ url('saas/pricing') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-building-store me-2"></i>Platform Finance - Billing & Revenue</a>
-                                <a href="{{ url('tax-rates/platform-tax-compliance/policies') }}"
+                                <a href="{{ route('platform-tax-compliance.policies') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-shield-check me-2"></i>Platform Finance - Government Tax & Compliance</a>
                                 <a href="{{ url('currencies') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3">Currencies</a>

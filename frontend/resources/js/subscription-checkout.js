@@ -241,12 +241,6 @@
                     ? breakdown.components
                     : [
                         {
-                            key: "payroll_service_fee",
-                            label: "Biaya layanan",
-                            rate: breakdown.serviceFeeRate,
-                            amount: breakdown.serviceFeeAmount,
-                        },
-                        {
                             key: "subscription_tax_rate",
                             label: "Pajak",
                             rate: breakdown.taxRate,

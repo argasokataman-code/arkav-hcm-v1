@@ -33,6 +33,7 @@ class HcmTaxGovernancePolicy extends Model
         'effective_end_date',
         'rules',
         'rate_schedules',
+        'draft_fingerprint',
         'version',
         'created_by_user_id',
         'submitted_by_user_id',

@@ -314,6 +314,18 @@ Route::get('/saas/reminders', function () {
     return view('saas.reminders');
 })->middleware('hcm.web.global-admin')->name('saas.reminders');
 
+Route::get('/saas/pricing', function () {
+    return view('tax-billing-subscribers-settings', [
+        'taxGovernanceScreen' => 'platform-billing',
+    ]);
+})->middleware('hcm.web.global-admin')->name('saas.pricing');
+
+Route::get('/saas/pricing/reports', function () {
+    return view('tax-billing-subscribers-settings', [
+        'taxGovernanceScreen' => 'platform-billing',
+    ]);
+})->middleware('hcm.web.global-admin')->name('saas.pricing.reports');
+
 // Company views for billing — tenant admin self-service (OWNER/HR_ADMIN/OPS_ADMIN/ADMIN
 // via RBAC). Non-admin karyawan dialihkan ke /employee-dashboard. Global super-admin tetap
 // bypass lewat EnsureHcmWebAdminPage.
@@ -1380,93 +1392,18 @@ Route::get( '/payment-gateways', function () {
     return view( 'payment-gateways');
 })->middleware('hcm.web.global-admin')->name( 'payment-gateways');
 
-Route::prefix('tax-rates')->middleware('hcm.web.admin')->group(function (): void {
-    Route::get('/', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'landing',
-        ]);
-    })->name('tax-rates');
-
+Route::prefix('platform-tax-compliance')->middleware('hcm.web.global-admin')->group(function (): void {
     Route::get('/policies', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'tenant-policies',
+        return view('tax-platform-compliance-settings', [
+            'taxGovernanceScreen' => 'platform-tax-compliance',
         ]);
-    })->name('tax-rates.policies');
-
-    Route::get('/policies/{policyUuid}/edit', function (string $policyUuid) {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'policy-editor',
-            'taxGovernancePolicyUuid' => $policyUuid,
-        ]);
-    })->whereUuid('policyUuid')->name('tax-rates.policies.edit');
-
-    Route::get('/approvals', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'approvals',
-        ]);
-    })->name('tax-rates.approvals');
-
-    Route::get('/publications', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'publications',
-        ]);
-    })->name('tax-rates.publications');
+    })->name('platform-tax-compliance.policies');
 
     Route::get('/reports', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'tenant-reports',
-        ]);
-    })->name('tax-rates.reports');
-
-    Route::get('/komponen-pajak', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'komponen-pajak',
-        ]);
-    })->name('tax-rates.komponen-pajak');
-
-    Route::get('/employee-tax-profiles', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'employee-tax-profiles',
-        ]);
-    })->name('tax-rates.employee-tax-profiles');
-
-    Route::get('/tenant-compliance', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'tenant-compliance',
-        ]);
-    })->name('tax-rates.tenant-compliance');
-});
-
-Route::prefix('tax-rates')->middleware('hcm.web.global-admin')->group(function (): void {
-    Route::get('/governance', function () {
-        return view('tax-rates', [
-            'taxGovernanceScreen' => 'global-governance',
-        ]);
-    })->name('tax-rates.governance');
-
-    Route::get('/platform-billing/policies', function () {
-        return view('tax-billing-subscribers-settings', [
-            'taxGovernanceScreen' => 'platform-billing',
-        ]);
-    })->name('tax-rates.platform-billing.policies');
-
-    Route::get('/platform-billing/reports', function () {
-        return view('tax-billing-subscribers-settings', [
-            'taxGovernanceScreen' => 'platform-billing',
-        ]);
-    })->name('tax-rates.platform-billing.reports');
-
-    Route::get('/platform-tax-compliance/policies', function () {
         return view('tax-platform-compliance-settings', [
             'taxGovernanceScreen' => 'platform-tax-compliance',
         ]);
-    })->name('tax-rates.platform-tax-compliance.policies');
-
-    Route::get('/platform-tax-compliance/reports', function () {
-        return view('tax-platform-compliance-settings', [
-            'taxGovernanceScreen' => 'platform-tax-compliance',
-        ]);
-    })->name('tax-rates.platform-tax-compliance.reports');
+    })->name('platform-tax-compliance.reports');
 });
 
 Route::get( '/pages', function () {
@@ -1556,10 +1493,6 @@ Route::get('/privacy-policy', function () {
 Route::get('/api-keys', function () {
     return view('api-keys');
 })->name('api-keys');
-
-Route::get('/pricing', function () {
-    return view('pricing');
-})->name('pricing');
 
 Route::get('/timeline', function () {
     return view('timeline');

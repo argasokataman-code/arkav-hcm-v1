@@ -53,12 +53,6 @@ describe('subscription checkout wiring', () => {
                     base_amount: 1000000,
                     components: [
                       {
-                        key: 'payroll_service_fee',
-                        label: 'Biaya layanan',
-                        rate: 1,
-                        amount: 10000,
-                      },
-                      {
                         key: 'subscription_tax_rate',
                         label: 'Pajak langganan',
                         rate: 7,
@@ -71,11 +65,11 @@ describe('subscription checkout wiring', () => {
                         amount: 220000,
                       },
                     ],
-                    service_fee_rate: 1,
-                    service_fee_amount: 10000,
+                    service_fee_rate: 0,
+                    service_fee_amount: 0,
                     subscription_tax_rate: 7,
                     subscription_tax_amount: 70000,
-                    total_amount: 1300000,
+                    total_amount: 1290000,
                   },
                 }),
                 createdAt: '2026-04-21T10:00:00Z',
@@ -174,7 +168,7 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-box]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice pending ditemukan');
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(false);
-    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Biaya layanan 1%');
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).not.toContain('Biaya layanan');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Pajak langganan 7%');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Corporate tax 22%');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.classList.contains('d-none')).toBe(false);

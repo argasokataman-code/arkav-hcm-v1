@@ -367,4 +367,28 @@ class HcmSalaryComponentApiTest extends TestCase
             ->deleteJson('/v1/hcm/salary-component-categories/'.$newCategoryId)
             ->assertNotFound();
     }
+
+    public function test_patch_tax_flags_supports_explicit_tax_treatment_code(): void
+    {
+        $token = $this->hcmAdminBearerToken('sc-tax-treatment@example.com');
+        $component = HcmSalaryComponent::query()->where('code', 'upah_pokok')->firstOrFail();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->patchJson('/v1/hcm/salary-components/'.$component->id.'/tax-flags', [
+                'taxTreatmentCode' => HcmSalaryComponent::TAX_TREATMENT_DEDUCTIBLE,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.taxTreatmentCode', HcmSalaryComponent::TAX_TREATMENT_DEDUCTIBLE)
+            ->assertJsonPath('data.includePph21TerGross', false)
+            ->assertJsonPath('data.includePph21AnnualReconciliation', true)
+            ->assertJsonPath('data.employerCostLine', false);
+
+        $component->refresh();
+
+        $this->assertSame(HcmSalaryComponent::TAX_TREATMENT_DEDUCTIBLE, $component->tax_treatment_code);
+        $this->assertFalse((bool) $component->include_pph21_ter_gross);
+        $this->assertTrue((bool) $component->include_pph21_annual_reconciliation);
+        $this->assertFalse((bool) $component->employer_cost_line);
+    }
 }

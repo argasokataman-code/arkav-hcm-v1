@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
 use App\Models\PlatformRevenueTransaction;
+use Illuminate\Support\Facades\DB;
 
 class BillingTaxCalculationService
 {
@@ -63,7 +64,26 @@ class BillingTaxCalculationService
         $taxRatePercentage = (float) ($policy?->tax_rate_percentage ?? 0);
         // Runtime compatibility: use cleared revenue as primary taxable base; fallback to invoice total while legacy flow is still active.
         $taxableRevenueAmount = $clearedRevenueAmount > 0 ? $clearedRevenueAmount : $totalInvoiceAmount;
-        $taxAmount = round($taxableRevenueAmount * ($taxRatePercentage / 100), 2);
+
+        // Level 2: When using invoice-based fallback, prefer per-invoice snapshot rates over current policy rate.
+        // This ensures historical invoices reflect the rate that was active when they were issued.
+        if ($clearedRevenueAmount <= 0) {
+            $invoicesWithRates = (clone $invoiceQuery)->get(['amount_due', 'billing_tax_rate_snapshot']);
+            $hasAnySnapshot = $invoicesWithRates->contains(fn ($inv): bool => $inv->billing_tax_rate_snapshot !== null);
+            if ($hasAnySnapshot) {
+                $snapshotTax = $invoicesWithRates->sum(function ($inv) use ($taxRatePercentage): float {
+                    $rate = $inv->billing_tax_rate_snapshot !== null
+                        ? (float) $inv->billing_tax_rate_snapshot
+                        : $taxRatePercentage;
+                    return (float) $inv->amount_due * ($rate / 100);
+                });
+                $taxAmount = round($snapshotTax, 2);
+            } else {
+                $taxAmount = round($taxableRevenueAmount * ($taxRatePercentage / 100), 2);
+            }
+        } else {
+            $taxAmount = round($taxableRevenueAmount * ($taxRatePercentage / 100), 2);
+        }
 
         return [
             'company_id' => $companyId,
@@ -87,8 +107,25 @@ class BillingTaxCalculationService
         ];
     }
 
+    /**
+     * Level 2: Resolve the active billing tax rate for a company at the current moment.
+     * Use this when creating a new invoice so the rate is snapshotted into the invoice record.
+     */
+    public function resolvePolicyRateSnapshot(int $companyId, string $billingMonth): float
+    {
+        $policy = $this->resolvePolicy($companyId, $billingMonth);
+        return (float) ($policy?->tax_rate_percentage ?? 0);
+    }
+
     public function generateCrossTenantMonthlyReport(string $billingMonth): array
     {
+        // Level 3: If this billing month has been locked with a per-tenant snapshot, return it directly.
+        // This prevents retroactive config changes from altering historical report data.
+        $lockedSnapshot = $this->getLockedMonthlySnapshot($billingMonth);
+        if ($lockedSnapshot !== null) {
+            return $lockedSnapshot;
+        }
+
         $periodStart = $billingMonth . '-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
@@ -112,7 +149,6 @@ class BillingTaxCalculationService
         $totalDisputedRevenueAmount = 0.0;
         $totalReversedRevenueAmount = 0.0;
         $totalSubscriptionRevenue = 0.0;
-        $totalPayrollServiceFee = 0.0;
         $totalAddonRevenue = 0.0;
         $totalGrossRevenue = 0.0;
         $totalNetRevenue = 0.0;
@@ -129,14 +165,12 @@ class BillingTaxCalculationService
             $subscriptionRevenue = (float) ((clone $transactionBase)
                 ->where('transaction_type', PlatformRevenueTransaction::TYPE_SUBSCRIPTION)
                 ->sum('amount') ?? 0);
-            $payrollServiceFee = (float) ((clone $transactionBase)
-                ->where('transaction_type', PlatformRevenueTransaction::TYPE_PAYROLL_SERVICE)
-                ->sum('amount') ?? 0);
+            $payrollServiceFee = 0.0;
             $addonRevenue = (float) ((clone $transactionBase)
                 ->where('transaction_type', PlatformRevenueTransaction::TYPE_ADDON_FEATURE)
                 ->sum('amount') ?? 0);
 
-            $grossRevenue = round($subscriptionRevenue + $payrollServiceFee + $addonRevenue, 2);
+            $grossRevenue = round($subscriptionRevenue + $addonRevenue, 2);
             $taxableRevenueAmount = (float) ($calc['taxable_revenue_amount'] ?? 0);
             // If runtime stream capture is not yet available for the month, align gross/net
             // with taxable fallback (invoice-based) to avoid misleading zero-gross summaries.
@@ -156,7 +190,6 @@ class BillingTaxCalculationService
             $totalDisputedRevenueAmount += (float) ($calc['disputed_revenue_amount'] ?? 0);
             $totalReversedRevenueAmount += (float) ($calc['reversed_revenue_amount'] ?? 0);
             $totalSubscriptionRevenue += $subscriptionRevenue;
-            $totalPayrollServiceFee += $payrollServiceFee;
             $totalAddonRevenue += $addonRevenue;
             $totalGrossRevenue += $effectiveGrossRevenue;
             $totalNetRevenue += $netRevenue;
@@ -165,6 +198,8 @@ class BillingTaxCalculationService
                 'company_id' => $tenantId,
                 'company_name' => $company?->name,
                 'billing_month' => $billingMonth,
+                'billing_cycle_type' => $calc['billing_cycle_type'] ?: 'monthly',
+                'next_renewal_month' => $this->resolveNextRenewalMonth($billingMonth, $calc['billing_cycle_type'] ?? null),
                 'policy_uuid' => $calc['policy_uuid'],
                 'plan_name' => '-',
                 'tax_rate_percentage' => (float) $calc['tax_rate_percentage'],
@@ -220,7 +255,7 @@ class BillingTaxCalculationService
                 'total_tax_due' => round($totalTaxDue, 2),
                 'unpaid_invoice_count' => $unpaidInvoiceCount,
                 'total_subscription_revenue' => round($totalSubscriptionRevenue, 2),
-                'total_payroll_service_fee' => round($totalPayrollServiceFee, 2),
+                'total_payroll_service_fee' => 0.0,
                 'total_addon_revenue' => round($totalAddonRevenue, 2),
                 'total_gross_revenue' => round($totalGrossRevenue, 2),
                 'total_net_revenue' => round($totalNetRevenue, 2),
@@ -248,14 +283,70 @@ class BillingTaxCalculationService
         return true;
     }
 
+    /**
+     * Level 3: Return the frozen per-tenant snapshot for a locked billing month, or null if not locked.
+     */
+    private function getLockedMonthlySnapshot(string $billingMonth): ?array
+    {
+        if (! DB::getSchemaBuilder()->hasTable('platform_monthly_financial_summaries')) {
+            return null;
+        }
+
+        $year  = (int) substr($billingMonth, 0, 4);
+        $month = (int) substr($billingMonth, 5, 2);
+
+        $row = DB::table('platform_monthly_financial_summaries')
+            ->where('report_year', $year)
+            ->where('report_month', $month)
+            ->where('report_status', 'locked')
+            ->whereNotNull('tenant_billing_snapshots')
+            ->first();
+
+        if (! $row) {
+            return null;
+        }
+
+        $snapshot = json_decode((string) $row->tenant_billing_snapshots, true);
+        return is_array($snapshot) ? $snapshot : null;
+    }
+
+    /**
+     * Level 1: Date-aware policy resolution.
+     * Only considers policies that were created on or before the end of the billing period.
+     * This prevents retroactively-created policies (e.g., created in March for January) from
+     * altering historical invoice tax calculations.
+     */
     private function resolvePolicy(int $companyId, string $billingMonth): ?HcmBillingTaxPolicy
     {
+        $periodEnd = date('Y-m-t', strtotime($billingMonth . '-01'));
+        $periodEndDateTime = $periodEnd . ' 23:59:59';
+
         return HcmBillingTaxPolicy::query()
             ->where('company_id', $companyId)
-            ->where('status', 'active')
             ->where('billing_month', $billingMonth)
+            // Only policies created on or before the last day of the billing period can apply to it.
+            // A policy created in March cannot retroactively change January's tax calculation.
+            ->where('created_at', '<=', $periodEndDateTime)
+            ->where(function ($q) use ($periodEnd): void {
+                $q->whereNull('effective_from')
+                  ->orWhere('effective_from', '<=', $periodEnd);
+            })
             ->orderByDesc('effective_from')
             ->orderByDesc('created_at')
             ->first();
+    }
+
+    private function resolveNextRenewalMonth(string $billingMonth, ?string $billingCycleType): ?string
+    {
+        $baseDate = strtotime($billingMonth . '-01');
+        if ($baseDate === false) {
+            return null;
+        }
+
+        return match ($billingCycleType) {
+            'yearly' => date('Y-m', strtotime('+1 year', $baseDate)),
+            'custom' => null,
+            default => date('Y-m', strtotime('+1 month', $baseDate)),
+        };
     }
 }

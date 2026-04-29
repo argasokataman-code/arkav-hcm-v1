@@ -36,219 +36,136 @@ class HcmTaxGovernanceApiTest extends TestCase
         return (string) $login->json('data.accessToken');
     }
 
-    public function test_policy_lifecycle_enforces_sod_and_tenant_boundary(): void
+    private function elevateToGlobalAdmin(string $email): void
     {
-        $maker = $this->createHcmAdminWithCompany(['email' => 'tax-maker@example.com']);
-        $approver = $this->createHcmAdminWithCompany(['email' => 'tax-approver@example.com'], $maker['company']);
-        $otherTenant = $this->createHcmAdminWithCompany(['email' => 'tax-other-tenant@example.com']);
-
-        $payload = [
-            'policyCode' => 'PPh21-TER-2026',
-            'name' => 'PPh 21 TER 2026',
-            'effectiveStartDate' => '2026-01-01',
-            'effectiveEndDate' => null,
-            'rules' => [
-                'scheme' => 'TER',
-                'currency' => 'IDR',
-            ],
-            'rateSchedules' => [
-                ['bracket' => 'A', 'rate' => 5],
-            ],
-        ];
-
-        $create = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies', $payload)
-            ->assertStatus(201)
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'draft')
-            ->assertJsonPath('data.version', 1);
-
-        $policyUuid = (string) $create->json('data.uuid');
-        $this->assertNotSame('', $policyUuid);
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/submit', [
-            'submissionNote' => 'Ready for reviewer approval',
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'submitted');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/approve', [
-            'approvalNote' => 'Maker should not approve',
-        ])
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'TAX_POLICY_SOD_VIOLATION');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$approver['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/approve', [
-            'approvalNote' => 'Approved by different approver',
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'approved');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/publish', [
-            'publishReason' => 'Maker should not publish own policy',
-            'effectiveStartDate' => '2026-01-15',
-        ])
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'TAX_POLICY_SOD_VIOLATION');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$approver['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/publish', [
-            'publishReason' => 'Approved and now published',
-            'effectiveStartDate' => '2026-01-15',
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'published');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$otherTenant['token'],
-        ], $otherTenant['company_id']))->getJson('/v1/hcm/tax-governance/policies/'.$policyUuid)
-            ->assertStatus(404)
-            ->assertJsonPath('error.code', 'TAX_POLICY_NOT_FOUND');
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $user->is_super_admin = true;
+        $user->save();
     }
 
-    public function test_index_requires_permission_for_tax_policy_view(): void
+    private function complianceHeaders(array $admin): array
     {
-        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-index@example.com']);
-        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee@example.com');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$employeeToken,
-        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/policies')
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+        return $this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $admin['token'],
+        ], $admin['company_id']);
     }
 
-    public function test_reject_requires_note_and_returns_policy_to_draft(): void
+    public function test_employee_cannot_access_platform_tax_compliance_endpoints(): void
     {
-        $maker = $this->createHcmAdminWithCompany(['email' => 'tax-maker-reject@example.com']);
-        $approver = $this->createHcmAdminWithCompany(['email' => 'tax-approver-reject@example.com'], $maker['company']);
-
-        $create = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies', [
-            'policyCode' => 'PPh21-TER-REJECT',
-            'name' => 'PPh 21 TER Reject Flow',
-            'effectiveStartDate' => '2026-02-01',
-            'effectiveEndDate' => null,
-            'rules' => [
-                'scheme' => 'TER',
-                'currency' => 'IDR',
-            ],
-            'rateSchedules' => [
-                ['bracket' => 'A', 'rate' => 6],
-            ],
-        ])->assertStatus(201);
-
-        $policyUuid = (string) $create->json('data.uuid');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$maker['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/submit', [
-            'submissionNote' => 'Submit for reject test',
-        ])->assertOk()->assertJsonPath('data.status', 'submitted');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$approver['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/reject', [])
-            ->assertStatus(422);
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$approver['token'],
-        ], $maker['company_id']))->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/reject', [
-            'rejectionNote' => 'Rate schedule must be revised before approval',
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'draft');
-    }
-
-    public function test_create_policy_requires_structured_rate_schedule_payload(): void
-    {
-        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-invalid-schedule@example.com']);
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$admin['token'],
-        ], $admin['company_id']))->postJson('/v1/hcm/tax-governance/policies', [
-            'policyCode' => 'PPh21-TER-INVALID-SCHEDULE',
-            'name' => 'PPh 21 TER Invalid Schedule',
-            'effectiveStartDate' => '2026-03-01',
-            'effectiveEndDate' => null,
-            'rules' => [
-                'scheme' => 'FLAT',
-                'currency' => 'USD',
-            ],
-            'rateSchedules' => [
-                ['bracket' => 'X', 'rate' => 5],
-                ['bracket' => 'A'],
-                ['rate' => -1],
-            ],
-        ])
-            ->assertStatus(422)
-            ->assertJsonPath('success', false);
-    }
-
-    public function test_tenant_self_audit_enhanced_requires_permission(): void
-    {
-        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-report-enhanced@example.com']);
-        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-report-enhanced@example.com');
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$employeeToken,
-        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit')
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
-    }
-
-    public function test_tenant_self_audit_enhanced_blocks_cross_tenant_access(): void
-    {
-        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-own-tenant@example.com']);
-        $otherTenant = $this->createHcmAdminWithCompany(['email' => 'tax-admin-other-tenant@example.com']);
-
-        $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer '.$admin['token'],
-        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit?company_id='.$otherTenant['company_id'])
-            ->assertStatus(403)
-            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
-    }
-
-    public function test_non_permitted_user_cannot_access_governance_admin_endpoints(): void
-    {
-        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-gov@example.com']);
-        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-gov@example.com');
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-admin-runtime@example.com']);
+        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-runtime@example.com');
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer '.$employeeToken,
+            'Authorization' => 'Bearer ' . $employeeToken,
         ], $admin['company_id']);
 
-        // dashboard
         $this->withHeaders($headers)
-            ->getJson('/v1/hcm/tax-governance/governance/dashboard')
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?per_page=5')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
 
-        // anomaly registry
         $this->withHeaders($headers)
-            ->getJson('/v1/hcm/tax-governance/governance/anomalies')
+            ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', [
+                'subscription_tax_rate' => 11,
+                'addon_markup_rate' => 0,
+                'billing_month' => '2026-05',
+                'effective_from' => '2026-05-01',
+                'status' => 'active',
+            ])
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
 
-        // tenant-self-audit export
         $this->withHeaders($headers)
-            ->getJson('/v1/hcm/tax-governance/reports/tenant-self-audit-export')
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/reports?month=2026-05')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_tenant_admin_without_global_scope_cannot_access_platform_tax_compliance_endpoints(): void
+    {
+        $tenantAdmin = $this->createHcmAdminWithCompany(['email' => 'tax-tenant-admin-runtime@example.com']);
+
+        $this->withHeaders($this->complianceHeaders($tenantAdmin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?per_page=5')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($this->complianceHeaders($tenantAdmin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/reports?month=2026-05')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_global_admin_can_create_and_list_platform_tax_compliance_policies(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-runtime@example.com']);
+        $this->elevateToGlobalAdmin('tax-global-admin-runtime@example.com');
+
+        $notes = json_encode([
+            'transaction_tax' => [
+                'tax_rate' => 11,
+                'tax_name' => 'PPN',
+                'description' => 'Runtime platform tax compliance policy',
+            ],
+        ]);
+
+        $createResponse = $this->withHeaders($this->complianceHeaders($admin))
+            ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', [
+                'subscription_tax_rate' => 11,
+                'addon_markup_rate' => 0,
+                'billing_cycle_type' => 'yearly',
+                'billing_month' => '2026-05',
+                'effective_from' => '2026-05-01',
+                'status' => 'active',
+                'notes' => $notes,
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.billing_month', '2026-05')
+            ->assertJsonPath('data.billing_cycle_type', 'yearly')
+            ->assertJsonPath('data.subscription_tax_rate', 11);
+
+        $this->assertGreaterThanOrEqual(1, (int) $createResponse->json('data.affected_company_count'));
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?billing_month=2026-05&per_page=5')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.view_mode', 'global')
+            ->assertJsonPath('data.view_context', 'government_tax_compliance')
+            ->assertJsonPath('data.items_global.0.billing_month', '2026-05')
+            ->assertJsonPath('data.items_global.0.billing_cycle_type', 'yearly')
+            ->assertJsonPath('data.items_global.0.subscription_tax_rate', 11)
+            ->assertJsonPath('data.items_global.0.source', 'government_tax_compliance_policy')
+            ->assertJsonPath('data.items_global.0.is_current_active_rule', true);
+    }
+
+    public function test_platform_tax_compliance_policy_requires_complete_global_payload(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-validation@example.com']);
+        $this->elevateToGlobalAdmin('tax-global-admin-validation@example.com');
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', [
+                'subscription_tax_rate' => 11,
+                'billing_month' => '2026-05',
+                'effective_from' => '2026-05-01',
+                'status' => 'active',
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_platform_tax_compliance_report_returns_zero_tax_due_without_policy(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-report-zero@example.com']);
+        $this->elevateToGlobalAdmin('tax-global-admin-report-zero@example.com');
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/reports?month=2026-05')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.policy_configured', false)
+            ->assertJsonPath('data.summary_global.total_tax_due', 0)
+            ->assertJsonPath('data.summary_global.total_collected_tax_liability', 0);
     }
 }

@@ -65,6 +65,9 @@ docs/engineering/CODEBASE-ANALYSIS.md
 docs/engineering/E2E-TEST-CHECKLIST.md
 docs/engineering/FRONTEND-ROLE-PERMISSIONS-AUDIT.md
 
+# GitHub Copilot entry point (Cursor sudah punya instruksi sendiri via .cursor/rules/)
+.github/copilot-instructions.md
+
 # Binary document/archive files
 *.xlsx
 *.xls

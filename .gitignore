@@ -78,3 +78,10 @@ backend/e2e/diagnostic.js
 backend/e2e/final-test.js
 backend/e2e/super-admin-employee-crud-final.js
 validation_audit.txt
+
+# Binary document/archive files (jangan commit ke repo)
+*.xlsx
+*.xls
+*.tgz
+*.tar.gz
+!release/shared-hosting/shared-hosting-artifact-*.tar.gz

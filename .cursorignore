@@ -59,6 +59,18 @@ frontend/resources/js/us-merc-en.js
 frontend/resources/js/*.min.js
 frontend/resources/js/*.map
 
+# Audit/report docs (large, rarely relevant to agent context)
+docs/engineering/AUDIT-*.md
+docs/engineering/CODEBASE-ANALYSIS.md
+docs/engineering/E2E-TEST-CHECKLIST.md
+docs/engineering/FRONTEND-ROLE-PERMISSIONS-AUDIT.md
+
+# Binary document/archive files
+*.xlsx
+*.xls
+*.tgz
+*.tar.gz
+
 # File backup
 **/*.bak
 **/*.bak.*

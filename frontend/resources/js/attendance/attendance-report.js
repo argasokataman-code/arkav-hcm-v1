@@ -1,4 +1,4 @@
-import { formatIsoDate, todayIsoLocal } from "./attendance-utils";
+import { formatIsoDate, todayIsoLocal } from "./attendance-utils.js";
 
 export function getSelectedReportDate() {
   var input = document.querySelector("[data-attendance-report-date]");

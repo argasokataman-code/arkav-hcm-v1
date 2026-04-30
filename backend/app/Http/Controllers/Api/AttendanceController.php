@@ -52,11 +52,6 @@ class AttendanceController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
-        // Global Super Admin bypasses tenant scoping on attendance queries.
-        if (auth()->user()?->isGlobalHcmAdmin()) {
-            return $query;
-        }
-
         if (! $companyId) {
             return $query;
         }
@@ -214,6 +209,15 @@ class AttendanceController extends Controller
         $sort = $validated['sort'] ?? 'name_asc';
         $perPage = min(100, (int) ($validated['perPage'] ?? 50));
         $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to load attendance report.',
+                ],
+            ], 422);
+        }
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $isToday = $dateYmd === $todayYmd;
 
@@ -329,6 +333,7 @@ class AttendanceController extends Controller
         }
 
         $departments = EmployeeProfile::query()
+            ->where('company_id', $activeCompanyId)
             ->whereNotNull('team')
             ->where('team', '!=', '')
             ->distinct()

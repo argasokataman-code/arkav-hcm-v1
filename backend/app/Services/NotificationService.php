@@ -181,7 +181,7 @@ class NotificationService
                 return;
             }
 
-            $subject = "Invoice #{$invoice->invoice_number} - {config('app.name')}";
+            $subject = "Invoice #{$invoice->invoice_number} - " . config('app.name');
             $amount = number_format($invoice->amount, 2);
             $dueDate = $invoice->due_date->format('d/m/Y');
             

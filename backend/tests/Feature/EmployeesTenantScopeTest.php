@@ -108,7 +108,7 @@ class EmployeesTenantScopeTest extends TestCase
         $this->assertNotContains($employeeB->id, $ids);
     }
 
-    public function test_global_admin_can_switch_employee_scope_with_scope_query(): void
+    public function test_global_admin_employee_directory_remains_tenant_scoped_even_with_global_scope_query(): void
     {
         $globalAdmin = User::query()->create([
             'name' => 'Global Admin',
@@ -174,7 +174,7 @@ class EmployeesTenantScopeTest extends TestCase
         $globalRes->assertOk()->assertJsonPath('success', true);
         $globalIds = collect($globalRes->json('data'))->pluck('id')->all();
         $this->assertContains($employeeA->id, $globalIds);
-        $this->assertContains($employeeB->id, $globalIds);
+        $this->assertNotContains($employeeB->id, $globalIds);
 
         $activeCompanyRes = $this->withHeader('Cookie', $cookieHeader)
             ->withHeader('X-Company-Id', (string) $companyA->id)

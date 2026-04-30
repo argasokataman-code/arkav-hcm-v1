@@ -353,11 +353,19 @@ function loadBindSalaryBulkUploadModule() {
 
     function requestJson(method, url, payload) {
         var m = String(method || "get").toLowerCase();
+        var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
+        var extraHeaders = {};
+        if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
+            extraHeaders["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant && tenant.companyUuid) {
+            extraHeaders["X-Company-UUID"] = String(tenant.companyUuid);
+        }
         if (window.axios) {
             var cfg = {
                 method: method,
                 url: url,
-                headers: { Accept: "application/json" },
+                headers: Object.assign({ Accept: "application/json" }, extraHeaders),
                 withCredentials: true,
             };
             if (m !== "get" && m !== "head") {
@@ -375,9 +383,7 @@ function loadBindSalaryBulkUploadModule() {
 
         var fetchOpts = {
             method: method.toUpperCase(),
-            headers: {
-                Accept: "application/json",
-            },
+            headers: Object.assign({ Accept: "application/json" }, extraHeaders),
             credentials: "same-origin",
         };
         if (m !== "get" && m !== "head") {

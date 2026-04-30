@@ -154,7 +154,7 @@
     'chart-apex', 'index', 'employee-dashboard', 'file-manager', 'dashboard', 'companies', 'packages',
         'layout-horizontal', 'layout-detached', 'layout-modern', 'layout-horizontal-overlay', 'layout-two-column', 'layout-hovered', 'layout-box',
         'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu', 'layout-vertical-transparent', 'layout-without-header',
-    'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report','user-report',
+    'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report',
         'employee-report','payslip-report','attendance-report', 'leave-report', 'daily-report',
     ]))
     <!-- Chart JS -->
@@ -322,10 +322,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.css">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
 @endif
-<script src="{{ URL::asset('build/js/attendance-data.js?v=20260416-selfie-prereq') }}"></script>
+<script type="module" src="{{ URL::asset('build/js/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance-data.js')) ? filemtime(public_path('build/js/attendance-data.js')) : time() }}"></script>
 
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
-    <script src="{{ URL::asset('build/js/hcm-extras-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm-extras-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['tickets', 'tickets-admin', 'tickets-employee', 'tickets-grid', 'ticket-details', 'ticket-master']))
@@ -436,11 +436,11 @@
 @endif
 
 @if (Route::is(['payslip']))
-    <script src="{{ URL::asset('build/js/payslip-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payslip-data.js') }}?v={{ file_exists(public_path('build/js/payslip-data.js')) ? filemtime(public_path('build/js/payslip-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['payslip-report']))
-    <script src="{{ URL::asset('build/js/payslip-admin-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payslip-admin-data.js') }}?v={{ file_exists(public_path('build/js/payslip-admin-data.js')) ? filemtime(public_path('build/js/payslip-admin-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['overtime-master']))

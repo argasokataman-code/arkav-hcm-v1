@@ -15,7 +15,7 @@
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
                     @if ($isGlobalHcmAdmin)
-                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
+                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','payment-report') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
                         <i class="ti ti-user-star"></i>
                     </a>
                     @endif
@@ -168,7 +168,7 @@
                         </ul>
                     </div>
 @if ($isGlobalHcmAdmin)
-                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions') ? '  show active' : '' }}" id="super-admin">
+                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','payment-report') ? '  show active' : '' }}" id="super-admin">
                         <ul>
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
                             <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
@@ -177,6 +177,7 @@
                             <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                             <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                             <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
+                            <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>
                         </ul>
                     </div>
 @endif

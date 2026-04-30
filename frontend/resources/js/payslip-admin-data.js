@@ -134,26 +134,64 @@
 
     function paymentBadge(status) {
         var s = String(status || "unpaid").toLowerCase();
-        if (s === "paid") return '<span class="badge bg-success">Paid</span>';
-        if (s === "partial") return '<span class="badge bg-warning text-dark">Partial</span>';
-        return '<span class="badge bg-danger">Unpaid</span>';
+        if (s === "paid") return '<span class="badge bg-success-subtle text-success border border-success-subtle">Paid</span>';
+        if (s === "partial") return '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">Partial</span>';
+        return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">Unpaid</span>';
+    }
+
+    function runBadge(status) {
+        var s = String(status || "-").toLowerCase();
+        if (s === "finalized") {
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle">FINALIZED</span>';
+        }
+        if (s === "draft") {
+            return '<span class="badge bg-warning-subtle text-warning border border-warning-subtle">DRAFT</span>';
+        }
+        if (s === "archive") {
+            return '<span class="badge bg-info-subtle text-info border border-info-subtle">ARCHIVE</span>';
+        }
+        return '<span class="badge bg-light text-dark border">' + esc(String(status || "-")) + "</span>";
+    }
+
+    function emailDeliveryBadge(delivery) {
+        var status = String(delivery && delivery.status ? delivery.status : "not_sent").toLowerCase();
+        var attemptedAt = delivery && delivery.attemptedAt ? String(delivery.attemptedAt) : "";
+        var tooltip = attemptedAt ? (' title="Last attempt: ' + esc(attemptedAt) + '"') : "";
+        if (status === "sent") {
+            return '<span class="badge bg-success-subtle text-success border border-success-subtle"' + tooltip + '>Sent</span>';
+        }
+        if (status === "failed") {
+            return '<span class="badge bg-danger-subtle text-danger border border-danger-subtle"' + tooltip + '>Failed</span>';
+        }
+        return '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Not sent</span>';
     }
 
     function renderRows(slips) {
         var body = document.querySelector("[data-payslip-admin-body]");
         if (!body) return;
         if (!slips || !slips.length) {
-            body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Tidak ada slip untuk filter saat ini.</td></tr>';
+            body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Tidak ada slip untuk filter saat ini.</td></tr>';
             return;
         }
         body.innerHTML = slips.map(function (s) {
+            var delivery = s.emailDelivery || { status: "not_sent", canResend: false, lastError: null };
+            var isFailed = String(delivery.status || "").toLowerCase() === "failed";
+            var isSent = String(delivery.status || "").toLowerCase() === "sent";
+            var sendBtnClass = isFailed ? "btn-outline-warning" : "btn-outline-secondary";
+            var sendBtnIcon = isFailed ? "ti ti-refresh" : "ti ti-mail";
+            var sendBtnLabel = isFailed ? "Resend" : (isSent ? "Sent" : "Email");
+            var sendBtnDisabled = isSent ? " disabled" : "";
+            var failedHint = isFailed && delivery.lastError
+                ? ('<div class="small text-danger mt-1">' + esc(String(delivery.lastError)) + '</div>')
+                : "";
+
             return (
                 "<tr>" +
                 '<td><div class="form-check form-check-md mb-0">' +
                 '<input class="form-check-input" type="checkbox" value="' + esc(String(s.rowKey)) + '" data-payslip-admin-row-check>' +
                 "</div></td>" +
-                "<td>" + esc(formatPeriod(s.periodYear, s.periodMonth)) + "</td>" +
-                "<td><span class=\"badge bg-primary\">" + esc(String(s.runStatus || "-")) + "</span></td>" +
+                '<td><span class="fw-semibold">' + esc(formatPeriod(s.periodYear, s.periodMonth)) + "</span></td>" +
+                "<td>" + runBadge(s.runStatus) + "</td>" +
                 "<td>" + paymentBadge(s.paymentStatus) + "</td>" +
                 "<td><div class=\"fw-medium\">" + esc(s.employeeName) + "</div>" +
                 (s.email ? '<div class="text-muted small">' + esc(s.email) + "</div>" : "") +
@@ -162,10 +200,13 @@
                 '<div class="text-muted small">' + esc(s.team) + "</div></td>" +
                 '<td class="text-end">' + formatIdr(s.totals.earningsTotal) + "</td>" +
                 '<td class="text-end">' + formatIdr(s.totals.deductionsTotal) + "</td>" +
-                '<td class="text-end fw-medium">' + formatIdr(s.totals.netPay) + "</td>" +
+                '<td class="text-end fw-semibold text-primary">' + formatIdr(s.totals.netPay) + "</td>" +
+                '<td><div>' + emailDeliveryBadge(delivery) + '</div>' + failedHint + '</td>' +
                 '<td class="text-end">' +
-                '<button type="button" class="btn btn-sm btn-outline-primary me-1" data-payslip-admin-preview="' + esc(String(s.rowKey)) + '"><i class="ti ti-eye me-1"></i>Preview</button>' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary" data-payslip-admin-send-one="' + esc(String(s.rowKey)) + '"><i class="ti ti-mail me-1"></i>Email</button>' +
+                '<div class="btn-group btn-group-sm" role="group">' +
+                '<button type="button" class="btn btn-outline-primary" data-payslip-admin-preview="' + esc(String(s.rowKey)) + '"><i class="ti ti-eye me-1"></i>Preview</button>' +
+                '<button type="button" class="btn ' + sendBtnClass + '" data-payslip-admin-send-one="' + esc(String(s.rowKey)) + '"' + sendBtnDisabled + '><i class="' + sendBtnIcon + ' me-1"></i>' + sendBtnLabel + '</button>' +
+                "</div>" +
                 "</td></tr>"
             );
         }).join("");
@@ -246,7 +287,7 @@
         var summaryEl = document.querySelector("[data-payslip-admin-summary]");
 
         if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
-        if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
         if (summaryEl) summaryEl.style.setProperty("display", "none", "important");
         if (runInfoEl) runInfoEl.textContent = "";
         if (selectAll) selectAll.checked = false;
@@ -299,7 +340,7 @@
                 if (err === null) return;
                 var msg = formatApiError(err && err.data, err && err.status) || "Gagal memuat snapshot payroll.";
                 if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = msg; }
-                if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
+                if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
             });
     }
 
@@ -320,7 +361,7 @@
         if (mode === "archive") {
             if (!snapshotId) {
                 if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = "Snapshot ID wajib diisi untuk mode Archive."; }
-                if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Isi Snapshot ID lalu klik Muat.</td></tr>';
+                if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Isi Snapshot ID lalu klik Muat.</td></tr>';
                 return;
             }
             loadArchiveSlips(snapshotId);
@@ -328,7 +369,7 @@
         }
 
         if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
-        if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Memuat…</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Memuat…</td></tr>';
         if (summaryEl) summaryEl.style.setProperty("display", "none", "important");
         if (runInfoEl) runInfoEl.textContent = "";
         if (selectAll) selectAll.checked = false;
@@ -358,85 +399,132 @@
             if (err === null) return;
             var msg = formatApiError(err && err.data, err && err.status) || "Gagal memuat data payslip.";
             if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = msg; }
-            if (body) body.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
+            if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
         });
     }
 
     function buildPreviewHtml(slip) {
-        var lines = function (items, emptyMsg) {
-            if (!items || !items.length) return '<div class="list-group-item"><span class="text-muted small">' + emptyMsg + "</span></div>";
-            return items.map(function (l) {
-                return '<div class="list-group-item d-flex justify-content-between align-items-center">' +
-                    '<span>' + esc(l.componentName || l.category || "-") + '</span>' +
-                    '<strong>' + formatIdr(l.amount) + '</strong>' +
-                '</div>';
+        var month = Number(slip.periodMonth || 0);
+        var year = Number(slip.periodYear || 0);
+        var periodLabel = String(month).padStart(2, "0") + "/" + String(year).padStart(4, "0");
+        var runStatus = String(slip.runStatus || "-");
+        var orgMeta = document.querySelector("[data-payslip-org-meta]");
+        var appName = (orgMeta && orgMeta.getAttribute("data-app-name") ? String(orgMeta.getAttribute("data-app-name") || "").trim() : "")
+            || (window.APP_NAME && String(window.APP_NAME).trim())
+            || "Arcav";
+        var orgAddress = orgMeta && orgMeta.getAttribute("data-org-address")
+            ? String(orgMeta.getAttribute("data-org-address") || "").trim()
+            : "";
+        var orgSubtitle = orgAddress || "Divisi SDM / Payroll";
+        var earnings = Array.isArray(slip.earnings) ? slip.earnings : [];
+        var deductions = Array.isArray(slip.deductions) ? slip.deductions : [];
+
+        var formatIdrPdf = function (value) {
+            var n = Number(value || 0);
+            var fixed = n.toFixed(2);
+            var parts = fixed.split(".");
+            var integer = Number(parts[0]).toLocaleString("id-ID");
+            return "Rp " + integer + "," + parts[1];
+        };
+
+        var formatPrintedAt = function () {
+            var d = new Date();
+            var dd = String(d.getDate()).padStart(2, "0");
+            var mm = String(d.getMonth() + 1).padStart(2, "0");
+            var yyyy = d.getFullYear();
+            var hh = String(d.getHours()).padStart(2, "0");
+            var mi = String(d.getMinutes()).padStart(2, "0");
+            return dd + "/" + mm + "/" + yyyy + " " + hh + ":" + mi;
+        };
+
+        var renderComponentRows = function (items, emptyMessage) {
+            if (!items.length) {
+                return '<div class="panel-row"><span class="muted">' + esc(emptyMessage) + "</span></div>";
+            }
+            return items.map(function (row) {
+                return '<div class="panel-row"><table class="panel-row-flex"><tr>' +
+                    '<td>' + esc(row.componentName || "-") + '</td>' +
+                    '<td>' + formatIdrPdf(row.amount) + '</td>' +
+                    '</tr></table></div>';
             }).join("");
         };
 
-        var runStatus = String(slip.runStatus || "-").toLowerCase();
-        var runStatusBadgeClass = runStatus === "finalized"
-            ? "bg-success"
-            : (runStatus === "draft" ? "bg-warning text-dark" : "bg-secondary");
-
-        var appName = (window.APP_NAME && String(window.APP_NAME).trim()) || "Arcav";
-
         return (
-            '<div class="card mb-0 border-0">' +
-            '<div class="card-body p-0">' +
-            '<div class="row justify-content-between align-items-center border-bottom mb-3 px-1">' +
-            '<div class="col-md-6">' +
-            '<div class="mb-3">' +
-            '<div class="mb-2"><img src="/build/img/image111.png" class="img-fluid" style="max-height:44px;" alt="logo"></div>' +
-            '<p class="mb-1">' + esc(appName) + '</p>' +
-            '<p class="mb-0 text-muted">Divisi SDM / Payroll</p>' +
-            '</div>' +
-            '</div>' +
-            '<div class="col-md-6 text-end">' +
-            '<div class="mb-3">' +
-            '<h5 class="text-gray mb-1">Payslip No <span class="text-primary">#' + esc(slip.slipNumber || "-") + '</span></h5>' +
-            '<p class="fw-medium mb-1">Salary Month : <span class="text-dark">' + esc(formatPeriod(slip.periodYear, slip.periodMonth)) + '</span></p>' +
-            '<p class="mb-0">Status run: <span class="badge ' + runStatusBadgeClass + '">' + esc(String(slip.runStatus || "-")) + '</span></p>' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
-
-            '<div class="row border-bottom align-items-center mb-3 px-1">' +
-            '<div class="col-md-6">' +
-            '<div class="mb-3">' +
-            '<p class="text-dark mb-2 fw-semibold">Employee</p>' +
-            '<div>' +
-            '<h4 class="mb-1">' + esc(slip.employeeName || "-") + '</h4>' +
-            '<p class="mb-1">Jabatan : <span class="text-dark">' + esc(slip.designation || "-") + '</span></p>' +
-            '<p class="mb-1">Email : <span class="text-dark">' + esc(slip.email || "-") + '</span></p>' +
-            '<p class="mb-0">Tim : <span class="text-dark">' + esc(slip.team || "-") + '</span></p>' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
-            '<div class="col-md-6 text-md-end">' +
-            '<div class="mb-3">' +
-            '<p class="mb-1">Total Additions: <strong>' + formatIdr(slip.totals.earningsTotal) + '</strong></p>' +
-            '<p class="mb-1">Total Deductions: <strong>' + formatIdr(slip.totals.deductionsTotal) + '</strong></p>' +
-            '<p class="mb-0" style="font-size:1.35rem;">Take Home Pay: <strong class="text-primary">' + formatIdr(slip.totals.netPay) + '</strong></p>' +
-            '</div>' +
-            '</div>' +
+            '<style>' +
+            '.payslip-invoice-preview *{box-sizing:border-box;}' +
+            '.payslip-invoice-preview{font-family:DejaVu Sans, Arial, sans-serif;font-size:10.5px;color:#202c4b;margin:0;padding:22px 24px 28px;background:#fff;}' +
+            '.payslip-invoice-preview .primary{color:#fc7f01;}' +
+            '.payslip-invoice-preview .muted{color:#6b7280;font-size:9.5px;}' +
+            '.payslip-invoice-preview .fw-bold{font-weight:bold;}' +
+            '.payslip-invoice-preview .text-end{text-align:right;}' +
+            '.payslip-invoice-preview .text-center{text-align:center;}' +
+            '.payslip-invoice-preview .border-b{border-bottom:1px solid #e8ecf1;}' +
+            '.payslip-invoice-preview .mb-0{margin-bottom:0;}' +
+            '.payslip-invoice-preview .mb-1{margin-bottom:4px;}' +
+            '.payslip-invoice-preview .mb-2{margin-bottom:8px;}' +
+            '.payslip-invoice-preview .mb-3{margin-bottom:14px;}' +
+            '.payslip-invoice-preview .logo{max-height:42px;max-width:160px;}' +
+            '.payslip-invoice-preview .section-title{font-size:10px;font-weight:bold;color:#202c4b;margin:0 0 6px;}' +
+            '.payslip-invoice-preview .panel-head{background:#f8f9fa;border:1px solid #e8ecf1;border-bottom:none;padding:8px 10px;font-weight:bold;font-size:10px;}' +
+            '.payslip-invoice-preview .panel-row{border:1px solid #e8ecf1;border-top:none;padding:7px 10px;}' +
+            '.payslip-invoice-preview .panel-row-flex{width:100%;border-collapse:collapse;}' +
+            '.payslip-invoice-preview .panel-row-flex td{padding:0;vertical-align:middle;}' +
+            '.payslip-invoice-preview .panel-row-flex td:last-child{text-align:right;font-weight:bold;}' +
+            '.payslip-invoice-preview .total-bar{border:1px solid #e8ecf1;background:#fafbfc;padding:12px 14px;margin-top:16px;}' +
+            '.payslip-invoice-preview .total-amount{font-size:13px;font-weight:bold;color:#202c4b;}' +
+            '</style>' +
+            '<div class="payslip-invoice-preview">' +
+            '<div style="border:1px solid #e8ecf1; background:#fafbfc; padding:10px 14px; margin-bottom:14px; text-align:center;">' +
+            '<div class="muted" style="font-size:9px; text-transform:uppercase; letter-spacing:0.04em;">Slip Gaji Bulanan</div>' +
+            '<div class="primary" style="font-size:17px; font-weight:bold; margin-top:2px; letter-spacing:0.02em;">#' + esc(slip.slipNumber || "#") + '</div>' +
             '</div>' +
 
-            '<div class="row px-1">' +
-            '<div class="col-md-6">' +
-            '<div class="list-group mb-3">' +
-            '<div class="list-group-item bg-light p-3 border-bottom-0"><h6 class="mb-0">Additions</h6></div>' +
-            lines(slip.earnings, "Belum ada komponen penghasilan.") +
-            '<div class="list-group-item d-flex justify-content-between align-items-center fw-semibold"><span>Total</span><span class="text-success">' + formatIdr(slip.totals.earningsTotal) + '</span></div>' +
-            '</div>' +
-            '</div>' +
-            '<div class="col-md-6">' +
-            '<div class="list-group mb-3">' +
-            '<div class="list-group-item bg-light p-3 border-bottom-0"><h6 class="mb-0">Deductions</h6></div>' +
-            lines(slip.deductions, "Belum ada komponen potongan.") +
-            '<div class="list-group-item d-flex justify-content-between align-items-center fw-semibold"><span>Total</span><span class="text-danger">' + formatIdr(slip.totals.deductionsTotal) + '</span></div>' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
+            '<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;" class="mb-3 border-b"><tr>' +
+            '<td width="52%" valign="top" style="padding-bottom:14px;">' +
+            '<img src="/build/img/image111.png" alt="Logo" class="logo" />' +
+            '<p class="fw-bold mb-1" style="font-size:11px;margin-top:6px;">' + esc(appName) + '</p>' +
+            '<p class="muted mb-0">' + esc(orgSubtitle) + '</p>' +
+            '</td>' +
+            '<td width="48%" valign="top" class="text-end" style="padding-bottom:14px;">' +
+            '<p class="mb-1"><span class="muted">Periode:</span> <span class="fw-bold">' + esc(periodLabel) + '</span></p>' +
+            '<p class="mb-1"><span class="muted">Status run:</span> <span class="fw-bold">' + esc(runStatus) + '</span></p>' +
+            '<p class="mb-0"><span class="muted">Dicetak:</span> <span class="fw-bold">' + esc(formatPrintedAt()) + '</span></p>' +
+            '</td>' +
+            '</tr></table>' +
+
+            '<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;" class="mb-3 border-b"><tr>' +
+            '<td width="48%" valign="top" style="padding:0 12px 14px 0;">' +
+            '<p class="section-title">Dari</p>' +
+            '<p class="fw-bold mb-1" style="font-size:11px;">' + esc(appName) + '</p>' +
+            '<p class="muted mb-0">' + esc(orgSubtitle) + '</p>' +
+            '</td>' +
+            '<td width="48%" valign="top" style="padding:0 0 14px 12px;">' +
+            '<p class="section-title">Kepada</p>' +
+            '<p class="fw-bold mb-1" style="font-size:11px;">' + esc(slip.employeeName || "-") + '</p>' +
+            '<p class="mb-1"><span class="muted">Email:</span> ' + esc(slip.email || "-") + '</p>' +
+            '<p class="mb-1"><span class="muted">Jabatan:</span> ' + esc(slip.designation || "-") + '</p>' +
+            '<p class="mb-0"><span class="muted">Tim:</span> ' + esc(slip.team || "-") + '</p>' +
+            '</td>' +
+            '</tr></table>' +
+
+            '<p class="text-center fw-bold mb-3" style="font-size:12px;">Slip gaji untuk periode ' + esc(periodLabel) + '</p>' +
+
+            '<table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;"><tr>' +
+            '<td width="49%" valign="top" style="padding-right:8px;">' +
+            '<div class="panel-head">Additions</div>' +
+            renderComponentRows(earnings, "Belum ada komponen pendapatan.") +
+            '<div class="panel-row" style="background:#f8fafc;"><table class="panel-row-flex"><tr><td class="fw-bold">Total earnings</td><td class="primary fw-bold">' + formatIdrPdf(slip.totals.earningsTotal) + '</td></tr></table></div>' +
+            '</td>' +
+            '<td width="49%" valign="top" style="padding-left:8px;">' +
+            '<div class="panel-head">Deductions</div>' +
+            renderComponentRows(deductions, "Belum ada komponen potongan.") +
+            '<div class="panel-row" style="background:#f8fafc;"><table class="panel-row-flex"><tr><td class="fw-bold">Total deductions</td><td class="fw-bold">' + formatIdrPdf(slip.totals.deductionsTotal) + '</td></tr></table></div>' +
+            '</td>' +
+            '</tr></table>' +
+
+            '<div class="total-bar">' +
+            '<p class="total-amount mb-0">Take home pay: ' + formatIdrPdf(slip.totals.netPay) + '</p>' +
+            '<p class="muted mb-0" style="margin-top:6px;">Dokumen ini dihasilkan otomatis dari run payroll yang sudah difinalisasi.</p>' +
             '</div>' +
             '</div>'
         );
@@ -490,6 +578,7 @@
                 skippedCount += Array.isArray(resp && resp.data && resp.data.skipped) ? resp.data.skipped.length : 0;
             });
             toast(sentCount + " slip berhasil dikirim" + (skippedCount ? ", " + skippedCount + " dilewati" : "") + ".", false);
+            loadSlips();
         }).catch(function (err) {
             toast(formatApiError(err && err.data, err && err.status) || "Gagal mengirim slip gaji.", true);
         });
@@ -570,20 +659,37 @@
     function init() {
         if (!document.querySelector("[data-payslip-admin-body]")) return;
 
+        var errEl = document.querySelector("[data-payslip-admin-error]");
+
+        function showAccessError(message) {
+            if (errEl) {
+                errEl.classList.remove("d-none");
+                errEl.textContent = message;
+            }
+            var body = document.querySelector("[data-payslip-admin-body]");
+            if (body) {
+                body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(message) + "</td></tr>";
+            }
+        }
+
         bind();
         syncSourceUi();
 
         if (window.AuthApi && window.AuthApi.request) {
             window.AuthApi.request("get", "/identity/auth/me").then(function (me) {
-                var isGlobalAdmin = !!(me && me.success && me.data && me.data.hcmGlobalAdmin === true);
-                var canViewPayroll = !!(me && me.success && me.data && me.data.permissions && me.data.permissions['payroll.view']);
-                if (!isGlobalAdmin && !canViewPayroll) {
-                    window.location.replace("/employee-dashboard");
+                // AuthApi.request can return axios response ({ data: payload }) or fetch-style payload directly.
+                var payload = (me && me.data && typeof me.data === "object") ? me.data : me;
+                var meData = payload && payload.success && payload.data ? payload.data : null;
+
+                var isGlobalAdmin = !!(meData && meData.hcmGlobalAdmin === true);
+                var canViewPayroll = !!(meData && meData.permissions && meData.permissions['payroll.view']);
+                if (meData && !isGlobalAdmin && !canViewPayroll) {
+                    showAccessError("Akses ditolak. Halaman Payslip Report hanya untuk role payroll/admin yang memiliki izin.");
                     return;
                 }
                 loadSlips();
             }).catch(function () {
-                window.location.replace("/employee-dashboard");
+                showAccessError("Gagal memverifikasi sesi login. Silakan refresh halaman atau login ulang.");
             });
         } else {
             loadSlips();

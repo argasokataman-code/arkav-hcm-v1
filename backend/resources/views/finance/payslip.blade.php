@@ -66,7 +66,7 @@
                                     <div class="mb-2">
                                         <img src="{{ URL::asset('build/img/image111.png') }}" class="img-fluid" alt="logo">
                                     </div>
-                                    <p class="mb-1">{{ config('app.name') }}</p>
+                                    <p class="mb-1">{{ $companyName ?? '' }}</p>
                                     <p class="mb-0 text-muted">Divisi SDM / Payroll</p>
                                 </div>
                             </div>

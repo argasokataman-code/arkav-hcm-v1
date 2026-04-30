@@ -146,6 +146,22 @@
         return false;
     }
 
+    function setPaymentLiveSummary(mainText, subText) {
+        var root = document.querySelector(".payment-total-content");
+        if (!root) {
+            return;
+        }
+
+        var main = root.querySelector("span");
+        var sub = root.querySelector("p");
+        if (main) {
+            main.textContent = String(mainText || "-");
+        }
+        if (sub) {
+            sub.textContent = String(subText || "Live summary");
+        }
+    }
+
     function findReportTable() {
         return document.querySelector("table.datatable[data-api-report-table='1'] tbody");
     }
@@ -341,6 +357,61 @@
         });
     }
 
+    var paymentMethodChart = null;
+
+    function normalizePaymentMethod(raw) {
+        var method = String(raw || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+        if (method === "paypal" || method === "e_wallet" || method === "ewallet" || method === "wallet") return "paypal";
+        if (method === "debit_card" || method === "debit") return "debitCard";
+        if (method === "credit_card" || method === "credit") return "creditCard";
+        if (method === "bank_transfer" || method === "bank") return "bankTransfer";
+        return null;
+    }
+
+    function renderPaymentMethodChart(methodTotals) {
+        var chartEl = document.querySelector("#payment-report");
+        if (!chartEl) {
+            return;
+        }
+
+        if (!window.ApexCharts) {
+            chartEl.innerHTML = "";
+            return;
+        }
+
+        if (paymentMethodChart && typeof paymentMethodChart.destroy === "function") {
+            paymentMethodChart.destroy();
+        }
+
+        chartEl.innerHTML = "";
+        paymentMethodChart = new window.ApexCharts(chartEl, {
+            chart: {
+                type: "donut",
+                height: 227,
+                toolbar: { show: false }
+            },
+            series: [
+                toNum(methodTotals.paypal),
+                toNum(methodTotals.debitCard),
+                toNum(methodTotals.bankTransfer),
+                toNum(methodTotals.creditCard)
+            ],
+            labels: ["Paypal", "Debit Card", "Bank Transfer", "Credit Card"],
+            colors: ["#0dcaf0", "#fd3995", "#ab47bc", "#ffc107"],
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            stroke: { width: 2, colors: ["#fff"] },
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: "68%"
+                    }
+                }
+            }
+        });
+        paymentMethodChart.render();
+    }
+
     function syncPaymentReport() {
         return apiGet("/v1/saas/payments").then(function (payload) {
             payload = payload || {};
@@ -366,20 +437,18 @@
                 creditCard: 0
             };
             rows.forEach(function (r) {
-                var m = String(r.payment_method || r.paymentMethod || "").toLowerCase();
+                var m = normalizePaymentMethod(r.payment_method || r.paymentMethod);
                 var amount = toNum(r.amount);
-                if (m === "bank_transfer") methodTotals.bankTransfer += amount;
-                else if (m === "credit_card") {
-                    methodTotals.creditCard += amount;
-                    methodTotals.debitCard += amount;
+                if (m && methodTotals[m] !== undefined) {
+                    methodTotals[m] += amount;
                 }
-                else if (m === "e_wallet") methodTotals.paypal += amount;
-                else if (m === "cash" || m === "check") methodTotals.debitCard += amount;
             });
             setMetricByLabel("Paypal", fmtMoney(methodTotals.paypal));
             setMetricByLabel("Debit Card", fmtMoney(methodTotals.debitCard));
             setMetricByLabel("Bank Transfer", fmtMoney(methodTotals.bankTransfer));
             setMetricByLabel("Credit Card", fmtMoney(methodTotals.creditCard));
+            setPaymentLiveSummary(String(successRate) + "%", rows.length + " payments");
+            renderPaymentMethodChart(methodTotals);
 
             var html = rows.map(function (r) {
                 var invoiceNo = r.invoice_number || r.invoiceNumber || (r.invoice && r.invoice.invoice_number) || "-";

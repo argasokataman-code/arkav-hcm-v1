@@ -57,7 +57,7 @@
                                     <div class="d-flex align-items-center">
                                         <div>
                                             <p class="fs-12 fw-medium mb-1 text-truncate">Total Users</p>
-                                            <h4>800</h4>
+                                            <h4>-</h4>
                                         </div>
                                     </div>
                                     <div class="leave-report-icon">
@@ -68,11 +68,7 @@
                                         </a>
                                     </div>
                                 </div>
-                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate">
-                                    <span class="text-success fs-12 d-flex align-items-center me-1">
-                                        <i class="ti ti-arrow-wave-right-up me-1"></i>+20.01% 
-                                    </span> from last week
-                                </p>
+                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                             </div>
                         </div>
                     </div>
@@ -83,7 +79,7 @@
                                     <div class="d-flex align-items-center">
                                         <div>
                                             <p class="fs-12 fw-medium mb-1 text-truncate">Active Users</p>
-                                            <h4>750</h4>
+                                            <h4>-</h4>
                                         </div>
                                     </div>
                                     <div class="leave-report-icon">
@@ -94,11 +90,7 @@
                                         </a>
                                     </div>
                                 </div>
-                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate">
-                                    <span class="text-success fs-12 d-flex align-items-center me-1">
-                                        <i class="ti ti-arrow-wave-right-up me-1"></i>+17.02% 
-                                    </span> from last week
-                                </p>
+                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                             </div>
                         </div>
                     </div>
@@ -109,7 +101,7 @@
                                     <div class="d-flex align-items-center">
                                         <div>
                                             <p class="fs-12 fw-medium mb-1 text-truncate">New Users</p>
-                                            <h4>100</h4>
+                                            <h4>-</h4>
                                         </div>
                                     </div>
                                     <div class="leave-report-icon">
@@ -120,11 +112,7 @@
                                         </a>
                                     </div>
                                 </div>
-                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate">
-                                    <span class="text-success fs-12 d-flex align-items-center me-1">
-                                        <i class="ti ti-arrow-wave-right-up me-1"></i>+10.01% 
-                                    </span> from last week
-                                </p>
+                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                             </div>
                         </div>
                     </div>
@@ -135,7 +123,7 @@
                                     <div class="d-flex align-items-center">
                                         <div>
                                             <p class="fs-12 fw-medium mb-1 text-truncate">Inactive Users</p>
-                                            <h4>50</h4>
+                                            <h4>-</h4>
                                         </div>
                                     </div>
                                     <div class="leave-report-icon">
@@ -146,11 +134,7 @@
                                         </a>
                                     </div>
                                 </div>
-                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate">
-                                    <span class="text-danger fs-12 d-flex align-items-center me-1">
-                                        <i class="ti ti-arrow-wave-right-up me-1"></i>-10.01% 
-                                    </span> from last week
-                                </p>
+                                <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                             </div>
                         </div>
                     </div>

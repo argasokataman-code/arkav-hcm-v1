@@ -282,7 +282,7 @@ class ReportSnapshotService
                 ];
             }
 
-            if ($line->kind === 'earning') {
+            if ($line->kind === 'addition') {
                 $aggregated['by_user'][$userId]['total_gross'] += $line->amount;
             } elseif ($line->kind === 'deduction') {
                 $aggregated['by_user'][$userId]['total_deductions'] += $line->amount;
@@ -301,7 +301,7 @@ class ReportSnapshotService
         // By run (summary per payroll run)
         foreach ($runs as $run) {
             $runLines = $allLines->where('hcm_payroll_run_id', $run->id);
-            $grossAmount = $runLines->where('kind', 'earning')->sum('amount');
+            $grossAmount = $runLines->where('kind', 'addition')->sum('amount');
             $deductionAmount = $runLines->where('kind', 'deduction')->sum('amount');
 
             $aggregated['by_run'][] = [

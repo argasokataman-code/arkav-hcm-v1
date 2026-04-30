@@ -2,6 +2,8 @@
 
 namespace App\Services\Hcm;
 
+use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
@@ -110,10 +112,13 @@ final class MonthlyPayslipService
     {
         $slip = $this->buildForUser($user, $periodYear, $periodMonth, $companyId);
 
+        $profile = $companyId !== null ? $this->resolveCompanyProfile($companyId) : ['name' => '', 'address' => ''];
+
         $html = View::make('pdf.monthly-payslip', [
             'slip' => $slip,
             'logoDataUri' => $this->logoAsDataUri(),
-            'companyAddress' => config('hcm.organization_address'),
+            'companyName' => $profile['name'],
+            'companyAddress' => $profile['address'],
         ])->render();
 
         $options = new Options;
@@ -252,5 +257,23 @@ final class MonthlyPayslipService
         }
 
         return null;
+    }
+
+    /**
+     * @return array{name: string, address: string}
+     */
+    public function resolveCompanyProfile(int $companyId): array
+    {
+        $company = Company::find($companyId);
+        if ($company === null) {
+            return ['name' => '', 'address' => ''];
+        }
+
+        $address = (string) (CompanySetting::query()
+            ->where('company_id', $company->id)
+            ->where('key', 'company_profile_address')
+            ->value('value') ?? '');
+
+        return ['name' => (string) ($company->name ?? ''), 'address' => $address];
     }
 }

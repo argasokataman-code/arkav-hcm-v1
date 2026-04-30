@@ -1,5 +1,5 @@
-import { esc } from "./attendance-utils";
-import { renderTimesheetsMessage } from "./attendance-table";
+import { esc } from "./attendance-utils.js";
+import { renderTimesheetsMessage } from "./attendance-table.js";
 
 export function createAttendanceTimesheetModule(deps) {
   var apiGet = deps.apiGet;

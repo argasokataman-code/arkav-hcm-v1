@@ -13,6 +13,7 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
 use App\Models\HcmTaxGovernancePolicy;
+use App\Models\NotificationDelivery;
 use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -998,6 +999,64 @@ class HcmPayrollApiTest extends TestCase
         Mail::assertSent(MonthlyPayslipMail::class, function (MonthlyPayslipMail $mail) use ($worker): bool {
             return $mail->hasTo($worker->email);
         });
+    }
+
+    public function test_admin_slips_includes_email_delivery_status_helper_after_send_slips(): void
+    {
+        Mail::fake();
+
+        $this->workerToken();
+        $admin = $this->adminToken();
+        $worker = User::query()->where('email', 'payroll-worker@example.com')->firstOrFail();
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 11,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/send-slips', [
+                'periodYear' => 2026,
+                'periodMonth' => 11,
+                'userIds' => [$worker->id],
+            ])
+            ->assertOk();
+
+        $delivery = NotificationDelivery::query()
+            ->where('event_key', 'payroll.payslip.email_sent')
+            ->where('channel', 'mail')
+            ->where('status', 'sent')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($delivery);
+
+        $rows = (array) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll/admin-slips?periodYear=2026&periodMonth=11')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->json('data.rows');
+
+        $targetRow = collect($rows)->first(function (array $row) use ($worker): bool {
+            return (int) ($row['userId'] ?? 0) === (int) $worker->id;
+        });
+
+        $this->assertNotNull($targetRow);
+        $this->assertSame('sent', data_get($targetRow, 'emailDelivery.status'));
+        $this->assertSame('Sent', data_get($targetRow, 'emailDelivery.label'));
+        $this->assertFalse((bool) data_get($targetRow, 'emailDelivery.canResend'));
     }
 
     public function test_hcm_admin_can_send_finalized_monthly_slips_with_uuid_identifier(): void

@@ -21,6 +21,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - **Lembur approved** dalam periode ikut diakumulasi sebagai addition payroll bulanan.
 - **Potongan karyawan** dasar (mis. BPJS & **PPh21 bulanan berbasis lookup TER A/B/C** sesuai status pajak) ikut dibentuk sebagai deduction lines.
 - Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**.
+- Listing admin payslip (`GET /payroll/admin-slips`) kini menyertakan helper `emailDelivery` per baris (`status`, `label`, `canResend`, `attemptedAt`, `lastError`) berbasis log `notification_deliveries`, sehingga admin bisa cepat mendeteksi email gagal dan melakukan resend.
 - UI `/payslip` dapat menemukan periode slip terbaru milik user lewat **`GET /payroll/my-slip-latest-period`** untuk fallback awal jika bulan berjalan belum memiliki run final.
 - Preview **kompensasi PKWT** bulanan untuk admin tersedia via **`GET /payroll/pkwt-compensations`**, dapat diposting menjadi draft payroll via **`POST /payroll/pkwt-compensations/post-payroll`**, lalu dibayar lewat endpoint generic **`POST /payroll-runs/{id}/disburse`** seperti flow off-cycle lain.
 - Admin payroll kini dapat membuat **assignment payroll item per karyawan** via endpoint `payroll-item-assignments`; assignment aktif otomatis dimasukkan ke draft payroll bulanan sesuai tanggal efektif.

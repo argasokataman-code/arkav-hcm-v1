@@ -68,6 +68,7 @@
     $cutoffDisp = $batch->cutoff_date?->format('d/m/Y') ?? '—';
     $paidDisp = $line->paid_at?->format('d/m/Y H:i') ?? '—';
     $addr = is_string($companyAddress ?? null) ? trim((string) $companyAddress) : '';
+    $cname = is_string($companyName ?? null) ? trim((string) $companyName) : '';
 @endphp
 
     {{-- Bar nomor slip full width: tetap terbaca di pratinjau iframe sempit / zoom --}}
@@ -84,11 +85,9 @@
                 @if (!empty($logoDataUri))
                     <img src="{{ $logoDataUri }}" alt="Logo" class="logo" />
                 @endif
-                <p class="fw-bold mb-1" style="font-size:11px;margin-top:6px;">{{ config('app.name') }}</p>
+                <p class="fw-bold mb-1" style="font-size:11px;margin-top:6px;">{{ $cname }}</p>
                 @if ($addr !== '')
                     <p class="muted mb-0" style="max-width:260px;">{{ $addr }}</p>
-                @else
-                    <p class="muted mb-0">SDM / Payroll</p>
                 @endif
             </td>
             <td width="48%" valign="top" class="text-end" style="padding-bottom:14px;">
@@ -109,8 +108,7 @@
         <tr>
             <td width="48%" valign="top" style="padding:0 12px 14px 0;">
                 <p class="section-title">Dari</p>
-                <p class="fw-bold mb-1" style="font-size:11px;">{{ config('app.name') }}</p>
-                <p class="muted mb-0">Divisi SDM / Payroll</p>
+                <p class="fw-bold mb-1" style="font-size:11px;">{{ $cname }}</p>
             </td>
             <td width="48%" valign="top" style="padding:0 0 14px 12px;">
                 <p class="section-title">Kepada (karyawan)</p>

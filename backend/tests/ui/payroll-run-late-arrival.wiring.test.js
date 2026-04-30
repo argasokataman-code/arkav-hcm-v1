@@ -67,6 +67,14 @@ function buildPayrollRunDom() {
       '<div data-payroll-detail-net></div>' +
       '<div data-payroll-detail-line-count></div>' +
       '<table><tbody data-payroll-detail-lines></tbody></table>' +
+    '</div>' +
+    '<div id="payroll_reconciliation_preview_modal">' +
+      '<div data-recon-preview-period></div>' +
+      '<div data-recon-preview-count></div>' +
+      '<div data-recon-preview-net></div>' +
+      '<div data-recon-preview-gross></div>' +
+      '<tbody data-recon-preview-body></tbody>' +
+      '<button type="button" data-recon-preview-download>Download CSV</button>' +
     '</div>';
 }
 
@@ -175,7 +183,12 @@ describe('Payroll run late-arrival migration wiring', function () {
     await loadPayrollRunModule();
     await flush();
 
+    // Click export button → opens preview modal
     document.querySelector('[data-payroll-run-export-evidence]').click();
+    await flush();
+
+    // Click Download button inside preview modal → triggers actual export + download
+    document.querySelector('[data-recon-preview-download]').click();
     await flush();
 
     document.querySelector('[data-payroll-run-disburse]').click();

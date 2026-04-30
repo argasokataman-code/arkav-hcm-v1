@@ -1,4 +1,4 @@
-import { esc } from "./attendance-utils";
+import { esc } from "./attendance-utils.js";
 
 export function renderAdminMessage(msg) {
   var tbody = document.querySelector("[data-attendance-admin-body]");

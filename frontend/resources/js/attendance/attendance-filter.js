@@ -1,4 +1,4 @@
-import { esc } from "./attendance-utils";
+import { esc } from "./attendance-utils.js";
 
 export function parseTimeToMinutes(v) {
   if (!v || typeof v !== "string") {

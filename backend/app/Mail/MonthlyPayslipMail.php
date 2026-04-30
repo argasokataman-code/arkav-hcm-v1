@@ -21,6 +21,7 @@ class MonthlyPayslipMail extends Mailable
         public User $user,
         public array $slip,
         public string $pdfContent,
+        public string $companyName = '',
     ) {
     }
 
@@ -34,7 +35,7 @@ class MonthlyPayslipMail extends Mailable
         );
 
         return new Envelope(
-            subject: 'Payslip '.$label.' - '.config('app.name'),
+            subject: 'Payslip '.$label.' - '.$this->companyName,
         );
     }
 
@@ -45,7 +46,7 @@ class MonthlyPayslipMail extends Mailable
             with: [
                 'user' => $this->user,
                 'slip' => $this->slip,
-                'appName' => config('app.name'),
+                'appName' => $this->companyName,
             ],
         );
     }

@@ -2,6 +2,8 @@
 
 namespace App\Services\Hcm;
 
+use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
 use Dompdf\Dompdf;
@@ -24,11 +26,14 @@ final class ThrSlipPdfService
 
         $logoDataUri = $this->logoAsDataUri();
 
+        $profile = $this->resolveCompanyProfile((int) ($batch->company_id ?? 0));
+
         $html = View::make('pdf.thr-slip', [
             'line' => $line,
             'batch' => $batch,
             'logoDataUri' => $logoDataUri,
-            'companyAddress' => config('hcm.organization_address'),
+            'companyName' => $profile['name'],
+            'companyAddress' => $profile['address'],
         ])->render();
 
         $options = new Options;
@@ -73,5 +78,27 @@ final class ThrSlipPdfService
         }
 
         return null;
+    }
+
+    /**
+     * @return array{name: string, address: string}
+     */
+    private function resolveCompanyProfile(int $companyId): array
+    {
+        if ($companyId <= 0) {
+            return ['name' => '', 'address' => ''];
+        }
+
+        $company = Company::find($companyId);
+        if ($company === null) {
+            return ['name' => '', 'address' => ''];
+        }
+
+        $address = (string) (CompanySetting::query()
+            ->where('company_id', $company->id)
+            ->where('key', 'company_profile_address')
+            ->value('value') ?? '');
+
+        return ['name' => (string) ($company->name ?? ''), 'address' => $address];
     }
 }

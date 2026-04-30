@@ -5,13 +5,30 @@ export function onAuthFailure(status, data) {
   return false;
 }
 
+function getTenantHeaders() {
+  var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
+  var headers = {};
+  if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
+    headers["X-Company-Id"] = String(tenant.companyId);
+  }
+  if (tenant && tenant.companyUuid) {
+    headers["X-Company-UUID"] = String(tenant.companyUuid);
+  }
+  if (tenant && tenant.companyCode) {
+    headers["X-Company-Code"] = String(tenant.companyCode);
+  }
+
+  return headers;
+}
+
 export function apiGet(url) {
+  var tenantHeaders = getTenantHeaders();
   if (window.axios) {
     return window
       .axios({
         method: "get",
         url: url,
-        headers: { Accept: "application/json" },
+        headers: Object.assign({ Accept: "application/json" }, tenantHeaders),
         withCredentials: true,
       })
       .then(function (res) {
@@ -28,7 +45,7 @@ export function apiGet(url) {
   }
 
   return fetch(url, {
-    headers: { Accept: "application/json" },
+    headers: Object.assign({ Accept: "application/json" }, tenantHeaders),
     credentials: "same-origin",
   }).then(function (res) {
     return res
@@ -50,13 +67,14 @@ export function apiGet(url) {
 
 export function apiPost(url, body) {
   var payload = body && typeof body === "object" ? body : {};
+  var tenantHeaders = getTenantHeaders();
 
   if (window.axios) {
     return window
       .axios({
         method: "post",
         url: url,
-        headers: { Accept: "application/json" },
+        headers: Object.assign({ Accept: "application/json" }, tenantHeaders),
         data: payload,
         withCredentials: true,
       })
@@ -75,10 +93,10 @@ export function apiPost(url, body) {
 
   return fetch(url, {
     method: "POST",
-    headers: {
+    headers: Object.assign({
       Accept: "application/json",
       "Content-Type": "application/json",
-    },
+    }, tenantHeaders),
     credentials: "same-origin",
     body: JSON.stringify(payload),
   }).then(function (res) {
@@ -103,16 +121,17 @@ export function apiPost(url, body) {
 
 export function apiPut(url, body) {
   var payload = body && typeof body === "object" ? body : {};
+  var tenantHeaders = getTenantHeaders();
 
   if (window.axios) {
     return window
       .axios({
         method: "put",
         url: url,
-        headers: {
+        headers: Object.assign({
           Accept: "application/json",
           "Content-Type": "application/json",
-        },
+        }, tenantHeaders),
         data: payload,
         withCredentials: true,
       })
@@ -131,10 +150,10 @@ export function apiPut(url, body) {
 
   return fetch(url, {
     method: "PUT",
-    headers: {
+    headers: Object.assign({
       Accept: "application/json",
       "Content-Type": "application/json",
-    },
+    }, tenantHeaders),
     credentials: "same-origin",
     body: JSON.stringify(payload),
   }).then(function (res) {
@@ -158,12 +177,13 @@ export function apiPut(url, body) {
 }
 
 export function apiDelete(url) {
+  var tenantHeaders = getTenantHeaders();
   if (window.axios) {
     return window
       .axios({
         method: "delete",
         url: url,
-        headers: { Accept: "application/json" },
+        headers: Object.assign({ Accept: "application/json" }, tenantHeaders),
         withCredentials: true,
       })
       .then(function (res) {
@@ -180,7 +200,7 @@ export function apiDelete(url) {
   }
   return fetch(url, {
     method: "DELETE",
-    headers: { Accept: "application/json" },
+    headers: Object.assign({ Accept: "application/json" }, tenantHeaders),
     credentials: "same-origin",
   }).then(function (res) {
     return res

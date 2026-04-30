@@ -237,17 +237,18 @@ async function downloadReconciliationEvidenceFile(evidenceId: number, filePath?:
     await AuthApi.downloadV1Binary(`/reconciliation/exports/${evidenceId}/download`, name);
 }
 
+const RECON_ERROR_MESSAGES: Record<string, string> = {
+    EXPORT_RECON_REQUIRED: "Sebelum lanjut pembayaran, lakukan export reconciliation terbaru untuk payroll run ini.",
+    EXPORT_RECON_EXPIRED: "Evidence reconciliation sudah kedaluwarsa. Silakan export ulang data terbaru.",
+    EXPORT_RECON_SCOPE_MISMATCH: "Evidence reconciliation tidak sesuai scope run saat ini. Gunakan evidence yang cocok.",
+    EXPORT_RECON_STALE_DATA: "Data payroll berubah sejak export terakhir. Silakan export ulang lalu lanjutkan.",
+};
+
 function formatApiError(res: unknown, fallbackStatus: number): string {
     const r = res as { error?: { message?: string; code?: string }; message?: string };
-    const reconciliationMessages: Record<string, string> = {
-        EXPORT_RECON_REQUIRED: "Sebelum lanjut pembayaran, lakukan export reconciliation terbaru untuk payroll run ini.",
-        EXPORT_RECON_EXPIRED: "Evidence reconciliation sudah kedaluwarsa. Silakan export ulang data terbaru.",
-        EXPORT_RECON_SCOPE_MISMATCH: "Evidence reconciliation tidak sesuai scope run saat ini. Gunakan evidence yang cocok.",
-        EXPORT_RECON_STALE_DATA: "Data payroll berubah sejak export terakhir. Silakan export ulang lalu lanjutkan.",
-    };
     const code = r?.error?.code;
-    if (code && reconciliationMessages[code]) {
-        return reconciliationMessages[code];
+    if (code && RECON_ERROR_MESSAGES[code]) {
+        return RECON_ERROR_MESSAGES[code];
     }
     if (r?.error?.message) {
         return r.error.message;
@@ -1114,7 +1115,7 @@ function usersFromCurrentPayrollRows(): Array<{ id: number; name: string; email?
         if (!Number.isFinite(userId) || userId <= 0) {
             continue;
         }
-        const name = String(row.name || row.userName || row.meta?.userName || `User #${userId}`).trim();
+        const name = String(row.name || `User #${userId}`).trim();
         if (!unique.has(userId)) {
             unique.set(userId, { id: userId, name: name || `User #${userId}`, email: null });
         }
@@ -1550,6 +1551,89 @@ async function fetchLatestEvidence(): Promise<void> {
     }
 }
 
+function openReconciliationPreviewModal(): void {
+    if (!_state.currentRunId) {
+        toast("No payroll run selected", true);
+        return;
+    }
+    if (_state.currentRows.length === 0) {
+        toast("Belum ada baris payroll. Lakukan Calculate Draft terlebih dahulu.", true);
+        return;
+    }
+    if (isPostCutoffReviewOnlyMode()) {
+        setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        toast("Periode saat ini post-cutoff review-only. Export reconciliation untuk payment menunggu payday.", true);
+        return;
+    }
+    if (String(_state.currentRunStatus || "").toLowerCase() !== "draft") {
+        toast("Export reconciliation hanya untuk payroll run berstatus draft.", true);
+        return;
+    }
+
+    const modal = document.getElementById("payroll_reconciliation_preview_modal");
+    if (!modal) return;
+
+    // Populate summary row
+    const rows = _state.currentRows.filter((r) => r.lineCount > 0);
+    const totalGross = rows.reduce((s, r) => s + (r.gross || 0), 0);
+    const totalDeductions = rows.reduce((s, r) => s + (r.deductions || 0), 0);
+    const totalNet = rows.reduce((s, r) => s + (r.net || 0), 0);
+
+    const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
+
+    const periodEl = modal.querySelector("[data-recon-preview-period]");
+    const countEl = modal.querySelector("[data-recon-preview-count]");
+    const netEl = modal.querySelector("[data-recon-preview-net]");
+    const grossEl = modal.querySelector("[data-recon-preview-gross]");
+    const tbody = modal.querySelector("[data-recon-preview-body]");
+
+    const root = _getRoot();
+    const year = Number(root?.querySelector<HTMLInputElement>("[data-payroll-run-year]")?.value || 0);
+    const month = Number(root?.querySelector<HTMLSelectElement>("[data-payroll-run-month]")?.value || 0);
+    const periodText = year > 0 && month > 0 ? periodLabel(year, month) : "—";
+    if (periodEl) periodEl.textContent = periodText;
+    if (countEl) countEl.textContent = String(rows.length);
+    if (netEl) netEl.textContent = fmt(totalNet);
+    if (grossEl) grossEl.textContent = fmt(totalGross);
+
+    if (tbody) {
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada baris payroll dengan komponen.</td></tr>`;
+        } else {
+            tbody.innerHTML = rows
+                .map(
+                    (r) => `
+                <tr>
+                    <td>
+                        <div class="fw-semibold">${r.name || "—"}</div>
+                        <div class="text-muted small">${r.userId}</div>
+                    </td>
+                    <td class="text-end">${fmt(r.gross || 0)}</td>
+                    <td class="text-end text-danger">${fmt(r.deductions || 0)}</td>
+                    <td class="text-end fw-semibold text-primary">${fmt(r.net || 0)}</td>
+                    <td class="text-center"><span class="badge bg-light text-dark border">${r.lineCount}</span></td>
+                    <td class="text-center">${r.receivesThr ? '<span class="badge bg-success">Ya</span>' : '<span class="badge bg-light text-muted border">Tidak</span>'}</td>
+                    <td class="text-center"><span class="badge bg-light text-dark border">${r.paymentStatus || "—"}</span></td>
+                </tr>`,
+                )
+                .join("");
+
+            // Totals row
+            tbody.innerHTML += `
+                <tr class="table-light fw-semibold">
+                    <td>Total (${rows.length} karyawan)</td>
+                    <td class="text-end">${fmt(totalGross)}</td>
+                    <td class="text-end text-danger">${fmt(totalDeductions)}</td>
+                    <td class="text-end text-primary">${fmt(totalNet)}</td>
+                    <td colspan="3"></td>
+                </tr>`;
+        }
+    }
+
+    const { Modal } = window.bootstrap as any;
+    Modal.getOrCreateInstance(modal).show();
+}
+
 async function triggerExportReconciliation(): Promise<void> {
     if (!_state.currentRunId) {
         toast("No payroll run selected", true);
@@ -1602,7 +1686,7 @@ async function triggerExportReconciliation(): Promise<void> {
     } catch (error: any) {
         const errorCode = getApiErrorCode(error);
         if (errorCode && errorCode.startsWith("EXPORT_RECON_")) {
-            const msg = reconciliationMessages[errorCode as keyof typeof reconciliationMessages];
+            const msg = RECON_ERROR_MESSAGES[errorCode];
             if (msg) {
                 setPayrollReconciliationHint(msg);
                 return;
@@ -2021,6 +2105,22 @@ async function loadPeriod(autoCalculateMissing = true): Promise<void> {
 
         const period = activeResp.data;
         console.log("[loadPeriod] Got period:", period);
+
+        // Patch tenant context with server-authoritative company data so super admin
+        // (who may have no localStorage tenant) sees real data in the checklist.
+        if (period && period.companyId) {
+            const serverCtx: TenantContextSnapshot = {
+                companyId: Number(period.companyId) || null,
+                companyName: (typeof period.companyName === "string" && period.companyName.trim())
+                    ? period.companyName.trim()
+                    : ((typeof period.companyCode === "string" && period.companyCode.trim()) ? period.companyCode.trim() : _state.activeTenantContext.companyName),
+            };
+            if (serverCtx.companyId) {
+                _state.activeTenantContext = serverCtx;
+                renderRunContextSummary();
+            }
+        }
+
         if (period && period.periodYear) {
             yearInput.value = String(period.periodYear);
         }
@@ -2471,17 +2571,14 @@ async function resetPayments(): Promise<void> {
             return;
         }
 
-        _state.currentRows = _state.currentRows.map((row) => ({
-            ...row,
-            paymentStatus: "unpaid",
-            paidAt: null,
-            gatewayReference: null,
-        }));
+        _state.currentRunId = null;
+        _state.currentRunStatus = null;
+        _state.currentRows = [];
 
         clearReconciliationDownloaded();
-        updateRunUI((resp.data?.run || null) as PayrollRun | null, null);
+        updateRunUI(null, []);
         syncExportReconciliationButton();
-        toast(`Reset pembayaran selesai (${String(resp.data?.resetLineCount || 0)} line direset).`, false);
+        toast(`Reset pembayaran selesai (${String(resp.data?.resetLineCount || 0)} line direset). Jalankan Calculate Draft untuk membuat run baru.`, false);
     } catch (e: any) {
         toast(formatApiError(e.response?.data || {}, 500), true);
     } finally {
@@ -2520,7 +2617,7 @@ function bindEvents(): void {
         const exportBtn = (event.target as HTMLElement).closest("[data-payroll-run-export-evidence]") as HTMLElement | null;
         if (exportBtn) {
             event.preventDefault();
-            void triggerExportReconciliation();
+            openReconciliationPreviewModal();
             return;
         }
         const disburseBtn = (event.target as HTMLElement).closest("[data-payroll-run-disburse]");
@@ -2625,6 +2722,15 @@ function bindEvents(): void {
     bindWorkConfigurator();
 
     void settleMockHostedReturnAndDisburse();
+    // Reconciliation preview modal — download button handler
+    const reconPreviewModal = document.getElementById("payroll_reconciliation_preview_modal");
+    reconPreviewModal?.querySelector("[data-recon-preview-download]")?.addEventListener("click", () => {
+        void triggerExportReconciliation().then(() => {
+            const { Modal } = window.bootstrap as any;
+            Modal.getOrCreateInstance(reconPreviewModal).hide();
+        });
+    });
+
 
     void loadPayrollSettings();
     void loadPeriod(false);

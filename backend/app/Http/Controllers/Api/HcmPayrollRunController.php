@@ -7,12 +7,15 @@ use App\Events\PayrollFinalized;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
+use App\Models\Company;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
+use App\Models\NotificationDelivery;
 use App\Services\Hcm\PayrollLateArrivalMigrationService;
 use App\Services\Hcm\PayrollMonthlySettingsService;
+use App\Services\NotificationDeliveryRecorder;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
@@ -887,6 +890,14 @@ class HcmPayrollRunController extends Controller
                 }
             }
 
+            // DEV helper: treat reset as clean restart for current period.
+            if ($run->status !== HcmPayrollRun::STATUS_VOID) {
+                $run->status = HcmPayrollRun::STATUS_VOID;
+                $run->voided_at = now();
+                $run->voided_by_user_id = $request->user()?->id;
+                $run->save();
+            }
+
             $freshRunQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->whereKey($run->id);
             $this->applyTenantScope($freshRunQuery, $companyId);
             $freshRun = $freshRunQuery->firstOrFail();
@@ -1192,6 +1203,9 @@ class HcmPayrollRunController extends Controller
 
         $sentUserIds = [];
         $skipped = [];
+        $companyUuid = $this->activeCompanyUuid($companyId);
+        $companyProfile = $companyId !== null ? $this->monthlyPayslipService->resolveCompanyProfile($companyId) : ['name' => '', 'address' => ''];
+        $deliveryRecorder = app(NotificationDeliveryRecorder::class);
 
         foreach ($resolvedUserIds as $userId) {
             $user = $users->get((int) $userId);
@@ -1226,13 +1240,34 @@ class HcmPayrollRunController extends Controller
             );
 
             try {
-                Mail::to($email)->send(new MonthlyPayslipMail($user, $slip, $pdf));
+                Mail::to($email)->send(new MonthlyPayslipMail($user, $slip, $pdf, $companyProfile['name']));
                 $sentUserIds[] = (int) $userId;
+                $deliveryRecorder->recordSent('payroll.payslip.email_sent', 'mail', [
+                    'recipient' => $email,
+                    'companyUuid' => $companyUuid,
+                    'metadata' => [
+                        'periodYear' => (int) $validated['periodYear'],
+                        'periodMonth' => (int) $validated['periodMonth'],
+                        'userId' => (int) $userId,
+                        'slipNumber' => (string) ($slip['slipNumber'] ?? ''),
+                    ],
+                ]);
             } catch (\Throwable $e) {
                 $skipped[] = [
                     'userId' => (int) $userId,
                     'reason' => 'MAIL_SEND_FAILED',
                 ];
+                $deliveryRecorder->recordFailed('payroll.payslip.email_failed', 'mail', [
+                    'recipient' => $email,
+                    'companyUuid' => $companyUuid,
+                    'lastError' => $e->getMessage(),
+                    'metadata' => [
+                        'periodYear' => (int) $validated['periodYear'],
+                        'periodMonth' => (int) $validated['periodMonth'],
+                        'userId' => (int) $userId,
+                        'slipNumber' => (string) ($slip['slipNumber'] ?? ''),
+                    ],
+                ]);
             }
         }
 
@@ -1430,8 +1465,6 @@ class HcmPayrollRunController extends Controller
 
         $runs = collect([
             $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY, $companyId),
-            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR, $companyId),
-            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION, $companyId),
         ])->filter();
 
         if ($runs->isEmpty()) {
@@ -1441,9 +1474,7 @@ class HcmPayrollRunController extends Controller
             ]);
         }
 
-        $run = $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-            ?? $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_THR)
-            ?? $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_PKWT_COMPENSATION);
+        $run = $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_MONTHLY);
 
         $lines = HcmPayrollLine::query()
             ->whereIn('hcm_payroll_run_id', $runs->pluck('id')->all())
@@ -1456,8 +1487,9 @@ class HcmPayrollRunController extends Controller
         $slips = $byUser->map(function ($userLines, $userId) use ($validated) {
             $first    = $userLines->first();
             $user     = $first->user;
-            $earnings   = $userLines->where('kind', 'addition')->values();
-            $deductions = $userLines->where('kind', 'deduction')->values();
+            $netAffecting = $userLines->filter(fn (HcmPayrollLine $line): bool => $this->lineAffectsNetPay($line))->values();
+            $earnings   = $netAffecting->where('kind', 'addition')->values();
+            $deductions = $netAffecting->where('kind', 'deduction')->values();
 
             $earningsTotal   = round((float) $earnings->sum('amount'), 2);
             $deductionsTotal = round((float) $deductions->sum('amount'), 2);
@@ -1484,6 +1516,10 @@ class HcmPayrollRunController extends Controller
                     'netPay'          => $netPay,
                 ],
             ];
+        })->filter(function (array $row): bool {
+            $earnings = (float) ($row['totals']['earningsTotal'] ?? 0);
+            $deductions = (float) ($row['totals']['deductionsTotal'] ?? 0);
+            return $earnings > 0 || $deductions > 0;
         })->values()->all();
 
         return response()->json([
@@ -1518,11 +1554,8 @@ class HcmPayrollRunController extends Controller
                 'lines.user:id,name,email',
                 'lines.user.employeeProfile:user_id,designation,team',
             ])
-            ->whereIn('purpose', [
-                HcmPayrollRun::PURPOSE_MONTHLY,
-                HcmPayrollRun::PURPOSE_THR,
-                HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
-            ])
+            ->where('status', HcmPayrollRun::STATUS_FINALIZED)
+            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
             ->when(isset($validated['periodYear']), function ($q) use ($validated): void {
                 $q->whereHas('period', fn ($pq) => $pq->where('period_year', (int) $validated['periodYear']));
             })
@@ -1542,8 +1575,9 @@ class HcmPayrollRunController extends Controller
                 $first = $userLines->first();
                 $user = $first?->user;
                 $profile = $user?->employeeProfile;
-                $earnings = $userLines->where('kind', 'addition')->values();
-                $deductions = $userLines->where('kind', 'deduction')->values();
+                $netAffecting = $userLines->filter(fn (HcmPayrollLine $line): bool => $this->lineAffectsNetPay($line))->values();
+                $earnings = $netAffecting->where('kind', 'addition')->values();
+                $deductions = $netAffecting->where('kind', 'deduction')->values();
 
                 $earningsTotal = round((float) $earnings->sum('amount'), 2);
                 $deductionsTotal = round((float) $deductions->sum('amount'), 2);
@@ -1641,7 +1675,27 @@ class HcmPayrollRunController extends Controller
                 ];
             })
             ->sortByDesc(fn (array $row) => sprintf('%04d%02d%08d', (int) ($row['periodYear'] ?? 0), (int) ($row['periodMonth'] ?? 0), (int) ($row['userId'] ?? 0)))
+            ->filter(function (array $row): bool {
+                $earnings = (float) ($row['totals']['earningsTotal'] ?? 0);
+                $deductions = (float) ($row['totals']['deductionsTotal'] ?? 0);
+                return $earnings > 0 || $deductions > 0;
+            })
             ->values();
+
+        $companyUuid = $this->activeCompanyUuid($companyId);
+        $emailStatusByKey = $this->resolvePayslipEmailStatusMap($rows, $companyUuid);
+        $rows = $rows->map(function (array $row) use ($emailStatusByKey): array {
+            $compositeKey = ($row['periodYear'] ?? 0).'-'.($row['periodMonth'] ?? 0).'-'.($row['userId'] ?? 0);
+            $row['emailDelivery'] = $emailStatusByKey[$compositeKey] ?? [
+                'status' => 'not_sent',
+                'label' => 'Not sent',
+                'canResend' => false,
+                'attemptedAt' => null,
+                'lastError' => null,
+            ];
+
+            return $row;
+        })->values();
 
         return response()->json([
             'success' => true,
@@ -2099,6 +2153,100 @@ class HcmPayrollRunController extends Controller
     private function activeCompanyId(Request $request): ?int
     {
         return $request->attributes->get('activeCompanyId');
+    }
+
+    private function activeCompanyUuid(?int $companyId): ?string
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return null;
+        }
+
+        $uuid = Company::query()->whereKey($companyId)->value('uuid');
+        if (! is_string($uuid) || trim($uuid) === '') {
+            return null;
+        }
+
+        return trim($uuid);
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, array<string, mixed>> $rows
+     * @return array<string, array{status: string, label: string, canResend: bool, attemptedAt: ?string, lastError: ?string}>
+     */
+    private function resolvePayslipEmailStatusMap($rows, ?string $companyUuid): array
+    {
+        $compositeKeys = $rows->map(fn (array $row): string => ($row['periodYear'] ?? 0).'-'.($row['periodMonth'] ?? 0).'-'.($row['userId'] ?? 0))
+            ->filter(fn (string $key): bool => $key !== '0-0-0')
+            ->unique()
+            ->values();
+
+        if ($compositeKeys->isEmpty()) {
+            return [];
+        }
+
+        $query = NotificationDelivery::query()
+            ->where('channel', 'mail')
+            ->whereIn('event_key', [
+                'payroll.payslip.email_sent',
+                'payroll.payslip.email_failed',
+            ])
+            ->orderByDesc('id');
+
+        if ($companyUuid !== null) {
+            $query->where('company_uuid', $companyUuid);
+        }
+
+        $deliveries = $query->limit(3000)->get();
+        $statusMap = [];
+
+        foreach ($deliveries as $delivery) {
+            $meta = is_array($delivery->metadata) ? $delivery->metadata : [];
+            $year = (int) ($meta['periodYear'] ?? 0);
+            $month = (int) ($meta['periodMonth'] ?? 0);
+            $userId = (int) ($meta['userId'] ?? 0);
+            if ($year <= 0 || $month <= 0 || $userId <= 0) {
+                continue;
+            }
+
+            $compositeKey = $year.'-'.$month.'-'.$userId;
+            if (! $compositeKeys->contains($compositeKey) || array_key_exists($compositeKey, $statusMap)) {
+                continue;
+            }
+
+            $status = strtolower((string) ($delivery->status ?? ''));
+            if ($status === 'sent') {
+                $statusMap[$compositeKey] = [
+                    'status' => 'sent',
+                    'label' => 'Sent',
+                    'canResend' => false,
+                    'attemptedAt' => $delivery->sent_at?->toIso8601String() ?? $delivery->created_at?->toIso8601String(),
+                    'lastError' => null,
+                ];
+                continue;
+            }
+
+            $statusMap[$compositeKey] = [
+                'status' => 'failed',
+                'label' => 'Failed',
+                'canResend' => true,
+                'attemptedAt' => $delivery->failed_at?->toIso8601String() ?? $delivery->created_at?->toIso8601String(),
+                'lastError' => is_string($delivery->last_error) ? $delivery->last_error : null,
+            ];
+        }
+
+        foreach ($compositeKeys as $compositeKey) {
+            if (! array_key_exists($compositeKey, $statusMap)) {
+                $statusMap[$compositeKey] = [
+                    'status' => 'not_sent',
+                    'label' => 'Not sent',
+                    'canResend' => false,
+                    'attemptedAt' => null,
+                    'lastError' => null,
+                ];
+            }
+        }
+
+        return $statusMap;
     }
 
     /**

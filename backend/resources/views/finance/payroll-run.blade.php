@@ -538,6 +538,76 @@
                 </div>
             </div>
 
+            <div class="modal fade" id="payroll_reconciliation_preview_modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div>
+                                <h5 class="modal-title">Preview Reconciliation</h5>
+                                <p class="text-muted small mb-0">Tinjau data payroll sebelum membuat dan mengunduh file evidence.</p>
+                            </div>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="px-3 pt-3 pb-2 bg-light border-bottom" data-recon-preview-summary>
+                                <div class="row g-3 small">
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Periode</span>
+                                        <strong data-recon-preview-period>—</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Karyawan</span>
+                                        <strong data-recon-preview-count>0</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Total THP</span>
+                                        <strong class="text-primary" data-recon-preview-net>Rp0</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between">
+                                        <span class="text-muted">Total Bruto</span>
+                                        <strong data-recon-preview-gross>Rp0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-nowrap table-hover mb-0 align-middle">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Karyawan</th>
+                                            <th class="text-end">Bruto</th>
+                                            <th class="text-end">Potongan</th>
+                                            <th class="text-end">THP</th>
+                                            <th class="text-center">Komponen</th>
+                                            <th class="text-center">THR</th>
+                                            <th class="text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-recon-preview-body>
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted py-4">Memuat data…</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <p class="text-muted small mb-0">
+                                <i class="ti ti-info-circle me-1"></i>
+                                File CSV akan dibuat dari data di atas. Setelah diunduh, tombol Pay via Gateway akan terbuka.
+                            </p>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                                <button type="button" class="btn btn-secondary" data-recon-preview-download>
+                                    <i class="ti ti-download me-1"></i>Download CSV &amp; Konfirmasi Evidence
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal fade" id="payroll_detail_modal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
                     <div class="modal-content">

@@ -86,7 +86,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
             ]);
     }
 
-    public function test_tenant_compliance_status_uses_only_unpaid_amount_for_outstanding(): void
+    public function test_tenant_compliance_status_counts_only_unpaid_invoices_in_billing_snapshot(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'tax-phase7-outstanding@example.com']);
 
@@ -107,8 +107,8 @@ class HcmTaxGovernancePhase7Test extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.compliance_status.billing_tax_compliance.invoices_issued', 1)
-            ->assertJsonPath('data.compliance_status.billing_tax_compliance.invoices_paid', 1)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.invoices_issued', 0)
+            ->assertJsonPath('data.compliance_status.billing_tax_compliance.invoices_paid', 0)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.amount_outstanding', 0)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.payment_status', 'current');
     }

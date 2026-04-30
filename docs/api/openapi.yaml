@@ -4736,6 +4736,18 @@ paths:
                           type: string
                           enum: [open, posted]
                           example: open
+                        companyId:
+                          type: integer
+                          nullable: true
+                          example: 12
+                        companyName:
+                          type: string
+                          nullable: true
+                          example: ARCAV Demo Tenant
+                        companyCode:
+                          type: string
+                          nullable: true
+                          example: DEMO01
                         createdAt:
                           type: string
                           format: date-time
@@ -4797,6 +4809,18 @@ paths:
                         type: string
                         enum: [open, posted]
                         example: open
+                      companyId:
+                        type: integer
+                        nullable: true
+                        example: 12
+                      companyName:
+                        type: string
+                        nullable: true
+                        example: ARCAV Demo Tenant
+                      companyCode:
+                        type: string
+                        nullable: true
+                        example: DEMO01
                       createdAt:
                         type: string
                         format: date-time
@@ -4859,6 +4883,18 @@ paths:
                         type: string
                         enum: [open, posted]
                         example: open
+                      companyId:
+                        type: integer
+                        nullable: true
+                        example: 12
+                      companyName:
+                        type: string
+                        nullable: true
+                        example: ARCAV Demo Tenant
+                      companyCode:
+                        type: string
+                        nullable: true
+                        example: DEMO01
                       createdAt:
                         type: string
                         format: date-time
@@ -11060,10 +11096,9 @@ components:
       name: scope
       in: query
       description: |
-        Employee directory scope for Global Super Admin.
-        - `global`: lintas semua tenant.
-        - `active_company`: paksa hanya tenant aktif.
-        Untuk non-global-admin, API selalu tenant aktif.
+        Employee directory tetap tenant aktif untuk semua role.
+        Query param ini dipertahankan untuk backward compatibility,
+        namun nilai apa pun tetap di-hard-guard ke tenant aktif.
       schema:
         type: string
         enum: [global, active_company]

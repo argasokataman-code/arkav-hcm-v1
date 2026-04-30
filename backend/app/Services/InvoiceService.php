@@ -192,8 +192,6 @@ class InvoiceService
 
         return View::make('pdf.invoice', [
             'invoice' => $invoice,
-            'companyAddress' => config('hcm.organization_address'),
-            'appName' => config('app.name'),
             'companyProfile' => $context['companyProfile'],
             'issuerProfile' => $context['issuerProfile'],
             'invoiceDisplaySettings' => $context['invoiceDisplaySettings'],

@@ -258,15 +258,9 @@ class HcmEmployeeController extends Controller
         $teamId = $validated['teamId'] ?? null;
         $taxFilter = $validated['taxFilter'] ?? null;
 
-        $isGlobalAdmin = $request->user()?->isGlobalHcmAdmin() === true;
-        $requestedScope = (string) ($validated['scope'] ?? ($isGlobalAdmin ? 'global' : 'active_company'));
-
-        // Global Super Admin can switch between global directory and active tenant only.
-        // Tenant admins remain scoped to active company regardless of query param.
-        $scopeCompanyId = null;
-        if (! $isGlobalAdmin || $requestedScope === 'active_company') {
-            $scopeCompanyId = $activeCompanyId;
-        }
+        // Security hard-guard: employee directory is always tenant-scoped.
+        // Cross-tenant listing is disallowed for every role (including global admin).
+        $scopeCompanyId = $activeCompanyId;
 
         $query = User::query()
             ->with([

@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Company;
+use App\Models\CompanySetting;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('hcm.web.admin')->group(function (): void {
@@ -42,6 +45,19 @@ Route::middleware('hcm.web.admin')->group(function (): void {
     });
 });
 
-Route::get('payslip', function () {
-    return view('finance.payslip');
+Route::get('payslip', function (Request $request) {
+    $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+    $company = $companyId > 0 ? Company::find($companyId) : null;
+    $companyAddress = '';
+    if ($company !== null) {
+        $companyAddress = (string) (CompanySetting::query()
+            ->where('company_id', $company->id)
+            ->where('key', 'company_profile_address')
+            ->value('value') ?? '');
+    }
+
+    return view('finance.payslip', [
+        'companyName' => $company?->name ?? '',
+        'companyAddress' => $companyAddress,
+    ]);
 })->name('payslip');

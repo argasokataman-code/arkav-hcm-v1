@@ -483,7 +483,9 @@
                                             <ul>
                                                 <li><a href="{{url('expenses-report')}}" class="{{ Request::is('expenses-report') ? 'active' : '' }}">Expense Report</a></li>
                                 <li><a href="{{url('invoice-report')}}" class="{{ Request::is('invoice-report') ? 'active' : '' }}">Invoice Report</a></li>
+                                @if(auth()->user()?->isGlobalHcmAdmin())
                                 <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>
+                                @endif
                                 <li><a href="{{url('project-report')}}" class="{{ Request::is('project-report') ? 'active' : '' }}">Project Report</a></li>
                                 <li><a href="{{url('user-report')}}" class="{{ Request::is('user-report') ? 'active' : '' }}">User Report</a></li>
                                 <li><a href="{{url('employee-report')}}" class="{{ Request::is('employee-report') ? 'active' : '' }}">Employee Report</a></li>

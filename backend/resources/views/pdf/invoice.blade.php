@@ -46,8 +46,8 @@
     $issuerProfile = is_array($issuerProfile ?? null) ? $issuerProfile : [];
     $invoiceDisplaySettings = is_array($invoiceDisplaySettings ?? null) ? $invoiceDisplaySettings : [];
 
-    $issuer = trim((string) ($issuerProfile['name'] ?? ($appName ?? config('app.name') ?? 'Arkav')));
-    $issuerAddress = trim((string) ($issuerProfile['address'] ?? ($companyAddress ?? '')));
+    $issuer = trim((string) ($issuerProfile['name'] ?? ''));
+    $issuerAddress = trim((string) ($issuerProfile['address'] ?? ''));
     $issuerCity = trim((string) ($issuerProfile['city'] ?? ''));
     $issuerState = trim((string) ($issuerProfile['state'] ?? ''));
     $issuerCountry = trim((string) ($issuerProfile['country'] ?? ''));

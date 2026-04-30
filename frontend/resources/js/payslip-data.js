@@ -66,10 +66,6 @@
       const payload = await apiGet('/v1/identity/auth/me');
       audienceState.isGlobalAdmin = payload?.success && payload?.data?.hcmGlobalAdmin === true;
       audienceState.canViewPayroll = !!payload?.data?.permissions?.['payroll.view'];
-      if (payload?.success && payload?.data?.permissions?.['payroll.view']) {
-        window.location.assign('/payslip-report');
-        return false;
-      }
     } catch (_error) {
       // Ignore me-check failure and let API authorization handle page data access.
     }

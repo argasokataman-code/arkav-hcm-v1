@@ -90,6 +90,14 @@ function buildPayrollRunDom() {
       '<div data-payroll-detail-net></div>' +
       '<div data-payroll-detail-line-count></div>' +
       '<table><tbody data-payroll-detail-lines></tbody></table>' +
+    '</div>' +
+    '<div id="payroll_reconciliation_preview_modal">' +
+      '<div data-recon-preview-period></div>' +
+      '<div data-recon-preview-count></div>' +
+      '<div data-recon-preview-net></div>' +
+      '<div data-recon-preview-gross></div>' +
+      '<tbody data-recon-preview-body></tbody>' +
+      '<button type="button" data-recon-preview-download>Download CSV</button>' +
     '</div>';
 }
 
@@ -202,7 +210,15 @@ describe('Payroll run wiring', function () {
     var disburseButton = document.querySelector('[data-payroll-run-disburse]');
     expect(disburseButton.disabled).toBe(true);
 
+    // Click export button → opens preview modal (does not trigger download yet)
     document.querySelector('[data-payroll-run-export-evidence]').click();
+    await flush();
+
+    // Download mock should NOT have been called yet
+    expect(downloadMock).not.toHaveBeenCalled();
+
+    // Click the Download button inside the preview modal → triggers actual export + download
+    document.querySelector('[data-recon-preview-download]').click();
     await flush();
 
     expect(downloadMock).toHaveBeenCalledWith('/reconciliation/exports/9/download', 'payroll-run-44.csv');
@@ -1211,6 +1227,114 @@ describe('Payroll run wiring', function () {
     expect(requestMock.mock.calls.some(function (call) {
       return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/disburse';
     })).toBe(false);
+  });
+
+  it('resets helper returns workflow to fresh calculate-draft state', async function () {
+    function wrap(payload) {
+      return { data: payload };
+    }
+
+    var requestMock = vi.fn(async function (method, path) {
+      var verb = String(method).toLowerCase();
+
+      if (verb === 'get' && path === '/hcm/payroll-periods/active') {
+        return wrap({ success: true, data: { id: 11, periodYear: 2026, periodMonth: 8 } });
+      }
+
+      if (verb === 'get' && path === '/hcm/payroll-periods/11') {
+        return wrap({
+          success: true,
+          data: {
+            id: 11,
+            status: 'posted',
+            latestRun: { id: 44, status: 'finalized', paymentStatus: 'paid', period: { status: 'posted' } },
+          },
+        });
+      }
+
+      if (verb === 'get' && path === '/hcm/payroll-runs/44') {
+        return wrap({
+          success: true,
+          data: {
+            run: { id: 44, status: 'finalized', paymentStatus: 'paid', period: { periodYear: 2026, periodMonth: 8, status: 'posted' } },
+            lines: [
+              {
+                userId: 7,
+                userName: 'Nadia',
+                kind: 'addition',
+                componentName: 'Gaji Pokok',
+                componentCode: 'gaji_pokok',
+                category: 'salary',
+                amount: 5000000,
+                sortOrder: 1,
+                affectsNetPay: true,
+                paymentStatus: 'paid',
+                paidAt: '2026-08-28T03:21:00+07:00',
+                gatewayReference: 'PAY-REF-00044',
+                meta: { userName: 'Nadia' },
+              },
+            ],
+            specialRecipients: { thrUserIds: [], compensationUserIds: [] },
+          },
+        });
+      }
+
+      if (verb === 'get' && path === '/reconciliation/exports') {
+        return wrap({ success: true, data: [] });
+      }
+
+      if (verb === 'post' && path === '/hcm/payroll-runs/44/reset-payments') {
+        return wrap({
+          success: true,
+          data: {
+            run: {
+              id: 44,
+              status: 'finalized',
+              paymentStatus: 'unpaid',
+              period: { periodYear: 2026, periodMonth: 8, status: 'posted' },
+            },
+            resetLineCount: 1,
+          },
+        });
+      }
+
+      throw new Error('Unexpected request: ' + method + ' ' + path);
+    });
+
+    window.AuthApi = {
+      request: requestMock,
+      downloadV1Binary: vi.fn(),
+    };
+
+    await loadPayrollRunModule();
+    await flush();
+
+    var rowCheckBefore = document.querySelector('[data-payroll-run-row-check]');
+    expect(rowCheckBefore.disabled).toBe(true);
+    expect(document.querySelector('[data-payroll-run-selected-count]').textContent).toBe('0');
+
+    document.querySelector('[data-payroll-run-reset-payments]').click();
+    await flush();
+
+    var resetCall = requestMock.mock.calls.find(function (call) {
+      return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/reset-payments';
+    });
+
+    expect(resetCall).toBeTruthy();
+    expect(window.ArcavUi.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('helper development'),
+      'Reset Payments'
+    );
+    expect(window.ArcavUi.showToast).toHaveBeenCalledWith(
+      'Reset pembayaran selesai (1 line direset). Jalankan Calculate Draft untuk membuat run baru.',
+      'success'
+    );
+
+    expect(document.querySelector('[data-payroll-run-selected-count]').textContent).toBe('0');
+    expect(document.querySelector('[data-payroll-run-stage-title]').textContent).toContain('Calculate Draft');
+    expect(document.querySelector('[data-payroll-step="calculate"] [data-payroll-step-status]').textContent).toBe('ACTIVE');
+    expect(document.querySelector('[data-payroll-run-empty]').textContent).toContain('Klik Calculate Draft');
+    expect(document.querySelector('[data-payroll-run-reset-payments]').textContent).toBe('Reset Pembayaran (DEV)');
   });
 
   it('shows before-payday policy error from disburse response', async function () {

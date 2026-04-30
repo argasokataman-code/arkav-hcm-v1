@@ -126,8 +126,32 @@ function loadBindOvertimeModule() {
         return false;
     }
 
+    function getTenantContext() {
+        if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
+            return window.AuthApi.getTenantContext() || {};
+        }
+
+        return {};
+    }
+
+    function withTenantHeaders(headers) {
+        var h = headers || {};
+        var tenant = getTenantContext();
+        if (tenant.companyCode) {
+            h["X-Company-Code"] = String(tenant.companyCode);
+        }
+        if (tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
+            h["X-Company-Id"] = String(tenant.companyId);
+        }
+        if (tenant.companyUuid) {
+            h["X-Company-UUID"] = String(tenant.companyUuid);
+        }
+
+        return h;
+    }
+
     function apiRequest(method, url, body) {
-        var headers = { Accept: "application/json" };
+        var headers = withTenantHeaders({ Accept: "application/json" });
         if (body && typeof body === "object" && !(body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
         }
@@ -212,7 +236,7 @@ function loadBindOvertimeModule() {
         return fetch(url, {
             method: "GET",
             credentials: "same-origin",
-            headers: { Accept: "text/csv,application/json" },
+            headers: withTenantHeaders({ Accept: "text/csv,application/json" }),
         }).then(function (res) {
             if (!res.ok) {
                 return res

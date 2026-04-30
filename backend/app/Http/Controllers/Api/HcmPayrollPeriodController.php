@@ -103,12 +103,13 @@ class HcmPayrollPeriodController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $periodQuery = HcmPayrollPeriod::query();
+        $periodQuery = HcmPayrollPeriod::query()->with('company');
         $this->applyTenantScope($periodQuery, $companyId);
         $period = $periodQuery->where('id', $id)->firstOrFail();
 
         $latestRunQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $period->id)
+            ->where('status', '!=', HcmPayrollRun::STATUS_VOID)
             ->orderByDesc('id');
         $this->applyTenantScope($latestRunQuery, $companyId);
         $latestRun = $latestRunQuery->first();
@@ -131,6 +132,7 @@ class HcmPayrollPeriodController extends Controller
         $companyId = $this->activeCompanyId($request);
         $now = Carbon::now('Asia/Jakarta');
         $activeQuery = HcmPayrollPeriod::query()
+            ->with('company')
             ->where('status', HcmPayrollPeriod::STATUS_OPEN)
             ->where(function ($q) use ($now): void {
                 $q->where('period_year', '<', $now->year)
@@ -181,6 +183,7 @@ class HcmPayrollPeriodController extends Controller
 
         $latestRunQuery = HcmPayrollRun::query()
             ->where('hcm_payroll_period_id', $active->id)
+            ->where('status', '!=', HcmPayrollRun::STATUS_VOID)
             ->orderByDesc('id');
         $this->applyTenantScope($latestRunQuery, $companyId);
         $latestRun = $latestRunQuery->first();
@@ -320,11 +323,16 @@ class HcmPayrollPeriodController extends Controller
      */
     private function serializePeriod(HcmPayrollPeriod $p): array
     {
+        $company = $p->relationLoaded('company') ? $p->company : null;
+
         return [
             'id' => $p->id,
             'periodYear' => $p->period_year,
             'periodMonth' => $p->period_month,
             'status' => $p->status,
+            'companyId' => $p->company_id,
+            'companyName' => $company?->name ?? null,
+            'companyCode' => $company?->code ?? null,
             'createdAt' => $p->created_at?->toIso8601String(),
             'updatedAt' => $p->updated_at?->toIso8601String(),
         ];

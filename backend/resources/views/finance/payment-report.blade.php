@@ -63,7 +63,7 @@
                                             <div>
                                                 <span class="fs-14 fw-normal text-truncate mb-1">Total
                                                     Payments</span>
-                                                <h5>$45,221,45</h5>
+                                                <h5>-</h5>
                                             </div>
                                         </div>
                                     </div>
@@ -77,10 +77,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-center mt-2">
-                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate"><span
-                                            class="text-success fs-12 d-flex align-items-center me-1"><i
-                                                class="ti ti-arrow-wave-right-up me-1"></i>+20.01%</span>from
-                                        last week</p>
+                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                                 </div>
                             </div>
                         </div>
@@ -95,7 +92,7 @@
                                             <div>
                                                 <span class="fs-14 fw-normal text-truncate mb-1">Pending
                                                     Payments</span>
-                                                <h5>$45,221,45</h5>
+                                                <h5>-</h5>
                                             </div>
                                         </div>
                                     </div>
@@ -109,10 +106,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-center mt-2">
-                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate"><span
-                                            class="text-success fs-12 d-flex align-items-center me-1"><i
-                                                class="ti ti-arrow-wave-right-up me-1"></i>+20.01%</span> from
-                                        last week</p>
+                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                                 </div>
                             </div>
                         </div>
@@ -127,7 +121,7 @@
                                             <div>
                                                 <span class="fs-14 fw-normal text-truncate mb-1">Failed
                                                     Payments</span>
-                                                <h5>$10,470</h5>
+                                                <h5>-</h5>
                                             </div>
                                         </div>
                                     </div>
@@ -141,10 +135,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-center mt-2">
-                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate"><span
-                                            class="text-danger fs-12 d-flex align-items-center me-1"><i
-                                                class="ti ti-arrow-wave-right-up me-1"></i>+20.01%</span> from
-                                        last week</p>
+                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                                 </div>
                             </div>
                         </div>
@@ -159,7 +150,7 @@
                                             <div>
                                                 <span class="fs-14 fw-normal text-truncate mb-1">Payment Success
                                                     Rate</span>
-                                                <h5>90%</h5>
+                                                <h5>-</h5>
                                             </div>
                                         </div>
                                     </div>
@@ -172,10 +163,7 @@
                                     </div>
                                 </div>
                                 <div class="d-flex justify-content-center mt-2">
-                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate"><span
-                                            class="text-success fs-12 d-flex align-items-center me-1"><i
-                                                class="ti ti-arrow-wave-right-up me-1"></i>+20.01%</span> from
-                                        last week</p>
+                                    <p class="fs-12 fw-normal d-flex align-items-center text-truncate text-muted">Awaiting latest data</p>
                                 </div>
                             </div>
                         </div>
@@ -220,8 +208,8 @@
                                 <div class="position-relative payment-total">
                                     <div id="payment-report" ></div>
                                 <div class="payment-total-content ">
-                                    <span class="display-3 fs-24 fw-bold text-skyblue">+14%</span>
-                                    <p class="fs-16 fw-normal">vs last year</p>
+                                    <span class="display-3 fs-24 fw-bold text-skyblue">-</span>
+                                    <p class="fs-16 fw-normal text-muted">Live summary</p>
                                 </div>
                                 </div>
                             </div>
@@ -229,19 +217,19 @@
                                 <div class="row gy-4">
                                     <div class="col-md-6">
                                         <h6 class="fs-16 text-gray-5 fw-normal side-badge mb-1">Paypal</h6>
-                                        <h5 class="fs-20 fw-bold">$54,071 </h5>
+                                        <h5 class="fs-20 fw-bold">-</h5>
                                     </div>
                                     <div class="col-md-6">
                                         <h6 class="fs-16 text-gray-5 fw-normal side-badge-pink mb-1"> Debit Card</h6>
-                                        <h5 class="fs-20 fw-bold">$54,071 </h5>
+                                        <h5 class="fs-20 fw-bold">-</h5>
                                     </div>
                                     <div class="col-md-6">
                                         <h6 class="fs-16 text-gray-5 fw-normal side-badge-purple mb-1"> Bank Transfer</h6>
-                                        <h5 class="fs-20 fw-bold">$32,210  </h5>
+                                        <h5 class="fs-20 fw-bold">-</h5>
                                     </div>
                                     <div class="col-md-6">
                                         <h6 class="fs-16 text-gray-5 fw-normal side-badge-warning mb-1"> Credit Card</h6>
-                                        <h5 class="fs-20 fw-bold">$32,210 </h5>
+                                        <h5 class="fs-20 fw-bold">-</h5>
                                     </div>
                                 </div>
                             </div>

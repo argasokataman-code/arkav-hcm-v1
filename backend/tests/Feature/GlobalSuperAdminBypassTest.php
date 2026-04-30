@@ -25,7 +25,7 @@ use Tests\TestCase;
  *
  *  - Resolve tenant context for ANY company, even without a `company_users`
  *    membership row (via synthesized virtual membership).
- *  - List employees across ALL companies, not just the active one.
+ *  - Employee directory stays scoped to active company.
  *  - Never be blocked by subscription feature gates (tickets, asset mgmt, …).
  */
 class GlobalSuperAdminBypassTest extends TestCase
@@ -110,7 +110,7 @@ class GlobalSuperAdminBypassTest extends TestCase
         $this->assertSame($preferredCompany->code, $result['company']->code);
     }
 
-    public function test_employee_list_returns_employees_from_every_tenant_for_global_admin(): void
+    public function test_employee_list_stays_scoped_to_active_tenant_for_global_admin(): void
     {
         [, $companyA, $token] = $this->seedGlobalAdminWithToken();
 
@@ -145,7 +145,7 @@ class GlobalSuperAdminBypassTest extends TestCase
             ->all();
 
         $this->assertContains($employeeA->id, $ids, 'Global admin must see Company A employees.');
-        $this->assertContains($employeeB->id, $ids, 'Global admin must see Company B employees across tenants.');
+        $this->assertNotContains($employeeB->id, $ids, 'Global admin must not see Company B employees outside active tenant.');
     }
 
     public function test_ticket_feature_gate_does_not_block_global_admin(): void

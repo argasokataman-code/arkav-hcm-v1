@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "./attendance-api";
+import { apiDelete, apiGet, apiPost, apiPut } from "./attendance-api.js";
 import {
     fillAdminDepartmentFilter,
     fillReportDepartmentFilter,
@@ -9,9 +9,9 @@ import {
     getTimesheetDateRange,
     parseProductionHours,
     parseTimeToMinutes,
-} from "./attendance-filter";
-import { bindGpsDebugButton } from "./attendance-form";
-import { createAttendanceTimesheetModule } from "./attendance-timesheet";
+} from "./attendance-filter.js";
+import { bindGpsDebugButton } from "./attendance-form.js";
+import { createAttendanceTimesheetModule } from "./attendance-timesheet.js";
 import {
     getReportSourceMode,
     getSelectedReportDate,
@@ -19,45 +19,45 @@ import {
     normalizeArchiveAttendanceRows,
     normalizeArchiveAttendanceSummary,
     setReportSourceBadge,
-} from "./attendance-report";
-import { createReportAttendanceModule } from "./attendance-report-attendance";
+} from "./attendance-report.js";
+import { createReportAttendanceModule } from "./attendance-report-attendance.js";
 import {
     bindBreakToggle as bindBreakToggleAction,
     bindPunch as bindPunchAction,
     setupAttendanceAdminEdit as setupAttendanceAdminEditAction,
-} from "./attendance-actions";
+} from "./attendance-actions.js";
 import {
     loadScheduleTiming as loadScheduleTimingModule,
     renderScheduleTimingPagination as renderScheduleTimingPaginationModule,
     setupScheduleTimingFilters as setupScheduleTimingFiltersModule,
     setupScheduleTimingPaginationControls as setupScheduleTimingPaginationControlsModule,
     setupScheduleViewMode as setupScheduleViewModeModule,
-} from "./attendance-schedule";
-import { renderScheduleTimingRowsModule } from "./attendance-schedule-timing-rows";
-import { createScheduleCalendarModule } from "./attendance-schedule-calendar";
-import { createPunchMapModule } from "./attendance-punch-map";
-import { createScheduleTimingEditModule } from "./attendance-schedule-edit";
-import { createPlannerHelpers } from "./attendance-planner-helpers";
+} from "./attendance-schedule.js";
+import { renderScheduleTimingRowsModule } from "./attendance-schedule-timing-rows.js";
+import { createScheduleCalendarModule } from "./attendance-schedule-calendar.js";
+import { createPunchMapModule } from "./attendance-punch-map.js";
+import { createScheduleTimingEditModule } from "./attendance-schedule-edit.js";
+import { createPlannerHelpers } from "./attendance-planner-helpers.js";
 import {
     renderSmartPlannerAssignmentPreview as renderSmartPlannerAssignmentPreviewModule,
     renderSmartPlannerResult as renderSmartPlannerResultModule,
-} from "./attendance-smartplanner";
-import { initSelfieCapture as initSelfieCaptureModule } from "./attendance-selfie";
-import { bindAttendanceExtras as bindAttendanceExtrasModule } from "./attendance-extras";
-import { bindPlannerSettingsPanel } from "./attendance-planner-settings";
-import { bindPlannerApplyButtons } from "./attendance-planner-apply";
-import { bindPlannerSubmitHandler } from "./attendance-planner-submit";
-import { bindSmartPlannerModule } from "./attendance-planner-bind";
-import { createPlannerAnalysisModule } from "./attendance-planner-analysis";
-import { createAdminAttendanceModule } from "./attendance-admin-attendance";
-import { createEmployeeAttendanceModule } from "./attendance-employee-attendance";
+} from "./attendance-smartplanner.js";
+import { initSelfieCapture as initSelfieCaptureModule } from "./attendance-selfie.js";
+import { bindAttendanceExtras as bindAttendanceExtrasModule } from "./attendance-extras.js";
+import { bindPlannerSettingsPanel } from "./attendance-planner-settings.js";
+import { bindPlannerApplyButtons } from "./attendance-planner-apply.js";
+import { bindPlannerSubmitHandler } from "./attendance-planner-submit.js";
+import { bindSmartPlannerModule } from "./attendance-planner-bind.js";
+import { createPlannerAnalysisModule } from "./attendance-planner-analysis.js";
+import { createAdminAttendanceModule } from "./attendance-admin-attendance.js";
+import { createEmployeeAttendanceModule } from "./attendance-employee-attendance.js";
 import {
     renderAdminMessage,
     renderMeHistoryMessage,
     renderReportMessage,
     renderScheduleTimingMessage as renderScheduleTimingMessageBase,
     renderTimesheetsMessage,
-} from "./attendance-table";
+} from "./attendance-table.js";
 import {
     downloadCsv,
     esc,
@@ -69,7 +69,7 @@ import {
     parseHiToMinutes,
     timeInputToHi,
     todayIsoLocal,
-} from "./attendance-utils";
+} from "./attendance-utils.js";
 
 (function (window, document) {
     "use strict";
@@ -503,6 +503,28 @@ import {
         reportAttendanceModule.loadReportAttendance();
     }
 
+    function bindReportLoadButton() {
+        if (window.__arcavAttendanceReportLoadBound) {
+            return;
+        }
+        window.__arcavAttendanceReportLoadBound = true;
+
+        document.addEventListener("click", function (event) {
+            var trigger = event.target && event.target.closest ? event.target.closest("[data-attendance-report-load]") : null;
+            if (!trigger) {
+                return;
+            }
+
+            var path = String(window.location.pathname || "");
+            if (path.indexOf("/attendance-report") !== 0) {
+                return;
+            }
+
+            reportPage = 1;
+            loadReportAttendance();
+        });
+    }
+
     function setupAttendanceAdminEdit() {
         setupAttendanceAdminEditAction({
             getSelectedAdminDate: getSelectedAdminDate,
@@ -897,6 +919,7 @@ import {
     }
 
     function init() {
+        bindReportLoadButton();
         setupAdminDateFilter();
         setupAdminFilters();
         setupAdminPaginationControls();

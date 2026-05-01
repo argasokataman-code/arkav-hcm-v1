@@ -30,12 +30,32 @@
     /* State                                                                */
     /* ------------------------------------------------------------------ */
     var state = {
-        all:       [],
-        important: [],
-        trash:     [],
-        editId:    null,
-        deleteId:  null
+        all:            [],
+        important:      [],
+        trash:          [],
+        editId:         null,
+        deleteId:       null,
+        filterTag:      null,
+        filterPriority: null,
+        searchQuery:    "",
+        sortOrder:      "recent"
     };
+
+    function applyFilters(notes) {
+        var q = state.searchQuery.toLowerCase();
+        return notes.filter(function (n) {
+            if (state.filterTag      && n.tag      !== state.filterTag)      return false;
+            if (state.filterPriority && n.priority !== state.filterPriority) return false;
+            if (q && !((n.title || "").toLowerCase().includes(q)) &&
+                      !((n.content || "").toLowerCase().includes(q)))        return false;
+            return true;
+        }).sort(function (a, b) {
+            if (state.sortOrder === "az")     return (a.title || "").localeCompare(b.title || "");
+            if (state.sortOrder === "za")     return (b.title || "").localeCompare(a.title || "");
+            if (state.sortOrder === "oldest") return (a.id || 0) - (b.id || 0);
+            return (b.id || 0) - (a.id || 0); // recent
+        });
+    }
 
     /* ------------------------------------------------------------------ */
     /* Priority / Tag badge helpers                                         */
@@ -140,8 +160,11 @@
     }
 
     function updateAllNoteCount() {
-        var badge = document.querySelector("#v-pills-profile-tab .ms-2");
+        var badge = document.getElementById("notes-count-badge");
         if (badge) badge.textContent = state.all.length;
+        // legacy selector fallback
+        var legBadge = document.querySelector("#v-pills-profile-tab .ms-2");
+        if (legBadge) legBadge.textContent = state.all.length;
     }
 
     /* ------------------------------------------------------------------ */
@@ -151,7 +174,7 @@
         noteApiRequest("GET", "/v1/hcm/notes?tab=all").then(function (res) {
             if (res.success) {
                 state.all = res.data;
-                renderNotes("notes-all-grid", state.all, false);
+                renderNotes("notes-all-grid", applyFilters(state.all), false);
                 // Important subset for carousel
                 var imp = state.all.filter(function (n) { return n.isImportant; });
                 renderImportantCarousel(imp);
@@ -380,11 +403,62 @@
     }
 
     /* ------------------------------------------------------------------ */
+    /* Sidebar filter bindings                                              */
+    /* ------------------------------------------------------------------ */
+    function bindSidebarFilters() {
+        // Tag filters
+        document.querySelectorAll(".note-filter-tag").forEach(function (el) {
+            el.addEventListener("click", function (e) {
+                e.preventDefault();
+                var tag = this.getAttribute("data-tag");
+                state.filterTag = (state.filterTag === tag) ? null : tag;
+                // visual active
+                document.querySelectorAll(".note-filter-tag").forEach(function (a) {
+                    a.classList.toggle("fw-bold", a.getAttribute("data-tag") === state.filterTag);
+                });
+                renderNotes("notes-all-grid", applyFilters(state.all), false);
+            });
+        });
+
+        // Priority filters
+        document.querySelectorAll(".note-filter-priority").forEach(function (el) {
+            el.addEventListener("click", function (e) {
+                e.preventDefault();
+                var p = this.getAttribute("data-priority");
+                state.filterPriority = (state.filterPriority === p) ? null : p;
+                document.querySelectorAll(".note-filter-priority").forEach(function (a) {
+                    a.classList.toggle("fw-bold", a.getAttribute("data-priority") === state.filterPriority);
+                });
+                renderNotes("notes-all-grid", applyFilters(state.all), false);
+            });
+        });
+
+        // Search
+        var searchEl = document.getElementById("notes-search-input");
+        if (searchEl) {
+            searchEl.addEventListener("input", function () {
+                state.searchQuery = this.value.trim();
+                renderNotes("notes-all-grid", applyFilters(state.all), false);
+            });
+        }
+
+        // Sort
+        var sortEl = document.getElementById("notes-sort-select");
+        if (sortEl) {
+            sortEl.addEventListener("change", function () {
+                state.sortOrder = this.value;
+                renderNotes("notes-all-grid", applyFilters(state.all), false);
+            });
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Init                                                                 */
     /* ------------------------------------------------------------------ */
     document.addEventListener("DOMContentLoaded", function () {
         loadAll();
         bindTabReload();
+        bindSidebarFilters();
         setupAddForm();
         setupEditForm();
         setupDeleteModal();

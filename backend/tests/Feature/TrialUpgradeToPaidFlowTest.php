@@ -153,4 +153,53 @@ class TrialUpgradeToPaidFlowTest extends TestCase
         $payment = Payment::query()->where('uuid', $paymentUuid)->firstOrFail();
         $this->assertSame('completed', $payment->status);
     }
+
+    public function test_zero_amount_checkout_auto_activates_without_pending_payment(): void
+    {
+        $ctx = $this->bootstrapTrialTenant();
+
+        $unlimitedPackage = Package::query()->create([
+            'code' => 'unlimited-zero-paid',
+            'name' => 'Unlimited Zero',
+            'monthly_price' => 0,
+            'yearly_price' => 0,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        $headers = [
+            'Authorization' => 'Bearer '.$ctx['token'],
+            'X-Company-Id' => (string) $ctx['company']->id,
+        ];
+
+        $checkout = $this->withHeaders($headers)
+            ->postJson('/v1/hcm/billing/checkout', [
+                'package_uuid' => $unlimitedPackage->uuid,
+                'billing_cycle' => 'monthly',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.subscription.status', 'active')
+            ->assertJsonPath('data.invoice.isPaid', true)
+            ->assertJsonPath('data.invoice.status', 'paid');
+
+        $this->assertEquals(0.0, (float) $checkout->json('data.invoice.amountDue'));
+
+        $subscriptionId = (int) $checkout->json('data.subscription.id');
+        $invoiceId = (int) $checkout->json('data.invoice.id');
+
+        $this->assertDatabaseHas('subscriptions', [
+            'id' => $subscriptionId,
+            'company_id' => $ctx['company']->id,
+            'package_uuid' => $unlimitedPackage->uuid,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoiceId,
+            'company_id' => $ctx['company']->id,
+            'is_paid' => 1,
+            'status' => 'paid',
+        ]);
+    }
 }

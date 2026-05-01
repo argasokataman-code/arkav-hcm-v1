@@ -27,7 +27,9 @@ class KnowledgebaseWebTest extends TestCase
             ->get('/knowledgebase')
             ->assertOk()
             ->assertSee('Knowledge Base', false)
-            ->assertSee('Memulai dan akun', false);
+            ->assertSee('Memulai dan akun', false)
+            ->assertDontSee('Super Admin (tenant SaaS)', false)
+            ->assertDontSee('Tutorial lengkap: admin memakai aplikasi dari login sampai operasional harian', false);
 
         $this->actingAs($user)
             ->get('/knowledgebase/article/login-perusahaan-dan-token')
@@ -35,8 +37,41 @@ class KnowledgebaseWebTest extends TestCase
             ->assertSee('cookie', false);
 
         $this->actingAs($user)
+            ->get('/knowledgebase/article/hub-super-admin-menu')
+            ->assertNotFound();
+
+        $this->actingAs($user)
+            ->get('/knowledgebase/article/panduan-admin-harian-hcm')
+            ->assertNotFound();
+
+        $this->actingAs($user)
             ->get('/knowledgebase/article/tidak-ada')
             ->assertNotFound();
+    }
+
+    public function test_global_super_admin_can_view_global_knowledgebase_content(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Global KB Admin',
+            'email' => 'global.kb.admin@example.com',
+            'password' => bcrypt('StrongPass1'),
+            'is_super_admin' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase')
+            ->assertOk()
+            ->assertSee('Super Admin (tenant SaaS)', false);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase/article/hub-super-admin-menu')
+            ->assertOk()
+            ->assertSee('operator platform', false);
+
+        $this->actingAs($user)
+            ->get('/knowledgebase/article/panduan-admin-harian-hcm')
+            ->assertOk()
+            ->assertSee('Login dan pastikan konteks perusahaan benar', false);
     }
 
     public function test_legacy_knowledgebase_details_redirects_when_article_known(): void

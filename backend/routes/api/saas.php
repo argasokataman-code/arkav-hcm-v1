@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     // Packages (public listing, admin CRUD)
     Route::get('/packages', [PackageController::class, 'index']);
+    Route::get('/packages/feature-catalog', [PackageController::class, 'featureCatalog']);
     Route::get('/packages/{package}', [PackageController::class, 'show']);
     Route::post('/packages', [PackageController::class, 'store']);
     Route::put('/packages/{package}', [PackageController::class, 'update']);

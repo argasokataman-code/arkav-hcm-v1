@@ -15,6 +15,55 @@ use Illuminate\Support\Str;
 class PackageController extends Controller
 {
     /**
+     * GET /v1/saas/packages/feature-catalog
+     * Return backend-driven feature catalog for packages UI.
+     */
+    public function featureCatalog(): JsonResponse
+    {
+        $groups = collect(config('saas_package_feature_catalog.groups', []))
+            ->filter(fn (mixed $group): bool => is_array($group))
+            ->map(fn (array $group): array => $this->normalizeFeatureCatalogGroup($group))
+            ->values();
+
+        $knownCodes = $groups
+            ->flatMap(fn (array $group) => collect($group['features'] ?? [])->pluck('code'))
+            ->filter(fn (mixed $code): bool => is_string($code) && $code !== '')
+            ->unique()
+            ->values();
+
+        $customFeatures = PackageFeature::query()
+            ->select(['feature_code', 'feature_name'])
+            ->orderBy('feature_code')
+            ->get()
+            ->unique('feature_code')
+            ->filter(function (PackageFeature $feature) use ($knownCodes): bool {
+                return ! $knownCodes->contains((string) $feature->feature_code);
+            })
+            ->map(function (PackageFeature $feature): array {
+                return $this->normalizeFeatureCatalogItem([
+                    'code' => (string) $feature->feature_code,
+                    'name' => (string) ($feature->feature_name ?: Str::headline((string) $feature->feature_code)),
+                    'description' => 'Feature code custom yang sudah pernah dipakai package existing.',
+                ]);
+            })
+            ->values();
+
+        if ($customFeatures->isNotEmpty()) {
+            $groups->push([
+                'module' => 'custom',
+                'title' => 'Custom Features',
+                'description' => 'Fitur tambahan yang terdeteksi dari konfigurasi package existing.',
+                'features' => $customFeatures->all(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $groups->all(),
+        ]);
+    }
+
+    /**
      * GET /v1/saas/packages
      * List all packages (public endpoint, no auth required)
      */
@@ -451,6 +500,48 @@ class PackageController extends Controller
             'success' => true,
             'message' => 'Feature removed successfully.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $group
+     * @return array<string, mixed>
+     */
+    private function normalizeFeatureCatalogGroup(array $group): array
+    {
+        $module = trim((string) ($group['module'] ?? 'custom'));
+        $features = collect($group['features'] ?? [])
+            ->filter(fn (mixed $feature): bool => is_array($feature))
+            ->map(fn (array $feature): array => $this->normalizeFeatureCatalogItem($feature))
+            ->filter(fn (array $feature): bool => $feature['code'] !== '')
+            ->values()
+            ->all();
+
+        return [
+            'module' => $module !== '' ? $module : 'custom',
+            'title' => trim((string) ($group['title'] ?? 'Custom Features')),
+            'description' => trim((string) ($group['description'] ?? '')),
+            'features' => $features,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $feature
+     * @return array<string, mixed>
+     */
+    private function normalizeFeatureCatalogItem(array $feature): array
+    {
+        $code = trim((string) ($feature['code'] ?? ''));
+        $name = trim((string) ($feature['name'] ?? ''));
+
+        return [
+            'code' => $code,
+            'name' => $name !== '' ? $name : Str::headline($code),
+            'description' => trim((string) ($feature['description'] ?? '')),
+            'requiresLimit' => (bool) ($feature['requiresLimit'] ?? false),
+            'limitLabel' => isset($feature['limitLabel']) ? trim((string) $feature['limitLabel']) : null,
+            'limitPlaceholder' => isset($feature['limitPlaceholder']) ? trim((string) $feature['limitPlaceholder']) : null,
+            'limitSuffix' => isset($feature['limitSuffix']) ? trim((string) $feature['limitSuffix']) : null,
+        ];
     }
 
     /**

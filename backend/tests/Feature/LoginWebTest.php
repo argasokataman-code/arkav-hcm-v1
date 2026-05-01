@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -223,5 +224,62 @@ class LoginWebTest extends TestCase
             ->get('/index')
             ->assertOk()
             ->assertDontSee('Akses aplikasi dikunci sampai invoice dibayar.');
+    }
+
+    public function test_pending_payment_with_zero_amount_invoice_is_auto_healed_and_not_redirected(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Zero Amount',
+            'email' => 'owner.zero.amount@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'zero_amount_company',
+            'name' => 'Zero Amount Company',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'unlimited',
+            'status' => 'pending_payment',
+            'starts_at' => now()->startOfDay(),
+            'ends_at' => now()->addDays(7),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 0,
+        ]);
+
+        Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDay()->toDateString(),
+            'amount_due' => 0,
+            'status' => 'draft',
+            'is_paid' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/index')
+            ->assertOk();
+
+        $subscription->refresh();
+        $this->assertSame('active', $subscription->status);
     }
 }

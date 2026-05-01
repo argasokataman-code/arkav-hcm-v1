@@ -316,136 +316,197 @@
 <!-- /Page Wrapper -->
 
 <script>
-$(document).ready(function() {
+(function () {
     const apiBaseUrl = '/v1/hcm';
 
     function getAuthToken() {
-        return localStorage.getItem('token') ||
-               sessionStorage.getItem('token') ||
-               $('meta[name="api-token"]').attr('content') ||
-               $('meta[name="auth-token"]').attr('content') ||
-               null;
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            const tokenFromApi = window.AuthApi.getToken();
+            if (tokenFromApi) {
+                return tokenFromApi;
+            }
+        }
+
+        return localStorage.getItem('arcav_access_token') ||
+            sessionStorage.getItem('arcav_access_token') ||
+            localStorage.getItem('token') ||
+            sessionStorage.getItem('token') ||
+            (document.querySelector('meta[name="api-token"]') || {}).content ||
+            (document.querySelector('meta[name="auth-token"]') || {}).content ||
+            null;
     }
 
     function getHeaders() {
-        const token = getAuthToken();
-        return {
-            'Authorization': token ? `Bearer ${token}` : '',
+        const headers = {
+            'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         };
+
+        const token = getAuthToken();
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]');
+        if (csrf && csrf.content) {
+            headers['X-CSRF-TOKEN'] = csrf.content;
+        }
+
+        try {
+            const tenant = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (tenant.companyId) {
+                headers['X-Company-Id'] = String(tenant.companyId);
+            }
+            if (tenant.companyCode) {
+                headers['X-Company-Code'] = String(tenant.companyCode);
+            }
+        } catch (_) {
+            // Ignore malformed tenant payload.
+        }
+
+        return headers;
     }
-    
-    // Load existing localization settings on page load
-    loadLocalizationSettings();
-    
-    function loadLocalizationSettings() {
-        $.ajax({
-            url: `${apiBaseUrl}/settings?group=localization`,
-            type: 'GET',
-            headers: getHeaders(),
-            success: function(response) {
-                if (response.success && response.data) {
-                    const settings = response.data;
-                    console.log('✓ Loaded localization settings:', settings);
-                    // Populate form fields with existing values  
-                    $('[data-locale]').each(function() {
-                        const $field = $(this);
-                        const key = $field.data('locale');
-                        const settingKey = `localization_${key}`;
-                        const legacyKey = `locale_${key}`;
-                        const storedValue = settings[settingKey] ?? settings[legacyKey];
-                        if (storedValue !== undefined && storedValue !== null && storedValue !== '') {
-                            if ($field.is(':checkbox')) {
-                                $field.prop('checked', storedValue === true || storedValue === '1' || storedValue === 'true');
-                            } else {
-                                $field.val(storedValue);
-                            }
-                        }
-                    });
+
+    function applySettings(settings) {
+        document.querySelectorAll('[data-locale]').forEach(function (field) {
+            const key = field.dataset.locale;
+            const settingKey = `localization_${key}`;
+            const legacyKey = `locale_${key}`;
+            const storedValue = settings[settingKey] ?? settings[legacyKey];
+
+            if (storedValue === undefined || storedValue === null || storedValue === '') {
+                return;
+            }
+
+            if (field.type === 'checkbox') {
+                field.checked = storedValue === true || storedValue === '1' || storedValue === 'true';
+                return;
+            }
+
+            const nextValue = String(storedValue);
+
+            if (field.tagName === 'SELECT') {
+                const hasOption = Array.from(field.options).some(function (opt) {
+                    return opt.value === nextValue;
+                });
+
+                if (!hasOption) {
+                    const fallbackOption = document.createElement('option');
+                    fallbackOption.value = nextValue;
+                    fallbackOption.textContent = nextValue;
+                    field.appendChild(fallbackOption);
                 }
-            },
-            error: function(err) {
-                console.warn('⚠ Could not load localization settings, using empty defaults', err);
+            }
+
+            field.value = nextValue;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+
+            if (window.jQuery) {
+                window.jQuery(field).trigger('change');
             }
         });
     }
-    
-    // Handle form submission
-    $('#localizationForm').on('submit', function(e) {
-        e.preventDefault();
 
-        const token = getAuthToken();
-        if (!token) {
+    function collectSettings() {
+        const settings = {};
+        let hasData = false;
+
+        document.querySelectorAll('[data-locale]').forEach(function (field) {
+            const key = field.dataset.locale;
+            if (field.type === 'checkbox') {
+                settings[key] = field.checked;
+                hasData = true;
+                return;
+            }
+
+            const value = (field.value || '').toString().trim();
+            if (value !== '') {
+                settings[key] = value;
+                hasData = true;
+            }
+        });
+
+        return { settings, hasData };
+    }
+
+    async function loadLocalizationSettings() {
+        try {
+            const response = await fetch(`${apiBaseUrl}/settings?group=localization`, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+            const payload = await response.json();
+            if (payload.success && payload.data) {
+                applySettings(payload.data);
+            }
+        } catch (err) {
+            console.warn('Could not load localization settings, using empty defaults', err);
+        }
+    }
+
+    async function submitLocalizationSettings(event) {
+        event.preventDefault();
+
+        if (!getAuthToken()) {
             alert('ERROR: Authentication token not found. Please refresh and login again.');
             return;
         }
-        
-        const localeData = {};
-        let hasData = false;
-        $('[data-locale]').each(function() {
-            const $field = $(this);
-            const key = $field.data('locale');
-            if ($field.is(':checkbox')) {
-                localeData[key] = $field.is(':checked');
-                hasData = true;
-            } else {
-                const value = ($field.val() || '').toString().trim();
-                if (value !== '') {
-                    localeData[key] = value;
-                    hasData = true;
-                }
-            }
-        });
 
+        const { settings, hasData } = collectSettings();
         if (!hasData) {
             alert('WARNING: Please fill at least one field before saving.');
             return;
         }
-        
-        const submitBtn = $(this).find('button[type="submit"]');
-        const originalText = submitBtn.text();
-        submitBtn.prop('disabled', true).text('Saving...');
-        console.log('→ Sending localization settings:', localeData);
-        
-        $.ajax({
-            url: `${apiBaseUrl}/settings`,
-            type: 'POST',
-            headers: getHeaders(),
-            dataType: 'json',
-            data: JSON.stringify({
-                group: 'localization',
-                settings: localeData
-            }),
-            success: function(response) {
-                if (response.success) {
-                    alert(response.message || 'Localization settings saved successfully.');
-                    submitBtn.prop('disabled', false).text(originalText);
-                } else {
-                    throw new Error(response.message || 'Unknown save error');
+
+        const form = event.currentTarget;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : 'Save';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
+
+        try {
+            const response = await fetch(`${apiBaseUrl}/settings`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    group: 'localization',
+                    settings: settings,
+                }),
+            });
+
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('ERROR: Not authorized to update settings.');
                 }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.error('✗ Error saving localization settings:', {
-                    status: jqXHR.status,
-                    response: jqXHR.responseJSON || jqXHR.responseText,
-                    textStatus,
-                    errorThrown
-                });
-                let errorMsg = 'Error saving localization settings.';
-                if (jqXHR.status === 401 || jqXHR.status === 403) {
-                    errorMsg = 'ERROR: Not authorized to update settings.';
-                } else if (jqXHR.status === 422) {
-                    errorMsg = 'ERROR: Validation failed. Please check your input.';
-                } else if (jqXHR.responseJSON?.message) {
-                    errorMsg = `ERROR: ${jqXHR.responseJSON.message}`;
+                if (response.status === 422) {
+                    throw new Error('ERROR: Validation failed. Please check your input.');
                 }
-                alert(errorMsg);
-                submitBtn.prop('disabled', false).text(originalText);
+                throw new Error(payload.message || payload.error?.message || 'Error saving localization settings.');
             }
-        });
+
+            alert(payload.message || 'Localization settings saved successfully.');
+        } catch (err) {
+            alert(err.message || 'Error saving localization settings.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText || 'Save';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadLocalizationSettings();
+        setTimeout(loadLocalizationSettings, 200);
+        const form = document.getElementById('localizationForm');
+        if (form) {
+            form.addEventListener('submit', submitLocalizationSettings);
+        }
     });
-});
+})();
 </script>
 
 @endsection

@@ -89,6 +89,11 @@ class HcmSubscriptionCheckoutController
                 ->first();
 
             if ($anyUnpaid) {
+                if ((float) $anyUnpaid->amount_due <= 0) {
+                    $anyUnpaid->markAsPaid();
+                    $anyUnpaid = $anyUnpaid->fresh();
+                }
+
                 return response()->json([
                     'success' => true,
                     'data' => [
@@ -123,6 +128,12 @@ class HcmSubscriptionCheckoutController
                     ->first();
 
                 if ($existingInvoice && $existingInvoice->due_date && $existingInvoice->due_date->toDateString() >= now()->toDateString()) {
+                    if ((float) $existingInvoice->amount_due <= 0) {
+                        $existingInvoice->markAsPaid();
+                        $existingInvoice = $existingInvoice->fresh();
+                        $existingPending = $existingPending->fresh();
+                    }
+
                     return response()->json([
                         'success' => true,
                         'data' => [
@@ -191,8 +202,16 @@ class HcmSubscriptionCheckoutController
                 ),
             ]);
 
-            $billingEmail = $validated['billingEmail'] ?? null;
-            SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
+
+            // Unlimited / zero-priced plans should not be locked in pending payment.
+            if ($amountDue <= 0) {
+                $invoice->markAsPaid();
+                $invoice = $invoice->fresh();
+                $subscription = $subscription->fresh();
+            } else {
+                $billingEmail = $validated['billingEmail'] ?? null;
+                SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
+            }
 
             return response()->json([
                 'success' => true,

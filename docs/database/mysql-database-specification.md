@@ -296,6 +296,7 @@ Untuk menjaga payroll/HCM tetap konsisten, data master employee kini juga disimp
 - `code VARCHAR(64) NOT NULL UNIQUE`, `name VARCHAR(200) NOT NULL`, `description` TEXT NULL
 - `kind` VARCHAR(32) NOT NULL — `addition` | `deduction`
 - `category` VARCHAR(64) NOT NULL — subset per `kind` (lihat model `HcmSalaryComponent`)
+- `category_uuid` CHAR(36) NULL (index) — FK opsional ke `hcm_salary_component_categories.uuid` (null on delete) untuk canonical category mapping berbasis UUID, sementara kolom `category` tetap dipertahankan untuk kompatibilitas legacy
 - `legal_basis` VARCHAR(500) NULL, `legal_notes` TEXT NULL
 - `default_percent` DECIMAL(8,4) NULL — persen default (mis. 1.0000 = 1%); NULL = nominal per siklus gaji
 - `percent_basis` VARCHAR(64) NULL — dasar perhitungan jika `default_percent` terisi (`basic_wage`, `wage_bpjs_health`, `wage_bpjs_tk`, `gross_monthly_ter`, `thr_calculation_base`); keduanya harus null bersamaan untuk komponen nominal

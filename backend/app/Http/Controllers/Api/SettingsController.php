@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
@@ -73,12 +74,16 @@ class SettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'group' => 'required|string|in:general,prefix,business,localization,seo',
+            'group' => 'required|string|in:general,prefix,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
             'settings' => 'required|array',
         ]);
 
         $group = $validated['group'];
         $settings = $validated['settings'];
+
+        if ($group === 'localization') {
+            $this->validateLocalizationPayload($settings);
+        }
 
         $saved = [];
         foreach ($settings as $key => $value) {
@@ -136,10 +141,17 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'value' => 'required',
-            'group' => 'string|in:general,prefix,business,localization,seo',
+            'group' => 'string|in:general,prefix,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
         ]);
 
         $group = $validated['group'] ?? 'general';
+
+        if ($group === 'localization' && in_array($key, ['localization_timezone', 'locale_timezone'], true)) {
+            $this->validateLocalizationPayload([
+                'timezone' => $validated['value'],
+            ]);
+        }
+
         Setting::set($key, $validated['value'], $group);
 
         return $this->apiSuccess(
@@ -210,6 +222,27 @@ class SettingsController extends Controller
             ],
             'Branding file uploaded successfully'
         );
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function validateLocalizationPayload(array $settings): void
+    {
+        if (! array_key_exists('timezone', $settings)) {
+            return;
+        }
+
+        $timezone = trim((string) ($settings['timezone'] ?? ''));
+        if ($timezone === '') {
+            return;
+        }
+
+        if (! in_array($timezone, timezone_identifiers_list(), true)) {
+            throw ValidationException::withMessages([
+                'settings.timezone' => ['Invalid timezone identifier.'],
+            ]);
+        }
     }
 }
 

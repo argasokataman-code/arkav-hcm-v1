@@ -74,8 +74,10 @@
                             <div class="border-bottom mb-3 pb-3">
                                 <h4>Appearance</h4>
                             </div>
-                            <form action="{{url('appearance')}}">
+                            <form id="appearance-settings-form">
                                 <div class="border-bottom mb-3">
+                                    <input type="hidden" id="appearance-theme" data-appearance="theme" value="light">
+                                    <input type="hidden" id="appearance-accent" data-appearance="accent_color" value="primary">
                                     <div class="row align-items-center">
                                         <div class="col-xl-3 col-lg-12 col-md-3">
                                             <div class="setting-info mb-4">
@@ -85,38 +87,32 @@
                                         <div class="col-xl-9 col-lg-12 col-md-9">
                                             <div class="d-flex align-items-center">
                                                 <div class="me-3">
-                                                    <div class="card shadow-none border-primary">
-                                                        <div class="card-body">
-                                                            <a href="#">
-                                                                <div class="border rounded border-gray mb-2">
-                                                                    <img src="{{ URL::asset('build/img/theme/light.svg') }}" class="img-fluid rounded" alt="theme">
-                                                                </div>
-                                                                <p class="text-dark text-center">Light</p>
-                                                            </a>
+                                                    <div class="card shadow-none" id="theme-card-light">
+                                                        <div class="card-body" style="cursor:pointer;" onclick="setTheme('light')">
+                                                            <div class="border rounded border-gray mb-2">
+                                                                <img src="{{ URL::asset('build/img/theme/light.svg') }}" class="img-fluid rounded" alt="theme">
+                                                            </div>
+                                                            <p class="text-dark text-center">Light</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="me-3">
-                                                    <div class="card shadow-none">
-                                                        <div class="card-body">
-                                                            <a href="#">
-                                                                <div class="border rounded border-gray mb-2">
-                                                                    <img src="{{ URL::asset('build/img/theme/dark.svg') }}" class="img-fluid rounded" alt="theme">
-                                                                </div>
-                                                                <p class="text-dark text-center">Dark</p>
-                                                            </a>
+                                                    <div class="card shadow-none" id="theme-card-dark">
+                                                        <div class="card-body" style="cursor:pointer;" onclick="setTheme('dark')">
+                                                            <div class="border rounded border-gray mb-2">
+                                                                <img src="{{ URL::asset('build/img/theme/dark.svg') }}" class="img-fluid rounded" alt="theme">
+                                                            </div>
+                                                            <p class="text-dark text-center">Dark</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div class="card shadow-none">
-                                                        <div class="card-body">
-                                                            <a href="#">
-                                                                <div class="border rounded border-gray mb-2">
-                                                                    <img src="{{ URL::asset('build/img/theme/automatic.svg') }}" class="img-fluid rounded" alt="theme">
-                                                                </div>
-                                                                <p class="text-dark text-center">Automatic</p>
-                                                            </a>
+                                                    <div class="card shadow-none" id="theme-card-auto">
+                                                        <div class="card-body" style="cursor:pointer;" onclick="setTheme('auto')">
+                                                            <div class="border rounded border-gray mb-2">
+                                                                <img src="{{ URL::asset('build/img/theme/automatic.svg') }}" class="img-fluid rounded" alt="theme">
+                                                            </div>
+                                                            <p class="text-dark text-center">Automatic</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -192,10 +188,10 @@
                                             </div>
                                         </div>
                                         <div class="col-xl-3 col-lg-12 col-md-3">
-                                            <select class="select">
-                                                <option >Select</option>
-                                                <option>Small - 85px</option>
-                                                <option>Large - 250px</option>
+                                            <select class="select" id="appearance-sidebar-size" data-appearance="sidebar_size">
+                                                <option value="">Select</option>
+                                                <option value="small">Small - 85px</option>
+                                                <option value="large">Large - 250px</option>
                                             </select>                                        
                                         </div>
                                     </div>
@@ -206,17 +202,18 @@
                                             </div>
                                         </div>
                                         <div class="col-xl-3 col-lg-12 col-md-3">
-                                            <select class="select">
-                                                <option>Select</option>
-                                                <option>Nunito</option>
-                                                <option>Poppins</option>
+                                            <select class="select" id="appearance-font-family" data-appearance="font_family">
+                                                <option value="">Select</option>
+                                                <option value="Nunito">Nunito</option>
+                                                <option value="Poppins">Poppins</option>
                                             </select>
                                         </div>
                                     </div>
                                 </div>
+                                <div id="appearance-settings-feedback" class="alert mt-3" style="display:none;"></div>
                                 <div class="d-flex align-items-center justify-content-end">
-                                    <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Save</button>
+                                    <button type="button" class="btn btn-outline-light border me-3" id="appearance-cancel">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" id="appearance-save">Save</button>
                                 </div>
                             </form>
                         </div>
@@ -227,5 +224,114 @@
        
     </div>
     <!-- /Page Wrapper -->
+
+<script>
+function setTheme(val) {
+    document.getElementById('appearance-theme').value = val;
+    ['light','dark','auto'].forEach(function(t) {
+        var card = document.getElementById('theme-card-' + t);
+        if (card) card.classList.toggle('border-primary', t === val);
+    });
+}
+
+function setAccent(val) {
+    document.getElementById('appearance-accent').value = val;
+    document.querySelectorAll('.themecolorset').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    var active = document.querySelector('.themecolorset[data-accent="' + val + '"]');
+    if (active) active.classList.add('active');
+}
+
+(function () {
+    var GROUP = 'appearance';
+    var API_BASE = '/v1/hcm';
+
+    function getToken() {
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            var t = window.AuthApi.getToken(); if (t) return t;
+        }
+        return localStorage.getItem('arcav_access_token') || sessionStorage.getItem('arcav_access_token') ||
+               localStorage.getItem('token') || sessionStorage.getItem('token') ||
+               ((document.querySelector('meta[name="api-token"]') || {}).content) || null;
+    }
+
+    function buildHeaders() {
+        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+        var token = getToken(); if (token) h['Authorization'] = 'Bearer ' + token;
+        var csrf = document.querySelector('meta[name="csrf-token"]'); if (csrf) h['X-CSRF-TOKEN'] = csrf.content;
+        try {
+            var ctx = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (ctx.companyId) h['X-Company-Id'] = String(ctx.companyId);
+            if (ctx.companyCode) h['X-Company-Code'] = String(ctx.companyCode);
+        } catch(_) {}
+        return h;
+    }
+
+    function showFeedback(msg, type) {
+        var el = document.getElementById('appearance-settings-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.className = 'alert alert-' + (type || 'success');
+        el.style.display = 'block';
+        setTimeout(function () { el.style.display = 'none'; }, 4000);
+    }
+
+    function loadSettings() {
+        fetch(API_BASE + '/settings?group=' + GROUP, { headers: buildHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) return;
+                var s = data.data || {};
+                document.querySelectorAll('[data-appearance]').forEach(function (el) {
+                    var key = GROUP + '_' + el.dataset.appearance;
+                    if (s[key] !== undefined && s[key] !== null) {
+                        el.value = s[key];
+                        if (el.tagName === 'SELECT') {
+                            Array.from(el.options).forEach(function(o) { o.selected = o.value === s[key]; });
+                        }
+                    }
+                });
+                if (s.appearance_theme) setTheme(s.appearance_theme);
+                if (s.appearance_accent_color) setAccent(s.appearance_accent_color);
+            }).catch(function () {});
+    }
+
+    function saveSettings(e) {
+        if (e) e.preventDefault();
+        var settings = {};
+        document.querySelectorAll('[data-appearance]').forEach(function (el) {
+            settings[el.dataset.appearance] = el.value;
+        });
+        fetch(API_BASE + '/settings', {
+            method: 'POST', headers: buildHeaders(),
+            body: JSON.stringify({ group: GROUP, settings: settings })
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.success) showFeedback('Appearance settings saved.', 'success');
+              else showFeedback((data.error && data.error.message) || 'Failed to save.', 'danger');
+          }).catch(function () { showFeedback('Connection error.', 'danger'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        var form = document.getElementById('appearance-settings-form');
+        if (form) form.addEventListener('submit', saveSettings);
+        var saveBtn = document.getElementById('appearance-save');
+        if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+        var cancelBtn = document.getElementById('appearance-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { loadSettings(); });
+
+        // Wire accent color clicks
+        var colors = ['primary','secondary','info','purple','pink','warning','danger'];
+        document.querySelectorAll('.themecolorset').forEach(function(el, i) {
+            var color = colors[i] || 'primary';
+            el.setAttribute('data-accent', color);
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', function() { setAccent(color); });
+        });
+    });
+})();
+</script>
 
 @endsection

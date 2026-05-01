@@ -13,6 +13,8 @@ class CronjobSettings
      */
     public static function definitions(): array
     {
+        $defaultTimezone = self::defaultTimezone();
+
         return [
             'payment_reminder' => [
                 'label' => 'Send Payment Reminder',
@@ -226,6 +228,15 @@ class CronjobSettings
             return Setting::get('cronjob_'.$key);
         } catch (Throwable) {
             return null;
+        }
+    }
+
+    private static function defaultTimezone(): string
+    {
+        try {
+            return WebsiteSettings::localizationTimezone();
+        } catch (Throwable) {
+            return (string) config('app.timezone', 'UTC');
         }
     }
 }

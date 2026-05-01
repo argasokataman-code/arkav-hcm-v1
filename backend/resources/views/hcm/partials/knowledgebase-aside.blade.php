@@ -7,51 +7,66 @@
 @endphp
 <div class="col-xl-4 theiaStickySidebar">
     <div class="card">
-        <div class="card-body pb-1">
-            <div class="d-flex align-items-center border-bottom mb-3 pb-3">
-                <span class="text-dark fs-16 fw-semibold text-truncate">Kategori</span>
+        <div class="card-body">
+            <div class="border-bottom mb-3 pb-3 d-flex align-items-center justify-content-between">
+                <h6 class="mb-0">Semua Kategori</h6>
+                <a href="{{ route('knowledgebase') }}" class="fs-12">Lihat semua</a>
             </div>
-            @forelse ($categories as $cat)
-                <div class="d-flex align-items-center mb-2 pb-1">
-                    <i class="ti ti-folder text-primary fs-16 me-1"></i>
-                    <a href="{{ route('knowledgebase.category', ['slug' => $cat['slug']]) }}"
-                       class="text-gray fs-14 fw-normal text-truncate {{ ($activeCategory['slug'] ?? '') === ($cat['slug'] ?? '') ? 'fw-semibold text-dark' : '' }}">
-                        {{ $cat['title'] }}
-                        <span class="text-primary">({{ count($cat['articles'] ?? []) }})</span>
+            <div class="d-flex flex-column list-group settings-list">
+                @forelse ($categories as $cat)
+                    @php $isActive = ($activeCategory['slug'] ?? '') === ($cat['slug'] ?? ''); @endphp
+                    <a href="{{ route('knowledgebase.category', ['slug' => $cat['slug']]) }}" class="d-inline-flex align-items-center justify-content-between rounded py-2 px-3 {{ $isActive ? 'active' : '' }}">
+                        <span class="d-inline-flex align-items-center gap-2 text-truncate">
+                            <i class="{{ $cat['icon'] ?? 'ti ti-folder' }}"></i>
+                            <span class="text-truncate">{{ $cat['title'] }}</span>
+                        </span>
+                        <span class="badge bg-light text-dark border">{{ count($cat['articles'] ?? []) }}</span>
                     </a>
-                </div>
-            @empty
-                <p class="fs-13 text-muted mb-0">Belum ada kategori.</p>
-            @endforelse
-            <div class="mt-2 pt-2 border-top">
-                <a href="{{ route('knowledgebase') }}" class="fs-13 fw-medium">Semua kategori</a>
+                @empty
+                    <p class="fs-13 text-muted mb-0">Belum ada kategori.</p>
+                @endforelse
             </div>
         </div>
     </div>
+
     <div class="card">
-        <div class="card-body pb-1">
-            <div class="d-flex align-items-center border-bottom mb-3 pb-3">
-                <span class="text-dark fs-16 fw-semibold text-truncate">Artikel populer</span>
+        <div class="card-body">
+            <div class="border-bottom mb-3 pb-3">
+                <h6 class="mb-0">Artikel Populer</h6>
             </div>
-            @foreach ($popularArticles as $row)
-                <div class="d-flex align-items-center mb-2 pb-1">
-                    <i class="ti ti-file me-1"></i>
-                    <a href="{{ route('knowledgebase.article', ['slug' => $row['slug']]) }}" class="text-gray fs-14 fw-normal text-truncate">{{ $row['title'] }}</a>
-                </div>
-            @endforeach
+            <div class="d-flex flex-column gap-3">
+                @foreach ($popularArticles as $row)
+                    <div>
+                        <div class="fw-medium fs-13"><a href="{{ route('knowledgebase.article', ['slug' => $row['slug']]) }}" class="text-dark">{{ $row['title'] }}</a></div>
+                    </div>
+                @endforeach
+            </div>
         </div>
     </div>
+
     <div class="card">
-        <div class="card-body pb-1">
-            <div class="d-flex align-items-center border-bottom mb-3 pb-3">
-                <span class="text-dark fs-16 fw-semibold text-truncate">Artikel terbaru</span>
+        <div class="card-body">
+            <div class="border-bottom mb-3 pb-3">
+                <h6 class="mb-0">Artikel Terbaru</h6>
             </div>
-            @foreach ($latestArticles as $row)
-                <div class="d-flex align-items-center mb-2 pb-1">
-                    <i class="ti ti-file me-1"></i>
-                    <a href="{{ route('knowledgebase.article', ['slug' => $row['slug']]) }}" class="text-gray fs-14 fw-normal text-truncate">{{ $row['title'] }}</a>
-                </div>
-            @endforeach
+            <div class="d-flex flex-column gap-3">
+                @foreach ($latestArticles as $row)
+                    <div>
+                        <div class="fw-medium fs-13"><a href="{{ route('knowledgebase.article', ['slug' => $row['slug']]) }}" class="text-dark">{{ $row['title'] }}</a></div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="border-bottom mb-3 pb-3">
+                <h6 class="mb-0">Butuh Bantuan?</h6>
+            </div>
+            <p class="text-muted fs-13">Kalau panduan belum menjawab kebutuhan Anda, lanjutkan lewat tiket support.</p>
+            <a href="{{ url('tickets-employee') }}" class="btn btn-primary btn-sm">Buat tiket</a>
         </div>
     </div>
 </div>
+

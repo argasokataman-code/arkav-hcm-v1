@@ -977,7 +977,7 @@ paths:
   /v1/hcm/notifications/delivery-summary:
     get:
       tags: [HCM]
-      summary: Get notification delivery observability summary (global HCM admin only)
+      summary: Get tenant-scoped notification delivery observability summary (global HCM admin only)
       security:
         - bearerAuth: []
       parameters:
@@ -1049,11 +1049,12 @@ paths:
 
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/notifications/delivery-details:
     get:
       tags: [HCM]
-      summary: Get paginated failed delivery details with filters (global HCM admin only)
+      summary: Get tenant-scoped paginated delivery details with filters (global HCM admin only)
       security:
         - bearerAuth: []
       parameters:
@@ -1133,11 +1134,12 @@ paths:
                           hasMore: { type: boolean }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/notifications/delivery-export:
     get:
       tags: [HCM]
-      summary: Export delivery records as CSV (global HCM admin only)
+      summary: Export tenant-scoped delivery records as CSV (global HCM admin only)
       security:
         - bearerAuth: []
       parameters:
@@ -1175,11 +1177,12 @@ paths:
                 type: string
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/notifications/delivery/{id}/retry:
     post:
       tags: [HCM]
-      summary: Manually retry a failed delivery (global HCM admin only)
+      summary: Manually retry a failed delivery inside active tenant scope (global HCM admin only)
       security:
         - bearerAuth: []
       parameters:
@@ -1208,6 +1211,7 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1/hcm/notifications/templates:
     get:
@@ -8627,6 +8631,17 @@ paths:
       responses:
         '201':
           description: Created
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
+  /v1/saas/packages/feature-catalog:
+    get:
+      tags: [SaaS]
+      summary: Get backend-driven package feature catalog
+      description: Returns the feature catalog used by the packages management UI, including custom feature codes already present in package_features.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }

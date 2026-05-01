@@ -11,7 +11,7 @@ Route::get('knowledgebase/article/{slug}', [KnowledgebaseController::class, 'art
 
 Route::get('knowledgebase-view', function (Request $request) {
     $category = $request->query('category');
-    if (is_string($category) && $category !== '' && HcmKnowledgebase::categoryBySlug($category)) {
+    if (is_string($category) && $category !== '' && HcmKnowledgebase::categoryBySlug($category, $request->user())) {
         return redirect()->route('knowledgebase.category', ['slug' => $category]);
     }
 
@@ -20,7 +20,7 @@ Route::get('knowledgebase-view', function (Request $request) {
 
 Route::get('knowledgebase-details', function (Request $request) {
     $article = $request->query('article');
-    if (is_string($article) && $article !== '' && HcmKnowledgebase::resolveArticle($article)) {
+    if (is_string($article) && $article !== '' && HcmKnowledgebase::resolveArticle($article, $request->user())) {
         return redirect()->route('knowledgebase.article', ['slug' => $article]);
     }
 

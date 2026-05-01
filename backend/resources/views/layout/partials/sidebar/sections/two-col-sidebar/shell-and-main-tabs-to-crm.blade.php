@@ -125,7 +125,7 @@
         <div class="sidebar-right">
             <div class="sidebar-logo mb-4">
                 <a href="{{url('index')}}" class="logo logo-normal">
-                    <img src="{{URL::asset('build/img/')}}" alt="Logo">
+                    <img src="{{URL::asset('build/img/image111.png')}}" alt="Logo">
                 </a>
                 <a href="{{url('index')}}" class="dark-logo">
                     <img src="{{URL::asset('build/img/logo-white.svg')}}" alt="Logo">

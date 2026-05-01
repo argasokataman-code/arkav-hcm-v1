@@ -154,6 +154,43 @@ class PackageServiceTest extends TestCase
         $detail->assertJsonPath('data.isGlobalAdminOnly', true);
     }
 
+    public function test_feature_catalog_returns_backend_defined_and_custom_features(): void
+    {
+        $package = Package::create([
+            'code' => 'custom_feature_pack',
+            'name' => 'Custom Feature Pack',
+            'monthly_price' => 1000,
+            'yearly_price' => 12000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        PackageFeature::create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'custom_ai_workflows',
+            'feature_name' => 'Custom AI Workflows',
+            'limit' => null,
+        ]);
+
+        $response = $this->request()->getJson('/v1/saas/packages/feature-catalog');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $groups = collect($response->json('data'));
+        $allCodes = $groups->flatMap(function (array $group) {
+            return collect($group['features'] ?? [])->pluck('code');
+        })->all();
+
+        $this->assertContains('tickets', $allCodes);
+        $this->assertContains('asset_management', $allCodes);
+        $this->assertContains('custom_ai_workflows', $allCodes);
+
+        $customGroup = $groups->firstWhere('module', 'custom');
+        $this->assertNotNull($customGroup);
+        $this->assertContains('custom_ai_workflows', collect($customGroup['features'] ?? [])->pluck('code')->all());
+    }
+
     /**
      * Test: list package add-ons returns active add-ons
      */

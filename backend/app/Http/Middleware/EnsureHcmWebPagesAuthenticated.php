@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Subscription;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Support\ArcavAccessTokenResolver;
 use App\Support\TenantContextResolver;
@@ -171,6 +172,26 @@ class EnsureHcmWebPagesAuthenticated
 
         if (($latestSubscription?->status ?? null) !== 'pending_payment') {
             return null;
+        }
+
+        // Legacy safeguard: unlimited/zero-priced checkout could leave a
+        // pending_payment row with unpaid 0 invoice. Auto-settle and unlock.
+        $zeroAmountInvoice = Invoice::query()
+            ->where('company_id', $company->id)
+            ->where('subscription_id', $latestSubscription->id)
+            ->where('is_paid', false)
+            ->whereIn('status', ['draft', 'sent'])
+            ->where('amount_due', '<=', 0)
+            ->latest('id')
+            ->first();
+
+        if ($zeroAmountInvoice) {
+            $zeroAmountInvoice->markAsPaid();
+            $latestSubscription->refresh();
+
+            if (($latestSubscription->status ?? null) !== 'pending_payment') {
+                return null;
+            }
         }
 
         if ($path === 'logout' || $path === 'signout') {

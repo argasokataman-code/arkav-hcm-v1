@@ -230,6 +230,17 @@ class HcmNotificationController extends Controller
             ], 403);
         }
 
+        $activeCompanyUuid = (string) ($request->attributes->get('activeCompanyUuid') ?? '');
+        if ($activeCompanyUuid === '') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active tenant context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'hours' => ['nullable', 'integer', 'min:1', 'max:720'],
             'channel' => ['nullable', 'string'],
@@ -239,7 +250,8 @@ class HcmNotificationController extends Controller
         $channel = isset($validated['channel']) ? (string) $validated['channel'] : null;
         $windowStart = now()->subHours($hours);
 
-        $baseQuery = NotificationDelivery::where('created_at', '>=', $windowStart);
+        $baseQuery = NotificationDelivery::where('created_at', '>=', $windowStart)
+            ->where('company_uuid', $activeCompanyUuid);
 
         if ($channel !== null) {
             $baseQuery->where('channel', $channel);
@@ -294,6 +306,17 @@ class HcmNotificationController extends Controller
             ], 403);
         }
 
+        $activeCompanyUuid = (string) ($request->attributes->get('activeCompanyUuid') ?? '');
+        if ($activeCompanyUuid === '') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active tenant context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'page' => ['nullable', 'integer', 'min:1'],
             'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -313,6 +336,7 @@ class HcmNotificationController extends Controller
 
         $baseQuery = NotificationDelivery::query()
             ->where('created_at', '>=', $windowStart)
+            ->where('company_uuid', $activeCompanyUuid)
             ->orderByDesc('created_at');
 
         if ($status !== null) {
@@ -381,6 +405,17 @@ class HcmNotificationController extends Controller
             ], 403);
         }
 
+        $activeCompanyUuid = (string) ($request->attributes->get('activeCompanyUuid') ?? '');
+        if ($activeCompanyUuid === '') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active tenant context is required.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'status' => ['nullable', 'string', 'in:sent,failed,dropped'],
             'hours' => ['nullable', 'integer', 'min:1', 'max:720'],
@@ -396,6 +431,7 @@ class HcmNotificationController extends Controller
 
         $baseQuery = NotificationDelivery::query()
             ->where('created_at', '>=', $windowStart)
+            ->where('company_uuid', $activeCompanyUuid)
             ->orderByDesc('created_at');
 
         if ($status !== null) {
@@ -412,33 +448,33 @@ class HcmNotificationController extends Controller
 
         $items = $baseQuery->get();
 
-        $csvHeader = ['Timestamp', 'Event Key', 'Channel', 'Status', 'Recipient', 'Attempts', 'Last Error'];
-        $csvRows = [$csvHeader];
-
-        foreach ($items as $delivery) {
-            $csvRows[] = [
-                $delivery->created_at?->format('Y-m-d H:i:s') ?? '',
-                (string) $delivery->event_key,
-                (string) $delivery->channel,
-                (string) $delivery->status,
-                (string) $delivery->recipient,
-                (int) $delivery->attempt_count,
-                (string) ($delivery->last_error ?? ''),
-            ];
-        }
-
-        $output = '';
-        foreach ($csvRows as $row) {
-            $output .= '"' . implode('","', array_map(function ($field) {
-                return str_replace('"', '""', (string) $field);
-            }, $row)) . '"' . "\r\n";
-        }
-
         $filename = 'notification-deliveries-' . now()->format('YmdHis') . '.csv';
 
-        return response($output)
-            ->header('Content-Type', 'text/csv; charset=utf-8')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        return response()->streamDownload(function () use ($items): void {
+            $stream = fopen('php://output', 'wb');
+            if (! $stream) {
+                return;
+            }
+
+            fwrite($stream, "\xEF\xBB\xBF");
+            fputcsv($stream, ['Timestamp', 'Event Key', 'Channel', 'Status', 'Recipient', 'Attempts', 'Last Error']);
+
+            foreach ($items as $delivery) {
+                fputcsv($stream, [
+                    $delivery->created_at?->format('Y-m-d H:i:s') ?? '',
+                    (string) $delivery->event_key,
+                    (string) $delivery->channel,
+                    (string) $delivery->status,
+                    (string) $delivery->recipient,
+                    (int) $delivery->attempt_count,
+                    (string) ($delivery->last_error ?? ''),
+                ]);
+            }
+
+            fclose($stream);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function retryDelivery(Request $request, int $deliveryId): JsonResponse
@@ -458,7 +494,21 @@ class HcmNotificationController extends Controller
             ], 403);
         }
 
-        $delivery = NotificationDelivery::find($deliveryId);
+        $activeCompanyUuid = (string) ($request->attributes->get('activeCompanyUuid') ?? '');
+        if ($activeCompanyUuid === '') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active tenant context is required.',
+                ],
+            ], 422);
+        }
+
+        $delivery = NotificationDelivery::query()
+            ->where('id', $deliveryId)
+            ->where('company_uuid', $activeCompanyUuid)
+            ->first();
         if (!$delivery) {
             return response()->json([
                 'success' => false,

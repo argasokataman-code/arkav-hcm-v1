@@ -7,7 +7,7 @@ Dokumen ini adalah kontrak runtime Phase 1 untuk inbox notifikasi dan preferensi
 - Semua endpoint wajib `Authorization: Bearer <token>`.
 - Endpoint berada di group `api.token + tenant.context`.
 - User regular hanya menerima notif tenant aktif (berdasarkan `companyUuid` payload notifikasi).
-- Global HCM admin dapat membaca lintas tenant sesuai akses akun.
+- Global HCM admin tetap wajib berada dalam tenant context aktif; endpoint observability dibatasi ke tenant aktif, bukan lintas tenant.
 
 ## Identifier Policy
 
@@ -109,6 +109,7 @@ Endpoint observability internal untuk ringkasan delivery notifikasi dalam window
 Auth & role:
 - Wajib login.
 - Hanya global HCM admin (`isGlobalHcmAdmin`) yang boleh akses.
+- Data tetap tenant-scoped ke `activeCompanyUuid` dari middleware `tenant.context`.
 
 Query opsional:
 - `hours` integer min 1 max 720 (default 24)
@@ -149,6 +150,9 @@ Response 200:
 
 Response 403:
 - user bukan global HCM admin.
+
+Response 422:
+- tenant context aktif tidak tersedia (`TENANT_CONTEXT_REQUIRED`).
 
 ### GET /v1/hcm/notifications/templates
 

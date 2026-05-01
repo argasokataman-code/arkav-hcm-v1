@@ -188,7 +188,7 @@ final class PayrollDraftBuilder
                 (int) $period->period_month,
                 $companyId,
             );
-            $payrollTimezone = (string) ($monthlySettingsSnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
+            $payrollTimezone = (string) ($monthlySettingsSnapshot['payrollTimezone'] ?? config('app.timezone', 'UTC'));
             $periodStart = Carbon::create($period->period_year, $period->period_month, 1, 0, 0, 0, $payrollTimezone)->startOfMonth();
             $periodEnd = $periodStart->copy()->endOfMonth();
             $asOfDate = (string) ($monthlySettingsSnapshot['draftDataAsOfDate'] ?? $periodEnd->copy()->toDateString());

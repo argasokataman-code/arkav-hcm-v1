@@ -10,6 +10,7 @@ return [
             'slug' => 'memulai',
             'title' => 'Memulai dan akun',
             'icon' => 'ti ti-book',
+            'visible_to' => ['authenticated'],
             'description' => 'Autentikasi, peran pengguna, dan cara menavigasi Arcav HCM tanpa salah konteks admin vs karyawan.',
             'articles' => [
                 [
@@ -74,6 +75,7 @@ HTML,
                 ],
                 [
                     'slug' => 'checklist-onboarding-admin-hcm',
+                    'visible_to' => ['admin'],
                     'title' => 'Checklist onboarding admin HCM (minggu pertama)',
                     'reading_minutes' => 8,
                     'excerpt' => 'Urutan kerja disarankan: master → karyawan → cuti/absensi → payroll — supaya tim tidak bolak-balik tanya hal yang sama.',
@@ -101,16 +103,116 @@ HTML,
 <p class="fs-14 fw-normal mb-0">Setelah stabil, arahkan user ke <strong>Knowledge Base</strong> (halaman ini) dan <a href="/pages">/pages</a> agar pertanyaan berulang berkurang.</p>
 HTML,
                 ],
+                [
+                    'slug' => 'panduan-admin-harian-hcm',
+                    'visible_to' => ['admin'],
+                    'title' => 'Tutorial lengkap: admin memakai aplikasi dari login sampai operasional harian',
+                    'reading_minutes' => 10,
+                    'excerpt' => 'Panduan end-to-end untuk admin: masuk aplikasi, cek dashboard, kelola master, verifikasi karyawan, proses cuti/absensi, sampai review payroll.',
+                    'body_html' => <<<'HTML'
+<p class="fs-14 fw-normal mb-3">Artikel ini ditujukan untuk <strong>admin HR / operator HCM</strong> yang baru memakai Arcav HCM dan butuh panduan praktis, bukan hanya daftar menu. Ikuti urutan ini agar Anda paham jalur kerja harian tanpa lompat-lompat halaman.</p>
+<h6 class="fs-14 fw-semibold mb-2">1. Login dan pastikan konteks perusahaan benar</h6>
+<ol class="fs-14 mb-3">
+<li>Masuk lewat <a href="/login">/login</a> dengan akun admin tenant.</li>
+<li>Setelah berhasil, buka <a href="/index">/index</a> dan pastikan sidebar admin tampil lengkap. Jika menu payroll, employees, atau settings tidak muncul, cek role Anda.</li>
+<li>Jika data tampak kosong, periksa apakah company/tenant yang aktif benar. Di Arcav HCM, konteks perusahaan mempengaruhi semua data yang terbaca.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">2. Pahami dashboard, tapi jangan berhenti di sana</h6>
+<p class="fs-14 fw-normal mb-3">Dashboard di <a href="/index">/index</a> hanya pintu masuk. Gunakan untuk melihat ringkasan, lalu masuk ke modul kerja sebenarnya dari sidebar. Banyak admin baru salah paham karena mengira semua aksi utama dilakukan dari dashboard.</p>
+<h6 class="fs-14 fw-semibold mb-2">3. Siapkan master sebelum mengurus transaksi</h6>
+<ol class="fs-14 mb-3">
+<li>Buka <a href="/departments">/departments</a> dan <a href="/designations">/designations</a> untuk menyiapkan struktur organisasi.</li>
+<li>Buka <a href="/policy">/policy</a> bila perusahaan Anda memakai kebijakan HR internal yang ingin dirujuk sistem.</li>
+<li>Jika akan memakai cuti, isi <a href="/leave-type">/leave-type</a>, <a href="/leave-settings">/leave-settings</a>, dan <a href="/holidays">/holidays</a> lebih dulu.</li>
+<li>Jika akan memakai absensi, siapkan <a href="/shift-master">/shift-master</a> lalu pasangkan ke user di <a href="/schedule-timing">/schedule-timing</a>.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">4. Kelola data karyawan</h6>
+<ol class="fs-14 mb-3">
+<li>Masuk ke <a href="/employees">/employees</a> untuk daftar utama karyawan.</li>
+<li>Tambah atau impor data, lalu buka satu profil lewat <a href="/employee-details">/employee-details</a> untuk verifikasi departemen, jabatan, kontak, dan status kerja.</li>
+<li>Jika karyawan akan langsung ikut payroll, cek juga kompensasinya di <a href="/employee-salary">/employee-salary</a>.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">5. Jalankan operasional harian</h6>
+<ul class="knowledgebase ps-3 mb-3">
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>Cuti:</strong> monitor pengajuan di <a href="/leaves">/leaves</a>, approve/decline sesuai kebijakan.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>Absensi:</strong> cek rekap di <a href="/attendance-admin">/attendance-admin</a>, cocokkan dengan <a href="/timesheets">/timesheets</a> jika ada selisih jam.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>Tiket:</strong> jika tenant memakai helpdesk internal, pantau di <a href="/tickets-admin">/tickets-admin</a>.</li>
+</ul>
+<h6 class="fs-14 fw-semibold mb-2">6. Tutup periode dengan payroll</h6>
+<ol class="fs-14 mb-3">
+<li>Pastikan absensi, lembur, dan cuti di periode tersebut sudah final.</li>
+<li>Masuk ke <a href="/payroll-run">/payroll-run</a> untuk calculate draft.</li>
+<li>Review angka per karyawan, finalisasi jika sudah sesuai, lalu lanjut ke disburse sesuai alur tenant Anda.</li>
+<li>Setelah final, minta karyawan cek slip mereka di <a href="/payslip">/payslip</a>.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">7. Kebiasaan admin yang benar</h6>
+<ul class="knowledgebase ps-3 mb-0">
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Jangan ubah master besar-besaran di tengah proses payroll tanpa komunikasi ke finance.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Setelah mengubah setting penting, uji satu data contoh sampai benar-benar muncul di layar operasional.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Kalau bingung urutan modul, kembali ke artikel ini dulu sebelum lompat ke artikel teknis per modul.</li>
+</ul>
+HTML,
+                ],
+                [
+                    'slug' => 'panduan-karyawan-harian-self-service',
+                    'visible_to' => ['employee'],
+                    'title' => 'Tutorial lengkap: karyawan memakai aplikasi untuk absensi, cuti, slip, dan tiket',
+                    'reading_minutes' => 8,
+                    'excerpt' => 'Panduan end-to-end untuk user karyawan: masuk aplikasi, absen, ajukan cuti, lihat slip gaji, dan minta bantuan lewat tiket.',
+                    'body_html' => <<<'HTML'
+<p class="fs-14 fw-normal mb-3">Artikel ini khusus untuk <strong>karyawan / end user</strong>. Jika Anda bukan admin, fokus Anda ada di fitur self-service berikut: dashboard pribadi, absensi, cuti, slip gaji, dan tiket bantuan.</p>
+<h6 class="fs-14 fw-semibold mb-2">1. Login dan buka dashboard pribadi</h6>
+<ol class="fs-14 mb-3">
+<li>Masuk lewat <a href="/login">/login</a> dengan akun karyawan.</li>
+<li>Setelah login, biasanya Anda akan diarahkan ke <a href="/employee-dashboard">/employee-dashboard</a>.</li>
+<li>Kalau yang muncul justru dashboard admin atau menu terlalu banyak, kemungkinan akun yang dipakai bukan akun karyawan biasa.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">2. Lakukan absensi harian</h6>
+<ol class="fs-14 mb-3">
+<li>Buka <a href="/attendance-employee">/attendance-employee</a>.</li>
+<li>Izinkan browser mengakses lokasi agar sistem bisa mengambil koordinat GPS.</li>
+<li>Tekan punch in / punch out sesuai jam kerja Anda.</li>
+<li>Jika perusahaan mewajibkan selfie, lakukan setelah punch berhasil. Jika selfie ditolak, biasanya karena absensi hari itu belum dimulai.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">3. Ajukan cuti saat diperlukan</h6>
+<ol class="fs-14 mb-3">
+<li>Buka <a href="/leaves-employee">/leaves-employee</a>.</li>
+<li>Pilih tipe cuti, tanggal mulai, tanggal selesai, dan alasan.</li>
+<li>Setelah disubmit, pantau statusnya. Pending berarti masih menunggu persetujuan admin/atasan.</li>
+<li>Jika dropdown tipe cuti kosong, artinya admin perusahaan belum mengaktifkan master cuti yang dibutuhkan.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">4. Cek slip gaji setelah payroll final</h6>
+<ol class="fs-14 mb-3">
+<li>Buka <a href="/payslip">/payslip</a>.</li>
+<li>Pilih periode yang ingin dilihat.</li>
+<li>Jika data masih kosong, biasanya payroll periode itu belum difinalisasi admin.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">5. Minta bantuan lewat tiket bila ada kendala</h6>
+<ol class="fs-14 mb-3">
+<li>Buka <a href="/tickets-employee">/tickets-employee</a>.</li>
+<li>Buat tiket untuk masalah seperti absensi tidak masuk, cuti tidak bisa diajukan, atau pertanyaan administratif yang perlu jejak.</li>
+<li>Isi masalah dengan jelas dan lampirkan bukti jika perlu.</li>
+</ol>
+<h6 class="fs-14 fw-semibold mb-2">6. Hal yang perlu dipahami karyawan</h6>
+<ul class="knowledgebase ps-3 mb-0">
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Karyawan tidak bisa membuka atau mengubah data semua orang seperti admin.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Jika sistem menampilkan 403 atau akses ditolak, itu biasanya karena halaman tersebut memang hanya untuk admin.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Untuk kendala akun atau role, hubungi admin HR internal Anda lebih dulu.</li>
+</ul>
+HTML,
+                ],
             ],
         ],
         [
             'slug' => 'dashboard',
             'title' => 'Dashboard dan beranda',
             'icon' => 'ti ti-layout-dashboard',
+            'visible_to' => ['authenticated'],
             'description' => 'Perbedaan dashboard admin vs karyawan dan ekspektasi data yang tampil.',
             'articles' => [
                 [
                     'slug' => 'tutorial-dashboard-admin-index',
+                    'visible_to' => ['admin'],
                     'title' => 'Dashboard admin (/index)',
                     'reading_minutes' => 4,
                     'excerpt' => 'Ringkasan widget, chart template, dan bagian mana yang perlu di-wire ke API produksi.',
@@ -123,6 +225,7 @@ HTML,
                 ],
                 [
                     'slug' => 'tutorial-dashboard-karyawan',
+                    'visible_to' => ['employee'],
                     'title' => 'Dashboard karyawan (/employee-dashboard)',
                     'reading_minutes' => 3,
                     'excerpt' => 'Ringkasan self-service: cuti, absensi, slip; redirect admin agar tidak salah konteks.',
@@ -140,6 +243,7 @@ HTML,
             'slug' => 'organisasi',
             'title' => 'Karyawan dan organisasi',
             'icon' => 'ti ti-users',
+            'visible_to' => ['admin'],
             'description' => 'Direktori karyawan, master organisasi, kebijakan, dan batas akses profil untuk admin vs self.',
             'articles' => [
                 [
@@ -201,10 +305,12 @@ HTML,
             'slug' => 'cuti-absensi',
             'title' => 'Cuti dan kalender',
             'icon' => 'ti ti-calendar-time',
+            'visible_to' => ['authenticated'],
             'description' => 'Cuti karyawan vs persetujuan admin, pengaturan tipe cuti, dan hari libur nasional/lokal.',
             'articles' => [
                 [
                     'slug' => 'cuti-karyawan-scope-me',
+                    'visible_to' => ['employee'],
                     'title' => 'Pengajuan cuti sebagai karyawan',
                     'reading_minutes' => 5,
                     'excerpt' => 'Halaman /leaves-employee, parameter scope, status pengajuan, dan sinkronisasi dengan master tipe cuti.',
@@ -220,6 +326,7 @@ HTML,
                 ],
                 [
                     'slug' => 'cuti-admin-persetujuan',
+                    'visible_to' => ['admin'],
                     'title' => 'Cuti admin: persetujuan dan monitoring',
                     'reading_minutes' => 5,
                     'excerpt' => 'Halaman /leaves untuk HCM admin: filter, approve/decline orang lain, dan batas siapa yang boleh mengubah userId target.',
@@ -235,6 +342,7 @@ HTML,
                 ],
                 [
                     'slug' => 'pengaturan-cuti-dan-tipe',
+                    'visible_to' => ['admin'],
                     'title' => 'Pengaturan cuti dan master tipe cuti',
                     'reading_minutes' => 4,
                     'excerpt' => '/leave-settings dan /leave-type: kuota, aturan approval, dan katalog tipe untuk dropdown.',
@@ -246,6 +354,7 @@ HTML,
                 ],
                 [
                     'slug' => 'hari-libur-holidays',
+                    'visible_to' => ['admin'],
                     'title' => 'Hari libur (Holidays)',
                     'reading_minutes' => 3,
                     'excerpt' => 'Master libur mempengaruhi perhitungan hari kerja; sinkron baseline Indonesia tersedia lewat API.',
@@ -260,10 +369,12 @@ HTML,
             'slug' => 'absensi',
             'title' => 'Absensi dan jadwal',
             'icon' => 'ti ti-clock',
+            'visible_to' => ['authenticated'],
             'description' => 'Punch karyawan dengan GPS, selfie setelah punch, rekap admin, timesheet, dan master shift.',
             'articles' => [
                 [
                     'slug' => 'absensi-dan-gps',
+                    'visible_to' => ['employee'],
                     'title' => 'Absensi mandiri: punch, peta, dan GPS',
                     'reading_minutes' => 6,
                     'excerpt' => '/attendance-employee: koordinat wajib, fallback peta OSM, urutan punch in sebelum selfie, dan ringkasan produktivitas.',
@@ -279,6 +390,7 @@ HTML,
                 ],
                 [
                     'slug' => 'jadwal-shift-dan-schedule',
+                    'visible_to' => ['admin'],
                     'title' => 'Jadwal per karyawan dan master shift',
                     'reading_minutes' => 5,
                     'excerpt' => '/schedule-timing, /shift-master, dan relasi ke shiftId pada payload schedule.',
@@ -289,6 +401,7 @@ HTML,
                 ],
                 [
                     'slug' => 'timesheet-dan-rekap',
+                    'visible_to' => ['admin'],
                     'title' => 'Timesheet dan rekapitulasi',
                     'reading_minutes' => 3,
                     'excerpt' => 'Halaman /timesheets untuk pandangan agregat; cocokkan rentang tanggal dengan periode payroll.',
@@ -303,6 +416,7 @@ HTML,
             'slug' => 'payroll',
             'title' => 'Payroll dan kompensasi',
             'icon' => 'ti ti-currency-dollar',
+            'visible_to' => ['admin'],
             'description' => 'Run bulanan, komponen gaji, kompensasi per karyawan, THR, slip mandiri, dan gate export rekonsiliasi.',
             'articles' => [
                 [
@@ -344,6 +458,7 @@ HTML,
                 ],
                 [
                     'slug' => 'slip-gaji-mandiri',
+                    'visible_to' => ['employee'],
                     'title' => 'Slip gaji mandiri (/payslip)',
                     'reading_minutes' => 4,
                     'excerpt' => 'Self-service slip: hanya periode dengan run finalized; PDF bila endpoint tersedia; admin dialihkan ke konteks laporan.',
@@ -396,6 +511,7 @@ HTML,
             'slug' => 'pengaturan-sistem',
             'title' => 'Pengaturan sistem & master pendukung',
             'icon' => 'ti ti-settings',
+            'visible_to' => ['admin'],
             'description' => 'Cronjob, pengguna/role, lokalisasi, prefix nomor — biasanya sekali setup lalu jarang diubah.',
             'articles' => [
                 [
@@ -436,6 +552,7 @@ HTML,
             'slug' => 'pelaporan-detail',
             'title' => 'Pelaporan HCM (langkah demi langkah)',
             'icon' => 'ti ti-report-analytics',
+            'visible_to' => ['admin'],
             'description' => 'Cara memakai setiap layar laporan admin: filter, export, dan interpretasi data.',
             'articles' => [
                 [
@@ -484,6 +601,7 @@ HTML,
             'slug' => 'kinerja-goals-training',
             'title' => 'Kinerja, goals, dan pelatihan',
             'icon' => 'ti ti-chart-line',
+            'visible_to' => ['admin'],
             'description' => 'Workflow appraisal, tracking sasaran, dan administrasi pelatihan untuk admin dan manager.',
             'articles' => [
                 [
@@ -529,6 +647,7 @@ HTML,
             'slug' => 'wilayah-indonesia',
             'title' => 'Master wilayah (negara, provinsi, kota)',
             'icon' => 'ti ti-map-pin',
+            'visible_to' => ['admin'],
             'description' => 'Referensi geografis untuk alamat karyawan dan filter; jarang diubah setelah stabil.',
             'articles' => [
                 [
@@ -547,10 +666,12 @@ HTML,
             'slug' => 'lembur-tiket',
             'title' => 'Lembur dan tiket',
             'icon' => 'ti ti-flame',
+            'visible_to' => ['authenticated'],
             'description' => 'Permintaan lembur, master tipe lembur, dan modul tiket untuk eskalasi operasional.',
             'articles' => [
                 [
                     'slug' => 'lembur-alur-admin-karyawan',
+                    'visible_to' => ['authenticated'],
                     'title' => 'Lembur: jalur admin vs karyawan',
                     'reading_minutes' => 5,
                     'excerpt' => '/overtime vs /overtime-employee, kalkulator, dan tautan komponen slip.',
@@ -562,6 +683,7 @@ HTML,
                 ],
                 [
                     'slug' => 'tiket-internal',
+                    'visible_to' => ['authenticated'],
                     'title' => 'Tiket dukungan internal',
                     'reading_minutes' => 4,
                     'excerpt' => 'Jalur /tickets-admin vs /tickets-employee, SLA, lampiran, dan kapan menggunakan tiket vs email bebas.',
@@ -576,6 +698,7 @@ HTML,
                 ],
                 [
                     'slug' => 'tutorial-ticket-master-kategori',
+                    'visible_to' => ['admin'],
                     'title' => 'Master kategori tiket (/ticket-master)',
                     'reading_minutes' => 4,
                     'excerpt' => 'Mendefinisikan kategori & opsi form sebelum karyawan mengajukan tiket.',
@@ -586,6 +709,7 @@ HTML,
                 ],
                 [
                     'slug' => 'tutorial-alur-tiket-admin-harian',
+                    'visible_to' => ['admin'],
                     'title' => 'SOP harian tiket admin (/tickets-admin, /tickets-grid, /ticket-details)',
                     'reading_minutes' => 6,
                     'excerpt' => 'Dari antrian → assign → komentar → tutup; konsistensi dengan URL berbasis ID.',
@@ -605,6 +729,7 @@ HTML,
             'slug' => 'admin-saas',
             'title' => 'Super Admin (tenant SaaS)',
             'icon' => 'ti ti-building-bank',
+            'visible_to' => ['global_admin'],
             'description' => 'Operator internal: perusahaan, paket, langganan, domain, dan transaksi — bukan rutinitas HR harian.',
             'articles' => [
                 [
@@ -649,6 +774,7 @@ HTML,
             'slug' => 'dukungan',
             'title' => 'Referensi dan pelaporan',
             'icon' => 'ti ti-lifebuoy',
+            'visible_to' => ['admin'],
             'description' => 'Pointer ke laporan terperinci, promosi/mutasi, rekonsiliasi API, dan dokumentasi teknis.',
             'articles' => [
                 [
@@ -663,6 +789,7 @@ HTML,
                 ],
                 [
                     'slug' => 'kinerja-dan-pelatihan-ringkas',
+                    'visible_to' => ['admin'],
                     'title' => 'Kinerja dan pelatihan: mulai dari sini',
                     'reading_minutes' => 2,
                     'excerpt' => 'Tutorial langkah demi langkah dipindah ke kategori khusus agar mudah dijelaskan ke admin baru.',
@@ -673,6 +800,7 @@ HTML,
                 ],
                 [
                     'slug' => 'export-rekonsiliasi-api-operator',
+                    'visible_to' => ['admin'],
                     'title' => 'Export rekonsiliasi (API operator)',
                     'reading_minutes' => 3,
                     'excerpt' => 'Tidak ada halaman web final; operator memakai POST/GET /v1/reconciliation/exports.',
@@ -683,6 +811,7 @@ HTML,
                 ],
                 [
                     'slug' => 'promosi-mutasi-keluar',
+                    'visible_to' => ['admin'],
                     'title' => 'Promosi, pengunduran diri, dan pemutusan',
                     'reading_minutes' => 3,
                     'excerpt' => 'Tiga modul administrasi mutasi staf; semua mutasi sensitif admin-only di web.',

@@ -21,14 +21,14 @@
     var companyCodeNode = companyContextCardNode ? companyContextCardNode.querySelector('[data-company-code]') : null;
     var copyCompanyCodeBtn = companyContextCardNode ? companyContextCardNode.querySelector('[data-copy-company-code]') : null;
     var subscriptionCardNode = document.querySelector('[data-subscription-summary-card]');
-    var subscriptionStatusNode = document.querySelector('[data-subscription-status]');
-    var subscriptionPackageNode = document.querySelector('[data-subscription-package]');
-    var subscriptionBillingCycleNode = document.querySelector('[data-subscription-billing-cycle]');
-    var subscriptionPeriodNode = document.querySelector('[data-subscription-period]');
-    var subscriptionNextPaymentDateNode = document.querySelector('[data-subscription-next-payment-date]');
-    var subscriptionNextPaymentAmountNode = document.querySelector('[data-subscription-next-payment-amount]');
-    var subscriptionEmployeeSlotsNode = document.querySelector('[data-subscription-employee-slots]');
-    var subscriptionEmployeeUsageNode = document.querySelector('[data-subscription-employee-usage]');
+    var subscriptionStatusNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-status]') : null;
+    var subscriptionPackageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-package]') : null;
+    var subscriptionBillingCycleNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-billing-cycle]') : null;
+    var subscriptionPeriodNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-period]') : null;
+    var subscriptionNextPaymentDateNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-next-payment-date]') : null;
+    var subscriptionNextPaymentAmountNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-next-payment-amount]') : null;
+    var subscriptionEmployeeSlotsNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-slots]') : null;
+    var subscriptionEmployeeUsageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-usage]') : null;
     var snapshot = {};
 
     function normalize(value) {

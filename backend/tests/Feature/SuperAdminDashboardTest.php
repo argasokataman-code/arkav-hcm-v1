@@ -272,12 +272,12 @@ class SuperAdminDashboardTest extends TestCase
             'user_id' => $newUser->id,
             'role' => 'employee',
             'status' => 'active',
-            'joined_at' => now()->subDays(5),
+            'joined_at' => now()->startOfMonth()->addDay(),
         ]);
 
         CompanyUser::query()->where('user_id', $retainedUser->id)->update(['joined_at' => now()->subMonths(2)->startOfDay()]);
         CompanyUser::query()->where('user_id', $churnedUser->id)->update(['joined_at' => now()->subMonths(2)->startOfDay()]);
-        CompanyUser::query()->where('user_id', $newUser->id)->update(['joined_at' => now()->subDays(5)->startOfDay()]);
+        CompanyUser::query()->where('user_id', $newUser->id)->update(['joined_at' => now()->startOfMonth()->addDay()->startOfDay()]);
 
         $response = $this->adminRequest()->getJson('/v1/saas/dashboard/users/retention');
 

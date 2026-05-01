@@ -78,7 +78,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Employees</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user1" class="check">
+                                        <input type="checkbox" id="user1" class="check" data-preferences="module_employees">
                                         <label for="user1" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -87,7 +87,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Clients</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user2" class="check">
+                                        <input type="checkbox" id="user2" class="check" data-preferences="module_clients">
                                         <label for="user2" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -96,7 +96,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Projects</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user3" class="check">
+                                        <input type="checkbox" id="user3" class="check" data-preferences="module_projects">
                                         <label for="user3" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -105,7 +105,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Contacts</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user4" class="check">
+                                        <input type="checkbox" id="user4" class="check" data-preferences="module_contacts">
                                         <label for="user4" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -114,7 +114,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Companies</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user5" class="check">
+                                        <input type="checkbox" id="user5" class="check" data-preferences="module_companies">
                                         <label for="user5" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -123,7 +123,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Deals</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user6" class="check">
+                                        <input type="checkbox" id="user6" class="check" data-preferences="module_deals">
                                         <label for="user6" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -132,7 +132,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Leads</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user12" class="check">
+                                        <input type="checkbox" id="user12" class="check" data-preferences="module_leads">
                                         <label for="user12" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -141,7 +141,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Pipeline</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user7" class="check">
+                                        <input type="checkbox" id="user7" class="check" data-preferences="module_pipeline">
                                         <label for="user7" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -150,7 +150,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Activities</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user8" class="check">
+                                        <input type="checkbox" id="user8" class="check" data-preferences="module_activities">
                                         <label for="user8" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -159,7 +159,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Sales</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user9" class="check">
+                                        <input type="checkbox" id="user9" class="check" data-preferences="module_sales">
                                         <label for="user9" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -168,7 +168,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Accounting</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user10" class="check">
+                                        <input type="checkbox" id="user10" class="check" data-preferences="module_accounting">
                                         <label for="user10" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -177,7 +177,7 @@
                                 <div class="d-md-flex justify-content-between align-items-center border rounded bg-white p-3 mb-3">
                                     <h5 class="fw-medium fs-14">Reports</h5>
                                      <div class="status-toggle modal-status">
-                                        <input type="checkbox" id="user11" class="check">
+                                        <input type="checkbox" id="user11" class="check" data-preferences="module_reports">
                                         <label for="user11" class="checktoggle"> </label>
                                     </div>
                                 </div>
@@ -187,9 +187,92 @@
                 </div>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-xl-12">
+                <div id="preferences-feedback" class="alert mt-0 mb-2" style="display:none;"></div>
+                <div class="d-flex align-items-center justify-content-end mb-3">
+                    <button type="button" class="btn btn-outline-light border me-3" id="preferences-cancel">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="preferences-save">Save Preferences</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 </div>
 <!-- /Page Wrapper -->
+
+<script>
+(function () {
+    var GROUP = 'preferences';
+    var API_BASE = '/v1/hcm';
+
+    function getToken() {
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            var t = window.AuthApi.getToken(); if (t) return t;
+        }
+        return localStorage.getItem('arcav_access_token') || sessionStorage.getItem('arcav_access_token') ||
+               localStorage.getItem('token') || sessionStorage.getItem('token') ||
+               ((document.querySelector('meta[name="api-token"]') || {}).content) || null;
+    }
+
+    function buildHeaders() {
+        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+        var token = getToken(); if (token) h['Authorization'] = 'Bearer ' + token;
+        var csrf = document.querySelector('meta[name="csrf-token"]'); if (csrf) h['X-CSRF-TOKEN'] = csrf.content;
+        try {
+            var ctx = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (ctx.companyId) h['X-Company-Id'] = String(ctx.companyId);
+            if (ctx.companyCode) h['X-Company-Code'] = String(ctx.companyCode);
+        } catch(_) {}
+        return h;
+    }
+
+    function showFeedback(msg, type) {
+        var el = document.getElementById('preferences-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.className = 'alert alert-' + (type || 'success');
+        el.style.display = 'block';
+        setTimeout(function () { el.style.display = 'none'; }, 4000);
+    }
+
+    function loadSettings() {
+        fetch(API_BASE + '/settings?group=' + GROUP, { headers: buildHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) return;
+                var s = data.data || {};
+                document.querySelectorAll('[data-preferences]').forEach(function (el) {
+                    var key = GROUP + '_' + el.dataset.preferences;
+                    if (s[key] !== undefined) el.checked = (s[key] === '1' || s[key] === true || s[key] === 'true');
+                });
+            }).catch(function () {});
+    }
+
+    function saveSettings() {
+        var settings = {};
+        document.querySelectorAll('[data-preferences]').forEach(function (el) {
+            settings[el.dataset.preferences] = el.checked ? '1' : '0';
+        });
+        fetch(API_BASE + '/settings', {
+            method: 'POST', headers: buildHeaders(),
+            body: JSON.stringify({ group: GROUP, settings: settings })
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.success) showFeedback('Preferences saved.', 'success');
+              else showFeedback((data.error && data.error.message) || 'Failed to save.', 'danger');
+          }).catch(function () { showFeedback('Connection error.', 'danger'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        var saveBtn = document.getElementById('preferences-save');
+        if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+        var cancelBtn = document.getElementById('preferences-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { loadSettings(); });
+    });
+})();
+</script>
 
 @endsection

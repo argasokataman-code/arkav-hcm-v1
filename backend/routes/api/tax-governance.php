@@ -10,6 +10,10 @@ Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context
     Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);
     Route::get('/reports/tenant-self-audit-export', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportExport']);
     Route::get('/reports/tenant-compliance-status', [HcmTaxGovernanceController::class, 'tenantComplianceStatus']);
+    Route::get('/platform-billing/policies', [HcmTaxGovernanceController::class, 'platformBillingPolicies']);
+    Route::post('/platform-billing/policies', [HcmTaxGovernanceController::class, 'storePlatformBillingPolicy']);
+    Route::get('/platform-billing/reports', [HcmTaxGovernanceController::class, 'platformBillingReports']);
+    Route::get('/platform-billing/invoices', [HcmTaxGovernanceController::class, 'platformBillingInvoices']);
     Route::get('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'platformTaxCompliancePolicies']);
     Route::post('/platform-tax-compliance/policies', [HcmTaxGovernanceController::class, 'storePlatformTaxCompliancePolicy']);
     Route::get('/platform-tax-compliance/reports', [HcmTaxGovernanceController::class, 'platformTaxComplianceReports']);

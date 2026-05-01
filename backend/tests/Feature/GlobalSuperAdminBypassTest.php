@@ -110,6 +110,40 @@ class GlobalSuperAdminBypassTest extends TestCase
         $this->assertSame($preferredCompany->code, $result['company']->code);
     }
 
+    public function test_global_admin_with_stale_tenant_header_falls_back_to_default_company(): void
+    {
+        config()->set('hcm.super_admin_default_company_code', 'default_company');
+
+        $globalAdmin = User::factory()->create([
+            'email' => 'platform.dev@example.com',
+            'is_super_admin' => true,
+        ]);
+
+        $fallbackCompany = Company::query()->firstOrCreate(
+            ['code' => 'default_company'],
+            [
+                'name' => 'Default Company',
+                'slug' => 'default-company',
+            ]
+        );
+
+        $request = Request::create('/api/whatever', 'GET', server: [
+            'HTTP_X-Company-Code' => 'stale_missing_company_code',
+        ]);
+
+        $resolver = app(TenantContextResolver::class);
+        $result = $resolver->resolve($request, $globalAdmin);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame($fallbackCompany->id, $result['company']->id);
+        $this->assertSame('super_admin', $result['membership']->role);
+
+        $this->assertDatabaseMissing('company_users', [
+            'user_id' => $globalAdmin->id,
+            'company_id' => $fallbackCompany->id,
+        ]);
+    }
+
     public function test_employee_list_stays_scoped_to_active_tenant_for_global_admin(): void
     {
         [, $companyA, $token] = $this->seedGlobalAdminWithToken();

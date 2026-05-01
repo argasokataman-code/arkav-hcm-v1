@@ -1,5 +1,34 @@
 # Packages Status Tracker
 
+## Snapshot 2026-05-01
+
+- Status umum: sinkronisasi katalog fitur package dipindah ke backend agar `/packages` selalu membaca daftar fitur terbaru, termasuk feature code asset, tickets, dan custom feature existing.
+
+### Evidence Runtime
+
+- Endpoint baru `GET /v1/saas/packages/feature-catalog` mengembalikan katalog fitur backend-driven untuk UI packages.
+- `frontend/resources/js/packages-management.js` sekarang fetch katalog fitur dari endpoint backend itu sebelum render composer package.
+- Feature code custom yang sudah ada di `package_features` tetapi belum ada di katalog default tetap dimunculkan dalam grup `Custom Features`.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/PackageServiceTest.php`
+- `npx vitest run tests/ui/packages-management.wiring.test.js`
+- Regression baru:
+	- endpoint feature catalog memuat feature backend terbaru (`tickets`, `asset_management`) dan custom feature persisted.
+	- packages management UI merender feature dari backend catalog, bukan bergantung penuh pada daftar frontend statis.
+
+### Dokumen Yang Disinkronkan
+
+- `docs/api/packages-api.md`
+- `docs/api/openapi.yaml`
+- `docs/features/packages/README.md`
+- `docs/features/packages/STATUS-TRACKER.md`
+
+### Gap Yang Masih Tersisa
+
+- Metadata deskripsi feature tetap berbasis config backend; bila product menambah feature gate baru, config catalog ini tetap harus ikut diperbarui agar grouping/deskripsi UI tetap rapi.
+
 ## Snapshot 2026-04-27
 
 - Status umum: hardening visibility package internal selesai untuk mencegah package super-admin bocor ke katalog tenant/public.

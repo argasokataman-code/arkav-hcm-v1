@@ -1273,50 +1273,70 @@
                                 <img src="{{ $headerProfilePhotoUrl }}" alt="Img" class="img-fluid rounded-circle" data-profile-display-avatar="1">
                             </span>
                         </a>
-                        <div class="dropdown-menu shadow-none">
-                            <div class="card mb-0">
-                                <div class="card-header">
-                                    <div class="d-flex align-items-center">
-                                        <span class="avatar avatar-lg me-2 avatar-rounded">
-                                            <img src="{{ $headerProfilePhotoUrl }}" alt="img" data-profile-display-avatar="1">
-                                        </span>
-                                        <div>
-                                            <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>
-                                            <p class="fs-12 fw-medium mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
+                        <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width:260px;border-radius:12px;overflow:hidden;">
+                            <div class="card mb-0 border-0">
+                                {{-- Profile header --}}
+                                <div class="card-header bg-primary bg-opacity-10 border-0 px-3 py-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        {{-- Avatar with initials fallback --}}
+                                        @php
+                                            $initials = collect(explode(' ', $headerProfileName))->map(fn($w) => strtoupper(substr($w,0,1)))->take(2)->join('');
+                                        @endphp
+                                        <div class="position-relative flex-shrink-0">
+                                            <img src="{{ $headerProfilePhotoUrl }}"
+                                                alt="{{ $initials }}"
+                                                data-profile-display-avatar="1"
+                                                class="rounded-circle border border-2 border-white shadow-sm"
+                                                style="width:48px;height:48px;object-fit:cover;"
+                                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                            <div class="rounded-circle bg-primary text-white fw-bold border border-2 border-white shadow-sm"
+                                                style="width:48px;height:48px;display:none;align-items:center;justify-content:center;font-size:16px;">
+                                                {{ $initials }}
+                                            </div>
+                                            <span class="position-absolute bottom-0 end-0 bg-success rounded-circle border border-white" style="width:10px;height:10px;"></span>
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <div class="fw-semibold text-dark lh-sm text-truncate" style="max-width:170px;" data-profile-display-name="1">{{ $headerProfileName }}</div>
+                                            <div class="text-muted fs-12 text-truncate" style="max-width:170px;" data-profile-display-email="1">{{ $headerProfileEmail }}</div>
                                             @if ($headerActiveCompanyName !== '' || $headerActiveCompanyCode !== '')
-                                                <p class="mb-0 mt-1">
-                                                    <span class="badge bg-light text-dark border">
-                                                        {{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
+                                                <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
+                                                    <span class="badge bg-white text-dark border rounded-pill fs-11" style="font-weight:500;">
+                                                        <i class="ti ti-building me-1" style="font-size:10px;"></i>{{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
                                                     </span>
-                                                    <span class="badge bg-soft-secondary text-secondary ms-1">{{ $headerRoleBadge }}</span>
+                                                    <span class="badge bg-primary-subtle text-primary rounded-pill fs-11">{{ $headerRoleBadge }}</span>
                                                     @if ($headerPackageCode !== '')
-                                                        <span class="badge {{ $headerPackageBadgeClass }} ms-1" title="Paket aktif: {{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">{{ $headerPackageCode }}</span>
+                                                        <span class="badge {{ $headerPackageIsInternal ? 'bg-dark text-white' : 'bg-success-subtle text-success' }} rounded-pill fs-11"
+                                                            title="{{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">
+                                                            {{ $headerPackageCode }}
+                                                        </span>
                                                     @endif
-                                                </p>
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
-                                <div class="card-body">
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile')}}">
-                                        <i class="ti ti-user-circle me-1"></i>My Profile
+                                {{-- Menu items --}}
+                                <div class="card-body p-2">
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('profile')}}">
+                                        <i class="ti ti-user-circle fs-16 text-muted"></i><span>My Profile</span>
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
-                                        <i class="ti ti-settings me-1"></i>Settings
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
+                                        <i class="ti ti-settings fs-16 text-muted"></i><span>Settings</span>
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('security-settings')}}">
-                                        <i class="ti ti-status-change me-1"></i>Status
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('security-settings')}}">
+                                        <i class="ti ti-shield-lock fs-16 text-muted"></i><span>Security</span>
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile-settings')}}">
-                                        <i class="ti ti-circle-arrow-up me-1"></i>My Account
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('profile-settings')}}">
+                                        <i class="ti ti-user-cog fs-16 text-muted"></i><span>My Account</span>
                                     </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('knowledgebase')}}">
-                                        <i class="ti ti-question-mark me-1"></i>Knowledge Base
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('knowledgebase')}}">
+                                        <i class="ti ti-help-circle fs-16 text-muted"></i><span>Knowledge Base</span>
                                     </a>
                                 </div>
-                                <div class="card-footer">
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="javascript:void(0);" data-auth-logout>
-                                        <i class="ti ti-login me-2"></i>Logout
+                                {{-- Logout --}}
+                                <div class="card-footer border-top p-2">
+                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3 text-danger" href="javascript:void(0);" data-auth-logout>
+                                        <i class="ti ti-logout fs-16"></i><span>Logout</span>
                                     </a>
                                 </div>
                             </div>

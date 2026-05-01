@@ -795,9 +795,9 @@ class HcmTaxGovernanceController extends Controller
                     ],
                     'billing_tax_compliance' => [
                         'billing_cycle_active' => !empty($billingCompliance['policy_uuid']),
-                        'invoices_issued' => (int) ($billingCompliance['invoice_count'] ?? 0),
-                        'invoices_paid' => (int) ($billingCompliance['paid_invoice_count'] ?? 0),
-                        'amount_outstanding' => (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0),
+                        'invoices_issued' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) : 0,
+                        'invoices_paid' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['paid_invoice_count'] ?? 0) : 0,
+                        'amount_outstanding' => !empty($billingCompliance['policy_uuid']) ? (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0) : 0,
                         'taxable_revenue_amount' => (float) ($billingCompliance['taxable_revenue_amount'] ?? 0),
                         'cleared_revenue_amount' => (float) ($billingCompliance['cleared_revenue_amount'] ?? 0),
                         'uncleared_revenue_amount' => (float) ($billingCompliance['uncleared_revenue_amount'] ?? 0),

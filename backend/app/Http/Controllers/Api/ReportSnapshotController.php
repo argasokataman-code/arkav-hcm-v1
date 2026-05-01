@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReportSnapshotController extends Controller
 {
@@ -298,7 +300,7 @@ class ReportSnapshotController extends Controller
 
     private function buildExportFilename(ReportSnapshot $snapshot, string $fileType): string
     {
-        $extension = $fileType === 'excel' ? 'xls' : $fileType;
+        $extension = $fileType === 'excel' ? 'xlsx' : $fileType;
 
         return sprintf(
             '%s_%s_to_%s_%s.%s',
@@ -342,6 +344,7 @@ class ReportSnapshotController extends Controller
     private function buildCsvContent(array $rows): string
     {
         $stream = fopen('php://temp', 'w+');
+        fwrite($stream, "\xEF\xBB\xBF");
         fputcsv($stream, ['Module', 'Data Key', 'Payload']);
 
         foreach ($rows as $row) {
@@ -357,16 +360,48 @@ class ReportSnapshotController extends Controller
 
     private function buildExcelContent(array $rows): string
     {
-        $lines = ["Module\tData Key\tPayload"];
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Snapshot');
 
+        $sheet->fromArray(['Module', 'Data Key', 'Payload'], null, 'A1');
+
+        $rowIndex = 2;
         foreach ($rows as $row) {
-            $module = str_replace(["\t", "\r", "\n"], ' ', (string) $row['module']);
-            $dataKey = str_replace(["\t", "\r", "\n"], ' ', (string) $row['dataKey']);
-            $payload = str_replace(["\t", "\r", "\n"], ' ', (string) $row['payload']);
-            $lines[] = $module."\t".$dataKey."\t".$payload;
+            $sheet->setCellValue('A' . $rowIndex, (string) ($row['module'] ?? ''));
+            $sheet->setCellValue('B' . $rowIndex, (string) ($row['dataKey'] ?? ''));
+            $sheet->setCellValue('C' . $rowIndex, (string) ($row['payload'] ?? ''));
+            $rowIndex++;
         }
 
-        return implode("\n", $lines)."\n";
+        $sheet->getStyle('A1:C1')->getFont()->setBold(true);
+        $sheet->getColumnDimension('A')->setWidth(24);
+        $sheet->getColumnDimension('B')->setWidth(32);
+        $sheet->getColumnDimension('C')->setWidth(80);
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+
+        $temp = fopen('php://temp', 'w+b');
+        if (! $temp) {
+            throw new \RuntimeException('Failed to allocate temp stream for excel export.');
+        }
+
+        $meta = stream_get_meta_data($temp);
+        $uri = (string) ($meta['uri'] ?? '');
+        if ($uri === '') {
+            fclose($temp);
+            throw new \RuntimeException('Temp stream URI is unavailable for excel export.');
+        }
+
+        $writer->save($uri);
+        rewind($temp);
+        $content = (string) stream_get_contents($temp);
+        fclose($temp);
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        return $content;
     }
 
     private function buildPdfContent(ReportSnapshot $snapshot, array $rows): string

@@ -76,28 +76,11 @@
                     </div>
                     <div class="card-body">
                         <h5 class="mb-3">Write Custom JS</h5>
-                        <div class="bg-dark text-gray-5">
-<pre class="language-markup mb-0">
-<code class="language-markup mb-0">
-    document.addEventListener("DOMContentLoaded", function () {
-        const scrollers = document.querySelectorAll(".horizontal-slide");
-        scrollers.forEach((scroller) => {
-        scroller.setAttribute("data-animated", true);
-        const scrollerInner = scroller.querySelector(".slide-list");
-        const scrollerContent = Array.from(scrollerInner.children);
-        scrollerContent.forEach((item) => {
-            const duplicatedItem = item.cloneNode(true);
-            duplicatedItem.setAttribute("aria-hidden", true);
-            scrollerInner.appendChild(duplicatedItem);
-        });
-    }); 
-});
-</code>
-</pre>
-                        </div>
+                        <textarea id="custom-js-input" data-custom-js="custom_js" class="form-control font-monospace" rows="14" placeholder="// Write your custom JavaScript here"></textarea>
+                        <div id="custom-js-feedback" class="alert mt-3" style="display:none;"></div>
                         <div class="d-flex align-items-center justify-content-end border-top mt-3 pt-3">
-                            <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="button" class="btn btn-outline-light border me-3" id="custom-js-cancel">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="custom-js-save">Save</button>
                         </div>
                     </div>
                 </div>
@@ -107,4 +90,73 @@
 
 </div>
 <!-- /Page Wrapper -->
+
+<script>
+(function () {
+    var GROUP = 'custom_code';
+    var API_BASE = '/v1/hcm';
+
+    function getToken() {
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            var t = window.AuthApi.getToken(); if (t) return t;
+        }
+        return localStorage.getItem('arcav_access_token') || sessionStorage.getItem('arcav_access_token') ||
+               localStorage.getItem('token') || sessionStorage.getItem('token') ||
+               ((document.querySelector('meta[name="api-token"]') || {}).content) || null;
+    }
+
+    function buildHeaders() {
+        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+        var token = getToken(); if (token) h['Authorization'] = 'Bearer ' + token;
+        var csrf = document.querySelector('meta[name="csrf-token"]'); if (csrf) h['X-CSRF-TOKEN'] = csrf.content;
+        try {
+            var ctx = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (ctx.companyId) h['X-Company-Id'] = String(ctx.companyId);
+            if (ctx.companyCode) h['X-Company-Code'] = String(ctx.companyCode);
+        } catch(_) {}
+        return h;
+    }
+
+    function showFeedback(msg, type) {
+        var el = document.getElementById('custom-js-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.className = 'alert alert-' + (type || 'success');
+        el.style.display = 'block';
+        setTimeout(function () { el.style.display = 'none'; }, 4000);
+    }
+
+    function loadSettings() {
+        fetch(API_BASE + '/settings?group=' + GROUP, { headers: buildHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) return;
+                var s = data.data || {};
+                var ta = document.getElementById('custom-js-input');
+                if (ta && s.custom_code_custom_js !== undefined) ta.value = s.custom_code_custom_js || '';
+            }).catch(function () {});
+    }
+
+    function saveSettings() {
+        var ta = document.getElementById('custom-js-input');
+        fetch(API_BASE + '/settings', {
+            method: 'POST', headers: buildHeaders(),
+            body: JSON.stringify({ group: GROUP, settings: { custom_js: ta ? ta.value : '' } })
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.success) showFeedback('Custom JS saved.', 'success');
+              else showFeedback((data.error && data.error.message) || 'Failed to save.', 'danger');
+          }).catch(function () { showFeedback('Connection error.', 'danger'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        var saveBtn = document.getElementById('custom-js-save');
+        if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+        var cancelBtn = document.getElementById('custom-js-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { loadSettings(); });
+    });
+})();
+</script>
+
 @endsection

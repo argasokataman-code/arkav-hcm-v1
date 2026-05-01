@@ -4,6 +4,7 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -115,6 +116,7 @@ class HcmSalaryComponent extends Model
         'description',
         'kind',
         'category',
+        'category_uuid',
         'legal_basis',
         'legal_notes',
         'default_percent',
@@ -137,6 +139,7 @@ class HcmSalaryComponent extends Model
     {
         return [
             'company_id' => 'integer',
+            'category_uuid' => 'string',
             'default_percent' => 'decimal:4',
             'include_bpjs_health_wage_base' => 'boolean',
             'include_bpjs_tk_wage_base' => 'boolean',
@@ -182,6 +185,11 @@ class HcmSalaryComponent extends Model
             ->all();
 
         return $custom;
+    }
+
+    public function categoryDefinition(): BelongsTo
+    {
+        return $this->belongsTo(HcmSalaryComponentCategory::class, 'category_uuid', 'uuid');
     }
 
     /** @return list<string> */

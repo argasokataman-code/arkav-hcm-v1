@@ -157,4 +157,20 @@ class SettingsApiTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_localization_timezone_must_be_valid_timezone_identifier(): void
+    {
+        $token = $this->bearerToken();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/v1/hcm/settings', [
+            'group' => 'localization',
+            'settings' => [
+                'timezone' => 'GMT+7',
+            ],
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
 }

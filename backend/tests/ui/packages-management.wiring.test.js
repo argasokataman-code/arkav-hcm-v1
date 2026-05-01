@@ -471,4 +471,66 @@ describe('Packages management wiring', () => {
     expect(alert).toBeTruthy();
     expect(alert.textContent).toContain('Package cannot be deleted while subscription history still references it.');
   });
+
+  it('prefers backend feature catalog so latest feature codes appear in package composer', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/feature-catalog') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                module: 'support',
+                title: 'Support',
+                description: 'Support and internal workflow',
+                features: [
+                  { code: 'tickets', name: 'Tickets', description: 'Internal helpdesk module' },
+                  { code: 'asset_management', name: 'Asset Management', description: 'Asset inventory module' },
+                ],
+              },
+            ],
+          }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/package-addons?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [] }),
+      };
+    });
+
+    await loadPackagesManager(fetchMock);
+
+    expect(document.getElementById('input_package_feature_chips').textContent).toContain('Tickets');
+    expect(document.getElementById('input_package_feature_chips').textContent).toContain('Asset Management');
+  });
 });

@@ -4,6 +4,7 @@ namespace App\Services\Hcm;
 
 use App\Models\CompanySetting;
 use App\Models\HolidayCalendar;
+use App\Support\WebsiteSettings;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
@@ -17,15 +18,19 @@ class PayrollMonthlySettingsService
     private const DEFAULTS = [
         'paydayDay' => 28,
         'cutoffOffsetDays' => 3,
-        'payrollTimezone' => 'Asia/Jakarta',
+        'payrollTimezone' => 'UTC',
         'disburseBeforePaydayAllowed' => false,
         'paydayHolidayStrategy' => self::PAYDAY_STRATEGY_PREVIOUS_WORKING_DAY,
     ];
 
     public function currentSettings(?int $companyId): array
     {
+        $defaultTimezone = $this->defaultTimezone();
+
         if ($companyId === null) {
-            return self::DEFAULTS;
+            return array_merge(self::DEFAULTS, [
+                'payrollTimezone' => $defaultTimezone,
+            ]);
         }
 
         $stored = CompanySetting::query()
@@ -51,7 +56,7 @@ class PayrollMonthlySettingsService
         return [
             'paydayDay' => (int) ($stored->get('payroll.monthly.payday_day') ?: self::DEFAULTS['paydayDay']),
             'cutoffOffsetDays' => (int) ($stored->get('payroll.monthly.cutoff_offset_days') ?: self::DEFAULTS['cutoffOffsetDays']),
-            'payrollTimezone' => (string) ($stored->get('payroll.monthly.payroll_timezone') ?: self::DEFAULTS['payrollTimezone']),
+            'payrollTimezone' => $this->sanitizeTimezone((string) ($stored->get('payroll.monthly.payroll_timezone') ?: $defaultTimezone), $defaultTimezone),
             'disburseBeforePaydayAllowed' => ((int) ($stored->get('payroll.monthly.disburse_before_payday_allowed') ?: (self::DEFAULTS['disburseBeforePaydayAllowed'] ? '1' : '0'))) === 1,
             'paydayHolidayStrategy' => $strategy,
         ];
@@ -130,5 +135,24 @@ class PayrollMonthlySettingsService
         }
 
         return $query->exists();
+    }
+
+    private function defaultTimezone(): string
+    {
+        try {
+            return WebsiteSettings::localizationTimezone();
+        } catch (\Throwable) {
+            return (string) config('app.timezone', self::DEFAULTS['payrollTimezone']);
+        }
+    }
+
+    private function sanitizeTimezone(string $timezone, string $fallback): string
+    {
+        $timezone = trim($timezone);
+        if ($timezone === '') {
+            return $fallback;
+        }
+
+        return in_array($timezone, timezone_identifiers_list(), true) ? $timezone : $fallback;
     }
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class HcmSalaryComponentCategory extends Model
 {
@@ -28,5 +29,10 @@ class HcmSalaryComponentCategory extends Model
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    public function salaryComponents(): HasMany
+    {
+        return $this->hasMany(HcmSalaryComponent::class, 'category_uuid', 'uuid');
     }
 }

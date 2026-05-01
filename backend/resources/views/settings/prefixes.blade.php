@@ -207,132 +207,164 @@
 <!-- /Page Wrapper -->
 
 <script>
-$(document).ready(function() {
+(function () {
     const apiBaseUrl = '/v1/hcm';
 
     function getAuthToken() {
-        return localStorage.getItem('token') ||
-               sessionStorage.getItem('token') ||
-               $('meta[name="api-token"]').attr('content') ||
-               $('meta[name="auth-token"]').attr('content') ||
-               null;
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            const tokenFromApi = window.AuthApi.getToken();
+            if (tokenFromApi) {
+                return tokenFromApi;
+            }
+        }
+
+        return localStorage.getItem('arcav_access_token') ||
+            sessionStorage.getItem('arcav_access_token') ||
+            localStorage.getItem('token') ||
+            sessionStorage.getItem('token') ||
+            (document.querySelector('meta[name="api-token"]') || {}).content ||
+            (document.querySelector('meta[name="auth-token"]') || {}).content ||
+            null;
     }
-    
-    // Load existing prefixes on page load
-    loadPrefixes();
-    
-    function loadPrefixes() {
-        $.ajax({
-            url: `${apiBaseUrl}/settings?group=prefix`,
-            type: 'GET',
-            headers: {
-                'Authorization': `Bearer ${getAuthToken() || ''}`,
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success && response.data) {
-                    const settings = response.data;
-                    console.log('✓ Loaded prefix settings:', settings);
-                    // Populate form fields with existing values
-                    $('[data-prefix]').each(function() {
-                        const key = $(this).data('prefix');
-                        const settingKey = `prefix_${key}`;
-                        if (settings[settingKey]) {
-                            $(this).val(settings[settingKey]);
-                        }
-                    });
-                }
-            },
-            error: function(err) {
-                console.warn('⚠ Could not load prefixes, using empty defaults', err);
-                // Forms start empty, which is fine
+
+    function getHeaders() {
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        };
+
+        const token = getAuthToken();
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]');
+        if (csrf && csrf.content) {
+            headers['X-CSRF-TOKEN'] = csrf.content;
+        }
+
+        try {
+            const tenant = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (tenant.companyId) {
+                headers['X-Company-Id'] = String(tenant.companyId);
+            }
+            if (tenant.companyCode) {
+                headers['X-Company-Code'] = String(tenant.companyCode);
+            }
+        } catch (_) {
+            // Ignore malformed tenant payload.
+        }
+
+        return headers;
+    }
+
+    function applyPrefixSettings(settings) {
+        document.querySelectorAll('[data-prefix]').forEach(function (field) {
+            const key = field.dataset.prefix;
+            const settingKey = `prefix_${key}`;
+            const storedValue = settings[settingKey];
+            if (storedValue !== undefined && storedValue !== null && String(storedValue).trim() !== '') {
+                field.value = String(storedValue);
             }
         });
     }
-    
-    // Get authentication token from multiple sources
-    // Handle form submission
-    $('#prefixesForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        const token = getAuthToken();
-        if (!token) {
-            console.error('✗ No authentication token found');
-            alert('ERROR: Authentication token not found. Please refresh the page and try again.');
-            return;
-        }
-        
-        const prefixData = {};
+
+    function collectPrefixSettings() {
+        const payload = {};
         let hasData = false;
-        
-        $('[data-prefix]').each(function() {
-            const key = $(this).data('prefix');
-            const value = $(this).val().trim();
-            if (value) {
-                prefixData[key] = value;
+
+        document.querySelectorAll('[data-prefix]').forEach(function (field) {
+            const key = field.dataset.prefix;
+            const value = (field.value || '').toString().trim();
+            if (value !== '') {
+                payload[key] = value;
                 hasData = true;
             }
         });
-        
+
+        return { payload, hasData };
+    }
+
+    async function loadPrefixes() {
+        try {
+            const response = await fetch(`${apiBaseUrl}/settings?group=prefix`, {
+                method: 'GET',
+                headers: getHeaders(),
+            });
+            const body = await response.json();
+            if (body.success && body.data) {
+                applyPrefixSettings(body.data);
+            }
+        } catch (err) {
+            console.warn('Could not load prefixes, using current defaults', err);
+        }
+    }
+
+    async function submitPrefixes(event) {
+        event.preventDefault();
+
+        const token = getAuthToken();
+        if (!token) {
+            alert('ERROR: Authentication token not found. Please refresh the page and try again.');
+            return;
+        }
+
+        const { payload, hasData } = collectPrefixSettings();
         if (!hasData) {
             alert('WARNING: No prefix values entered. Please fill in at least one field.');
             return;
         }
-        
-        const submitBtn = $(this).find('button[type="submit"]');
-        const originalText = submitBtn.text();
-        submitBtn.prop('disabled', true).text('Saving...');
-        
-        console.log('→ Sending prefix settings:', prefixData);
-        
-        $.ajax({
-            url: `${apiBaseUrl}/settings`,
-            type: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            dataType: 'json',
-            data: JSON.stringify({
-                group: 'prefix',
-                settings: prefixData
-            }),
-            success: function(response) {
-                console.log('✓ API Response:', response);
-                if (response.success) {
-                    console.log('✓ Prefixes saved successfully');
-                    // Show success notification
-                    const successMsg = `✓ ${response.message || 'Prefixes saved successfully!'}`;
-                    alert(successMsg);
-                    submitBtn.prop('disabled', false).text(originalText);
-                } else {
-                    throw new Error(response.message || 'Unknown error');
+
+        const form = event.currentTarget;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn ? submitBtn.textContent : 'Save';
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+        }
+
+        try {
+            const response = await fetch(`${apiBaseUrl}/settings`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    group: 'prefix',
+                    settings: payload,
+                }),
+            });
+            const body = await response.json();
+
+            if (!response.ok || !body.success) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('ERROR: Not authorized. Please check your permissions.');
                 }
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.error('✗ Error saving prefixes:');
-                console.error('Status:', jqXHR.status);
-                console.error('Response:', jqXHR.responseJSON || jqXHR.responseText);
-                console.error('Error:', textStatus, errorThrown);
-                
-                let errorMsg = 'Error saving prefixes.';
-                if (jqXHR.status === 401 || jqXHR.status === 403) {
-                    errorMsg = 'ERROR: Not authorized. Please check your permissions.';
-                } else if (jqXHR.status === 422) {
-                    errorMsg = 'ERROR: Invalid data. ' + (jqXHR.responseJSON?.message || 'Please check your input.');
-                } else if (jqXHR.status === 0) {
-                    errorMsg = 'ERROR: Network error. Please check your connection.';
-                } else if (jqXHR.responseJSON?.message) {
-                    errorMsg = 'ERROR: ' + jqXHR.responseJSON.message;
+                if (response.status === 422) {
+                    throw new Error('ERROR: Invalid data. Please check your input.');
                 }
-                
-                alert(errorMsg);
-                submitBtn.prop('disabled', false).text(originalText);
+                throw new Error(body.message || body.error?.message || 'Error saving prefixes.');
             }
-        });
+
+            alert(body.message || 'Prefixes saved successfully!');
+            await loadPrefixes();
+        } catch (err) {
+            alert(err.message || 'Error saving prefixes.');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText || 'Save';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadPrefixes();
+        const form = document.getElementById('prefixesForm');
+        if (form) {
+            form.addEventListener('submit', submitPrefixes);
+        }
     });
-});
+})();
 </script>
 
 @endsection

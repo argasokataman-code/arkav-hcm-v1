@@ -74,7 +74,7 @@
                         <div class="border-bottom mb-3 pb-3">
                             <h4>SEO Settings</h4>
                         </div>
-                        <form action="{{ url('seo-settings') }}">
+                        <form id="seo-settings-form">
                             <div class="border-bottom mb-3">
                                 <div class="row">
                                     <div class="col-md-12">
@@ -83,7 +83,7 @@
                                                 <label class="form-label mb-md-0">Meta Title</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="meta_title">
                                             </div>
                                         </div>
                                     </div>
@@ -93,7 +93,7 @@
                                                 <label class="form-label mb-md-0">Meta Keywords</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="meta_keywords">
                                             </div>
                                         </div>
                                     </div>
@@ -103,7 +103,7 @@
                                                 <label class="form-label mb-md-0">Meta Description</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <textarea class="form-control" rows="3"></textarea>
+                                                <textarea class="form-control" rows="3" data-seo="meta_description"></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -113,7 +113,7 @@
                                                 <label class="form-label mb-md-0">Meta Robot</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="meta_robot">
                                             </div>
                                         </div>
                                     </div>
@@ -123,7 +123,7 @@
                                                 <label class="form-label mb-md-0">Canonical Url</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="canonical_url">
                                             </div>
                                         </div>
                                     </div>
@@ -133,7 +133,7 @@
                                                 <label class="form-label mb-md-0">Custom Url</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="custom_url">
                                             </div>
                                         </div>
                                     </div>
@@ -143,7 +143,7 @@
                                                 <label class="form-label mb-md-0">Og Title</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <input type="text" class="form-control">
+                                                <input type="text" class="form-control" data-seo="og_title">
                                             </div>
                                         </div>
                                     </div>
@@ -153,7 +153,7 @@
                                                 <label class="form-label mb-md-0">Og Description</label>
                                             </div>
                                             <div class="col-xxl-10 col-md-9">
-                                                <textarea class="form-control" rows="3"></textarea>
+                                                <textarea class="form-control" rows="3" data-seo="og_description"></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -185,9 +185,10 @@
                                     </div>
                                 </div>
                             </div>
+                            <div id="seo-settings-feedback" class="alert mt-3" style="display:none;"></div>
                             <div class="d-flex align-items-center justify-content-end">
-                                <button type="button" class="btn btn-outline-light border me-3">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="button" class="btn btn-outline-light border me-3" id="seo-settings-cancel">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="seo-settings-save">Save</button>
                             </div>
                         </form>
                     </div>
@@ -198,5 +199,81 @@
 
 </div>
 <!-- /Page Wrapper -->
+
+<script>
+(function () {
+    var GROUP = 'seo';
+    var API_BASE = '/v1/hcm';
+
+    function getToken() {
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            var t = window.AuthApi.getToken(); if (t) return t;
+        }
+        return localStorage.getItem('arcav_access_token') || sessionStorage.getItem('arcav_access_token') ||
+               localStorage.getItem('token') || sessionStorage.getItem('token') ||
+               ((document.querySelector('meta[name="api-token"]') || {}).content) || null;
+    }
+
+    function buildHeaders() {
+        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+        var token = getToken(); if (token) h['Authorization'] = 'Bearer ' + token;
+        var csrf = document.querySelector('meta[name="csrf-token"]'); if (csrf) h['X-CSRF-TOKEN'] = csrf.content;
+        try {
+            var ctx = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (ctx.companyId) h['X-Company-Id'] = String(ctx.companyId);
+            if (ctx.companyCode) h['X-Company-Code'] = String(ctx.companyCode);
+        } catch(_) {}
+        return h;
+    }
+
+    function showFeedback(msg, type) {
+        var el = document.getElementById('seo-settings-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.className = 'alert alert-' + (type || 'success');
+        el.style.display = 'block';
+        setTimeout(function () { el.style.display = 'none'; }, 4000);
+    }
+
+    function loadSettings() {
+        fetch(API_BASE + '/settings?group=' + GROUP, { headers: buildHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) return;
+                var s = data.data || {};
+                document.querySelectorAll('[data-seo]').forEach(function (el) {
+                    var key = GROUP + '_' + el.dataset.seo;
+                    if (s[key] !== undefined && s[key] !== null) el.value = s[key];
+                });
+            }).catch(function () {});
+    }
+
+    function saveSettings(e) {
+        if (e) e.preventDefault();
+        var settings = {};
+        document.querySelectorAll('[data-seo]').forEach(function (el) {
+            settings[el.dataset.seo] = el.value;
+        });
+        fetch(API_BASE + '/settings', {
+            method: 'POST', headers: buildHeaders(),
+            body: JSON.stringify({ group: GROUP, settings: settings })
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.success) showFeedback('SEO settings saved.', 'success');
+              else showFeedback((data.error && data.error.message) || 'Failed to save.', 'danger');
+          }).catch(function () { showFeedback('Connection error.', 'danger'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        var form = document.getElementById('seo-settings-form');
+        if (form) form.addEventListener('submit', saveSettings);
+        var saveBtn = document.getElementById('seo-settings-save');
+        if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+        var cancelBtn = document.getElementById('seo-settings-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { loadSettings(); });
+    });
+})();
+</script>
 
 @endsection

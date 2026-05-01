@@ -203,22 +203,35 @@ class ReconciliationExportController extends Controller
             return $this->buildPayrollRunReconciliationCsv($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
         }
 
-        // Default: metadata-only CSV
-        $lines = [
-            'feature_key,action_key,scope_ref,dataset_checksum',
-            sprintf(
-                '%s,%s,%s,%s',
-                $this->csvEscape($featureKey),
-                $this->csvEscape($actionKey),
-                $this->csvEscape($scopeRef),
-                $this->csvEscape($datasetChecksum),
-            ),
-            '',
-            'filter_payload_json',
-            $this->csvEscape((string) json_encode($filterPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
-        ];
+        $stream = fopen('php://temp', 'w+');
+        if (! $stream) {
+            return '';
+        }
 
-        return implode("\n", $lines)."\n";
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, ['Field', 'Value']);
+        fputcsv($stream, ['feature_key', $featureKey]);
+        fputcsv($stream, ['action_key', $actionKey]);
+        fputcsv($stream, ['scope_ref', $scopeRef]);
+        fputcsv($stream, ['dataset_checksum', $datasetChecksum]);
+        fputcsv($stream, ['generated_at', now()->toIso8601String()]);
+
+        fputcsv($stream, []);
+        fputcsv($stream, ['filter_key', 'filter_value']);
+
+        foreach ($filterPayload as $key => $value) {
+            $formattedValue = is_scalar($value)
+                ? (string) $value
+                : (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            fputcsv($stream, [(string) $key, $formattedValue]);
+        }
+
+        rewind($stream);
+        $content = (string) stream_get_contents($stream);
+        fclose($stream);
+
+        return $content;
     }
 
     /**
@@ -255,15 +268,30 @@ class ReconciliationExportController extends Controller
         $payrollLines = $query->get();
         [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
 
-        // Build CSV header
-        $lines = [
-            'run_id,user_id,user_name,kind,component_code,component_name,amount,affects_net_pay,service_fee_rate_percent,service_fee_base_amount,service_fee_amount,service_fee_billing_month,dataset_checksum',
-        ];
+        $stream = fopen('php://temp', 'w+');
+        if (! $stream) {
+            return '';
+        }
 
-        // Add metadata row
-        $lines[] = sprintf(
-            '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
-            $this->csvEscape((string) $runId),
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, [
+            'run_id',
+            'user_id',
+            'user_name',
+            'kind',
+            'component_code',
+            'component_name',
+            'amount',
+            'affects_net_pay',
+            'service_fee_rate_percent',
+            'service_fee_base_amount',
+            'service_fee_amount',
+            'service_fee_billing_month',
+            'dataset_checksum',
+        ]);
+
+        fputcsv($stream, [
+            (string) $runId,
             '',
             '',
             '',
@@ -271,46 +299,38 @@ class ReconciliationExportController extends Controller
             'METADATA',
             '',
             '',
-            $this->csvEscape((string) round($serviceFeeRate, 2)),
-            $this->csvEscape((string) round($serviceFeeBase, 2)),
-            $this->csvEscape((string) round($serviceFeeAmount, 2)),
-            $this->csvEscape($serviceFeeBillingMonth),
-            $this->csvEscape($datasetChecksum),
-        );
+            (string) round($serviceFeeRate, 2),
+            (string) round($serviceFeeBase, 2),
+            (string) round($serviceFeeAmount, 2),
+            $serviceFeeBillingMonth,
+            $datasetChecksum,
+        ]);
 
-        // Add blank line
-        $lines[] = '';
+        fputcsv($stream, []);
 
-        // Add payroll line rows
         foreach ($payrollLines as $line) {
-            $lines[] = sprintf(
-                '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
-                $this->csvEscape((string) $runId),
-                $this->csvEscape((string) $line->user_id),
-                $this->csvEscape((string) ($line->user_name ?? '')),
-                $this->csvEscape((string) ($line->kind ?? '')),
-                $this->csvEscape((string) ($line->component_code ?? '')),
-                $this->csvEscape((string) ($line->component_name ?? '')),
-                $this->csvEscape((string) $line->amount),
-                $this->csvEscape($line->affects_net_pay ? 'yes' : 'no'),
-                $this->csvEscape((string) round($serviceFeeRate, 2)),
-                $this->csvEscape((string) round($serviceFeeBase, 2)),
-                $this->csvEscape((string) round($serviceFeeAmount, 2)),
-                $this->csvEscape($serviceFeeBillingMonth),
+            fputcsv($stream, [
+                (string) $runId,
+                (string) $line->user_id,
+                (string) ($line->user_name ?? ''),
+                (string) ($line->kind ?? ''),
+                (string) ($line->component_code ?? ''),
+                (string) ($line->component_name ?? ''),
+                (string) $line->amount,
+                $line->affects_net_pay ? 'yes' : 'no',
+                (string) round($serviceFeeRate, 2),
+                (string) round($serviceFeeBase, 2),
+                (string) round($serviceFeeAmount, 2),
+                $serviceFeeBillingMonth,
                 '',
-            );
+            ]);
         }
 
-        return implode("\n", $lines)."\n";
-    }
+        rewind($stream);
+        $content = (string) stream_get_contents($stream);
+        fclose($stream);
 
-    private function csvEscape(string $value): string
-    {
-        if (str_contains($value, '"') || str_contains($value, ',') || str_contains($value, "\n") || str_contains($value, "\r")) {
-            return '"'.str_replace('"', '""', $value).'"';
-        }
-
-        return $value;
+        return $content;
     }
 
     /**

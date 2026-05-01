@@ -945,7 +945,7 @@ class HcmPayrollRunController extends Controller
             return null;
         }
 
-        $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'Asia/Jakarta'));
+        $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'UTC'));
         $localToday = Carbon::now($payrollTimezone)->toDateString();
         if ($localToday >= $resolvedPaydayDate) {
             return null;

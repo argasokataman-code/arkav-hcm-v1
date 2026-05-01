@@ -61,6 +61,11 @@ class WebsiteSettings
     private const DEFAULT_LOCALE = 'en';
     private const DEFAULT_TIMEZONE = 'UTC';
 
+    /**
+     * @var array<string, bool>|null
+     */
+    private static ?array $timezoneMap = null;
+
     public static function prefixEmployee(): string
     {
         return self::prefix('employee');
@@ -184,7 +189,11 @@ class WebsiteSettings
         );
         $timezone = trim($timezone);
 
-        return $timezone !== '' ? $timezone : $fallback;
+        if ($timezone === '' || ! self::isValidTimezone($timezone)) {
+            return self::isValidTimezone($fallback) ? $fallback : self::DEFAULT_TIMEZONE;
+        }
+
+        return $timezone;
     }
 
     public static function localizationDateFormat(): string
@@ -246,5 +255,14 @@ class WebsiteSettings
         $text = trim((string) $value);
 
         return $text !== '' ? $text : null;
+    }
+
+    private static function isValidTimezone(string $timezone): bool
+    {
+        if (self::$timezoneMap === null) {
+            self::$timezoneMap = array_fill_keys(timezone_identifiers_list(), true);
+        }
+
+        return isset(self::$timezoneMap[$timezone]);
     }
 }

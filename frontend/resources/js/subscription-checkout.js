@@ -482,7 +482,12 @@
                 throw new Error(msg);
             }
 
-            showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice berhasil dibuat. Silakan lanjut bayar.");
+            var paidInstantly = !!(body && body.data && body.data.invoice && body.data.invoice.isPaid);
+            if (paidInstantly) {
+                showFeedback("success", "Paket berhasil diaktifkan. Tidak ada pembayaran yang perlu dilakukan.");
+            } else {
+                showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice berhasil dibuat. Silakan lanjut bayar.");
+            }
             renderInvoice(body.data, !!(body.data && body.data.reused));
             if (body.data && body.data.invoice && body.data.invoice.id) {
                 await loadInvoiceById(body.data.invoice.id);

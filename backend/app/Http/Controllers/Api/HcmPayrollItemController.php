@@ -596,6 +596,7 @@ class HcmPayrollItemController extends Controller
             if ($fh === false) {
                 return;
             }
+            fwrite($fh, "\xEF\xBB\xBF");
             fputcsv($fh, $headers);
             foreach ($rows as $row) {
                 fputcsv($fh, [

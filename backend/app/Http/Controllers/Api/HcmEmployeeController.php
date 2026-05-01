@@ -159,6 +159,7 @@ class HcmEmployeeController extends Controller
                 if (! $handle) {
                     return;
                 }
+                fwrite($handle, "\xEF\xBB\xBF");
                 fputcsv($handle, $headers);
                 foreach ($rows as $row) {
                     fputcsv($handle, $row);

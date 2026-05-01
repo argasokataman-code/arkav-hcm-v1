@@ -17,6 +17,54 @@ Semua endpoint memakai middleware `api.token`.
 
 ## Packages
 
+### GET `/packages/feature-catalog`
+
+Behavior:
+- Mengembalikan katalog fitur package yang dipakai runtime UI `/packages` saat compose/edit package.
+- Source of truth utama ada di backend config catalog, lalu runtime menambahkan feature code custom yang sudah pernah tersimpan di `package_features` tetapi belum dikenali catalog bawaan.
+- Endpoint ini read-only dan mencegah drift daftar fitur antara frontend dan backend.
+
+Success `200` (ringkas):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "module": "assets",
+      "title": "Asset Management",
+      "description": "Inventaris aset dan lifecycle aset.",
+      "features": [
+        {
+          "code": "asset_management",
+          "name": "Asset Management",
+          "description": "Master aset, assignment, dan stock overview.",
+          "requiresLimit": false,
+          "limitLabel": null,
+          "limitPlaceholder": null,
+          "limitSuffix": null
+        }
+      ]
+    },
+    {
+      "module": "custom",
+      "title": "Custom Features",
+      "description": "Fitur tambahan yang terdeteksi dari konfigurasi package existing.",
+      "features": [
+        {
+          "code": "custom_ai_workflows",
+          "name": "Custom AI Workflows",
+          "description": "Feature code custom yang sudah pernah dipakai package existing.",
+          "requiresLimit": false,
+          "limitLabel": null,
+          "limitPlaceholder": null,
+          "limitSuffix": null
+        }
+      ]
+    }
+  ]
+}
+```
+
 ### GET `/packages`
 
 Query:

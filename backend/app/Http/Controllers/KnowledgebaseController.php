@@ -12,10 +12,15 @@ class KnowledgebaseController extends Controller
     {
         $q = $request->query('q');
         $query = is_string($q) ? $q : '';
+        $user = $request->user();
 
         return view('knowledgebase', [
-            'categories' => HcmKnowledgebase::filterForQuery($query !== '' ? $query : null),
+            'categories' => HcmKnowledgebase::filterForQuery($query !== '' ? $query : null, $user),
             'query' => $query,
+            'guidedTutorials' => array_values(array_filter(
+                HcmKnowledgebase::guidedTutorials(6),
+                fn (array $tutorial): bool => HcmKnowledgebase::resolveArticle((string) ($tutorial['slug'] ?? ''), $user) !== null
+            )),
             'popularArticles' => HcmKnowledgebase::popularArticles(5),
             'latestArticles' => HcmKnowledgebase::latestArticles(5),
         ]);
@@ -23,14 +28,15 @@ class KnowledgebaseController extends Controller
 
     public function category(string $slug): View
     {
-        $category = HcmKnowledgebase::categoryBySlug($slug);
+        $user = request()->user();
+        $category = HcmKnowledgebase::categoryBySlug($slug, $user);
         if ($category === null) {
             abort(404);
         }
 
         return view('knowledgebase-view', [
             'category' => $category,
-            'categories' => HcmKnowledgebase::categories(),
+            'categories' => HcmKnowledgebase::categoriesForUser($user),
             'popularArticles' => HcmKnowledgebase::popularArticles(5),
             'latestArticles' => HcmKnowledgebase::latestArticles(5),
         ]);
@@ -38,7 +44,8 @@ class KnowledgebaseController extends Controller
 
     public function article(string $slug): View
     {
-        $resolved = HcmKnowledgebase::resolveArticle($slug);
+        $user = request()->user();
+        $resolved = HcmKnowledgebase::resolveArticle($slug, $user);
         if ($resolved === null) {
             abort(404);
         }
@@ -46,7 +53,7 @@ class KnowledgebaseController extends Controller
         return view('knowledgebase-details', [
             'category' => $resolved['category'],
             'article' => $resolved['article'],
-            'categories' => HcmKnowledgebase::categories(),
+            'categories' => HcmKnowledgebase::categoriesForUser($user),
             'popularArticles' => HcmKnowledgebase::popularArticles(5),
             'latestArticles' => HcmKnowledgebase::latestArticles(5),
         ]);

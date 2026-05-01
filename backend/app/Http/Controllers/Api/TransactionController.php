@@ -411,19 +411,37 @@ class TransactionController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Build CSV content
-        $csv = "Invoice Number,Company,Subscription,Amount,Status,Payment Method,Date\n";
-        foreach ($transactions as $txn) {
-            $companyName = $txn->subscription?->company?->name ?? 'N/A';
-            $packageName = $txn->subscription?->package?->name ?? 'N/A';
-            $csv .= "\"{$txn->invoice_number}\",\"{$companyName}\",\"{$packageName}\"," .
-                    "{$txn->amount},{$txn->status},{$txn->payment_method}," .
-                    "{$txn->created_at->format('Y-m-d H:i:s')}\n";
-        }
+        $filename = 'transactions-export-' . now()->format('Y-m-d') . '.csv';
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="transactions-export-' . date('Y-m-d') . '.csv"',
+        return response()->streamDownload(function () use ($transactions): void {
+            $stream = fopen('php://output', 'wb');
+            if (! $stream) {
+                return;
+            }
+
+            // UTF-8 BOM to improve Excel compatibility for non-ASCII text.
+            fwrite($stream, "\xEF\xBB\xBF");
+
+            fputcsv($stream, ['Invoice Number', 'Company', 'Subscription', 'Amount', 'Status', 'Payment Method', 'Date']);
+
+            foreach ($transactions as $txn) {
+                $companyName = $txn->subscription?->company?->name ?? 'N/A';
+                $packageName = $txn->subscription?->package?->name ?? 'N/A';
+
+                fputcsv($stream, [
+                    (string) $txn->invoice_number,
+                    (string) $companyName,
+                    (string) $packageName,
+                    (string) $txn->amount,
+                    (string) $txn->status,
+                    (string) $txn->payment_method,
+                    $txn->created_at?->format('Y-m-d H:i:s') ?? '',
+                ]);
+            }
+
+            fclose($stream);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 

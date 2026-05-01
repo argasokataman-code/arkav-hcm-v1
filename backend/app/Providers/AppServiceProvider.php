@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Contracts\Hcm\ThrDisbursementGatewayInterface;
 use App\Services\EmailSettingsService;
+use App\Support\RuntimeLocalization;
 use App\Support\WebsiteSettings;
 use App\Services\Hcm\StubThrDisbursementGateway;
 use App\Services\Media\AvatarStorageService;
@@ -47,6 +48,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RuntimeLocalization::apply();
+
         $this->applyRuntimeEmailTransportProfile();
 
         View::composer('*', function ($view): void {

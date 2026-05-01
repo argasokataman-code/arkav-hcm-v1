@@ -126,8 +126,9 @@ final class TenantContextResolver
             $company = Company::query()->where('code', $requestedCompanyCode)->first();
         }
 
-        if ($company === null && $requestedCompanyId === null
-            && $requestedCompanyUuid === null && $requestedCompanyCode === null) {
+        if ($company === null) {
+            // Global super admin can recover from stale browser tenant headers
+            // by falling back to preferred/default tenant context.
             $membership = $this->preferredActiveMembershipForUser($user);
 
             if ($membership && $membership->company) {

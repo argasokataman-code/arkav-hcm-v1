@@ -21,22 +21,57 @@ Template Name: Smarthr - Bootstrap Admin Template
 	});
 
 	// Mobile menu sidebar overlay
-	$('body').append('<div class="sidebar-overlay"></div>');
+	if ($('.sidebar-overlay').length === 0) {
+		$('body').append('<div class="sidebar-overlay"></div>');
+	}
 
-	$(document).on('click', '#mobile_btn', function() {
-		$wrapper.toggleClass('slide-nav');
-		$('.sidebar-overlay').toggleClass('opened');
+	function isMobileViewport() {
+		return window.matchMedia('(max-width: 991.98px)').matches;
+	}
+
+	function closeMobileSidebar() {
+		$('html').removeClass('menu-opened');
+		$wrapper.removeClass('slide-nav');
+		$('.sidebar-overlay').removeClass('opened');
+		$('#task_window').removeClass('opened');
+	}
+
+	function openMobileSidebar() {
+		$wrapper.addClass('slide-nav');
+		$('.sidebar-overlay').addClass('opened');
 		$('html').addClass('menu-opened');
 		$('#task_window').removeClass('opened');
+	}
+
+	$(document).on('click', '#mobile_btn', function() {
+		if ($wrapper.hasClass('slide-nav')) {
+			closeMobileSidebar();
+		} else {
+			openMobileSidebar();
+		}
 		return false;
 	});
 
 	$(".sidebar-overlay").on("click", function () {
-		$('html').removeClass('menu-opened');
-		$(this).removeClass('opened');
-		$wrapper.removeClass('slide-nav');
-		$('.sidebar-overlay').removeClass('opened');
-		$('#task_window').removeClass('opened');
+		closeMobileSidebar();
+	});
+
+	$(document).on('click', '.sidebar .sidebar-menu a', function() {
+		if (!isMobileViewport()) {
+			return;
+		}
+
+		if ($(this).parent().hasClass('submenu')) {
+			return;
+		}
+
+		closeMobileSidebar();
+	});
+
+	$(window).on('resize', function() {
+		if (!isMobileViewport()) {
+			closeMobileSidebar();
+		}
 	});
 
 	// Logo Hide Btn

@@ -215,6 +215,8 @@ class HcmUserManagementController extends Controller
                 return;
             }
 
+            fwrite($stream, "\xEF\xBB\xBF");
+
             fputcsv($stream, ['User ID', 'Name', 'Email', 'Status', 'Company Role', 'Active Role Codes']);
 
             foreach ($rows as $row) {

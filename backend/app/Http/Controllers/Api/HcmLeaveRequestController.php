@@ -207,6 +207,8 @@ class HcmLeaveRequestController extends Controller
                 return;
             }
 
+            fwrite($handle, "\xEF\xBB\xBF");
+
             fputcsv($handle, $headers);
 
             foreach ($query->cursor() as $row) {

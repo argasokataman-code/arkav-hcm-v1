@@ -2,11 +2,13 @@
   "use strict";
 
   const API_BASE = "/v1/saas/packages";
+  const API_FEATURE_CATALOG = "/v1/saas/packages/feature-catalog";
   const API_ADDONS_BASE = "/v1/saas/package-addons";
   const PAGE_SIZE = 10;
   const FEATURE_LIMIT_INPUT_CODE = "max_employees";
   let apiToken = null;
-  const FEATURE_LIBRARY = [
+  let featureLibrary = [];
+  const FALLBACK_FEATURE_LIBRARY = [
     {
       module: "employee",
       title: "Employee Management",
@@ -83,15 +85,21 @@
     },
   ];
 
-  function getDefaultFeatureCatalog() {
-    return FEATURE_LIBRARY.flatMap(function (group) {
+  function getFeatureLibrary() {
+    return featureLibrary.length ? featureLibrary : FALLBACK_FEATURE_LIBRARY;
+  }
+
+  function getDefaultFeatureCatalog(libraryOverride) {
+    const source = Array.isArray(libraryOverride) && libraryOverride.length
+      ? libraryOverride
+      : getFeatureLibrary();
+
+    return source.flatMap(function (group) {
       return (group.features || []).map(function (feature) {
         return feature.code;
       });
     });
   }
-
-  const DEFAULT_FEATURE_CATALOG = getDefaultFeatureCatalog();
 
   /**
    * Fetch API token from /api-token endpoint
@@ -222,15 +230,39 @@
       this.isInitialized = true;
 
       this.bindEvents();
-      this.renderFeatureCatalog(DEFAULT_FEATURE_CATALOG);
+      this.renderFeatureCatalog(getDefaultFeatureCatalog());
       this.packageModalInstance = window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("packageModal"))
         : null;
       this.addonModalInstance = window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("addonModal"))
         : null;
-      this.loadPackages();
-      this.loadAddons();
+      const self = this;
+      this.loadFeatureCatalog().finally(function () {
+        self.loadPackages();
+        self.loadAddons();
+      });
+    },
+
+    loadFeatureCatalog: function () {
+      const self = this;
+
+      return apiRequest("GET", API_FEATURE_CATALOG, null)
+        .then(function (response) {
+          if (response.success && Array.isArray(response.data) && response.data.length) {
+            featureLibrary = response.data;
+            self.renderFeatureCatalog(getDefaultFeatureCatalog(response.data));
+            return;
+          }
+
+          featureLibrary = [];
+          self.renderFeatureCatalog(getDefaultFeatureCatalog());
+        })
+        .catch(function (err) {
+          console.warn("Failed to load package feature catalog, using fallback catalog.", err);
+          featureLibrary = [];
+          self.renderFeatureCatalog(getDefaultFeatureCatalog());
+        });
     },
 
     /**
@@ -913,7 +945,7 @@
             self.currentEditSnapshot = null;
             self.currentPricingDirty = false;
             self.resetPackageModalState();
-            self.renderFeatureCatalog(DEFAULT_FEATURE_CATALOG);
+            self.renderFeatureCatalog(getDefaultFeatureCatalog());
             if (self.packageModalInstance) self.packageModalInstance.hide();
             self.currentPage = 1;
             self.loadPackages();
@@ -1007,7 +1039,7 @@
 
     featureMetaFromCode: function (code) {
       let found = null;
-      FEATURE_LIBRARY.some(function (group) {
+      getFeatureLibrary().some(function (group) {
         return (group.features || []).some(function (feature) {
           if (feature.code === code) {
             found = feature;
@@ -1203,7 +1235,7 @@
         });
       });
 
-      const catalog = Array.from(new Set(DEFAULT_FEATURE_CATALOG.concat(fromPackages)));
+      const catalog = Array.from(new Set(getDefaultFeatureCatalog().concat(fromPackages)));
       this.renderFeatureCatalog(catalog);
     },
 
@@ -1213,10 +1245,11 @@
 
       const limitDrafts = Object.assign({}, this.featureLimitDrafts || {}, this.collectFeatureLimitDrafts());
       const selectedCodes = new Set(this.getSelectedFeatureCodes());
-      const incomingCodes = new Set(featureCodes || DEFAULT_FEATURE_CATALOG);
-      const knownCodes = new Set(DEFAULT_FEATURE_CATALOG);
+      const defaultCatalog = getDefaultFeatureCatalog();
+      const incomingCodes = new Set(featureCodes || defaultCatalog);
+      const knownCodes = new Set(defaultCatalog);
 
-      const groups = FEATURE_LIBRARY.map(function (group) {
+      const groups = getFeatureLibrary().map(function (group) {
         return {
           module: group.module,
           title: group.title,
@@ -1491,7 +1524,7 @@
       this.currentEditId = null;
       const form = document.getElementById("packageForm");
       if (form) form.reset();
-      this.renderFeatureCatalog(DEFAULT_FEATURE_CATALOG);
+      this.renderFeatureCatalog(getDefaultFeatureCatalog());
       const featureSearchInput = document.getElementById("input_package_feature_search");
       if (featureSearchInput) {
         featureSearchInput.value = "";
@@ -1610,7 +1643,7 @@
             const selectedCodes = (pkg.features || []).map(function (f) {
               return f.code;
             });
-            self.renderFeatureCatalog(DEFAULT_FEATURE_CATALOG.concat(selectedCodes));
+            self.renderFeatureCatalog(getDefaultFeatureCatalog().concat(selectedCodes));
             const featureSearchInput = document.getElementById("input_package_feature_search");
             if (featureSearchInput) {
               featureSearchInput.value = "";

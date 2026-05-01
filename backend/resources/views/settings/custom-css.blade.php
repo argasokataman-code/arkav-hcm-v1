@@ -122,4 +122,73 @@
 
     </div>
     <!-- /Page Wrapper -->
+
+<script>
+(function () {
+    var GROUP = 'custom_code';
+    var API_BASE = '/v1/hcm';
+
+    function getToken() {
+        if (window.AuthApi && typeof window.AuthApi.getToken === 'function') {
+            var t = window.AuthApi.getToken(); if (t) return t;
+        }
+        return localStorage.getItem('arcav_access_token') || sessionStorage.getItem('arcav_access_token') ||
+               localStorage.getItem('token') || sessionStorage.getItem('token') ||
+               ((document.querySelector('meta[name="api-token"]') || {}).content) || null;
+    }
+
+    function buildHeaders() {
+        var h = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+        var token = getToken(); if (token) h['Authorization'] = 'Bearer ' + token;
+        var csrf = document.querySelector('meta[name="csrf-token"]'); if (csrf) h['X-CSRF-TOKEN'] = csrf.content;
+        try {
+            var ctx = JSON.parse(localStorage.getItem('arcav_active_tenant') || '{}');
+            if (ctx.companyId) h['X-Company-Id'] = String(ctx.companyId);
+            if (ctx.companyCode) h['X-Company-Code'] = String(ctx.companyCode);
+        } catch(_) {}
+        return h;
+    }
+
+    function showFeedback(msg, type) {
+        var el = document.getElementById('custom-css-feedback');
+        if (!el) return;
+        el.textContent = msg;
+        el.className = 'alert alert-' + (type || 'success');
+        el.style.display = 'block';
+        setTimeout(function () { el.style.display = 'none'; }, 4000);
+    }
+
+    function loadSettings() {
+        fetch(API_BASE + '/settings?group=' + GROUP, { headers: buildHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) return;
+                var s = data.data || {};
+                var ta = document.getElementById('custom-css-input');
+                if (ta && s.custom_code_custom_css !== undefined) ta.value = s.custom_code_custom_css || '';
+            }).catch(function () {});
+    }
+
+    function saveSettings() {
+        var ta = document.getElementById('custom-css-input');
+        fetch(API_BASE + '/settings', {
+            method: 'POST', headers: buildHeaders(),
+            body: JSON.stringify({ group: GROUP, settings: { custom_css: ta ? ta.value : '' } })
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (data.success) showFeedback('Custom CSS saved.', 'success');
+              else showFeedback((data.error && data.error.message) || 'Failed to save.', 'danger');
+          }).catch(function () { showFeedback('Connection error.', 'danger'); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        var saveBtn = document.getElementById('custom-css-save');
+        if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+        var cancelBtn = document.getElementById('custom-css-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', function () { loadSettings(); });
+    });
+})();
+</script>
+
 @endsection

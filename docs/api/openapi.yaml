@@ -10046,6 +10046,185 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/hcm/search:
+    get:
+      tags: [HCM]
+      summary: Global HRMS navigation search (tenant/user scoped)
+      description: |
+        Returns searchable HRMS navigation items filtered by active user context.
+        Query is matched against route label, description, section, and path.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 8
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      query: { type: string, example: ticket }
+                      total: { type: integer, example: 3 }
+                      limit: { type: integer, example: 8 }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            routeName: { type: string, example: tickets-admin }
+                            section: { type: string, example: Tiket & dukungan }
+                            label: { type: string, example: Tiket (admin) }
+                            description: { type: string, nullable: true, example: Antrian & SLA. }
+                            path: { type: string, example: /tickets-admin }
+                            href: { type: string, format: uri, example: https://example.test/tickets-admin }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string, example: The q field is required. }
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+
+  /v1/hcm/ai/chat:
+    post:
+      tags: [AI Assistant]
+      summary: Send a message to the HCM AI assistant
+      description: |
+        Classifies the user's natural language message into an intent, enforces RBAC,
+        fetches relevant HCM data from internal endpoints (using the user's own bearer
+        token + X-Company-Id), then sends the data as context to the LLM (Ollama /
+        OpenAI-compatible API).
+
+        Denial responses are always returned as HTTP 200 with `allowed: false`.
+        HTTP 401 is only returned when the bearer token is completely invalid.
+
+        **Rate limit:** 30 requests per minute per user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Company-Id
+          required: false
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 2
+                  maxLength: 500
+                  example: Berapa sisa cuti saya?
+                session_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '200':
+          description: Chat reply (allowed or denied)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      reply:
+                        type: string
+                        example: Sisa cuti kamu saat ini 8 hari (Annual Leave).
+                      intent:
+                        type: string
+                        example: leave.balance.self
+                      allowed:
+                        type: boolean
+                        example: true
+                      sources:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            label: { type: string }
+                            endpoint: { type: string }
+                            retrieved_at: { type: string, format: date-time }
+                      session_id:
+                        type: string
+                        format: uuid
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string }
+                  errors: { type: object, additionalProperties: { type: array, items: { type: string } } }
+
+  /v1/hcm/ai/intents:
+    get:
+      tags: [AI Assistant]
+      summary: List AI intents available for current user
+      description: Returns all intent IDs that the authenticated user is allowed to invoke.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Company-Id
+          required: false
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      intents:
+                        type: array
+                        items: { type: string }
+                        example: [leave.balance.self, attendance.today.self, payslip.latest.self]
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+
   /v1/hcm/tax-governance/policies:
     get:
       tags: [Tax Governance]

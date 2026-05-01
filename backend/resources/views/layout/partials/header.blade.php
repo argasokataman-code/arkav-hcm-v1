@@ -90,11 +90,11 @@
                         <i class="ti ti-arrow-bar-to-left"></i>
                     </a>
                     <!-- Search -->
-                    <div class="input-group input-group-flat d-inline-flex me-1">
+                    <div class="input-group input-group-flat d-inline-flex me-1" data-hcm-global-search>
                         <span class="input-icon-addon">
                             <i class="ti ti-search"></i>
                         </span>
-                        <input type="text" class="form-control" placeholder="Search in HRMS">
+                        <input type="text" class="form-control" placeholder="Search in HRMS" autocomplete="off" data-hcm-global-search-input>
                         <span class="input-group-text">
                             <kbd>CTRL + / </kbd>
                         </span>

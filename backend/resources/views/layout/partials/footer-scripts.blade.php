@@ -8,7 +8,9 @@
 <!-- Authorization/Permissions Utility (MUST BE LOADED EARLY) -->
 <script>
     @php
-        $footerAuthUser = request()->user() ?: auth()->user();
+        $footerAuthUser = request()->user()
+            ?: auth()->user()
+            ?: optional(\App\Support\ArcavAccessTokenResolver::validTokenFromRequest(request()))->user;
         $footerActiveCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
         $footerIsGlobalHcmAdmin = $footerAuthUser ? $footerAuthUser->isGlobalHcmAdmin() : false;
         $footerIsHcmAdmin = $footerAuthUser
@@ -302,6 +304,8 @@
 <script src="{{ URL::asset('build/js/arcav-template-cleanup.js') }}"></script>
 <script src="{{ URL::asset('build/js/auth-logout.js') }}"></script>
 <script src="{{ URL::asset('build/js/notification-inbox-data.js') }}"></script>
+<script src="{{ URL::asset('build/js/global-search-data.js') }}?v={{ file_exists(public_path('build/js/global-search-data.js')) ? filemtime(public_path('build/js/global-search-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/ai-chat-widget.js') }}?v={{ file_exists(public_path('build/js/ai-chat-widget.js')) ? filemtime(public_path('build/js/ai-chat-widget.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/employees-view-toggle.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees-data.js')) ? filemtime(public_path('build/js/employees-data.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm-pages-data.js')) : time() }}"></script>

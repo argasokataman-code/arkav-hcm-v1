@@ -84,7 +84,7 @@
                                             </div>
                                             <div class="col-md-8">
                                                 <div class="mb-3">
-                                                    <input type="text" class="form-control" id="ai-openai-key" data-ai="openai_api_key" placeholder="sk-...">
+                                                    <input type="password" class="form-control" id="ai-openai-key" data-ai="openai_api_key" placeholder="sk-..." autocomplete="off">
                                                 </div>
                                             </div>	
                                         </div>

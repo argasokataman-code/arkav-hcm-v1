@@ -52,11 +52,11 @@
                 <p class="fs-10">System Admin</p>
             </div>
         </div>
-        <div class="input-group input-group-flat d-inline-flex mb-4">
+        <div class="input-group input-group-flat d-inline-flex mb-4" data-hcm-global-search>
             <span class="input-icon-addon">
                 <i class="ti ti-search"></i>
             </span>
-            <input type="text" class="form-control" placeholder="Search in HRMS">
+            <input type="text" class="form-control" placeholder="Search in HRMS" autocomplete="off" data-hcm-global-search-input>
             <span class="input-group-text">
                 <kbd>CTRL + / </kbd>
             </span>

@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\Ticket;
 use App\Models\TicketAssignmentHistory;
 use App\Models\TicketAttachment;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
+use App\Notifications\TicketCreatedNotification;
+use App\Notifications\TicketAssignedNotification;
+use App\Notifications\TicketResolvedNotification;
+use App\Notifications\TicketClosedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -209,6 +214,15 @@ class HcmTicketController extends Controller
             ]);
         }
 
+        // Notify admin users about the new ticket
+        $this->notifyCompanyAdminsTicket($activeCompanyId, new TicketCreatedNotification($ticket->fresh()), $user->id);
+
+        // Notify the assignee if specified
+        if ($assigneeUserId !== null) {
+            $assignee = User::query()->find($assigneeUserId);
+            $assignee?->notify(new TicketAssignedNotification($ticket->fresh()));
+        }
+
         return response()->json(['success' => true, 'data' => ['id' => $ticket->id, 'code' => $ticket->code]], 201);
     }
 
@@ -321,6 +335,24 @@ class HcmTicketController extends Controller
                 'to_assignee_user_id' => $ticket->assignee_user_id,
                 'note' => 'Assignment changed.',
             ]);
+
+            // Notify new assignee
+            if ($ticket->assignee_user_id !== null) {
+                $newAssignee = User::query()->find($ticket->assignee_user_id);
+                $newAssignee?->notify(new TicketAssignedNotification($ticket->fresh()));
+            }
+        }
+
+        // Notify reporter when ticket status changes
+        if ($isAdmin && array_key_exists('status', $validated)) {
+            $reporter = $ticket->reporter;
+            if ($reporter !== null) {
+                if ($ticket->status === 'resolved' && $beforeStatus !== 'resolved') {
+                    $reporter->notify(new TicketResolvedNotification($ticket->fresh()));
+                } elseif ($ticket->status === 'closed' && $beforeStatus !== 'closed') {
+                    $reporter->notify(new TicketClosedNotification($ticket->fresh()));
+                }
+            }
         }
 
         return response()->json(['success' => true]);
@@ -769,5 +801,35 @@ class HcmTicketController extends Controller
         $value = $request->attributes->get('activeCompanyId');
 
         return is_numeric($value) ? (int) $value : null;
+    }
+
+    /**
+     * Dispatch a notification to all active owner/admin users of a company,
+     * excluding the actor user (e.g. the ticket reporter).
+     */
+    private function notifyCompanyAdminsTicket(?int $companyId, object $notification, ?int $excludeUserId = null): void
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return;
+        }
+
+        $adminIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('role', ['owner', 'admin'])
+            ->pluck('user_id')
+            ->reject(fn ($id) => $excludeUserId !== null && (int) $id === $excludeUserId);
+
+        if ($adminIds->isEmpty()) {
+            return;
+        }
+
+        User::query()->whereIn('id', $adminIds)->each(function (User $admin) use ($notification): void {
+            try {
+                $admin->notify(clone $notification);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
     }
 }

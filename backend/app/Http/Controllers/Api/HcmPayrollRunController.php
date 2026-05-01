@@ -8,11 +8,14 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
 use App\Models\NotificationDelivery;
+use App\Notifications\MonthlyPayrollGeneratedNotification;
+use App\Notifications\MonthlyPayrollDisbursedNotification;
 use App\Services\Hcm\PayrollLateArrivalMigrationService;
 use App\Services\Hcm\PayrollMonthlySettingsService;
 use App\Services\NotificationDeliveryRecorder;
@@ -205,6 +208,12 @@ class HcmPayrollRunController extends Controller
             'meta' => $meta,
         ]);
         PayrollFinalized::dispatch((int) $run->id, (int) ($user?->id ?? 0));
+
+        // Notify company admins that payroll has been finalized/generated
+        $this->notifyCompanyAdminsPayroll(
+            $companyId,
+            new MonthlyPayrollGeneratedNotification($run->fresh()),
+        );
 
         $periodQuery = HcmPayrollPeriod::query()->whereKey($run->hcm_payroll_period_id);
         $this->applyTenantScope($periodQuery, $companyId);
@@ -574,6 +583,15 @@ class HcmPayrollRunController extends Controller
         if ((bool) ($result['allEligiblePaidAfterDisburse'] ?? false)) {
             $lateArrivalMigration = $this->payrollLateArrivalMigrationService
                 ->migrateToNextPeriodIfEligible((int) $run->id, $companyId);
+        }
+
+        // Notify each employee whose salary was disbursed
+        $paidUserIds = $result['selectedUserIds'] ?? [];
+        if (! empty($paidUserIds)) {
+            $freshRun = $run->fresh() ?? $run;
+            User::query()->whereIn('id', $paidUserIds)->each(function (User $employee) use ($freshRun): void {
+                $employee->notify(new MonthlyPayrollDisbursedNotification($freshRun));
+            });
         }
 
         return response()->json([
@@ -2362,5 +2380,34 @@ class HcmPayrollRunController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Dispatch a notification to all active owner/admin users of a company.
+     * Best-effort — individual delivery failures are silently swallowed.
+     */
+    private function notifyCompanyAdminsPayroll(?int $companyId, object $notification): void
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return;
+        }
+
+        $adminIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('role', ['owner', 'admin'])
+            ->pluck('user_id');
+
+        if ($adminIds->isEmpty()) {
+            return;
+        }
+
+        User::query()->whereIn('id', $adminIds)->each(function (User $admin) use ($notification): void {
+            try {
+                $admin->notify(clone $notification);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
     }
 }

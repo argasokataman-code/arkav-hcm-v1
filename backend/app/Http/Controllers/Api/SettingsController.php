@@ -16,6 +16,14 @@ class SettingsController extends Controller
 {
     use ChecksPermissions;
 
+    private const AI_GROUP = 'ai';
+    private const AI_SECRET_KEYS = [
+        'openai_api_key',
+        'api_key',
+        'ai_openai_api_key',
+        'ai_api_key',
+    ];
+
     private function apiSuccess(array $data = [], ?string $message = null, int $status = 200): JsonResponse
     {
         $payload = ['success' => true, 'data' => $data];
@@ -44,11 +52,11 @@ class SettingsController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
+        $group = (string) $request->get('group', 'general');
+        if ($forbidden = $this->ensureGroupPermission($request, $group)) {
             return $forbidden;
         }
 
-        $group = $request->get('group', 'general');
         $settings = match ($group) {
             'prefix' => WebsiteSettings::allPrefixSettings(),
             'localization' => WebsiteSettings::allLocalizationSettings(),
@@ -58,7 +66,11 @@ class SettingsController extends Controller
             ),
             default => Setting::getByGroup($group),
         };
-        
+
+        if ($group === self::AI_GROUP) {
+            $settings = $this->maskAiSecrets($settings);
+        }
+
         return $this->apiSuccess($settings);
     }
 
@@ -69,7 +81,8 @@ class SettingsController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
+        $requestedGroup = (string) $request->input('group', 'general');
+        if ($forbidden = $this->ensureGroupPermission($request, $requestedGroup)) {
             return $forbidden;
         }
 
@@ -83,6 +96,10 @@ class SettingsController extends Controller
 
         if ($group === 'localization') {
             $this->validateLocalizationPayload($settings);
+        }
+
+        if ($group === self::AI_GROUP) {
+            $settings = $this->prepareAiSettingsForStorage($settings);
         }
 
         $saved = [];
@@ -100,6 +117,10 @@ class SettingsController extends Controller
             ),
             default => $saved,
         };
+
+        if ($group === self::AI_GROUP) {
+            $responseSettings = $this->maskAiSecrets($responseSettings);
+        }
 
         return $this->apiSuccess(
             $responseSettings,
@@ -222,6 +243,68 @@ class SettingsController extends Controller
             ],
             'Branding file uploaded successfully'
         );
+    }
+
+    private function ensureGroupPermission(Request $request, string $group): ?JsonResponse
+    {
+        if ($group === self::AI_GROUP) {
+            return $this->ensureAnyPermission($request, ['settings.manage', 'ai.settings']);
+        }
+
+        return $this->ensurePermission($request, 'settings.manage');
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     * @return array<string, mixed>
+     */
+    private function maskAiSecrets(array $settings): array
+    {
+        foreach (self::AI_SECRET_KEYS as $secretKey) {
+            if (array_key_exists($secretKey, $settings) && is_string($settings[$secretKey]) && trim($settings[$secretKey]) !== '') {
+                $settings[$secretKey] = '********';
+            }
+        }
+
+        return $settings;
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     * @return array<string, mixed>
+     */
+    private function prepareAiSettingsForStorage(array $settings): array
+    {
+        foreach (['openai_api_key', 'api_key'] as $secretKey) {
+            if (! array_key_exists($secretKey, $settings)) {
+                continue;
+            }
+
+            $incoming = $settings[$secretKey];
+            if (! is_string($incoming)) {
+                continue;
+            }
+
+            $trimmed = trim($incoming);
+            if (! $this->isMaskedSecretPlaceholder($trimmed)) {
+                continue;
+            }
+
+            $existing = Setting::get(self::AI_GROUP.'_'.$secretKey);
+            if ($existing === null) {
+                unset($settings[$secretKey]);
+                continue;
+            }
+
+            $settings[$secretKey] = $existing;
+        }
+
+        return $settings;
+    }
+
+    private function isMaskedSecretPlaceholder(string $value): bool
+    {
+        return $value !== '' && preg_match('/^\*{8,}$/', $value) === 1;
     }
 
     /**

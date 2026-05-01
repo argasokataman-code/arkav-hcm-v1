@@ -59,6 +59,8 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 38 | Notifications & Alerts | 🚧 Planning (Design Ready) | [→](notifications/) | [📘 Implementation](notifications/IMPLEMENTATION.md) | [🧪 E2E Testing](notifications/E2E-TESTING.md), [🧭 Tracker](notifications/tracker.md), [🧩 API Contract](notifications/API-CONTRACT.md) |
 | 39 | Email Settings & Templates | 🚧 In Progress (Observability Baseline) | [→](email-settings/) | [📘 Implementation](email-settings/IMPLEMENTATION.md) | [🧭 Tracker](email-settings/tracker.md), provider-agnostic roadmap |
 | 40 | Tax Governance & Taxonomy | 🚧 In Progress | [→](tax-governance/) | [📘 Implementation](tax-governance/IMPLEMENTATION.md) | [🧭 Tracker](tax-governance/tracker.md), `/tax-rates` audit-readiness mapping |
+| 41 | Global HRMS Search | ✅ Complete | [→](global-search/) | [ID Details](global-search/) | Shortcut `Ctrl+/`, quick search, full-result panel, RBAC-aware catalog |
+| 42 | AI Assistant | 🚧 Planning | [→](ai-assistant/) | [📋 RBAC Policy](ai-assistant/RBAC-POLICY.md), [📖 Intent Catalog](ai-assistant/INTENT-CATALOG.md) | RBAC-aware chatbot, deny-by-default, self-service employee (cuti/absensi/payslip), intent-to-endpoint mapping |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -132,6 +134,10 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `email-settings/README.md` - **Email Settings & Templates:** audit runtime fitur email, flow bisnis existing vs target, dan readiness untuk provider-agnostic subscription/email service.
 - `email-settings/IMPLEMENTATION.md` - Catatan implementasi teknis endpoint status Mailtrap, wiring route/view, gap persistence, dan roadmap bertahap.
 - `email-settings/tracker.md` - Snapshot status, evidence code surface, gap register, dan milestone implementasi berikutnya.
+- `global-search/README.md` - **Global HRMS Search:** shortcut `Ctrl+/`, endpoint katalog navigasi tenant-scoped, quick dropdown, dan panel hasil penuh.
+- `ai-assistant/README.md` - **AI Assistant:** arsitektur, flow end-to-end, prinsip deny-by-default, dan gap/keputusan yang perlu ditetapkan sebelum implementasi.
+- `ai-assistant/RBAC-POLICY.md` - **AI RBAC Policy:** tabel allow/deny per intent per role, pesan deny standar, pseudocode gate, dan schema audit log.
+- `ai-assistant/INTENT-CATALOG.md` - **Intent Catalog:** mapping intent → endpoint internal → parameter → contoh jawaban, lengkap dengan status ready/planned.
 - `tax-governance/README.md` - **Tax Governance & Taxonomy:** pemetaan source of truth pajak runtime, dampak audit, anomaly, dan negative scenario seputar `/tax-rates`.
 - `tax-governance/IMPLEMENTATION.md` - Catatan implementasi teknis mengenai web shell `/tax-rates`, employee tax profile, salary component tax flags, dan payroll tax engine.
 - `tax-governance/tracker.md` - Snapshot status, evidence, dan rencana implementasi governance pajak bertahap.

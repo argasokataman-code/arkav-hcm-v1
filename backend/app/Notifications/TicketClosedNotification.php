@@ -25,13 +25,13 @@ class TicketClosedNotification extends Notification
             'entityType' => 'ticket',
             'entityUuid' => (string) ($this->ticket->uuid ?? ''),
             'title' => 'Ticket closed',
-            'message' => (string) ($this->ticket->title ?? ''),
+            'message' => (string) ($this->ticket->subject ?? ''),
             'occurredAt' => now(),
         ], [
             'event' => 'ticket.closed',
             'ticketId' => (int) $this->ticket->id,
             'ticketNumber' => (string) ($this->ticket->ticket_number ?? ''),
-            'title' => (string) ($this->ticket->title ?? ''),
+            'title' => (string) ($this->ticket->subject ?? ''),
             'status' => 'closed',
         ]);
     }

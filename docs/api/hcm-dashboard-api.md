@@ -75,6 +75,46 @@ Response envelope:
 }
 ```
 
+### 3. Global HRMS search catalog
+
+`GET /v1/hcm/search?q=<keyword>&limit=<1..50>`
+
+Tujuan:
+
+- Menyediakan katalog navigasi HRMS yang bisa dicari dari input global di header/sidebar.
+- Hasil sudah difilter server-side sesuai konteks user:
+  - route khusus global admin tidak muncul untuk user non-global
+  - route employee self-service tetap tersedia untuk user employee
+  - route lain mengikuti permission context tenant aktif
+
+Response envelope:
+
+```json
+{
+  "success": true,
+  "data": {
+    "query": "ticket",
+    "total": 3,
+    "limit": 8,
+    "items": [
+      {
+        "routeName": "tickets-admin",
+        "section": "Tiket & dukungan",
+        "label": "Tiket (admin)",
+        "description": "Antrian & SLA.",
+        "path": "/tickets-admin",
+        "href": "https://<host>/tickets-admin"
+      }
+    ]
+  }
+}
+```
+
+Validasi query:
+
+- `q`: required, string, min 1, max 120
+- `limit`: optional, integer, min 1, max 50 (default 8)
+
 ## Negative Scenario
 
 - Token tidak valid: `401`
@@ -84,3 +124,8 @@ Response envelope:
 
 - Tidak ada path baru/diubah.
 - Perubahan bersifat additive pada payload `GET /v1/hcm/dashboard-summary` melalui `legacyWidgets` untuk memastikan data kartu runtime bukan static HTML.
+
+## Contract Notes (2026-05-01)
+
+- Path baru additive: `GET /v1/hcm/search`.
+- Tidak mengubah path atau struktur endpoint dashboard existing.

@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
+use App\Notifications\ThrBatchGeneratedNotification;
+use App\Notifications\ThrBatchDisbursedNotification;
+use App\Models\User;
 use App\Services\Hcm\ThrBatchService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
@@ -114,6 +118,12 @@ class HcmPayrollThrBatchController extends Controller
             return $this->mapBatchException($e);
         }
 
+        // Notify company admins that THR batch has been generated
+        $this->notifyCompanyAdminsThr(
+            $this->activeCompanyId($request),
+            new ThrBatchGeneratedNotification($result['batch']),
+        );
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -150,28 +160,33 @@ class HcmPayrollThrBatchController extends Controller
             return $this->mapBatchException($e);
         }
 
+        $freshBatch = HcmThrBatch::query()
+            ->whereKey((int) $validated['batchId'])
+            ->where(function (Builder $query) use ($request): void {
+                $companyId = $this->activeCompanyId($request);
+                if ($companyId !== null) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+
+                    return;
+                }
+
+                $query->whereNull('company_id');
+            })
+            ->firstOrFail();
+
+        // Notify company admins that THR has been disbursed
+        $this->notifyCompanyAdminsThr(
+            $this->activeCompanyId($request),
+            new ThrBatchDisbursedNotification($freshBatch),
+        );
+
         return response()->json([
             'success' => true,
             'data' => [
                 'disbursementId' => $out['disbursement']?->id,
                 'skippedAlreadyPaidUserIds' => $out['skippedAlreadyPaidUserIds'],
                 'lines' => $out['lines'],
-                'batch' => $this->thrBatchService->serializeBatch(
-                    HcmThrBatch::query()
-                        ->whereKey((int) $validated['batchId'])
-                        ->where(function (Builder $query) use ($request): void {
-                            $companyId = $this->activeCompanyId($request);
-                            if ($companyId !== null) {
-                                $query->where('company_id', $companyId)->orWhereNull('company_id');
-
-                                return;
-                            }
-
-                            $query->whereNull('company_id');
-                        })
-                        ->firstOrFail(),
-                    true,
-                ),
+                'batch' => $this->thrBatchService->serializeBatch($freshBatch, true),
             ],
         ]);
     }
@@ -482,5 +497,34 @@ class HcmPayrollThrBatchController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Dispatch a notification to all active owner/admin users of a company.
+     * Best-effort — individual delivery failures are silently swallowed.
+     */
+    private function notifyCompanyAdminsThr(?int $companyId, object $notification): void
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return;
+        }
+
+        $adminIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('role', ['owner', 'admin'])
+            ->pluck('user_id');
+
+        if ($adminIds->isEmpty()) {
+            return;
+        }
+
+        User::query()->whereIn('id', $adminIds)->each(function (User $admin) use ($notification): void {
+            try {
+                $admin->notify(clone $notification);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
     }
 }

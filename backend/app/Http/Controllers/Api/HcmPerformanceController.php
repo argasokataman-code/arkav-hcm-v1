@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\LeaveRequest;
 use App\Models\PerformanceCycle;
@@ -770,14 +771,8 @@ class HcmPerformanceController extends Controller
             ]);
         }
 
-        // Fire notification to admin users
-        $adminEmail = config('app.primary_hcm_admin_email');
-        if ($adminEmail) {
-            $admin = User::query()->where('email', $adminEmail)->first();
-            if ($admin) {
-                $admin->notify(new PerformanceReviewCreatedNotification($review));
-            }
-        }
+        // Notify company admin users about the new performance review
+        $this->notifyCompanyAdminsPerformance($review->company_id, new PerformanceReviewCreatedNotification($review));
 
         return response()->json(['success' => true, 'data' => ['id' => $review->id]], 201);
     }
@@ -949,14 +944,8 @@ class HcmPerformanceController extends Controller
         }
         $review->update(['status' => 'submitted']);
 
-        // Fire notification to admin users
-        $adminEmail = config('app.primary_hcm_admin_email');
-        if ($adminEmail) {
-            $admin = User::query()->where('email', $adminEmail)->first();
-            if ($admin) {
-                $admin->notify(new PerformanceReviewSubmittedNotification($review));
-            }
-        }
+        // Notify company admin users about the submitted review
+        $this->notifyCompanyAdminsPerformance($review->company_id, new PerformanceReviewSubmittedNotification($review));
 
         return response()->json(['success' => true]);
     }
@@ -1027,14 +1016,8 @@ class HcmPerformanceController extends Controller
         }
         $review->update(['status' => 'manager_reviewed']);
 
-        // Fire notification to admin users
-        $adminEmail = config('app.primary_hcm_admin_email');
-        if ($adminEmail) {
-            $admin = User::query()->where('email', $adminEmail)->first();
-            if ($admin) {
-                $admin->notify(new PerformanceReviewManagerReviewedNotification($review));
-            }
-        }
+        // Notify company admin users about the manager-reviewed review
+        $this->notifyCompanyAdminsPerformance($review->company_id, new PerformanceReviewManagerReviewedNotification($review));
 
         return response()->json(['success' => true]);
     }
@@ -1224,6 +1207,34 @@ class HcmPerformanceController extends Controller
             'leaveCount' => count($approvedLeaves),
             'leavesByType' => $leavesByType,
         ];
+    }
+
+    /**
+     * Dispatch a notification to all active owner/admin users of a company.
+     */
+    private function notifyCompanyAdminsPerformance(?int $companyId, object $notification): void
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return;
+        }
+
+        $adminIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereIn('role', ['owner', 'admin'])
+            ->pluck('user_id');
+
+        if ($adminIds->isEmpty()) {
+            return;
+        }
+
+        User::query()->whereIn('id', $adminIds)->each(function (User $admin) use ($notification): void {
+            try {
+                $admin->notify(clone $notification);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
     }
 }
 

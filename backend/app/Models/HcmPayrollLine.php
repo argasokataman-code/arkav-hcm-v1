@@ -5,11 +5,32 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class HcmPayrollLine extends Model
 {
     use AssignsUuid;
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $line): void {
+            if (Schema::hasColumn($line->getTable(), 'company_uuid') && ! $line->company_uuid && $line->company_id) {
+                $line->company_uuid = (string) (Company::query()->where('id', $line->company_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($line->getTable(), 'user_uuid') && ! $line->user_uuid && $line->user_id) {
+                $line->user_uuid = (string) (User::query()->where('id', $line->user_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($line->getTable(), 'hcm_payroll_run_uuid') && ! $line->hcm_payroll_run_uuid && $line->hcm_payroll_run_id) {
+                $line->hcm_payroll_run_uuid = (string) (HcmPayrollRun::query()->where('id', $line->hcm_payroll_run_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($line->getTable(), 'hcm_salary_component_uuid') && ! $line->hcm_salary_component_uuid && $line->hcm_salary_component_id) {
+                $line->hcm_salary_component_uuid = (string) (HcmSalaryComponent::query()->where('id', $line->hcm_salary_component_id)->value('uuid') ?? '');
+            }
+        });
+    }
 
     protected $fillable = [
         'company_id',

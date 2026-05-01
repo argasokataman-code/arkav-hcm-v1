@@ -526,7 +526,7 @@ class LeaveRequestsApiTest extends TestCase
             'company_id' => $leave->company_id,
             'user_id' => $other->id,
             'work_date' => '2026-04-15 00:00:00',
-            'status' => 'on_leave',
+            'status' => 'leave',
         ]);
 
         $this->assertDatabaseHas('attendance_records', [

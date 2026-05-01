@@ -19,6 +19,18 @@ class Ticket extends Model
             if (Schema::hasColumn($record->getTable(), 'company_uuid') && ! $record->company_uuid && $record->company_id) {
                 $record->company_uuid = (string) (Company::query()->where('id', $record->company_id)->value('uuid') ?? '');
             }
+
+            if (Schema::hasColumn($record->getTable(), 'user_uuid') && ! $record->user_uuid && $record->user_id) {
+                $record->user_uuid = (string) (User::query()->where('id', $record->user_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($record->getTable(), 'assignee_user_uuid') && ! $record->assignee_user_uuid && $record->assignee_user_id) {
+                $record->assignee_user_uuid = (string) (User::query()->where('id', $record->assignee_user_id)->value('uuid') ?? '');
+            }
+
+            if (Schema::hasColumn($record->getTable(), 'resolver_user_uuid') && ! $record->resolver_user_uuid && $record->resolver_user_id) {
+                $record->resolver_user_uuid = (string) (User::query()->where('id', $record->resolver_user_id)->value('uuid') ?? '');
+            }
         });
     }
 

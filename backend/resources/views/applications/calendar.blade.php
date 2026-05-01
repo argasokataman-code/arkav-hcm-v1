@@ -99,24 +99,9 @@
 
                             <!-- Upcoming Event -->
                             <div class="border-bottom pb-2 mb-4">
-                                <h5 class="mb-2">Upcoming Event<span class="badge badge-success rounded-pill ms-2">15</span></h5>
-                                <div class="border-start border-purple border-3 mb-3">
-                                    <div class="ps-3">
-                                        <h6 class="fw-medium mb-1">Meeting with Team Dev</h6>
-                                        <p class="fs-12"><i class="ti ti-calendar-check text-info me-2"></i>15 Mar 2025</p>
-                                    </div>
-                                </div>
-                                <div class="border-start border-pink border-3 mb-3">
-                                    <div class="ps-3">
-                                        <h6 class="fw-medium mb-1">Design System With Client</h6>
-                                        <p class="fs-12"><i class="ti ti-calendar-check text-info me-2"></i>24 Mar 2025</p>
-                                    </div>
-                                </div>
-                                <div class="border-start border-success border-3 mb-3">
-                                    <div class="ps-3">
-                                        <h6 class="fw-medium mb-1">UI/UX Team Call</h6>
-                                        <p class="fs-12"><i class="ti ti-calendar-check text-info me-2"></i>28 Mar 2025</p>
-                                    </div>
+                                <h5 class="mb-2">Upcoming Event<span id="upcoming-events-count" class="badge badge-success rounded-pill ms-2">…</span></h5>
+                                <div id="upcoming-events-list">
+                                    <p class="text-muted fs-12 mb-0">Memuat data...</p>
                                 </div>
                             </div>
                             <!-- /Upcoming Event -->

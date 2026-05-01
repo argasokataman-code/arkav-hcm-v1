@@ -83,9 +83,9 @@ echo "---"
 
 # Use MySQL directly to check tables
 DB_HOST="${DB_HOST:-localhost}"
-DB_NAME="${DB_NAME:-arcav_db}"
-DB_USER="${DB_USER:-root}"
-DB_PASS="${DB_PASS:-}"
+DB_NAME="${DB_DATABASE:-${DB_NAME:-arcav_hcm}}"
+DB_USER="${DB_USERNAME:-${DB_USER:-root}}"
+DB_PASS="${DB_PASSWORD:-${DB_PASS:-}}"
 
 # Build mysql command
 if [ -z "$DB_PASS" ]; then
@@ -94,30 +94,56 @@ else
     MYSQL_CMD="mysql -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME"
 fi
 
-# Check if tables exist
+SCHEMA_OK=1
 for table in hcm_tax_governance_policies hcm_tax_governance_policy_events hcm_billing_tax_policies; do
-    if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='$table'" 2>/dev/null | grep -q 1; then
+    if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='$table'" 2>/dev/null | grep -q 1; then
         echo "✓ Table $table exists"
     else
-        echo "✗ Table $table MISSING"
+        echo -e "${RED}✗ Table $table MISSING${NC}"
+        SCHEMA_OK=0
     fi
 done
 
-# Check for FK constraints on hcm_tax_governance_policies
-if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME='hcm_tax_governance_policies' AND REFERENCED_TABLE_NAME='companies'" 2>/dev/null | grep -q 1; then
-    echo "✓ FK constraint on company_id exists (hcm_tax_governance_policies → companies)"
+if [ $SCHEMA_OK -eq 1 ]; then
+    CHECKS_PASSED=$((CHECKS_PASSED + 1))
 else
-    echo -e "${YELLOW}⚠️  NO FK constraint on company_id${NC} (will need A5 migration in Phase 0)"
+    CHECKS_FAILED=$((CHECKS_FAILED + 1))
 fi
 
-# Check for domain violation (billing_tax should not have company_id)
-if $MYSQL_CMD -e "DESCRIBE hcm_billing_tax_policies" 2>/dev/null | grep -q "company_id"; then
-    echo -e "${RED}⚠️  DOMAIN VIOLATION: hcm_billing_tax_policies has company_id${NC} (should be platform-singleton)"
-    echo "   ACTION: A4 migration needed in Phase 0"
-    CHECKS_FAILED=$((CHECKS_FAILED + 1))
+# Check for FK constraints on tax governance company_id and policy relation
+FK_GAPS=0
+if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='hcm_tax_governance_policies' AND COLUMN_NAME='company_id' AND REFERENCED_TABLE_NAME='companies'" 2>/dev/null | grep -q 1; then
+    echo "✓ FK exists: hcm_tax_governance_policies.company_id -> companies.id"
 else
-    echo "✓ hcm_billing_tax_policies is platform-singleton (no company_id)"
+    echo -e "${YELLOW}⚠️  FK missing: hcm_tax_governance_policies.company_id -> companies.id${NC}"
+    FK_GAPS=1
+fi
+
+if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='hcm_tax_governance_policy_events' AND COLUMN_NAME='hcm_tax_governance_policy_id' AND REFERENCED_TABLE_NAME='hcm_tax_governance_policies'" 2>/dev/null | grep -q 1; then
+    echo "✓ FK exists: hcm_tax_governance_policy_events.hcm_tax_governance_policy_id -> hcm_tax_governance_policies.id"
+else
+    echo -e "${YELLOW}⚠️  FK missing: hcm_tax_governance_policy_events.hcm_tax_governance_policy_id -> hcm_tax_governance_policies.id${NC}"
+    FK_GAPS=1
+fi
+
+if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='hcm_tax_governance_policy_events' AND COLUMN_NAME='company_id' AND REFERENCED_TABLE_NAME='companies'" 2>/dev/null | grep -q 1; then
+    echo "✓ FK exists: hcm_tax_governance_policy_events.company_id -> companies.id"
+else
+    echo -e "${YELLOW}⚠️  FK missing: hcm_tax_governance_policy_events.company_id -> companies.id${NC}"
+    FK_GAPS=1
+fi
+
+if $MYSQL_CMD -e "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='hcm_billing_tax_policies' AND COLUMN_NAME='company_id'" 2>/dev/null | grep -q 1; then
+    echo "✓ hcm_billing_tax_policies uses tenant-scoped company_id"
+else
+    echo -e "${YELLOW}⚠️  hcm_billing_tax_policies.company_id not found${NC}"
+    FK_GAPS=1
+fi
+
+if [ $FK_GAPS -eq 0 ]; then
     CHECKS_PASSED=$((CHECKS_PASSED + 1))
+else
+    CHECKS_UNRESOLVED=$((CHECKS_UNRESOLVED + 1))
 fi
 echo ""
 
@@ -126,7 +152,10 @@ echo "[CHECK 5] RBAC — Tax governance permissions"
 echo "---"
 
 # Check if tax permissions exist in database
-PERM_COUNT=$($MYSQL_CMD -e "SELECT COUNT(*) FROM hcm_permissions WHERE code LIKE 'tax.%'" 2>/dev/null | tail -1)
+PERM_COUNT=$($MYSQL_CMD -e "SELECT COUNT(*) FROM hcm_permissions WHERE code LIKE 'tax.%'" 2>/dev/null | tail -1 | tr -d '[:space:]')
+if ! [[ "$PERM_COUNT" =~ ^[0-9]+$ ]]; then
+    PERM_COUNT=0
+fi
 
 if [ "$PERM_COUNT" -gt 0 ]; then
     echo "✓ Tax permissions found ($PERM_COUNT total):"

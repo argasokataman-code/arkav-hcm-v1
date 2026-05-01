@@ -24,6 +24,10 @@ class AttendanceRecord extends Model
             if (Schema::hasColumn($record->getTable(), 'corrected_by_user_uuid') && ! $record->corrected_by_user_uuid && $record->corrected_by_user_id) {
                 $record->corrected_by_user_uuid = (string) (User::query()->where('id', $record->corrected_by_user_id)->value('uuid') ?? '');
             }
+
+            if ($record->status === 'on_leave') {
+                $record->status = 'leave';
+            }
         });
     }
 

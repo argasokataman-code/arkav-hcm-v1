@@ -3349,6 +3349,95 @@ paths:
   # -------------------------
   # Tickets (implemented under /v1/hcm)
   # -------------------------
+  /v1/hcm/notes:
+    get:
+      tags: [Notes]
+      summary: List notes for authenticated user (scoped by user+company)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          schema:
+            type: string
+            enum: [all, important, trash]
+            default: all
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Notes]
+      summary: Create a note
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  maxLength: 300
+                content:
+                  type: string
+                  nullable: true
+                tag:
+                  type: string
+                  enum: [personal, social, work, others]
+                  default: personal
+                priority:
+                  type: string
+                  enum: [low, medium, high]
+                  default: medium
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/notes/{id}:
+    put:
+      tags: [Notes]
+      summary: Update a note (partial update supported)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, maxLength: 300 }
+                content: { type: string, nullable: true }
+                tag: { type: string, enum: [personal, social, work, others] }
+                priority: { type: string, enum: [low, medium, high] }
+                is_important: { type: boolean }
+                is_trashed: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Notes]
+      summary: Permanently delete a note
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/tickets:
     get:
       tags: [Tickets]

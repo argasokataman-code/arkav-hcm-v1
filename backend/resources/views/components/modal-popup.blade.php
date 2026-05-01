@@ -7009,86 +7009,59 @@
 
 @if (Route::is(['cronjob']))
     <!--Add Cronjob -->
-    <div class="modal fade" id="add_cronjob">
-        <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal fade" id="add_note">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Add Cronjob</h4>
+                    <h4 class="modal-title">Add Note</h4>
                     <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{url('cronjob')}}">
-                    <div class="modal-body pb-0">
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Name</label>
-                                    <input type="text" class="form-control">
-                                </div>									
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">Note Title <span class="text-danger">*</span></label>
+                                <input type="text" id="note-add-title" class="form-control" placeholder="Enter note title">
                             </div>
-                            <div class="col-md-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Schedule</label>
-                                    <select class="select">
-                                        <option>Select</option>
-                                        <option>5 Minutes</option>
-                                        <option>3 Minutes</option>
-                                    </select>
-                                </div>									
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tag</label>
+                                <select id="note-add-tag" class="form-control">
+                                    <option value="personal">Personal</option>
+                                    <option value="social">Social</option>
+                                    <option value="work">Work</option>
+                                    <option value="others">Others</option>
+                                </select>
                             </div>
-                            <div class="col-md-12">
-                                <div class="row ">
-                                    <div class="col-md-2 d-flex align-items-center">
-                                        <div class="mb-3">
-                                            <label class="form-label">Next Run</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <div class="mb-3">
-                                            <div class="input-icon-end position-relative">
-                                                <input type="text" class="form-control datetimepicker" placeholder="dd/mm/yyyy">
-                                                <span class="input-icon-addon">
-                                                    <i class="ti ti-calendar text-gray-7"></i>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>	
-                                    <div class="col-md-5">
-                                        <div class="mb-3">
-                                            <div class="input-icon position-relative w-100">                                           
-                                                <input type="text" class="form-control timepicker ps-3" placeholder="-- : -- : --">
-                                                <span class="input-icon-addon">
-                                                    <i class="ti ti-clock-hour-3"></i>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>	
-                                </div>																	
+                        </div>
+                        <div class="col-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <select id="note-add-priority" class="form-control">
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="low">Low</option>
+                                </select>
                             </div>
-                            <div class="col-md-12">
-                                <div class="mb-3">
-                                    <label class="form-label">URL</label>
-                                    <input type="text" class="form-control">
-                                </div>									
-                            </div>								
+                        </div>
+                        <div class="col-12">
+                            <div class="mb-0">
+                                <label class="form-label">Content</label>
+                                <textarea id="note-add-content" class="form-control" rows="4" placeholder="Write your note here…"></textarea>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Add Cronjob</button>
-                    </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="note-add-submit" class="btn btn-primary">Add Note</button>
+                </div>
             </div>
         </div>
     </div>
-    <!-- /Add Cronjob -->
-
-    <!-- Edit Cronjob -->
-    <div class="modal fade" id="edit_cronjob">
-        <div class="modal-dialog modal-dialog-centered modal-md">
-            <div class="modal-content">
-                <div class="modal-header">
                     <h4 class="modal-title">Edit Cronjob</h4>
                     <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="ti ti-x"></i>
@@ -7614,101 +7587,64 @@
     </div>
     <!-- /View Note -->
 @endif
-
-@if (Route::is(['file-manager']))
-    <!-- Preview -->
-    <div class="sidebar-themesettings offcanvas offcanvas-end" id="preview">
-        <div class="offcanvas-header d-flex align-items-center justify-content-between bg-dark">
-            <div>
-                <h4 class="mb-1 text-white">Preview</h4>
-            </div>
-            <div class="d-flex align-items-center">
-                <a href="#" class="d-flex align-items-center justify-content-center me-3"><i class="ti ti-star-filled filled text-warning"></i></a>
-                <a href="#" class="d-flex align-items-center justify-content-center text-white me-3"><i class="ti ti-trash"></i></a>
-                <a href="#" class="custom-btn-close d-flex align-items-center justify-content-center text-white"  data-bs-dismiss="offcanvas"><i class="ti ti-x"></i></a>
+    <!-- Delete Modal -->
+    <div class="modal fade" id="delete_modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                        <i class="ti ti-trash-x fs-36"></i>
+                    </span>
+                    <h4 class="mb-1">Confirm Delete</h4>
+                    <p class="mb-3">This action permanently deletes the note and cannot be undone.</p>
+                    <div class="d-flex justify-content-center">
+                        <a href="javascript:void(0);" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</a>
+                        <a href="javascript:void(0);" id="note-delete-confirm" class="btn btn-danger">Yes, Delete</a>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="offcanvas-body p-0">
-            <div class="bg-light document-wrap text-center">
-                <div class="mb-2">
-                    <img src="{{ URL::asset('build/img/icons/pdf-icon.svg') }}" alt="icon">
+    </div>
+    <!-- /Delete Modal -->
+
+    <!-- View Note -->
+    <div class="modal fade" id="view-note-units">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="page-wrapper-new p-0">
+                    <div class="content">
+                        <div class="modal-header">
+                            <div class="d-flex align-items-center">
+                                <h4 id="note-view-title" class="modal-title me-3">Note</h4>
+                                <p id="note-view-tag" class="text-info mb-0"></p>
+                            </div>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <p id="note-view-content" class="mb-3"></p>
+                                    <span id="note-view-priority" class="badge bg-outline-warning d-inline-flex align-items-center mb-0">
+                                        <i class="fas fa-circle fs-6 me-1"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a href="#" class="btn btn-secondary" data-bs-dismiss="modal">Close</a>
+                        </div>
+                    </div>
                 </div>
-                <h4 class="mb-1">Document Final Proof Read<span class="badge badge-secondary-transparent fw-normal fs-12 ms-2">2.4 GB</span></h4>
-                <p>Last Accessed on 15 Mar 2025, 08:15:23 PM</p>
             </div>
-            <div class="preview-content">
-                <h4 class="mb-3">File Info</h4>
-                <div class="file-type p-2 pb-0 gx-2 mb-2">
-                    <div class="text-center mb-2 border-end me-2">
-                        <p class="fs-12 mb-0">File Type</p>
-                        <p class="text-title">PDF</p>
-                    </div>
-                    <div class="text-center mb-2 border-end me-2 pe-2">
-                        <p class="fs-12 mb-0">Created on</p>
-                        <p class="text-title text-nowrap">22 July 2025, 08:30 PM</p>
-                    </div>
-                    <div class="text-center mb-2 border-0">
-                        <p class="fs-12 mb-0">Location</p>
-                        <p class="text-title">Drive</p>
+        </div>
+    </div>
                     </div>
                 </div>
-                <div class="mb-4">
-                    <h6 class="mb-2 fw-medium">Description</h6>
-                    <div class="summernote"></div>
-                </div>
-                <h4 class="mb-3">Recent Activity</h4>
-                <div class="card shadow-none">
-                    <div class="card-body p-3 pb-0">
-                        <h6 class="mb-3">Today</h6>
-                        <ul class="recent-activity mb-3">
-                            <li class="d-flex">
-                                <span class="avatar avatar-md">
-                                    <img src="{{ URL::asset('build/img/profiles/avatar-01.jpg') }}" class="rounded-circle" alt="img">
-                                </span>
-                                <div class="ms-2 flex-grow-1">
-                                    <p class="mb-0"><span class="text-title">Mercy</span> Added New File in <span class="text-title">Drive</span></p>
-                                    <p class="mb-0">05:22 PM</p>
-                                    <div class="bg-light rounded p-2 d-flex align-items-center justify-content-between mt-1">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-video text-title fs-16"></i>
-                                            <p class="ms-2">All_files.mp4</p>
-                                        </div>
-                                        <span class="fs-12">8.2 MB</span>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="d-flex">
-                                <span class="avatar avatar-md">
-                                    <img src="{{ URL::asset('build/img/profiles/avatar-15.jpg') }}" class="rounded-circle" alt="img">
-                                </span>
-                                <div class="ms-2 flex-grow-1">
-                                    <p class="mb-0"><span class="text-title">Druman</span> Added New File in <span class="text-title">ROOT FOLDER</span></p>
-                                    <p class="mb-0">05:23 PM</p>
-                                    <div class="bg-light rounded p-2 d-flex align-items-center justify-content-between mt-1">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-photo text-title fs-16"></i>
-                                            <p class="ms-2">WebsiteBackupScreen.png</p>
-                                        </div>
-                                        <span class="fs-12">3.2 MB</span>
-                                    </div>
-                                    <div class="bg-light rounded p-2 d-flex align-items-center justify-content-between mt-1">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-file-zip text-title fs-16"></i>
-                                            <p class="ms-2">Finaldraft.zip</p>
-                                        </div>
-                                        <span class="fs-12">4 MB</span>
-                                    </div>
-                                    <div class="bg-light rounded p-2 d-flex align-items-center justify-content-between mt-1">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-photo text-title fs-16"></i>
-                                            <p class="ms-2">Photo.jpg</p>
-                                        </div>
-                                        <span class="fs-12">6.5 MB</span>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
-                        <h6 class="mb-3">28 Jan 2025</h6>
+            </div>
+        </div>
                         <ul class="recent-activity mb-3">
                             <li class="d-flex">
                                 <span class="avatar avatar-md">

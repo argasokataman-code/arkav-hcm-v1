@@ -34,14 +34,33 @@
                         </div>
                     </div>
                     <div class="tab-content" id="v-pills-tabContent2">
-                        @include('partials.notes.tab-all-notes-a')
-                        @include('partials.notes.tab-all-notes-b')
-                        @include('partials.notes.tab-all-notes-c')
-                        @include('partials.notes.tab-all-notes-d')
-                        @include('partials.notes.tab-important-a')
-                        @include('partials.notes.tab-important-b')
-                        @include('partials.notes.tab-trash-a')
-                        @include('partials.notes.tab-trash-b')
+                        <!-- All Notes tab -->
+                        <div class="tab-pane fade active show" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab">
+                            <!-- Important notes carousel (populated by notes-data.js) -->
+                            <div id="notes-important-section"></div>
+                            <!-- All notes grid (populated by notes-data.js) -->
+                            <div class="row" id="notes-all-grid">
+                                <div class="col-12 text-center text-muted py-5">
+                                    <i class="ti ti-loader-2 fs-1 mb-2 d-block"></i>Loading notes…
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Important tab -->
+                        <div class="tab-pane fade" id="v-pills-messages" role="tabpanel" aria-labelledby="v-pills-messages-tab">
+                            <div class="row" id="notes-important-grid">
+                                <div class="col-12 text-center text-muted py-5">
+                                    <i class="ti ti-loader-2 fs-1 mb-2 d-block"></i>Loading important notes…
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Trash tab -->
+                        <div class="tab-pane fade" id="v-pills-settings" role="tabpanel" aria-labelledby="v-pills-settings-tab">
+                            <div class="row" id="notes-trash-grid">
+                                <div class="col-12 text-center text-muted py-5">
+                                    <i class="ti ti-loader-2 fs-1 mb-2 d-block"></i>Loading trash…
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -54,3 +73,7 @@
     @endcomponent
 
 @endsection
+
+@push('scripts')
+<script src="{{ URL::asset('build/js/notes-data.js') }}"></script>
+@endpush

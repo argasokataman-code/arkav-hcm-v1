@@ -61,6 +61,9 @@ require __DIR__ . '/api/training.php';
 // Helpdesk / Tickets
 require __DIR__ . '/api/ticket.php';
 
+// Notes
+require __DIR__ . '/api/notes.php';
+
 // Employee Lifecycle: Promotions
 require __DIR__ . '/api/promotion.php';
 

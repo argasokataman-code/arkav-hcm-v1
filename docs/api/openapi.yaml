@@ -3347,8 +3347,82 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
   # -------------------------
-  # Tickets (implemented under /v1/hcm)
+  # Calendar and Notes (implemented under /v1/hcm)
   # -------------------------
+  /v1/hcm/calendar/events:
+    get:
+      tags: [Calendar]
+      summary: List custom calendar events for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+    post:
+      tags: [Calendar]
+      summary: Create custom calendar event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, startAt]
+              properties:
+                title: { type: string, maxLength: 255 }
+                location: { type: string, nullable: true, maxLength: 255 }
+                description: { type: string, nullable: true }
+                startAt: { type: string, format: date-time }
+                endAt: { type: string, format: date-time, nullable: true }
+                allDay: { type: boolean, default: false }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/calendar/events/{id}:
+    put:
+      tags: [Calendar]
+      summary: Update custom calendar event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, maxLength: 255 }
+                location: { type: string, nullable: true, maxLength: 255 }
+                description: { type: string, nullable: true }
+                startAt: { type: string, format: date-time }
+                endAt: { type: string, format: date-time, nullable: true }
+                allDay: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Calendar]
+      summary: Delete custom calendar event
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
   /v1/hcm/notes:
     get:
       tags: [Notes]

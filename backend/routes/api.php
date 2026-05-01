@@ -64,6 +64,9 @@ require __DIR__ . '/api/ticket.php';
 // Notes
 require __DIR__ . '/api/notes.php';
 
+// Calendar Events
+require __DIR__ . '/api/calendar.php';
+
 // Employee Lifecycle: Promotions
 require __DIR__ . '/api/promotion.php';
 

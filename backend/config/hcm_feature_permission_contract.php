@@ -75,6 +75,10 @@ return [
         'resignation.manage' => ['any_of' => ['employee_lifecycle']],
         'termination.view' => ['any_of' => ['employee_lifecycle']],
         'termination.manage' => ['any_of' => ['employee_lifecycle']],
+
+        // Asset Management
+        'asset.view' => ['any_of' => ['asset_management']],
+        'asset.manage' => ['any_of' => ['asset_management']],
     ],
 
     // Permission yang tidak di-gate oleh package feature.

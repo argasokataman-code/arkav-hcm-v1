@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\HcmTeamController;
 use App\Http\Controllers\Api\WilayahLookupController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:employee_management'])->group(function () {
     // Employees
     Route::get('/employees', [HcmEmployeeController::class, 'index']);
     Route::get('/employees/export', [HcmEmployeeController::class, 'exportEmployees']);
@@ -17,7 +17,9 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/employees/{id}', [HcmEmployeeController::class, 'show'])->whereNumber('id');
     Route::put('/employees/{id}', [HcmEmployeeController::class, 'update'])->whereNumber('id');
     Route::post('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'uploadProfilePhoto'])->whereNumber('id');
+});
 
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     // Wilayah (Location) Lookups
     Route::get('/wilayah/provinces', [WilayahLookupController::class, 'provinces']);
     Route::get('/wilayah/regencies', [WilayahLookupController::class, 'regencies']);

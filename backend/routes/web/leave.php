@@ -3,13 +3,15 @@
 use App\Models\HcmLeaveTypeSetting;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/leaves', function () {
-    return view(view: 'leaves');
-})->middleware('hcm.web.admin')->name('leaves');
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->group(function (): void {
+    Route::get('/leaves', function () {
+        return view(view: 'leaves');
+    })->name('leaves');
 
-Route::get('/leaves-employee', function () {
-    return view(view: 'leaves-employee');
-})->name('leaves-employee');
+    Route::get('/leaves-employee', function () {
+        return view(view: 'leaves-employee');
+    })->name('leaves-employee');
+});
 
 Route::get('/leave-request', function () {
     $user = request()->user();
@@ -25,9 +27,11 @@ Route::get('/leave-request', function () {
     return redirect('/leaves-employee');
 })->name('leave-request-legacy');
 
-Route::get('/leave-settings', function () {
-    return view(view: 'leave-settings');
-})->middleware('hcm.web.admin')->name('leave-settings');
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->group(function (): void {
+    Route::get('/leave-settings', function () {
+        return view(view: 'leave-settings');
+    })->name('leave-settings');
+});
 
 Route::get('/leave-type', function () {
     $leaveTypes = HcmLeaveTypeSetting::query()
@@ -36,8 +40,8 @@ Route::get('/leave-type', function () {
         ->get();
 
     return view('leave-type', ['leaveTypes' => $leaveTypes]);
-})->middleware('hcm.web.admin')->name('leave-type');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->name('leave-type');
 
 Route::get('/holidays', function () {
     return view(view: 'holidays');
-})->middleware('hcm.web.admin')->name('holidays');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:holiday_calendar'])->name('holidays');

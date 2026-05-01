@@ -2,25 +2,27 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/attendance-admin', function () {
-    return view(view: 'attendance-admin');
-})->middleware('hcm.web.admin')->name('attendance-admin');
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:attendance'])->group(function (): void {
+    Route::get('/attendance-admin', function () {
+        return view(view: 'attendance-admin');
+    })->name('attendance-admin');
+
+    Route::get('/timesheets', function () {
+        return view(view: 'timesheets');
+    })->name('timesheets');
+
+    Route::get('/schedule-timing', function () {
+        return view(view: 'schedule-timing');
+    })->name('schedule-timing');
+
+    Route::get('/shift-master', function () {
+        return view(view: 'shift-master');
+    })->name('shift-master');
+});
 
 Route::get('/attendance-employee', function () {
     return view(view: 'attendance-employee');
 })->name('attendance-employee');
-
-Route::get('/timesheets', function () {
-    return view(view: 'timesheets');
-})->middleware('hcm.web.admin')->name('timesheets');
-
-Route::get('/schedule-timing', function () {
-    return view(view: 'schedule-timing');
-})->middleware('hcm.web.admin')->name('schedule-timing');
-
-Route::get('/shift-master', function () {
-    return view(view: 'shift-master');
-})->middleware('hcm.web.admin')->name('shift-master');
 
 Route::get('/schedules', function () {
     $user = request()->user();

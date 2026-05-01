@@ -33,6 +33,13 @@ class EmployeeLimitEnforcementTest extends TestCase
 
         PackageFeature::create([
             'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => null,
+        ]);
+
+        PackageFeature::create([
+            'package_uuid' => $package->uuid,
             'feature_code' => 'max_employees',
             'feature_name' => 'Maximum Employees',
             'limit' => 1,

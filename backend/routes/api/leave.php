@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\HcmLeaveSettingController;
 use App\Http\Controllers\Api\HcmHolidayController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:leave_management'])->group(function () {
     // Leave Type Options
     Route::get('/leave-type-options', [HcmLeaveRequestController::class, 'enabledLeaveTypes']);
 
@@ -30,7 +30,9 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/leave-settings/custom-policies', [HcmLeaveSettingController::class, 'storeCustomPolicy']);
     Route::put('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'updateCustomPolicy'])->whereNumber('id');
     Route::delete('/leave-settings/custom-policies/{id}', [HcmLeaveSettingController::class, 'destroyCustomPolicy'])->whereNumber('id');
+});
 
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:holiday_calendar'])->group(function () {
     // Holidays
     Route::get('/holidays', [HcmHolidayController::class, 'index']);
     Route::post('/holidays', [HcmHolidayController::class, 'store']);

@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\HcmSmartAttendanceController;
 use App\Http\Controllers\Api\HcmShiftController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance'])->group(function () {
     // Attendance Admin
     Route::get('/attendance/admin', [AttendanceController::class, 'adminIndex']);
     Route::put('/attendance/admin/record', [AttendanceController::class, 'adminUpsertRecord']);

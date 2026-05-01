@@ -2,17 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/employees', function () {
-    return view(view: 'employees');
-})->middleware('hcm.web.admin')->name('employees');
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->group(function (): void {
+    Route::get('/employees', function () {
+        return view(view: 'employees');
+    })->name('employees');
 
-Route::get('/employees-grid', function () {
-    return view(view: 'employees-grid');
-})->middleware('hcm.web.admin')->name('employees-grid');
+    Route::get('/employees-grid', function () {
+        return view(view: 'employees-grid');
+    })->name('employees-grid');
 
-Route::get('/employee-details', function () {
-    return view(view: 'employee-details');
-})->name('employee-details');
+    Route::get('/employee-details', function () {
+        return view(view: 'employee-details');
+    })->name('employee-details');
+});
 
 Route::get('/departments', function () {
     return view(view: 'departments');

@@ -157,12 +157,9 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->latest('id')
             ->firstOrFail();
 
-        PackageFeature::query()->create([
-            'package_uuid' => $subscription->package_uuid,
-            'feature_code' => 'payroll',
-            'feature_name' => 'Payroll',
-            'limit' => null,
-        ]);
+        // payroll feature is already seeded by createCompanyWithActiveSubscriptionWithoutAssetFeature
+        // Re-adding it here would violate the unique (package_uuid, feature_code) constraint.
+        unset($subscription);
 
         $response = $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
@@ -201,17 +198,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
     {
         $company = $this->createCompanyWithActiveSubscriptionWithoutAssetFeature();
 
-        $subscription = Subscription::query()
-            ->where('company_id', $company->id)
-            ->latest('id')
-            ->firstOrFail();
-
-        PackageFeature::query()->create([
-            'package_uuid' => $subscription->package_uuid,
-            'feature_code' => 'payroll',
-            'feature_name' => 'Payroll',
-            'limit' => null,
-        ]);
+        // payroll feature is already seeded by createCompanyWithActiveSubscriptionWithoutAssetFeature
 
         $user = User::query()->create([
             'name' => 'Regular Employee',
@@ -284,6 +271,16 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             'billing_cycle' => 'monthly',
             'amount' => 99000,
         ]);
+
+        // Seed core features (all except asset_management — that is what the test verifies is absent)
+        foreach (['employee_management', 'attendance', 'leave_management', 'holiday_calendar', 'payroll'] as $code) {
+            PackageFeature::query()->create([
+                'package_uuid' => $package->uuid,
+                'feature_code' => $code,
+                'feature_name' => $code,
+                'limit' => null,
+            ]);
+        }
 
         return $company;
     }

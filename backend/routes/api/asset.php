@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\HcmAssetController;
 use App\Http\Controllers\Api\HcmAssetCategoryController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:asset_management'])->group(function () {
     Route::get('/asset-categories', [HcmAssetCategoryController::class, 'index']);
     Route::post('/asset-categories', [HcmAssetCategoryController::class, 'store']);
     Route::put('/asset-categories/{category}', [HcmAssetCategoryController::class, 'update'])->whereNumber('category');

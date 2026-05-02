@@ -27,12 +27,14 @@ class EnsureAssetManagementWebAccess
             return redirect()->to(url('login'));
         }
 
-        if ($user->isGlobalHcmAdmin()) {
-            return $next($request);
-        }
-
         $company = $request->attributes->get('activeCompany');
         $companyId = $company instanceof Company ? (int) $company->id : null;
+
+        // Global admin bypass is only allowed outside tenant context.
+        // When tenant context is active, feature gate must follow the tenant package.
+        if ($user->isGlobalHcmAdmin() && ! $companyId) {
+            return $next($request);
+        }
 
         if (! $companyId) {
             $resolved = $this->tenantContextResolver->resolve($request, $user);

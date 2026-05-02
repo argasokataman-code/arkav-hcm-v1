@@ -492,3 +492,69 @@ When `reused: true`, the client must display the existing invoice and lock the c
 | `TENANT_CONTEXT_REQUIRED` | 422 | Missing `activeCompanyId` in request context. |
 | `VALIDATION_ERROR` | 422 | Trial package submitted, or invalid `billing_cycle`. |
 | `NOT_FOUND` | 404 | `package_uuid` not found or inactive. |
+
+### POST /v1/hcm/billing/addons/checkout
+
+Tenant self-service add-on checkout: create invoice add-on terpisah (tanpa ganti paket).
+
+**Auth**: Bearer token + HCM admin role. `activeCompanyId` wajib ada dari tenant context middleware.
+
+**Request Body**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `addon_id` | integer | Yes* | ID add-on aktif di katalog `/v1/saas/package-addons`. |
+| `addon_uuid` | uuid | No* | Alternatif identifier add-on aktif. |
+| `billingEmail` | string | No | Optional billing e-mail override. |
+
+\* `addon_id` atau `addon_uuid` wajib salah satu.
+
+**Behavior**
+
+- Menjaga **dedup global** yang sama dengan checkout paket: jika masih ada invoice unpaid (`draft`/`sent`), endpoint akan mengembalikan invoice existing dengan `reused: true`.
+- Jika invoice baru dibuat, sistem juga membuat `purchase_transactions` dengan `transaction_type = addon` dan mengaitkan invoice lewat `purchase_transaction_id`.
+- Breakdown pricing add-on disimpan di `invoice.notes.pricing_breakdown` dengan komponen add-on (mis. `addon_markup_rate`) terpisah dari checkout paket.
+
+**Success Response (201)**
+
+```json
+{
+  "success": true,
+  "data": {
+    "addon": {
+      "id": 88,
+      "uuid": "d8d78593-f8d2-4c16-9d35-b9be619b4d2e",
+      "code": "asset_management",
+      "name": "Asset Management",
+      "pricePerUnit": 49000,
+      "unitName": "tenant / month"
+    },
+    "transaction": {
+      "id": 120,
+      "code": "TXN-2026-000120",
+      "status": "issued",
+      "amount": 49000,
+      "taxAmount": 10780,
+      "totalAmount": 59780
+    },
+    "invoice": {
+      "id": 99,
+      "invoiceNumber": "INV-2026-00099",
+      "issueDate": "2026-05-02",
+      "dueDate": "2026-05-03",
+      "amountDue": 59780,
+      "isPaid": false,
+      "status": "draft"
+    },
+    "reused": false
+  }
+}
+```
+
+**Error Codes**
+
+| Code | HTTP | When |
+|---|---|---|
+| `TENANT_CONTEXT_REQUIRED` | 422 | Missing `activeCompanyId` in request context. |
+| `VALIDATION_ERROR` | 422 | `addon_id`/`addon_uuid` tidak dikirim atau format invalid. |
+| `NOT_FOUND` | 404 | Add-on tidak ditemukan atau tidak aktif. |

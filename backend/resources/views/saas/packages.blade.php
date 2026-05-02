@@ -242,14 +242,37 @@
 </div>
 
 <style>
+    #packageModal .modal-dialog {
+        max-width: min(1140px, 96vw);
+        margin: 1rem auto;
+    }
+
     #packageModal .modal-content {
         border-radius: 14px;
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+    }
+
+    #packageModal .modal-body {
+        overflow-y: auto;
     }
 
     .package-modal-panel {
         border: 1px solid #e4e7ec;
         border-radius: 12px;
         background: #ffffff;
+    }
+
+    #packageModal .col-lg-4 .package-modal-panel {
+        max-height: calc(100vh - 13.5rem);
+        overflow-y: auto;
+    }
+
+    #packageModal .col-lg-8 .package-modal-panel {
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 13.5rem);
+        overflow: hidden;
     }
 
     .package-feature-summary {
@@ -260,7 +283,9 @@
     }
 
     .package-feature-catalog {
-        max-height: 58vh;
+        max-height: none;
+        min-height: 260px;
+        flex: 1 1 auto;
         overflow-y: auto;
         padding-right: 0.25rem;
     }
@@ -312,6 +337,19 @@
         font-size: 0.75rem;
         font-weight: 600;
         color: #344054;
+    }
+
+    @media (max-width: 991.98px) {
+        #packageModal .col-lg-4 .package-modal-panel,
+        #packageModal .col-lg-8 .package-modal-panel {
+            max-height: none;
+            overflow: visible;
+        }
+
+        .package-feature-catalog {
+            min-height: 180px;
+            max-height: 42vh;
+        }
     }
 </style>
 

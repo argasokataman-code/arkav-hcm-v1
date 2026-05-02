@@ -533,4 +533,221 @@ describe('Packages management wiring', () => {
     expect(document.getElementById('input_package_feature_chips').textContent).toContain('Tickets');
     expect(document.getElementById('input_package_feature_chips').textContent).toContain('Asset Management');
   });
+
+  it('syncPackageFeatures only deletes unchecked codes from active catalog', async () => {
+    const deletedFeatureIds = [];
+
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/package-addons?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/pkg-uuid' && options.method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              id: 'pkg-uuid',
+              code: 'enterprise',
+              name: 'Enterprise',
+              features: [
+                { id: 11, code: 'legacy_enterprise_feature', name: 'Legacy Enterprise Feature', limit: null },
+                { id: 12, code: 'tickets', name: 'Tickets', limit: null },
+              ],
+            },
+          }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/features/12' && options.method === 'DELETE') {
+        deletedFeatureIds.push(12);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/features/11' && options.method === 'DELETE') {
+        deletedFeatureIds.push(11);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [] }),
+      };
+    });
+
+    const manager = await loadPackagesManager(fetchMock);
+
+    await manager.syncPackageFeatures('pkg-uuid', []);
+    await flush();
+
+    expect(deletedFeatureIds).toContain(12);
+    expect(deletedFeatureIds).not.toContain(11);
+  });
+
+  it('editPackage only checks features that are truly included', async () => {
+    const fetchMock = vi.fn(async (url, options = {}) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/package-addons?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      if (target === '/v1/saas/packages/pkg-uuid' && options.method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              id: 'pkg-uuid',
+              code: 'enterprise',
+              name: 'Enterprise',
+              description: 'Enterprise package',
+              monthlyPrice: 999,
+              yearlyPrice: 9999,
+              billingUnit: 'company',
+              status: 'active',
+              features: [
+                { id: 21, code: 'tickets', name: 'Tickets', isIncluded: false, limit: null },
+                { id: 22, code: 'asset_management', name: 'Asset Management', isIncluded: true, limit: 0 },
+                { id: 23, code: 'payroll', name: 'Payroll', isIncluded: true, limit: null },
+              ],
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [] }),
+      };
+    });
+
+    const manager = await loadPackagesManager(fetchMock);
+    await manager.editPackage('pkg-uuid');
+    await flush();
+
+    const checked = Array.from(
+      document.querySelectorAll("input[type='checkbox'][name='package_feature_codes']:checked")
+    ).map((el) => el.value);
+
+    expect(checked).toContain('payroll');
+    expect(checked).not.toContain('tickets');
+    expect(checked).not.toContain('asset_management');
+  });
+
+  it('shows Included count based on catalog-backed included features', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: 'pkg-uuid',
+                code: 'enterprise',
+                name: 'Enterprise',
+                description: 'Enterprise package',
+                monthlyPrice: 999,
+                yearlyPrice: 9999,
+                billingUnit: 'company',
+                status: 'active',
+                features: [
+                  { id: 31, code: 'payroll', name: 'Payroll', isIncluded: true, limit: null },
+                  { id: 32, code: 'tickets', name: 'Tickets', isIncluded: false, limit: null },
+                  { id: 33, code: 'legacy_enterprise_feature', name: 'Legacy Enterprise Feature', isIncluded: true, limit: null },
+                ],
+              },
+            ],
+            pagination: { last_page: 1 },
+          }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/package-addons?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [] }),
+      };
+    });
+
+    await loadPackagesManager(fetchMock);
+
+    const pageText = document.body.textContent || '';
+    expect(pageText).toContain('Included: 1');
+  });
 });

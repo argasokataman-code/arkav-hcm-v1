@@ -519,9 +519,31 @@
         }
     }
 
+    function hasMePermission(me, permissionCode) {
+        var data = me && me.data ? me.data : null;
+        if (!data || !permissionCode) {
+            return false;
+        }
+
+        if (data.hcmGlobalAdmin === true || data.hcmAdmin === true) {
+            return true;
+        }
+
+        var permissions = data.permissions;
+        if (Array.isArray(permissions) && permissions.indexOf(permissionCode) !== -1) {
+            return true;
+        }
+        if (permissions && typeof permissions === "object" && permissions[permissionCode] === true) {
+            return true;
+        }
+
+        var permissionCodes = Array.isArray(data.permissionCodes) ? data.permissionCodes : [];
+        return permissionCodes.indexOf(permissionCode) !== -1;
+    }
+
     if (tbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
-            if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['resignation.view']) {
+            if (!me || !me.success || !hasMePermission(me, 'resignation.view')) {
                 safeRedirect("/employee-dashboard");
                 return;
             }

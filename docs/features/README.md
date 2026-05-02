@@ -6,6 +6,8 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 
 **Role & permission per URL (lintas fitur):** `../planning/active-hcm-templates-and-permissions.md` — indeks halaman menu HCM yang aktif, modul JS, area API, dan target akses (HCM Admin vs karyawan). Update dokumen ini bersamaan saat menambah route/menu atau mengubah siapa yang boleh memanggil API.
 
+**Klasifikasi komersial runtime (Default vs MVP vs Add-ons):** [RUNTIME-FEATURE-CLASSIFICATION.md](RUNTIME-FEATURE-CLASSIFICATION.md) — sumber tunggal pemetaan fitur agar package composer tidak drift.
+
 **Siklus payroll (pre / actual / post):** `../planning/payroll-lifecycle.md`.
 
 **Peta integrasi lintas fitur:** [INTEGRATION-MAP.md](INTEGRATION-MAP.md) — daftar sumber data, modul konsumen, route aktif, dan README yang harus dibaca bersama.

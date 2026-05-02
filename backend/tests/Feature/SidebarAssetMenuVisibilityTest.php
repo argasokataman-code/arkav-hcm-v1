@@ -240,7 +240,71 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             ->assertRedirect(url('employee-dashboard'));
     }
 
+    public function test_sidebar_hides_holiday_attendance_and_lifecycle_when_package_features_are_missing(): void
+    {
+        $company = $this->createCompanyWithActiveSubscriptionFeatures([
+            'employee_management',
+            'payroll',
+            'tickets',
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Feature Scoped Admin',
+            'email' => 'feature.scoped.admin@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'employment_status' => 'active',
+            'designation' => 'Admin',
+            'team' => 'HR',
+            'nik' => 'EMP-305',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/employees');
+
+        $response->assertOk();
+        $response->assertDontSee('href="'.url('holidays').'"', false);
+        $response->assertDontSee('href="'.url('attendance-admin').'"', false);
+        $response->assertDontSee('href="'.url('attendance-employee').'"', false);
+        $response->assertDontSee('href="'.url('promotion').'"', false);
+        $response->assertDontSee('href="'.url('resignation').'"', false);
+        $response->assertDontSee('href="'.url('termination').'"', false);
+
+        $response->assertSee('href="'.url('employees').'"', false);
+        $response->assertSee('href="'.url('payroll-run').'"', false);
+        $response->assertSee('href="'.url('tickets-employee').'"', false);
+    }
+
     private function createCompanyWithActiveSubscriptionWithoutAssetFeature(): Company
+    {
+        return $this->createCompanyWithActiveSubscriptionFeatures([
+            'employee_management',
+            'attendance',
+            'leave_management',
+            'holiday_calendar',
+            'payroll',
+        ]);
+    }
+
+    /**
+     * @param array<int, string> $featureCodes
+     */
+    private function createCompanyWithActiveSubscriptionFeatures(array $featureCodes): Company
     {
         $company = Company::query()->create([
             'code' => 'cmp_'.strtolower((string) str()->random(8)),
@@ -272,8 +336,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
             'amount' => 99000,
         ]);
 
-        // Seed core features (all except asset_management — that is what the test verifies is absent)
-        foreach (['employee_management', 'attendance', 'leave_management', 'holiday_calendar', 'payroll'] as $code) {
+        foreach ($featureCodes as $code) {
             PackageFeature::query()->create([
                 'package_uuid' => $package->uuid,
                 'feature_code' => $code,

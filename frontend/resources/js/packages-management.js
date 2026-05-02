@@ -12,7 +12,7 @@
     {
       module: "employee",
       title: "Employee Management",
-      description: "Master data karyawan, struktur organisasi, dan administrasi HR dasar.",
+      description: "Fitur inti employee yang aktif dipakai pada flow HCM saat ini.",
       features: [
         {
           code: "max_employees",
@@ -24,7 +24,6 @@
           limitSuffix: "org",
         },
         { code: "employee_management", name: "Employee Directory", description: "List, profile, dan pencarian data karyawan." },
-        { code: "employee_bulk_import", name: "Bulk Import", description: "Upload massal data employee via template." },
         { code: "employee_document_center", name: "Document Center", description: "Dokumen personal, kontrak, dan arsip employee." },
         { code: "employee_lifecycle", name: "Lifecycle Tracking", description: "Onboarding, mutation, promotion, sampai exit." },
       ],
@@ -32,55 +31,57 @@
     {
       module: "attendance",
       title: "Attendance",
-      description: "Tracking kehadiran, shift, timesheet, dan koreksi absensi.",
+      description: "Fitur attendance yang dipakai untuk absensi dan scheduling.",
       features: [
         { code: "attendance", name: "Attendance Dashboard", description: "Dashboard check in/out harian untuk employee." },
         { code: "attendance_shift_scheduling", name: "Shift Scheduling", description: "Atur shift dan jam kerja tim." },
-        { code: "attendance_geo_tracking", name: "Geo Tracking", description: "Capture koordinat saat punch in/out." },
-        { code: "attendance_correction_flow", name: "Correction Workflow", description: "Ajukan dan approve koreksi absensi." },
-      ],
-    },
-    {
-      module: "payroll",
-      title: "Payroll",
-      description: "Komponen gaji, proses payroll, dan distribusi slip gaji.",
-      features: [
-        { code: "payroll", name: "Payroll Run", description: "Generate payroll periodik bulanan." },
-        { code: "payroll_components", name: "Salary Components", description: "Atur allowance, deduction, dan formula dasar." },
-        { code: "payroll_payslip", name: "Payslip Publishing", description: "Publikasi slip gaji digital ke employee." },
-        { code: "payroll_thr", name: "THR Management", description: "Perhitungan dan approval THR periodik." },
       ],
     },
     {
       module: "leave",
       title: "Leave Management",
-      description: "Pengajuan cuti/izin/sakit beserta policy dan approval.",
+      description: "Fitur leave yang aktif untuk request, approval, dan kalender libur.",
       features: [
         { code: "leave_management", name: "Leave Requests", description: "Pengajuan cuti, izin, sakit dari employee." },
         { code: "leave_approval_flow", name: "Approval Workflow", description: "Approval berjenjang manager hingga HR." },
-        { code: "leave_balance_ledger", name: "Leave Balance Ledger", description: "Monitoring saldo dan mutasi cuti." },
         { code: "holiday_calendar", name: "Holiday Calendar", description: "Kelola hari libur nasional dan perusahaan." },
+      ],
+    },
+    {
+      module: "payroll",
+      title: "Payroll",
+      description: "Fitur payroll yang dipakai untuk proses gaji dan THR.",
+      features: [
+        { code: "payroll", name: "Payroll Run", description: "Generate payroll periodik bulanan." },
+        { code: "payroll_components", name: "Compensation Components", description: "Kelola komponen kompensasi seperti allowance dan deduction payroll." },
+        { code: "payroll_thr", name: "THR Management", description: "Perhitungan dan approval THR periodik." },
       ],
     },
     {
       module: "performance",
       title: "Performance",
-      description: "KPI, goals, penilaian performa, dan feedback cycle.",
+      description: "Fitur performance dan goal yang saat ini dipakai di modul HCM.",
       features: [
         { code: "performance", name: "Performance Review", description: "Review performa periodik per employee." },
-        { code: "performance_goal_tracking", name: "Goal Tracking", description: "Objective/KPI tracking lintas periode." },
-        { code: "performance_calibration", name: "Calibration Panel", description: "Panel kalibrasi penilaian tim/department." },
+        { code: "goal_tracking", name: "Goal Tracking", description: "Objective/KPI tracking lintas periode." },
+        { code: "performance_goal_tracking", name: "Advanced Goal Tracking", description: "Goal tracking lanjutan untuk workflow performance." },
+        { code: "training", name: "Training", description: "Administrasi pelatihan, trainer, dan sesi pembelajaran." },
+      ],
+    },
+    {
+      module: "assets",
+      title: "Asset Management",
+      description: "Fitur inti asset management untuk inventaris perusahaan.",
+      features: [
+        { code: "asset_management", name: "Asset Management", description: "Master aset, assignment, dan stock overview." },
       ],
     },
     {
       module: "platform",
-      title: "Platform & Integrations",
-      description: "Kontrol akses API, integrasi, dan support operasional.",
+      title: "Platform",
+      description: "Fitur platform aktif untuk operasional internal.",
       features: [
-        { code: "api_access", name: "API Access", description: "Akses endpoint integrasi public/internal." },
-        { code: "sso_basic", name: "SSO Basic", description: "Single Sign On via provider umum." },
-        { code: "audit_logs", name: "Audit Logs", description: "Riwayat aktivitas penting untuk compliance." },
-        { code: "priority_support", name: "Priority Support", description: "Jalur support prioritas dengan SLA khusus." },
+        { code: "tickets", name: "Tickets", description: "Modul helpdesk internal untuk employee dan admin." },
       ],
     },
   ];
@@ -98,6 +99,29 @@
       return (group.features || []).map(function (feature) {
         return feature.code;
       });
+    });
+  }
+
+  function isPackageFeatureIncluded(feature) {
+    if (!feature) return false;
+    if (typeof feature === "string") return true;
+
+    const hasExplicitZeroLimit = feature.limit !== null && feature.limit !== undefined && Number(feature.limit) === 0;
+    return feature.isIncluded !== false && !hasExplicitZeroLimit;
+  }
+
+  function getIncludedPackageFeatures(features, options) {
+    const safeFeatures = Array.isArray(features) ? features : [];
+    const included = safeFeatures.filter(isPackageFeatureIncluded);
+
+    if (!options || options.catalogOnly !== true) {
+      return included;
+    }
+
+    const catalogSet = new Set(getDefaultFeatureCatalog());
+    return included.filter(function (feature) {
+      const code = typeof feature === "string" ? feature : feature.code;
+      return !!code && catalogSet.has(code);
     });
   }
 
@@ -488,7 +512,6 @@
           if (response.success && response.data) {
             self.packages = response.data || [];
             self.totalPages = response.pagination ? response.pagination.last_page : 1;
-            self.syncFeatureCatalogFromPackages(response.data || []);
             self.renderPackages();
           } else {
             self.showError("Failed to load packages");
@@ -540,15 +563,6 @@
 
       const self = this;
 
-      function isIncludedFeature(f) {
-        if (!f) return false;
-        if (typeof f === "string") return true;
-        const limit = f.limit;
-        // 0 = not included (per seeder convention)
-        if (limit === 0 || limit === "0") return false;
-        return true;
-      }
-
       let html = '';
       if (this.packages.length === 0) {
         html = '<div class="card"><div class="card-body text-center text-muted py-4">No packages found</div></div>';
@@ -575,7 +589,7 @@
         }
 
         function featuresCell(pkg) {
-          const included = (pkg.features || []).filter(isIncludedFeature);
+          const included = getIncludedPackageFeatures(pkg.features, { catalogOnly: true });
           if (!included.length) {
             return '<span class="text-muted fs-12">No features</span>';
           }
@@ -961,6 +975,7 @@
 
     syncPackageFeatures: function (packageId, selectedFeatureCodes) {
       const self = this;
+      const catalogFeatureSet = new Set(getDefaultFeatureCatalog());
       const selectedFeatureMap = {};
       (selectedFeatureCodes || []).forEach(function (feature) {
         if (feature && feature.code) {
@@ -1024,7 +1039,7 @@
 
           const removeRequests = [];
           existingFeatures.forEach(function (feature) {
-            if (!selected.has(feature.code)) {
+            if (!selected.has(feature.code) && catalogFeatureSet.has(feature.code)) {
               removeRequests.push(
                 apiRequest("DELETE", API_BASE + "/features/" + feature.id, null).catch(function () {
                   return null;
@@ -1224,21 +1239,6 @@
       return label;
     },
 
-    syncFeatureCatalogFromPackages: function (packages) {
-      const fromPackages = [];
-      (packages || []).forEach(function (pkg) {
-        (pkg.features || []).forEach(function (feature) {
-          const code = feature.code || String(feature.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
-          if (code) {
-            fromPackages.push(code);
-          }
-        });
-      });
-
-      const catalog = Array.from(new Set(getDefaultFeatureCatalog().concat(fromPackages)));
-      this.renderFeatureCatalog(catalog);
-    },
-
     renderFeatureCatalog: function (featureCodes) {
       const catalogRoot = document.getElementById("input_package_feature_chips");
       if (!catalogRoot) return;
@@ -1247,7 +1247,6 @@
       const selectedCodes = new Set(this.getSelectedFeatureCodes());
       const defaultCatalog = getDefaultFeatureCatalog();
       const incomingCodes = new Set(featureCodes || defaultCatalog);
-      const knownCodes = new Set(defaultCatalog);
 
       const groups = getFeatureLibrary().map(function (group) {
         return {
@@ -1264,23 +1263,6 @@
       }).filter(function (group) {
         return group.features.length > 0;
       });
-
-      const extraCodes = Array.from(incomingCodes).filter(function (code) {
-        return !knownCodes.has(code);
-      });
-
-      if (extraCodes.length > 0) {
-        groups.push({
-          module: "custom",
-          title: "Custom Features",
-          description: "Fitur tambahan yang sudah pernah dipakai di paket sebelumnya.",
-          features: extraCodes.map((code) => ({
-            code: code,
-            name: this.featureLabelFromCode(code),
-            description: "Feature code custom dari konfigurasi package existing.",
-          })),
-        });
-      }
 
       const accordionId = "package_feature_catalog_accordion";
       catalogRoot.innerHTML =
@@ -1641,8 +1623,8 @@
             }
 
             const selectedCodes = (pkg.features || []).map(function (f) {
-              return f.code;
-            });
+              return isPackageFeatureIncluded(f) ? f.code : null;
+            }).filter(Boolean);
             self.renderFeatureCatalog(getDefaultFeatureCatalog().concat(selectedCodes));
             const featureSearchInput = document.getElementById("input_package_feature_search");
             if (featureSearchInput) {
@@ -1786,15 +1768,7 @@
       const body = document.getElementById("features_container");
       if (!body) return;
 
-      function isIncludedFeature(f) {
-        if (!f) return false;
-        if (typeof f === "string") return true;
-        const limit = f.limit;
-        if (limit === 0 || limit === "0") return false;
-        return true;
-      }
-
-      const included = (pkg.features || []).filter(isIncludedFeature);
+      const included = getIncludedPackageFeatures(pkg.features, { catalogOnly: true });
       body.innerHTML =
         '<h6 class="mb-3">' + esc(pkg.name) + '</h6>' +
         '<div class="text-muted small mb-2">Included: <strong>' + String(included.length) + '</strong></div>' +

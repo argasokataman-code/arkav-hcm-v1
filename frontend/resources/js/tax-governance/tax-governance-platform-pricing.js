@@ -1,7 +1,6 @@
 export function loadPricingPlansScreenModule(deps, root) {
     var qs = deps.qs;
     var apiGet = deps.apiGet;
-    var apiPost = deps.apiPost;
     var apiPut = deps.apiPut;
     var parseApiError = deps.parseApiError;
     var showError = deps.showError;
@@ -45,7 +44,7 @@ export function loadPricingPlansScreenModule(deps, root) {
         var tbody = qs("[data-pricing-addons-table]", root);
         if (!tbody) { return; }
         if (!addons.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada add-on. Klik <strong>Tambah Add-on</strong> untuk membuat yang baru.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada add-on terdaftar.</td></tr>';
             return;
         }
         tbody.innerHTML = addons.map(function (addon) {
@@ -100,17 +99,13 @@ export function loadPricingPlansScreenModule(deps, root) {
                 var form = qs("[data-pricing-addon-form]", root);
                 if (!form) { return; }
                 addonEditState.id = addonId;
-                var modalTitle = document.getElementById("addonCrudModalLabel");
-                if (modalTitle) { modalTitle.textContent = "Edit Add-on"; }
-                var codeField = document.getElementById("addonCodeField");
-                if (codeField) { codeField.style.display = "none"; }
                 form.querySelector('[name="addon_id"]').value = addonId;
                 form.querySelector('[name="code"]').value = btn.getAttribute("data-addon-code") || "";
-                form.querySelector('[name="name"]').value = btn.getAttribute("data-addon-name") || "";
-                form.querySelector('[name="description"]').value = btn.getAttribute("data-addon-description") || "";
                 form.querySelector('[name="price_per_unit"]').value = btn.getAttribute("data-addon-price") || "";
-                form.querySelector('[name="unit_name"]').value = btn.getAttribute("data-addon-unit-name") || "";
-                form.querySelector('[name="status"]').value = btn.getAttribute("data-addon-status") || "active";
+                var nameDisplay = document.querySelector("[data-addon-name-display]");
+                if (nameDisplay) { nameDisplay.textContent = btn.getAttribute("data-addon-name") || ""; }
+                var codeDisplay = document.querySelector("[data-addon-code-display]");
+                if (codeDisplay) { codeDisplay.textContent = btn.getAttribute("data-addon-code") || ""; }
                 var errorNode = qs("[data-pricing-addon-form-error]", form);
                 if (errorNode) { errorNode.classList.add("d-none"); }
             });
@@ -119,22 +114,7 @@ export function loadPricingPlansScreenModule(deps, root) {
 
     function bindAddonCRUD(refreshFn) {
         var form = qs("[data-pricing-addon-form]", root);
-        var createBtn = qs("[data-pricing-addon-create]", root);
         if (!form) { return; }
-
-        if (createBtn) {
-            createBtn.addEventListener("click", function () {
-                addonEditState.id = null;
-                form.reset();
-                form.querySelector('[name="addon_id"]').value = "";
-                var modalTitle = document.getElementById("addonCrudModalLabel");
-                if (modalTitle) { modalTitle.textContent = "Tambah Add-on"; }
-                var codeField = document.getElementById("addonCodeField");
-                if (codeField) { codeField.style.display = ""; }
-                var errorNode = qs("[data-pricing-addon-form-error]", form);
-                if (errorNode) { errorNode.classList.add("d-none"); }
-            });
-        }
 
         form.addEventListener("submit", function (event) {
             event.preventDefault();
@@ -144,51 +124,17 @@ export function loadPricingPlansScreenModule(deps, root) {
             if (submitBtn) { submitBtn.disabled = true; }
 
             var addonId = String((form.querySelector('[name="addon_id"]') || {}).value || "").trim();
-            var isCreate = !addonId;
-
-            var nameVal = String((form.querySelector('[name="name"]') || {}).value || "").trim();
-            var descVal = String((form.querySelector('[name="description"]') || {}).value || "").trim();
-            var priceVal = Number((form.querySelector('[name="price_per_unit"]') || {}).value || 0);
-            var unitVal = String((form.querySelector('[name="unit_name"]') || {}).value || "").trim();
-            var statusVal = String((form.querySelector('[name="status"]') || {}).value || "active");
-
-            if (!nameVal || !unitVal) {
-                if (errorNode) {
-                    errorNode.textContent = "Nama add-on dan nama unit wajib diisi.";
-                    errorNode.classList.remove("d-none");
-                }
+            if (!addonId) {
                 if (submitBtn) { submitBtn.disabled = false; }
                 return;
             }
 
-            var payload = {
-                name: nameVal,
-                description: descVal || null,
-                price_per_unit: priceVal,
-                unit_name: unitVal,
-                status: statusVal,
-            };
+            var priceVal = Number((form.querySelector('[name="price_per_unit"]') || {}).value || 0);
 
-            if (isCreate) {
-                var codeVal = String((form.querySelector('[name="code"]') || {}).value || "").trim();
-                if (!codeVal) {
-                    if (errorNode) {
-                        errorNode.textContent = "Kode add-on wajib diisi saat membuat baru.";
-                        errorNode.classList.remove("d-none");
-                    }
-                    if (submitBtn) { submitBtn.disabled = false; }
-                    return;
-                }
-                payload.code = codeVal;
-            }
-
-            var request = isCreate
-                ? apiPost("/saas/package-addons", payload)
-                : apiPut("/saas/package-addons/" + addonId, payload);
-
-            request.then(function (response) {
+            apiPut("/saas/package-addons/" + addonId, { price_per_unit: priceVal })
+            .then(function (response) {
                 if (!response.success) {
-                    throw new Error(isCreate ? "Gagal membuat add-on." : "Gagal memperbarui add-on.");
+                    throw new Error("Gagal memperbarui harga add-on.");
                 }
                 form.reset();
                 addonEditState.id = null;
@@ -199,7 +145,7 @@ export function loadPricingPlansScreenModule(deps, root) {
                 }
                 refreshFn();
             }).catch(function (error) {
-                var parsed = parseApiError(error, isCreate ? "Gagal membuat add-on." : "Gagal memperbarui add-on.");
+                var parsed = parseApiError(error, "Gagal memperbarui harga add-on.");
                 if (errorNode) {
                     errorNode.textContent = parsed.message;
                     errorNode.classList.remove("d-none");

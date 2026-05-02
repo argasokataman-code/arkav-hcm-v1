@@ -380,6 +380,10 @@
     <script src="{{ URL::asset('build/js/training-data.js') }}"></script>
 @endif
 
+@if (Route::is(['document-center']))
+    <script src="{{ URL::asset('build/js/document-center.js') }}?v={{ file_exists(public_path('build/js/document-center.js')) ? filemtime(public_path('build/js/document-center.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['users']))
     <script src="{{ URL::asset('build/js/users-management.js') }}?v={{ file_exists(public_path('build/js/users-management.js')) ? filemtime(public_path('build/js/users-management.js')) : time() }}"></script>
 @endif

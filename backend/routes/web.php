@@ -21,6 +21,7 @@ require __DIR__ . '/web/overtime.php';
 require __DIR__ . '/web/payroll.php';
 require __DIR__ . '/web/performance.php';
 require __DIR__ . '/web/training.php';
+require __DIR__ . '/web/document-center.php';
 require __DIR__ . '/web/employee-lifecycle.php';
 require __DIR__ . '/web/ticket.php';
 require __DIR__ . '/web/asset.php';

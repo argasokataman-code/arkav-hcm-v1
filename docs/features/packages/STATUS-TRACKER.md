@@ -1,5 +1,40 @@
 # Packages Status Tracker
 
+## Snapshot 2026-05-02
+
+- Status umum: hardening mapping package composer dipisah tegas menjadi 2 kelompok (`MVP package` vs `add-on`) supaya tidak ada fitur hantu, tidak ada custom leakage, dan semua fitur non-MVP otomatis masuk klasifikasi add-on.
+
+### Evidence Runtime
+
+- Endpoint `GET /v1/saas/packages/feature-catalog` tetap canonical-only dari backend config (tanpa append custom feature dari database).
+- Mapping MVP diperbarui: `notifications`, `trial_billing_dashboard`, dan `tax_governance` dipromosikan ke `meta.mvp_feature_codes` agar tidak lagi diklasifikasikan sebagai add-on.
+- Response feature catalog sekarang menyertakan:
+	- `meta.mvp_feature_codes`
+	- `meta.addon_feature_codes` (derived dari seluruh feature katalog di luar MVP)
+	- `features[].tier` (`mvp` atau `addon`)
+- Middleware asset web access dan sidebar feature bypass di tenant context sekarang tidak lagi memberi bypass otomatis untuk global admin; tenant package gate tetap dipatuhi.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/HcmTaxGovernanceApiTest.php`
+- `php artisan test tests/Feature/SidebarAssetMenuVisibilityTest.php`
+- `php artisan test tests/Feature/PackageServiceTest.php`
+- Regression baru:
+	- tax governance history list assertion tidak brittle terhadap baseline row.
+	- QA/global admin pada tenant context tidak melihat asset menu ketika feature tenant nonaktif.
+	- package feature catalog expose mapping MVP/add-on dan tier per feature.
+
+### Dokumen Yang Disinkronkan
+
+- `docs/api/packages-api.md`
+- `docs/api/openapi.yaml`
+- `docs/features/packages/README.md`
+- `docs/features/packages/STATUS-TRACKER.md`
+
+### Gap Yang Masih Tersisa
+
+- Mapping saat ini masih level katalog (classification source of truth). Entitlement runtime add-on per subscription/tenant masih perlu implementasi lanjutan agar pembelian add-on bisa otomatis mengubah akses/limit tenant.
+
 ## Snapshot 2026-05-01
 
 - Status umum: sinkronisasi katalog fitur package dipindah ke backend agar `/packages` selalu membaca daftar fitur terbaru, termasuk feature code asset, tickets, dan custom feature existing.

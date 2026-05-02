@@ -155,6 +155,17 @@ class AiIntentClassifier
             'data saya', 'atasan saya', 'my department', 'my position',
         ],
 
+        // ── Subscription package features (tenant runtime) ───────────────
+        'subscription.features.current' => [
+            'paket saya apa', 'paket saya sekarang', 'paket saat ini apa',
+            'fitur paket saya', 'fitur paket saat ini', 'fitur paket sekarang',
+            'fitur langganan saya', 'fitur subscription saya', 'paket berlangganan saya',
+            'saya berlangganan paket apa', 'saya berlangganan paket saat ini fiturnya apa aja',
+            'fitur enterprise', 'fitur paket enterprise',
+            'current package features', 'current subscription features',
+            'my package features', 'what features are included in my package',
+        ],
+
         // ── Employee admin ─────────────────────────────────────────────────
         'employee.list.company' => [
             'berapa jumlah karyawan', 'total karyawan berapa', 'berapa orang karyawan',

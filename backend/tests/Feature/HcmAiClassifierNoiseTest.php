@@ -128,6 +128,26 @@ class HcmAiClassifierNoiseTest extends TestCase
         $this->assertSame('ticket.list.self', $this->classifier->classify('cara komplain ke hr'));
     }
 
+    // ─── subscription.features.current ───────────────────────────────────
+
+    /** @test */
+    public function it_classifies_current_subscription_features_question(): void
+    {
+        $this->assertSame(
+            'subscription.features.current',
+            $this->classifier->classify('saya berlangganan paket saat ini fiturnya apa aja?')
+        );
+    }
+
+    /** @test */
+    public function it_classifies_english_current_package_features_question(): void
+    {
+        $this->assertSame(
+            'subscription.features.current',
+            $this->classifier->classify('what features are included in my package?')
+        );
+    }
+
     // ─── leave.history.other (admin + typo heuristic) ─────────────────────
 
     /** @test */

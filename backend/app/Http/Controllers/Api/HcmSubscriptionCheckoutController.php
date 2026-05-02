@@ -8,8 +8,10 @@ use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Company;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
+use App\Models\PackageAddon;
 use App\Services\BillingTaxCalculationService;
 use App\Models\Package;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -240,6 +242,180 @@ class HcmSubscriptionCheckoutController
         });
     }
 
+    /**
+     * POST /v1/hcm/billing/addons/checkout
+     *
+     * Tenant checkout for a single add-on: create (or reuse) pending invoice for active company.
+     */
+    public function checkoutAddon(Request $request): JsonResponse
+    {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required.',
+                ],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'addon_id' => ['nullable', 'integer', Rule::exists('package_addons', 'id')],
+            'addon_uuid' => ['nullable', 'uuid', Rule::exists('package_addons', 'uuid')],
+            'billingEmail' => ['nullable', 'string', 'email:rfc', 'max:255'],
+        ]);
+
+        if (! isset($validated['addon_id']) && ! isset($validated['addon_uuid'])) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'VALIDATION_ERROR',
+                    'message' => 'addon_id or addon_uuid is required.',
+                ],
+            ], 422);
+        }
+
+        /** @var Company $company */
+        $company = Company::query()->findOrFail($activeCompanyId);
+
+        /** @var PackageAddon $addon */
+        $addonQuery = PackageAddon::query()->where('status', 'active');
+        if (isset($validated['addon_id'])) {
+            $addonQuery->whereKey((int) $validated['addon_id']);
+        } else {
+            $addonQuery->where('uuid', (string) $validated['addon_uuid']);
+        }
+        $addon = $addonQuery->firstOrFail();
+
+        $baseAmount = (float) $addon->price_per_unit;
+        $pricingBreakdown = $this->buildAddonPricingBreakdown($company->id, $baseAmount);
+        $amountDue = (float) $pricingBreakdown['total_amount'];
+        $dueDate = now()->addDay()->toDateString();
+
+        return DB::transaction(function () use ($company, $addon, $baseAmount, $amountDue, $pricingBreakdown, $dueDate, $validated): JsonResponse {
+            $anyUnpaid = Invoice::query()
+                ->where('company_id', $company->id)
+                ->where('is_paid', false)
+                ->whereIn('status', ['draft', 'sent'])
+                ->lockForUpdate()
+                ->latest('id')
+                ->first();
+
+            if ($anyUnpaid) {
+                if ((float) $anyUnpaid->amount_due <= 0) {
+                    $anyUnpaid->markAsPaid();
+                    $anyUnpaid = $anyUnpaid->fresh();
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'invoice' => [
+                            'id' => $anyUnpaid->id,
+                            'invoiceNumber' => $anyUnpaid->invoice_number,
+                            'issueDate' => $anyUnpaid->issue_date?->toDateString(),
+                            'dueDate' => $anyUnpaid->due_date?->toDateString(),
+                            'amountDue' => (float) $anyUnpaid->amount_due,
+                            'isPaid' => (bool) $anyUnpaid->is_paid,
+                            'status' => (string) $anyUnpaid->status,
+                        ],
+                        'reused' => true,
+                    ],
+                ]);
+            }
+
+            $activeSubscription = Subscription::query()
+                ->where('company_id', $company->id)
+                ->whereIn('status', ['active', 'trial', 'pending_payment'])
+                ->latest('id')
+                ->first();
+
+            $addonTaxAmount = (float) ($pricingBreakdown['addon_tax_amount'] ?? 0);
+
+            $transaction = PurchaseTransaction::query()->create([
+                'transaction_code' => PurchaseTransaction::generateCode(),
+                'company_id' => $company->id,
+                'subscription_id' => $activeSubscription?->id,
+                'package_addon_id' => $addon->id,
+                'transaction_type' => 'addon',
+                'description' => 'Addon checkout: '.$addon->name,
+                'amount' => $baseAmount,
+                'tax_amount' => $addonTaxAmount,
+                'discount_amount' => 0,
+                'total_amount' => $amountDue,
+                'status' => 'issued',
+                'due_date' => now()->addDay(),
+            ]);
+
+            $invoice = Invoice::query()->create([
+                'company_id' => $company->id,
+                'subscription_id' => $activeSubscription?->id,
+                'purchase_transaction_id' => $transaction->id,
+                'issue_date' => now()->toDateString(),
+                'due_date' => $dueDate,
+                'amount_due' => $amountDue,
+                'status' => 'draft',
+                'notes' => $this->buildInvoicePricingNotes(
+                    'tenant_addon_checkout',
+                    array_merge($pricingBreakdown, [
+                        'addon_code' => $addon->code,
+                        'addon_name' => $addon->name,
+                    ]),
+                    'Created from tenant add-on checkout.'
+                ),
+            ]);
+
+            if ($amountDue <= 0) {
+                $invoice->markAsPaid();
+                $invoice = $invoice->fresh();
+                $transaction->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+            } else {
+                $billingEmail = $validated['billingEmail'] ?? null;
+                SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'addon' => [
+                        'id' => $addon->id,
+                        'uuid' => $addon->uuid,
+                        'code' => $addon->code,
+                        'name' => $addon->name,
+                        'pricePerUnit' => (float) $addon->price_per_unit,
+                        'unitName' => $addon->unit_name,
+                    ],
+                    'transaction' => [
+                        'id' => $transaction->id,
+                        'code' => $transaction->transaction_code,
+                        'status' => $transaction->status,
+                        'amount' => (float) $transaction->amount,
+                        'taxAmount' => (float) $transaction->tax_amount,
+                        'totalAmount' => (float) $transaction->total_amount,
+                    ],
+                    'invoice' => [
+                        'id' => $invoice->id,
+                        'invoiceNumber' => $invoice->invoice_number,
+                        'issueDate' => $invoice->issue_date?->toDateString(),
+                        'dueDate' => $invoice->due_date?->toDateString(),
+                        'amountDue' => (float) $invoice->amount_due,
+                        'isPaid' => (bool) $invoice->is_paid,
+                        'status' => (string) $invoice->status,
+                    ],
+                    'reused' => false,
+                ],
+            ], 201);
+        });
+    }
+
     private function buildSubscriptionPricingBreakdown(int $companyId, float $baseAmount): array
     {
         $billingMonth = now()->format('Y-m');
@@ -288,6 +464,69 @@ class HcmSubscriptionCheckoutController
             'subscription_tax_rate' => $subscriptionTaxRate,
             'subscription_tax_amount' => $subscriptionTaxAmount,
             'total_amount' => $totalAmount,
+        ];
+    }
+
+    private function buildAddonPricingBreakdown(int $companyId, float $baseAmount): array
+    {
+        $billingMonth = now()->format('Y-m');
+
+        $policy = HcmBillingTaxPolicy::query()
+            ->where('company_id', $companyId)
+            ->where('billing_month', $billingMonth)
+            ->where('status', 'active')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $policy) {
+            $globalPolicyCandidates = HcmBillingTaxPolicy::query()
+                ->where('billing_month', $billingMonth)
+                ->where('status', 'active')
+                ->orderByDesc('effective_from')
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+
+            foreach ($globalPolicyCandidates as $candidate) {
+                $decoded = json_decode((string) ($candidate->notes ?? ''), true);
+                if (is_array($decoded) && isset($decoded['global_rates']) && is_array($decoded['global_rates'])) {
+                    $policy = $candidate;
+                    break;
+                }
+            }
+        }
+
+        $notes = json_decode((string) ($policy?->notes ?? ''), true);
+        $globalRates = is_array($notes) && isset($notes['global_rates']) && is_array($notes['global_rates'])
+            ? $notes['global_rates']
+            : [];
+        $customLabels = is_array($notes) && isset($notes['global_rate_labels']) && is_array($notes['global_rate_labels'])
+            ? $notes['global_rate_labels']
+            : [];
+
+        $addonRate = isset($globalRates['addon_markup_rate']) && is_numeric($globalRates['addon_markup_rate'])
+            ? (float) $globalRates['addon_markup_rate']
+            : 0.0;
+        $addonAmount = round($baseAmount * ($addonRate / 100), 2);
+        $addonLabel = (string) ($customLabels['addon_markup_rate'] ?? 'Corporate tax');
+
+        $components = [[
+            'key' => 'addon_markup_rate',
+            'label' => $addonLabel,
+            'rate' => $addonRate,
+            'amount' => $addonAmount,
+        ]];
+
+        return [
+            'billing_month' => $billingMonth,
+            'policy_id' => $policy?->id,
+            'base_amount' => round($baseAmount, 2),
+            'components' => $components,
+            'total_adjustments' => $addonAmount,
+            'addon_tax_rate' => $addonRate,
+            'addon_tax_amount' => $addonAmount,
+            'total_amount' => round($baseAmount + $addonAmount, 2),
         ];
     }
 

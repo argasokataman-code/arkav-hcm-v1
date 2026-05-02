@@ -44,6 +44,28 @@
         window.location.replace("/employee-dashboard");
     }
 
+    function hasMePermission(me, permissionCode) {
+        var data = me && me.data ? me.data : null;
+        if (!data || !permissionCode) {
+            return false;
+        }
+
+        if (data.hcmGlobalAdmin === true || data.hcmAdmin === true) {
+            return true;
+        }
+
+        var permissions = data.permissions;
+        if (Array.isArray(permissions) && permissions.indexOf(permissionCode) !== -1) {
+            return true;
+        }
+        if (permissions && typeof permissions === "object" && permissions[permissionCode] === true) {
+            return true;
+        }
+
+        var permissionCodes = Array.isArray(data.permissionCodes) ? data.permissionCodes : [];
+        return permissionCodes.indexOf(permissionCode) !== -1;
+    }
+
     function getAuthHeaders() {
         var headers = {};
         var token = window.AuthApi && typeof window.AuthApi.getToken === "function" ? window.AuthApi.getToken() : "";
@@ -533,11 +555,11 @@
 
     if (promotionsTbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
-            if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['promotion.view']) {
+            if (!me || !me.success || !hasMePermission(me, 'promotion.view')) {
                 redirectToEmployeeDashboard();
                 return;
             }
-            canManagePromotion = !!me.data.permissions['promotion.manage'];
+            canManagePromotion = hasMePermission(me, 'promotion.manage');
             if (addBtn && !canManagePromotion) {
                 addBtn.classList.add("d-none");
             }

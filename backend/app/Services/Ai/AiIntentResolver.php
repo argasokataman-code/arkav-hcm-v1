@@ -11,6 +11,7 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\Invoice;
 use App\Models\LeaveRequest;
+use App\Models\PackageFeature;
 use App\Models\PlatformRevenueTransaction;
 use App\Models\Subscription;
 use App\Models\Ticket;
@@ -52,6 +53,7 @@ class AiIntentResolver
             'ticket.status.self',
             'ticket.list.self'           => $this->ticketListSelf($user, $companyId),
             'profile.info.self'          => $this->profileInfoSelf($user, $companyId),
+            'subscription.features.current' => $this->subscriptionFeaturesCurrent($companyId),
             'payroll.run.status',
             'payroll.run.summary'        => $this->payrollRunStatus($companyId),
             'leave.summary.company'      => $this->leaveSummaryCompany($companyId),
@@ -305,6 +307,94 @@ class AiIntentResolver
             'source' => [
                 'label'        => 'Employee Profile',
                 'endpoint'     => 'local:EmployeeProfile',
+                'retrieved_at' => $this->now(),
+            ],
+        ];
+    }
+
+    /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
+    private function subscriptionFeaturesCurrent(?int $companyId): ?array
+    {
+        if ($companyId === null || $companyId <= 0) {
+            return null;
+        }
+
+        $subscription = Subscription::query()
+            ->with(['package.features'])
+            ->where('company_id', $companyId)
+            ->whereIn('status', ['active', 'trial'])
+            ->where(function ($query): void {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now());
+            })
+            ->latest('starts_at')
+            ->first();
+
+        if ($subscription === null || $subscription->package === null) {
+            return null;
+        }
+
+        $catalogByCode = collect(config('saas_package_feature_catalog.groups', []))
+            ->filter(fn (mixed $group): bool => is_array($group))
+            ->flatMap(function (array $group): array {
+                $module = (string) ($group['module'] ?? 'other');
+                $features = is_array($group['features'] ?? null) ? $group['features'] : [];
+
+                $out = [];
+                foreach ($features as $feature) {
+                    if (! is_array($feature)) {
+                        continue;
+                    }
+
+                    $code = strtolower(trim((string) ($feature['code'] ?? '')));
+                    if ($code === '') {
+                        continue;
+                    }
+
+                    $out[$code] = [
+                        'name' => (string) ($feature['name'] ?? ''),
+                        'module' => $module,
+                    ];
+                }
+
+                return $out;
+            });
+
+        $features = $subscription->package->features
+            ->filter(fn (PackageFeature $feature): bool => $feature->isIncluded())
+            ->map(function (PackageFeature $feature) use ($catalogByCode): array {
+                $code = (string) $feature->feature_code;
+                $normalizedCode = strtolower(trim($code));
+                $catalogFeature = $catalogByCode->get($normalizedCode, []);
+                $name = (string) ($catalogFeature['name'] ?? $feature->feature_name ?? $code);
+
+                return [
+                    'code' => $code,
+                    'name' => $name,
+                    'module' => (string) ($catalogFeature['module'] ?? 'other'),
+                    'limit' => $feature->limit,
+                    'is_unlimited' => $feature->isUnlimited(),
+                ];
+            })
+            ->sortBy(['module', 'name'])
+            ->values()
+            ->all();
+
+        return [
+            'data' => [
+                'company_id' => $companyId,
+                'subscription_status' => $subscription->status,
+                'package_code' => $subscription->package->code,
+                'package_name' => $subscription->package->name,
+                'billing_cycle' => $subscription->billing_cycle,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'ends_at' => $subscription->ends_at?->toIso8601String(),
+                'feature_count' => count($features),
+                'included_features' => $features,
+            ],
+            'source' => [
+                'label' => 'Current Subscription Features',
+                'endpoint' => 'local:Subscription + local:PackageFeature',
                 'retrieved_at' => $this->now(),
             ],
         ];

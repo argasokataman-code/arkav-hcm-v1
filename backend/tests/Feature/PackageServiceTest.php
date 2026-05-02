@@ -154,7 +154,7 @@ class PackageServiceTest extends TestCase
         $detail->assertJsonPath('data.isGlobalAdminOnly', true);
     }
 
-    public function test_feature_catalog_returns_backend_defined_and_custom_features(): void
+    public function test_feature_catalog_returns_only_backend_defined_features(): void
     {
         $package = Package::create([
             'code' => 'custom_feature_pack',
@@ -184,11 +184,23 @@ class PackageServiceTest extends TestCase
 
         $this->assertContains('tickets', $allCodes);
         $this->assertContains('asset_management', $allCodes);
-        $this->assertContains('custom_ai_workflows', $allCodes);
+        $this->assertNotContains('custom_ai_workflows', $allCodes);
+
+        $this->assertContains('employee_management', $response->json('meta.mvp_feature_codes'));
+        $this->assertContains('tickets', $response->json('meta.addon_feature_codes'));
+
+        $mvpFeature = $groups->flatMap(function (array $group) {
+            return collect($group['features'] ?? []);
+        })->firstWhere('code', 'employee_management');
+        $addonFeature = $groups->flatMap(function (array $group) {
+            return collect($group['features'] ?? []);
+        })->firstWhere('code', 'tickets');
+
+        $this->assertSame('mvp', $mvpFeature['tier'] ?? null);
+        $this->assertSame('addon', $addonFeature['tier'] ?? null);
 
         $customGroup = $groups->firstWhere('module', 'custom');
-        $this->assertNotNull($customGroup);
-        $this->assertContains('custom_ai_workflows', collect($customGroup['features'] ?? [])->pluck('code')->all());
+        $this->assertNull($customGroup);
     }
 
     /**

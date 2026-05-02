@@ -85,16 +85,9 @@
 
         {{-- ─── SECTION 2: Add-on Catalog ─── --}}
         <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <h5 class="mb-0"><i class="ti ti-puzzle me-2 text-purple"></i>Add-on Catalog</h5>
-                    <small class="text-muted">Fitur tambahan yang dapat dibeli tenant secara terpisah. Harga dalam Rupiah.</small>
-                </div>
-                <button type="button" class="btn btn-primary btn-sm"
-                        data-bs-toggle="modal" data-bs-target="#addonCrudModal"
-                        data-pricing-addon-create>
-                    <i class="ti ti-plus me-1"></i>Tambah Add-on
-                </button>
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-puzzle me-2 text-purple"></i>Add-on Catalog</h5>
+                <small class="text-muted">Fitur tambahan yang dapat dibeli tenant secara terpisah. Harga dalam Rupiah.</small>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -180,38 +173,23 @@
 
     </div>
 
-    {{-- ─── Add-on CRUD Modal ─── --}}
+    {{-- ─── Edit Harga Add-on Modal ─── --}}
     <div class="modal fade" id="addonCrudModal" tabindex="-1"
          aria-labelledby="addonCrudModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addonCrudModalLabel">Tambah Add-on</h5>
+                    <h5 class="modal-title" id="addonCrudModalLabel">Edit Harga Add-on</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form data-pricing-addon-form novalidate>
                     <input type="hidden" name="addon_id" value="">
+                    <input type="hidden" name="code" value="">
                     <div class="modal-body">
-
-                        <div class="mb-3">
-                            <label class="form-label">Nama Add-on <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="name"
-                                   placeholder="Misal: Modul Rekrutmen" required maxlength="100">
-                        </div>
-
-                        <div class="mb-3" id="addonCodeField">
-                            <label class="form-label">Kode Add-on <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="code"
-                                   placeholder="Misal: recruitment_module" maxlength="100">
-                            <small class="text-muted">Unik, huruf kecil dan underscore. Wajib saat tambah baru.</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Deskripsi</label>
-                            <textarea class="form-control" name="description" rows="2"
-                                      placeholder="Deskripsi singkat fitur add-on ini"></textarea>
-                        </div>
-
+                        <p class="text-muted small mb-3">
+                            Ubah harga add-on <strong data-addon-name-display></strong>
+                            (<code data-addon-code-display></code>).
+                        </p>
                         <div class="mb-3">
                             <label class="form-label">Harga per Unit (Rp) <span class="text-danger">*</span></label>
                             <div class="input-group">
@@ -219,30 +197,14 @@
                                 <input type="number" class="form-control" name="price_per_unit"
                                        min="0" step="1000" placeholder="Misal: 150000" required>
                             </div>
-                            <small class="text-muted">Harga tetap dalam Rupiah — bukan persentase.</small>
+                            <small class="text-muted">Harga tetap dalam Rupiah - bukan persentase.</small>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Nama Unit <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="unit_name"
-                                   placeholder="Misal: bulan, user, GB, one-time" required maxlength="100">
-                            <small class="text-muted">Label unit yang tampil di invoice tenant. Contoh: "bulan", "user", "one-time".</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status">
-                                <option value="active">Aktif</option>
-                                <option value="inactive">Nonaktif</option>
-                            </select>
-                        </div>
-
                         <div class="alert alert-danger d-none mb-0" data-pricing-addon-form-error></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-primary" data-pricing-addon-submit>
-                            <i class="ti ti-device-floppy me-1"></i>Simpan Add-on
+                            <i class="ti ti-device-floppy me-1"></i>Simpan Harga
                         </button>
                     </div>
                 </form>

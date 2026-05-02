@@ -20,46 +20,22 @@ class PackageController extends Controller
      */
     public function featureCatalog(): JsonResponse
     {
-        $groups = collect(config('saas_package_feature_catalog.groups', []))
+        $catalogGroups = collect(config('saas_package_feature_catalog.groups', []));
+        $tierMapping = $this->buildFeatureTierMapping($catalogGroups);
+
+        $groups = $catalogGroups
             ->filter(fn (mixed $group): bool => is_array($group))
-            ->map(fn (array $group): array => $this->normalizeFeatureCatalogGroup($group))
+            ->map(fn (array $group): array => $this->normalizeFeatureCatalogGroup($group, $tierMapping['mvp_lookup']))
             ->values();
-
-        $knownCodes = $groups
-            ->flatMap(fn (array $group) => collect($group['features'] ?? [])->pluck('code'))
-            ->filter(fn (mixed $code): bool => is_string($code) && $code !== '')
-            ->unique()
-            ->values();
-
-        $customFeatures = PackageFeature::query()
-            ->select(['feature_code', 'feature_name'])
-            ->orderBy('feature_code')
-            ->get()
-            ->unique('feature_code')
-            ->filter(function (PackageFeature $feature) use ($knownCodes): bool {
-                return ! $knownCodes->contains((string) $feature->feature_code);
-            })
-            ->map(function (PackageFeature $feature): array {
-                return $this->normalizeFeatureCatalogItem([
-                    'code' => (string) $feature->feature_code,
-                    'name' => (string) ($feature->feature_name ?: Str::headline((string) $feature->feature_code)),
-                    'description' => 'Feature code custom yang sudah pernah dipakai package existing.',
-                ]);
-            })
-            ->values();
-
-        if ($customFeatures->isNotEmpty()) {
-            $groups->push([
-                'module' => 'custom',
-                'title' => 'Custom Features',
-                'description' => 'Fitur tambahan yang terdeteksi dari konfigurasi package existing.',
-                'features' => $customFeatures->all(),
-            ]);
-        }
 
         return response()->json([
             'success' => true,
             'data' => $groups->all(),
+            'meta' => [
+                'mvp_feature_codes' => $tierMapping['mvp_feature_codes'],
+                'addon_feature_codes' => $tierMapping['addon_feature_codes'],
+                'total_feature_codes' => count($tierMapping['all_feature_codes']),
+            ],
         ]);
     }
 
@@ -504,14 +480,15 @@ class PackageController extends Controller
 
     /**
      * @param  array<string, mixed>  $group
+     * @param  array<string, bool>  $mvpLookup
      * @return array<string, mixed>
      */
-    private function normalizeFeatureCatalogGroup(array $group): array
+    private function normalizeFeatureCatalogGroup(array $group, array $mvpLookup): array
     {
         $module = trim((string) ($group['module'] ?? 'custom'));
         $features = collect($group['features'] ?? [])
             ->filter(fn (mixed $feature): bool => is_array($feature))
-            ->map(fn (array $feature): array => $this->normalizeFeatureCatalogItem($feature))
+            ->map(fn (array $feature): array => $this->normalizeFeatureCatalogItem($feature, $mvpLookup))
             ->filter(fn (array $feature): bool => $feature['code'] !== '')
             ->values()
             ->all();
@@ -526,21 +503,69 @@ class PackageController extends Controller
 
     /**
      * @param  array<string, mixed>  $feature
+     * @param  array<string, bool>  $mvpLookup
      * @return array<string, mixed>
      */
-    private function normalizeFeatureCatalogItem(array $feature): array
+    private function normalizeFeatureCatalogItem(array $feature, array $mvpLookup): array
     {
         $code = trim((string) ($feature['code'] ?? ''));
         $name = trim((string) ($feature['name'] ?? ''));
+        $isMvp = $code !== '' && isset($mvpLookup[$code]);
 
         return [
             'code' => $code,
             'name' => $name !== '' ? $name : Str::headline($code),
             'description' => trim((string) ($feature['description'] ?? '')),
+            'tier' => $isMvp ? 'mvp' : 'addon',
             'requiresLimit' => (bool) ($feature['requiresLimit'] ?? false),
             'limitLabel' => isset($feature['limitLabel']) ? trim((string) $feature['limitLabel']) : null,
             'limitPlaceholder' => isset($feature['limitPlaceholder']) ? trim((string) $feature['limitPlaceholder']) : null,
             'limitSuffix' => isset($feature['limitSuffix']) ? trim((string) $feature['limitSuffix']) : null,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, mixed>  $catalogGroups
+     * @return array{
+     *   all_feature_codes: array<int, string>,
+     *   mvp_feature_codes: array<int, string>,
+     *   addon_feature_codes: array<int, string>,
+     *   mvp_lookup: array<string, bool>
+     * }
+     */
+    private function buildFeatureTierMapping($catalogGroups): array
+    {
+        $allFeatureCodes = $catalogGroups
+            ->filter(fn (mixed $group): bool => is_array($group))
+            ->flatMap(function (array $group) {
+                return collect($group['features'] ?? [])
+                    ->filter(fn (mixed $feature): bool => is_array($feature))
+                    ->map(fn (array $feature): string => trim((string) ($feature['code'] ?? '')))
+                    ->filter(fn (string $code): bool => $code !== '');
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        $allFeatureLookup = array_fill_keys($allFeatureCodes, true);
+        $mvpFeatureCodes = collect(config('saas_package_feature_catalog.mvp_feature_codes', []))
+            ->map(fn (mixed $code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '' && isset($allFeatureLookup[$code]))
+            ->unique()
+            ->values()
+            ->all();
+
+        $mvpLookup = array_fill_keys($mvpFeatureCodes, true);
+        $addonFeatureCodes = collect($allFeatureCodes)
+            ->filter(fn (string $code): bool => ! isset($mvpLookup[$code]))
+            ->values()
+            ->all();
+
+        return [
+            'all_feature_codes' => $allFeatureCodes,
+            'mvp_feature_codes' => $mvpFeatureCodes,
+            'addon_feature_codes' => $addonFeatureCodes,
+            'mvp_lookup' => $mvpLookup,
         ];
     }
 

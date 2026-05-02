@@ -33,12 +33,26 @@
         : null;
     $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
     $hasTickets = (bool) ($activeCompanySubscription?->package?->hasFeature('tickets') ?? false);
-    // Feature bypass: global/QA admin only bypasses feature gates when NOT inside a specific tenant context.
+    $hasEmployeeManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_management') ?? false);
+    $hasAttendance = (bool) ($activeCompanySubscription?->package?->hasFeature('attendance') ?? false);
+    $hasLeaveManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('leave_management') ?? false);
+    $hasHolidayCalendar = (bool) ($activeCompanySubscription?->package?->hasFeature('holiday_calendar') ?? false);
+    $hasEmployeeLifecycle = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_lifecycle') ?? false);
+    $hasPerformance = (bool) ($activeCompanySubscription?->package?->hasFeature('performance') ?? false);
     $isInTenantContext = $activeCompany instanceof \App\Models\Company;
+    // Global super admin bypass applies only outside tenant context.
     $featureBypass = $isGlobalHcmAdmin && !$isInTenantContext;
     $canManageTrainingMenu = $featureBypass || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
     $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
+    $hasDocumentCenter = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_document_center') ?? false);
+    $canManageDocumentCenterMenu = $isGlobalHcmAdmin || $featureBypass || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.manage', $activeCompanyIdentifier)));
+    $canViewDocumentCenterMenu = $canManageDocumentCenterMenu || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.view', $activeCompanyIdentifier)));
     $canSeeTicketsMenu = $featureBypass || $hasTickets;
+    $canSeeEmployeesMenu = $featureBypass || $hasEmployeeManagement || $hasDocumentCenter || $hasEmployeeLifecycle;
+    $canSeeAttendanceMenu = $featureBypass || $hasAttendance || $hasLeaveManagement;
+    $canSeeHolidaysMenu = $featureBypass || ($hasHolidayCalendar && $isHcmAdmin);
+    $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
+    $canSeePerformanceMenu = $featureBypass || ($hasPerformance && !$isEmployeeScopedUser && $isHcmAdmin);
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
     $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
@@ -157,17 +171,27 @@
                                 </li>
 @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*') ? 'active subdrop' : '' }}">
+                                    <a href="#" class="{{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','platform-tax-compliance*','notification-observability','cronjob-schedule','payment-report') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Super Admin</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                         <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
+                        <li><a href="{{url('saas/billing-overview')}}" class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
                         <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                         <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                         <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                         <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>
+                        <li><a href="{{url('saas/invoices')}}" class="{{ Request::is('saas/invoices') ? 'active' : '' }}">SaaS Invoices</a></li>
+                        <li><a href="{{url('saas/payments')}}" class="{{ Request::is('saas/payments') ? 'active' : '' }}">SaaS Payments</a></li>
+                        <li><a href="{{url('saas/reports')}}" class="{{ Request::is('saas/reports') ? 'active' : '' }}">SaaS Reports</a></li>
+                        <li><a href="{{url('saas/reminders')}}" class="{{ Request::is('saas/reminders') ? 'active' : '' }}">SaaS Reminders</a></li>
+                        <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
+                        <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax & Compliance</a></li>
+                        <li><a href="{{url('notification-observability')}}" class="{{ Request::is('notification-observability') ? 'active' : '' }}">Notification Observability</a></li>
+                        <li><a href="{{url('cronjob-schedule')}}" class="{{ Request::is('cronjob-schedule') ? 'active' : '' }}">Cronjob Schedule</a></li>
+                        <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>
                                     </ul>
                                 </li>
 @endif
@@ -298,6 +322,7 @@
                                                 <li><a href="{{url('companies-grid')}}" class="{{ Request::is('companies-grid','companies-crm','company-details') ? 'active' : '' }}"><span>Companies</span></a></li>
                                             </ul>
                                         </li>
+@if ($canSeeEmployeesMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);"  class="{{ Request::is('employees','employee-details','departments','designations','policy') ? 'active subdrop' : '' }}"><span>Employees</span>
                                                 <span class="menu-arrow"></span>
@@ -310,6 +335,7 @@
                                                 <li><a href="{{url('policy')}}" class="{{ Request::is('policy') ? 'active' : '' }}">Policies</a></li>
                                             </ul>
                                         </li>
+@endif
 @if ($canSeeTicketsMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('ticket-master','tickets-admin','tickets-employee','tickets-grid','ticket-details*') ? 'active subdrop' : '' }}"><span>Tickets</span>
@@ -323,7 +349,11 @@
                                             </ul>
                                         </li>
 @endif
-                                        <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>                                        <li class="submenu">
+@if ($canSeeHolidaysMenu)
+                                        <li class="{{ Request::is('holidays') ? 'active' : '' }}"><a href="{{url('holidays')}}"><span>Holidays</span></a></li>
+@endif
+@if ($canSeeAttendanceMenu)
+                                        <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}"><span>Attendance</span>
                                                 <span class="menu-arrow"></span>
@@ -353,7 +383,9 @@
                 
                                             </ul>
                                         </li>
-                                        <li class="submenu">
+                @endif
+                @if ($canSeePerformanceMenu)
+                                                        <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('performance-indicator','performance-review','performance-appraisal','goal-tracking','goal-type') ? 'active subdrop' : '' }}"><span>Performance</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
@@ -365,6 +397,7 @@
                                 <li><a href="{{url('goal-type')}}" class="{{ Request::is('goal-type') ? 'active' : '' }}">Goal Type</a></li>
                                             </ul>
                                         </li>
+@endif
                                         @if ($showTemplateCatalogMenus && $canViewTrainingMenu)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('training','trainers','training-type') ? 'active subdrop' : '' }}"><span>Training</span>
@@ -379,14 +412,17 @@
 
                                             </ul>
                                         </li>
+@endif
+@if ($canSeeEmployeeLifecycleMenu)
                                         <li><a href="{{url('promotion')}}" class="{{ Request::is('promotion') ? 'active' : '' }}"><span>Promotion</span></a></li>
                                         <li><a href="{{url('resignation')}}" class="{{ Request::is('resignation') ? 'active' : '' }}"><span>Resignation</span></a></li>
-                                        <li><a href="{{url('termination')}}" class="{{ Request::is('termination') ? 'active' : '' }}"><span>Termination</span></a></li>														
+                                        <li><a href="{{url('termination')}}" class="{{ Request::is('termination') ? 'active' : '' }}"><span>Termination</span></a></li>
+@endif
                                     </ul>
                                 </li>
                                 <li class="submenu">
                                     <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
-                                    'assets','asset-categories','knowledgebase','knowledgebase/*', 'users','roles-permissions','expenses-report','invoice-report','payment-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
+                                    'assets','asset-categories','knowledgebase','knowledgebase/*', 'users','roles-permissions','expenses-report','invoice-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                                     'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                                      'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Administration</span>
@@ -406,7 +442,6 @@
                                                 <li><a href="{{url('taxes')}}" class="{{ Request::is('taxes') ? 'active' : '' }}">Taxes</a></li>
                                             </ul>
                                         </li>
-                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('categories','budgets','budget-expenses','budget-revenues') ? 'active subdrop' : '' }}"><span>Accounting</span>
                                                 <span class="menu-arrow"></span>
@@ -477,15 +512,12 @@
                                             </ul>
                                         </li>
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
+                                            <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
                                                 <li><a href="{{url('expenses-report')}}" class="{{ Request::is('expenses-report') ? 'active' : '' }}">Expense Report</a></li>
                                 <li><a href="{{url('invoice-report')}}" class="{{ Request::is('invoice-report') ? 'active' : '' }}">Invoice Report</a></li>
-                                @if(auth()->user()?->isGlobalHcmAdmin())
-                                <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>
-                                @endif
                                 <li><a href="{{url('project-report')}}" class="{{ Request::is('project-report') ? 'active' : '' }}">Project Report</a></li>
                                 <li><a href="{{url('user-report')}}" class="{{ Request::is('user-report') ? 'active' : '' }}">User Report</a></li>
                                 <li><a href="{{url('employee-report')}}" class="{{ Request::is('employee-report') ? 'active' : '' }}">Employee Report</a></li>
@@ -551,8 +583,6 @@
                                                 </li>
                                                 @endif
                                                 @if ($isGlobalHcmAdmin)
-                                                <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
-                                                <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
                                                 @endif
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">Financial Settings<span class="menu-arrow"></span></a>

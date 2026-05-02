@@ -41,9 +41,13 @@
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
     $hasTickets = (bool) ($activeCompanySubscription?->package?->hasFeature('tickets') ?? false);
     $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
-    // Feature bypass: global/QA admin only bypasses feature gates when NOT inside a specific tenant context.
-    // When operating within a tenant (activeCompany set), feature menus follow the tenant's subscription.
+    $hasEmployeeManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_management') ?? false);
+    $hasAttendance = (bool) ($activeCompanySubscription?->package?->hasFeature('attendance') ?? false);
+    $hasLeaveManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('leave_management') ?? false);
+    $hasHolidayCalendar = (bool) ($activeCompanySubscription?->package?->hasFeature('holiday_calendar') ?? false);
+    $hasEmployeeLifecycle = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_lifecycle') ?? false);
     $isInTenantContext = $activeCompany instanceof \App\Models\Company;
+    // Global super admin bypass applies only outside tenant context.
     $featureBypass = $isGlobalHcmAdmin && !$isInTenantContext;
     $canSeeAssetManagementMenu = $featureBypass || ($hasAssetManagement && !$isEmployeeScopedUser && $isHcmAdmin);
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
@@ -53,12 +57,19 @@
         : null;
     $canManageTrainingMenu = $featureBypass || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
     $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
+    $hasDocumentCenter = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_document_center') ?? false);
+    $canManageDocumentCenterMenu = $isGlobalHcmAdmin || $featureBypass || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.manage', $activeCompanyIdentifier)));
+    $canViewDocumentCenterMenu = $canManageDocumentCenterMenu || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.view', $activeCompanyIdentifier)));
     $canSeeTicketsMenu = $featureBypass || $hasTickets;
     $canSeePerformanceMenu = $featureBypass || ($hasPerformance && !$isEmployeeScopedUser && $isHcmAdmin);
     $isSuperAdminDeveloperMode = $featureBypass;
     $superAdminUnlockedPayroll = $hasPayroll || $isSuperAdminDeveloperMode;
     $superAdminUnlockedPerformance = $hasPerformance || $isSuperAdminDeveloperMode;
     $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
+    $canSeeEmployeesMenu = $featureBypass || $hasEmployeeManagement || $hasDocumentCenter || $hasEmployeeLifecycle;
+    $canSeeAttendanceMenu = $featureBypass || $hasAttendance || $hasLeaveManagement;
+    $canSeeHolidaysMenu = $featureBypass || ($hasHolidayCalendar && $isHcmAdmin);
+    $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
 @endphp
 
 @include('layout.partials.sidebar.main-sidebar')

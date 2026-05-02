@@ -58,6 +58,9 @@ require __DIR__ . '/api/performance.php';
 // Training (Feature-Gated)
 require __DIR__ . '/api/training.php';
 
+// Document Center (Feature-Gated)
+require __DIR__ . '/api/document-center.php';
+
 // Helpdesk / Tickets
 require __DIR__ . '/api/ticket.php';
 

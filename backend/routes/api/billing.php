@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     // Tenant billing checkout
     Route::post('/billing/checkout', [HcmSubscriptionCheckoutController::class, 'checkout']);
+    Route::post('/billing/addons/checkout', [HcmSubscriptionCheckoutController::class, 'checkoutAddon']);
 
     // Tenant-initiated subscription plan change
     Route::post('/subscriptions/preview-change', [HcmSubscriptionChangeController::class, 'preview']);

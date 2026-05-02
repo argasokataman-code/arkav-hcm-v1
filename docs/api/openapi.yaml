@@ -2443,6 +2443,109 @@ paths:
                       code: TENANT_CONTEXT_REQUIRED
                       message: Active company context is required.
 
+  /v1/hcm/billing/addons/checkout:
+    post:
+      tags: [SaaS, HCM]
+      summary: Tenant add-on checkout (create or reuse invoice)
+      description: |
+        Creates a dedicated add-on purchase transaction and invoice for the active company.
+        If an unpaid invoice already exists (`draft`/`sent`, `is_paid=false`), endpoint returns
+        that invoice with `reused: true` and does not create a new add-on transaction.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                addon_id:
+                  type: integer
+                addon_uuid:
+                  type: string
+                  format: uuid
+                billingEmail:
+                  type: string
+                  format: email
+                  nullable: true
+              anyOf:
+                - required: [addon_id]
+                - required: [addon_uuid]
+      responses:
+        '201':
+          description: Add-on invoice created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      addon:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          uuid: { type: string, format: uuid }
+                          code: { type: string }
+                          name: { type: string }
+                          pricePerUnit: { type: number }
+                          unitName: { type: string }
+                      transaction:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          code: { type: string }
+                          status: { type: string }
+                          amount: { type: number }
+                          taxAmount: { type: number }
+                          totalAmount: { type: number }
+                      invoice:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          invoiceNumber: { type: string, nullable: true }
+                          issueDate: { type: string, nullable: true }
+                          dueDate: { type: string, nullable: true }
+                          amountDue: { type: number }
+                          isPaid: { type: boolean }
+                          status: { type: string }
+                      reused: { type: boolean }
+        '200':
+          description: Reused existing unpaid invoice
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      invoice:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          invoiceNumber: { type: string, nullable: true }
+                          issueDate: { type: string, nullable: true }
+                          dueDate: { type: string, nullable: true }
+                          amountDue: { type: number }
+                          isPaid: { type: boolean }
+                          status: { type: string }
+                      reused: { type: boolean }
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          description: Validation error or tenant context missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
   /v1/hcm/billing/invoices:
     get:
       tags: [SaaS, HCM]
@@ -8897,7 +9000,7 @@ paths:
     get:
       tags: [SaaS]
       summary: Get backend-driven package feature catalog
-      description: Returns the feature catalog used by the packages management UI, including custom feature codes already present in package_features.
+      description: Returns canonical backend feature catalog used by packages management UI, including feature tier mapping (`mvp` or `addon`) and metadata lists (`meta.mvp_feature_codes`, `meta.addon_feature_codes`) where addon list is derived from all catalog features outside MVP mapping.
       security:
         - bearerAuth: []
       responses:

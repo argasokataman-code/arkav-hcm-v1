@@ -2028,11 +2028,52 @@ function loadBindOvertimeModule() {
         return null;
     }
 
+    function extractPermissionSet(mePayload) {
+        var set = {};
+        var data = mePayload && mePayload.data ? mePayload.data : null;
+        var permissions = data && data.permissions ? data.permissions : null;
+        var codes = data && Array.isArray(data.permissionCodes) ? data.permissionCodes : [];
+
+        if (permissions && typeof permissions === "object") {
+            Object.keys(permissions).forEach(function (key) {
+                if (permissions[key] === true) {
+                    set[String(key)] = true;
+                }
+            });
+        }
+
+        codes.forEach(function (code) {
+            if (typeof code === "string" && code.trim() !== "") {
+                set[code.trim()] = true;
+            }
+        });
+
+        return set;
+    }
+
+    function canAccessAdminPage(mePayload, requiredPermission) {
+        var data = mePayload && mePayload.data ? mePayload.data : null;
+        if (!data) {
+            return false;
+        }
+
+        if (data.hcmGlobalAdmin === true || data.hcmAdmin === true) {
+            return true;
+        }
+
+        if (!requiredPermission) {
+            return true;
+        }
+
+        var permissionSet = extractPermissionSet(mePayload);
+        return permissionSet[requiredPermission] === true;
+    }
+
     function init() {
         var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
         if (path === "/holidays") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['holiday.view'])) {
+                if (m && m.success && !canAccessAdminPage(m, "holiday.view")) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -2043,8 +2084,8 @@ function loadBindOvertimeModule() {
                 if (m && m.success && m.data && m.data.id) {
                     window.__arcav_me_id = m.data.id;
                 }
-                var isAdmin = !!(m && m.success && m.data && m.data.permissions && m.data.permissions['leave.view']);
-                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.view'])) {
+                var isAdmin = !!(m && m.success && canAccessAdminPage(m, "leave.view"));
+                if (m && m.success && !isAdmin) {
                     window.location.replace("/leaves-employee");
                     return;
                 }
@@ -2054,7 +2095,7 @@ function loadBindOvertimeModule() {
             bindLeaves("me", false);
         } else if (path === "/leave-report") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.view'])) {
+                if (m && m.success && !canAccessAdminPage(m, "leave.view")) {
                     window.location.replace("/employee-dashboard");
                     return;
                 }
@@ -2062,7 +2103,7 @@ function loadBindOvertimeModule() {
             });
         } else if (path === "/overtime") {
             apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-                if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['overtime.view'])) {
+                if (m && m.success && !canAccessAdminPage(m, "overtime.view")) {
                     window.location.replace("/overtime-employee");
                     return;
                 }

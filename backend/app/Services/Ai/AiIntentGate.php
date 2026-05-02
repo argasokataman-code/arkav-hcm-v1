@@ -33,6 +33,7 @@ class AiIntentGate
         'ticket.status.self',
         'ticket.list.self',
         'profile.info.self',
+        'subscription.features.current',
     ];
 
     /**

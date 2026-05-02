@@ -45,6 +45,28 @@
         window.location.replace("/employee-dashboard");
     }
 
+    function hasMePermission(me, permissionCode) {
+        var data = me && me.data ? me.data : null;
+        if (!data || !permissionCode) {
+            return false;
+        }
+
+        if (data.hcmGlobalAdmin === true || data.hcmAdmin === true) {
+            return true;
+        }
+
+        var permissions = data.permissions;
+        if (Array.isArray(permissions) && permissions.indexOf(permissionCode) !== -1) {
+            return true;
+        }
+        if (permissions && typeof permissions === "object" && permissions[permissionCode] === true) {
+            return true;
+        }
+
+        var permissionCodes = Array.isArray(data.permissionCodes) ? data.permissionCodes : [];
+        return permissionCodes.indexOf(permissionCode) !== -1;
+    }
+
     function getTenantContext() {
         if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
             return window.AuthApi.getTenantContext() || {};
@@ -1003,11 +1025,11 @@
 
     if (tbody) {
         apiRequest("get", "/v1/identity/auth/me", null).then(function (me) {
-            if (!me || !me.success || !me.data || !me.data.permissions || !me.data.permissions['termination.view']) {
+            if (!me || !me.success || !hasMePermission(me, 'termination.view')) {
                 redirectToEmployeeDashboard();
                 return;
             }
-            canManageTermination = !!me.data.permissions['termination.manage'];
+            canManageTermination = hasMePermission(me, 'termination.manage');
             if (addBtn) {
                 addBtn.classList.toggle("d-none", !canManageTermination);
             }

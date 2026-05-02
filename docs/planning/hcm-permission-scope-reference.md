@@ -60,7 +60,12 @@ Implikasinya:
 
 ## 3. Katalog permission HCM yang bisa di-assign sekarang
 
-Total current catalog: **78 permission**.
+Total current catalog: **80 permission**.
+
+### Document Center (2)
+
+- `document_center.manage`
+- `document_center.view`
 
 ### Attendance (7)
 
@@ -229,7 +234,7 @@ UX aktif saat ini di halaman `/roles-permissions`:
 
 Untuk kebutuhan operasional HCM penuh lintas menu company-scoped, paket paling aman saat ini adalah:
 
-- semua **76 permission** pada seksi §3
+- semua **80 permission** pada seksi §3
 
 ### Super Admin global runtime fallback
 

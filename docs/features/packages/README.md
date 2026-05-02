@@ -52,6 +52,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 
 - Existing: CRUD package, feature assignment, detail viewer, dan add-on catalog sudah aktif.
 - Existing: katalog feature composer di `/packages` sekarang dibaca dari backend endpoint `GET /v1/saas/packages/feature-catalog`, bukan lagi dari daftar statis frontend.
+- Existing: katalog feature sekarang membawa klasifikasi `tier` (`mvp` vs `addon`) dan metadata mapping `mvp_feature_codes` + `addon_feature_codes` agar semua fitur di luar MVP selalu terpetakan sebagai add-on.
 - Existing: relasi utama package feature dibaca lewat `package_uuid`, dengan `package_id` masih dipertahankan untuk kompatibilitas legacy.
 - Existing: path package runtime memakai `package` UUID, sedangkan route feature mutation memakai numeric feature id aktif dengan fallback UUID bila ada caller lama.
 - Existing: path add-on menerima numeric id aktif dengan fallback UUID legacy/transisi.

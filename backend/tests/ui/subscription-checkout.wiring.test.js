@@ -20,6 +20,10 @@ describe('subscription checkout wiring', () => {
         <input data-checkout-billing-email />
         <button type="submit" data-checkout-submit>submit</button>
       </form>
+      <form data-checkout-form class="checkout-addon-form">
+        <select data-checkout-addon-select></select>
+        <button type="submit" data-checkout-addon-submit>submit addon</button>
+      </form>
       <span data-checkout-company-badge></span>
       <span class="d-none" data-checkout-trial-badge></span>
       <input type="radio" name="billing_cycle" value="monthly" checked />
@@ -153,6 +157,39 @@ describe('subscription checkout wiring', () => {
         });
       }
 
+      if (url === '/v1/saas/package-addons?status=active&per_page=100') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: [
+              { id: 88, code: 'asset_management', name: 'Asset Management', pricePerUnit: 49000, unitName: 'tenant / month' },
+            ],
+          }),
+        });
+      }
+
+      if (url === '/v1/hcm/billing/addons/checkout') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              addon: { id: 88, code: 'asset_management', name: 'Asset Management' },
+              invoice: {
+                id: 99,
+                invoiceNumber: 'INV-99',
+                amountDue: 59780,
+                dueDate: '2026-05-02',
+                status: 'draft',
+                isPaid: false,
+              },
+              reused: false,
+            },
+          }),
+        });
+      }
+
       return Promise.reject(new Error(`Unexpected fetch: ${url}`));
     });
 
@@ -197,5 +234,34 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil.');
     expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(true);
+  });
+
+  it('submits add-on checkout separately from package checkout', async () => {
+    window.AuthApi.request.mockImplementation((method, path) => {
+      if (method === 'get' && path === '/hcm/billing/invoices?perPage=20&is_paid=0') {
+        return Promise.resolve({ data: { success: true, data: [] } });
+      }
+
+      throw new Error(`Unexpected AuthApi call: ${method} ${path}`);
+    });
+
+    await import('../../../frontend/resources/js/subscription-checkout.js');
+    await flush();
+
+    const addonSelect = document.querySelector('[data-checkout-addon-select]');
+    if (addonSelect) {
+      addonSelect.value = '88';
+    }
+
+    document.querySelector('[data-checkout-form].checkout-addon-form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true }));
+    await flush();
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/v1/hcm/billing/addons/checkout',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice dibuat');
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Invoice add-on berhasil dibuat');
   });
 });

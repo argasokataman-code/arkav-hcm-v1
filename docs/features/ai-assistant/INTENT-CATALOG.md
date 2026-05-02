@@ -161,6 +161,24 @@ mapping dari pertanyaan natural language → endpoint internal → parameter yan
 
 ---
 
+### `subscription.features.current`
+**Status:** `implemented`
+**Contoh pertanyaan:**
+- "Saya berlangganan paket saat ini fiturnya apa aja?"
+- "Fitur paket saya sekarang apa saja?"
+- "What features are included in my package?"
+
+**Endpoint:** Resolver internal AI (`Subscription` + `PackageFeature` runtime)
+**Parameter wajib:**
+- `companyId` = tenant context aktif
+
+**Output utama:**
+- `package_name`, `package_code`, `subscription_status`
+- `included_features[]` (hanya fitur dengan `limit != 0`)
+- `feature_count`
+
+---
+
 ## Scope: HCM Admin (Tenant)
 
 ### `leave.balance.other`

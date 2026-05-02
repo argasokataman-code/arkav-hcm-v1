@@ -21,7 +21,11 @@ Semua endpoint memakai middleware `api.token`.
 
 Behavior:
 - Mengembalikan katalog fitur package yang dipakai runtime UI `/packages` saat compose/edit package.
-- Source of truth utama ada di backend config catalog, lalu runtime menambahkan feature code custom yang sudah pernah tersimpan di `package_features` tetapi belum dikenali catalog bawaan.
+- Source of truth ada di backend config catalog dan hanya mengembalikan daftar fitur kanonik yang disetujui runtime.
+- Mengembalikan mapping tegas dua tier agar composer package tidak drift:
+  - `meta.mvp_feature_codes`: fitur inti paket MVP.
+  - `meta.addon_feature_codes`: semua fitur katalog yang berada di luar MVP.
+- Setiap item feature membawa `tier` (`mvp` atau `addon`).
 - Endpoint ini read-only dan mencegah drift daftar fitur antara frontend dan backend.
 
 Success `200` (ringkas):
@@ -38,22 +42,7 @@ Success `200` (ringkas):
           "code": "asset_management",
           "name": "Asset Management",
           "description": "Master aset, assignment, dan stock overview.",
-          "requiresLimit": false,
-          "limitLabel": null,
-          "limitPlaceholder": null,
-          "limitSuffix": null
-        }
-      ]
-    },
-    {
-      "module": "custom",
-      "title": "Custom Features",
-      "description": "Fitur tambahan yang terdeteksi dari konfigurasi package existing.",
-      "features": [
-        {
-          "code": "custom_ai_workflows",
-          "name": "Custom AI Workflows",
-          "description": "Feature code custom yang sudah pernah dipakai package existing.",
+          "tier": "addon",
           "requiresLimit": false,
           "limitLabel": null,
           "limitPlaceholder": null,
@@ -61,7 +50,12 @@ Success `200` (ringkas):
         }
       ]
     }
-  ]
+  ],
+  "meta": {
+    "mvp_feature_codes": ["max_employees", "employee_management", "attendance", "leave_management", "payroll", "payroll_components", "payroll_thr", "notifications", "trial_billing_dashboard", "tax_governance"],
+    "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "holiday_calendar", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets"],
+    "total_feature_codes": 21
+  }
 }
 ```
 

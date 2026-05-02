@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Package;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -103,6 +105,43 @@ class DevelopmentSuperUserSeeder extends Seeder
             ]
         );
 
+        $this->ensureEnterpriseSubscription($defaultCompany);
+
         return (int) $defaultCompany->id;
+    }
+
+    private function ensureEnterpriseSubscription(Company $company): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('subscriptions') || ! \Illuminate\Support\Facades\Schema::hasTable('packages')) {
+            return;
+        }
+
+        $existing = Subscription::query()
+            ->where('company_id', $company->id)
+            ->whereIn('status', ['active', 'trial'])
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        $enterprise = Package::query()->where('code', 'enterprise')->first();
+        if (! $enterprise) {
+            return;
+        }
+
+        Subscription::query()->updateOrCreate(
+            ['company_id' => $company->id],
+            [
+                'package_uuid'  => $enterprise->uuid,
+                'plan_code'     => 'enterprise',
+                'status'        => 'active',
+                'starts_at'     => now(),
+                'ends_at'       => now()->addYears(10),
+                'auto_renew'    => true,
+                'billing_cycle' => 'yearly',
+                'amount'        => '0.00',
+            ]
+        );
     }
 }

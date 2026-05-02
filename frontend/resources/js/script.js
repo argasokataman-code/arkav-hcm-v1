@@ -244,15 +244,19 @@ Template Name: Smarthr - Bootstrap Admin Template
 	function init() {
 		var $this = Sidemenu;
 		$('.sidebar-menu a').on('click', function(e) {
-			if($(this).parent().hasClass('submenu')) {
+			var href = String($(this).attr('href') || '').trim().toLowerCase();
+			var isSubmenuToggle = $(this).parent().hasClass('submenu') && (href === '' || href === '#' || href === 'javascript:void(0)' || href === 'javascript:void(0);');
+
+			if (isSubmenuToggle) {
 				e.preventDefault();
 			}
-			if(!$(this).hasClass('subdrop')) {
+
+			if(isSubmenuToggle && !$(this).hasClass('subdrop')) {
 				$('ul', $(this).parents('ul:first')).slideUp(250);
 				$('a', $(this).parents('ul:first')).removeClass('subdrop');
 				$(this).next('ul').slideDown(350);
 				$(this).addClass('subdrop');
-			} else if($(this).hasClass('subdrop')) {
+			} else if(isSubmenuToggle && $(this).hasClass('subdrop')) {
 				$(this).removeClass('subdrop');
 				$(this).next('ul').slideUp(350);
 			}
@@ -286,20 +290,21 @@ Template Name: Smarthr - Bootstrap Admin Template
 	function colinit() {
 		var $this = Colsidemenu;
 		$('.sidebar-right ul a').on('click', function(e) {
-			if($(this).parent().hasClass('submenu')) {
+			var href = String($(this).attr('href') || '').trim().toLowerCase();
+			var isSubmenuToggle = $(this).parent().hasClass('submenu') && (href === '' || href === '#' || href === 'javascript:void(0)' || href === 'javascript:void(0);');
+
+			if (isSubmenuToggle) {
 				e.preventDefault();
-				console.log("1");
 			}
-			if(!$(this).hasClass('subdrop')) {
+
+			if(isSubmenuToggle && !$(this).hasClass('subdrop')) {
 				$('ul', $(this).parents('ul:first')).slideUp(250);
 				$('a', $(this).parents('ul:first')).removeClass('subdrop');
 				$(this).next('ul').slideDown(350);
 				$(this).addClass('subdrop');
-				console.log("0");
-			} else if($(this).hasClass('subdrop')) {
+			} else if(isSubmenuToggle && $(this).hasClass('subdrop')) {
 				$(this).removeClass('subdrop');
 				$(this).next('ul').slideUp(350);
-				console.log("3");
 			}
 		});
 		$('.sidebar-right ul li.submenu a.active').parents('li:last').children('a:first').addClass('active').trigger('click');

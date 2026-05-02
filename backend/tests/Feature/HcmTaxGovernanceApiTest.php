@@ -206,6 +206,13 @@ class HcmTaxGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-history-window@example.com']);
         $this->elevateToGlobalAdmin('tax-global-admin-history-window@example.com');
 
+        $baselineResponse = $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?per_page=20')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $baselineTotal = (int) ($baselineResponse->json('data.meta.items_global_total') ?? 0);
+
         for ($i = 1; $i <= 25; $i++) {
             $month = date('Y-m', strtotime('2024-01-01 +' . ($i - 1) . ' month'));
             $effectiveFrom = $month . '-01';
@@ -233,8 +240,8 @@ class HcmTaxGovernanceApiTest extends TestCase
             ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?per_page=20')
             ->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.meta.items_global_total', 25);
+            ->assertJsonPath('data.meta.items_global_total', $baselineTotal + 25);
 
-        $this->assertCount(25, $response->json('data.items_global'));
+        $this->assertCount($baselineTotal + 25, $response->json('data.items_global'));
     }
 }

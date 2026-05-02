@@ -78,6 +78,8 @@ class LandingPackagesSeeder extends Seeder
                 'employee_management' => 'Employee Management',
                 'attendance' => 'Attendance',
                 'leave_management' => 'Leave Management',
+                'holiday_calendar' => 'Holiday Calendar',
+                'employee_lifecycle' => 'Employee Lifecycle',
                 'payroll' => 'Payroll',
                 'performance' => 'Performance',
                 'training' => 'Training',
@@ -86,16 +88,18 @@ class LandingPackagesSeeder extends Seeder
                 'api_access' => 'API Access',
                 'priority_support' => 'Priority Support',
                 'tickets' => 'Tickets',
+                'employee_document_center' => 'Employee Document Center',
             ];
 
             // null = unlimited, 0 = not included, >0 = limit
+            // Index order matches $featureTemplate keys above (14 entries now)
             $limitsByPackage = [
                 // Trial limits intentionally smaller than Starter (sales follow-up friendly)
-                'trial' => [20, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-                'starter' => [50, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-                'growth' => [150, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1],
-                'business' => [500, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-                'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                'trial'      => [20,   1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                'starter'    => [50,   1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                'growth'     => [150,  1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0],
+                'business'   => [500,  1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1],
+                'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             ];
 
             $i = 0;

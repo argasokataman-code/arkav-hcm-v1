@@ -7,7 +7,9 @@
     var form = document.querySelector("[data-checkout-form]");
     var feedback = document.querySelector("[data-checkout-feedback]");
     var submitBtn = document.querySelector("[data-checkout-submit]");
+    var addonSubmitBtn = document.querySelector("[data-checkout-addon-submit]");
     var pkgSelect = document.querySelector("[data-checkout-package-select]");
+    var addonSelect = document.querySelector("[data-checkout-addon-select]");
     var billingEmailInput = document.querySelector("[data-checkout-billing-email]");
     var companyNameInput = document.querySelector("[data-checkout-company-name]");
     var companyIdInput = document.querySelector("[data-checkout-company-id]");
@@ -94,6 +96,11 @@
     function setLoading(isLoading) {
         if (!submitBtn) return;
         submitBtn.disabled = isLoading;
+    }
+
+    function setAddonLoading(isLoading) {
+        if (!addonSubmitBtn) return;
+        addonSubmitBtn.disabled = isLoading;
     }
 
     function setPaying(isPaying) {
@@ -278,7 +285,9 @@
         // Pending invoices must be paid first, and paid-return states should not invite users
         // to immediately create another invoice from the same success screen.
         if (currentInvoice && upgradeForm) {
-            upgradeForm.classList.add("d-none");
+            Array.prototype.slice.call(document.querySelectorAll("[data-checkout-form]")).forEach(function (checkoutForm) {
+                checkoutForm.classList.add("d-none");
+            });
         }
     }
 
@@ -451,6 +460,113 @@
         }).join("");
     }
 
+    async function loadAddons() {
+        if (!addonSelect) return;
+
+        var res = await fetch("/v1/saas/package-addons?status=active&per_page=100", { method: "GET", headers: { Accept: "application/json" } });
+        var body = await res.json().catch(function () { return null; });
+        if (!res.ok || !body || body.success !== true) {
+            if (addonSelect) addonSelect.innerHTML = '<option value="">Gagal memuat add-on</option>';
+            return;
+        }
+
+        var items = Array.isArray(body.data) ? body.data : [];
+        if (!items.length) {
+            if (addonSelect) addonSelect.innerHTML = '<option value="">Tidak ada add-on aktif</option>';
+            return;
+        }
+
+        // Render hidden select for form compatibility
+        addonSelect.innerHTML = '<option value="">Pilih add-on…</option>' + items.map(function (item) {
+            var itemId = String(item.id || "");
+            var price = formatRupiah(item.pricePerUnit || 0);
+            var label = String(item.name || item.code || "Add-on") + " (" + price + "/" + String(item.unitName || "unit") + ")";
+            return '<option value="' + itemId + '">' + label + '</option>';
+        }).join("");
+
+        // Render addon cards grid
+        var cardsGrid = document.getElementById("addon-cards-grid");
+        if (cardsGrid) {
+            var iconMap = {
+                'asset_management': 'ti-archive',
+                'employee_lifecycle': 'ti-user-check',
+                'performance': 'ti-chart-bar',
+                'goal_tracking': 'ti-target',
+                'training': 'ti-book',
+                'tickets': 'ti-help',
+                'holiday_calendar': 'ti-calendar-event',
+                'shift_scheduling': 'ti-clock',
+                'leave_approval_flow': 'ti-square-check',
+                'performance_goal_tracking': 'ti-trophy'
+            };
+
+            cardsGrid.innerHTML = items.map(function (item) {
+                var itemId = String(item.id || "");
+                var icon = iconMap[String(item.code || "")] || 'ti-puzzle';
+                var price = formatRupiah(item.pricePerUnit || 0);
+                var unitName = String(item.unitName || "unit");
+                var cardClasses = "col-12 col-sm-6 col-lg-4";
+
+                return '<div class="' + cardClasses + '">\
+                    <div class="addon-card" role="button" tabindex="0" data-addon-id="' + itemId + '">\
+                        <div class="addon-card-check">\
+                            <i class="ti ti-check"></i>\
+                        </div>\
+                        <div class="addon-card-icon">\
+                            <i class="ti ' + icon + '"></i>\
+                        </div>\
+                        <div class="addon-card-name">' + (item.name || item.code || "Add-on") + '</div>\
+                        <div class="addon-card-price">' + price + '</div>\
+                        <div class="addon-card-price-unit">/ ' + unitName + '</div>\
+                        <div class="addon-card-description">' + (item.description || "") + '</div>\
+                    </div>\
+                </div>';
+            }).join("");
+
+            // Attach card click handlers
+            var cards = cardsGrid.querySelectorAll(".addon-card");
+            cards.forEach(function (card) {
+                card.addEventListener("click", function () {
+                    var addonId = String(card.getAttribute("data-addon-id") || "");
+                    selectAddon(addonId);
+                });
+                card.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        card.click();
+                    }
+                });
+            });
+        }
+    }
+
+    function selectAddon(addonId) {
+        var cardsGrid = document.getElementById("addon-cards-grid");
+        if (cardsGrid) {
+            // Remove previous selection
+            var previousSelected = cardsGrid.querySelector(".addon-card.is-selected");
+            if (previousSelected) {
+                previousSelected.classList.remove("is-selected");
+            }
+            // Select new card
+            var selectedCard = cardsGrid.querySelector('[data-addon-id="' + addonId + '"]');
+            if (selectedCard) {
+                selectedCard.classList.add("is-selected");
+            }
+        }
+
+        // Update hidden select value
+        if (addonSelect) {
+            addonSelect.value = addonId;
+        }
+
+        // Enable submit button
+        var submitBtn = document.querySelector("[data-checkout-addon-submit]");
+        if (submitBtn) {
+            submitBtn.disabled = !addonId;
+        }
+    }
+
     async function submitCheckout(event) {
         event.preventDefault();
         clearFeedback();
@@ -500,11 +616,62 @@
         }
     }
 
+    async function submitAddonCheckout(event) {
+        event.preventDefault();
+        clearFeedback();
+
+        var addonId = addonSelect ? String(addonSelect.value || "").trim() : "";
+        if (!addonId) {
+            showFeedback("warning", "Pilih add-on terlebih dulu.");
+            return;
+        }
+
+        var payload = {
+            addon_id: Number(addonId),
+        };
+        var billingEmail = billingEmailInput ? String(billingEmailInput.value || "").trim() : "";
+        if (billingEmail) payload.billingEmail = billingEmail;
+
+        try {
+            setAddonLoading(true);
+            var res = await fetch("/v1/hcm/billing/addons/checkout", {
+                method: "POST",
+                headers: buildHeaders({ "Content-Type": "application/json" }),
+                credentials: "same-origin",
+                body: JSON.stringify(payload),
+            });
+            var body = await res.json().catch(function () { return null; });
+            if (!res.ok || !body || body.success !== true) {
+                var msg = (body && body.error && body.error.message) ? body.error.message : "Gagal membuat invoice add-on.";
+                throw new Error(msg);
+            }
+
+            var paidInstantly = !!(body && body.data && body.data.invoice && body.data.invoice.isPaid);
+            if (paidInstantly) {
+                showFeedback("success", "Add-on berhasil diaktifkan. Tidak ada pembayaran yang perlu dilakukan.");
+            } else {
+                showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice add-on berhasil dibuat. Silakan lanjut bayar.");
+            }
+
+            renderInvoice(body.data, !!(body.data && body.data.reused));
+            if (body.data && body.data.invoice && body.data.invoice.id) {
+                await loadInvoiceById(body.data.invoice.id);
+            }
+        } catch (e) {
+            showFeedback("danger", e && e.message ? e.message : "Gagal membuat invoice add-on.");
+        } finally {
+            setAddonLoading(false);
+        }
+    }
+
     async function boot() {
         try {
             await loadMeAndRenderContext();
             await loadPackages();
+            await loadAddons();
             if (form) form.addEventListener("submit", submitCheckout);
+            var addonForm = document.querySelector("[data-checkout-form].checkout-addon-form");
+            if (addonForm) addonForm.addEventListener("submit", submitAddonCheckout);
             if (payNowBtn) payNowBtn.addEventListener("click", payCurrentInvoice);
             var handledHostedReturn = await handleHostedReturn();
             if (!handledHostedReturn) {

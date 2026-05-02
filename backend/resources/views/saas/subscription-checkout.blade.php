@@ -407,6 +407,164 @@
                                     </button>
                                 </div>
                             </form>
+
+                            <hr class="my-4">
+
+                            <div class="mb-3">
+                                <div class="checkout-section-title">Checkout Add-on</div>
+                                <div class="checkout-section-lead">Beli add-on secara terpisah tanpa ganti paket aktif. Pilih dari katalog fitur tambahan yang tersedia.</div>
+                            </div>
+
+                            <form action="javascript:void(0);" data-checkout-form class="checkout-form checkout-addon-form">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label mb-2" for="checkout_addon_select">Pilih add-on <span class="text-danger">*</span></label>
+                                        <div id="addon-cards-grid" class="row g-3 mb-3">
+                                            <!-- Add-on cards akan di-render di sini via JavaScript -->
+                                        </div>
+                                        <div class="d-none" id="addon-select-wrapper">
+                                            <select class="form-select" id="checkout_addon_select" required data-checkout-addon-select>
+                                                <option value="">Memuat add-on…</option>
+                                            </select>
+                                            <div class="form-text">Harga add-on mengikuti katalog global dan ditagihkan sebagai invoice terpisah.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-center justify-content-end gap-2 mt-4 flex-wrap">
+                                    <button type="submit" class="btn btn-outline-primary" data-checkout-addon-submit disabled>
+                                        <i class="ti ti-puzzle me-1"></i> Buat invoice add-on
+                                    </button>
+                                </div>
+                            </form>
+
+                            <style>
+                                .addon-card {
+                                    cursor: pointer;
+                                    transition: all .2s ease;
+                                    border: 1px solid rgba(15, 23, 42, 0.1);
+                                    border-radius: 0.85rem;
+                                    padding: 1rem;
+                                    background: #fff;
+                                    position: relative;
+                                    overflow: hidden;
+                                }
+
+                                .addon-card::before {
+                                    content: '';
+                                    position: absolute;
+                                    top: 0;
+                                    left: -100%;
+                                    width: 100%;
+                                    height: 100%;
+                                    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+                                    transition: left 0.5s ease;
+                                }
+
+                                .addon-card:hover {
+                                    transform: translateY(-3px);
+                                    border-color: rgba(var(--bs-primary-rgb), 0.35);
+                                    box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.12);
+                                }
+
+                                .addon-card.is-selected {
+                                    border-color: rgba(var(--bs-primary-rgb), 0.8);
+                                    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.12);
+                                    background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), 0.05) 0%, #fff 100%);
+                                }
+
+                                .addon-card.is-selected::after {
+                                    content: '';
+                                    position: absolute;
+                                    top: 0.75rem;
+                                    right: 0.75rem;
+                                    width: 1.5rem;
+                                    height: 1.5rem;
+                                    background: var(--bs-primary);
+                                    border-radius: 50%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 0.9rem;
+                                    color: #fff;
+                                    font-weight: bold;
+                                }
+
+                                .addon-card-check {
+                                    position: absolute;
+                                    top: 0.75rem;
+                                    right: 0.75rem;
+                                    width: 1.5rem;
+                                    height: 1.5rem;
+                                    background: var(--bs-success);
+                                    border-radius: 50%;
+                                    display: none;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: #fff;
+                                    font-size: 0.9rem;
+                                    z-index: 10;
+                                }
+
+                                .addon-card.is-selected .addon-card-check {
+                                    display: flex;
+                                }
+
+                                .addon-card-icon {
+                                    font-size: 2rem;
+                                    margin-bottom: 0.5rem;
+                                    color: var(--bs-primary);
+                                }
+
+                                .addon-card-name {
+                                    font-size: 0.95rem;
+                                    font-weight: 600;
+                                    color: #1f2937;
+                                    margin-bottom: 0.35rem;
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;
+                                    overflow: hidden;
+                                }
+
+                                .addon-card-price {
+                                    font-size: 1.1rem;
+                                    font-weight: 700;
+                                    color: var(--bs-primary);
+                                    margin-bottom: 0.25rem;
+                                }
+
+                                .addon-card-price-unit {
+                                    font-size: 0.75rem;
+                                    color: #6c757d;
+                                    font-weight: 600;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.04em;
+                                }
+
+                                .addon-card-description {
+                                    font-size: 0.82rem;
+                                    color: #6c757d;
+                                    line-height: 1.35;
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;
+                                    overflow: hidden;
+                                    min-height: 2.2rem;
+                                }
+
+                                @media (max-width: 575.98px) {
+                                    .addon-card {
+                                        padding: 0.85rem;
+                                    }
+                                    .addon-card-name {
+                                        font-size: 0.9rem;
+                                    }
+                                    .addon-card-price {
+                                        font-size: 1rem;
+                                    }
+                                }
+                            </style>
                         </div>
                     </div>
                 </div>

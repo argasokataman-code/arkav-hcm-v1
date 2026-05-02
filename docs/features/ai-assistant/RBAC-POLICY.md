@@ -39,6 +39,7 @@ Ini adalah sumber kebenaran untuk implementasi gate di `AiChatController`.
 | `ticket.list.self` | ✅ | ✅ | ✅ | List tiket milik user aktif |
 | `ticket.list.all` | ❌ | ✅ | ✅ | Semua tiket di company (admin only) |
 | `profile.info.self` | ✅ | ✅ | ✅ | Nama, departemen, jabatan user aktif |
+| `subscription.features.current` | ✅ | ✅ | ✅ | Paket aktif + fitur runtime company aktif |
 | `employee.list.company` | ❌ | ✅ | ✅ | Headcount aktif di company |
 | `department.info` | ❌ | ✅ | ✅ | Info departemen di company aktif |
 | `saas.company.summary` | ❌ | ❌ | ✅ | Lintas tenant — global admin only |

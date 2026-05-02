@@ -768,41 +768,42 @@
 
 @if (Route::is(['faq']))
     <!-- Add Faq -->
-    <div class="modal fade" id="add_faq">
+    <div class="modal fade" id="add_faq" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-mg w-100">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Add Faq</h4>
+                    <h4 class="modal-title">Add FAQ</h4>
                     <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{url('faq')}}">
+                <form id="faq-add-form">
                     <div class="modal-body pb-0">
+                        <div class="alert alert-danger d-none" id="faq-add-error" role="alert"></div>
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Category</label>
-                                    <input type="text" class="form-control">
-                                </div>									
+                                    <input type="text" class="form-control" id="faq-add-category" maxlength="60" placeholder="General, Employee, Payroll" required>
+                                </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Questions</label>
-                                    <textarea rows="3" class="form-control"></textarea>
-                                </div>									
+                                    <label class="form-label">Question</label>
+                                    <textarea rows="3" class="form-control" id="faq-add-question" maxlength="220" placeholder="Write the question clearly" required></textarea>
+                                </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Answer</label>
-                                    <textarea rows="3" class="form-control"></textarea>
-                                </div>									
+                                    <textarea rows="5" class="form-control" id="faq-add-answer" maxlength="1000" placeholder="Write the answer that should appear in the workspace" required></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Add Faq</button>
+                        <button type="submit" class="btn btn-primary" id="faq-add-submit">Add FAQ</button>
                     </div>
                 </form>
             </div>
@@ -811,7 +812,7 @@
     <!-- /Add Faq -->
 
     <!-- Edit Faq -->
-    <div class="modal fade" id="edit_faq">
+    <div class="modal fade" id="edit_faq" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-mg w-100">
             <div class="modal-content">
                 <div class="modal-header">
@@ -820,32 +821,34 @@
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{url('faq')}}">
+                <form id="faq-edit-form">
                     <div class="modal-body pb-0">
+                        <input type="hidden" id="faq-edit-id">
+                        <div class="alert alert-danger d-none" id="faq-edit-error" role="alert"></div>
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Category</label>
-                                    <input type="text" class="form-control" value="General">
-                                </div>								
+                                    <input type="text" class="form-control" id="faq-edit-category" maxlength="60" required>
+                                </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Questions</label>
-                                    <textarea rows="3" class="form-control">What is an HRMS?</textarea>
-                                </div>									 
+                                    <label class="form-label">Question</label>
+                                    <textarea rows="3" class="form-control" id="faq-edit-question" maxlength="220" required></textarea>
+                                </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Answer</label>
-                                    <textarea rows="3" class="form-control">Software system that automates and manages various human resources tasks</textarea>
-                                </div>									 
+                                    <textarea rows="5" class="form-control" id="faq-edit-answer" maxlength="1000" required></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Faq</button>
+                        <button type="submit" class="btn btn-primary" id="faq-edit-submit">Save FAQ</button>
                     </div>
                 </form>
             </div>
@@ -854,7 +857,7 @@
     <!-- /Edit Faq -->
 
     <!-- Delete Modal -->
-    <div class="modal fade" id="delete_modal">
+    <div class="modal fade" id="delete_modal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-body text-center">
@@ -862,10 +865,10 @@
                         <i class="ti ti-trash-x fs-36"></i>
                     </span>
                     <h4 class="mb-1">Confirm Delete</h4>
-                    <p class="mb-3">You want to delete all the marked items, this cant be undone once you delete.</p>
+                    <p class="mb-3" id="faq-delete-message">Selected FAQ entries will be deleted permanently.</p>
                     <div class="d-flex justify-content-center">
                         <a href="javascript:void(0);" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</a>
-                        <a href="{{url('faq')}}" class="btn btn-danger">Yes, Delete</a>
+                        <button type="button" class="btn btn-danger" id="faq-confirm-delete">Yes, Delete</button>
                     </div>
                 </div>
             </div>

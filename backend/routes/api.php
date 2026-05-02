@@ -64,6 +64,9 @@ require __DIR__ . '/api/ticket.php';
 // Notes
 require __DIR__ . '/api/notes.php';
 
+// FAQ
+require __DIR__ . '/api/faq.php';
+
 // Calendar Events
 require __DIR__ . '/api/calendar.php';
 

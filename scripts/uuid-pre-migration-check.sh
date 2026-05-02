@@ -51,10 +51,10 @@ else
 fi
 
 info "Running focused regression tests"
-(cd "${BACKEND_DIR}" && php artisan test --filter=UserHcmAdminGateTest)
+(cd "${BACKEND_DIR}" && php artisan test --env=testing --filter=UserHcmAdminGateTest)
 pass "UserHcmAdminGateTest"
 
-(cd "${BACKEND_DIR}" && php artisan test --filter=AuthApiTest)
+(cd "${BACKEND_DIR}" && php artisan test --env=testing --filter=AuthApiTest)
 pass "AuthApiTest"
 
 info "UUID pre-migration check completed"

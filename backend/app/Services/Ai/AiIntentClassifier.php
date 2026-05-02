@@ -26,6 +26,11 @@ class AiIntentClassifier
             'masih ada cuti', 'cuti masih ada', 'tinggal berapa cuti',
             'sisa cuti', 'saldo cuti', 'cuti saya', 'berapa cuti',
             'leave balance', 'cuti tersisa', 'jatah cuti',
+            // Procedural / how-to (routed here so LLM gets some HR context)
+            'cara mengajukan cuti', 'cara apply cuti', 'bagaimana mengajukan cuti',
+            'cara request cuti', 'gimana cara cuti', 'minta cuti gimana',
+            'prosedur cuti', 'alur pengajuan cuti', 'cara buat pengajuan cuti',
+            'cara mengambil cuti', 'how to apply leave', 'how to request leave',
         ],
         'leave.history.self' => [
             'riwayat cuti saya', 'histori cuti saya', 'kapan saya cuti', 'cuti bulan ini saya',
@@ -44,6 +49,10 @@ class AiIntentClassifier
         'leave.history.other' => [
             'riwayat cuti karyawan', 'histori cuti karyawan', 'cuti karyawan bulan',
             'siapa yang pernah cuti', 'rekap pengajuan cuti karyawan',
+            'siapa karyawan yang pernah ajukan cuti', 'siapa karyawan yang pernah mengajukan cuti',
+            'karyawan yang ajukan cuti periode kemarin', 'karyawan yang mengajukan cuti periode kemarin',
+            'siapa karyawan cuti bulan lalu', 'siapa pegawai yang ajukan cuti bulan lalu',
+            'pengajuan cuti periode kemarin', 'riwayat pengajuan cuti periode kemarin',
         ],
         'leave.summary.company' => [
             'rekap cuti perusahaan', 'ringkasan cuti', 'berapa karyawan cuti hari ini',
@@ -58,6 +67,10 @@ class AiIntentClassifier
             'saya sudah absen', 'saya sudah masuk', 'checkin hari ini',
             'sudah absen', 'clock-in', 'clock in', 'absen hari ini',
             'jam masuk', 'sudah masuk', 'attendance today', 'checkin',
+            // Procedural
+            'cara absen', 'cara check in', 'cara clock in', 'bagaimana cara absen',
+            'gimana cara absen', 'cara checkin', 'cara masuk absen',
+            'how to check in', 'cara absensi', 'cara rekam kehadiran',
         ],
         'attendance.history.self' => [
             'riwayat absen saya', 'rekap absensi saya', 'absensi saya bulan', 'kehadiran saya',
@@ -83,6 +96,10 @@ class AiIntentClassifier
             'gaji bersih saya', 'gaji kotor saya', 'gaji sudah masuk',
             'gaji saya', 'slip gaji', 'payslip', 'gaji bulan', 'take home',
             'gaji bersih', 'gaji kotor', 'gaji terakhir', 'komponen gaji',
+            // Procedural
+            'cara lihat gaji', 'cara cek gaji', 'cara lihat payslip',
+            'cara lihat slip gaji', 'bagaimana melihat gaji',
+            'how to check payslip', 'cara akses payslip',
         ],
         'payslip.history.self' => [
             'riwayat gaji saya', 'histori payslip saya', 'gaji saya 3 bulan',
@@ -115,6 +132,10 @@ class AiIntentClassifier
             'daftar tiket saya', 'ada tiket saya', 'list tiket saya', 'tiket saya ada berapa',
             'tiket yang saya buat', 'semua tiket saya',
             'daftar tiket', 'tiket saya ada', 'ada tiket', 'list tiket saya',
+            // Procedural
+            'cara buat tiket', 'cara bikin tiket', 'cara submit tiket',
+            'cara lapor masalah', 'cara pengaduan', 'bagaimana membuat tiket',
+            'how to create ticket', 'cara komplain', 'cara report masalah',
         ],
 
         // ── Tickets admin ──────────────────────────────────────────────────
@@ -151,29 +172,6 @@ class AiIntentClassifier
             'info departemen', 'department list',
         ],
 
-        // ── Procedural / how-to (routed to self-service so LLM gets some context) ──
-        'leave.balance.self' => [
-            'cara mengajukan cuti', 'cara apply cuti', 'bagaimana mengajukan cuti',
-            'cara request cuti', 'gimana cara cuti', 'minta cuti gimana',
-            'prosedur cuti', 'alur pengajuan cuti', 'cara buat pengajuan cuti',
-            'cara mengambil cuti', 'how to apply leave', 'how to request leave',
-        ],
-        'attendance.today.self' => [
-            'cara absen', 'cara check in', 'cara clock in', 'bagaimana cara absen',
-            'gimana cara absen', 'cara checkin', 'cara masuk absen',
-            'how to check in', 'cara absensi', 'cara rekam kehadiran',
-        ],
-        'payslip.latest.self' => [
-            'cara lihat gaji', 'cara cek gaji', 'cara lihat payslip',
-            'cara lihat slip gaji', 'bagaimana melihat gaji',
-            'how to check payslip', 'cara akses payslip',
-        ],
-        'ticket.list.self' => [
-            'cara buat tiket', 'cara bikin tiket', 'cara submit tiket',
-            'cara lapor masalah', 'cara pengaduan', 'bagaimana membuat tiket',
-            'how to create ticket', 'cara komplain', 'cara report masalah',
-        ],
-
         // ── Global Admin ───────────────────────────────────────────────────
         'saas.company.summary' => [
             'berapa company', 'jumlah company', 'company aktif', 'company berlangganan',
@@ -192,6 +190,14 @@ class AiIntentClassifier
             'subscription aktif', 'subscription trial', 'berapa langganan',
             'total tagihan', 'tagihan belum dibayar',
         ],
+        'saas.tax.monthly' => [
+            'pajak bulan ini', 'tax bulan ini', 'tax this month',
+            'pajak yang dibayarkan bulan ini', 'pajak dibayar bulan ini',
+            'berapa pajak yang kita bayarkan', 'berapa pajak yang dibayarkan',
+            'tax paid this month', 'government tax this month',
+            'pajak ke pemerintah', 'tax ke pemerintah',
+            'ppn bulan ini', 'pajak platform bulan ini',
+        ],
     ];
 
     /**
@@ -200,6 +206,16 @@ class AiIntentClassifier
     public function classify(string $message): string
     {
         $lower = mb_strtolower(trim($message));
+
+        // Heuristic fallback for typo/colloquial company-admin leave questions.
+        // Example: "siapa karywan yg pernah ajukan cuti di peridoe kmaren?"
+        if (
+            $this->containsAny($lower, ['cuti'])
+            && $this->containsAny($lower, ['siapa', 'karyawan', 'karywan', 'pegawai'])
+            && $this->containsAny($lower, ['ajukan', 'mengajukan', 'pengajuan', 'pernah', 'riwayat', 'histori'])
+        ) {
+            return 'leave.history.other';
+        }
 
         foreach ($this->intentPatterns as $intent => $keywords) {
             foreach ($keywords as $keyword) {
@@ -210,5 +226,17 @@ class AiIntentClassifier
         }
 
         return 'unknown';
+    }
+
+    /** @param array<int, string> $needles */
+    private function containsAny(string $haystack, array $needles): bool
+    {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

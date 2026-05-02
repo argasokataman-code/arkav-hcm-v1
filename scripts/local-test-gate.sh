@@ -68,7 +68,7 @@ echo ""
 
 # Step 6: Run PHPUnit tests
 echo "${YELLOW}[6/7]${NC} Running PHPUnit tests..."
-if ! php artisan test; then
+if ! php artisan test --env=testing; then
   echo "${RED}✗ PHPUnit tests failed${NC}"
   exit 1
 fi

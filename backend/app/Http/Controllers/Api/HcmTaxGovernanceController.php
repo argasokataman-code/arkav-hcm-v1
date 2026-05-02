@@ -1168,11 +1168,13 @@ class HcmTaxGovernanceController extends Controller
             $query->where('status', $validated['status']);
         }
 
+        $globalSourceQuery = clone $query;
         $rows = $query->paginate((int) ($validated['per_page'] ?? 20));
 
         $rawItems = collect($rows->items());
         $globalMode = (bool) ($validated['global_mode'] ?? false);
-        $globalItems = $this->buildGlobalPlatformPolicyItems($rawItems);
+        $globalSourceItems = $globalMode ? $globalSourceQuery->get() : $rawItems;
+        $globalItems = $this->buildGlobalPlatformPolicyItems($globalSourceItems);
 
         return response()->json([
             'success' => true,
@@ -1197,6 +1199,7 @@ class HcmTaxGovernanceController extends Controller
                     'page' => $rows->currentPage(),
                     'per_page' => $rows->perPage(),
                     'total' => $rows->total(),
+                    'items_global_total' => count($globalItems),
                 ],
             ],
         ]);
@@ -1264,11 +1267,15 @@ class HcmTaxGovernanceController extends Controller
 
             DB::transaction(function () use ($companyIds, $billingMonth, $billingCycleType, $effectiveFrom, $status, $globalRates, $notesPayload, $actorId): void {
                 foreach ($companyIds as $companyId) {
+                    // Serialize writes for a company/month pair to prevent split-brain active policies.
+                    Company::query()->whereKey($companyId)->lockForUpdate()->first();
+
                     if ($status === 'active') {
                         HcmBillingTaxPolicy::query()
                             ->where('company_id', $companyId)
                             ->where('billing_month', $billingMonth)
                             ->where('status', 'active')
+                            ->lockForUpdate()
                             ->update([
                                 'status' => 'inactive',
                                 'updated_by_user_id' => $actorId,
@@ -1290,6 +1297,18 @@ class HcmTaxGovernanceController extends Controller
                         'created_by_user_id' => $actorId,
                         'updated_by_user_id' => $actorId,
                     ]);
+
+                    if ($status === 'active') {
+                        $activeCount = HcmBillingTaxPolicy::query()
+                            ->where('company_id', $companyId)
+                            ->where('billing_month', $billingMonth)
+                            ->where('status', 'active')
+                            ->count();
+
+                        if ($activeCount > 1) {
+                            throw new \RuntimeException('Detected conflicting active billing policies for the same company and month.');
+                        }
+                    }
                 }
             });
 
@@ -1454,10 +1473,15 @@ class HcmTaxGovernanceController extends Controller
                 $notesDecoded = json_decode((string) ($item['notes'] ?? ''), true);
                 $transactionTaxRate = 0.0;
                 if (is_array($notesDecoded)) {
-                    $rawNotes = $notesDecoded['notes'] ?? null;
-                    $notesPayload = is_array($rawNotes)
-                        ? $rawNotes
-                        : (is_string($rawNotes) ? json_decode($rawNotes, true) : null);
+                    // Support both legacy nested payload (notes.transaction_tax) and current direct payload.
+                    $notesPayload = $notesDecoded;
+                    if (! isset($notesPayload['transaction_tax'])) {
+                        $rawNotes = $notesDecoded['notes'] ?? null;
+                        $notesPayload = is_array($rawNotes)
+                            ? $rawNotes
+                            : (is_string($rawNotes) ? json_decode($rawNotes, true) : []);
+                    }
+
                     if (is_array($notesPayload)) {
                         $transactionTaxRate = (float) ($notesPayload['transaction_tax']['tax_rate'] ?? 0);
                     }
@@ -1762,7 +1786,7 @@ class HcmTaxGovernanceController extends Controller
     {
         return HcmBillingTaxPolicy::query()
             ->where('billing_month', $month)
-            ->whereIn('status', ['draft', 'active'])
+            ->where('status', 'active')
             ->where('notes', 'like', '%government_tax_compliance_policy%')
             ->exists();
     }
@@ -1774,7 +1798,7 @@ class HcmTaxGovernanceController extends Controller
     {
         $policies = HcmBillingTaxPolicy::query()
             ->where('billing_month', $month)
-            ->whereIn('status', ['draft', 'active'])
+            ->where('status', 'active')
             ->where('notes', 'like', '%government_tax_compliance_policy%')
             ->orderBy('company_id')
             ->orderByDesc('effective_from')

@@ -43,6 +43,7 @@ Ini adalah sumber kebenaran untuk implementasi gate di `AiChatController`.
 | `department.info` | ❌ | ✅ | ✅ | Info departemen di company aktif |
 | `saas.company.summary` | ❌ | ❌ | ✅ | Lintas tenant — global admin only |
 | `saas.billing.summary` | ❌ | ❌ | ✅ | Billing/subscription — global admin only |
+| `saas.tax.monthly` | ❌ | ❌ | ✅ | Ringkasan pajak platform bulan aktif — global admin only |
 | `general.knowledge.*` | ❌ | ❌ | ❌ | Pertanyaan di luar scope HRMS — selalu DENY |
 | `unknown` | ❌ | ❌ | ❌ | Intent tidak dikenali — selalu DENY |
 

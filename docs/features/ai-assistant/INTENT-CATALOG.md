@@ -228,7 +228,7 @@ mapping dari pertanyaan natural language → endpoint internal → parameter yan
 ## Scope: Global Admin
 
 ### `saas.company.summary`
-**Status:** `planned`  
+**Status:** `implemented`  
 **Contoh pertanyaan:**
 - "Berapa jumlah company yang aktif berlangganan?"
 - "Company mana yang trial-nya hampir habis?"
@@ -238,12 +238,24 @@ mapping dari pertanyaan natural language → endpoint internal → parameter yan
 ---
 
 ### `saas.billing.summary`
-**Status:** `planned`  
+**Status:** `implemented`  
 **Contoh pertanyaan:**
 - "Total revenue bulan ini berapa?"
 - "Ada berapa invoice yang belum dibayar?"
 
 **Endpoint:** `GET /v1/saas/dashboard/*` (sudah ada sebagian)
+
+### `saas.tax.monthly`
+**Status:** `implemented`
+**Contoh pertanyaan:**
+- "Berapa pajak yang kita bayarkan ke pemerintah bulan ini?"
+- "Pajak platform bulan ini berapa?"
+- "Tax paid this month"
+
+**Endpoint:** Resolver internal AI (`PlatformRevenueTransaction` + rekap `BillingTaxCalculationService`)
+**Output utama:**
+- `government_tax_paid_this_month` (pajak dari transaksi cleared bulan aktif)
+- `government_tax_due_this_month` (kewajiban pajak dari rekap compliance bulan aktif)
 
 ---
 

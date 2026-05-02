@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\ApplySubscriptionChangeJob;
 use App\Jobs\NotifySubscriptionChangeApproverJob;
+use App\Jobs\NotifyTenantSubscriptionChangeDecisionJob;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\HcmSubscriptionChangeRequest;
+use App\Models\Invoice;
 use App\Models\Package;
+use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
@@ -71,6 +75,36 @@ class HcmSubscriptionChangeController extends Controller
         ], 403);
     }
 
+    private function assertTenantCanViewHistory(Request $request, int $companyId): ?JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Authentication required.'],
+            ], 401);
+        }
+
+        if ($user->isGlobalHcmAdmin() || $user->isHcmAdminForCompany($companyId)) {
+            return null;
+        }
+
+        $isActiveMember = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', (int) $user->id)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($isActiveMember) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => ['code' => 'FORBIDDEN', 'message' => 'Only active tenant members can view subscription change history.'],
+        ], 403);
+    }
+
     private function resolveTargetPackage(?string $toPackageUuid): ?Package
     {
         if ($toPackageUuid === null || $toPackageUuid === '') {
@@ -106,6 +140,16 @@ class HcmSubscriptionChangeController extends Controller
             ], 422);
         }
 
+        if ((string) $target->code === 'trial') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TRIAL_PACKAGE_NOT_ALLOWED',
+                    'message' => 'Trial package cannot be used as a subscription change target.',
+                ],
+            ], 422);
+        }
+
         return null;
     }
 
@@ -125,7 +169,95 @@ class HcmSubscriptionChangeController extends Controller
         return HcmSubscriptionChangeRequest::ACTION_DOWNGRADE;
     }
 
-    private function buildPreview(?Subscription $subscription, ?Package $target, string $action): array
+    private function resolveReferenceSubscription(int $companyId): ?Subscription
+    {
+        $active = Subscription::activeForCompany($companyId);
+        if ($active) {
+            $active->loadMissing('package');
+
+            return $active;
+        }
+
+        $latest = Subscription::query()
+            ->with('package')
+            ->where('company_id', $companyId)
+            ->whereNotIn('status', ['cancelled'])
+            ->orderByDesc('starts_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return $latest;
+    }
+
+    /**
+     * @return array{flags: array<int, string>, details: array<string, mixed>, summary: string}
+     */
+    private function buildBillingAnomalySnapshot(int $companyId, ?Subscription $reference): array
+    {
+        $flags = [];
+        $details = [];
+
+        if ($reference && ! in_array((string) $reference->status, ['active', 'trial'], true)) {
+            $flags[] = 'SUBSCRIPTION_NOT_ACTIVE';
+            $details['subscription_status'] = (string) $reference->status;
+        }
+
+        $invoice = Invoice::query()
+            ->where('company_id', $companyId)
+            ->where('is_paid', false)
+            ->whereIn('status', ['draft', 'sent', 'overdue'])
+            ->orderBy('due_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($invoice) {
+            $details['invoice_uuid'] = (string) $invoice->uuid;
+            $details['invoice_number'] = (string) $invoice->invoice_number;
+            $details['invoice_due_date'] = optional($invoice->due_date)->toDateString();
+
+            $amountDue = (float) ($invoice->amount_due ?? 0);
+            $paidAmount = (float) (Payment::query()
+                ->where('invoice_id', $invoice->id)
+                ->where('status', 'completed')
+                ->sum('amount') ?? 0);
+            $remaining = max(round($amountDue - $paidAmount, 2), 0.0);
+
+            $details['invoice_amount_due'] = $amountDue;
+            $details['invoice_amount_paid'] = $paidAmount;
+            $details['invoice_remaining_due'] = $remaining;
+
+            if ($invoice->due_date && $invoice->due_date->isPast() && $remaining > 0) {
+                $flags[] = 'BILLING_OVERDUE_INVOICE';
+            }
+
+            if ($paidAmount > 0 && $remaining > 0) {
+                $flags[] = 'BILLING_PARTIAL_PAYMENT';
+            } elseif ($paidAmount <= 0 && $remaining > 0) {
+                $flags[] = 'BILLING_UNPAID_INVOICE';
+            }
+        }
+
+        $messages = [];
+        foreach (array_values(array_unique($flags)) as $flag) {
+            if ($flag === 'SUBSCRIPTION_NOT_ACTIVE') {
+                $messages[] = 'Subscription saat ini tidak aktif, downgrade tetap dapat diajukan.';
+            } elseif ($flag === 'BILLING_OVERDUE_INVOICE') {
+                $messages[] = 'Invoice tenant sudah melewati jatuh tempo.';
+            } elseif ($flag === 'BILLING_PARTIAL_PAYMENT') {
+                $messages[] = 'Pembayaran parsial terdeteksi: masih ada sisa tagihan invoice.';
+            } elseif ($flag === 'BILLING_UNPAID_INVOICE') {
+                $messages[] = 'Invoice tenant belum dibayar.';
+            }
+        }
+
+        return [
+            'flags' => array_values(array_unique($flags)),
+            'details' => $details,
+            'summary' => implode(' ', $messages),
+        ];
+    }
+
+    private function buildPreview(?Subscription $subscription, ?Package $target, string $action, array $anomalySnapshot = []): array
     {
         $currentPackage = $subscription?->package;
         $billingCycle = $subscription?->billing_cycle ?? 'monthly';
@@ -140,6 +272,17 @@ class HcmSubscriptionChangeController extends Controller
                 ? Carbon::parse($subscription->ends_at)
                 : Carbon::now()->addMonth();
         }
+
+        $baseNote = $action === HcmSubscriptionChangeRequest::ACTION_CANCEL
+            ? 'Subscription akan dihentikan pada akhir periode aktif.'
+            : ($action === HcmSubscriptionChangeRequest::ACTION_UPGRADE
+                ? 'Upgrade akan aktif setelah request disetujui admin platform.'
+                : 'Downgrade akan aktif mulai siklus penagihan berikutnya.');
+
+        $anomalySummary = trim((string) ($anomalySnapshot['summary'] ?? ''));
+        $note = $anomalySummary !== ''
+            ? ($baseNote . ' Catatan anomali: ' . $anomalySummary)
+            : $baseNote;
 
         return [
             'action' => $action,
@@ -158,11 +301,9 @@ class HcmSubscriptionChangeController extends Controller
             ] : null,
             'price_delta' => round($targetPrice - $currentPrice, 2),
             'effective_at' => $effectiveAt->toIso8601String(),
-            'notes' => $action === HcmSubscriptionChangeRequest::ACTION_CANCEL
-                ? 'Subscription akan dihentikan pada akhir periode aktif.'
-                : ($action === HcmSubscriptionChangeRequest::ACTION_UPGRADE
-                    ? 'Upgrade akan aktif setelah request disetujui admin platform.'
-                    : 'Downgrade akan aktif mulai siklus penagihan berikutnya.'),
+            'notes' => $note,
+            'anomaly_flags' => (array) ($anomalySnapshot['flags'] ?? []),
+            'anomaly_details' => (array) ($anomalySnapshot['details'] ?? []),
         ];
     }
 
@@ -194,7 +335,7 @@ class HcmSubscriptionChangeController extends Controller
             'to_package_uuid' => 'required_unless:action,cancel|nullable|uuid|exists:packages,uuid',
         ]);
 
-        $subscription = Subscription::activeForCompany($companyId);
+        $subscription = $this->resolveReferenceSubscription($companyId);
         $target = $this->resolveTargetPackage($validated['to_package_uuid'] ?? null);
         if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
             return $block;
@@ -204,11 +345,14 @@ class HcmSubscriptionChangeController extends Controller
             $target = null;
         }
 
+        $anomalySnapshot = $this->buildBillingAnomalySnapshot($companyId, $subscription);
+
         return response()->json([
             'success' => true,
             'data' => [
-                'preview' => $this->buildPreview($subscription, $target, $action),
-                'has_active_subscription' => $subscription !== null,
+                'preview' => $this->buildPreview($subscription, $target, $action, $anomalySnapshot),
+                'has_active_subscription' => $subscription !== null
+                    && in_array((string) $subscription->status, ['active', 'trial'], true),
             ],
         ]);
     }
@@ -260,7 +404,7 @@ class HcmSubscriptionChangeController extends Controller
             ], 409);
         }
 
-        $subscription = Subscription::activeForCompany($companyId);
+        $subscription = $this->resolveReferenceSubscription($companyId);
         $target = $this->resolveTargetPackage($validated['to_package_uuid'] ?? null);
         if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
             return $block;
@@ -270,7 +414,8 @@ class HcmSubscriptionChangeController extends Controller
             $target = null;
         }
 
-        $preview = $this->buildPreview($subscription, $target, $action);
+        $anomalySnapshot = $this->buildBillingAnomalySnapshot($companyId, $subscription);
+        $preview = $this->buildPreview($subscription, $target, $action, $anomalySnapshot);
 
         $record = DB::transaction(function () use ($company, $user, $subscription, $target, $action, $preview, $validated) {
             return HcmSubscriptionChangeRequest::create([
@@ -359,7 +504,7 @@ class HcmSubscriptionChangeController extends Controller
             ], 400);
         }
 
-        if ($block = $this->assertTenantOwnerOrAdmin($request, $companyId)) {
+        if ($block = $this->assertTenantCanViewHistory($request, $companyId)) {
             return $block;
         }
 
@@ -442,6 +587,8 @@ class HcmSubscriptionChangeController extends Controller
 
         $record = $record->refresh();
 
+        NotifyTenantSubscriptionChangeDecisionJob::dispatchAfterResponse($record->id);
+
         if ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
             return response()->json([
                 'success' => true,
@@ -497,9 +644,85 @@ class HcmSubscriptionChangeController extends Controller
             'notes' => (string) ($request->input('notes', $record->notes)),
         ]);
 
+        NotifyTenantSubscriptionChangeDecisionJob::dispatchAfterResponse($record->id);
+
         return response()->json([
             'success' => true,
             'data' => $this->formatRequest($record->refresh()),
+        ]);
+    }
+
+    /**
+     * Tenant requests early activation of an approved downgrade/cancel request
+     * without waiting for effective_at. User explicitly accepts all risks.
+     *
+     * POST /v1/hcm/subscriptions/change-requests/{id}/activate-early
+     */
+    public function activateEarly(Request $request, string $id): JsonResponse
+    {
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
+            ], 400);
+        }
+
+        if ($block = $this->assertTenantOwnerOrAdmin($request, $companyId)) {
+            return $block;
+        }
+
+        $validated = $request->validate([
+            'risk_accepted' => 'required|boolean|accepted',
+        ]);
+
+        $company = Company::query()->where('id', $companyId)->first();
+        if (! $company) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'COMPANY_NOT_FOUND', 'message' => 'Company not found.'],
+            ], 404);
+        }
+
+        $record = HcmSubscriptionChangeRequest::query()
+            ->where('id', $id)
+            ->where('company_uuid', $company->uuid)
+            ->first();
+
+        if (! $record) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'CHANGE_REQUEST_NOT_FOUND', 'message' => 'Change request not found.'],
+            ], 404);
+        }
+
+        if ($record->status !== HcmSubscriptionChangeRequest::STATUS_APPROVED) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'CHANGE_REQUEST_NOT_APPROVED',
+                    'message' => 'Hanya request yang sudah disetujui yang bisa diaktifkan lebih awal.',
+                ],
+            ], 422);
+        }
+
+        if ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UPGRADE_CANNOT_EARLY_ACTIVATE',
+                    'message' => 'Upgrade tidak mendukung aktivasi awal lewat endpoint ini.',
+                ],
+            ], 422);
+        }
+
+        // Run job synchronously so the response already reflects the new state.
+        ApplySubscriptionChangeJob::dispatchSync($record->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->formatRequest($record->refresh()),
+            'message' => 'Aktivasi awal berhasil. Invoice baru telah diterbitkan — silakan selesaikan pembayaran untuk mulai menggunakan paket baru.',
         ]);
     }
 

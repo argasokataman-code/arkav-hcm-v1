@@ -126,22 +126,35 @@ class AiLlmService
     /**
      * Build a hardened message array from system prompt + data context + user question.
      *
-     * @param  array<string, mixed>  $dataContext
+     * $priorTurns: optional array of prior session turns in [{role, content}] format.
+     * These are injected AFTER the system prompt but BEFORE the current data context,
+     * giving the LLM memory of the last few exchanges without repeating full context.
+     *
+     * @param  array<string, mixed>                               $dataContext
+     * @param  array<int, array{role: string, content: string}>  $priorTurns
      * @return array<int, array{role: string, content: string}>
      */
-    public function buildMessages(string $systemPrompt, array $dataContext, string $userQuestion): array
+    public function buildMessages(string $systemPrompt, array $dataContext, string $userQuestion, array $priorTurns = []): array
     {
         $contextJson = json_encode($dataContext, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-        return [
+        $messages = [
             [
                 'role'    => 'system',
                 'content' => $systemPrompt,
             ],
-            [
-                'role'    => 'user',
-                'content' => "DATA CONTEXT (use ONLY this to answer):\n{$contextJson}\n\nUSER QUESTION:\n{$userQuestion}",
-            ],
         ];
+
+        // Inject prior session turns for conversational context (max 3 user+assistant pairs)
+        foreach ($priorTurns as $turn) {
+            $messages[] = $turn;
+        }
+
+        $messages[] = [
+            'role'    => 'user',
+            'content' => "DATA CONTEXT (use ONLY this to answer):\n{$contextJson}\n\nUSER QUESTION:\n{$userQuestion}",
+        ];
+
+        return $messages;
     }
 }

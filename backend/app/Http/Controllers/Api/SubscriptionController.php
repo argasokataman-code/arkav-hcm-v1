@@ -459,6 +459,7 @@ class SubscriptionController extends Controller
 
         return [
             'id' => $subscription->id,
+            'uuid' => $subscription->uuid,
             'companyId' => $subscription->company_id,
             'companyName' => $companyName,
             'company' => [

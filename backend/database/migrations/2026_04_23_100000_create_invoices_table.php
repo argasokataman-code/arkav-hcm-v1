@@ -24,7 +24,7 @@ return new class extends Migration
             $table->boolean('is_paid')->default(false);
             $table->dateTime('paid_date')->nullable();
             $table->string('pdf_path')->nullable();
-            $table->enum('status', ['draft', 'sent', 'viewed', 'paid', 'expired'])->default('draft');
+            $table->enum('status', ['draft', 'issued', 'sent', 'viewed', 'paid', 'expired', 'overdue', 'cancelled'])->default('draft');
             $table->text('notes')->nullable();
             $table->timestamps();
 

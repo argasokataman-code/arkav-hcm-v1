@@ -186,6 +186,54 @@
         return inv && (inv.paidDate || inv.updatedAt) ? (inv.paidDate || inv.updatedAt) : "-";
     }
 
+    function extractNotesFromObject(obj) {
+        if (!obj || typeof obj !== "object") return "";
+        var preferredKeys = ["notes", "note", "message", "summary", "description", "reason", "title"];
+        for (var i = 0; i < preferredKeys.length; i += 1) {
+            var key = preferredKeys[i];
+            var value = obj[key];
+            if (typeof value === "string" && value.trim()) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    function normalizeInvoiceNotes(rawNotes) {
+        var fallback = "Tidak ada catatan tambahan untuk invoice ini.";
+        if (rawNotes == null) return fallback;
+
+        var text = String(rawNotes).trim();
+        if (!text) return fallback;
+
+        var parsed = null;
+        var startsLikeJson = (text.charAt(0) === "{" && text.charAt(text.length - 1) === "}") ||
+            (text.charAt(0) === "[" && text.charAt(text.length - 1) === "]");
+        if (startsLikeJson) {
+            try {
+                parsed = JSON.parse(text);
+            } catch (_e) {
+                parsed = null;
+            }
+        }
+
+        if (parsed && typeof parsed === "object") {
+            var fromObject = extractNotesFromObject(parsed);
+            if (fromObject) {
+                text = fromObject;
+            } else {
+                return "Catatan teknis tersimpan pada metadata invoice.";
+            }
+        }
+
+        var looksTechnical = /(select\s+.+from|insert\s+into|update\s+.+set|delete\s+from|\bwhere\b|https?:\/\/|\?.+=.+|\b(v1|api)\/|[{\["].*[:=].*[}\]"])/i.test(text);
+        if (looksTechnical) {
+            return "Catatan teknis tersimpan pada metadata invoice.";
+        }
+
+        return text.length > 280 ? text.slice(0, 280).trim() + "..." : text;
+    }
+
     function showFeedback(message) {
         if (!feedback) return;
         feedback.textContent = message;
@@ -516,7 +564,7 @@
         set("[data-invoice-modal-terms-summary]", termsSummary);
         set("[data-invoice-modal-header-terms]", headerTerms);
         set("[data-invoice-modal-footer-terms]", footerTerms);
-        set("[data-invoice-modal-notes]", inv.notes || "Tidak ada catatan tambahan untuk invoice ini.");
+        set("[data-invoice-modal-notes]", normalizeInvoiceNotes(inv && inv.notes));
         if (downloadBtn) {
             downloadBtn.disabled = !inv || !inv.id;
         }

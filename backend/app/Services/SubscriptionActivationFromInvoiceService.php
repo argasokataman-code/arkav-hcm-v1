@@ -32,6 +32,17 @@ class SubscriptionActivationFromInvoiceService
             return;
         }
 
+        $metadata = (array) ($subscription->metadata ?? []);
+        $expectedPendingInvoiceId = isset($metadata['pending_invoice_id'])
+            ? (int) $metadata['pending_invoice_id']
+            : null;
+
+        // If subscription is locked to a specific pending invoice, only that
+        // invoice can activate it.
+        if ($expectedPendingInvoiceId !== null && $expectedPendingInvoiceId > 0 && $invoice->id !== $expectedPendingInvoiceId) {
+            return;
+        }
+
         $cycle = $subscription->billing_cycle === 'yearly' ? 'yearly' : 'monthly';
         $endsAt = $cycle === 'yearly'
             ? Carbon::now()->addYear()
@@ -42,6 +53,11 @@ class SubscriptionActivationFromInvoiceService
             'starts_at' => now(),
             'ends_at' => $endsAt,
             'trial_ends_at' => null,
+            'metadata' => array_merge($metadata, [
+                'pending_invoice_id' => null,
+                'pending_invoice_uuid' => null,
+                'pending_invoice_source' => null,
+            ]),
         ]);
 
         Log::info('Subscription activated from paid invoice', [

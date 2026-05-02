@@ -324,6 +324,7 @@ class BillingTaxCalculationService
         return HcmBillingTaxPolicy::query()
             ->where('company_id', $companyId)
             ->where('billing_month', $billingMonth)
+            ->where('status', 'active')
             // Only policies created on or before the last day of the billing period can apply to it.
             // A policy created in March cannot retroactively change January's tax calculation.
             ->where('created_at', '<=', $periodEndDateTime)

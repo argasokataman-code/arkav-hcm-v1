@@ -68,7 +68,7 @@ class HcmTaxGovernanceAnomaly extends Model
 
     public function policy(): BelongsTo
     {
-        return $this->belongsTo(HcmTaxGovernancePolicy::class, 'affected_policy_id', 'id');
+        return $this->belongsTo(HcmTaxGovernancePolicy::class, 'affected_policy_id', 'uuid');
     }
 
     public function scopeUnresolved($query)

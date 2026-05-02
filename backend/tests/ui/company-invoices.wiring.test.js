@@ -132,7 +132,7 @@ describe('company invoices wiring', () => {
                 amountDue: 2400000,
                 status: 'paid',
                 isPaid: true,
-                notes: 'Paid invoice',
+                notes: '{"query":"SELECT * FROM invoices WHERE id=89","trace":"/v1/hcm/billing/invoices/89"}',
               },
             },
           });
@@ -382,6 +382,8 @@ describe('company invoices wiring', () => {
     expect(document.querySelector('[data-invoice-modal-terms-summary]')?.textContent).toContain('Prefix TENANT-');
     expect(document.querySelector('[data-invoice-modal-header-terms]')?.textContent).toContain('Header term tenant invoice');
     expect(document.querySelector('[data-invoice-modal-footer-terms]')?.textContent).toContain('Footer term tenant invoice');
+    expect(document.querySelector('[data-invoice-modal-notes]')?.textContent).toBe('Catatan teknis tersimpan pada metadata invoice.');
+    expect(document.querySelector('[data-invoice-modal-notes]')?.textContent).not.toContain('SELECT');
     expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('Rp');
     expect(showSpy).toHaveBeenCalled();
   });

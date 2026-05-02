@@ -163,4 +163,47 @@ class WebFeatureGateTest extends TestCase
             ->get('/tickets-admin')
             ->assertOk();
     }
+
+    public function test_upgrade_page_recommendations_hide_global_admin_only_packages_for_tenant(): void
+    {
+        $tenant = $this->makeAdminTenant('UpgradePage', ['max_employees']);
+
+        $tenantPackage = Package::query()->create([
+            'code' => 'tenant-pro-upgrade-page',
+            'name' => 'Tenant Pro Upgrade Page',
+            'monthly_price' => 299000,
+            'yearly_price' => 2990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => false,
+        ]);
+        $tenantPackage->features()->create([
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => 100,
+        ]);
+
+        $globalPackage = Package::query()->create([
+            'code' => 'global-admin-only-upgrade-page',
+            'name' => 'Unlimited (Global Admin) Upgrade Page',
+            'monthly_price' => 0,
+            'yearly_price' => 0,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => true,
+        ]);
+        $globalPackage->features()->create([
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => null,
+        ]);
+
+        $this->actingAs($tenant['user'])
+            ->withHeader('X-Company-Code', $tenant['company']->code)
+            ->get('/upgrade?blocked=employee_management')
+            ->assertOk()
+            ->assertSee('Employee Directory')
+            ->assertSee('Tenant Pro Upgrade Page')
+            ->assertDontSee('Unlimited (Global Admin) Upgrade Page');
+    }
 }

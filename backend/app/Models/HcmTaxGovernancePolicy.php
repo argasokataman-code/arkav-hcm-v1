@@ -26,6 +26,7 @@ class HcmTaxGovernancePolicy extends Model
 
     protected $fillable = [
         'company_id',
+        'company_uuid',
         'policy_code',
         'name',
         'status',
@@ -36,11 +37,15 @@ class HcmTaxGovernancePolicy extends Model
         'draft_fingerprint',
         'version',
         'created_by_user_id',
+        'created_by_user_uuid',
         'submitted_by_user_id',
+        'submitted_by_user_uuid',
         'submitted_at',
         'approved_by_user_id',
+        'approved_by_user_uuid',
         'approved_at',
         'published_by_user_id',
+        'published_by_user_uuid',
         'published_at',
         'last_note',
     ];
@@ -64,18 +69,47 @@ class HcmTaxGovernancePolicy extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $model): void {
+            if (! $model->company_uuid && $model->company_id) {
+                $model->company_uuid = Company::query()
+                    ->where('id', (int) $model->company_id)
+                    ->value('uuid');
+            }
+
+            $model->created_by_user_uuid = self::resolveUserUuid($model->created_by_user_uuid, $model->created_by_user_id);
+            $model->submitted_by_user_uuid = self::resolveUserUuid($model->submitted_by_user_uuid, $model->submitted_by_user_id);
+            $model->approved_by_user_uuid = self::resolveUserUuid($model->approved_by_user_uuid, $model->approved_by_user_id);
+            $model->published_by_user_uuid = self::resolveUserUuid($model->published_by_user_uuid, $model->published_by_user_id);
+        });
+    }
+
     public function events(): HasMany
     {
-        return $this->hasMany(HcmTaxGovernancePolicyEvent::class, 'hcm_tax_governance_policy_id');
+        return $this->hasMany(HcmTaxGovernancePolicyEvent::class, 'hcm_tax_governance_policy_uuid', 'uuid');
     }
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class, 'company_id');
+        return $this->belongsTo(Company::class, 'company_uuid', 'uuid');
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by_user_id');
+        return $this->belongsTo(User::class, 'created_by_user_uuid', 'uuid');
+    }
+
+    private static function resolveUserUuid(?string $currentUuid, mixed $legacyId): ?string
+    {
+        if (is_string($currentUuid) && $currentUuid !== '') {
+            return $currentUuid;
+        }
+
+        if (! is_numeric($legacyId) || (int) $legacyId <= 0) {
+            return $currentUuid;
+        }
+
+        return User::query()->where('id', (int) $legacyId)->value('uuid');
     }
 }

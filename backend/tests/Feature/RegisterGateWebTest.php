@@ -74,4 +74,28 @@ class RegisterGateWebTest extends TestCase
             ->assertSee('/trial?packageId='.$package->uuid, false)
             ->assertSee('Daftarkan company');
     }
+
+    public function test_landing_pricing_hides_internal_global_admin_packages(): void
+    {
+        Package::factory()->create([
+            'code' => 'starter-visible',
+            'name' => 'Starter Visible',
+            'status' => 'active',
+            'is_global_admin_only' => false,
+        ]);
+
+        Package::factory()->create([
+            'code' => 'unlimited-internal',
+            'name' => 'Unlimited (Global Admin)',
+            'description' => 'Paket internal khusus global super admin. Tidak ditampilkan ke katalog publik.',
+            'status' => 'active',
+            'is_global_admin_only' => true,
+        ]);
+
+        $this->get('/landing')
+            ->assertOk()
+            ->assertSee('Starter Visible')
+            ->assertDontSee('Unlimited (Global Admin)')
+            ->assertDontSee('Paket internal khusus global super admin. Tidak ditampilkan ke katalog publik.');
+    }
 }

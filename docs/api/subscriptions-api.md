@@ -18,6 +18,10 @@ Authorization: Bearer <token>
 
 ## Endpoints
 
+Catatan identifier subscription:
+- `id`: numeric legacy identifier (internal).
+- `uuid`: route identifier untuk endpoint detail/update/delete/renew pada `/v1/saas/subscriptions/{subscription}`.
+
 ### List Subscriptions
 
 ```
@@ -250,8 +254,18 @@ Dry-run perubahan paket tenant (upgrade / downgrade / cancel) untuk halaman `/up
 Endpoint ini tidak menulis data request; hanya mengembalikan preview harga, aksi final,
 dan tanggal efektif.
 
+Untuk skenario negatif billing, preview juga menyertakan ringkasan anomali di payload:
+- `preview.anomaly_flags` (array kode anomali)
+- `preview.anomaly_details` (detail invoice/subscription terkait)
+- `preview.notes` sudah menggabungkan catatan anomali agar terbaca di UI.
+
+Kebijakan downgrade: jika subscription tenant sedang non-aktif (mis. `suspended`/`expired`)
+atau ada invoice telat bayar, request downgrade tetap diizinkan, namun flag anomali tetap
+ditampilkan untuk awareness tenant dan approver.
+
 Validasi keamanan: untuk action upgrade/downgrade, `to_package_uuid` harus package
 yang masih `status=active`; selain itu API akan return `422 PACKAGE_NOT_ACTIVE`.
+Target package `trial` ditolak dengan `422 TRIAL_PACKAGE_NOT_ALLOWED`.
 
 **Request**
 ```json
@@ -273,6 +287,7 @@ ditolak `409 CHANGE_REQUEST_PENDING`.
 
 Validasi keamanan: action upgrade/downgrade hanya menerima package aktif
 (`422 PACKAGE_NOT_ACTIVE`).
+Target package `trial` ditolak dengan `422 TRIAL_PACKAGE_NOT_ALLOWED`.
 
 **Request**
 ```json

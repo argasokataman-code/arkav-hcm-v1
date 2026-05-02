@@ -56,7 +56,8 @@ class HcmAiChatController extends Controller
         $companyId = $this->activeCompanyId($request);
 
         // 1. Classify intent (no LLM call yet)
-        $intent = $this->classifier->classify($message);
+        $intent    = $this->classifier->classify($message);
+        $rawIntent = $intent; // capture original classifier output BEFORE any fallback swap
 
         // 2. RBAC gate — check BEFORE fetching any data
         if (! $this->gate->allows($user, $intent, $companyId)) {
@@ -71,12 +72,13 @@ class HcmAiChatController extends Controller
             // Re-check after potential intent swap; deny if still not allowed
             if (! $this->gate->allows($user, $intent, $companyId)) {
                 $denyReason = $this->gate->isKnownIntent($intent) ? 'permission_denied' : 'intent_unknown';
-                $this->writeLog($user->uuid, $companyId, $sessionId, $intent, false, $denyReason, []);
+                $denyMsg    = $this->denyMessage($denyReason);
+                $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, false, $denyReason, [], $message, $denyMsg);
 
                 return response()->json([
                     'success' => true,
                     'data'    => [
-                        'reply'      => $this->denyMessage($denyReason),
+                        'reply'      => $denyMsg,
                         'intent'     => $intent,
                         'allowed'    => false,
                         'sources'    => [],
@@ -97,7 +99,7 @@ class HcmAiChatController extends Controller
         $resolved = $this->resolver->resolve($intent, $user, $companyId, $bearerToken);
 
         if ($resolved === null) {
-            $this->writeLog($user->uuid, $companyId, $sessionId, $intent, true, 'data_not_found', []);
+            $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, true, 'data_not_found', [], $message, null);
 
             return response()->json([
                 'success' => true,
@@ -112,11 +114,13 @@ class HcmAiChatController extends Controller
         }
 
         // 5. Call LLM with structured context (data is already safe at this point)
+        // Inject last 3 turns from the same session for conversational context
+        $priorTurns = $this->recentSessionTurns($sessionId, $user->uuid, 3);
         try {
-            $messages = $this->llm->buildMessages(self::SYSTEM_PROMPT, $resolved['data'], $message);
+            $messages = $this->llm->buildMessages(self::SYSTEM_PROMPT, $resolved['data'], $message, $priorTurns);
             $reply    = $this->llm->chat($messages);
         } catch (\RuntimeException $e) {
-            $this->writeLog($user->uuid, $companyId, $sessionId, $intent, true, 'llm_error', [$resolved['source']]);
+            $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, true, 'llm_error', [$resolved['source']], $message, null);
 
             return response()->json([
                 'success' => true,
@@ -131,7 +135,7 @@ class HcmAiChatController extends Controller
         }
 
         // 6. Audit log
-        $this->writeLog($user->uuid, $companyId, $sessionId, $intent, true, null, [$resolved['source']]);
+        $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, true, null, [$resolved['source']], $message, $reply);
 
         return response()->json([
             'success' => true,
@@ -179,7 +183,7 @@ class HcmAiChatController extends Controller
     /**
      * @param  array<int, array<string, string>>  $sources
      */
-    private function writeLog(string $userUuid, ?int $companyId, string $sessionId, string $intent, bool $allowed, ?string $denyReason, array $sources): void
+    private function writeLog(string $userUuid, ?int $companyId, string $sessionId, string $intent, string $rawIntent, bool $allowed, ?string $denyReason, array $sources, ?string $userMessage = null, ?string $aiReply = null): void
     {
         try {
             AiChatLog::create([
@@ -187,12 +191,47 @@ class HcmAiChatController extends Controller
                 'company_id'       => $companyId,
                 'session_id'       => $sessionId,
                 'intent'           => $intent,
+                'raw_intent'       => $rawIntent !== $intent ? $rawIntent : null,
                 'allowed'          => $allowed,
                 'deny_reason'      => $denyReason,
                 'source_endpoints' => $sources,
+                'user_message'     => $userMessage,
+                'ai_reply'         => $aiReply,
             ]);
         } catch (\Throwable) {
             // best-effort; log failure must never break user response
+        }
+    }
+
+    /**
+     * Fetch the last $limit successful conversation turns for a session.
+     * Used to inject prior context into LLM prompt (session memory).
+     *
+     * @return array<int, array{role: string, content: string}>
+     */
+    private function recentSessionTurns(string $sessionId, string $userUuid, int $limit = 3): array
+    {
+        try {
+            $logs = AiChatLog::where('session_id', $sessionId)
+                ->where('user_uuid', $userUuid)
+                ->whereNotNull('user_message')
+                ->whereNotNull('ai_reply')
+                ->where('allowed', true)
+                ->latest('id')
+                ->limit($limit)
+                ->get(['user_message', 'ai_reply'])
+                ->reverse()
+                ->values();
+
+            $turns = [];
+            foreach ($logs as $log) {
+                $turns[] = ['role' => 'user', 'content' => (string) $log->user_message];
+                $turns[] = ['role' => 'assistant', 'content' => (string) $log->ai_reply];
+            }
+
+            return $turns;
+        } catch (\Throwable) {
+            return [];
         }
     }
 }

@@ -97,6 +97,35 @@
       .replace(/'/g, "&#39;");
   }
 
+  function normalizeAnomalyBadges(flags) {
+    const list = Array.isArray(flags) ? flags : [];
+    if (!list.length) {
+      return '<span class="badge bg-success-subtle text-success">No anomaly</span>';
+    }
+
+    return list.map(function (rawFlag) {
+      const flag = String(rawFlag || "").toUpperCase();
+      let cls = "bg-warning-subtle text-warning";
+      let label = flag;
+
+      if (flag === "BILLING_OVERDUE_INVOICE") {
+        cls = "bg-danger-subtle text-danger";
+        label = "Invoice overdue";
+      } else if (flag === "BILLING_PARTIAL_PAYMENT") {
+        cls = "bg-warning-subtle text-warning";
+        label = "Partial payment";
+      } else if (flag === "BILLING_UNPAID_INVOICE") {
+        cls = "bg-warning-subtle text-warning";
+        label = "Invoice unpaid";
+      } else if (flag === "SUBSCRIPTION_NOT_ACTIVE") {
+        cls = "bg-info-subtle text-info";
+        label = "Subscription non-active";
+      }
+
+      return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
+    }).join(" ");
+  }
+
   // Format date as DD/MM/YYYY
   function formatDate(dateStr) {
     if (!dateStr) return "-";
@@ -131,6 +160,11 @@
   function formatCurrency(amount) {
     if (!amount) return "Rp 0";
     return "Rp " + parseInt(amount).toLocaleString("id-ID");
+  }
+
+  function subscriptionRouteKey(sub) {
+    if (!sub || typeof sub !== "object") return "";
+    return String(sub.uuid || sub.id || "");
   }
 
   /** Suggested new ends_at for renew flow (from today + billing cycle). */
@@ -264,7 +298,13 @@
       return apiRequest("GET", "/v1/identity/auth/me", null)
         .then(function (response) {
           self.currentUser = response?.data || null;
-          self.canManageSubscriptions = !!(response?.data?.permissions && response.data.permissions['subscription.manage']);
+          const permissions = response?.data?.permissions || {};
+          const hasManagePermission = !!permissions["subscription.manage"];
+          const isTenantOrGlobalAdmin = !!(response?.data?.hcmAdmin || response?.data?.hcmGlobalAdmin);
+
+          // Super admin/global admin must always be able to access SaaS subscriptions,
+          // even if legacy permission map does not explicitly contain subscription.manage.
+          self.canManageSubscriptions = hasManagePermission || isTenantOrGlobalAdmin;
           return response;
         });
     },
@@ -318,18 +358,35 @@
             return;
           }
 
+          const anomalyCount = rows.filter(function (row) {
+            const flags = row?.preview?.anomaly_flags;
+            return Array.isArray(flags) && flags.length > 0;
+          }).length;
+
           queueContent.innerHTML =
-            '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
-            + '<thead><tr><th>Company UUID</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th></tr></thead><tbody>'
+            (anomalyCount > 0
+              ? '<div class="alert alert-danger py-2 mb-2">Perhatian: <strong>' + anomalyCount + '</strong> pengajuan memiliki anomali billing. Wajib review sebelum approve.</div>'
+              : '<div class="alert alert-success py-2 mb-2">Semua pengajuan pending tidak memiliki anomali billing kritikal.</div>')
+            + '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
+            + '<thead><tr><th>Company UUID</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th><th>Risk</th><th>Aksi Admin</th></tr></thead><tbody>'
             + rows.map(function (row) {
               const preview = row?.preview || {};
               const toPackage = preview?.to_package || null;
+              const flags = Array.isArray(preview?.anomaly_flags) ? preview.anomaly_flags : [];
+              const detailLine = preview?.anomaly_details?.invoice_number
+                ? ('<div class="small text-muted mt-1">Invoice ' + esc(preview.anomaly_details.invoice_number) + '</div>')
+                : '';
               return '<tr>'
                 + '<td>' + esc(row.company_uuid || "-") + '</td>'
                 + '<td>' + esc(row.action || "-") + '</td>'
                 + '<td>' + esc(toPackage ? ((toPackage.name || "-") + " (" + (toPackage.code || "-") + ")") : "-") + '</td>'
                 + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'
                 + '<td><span class="badge badge-warning d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + esc(row.status || "pending") + '</span></td>'
+                + '<td><div class="d-flex flex-wrap gap-1">' + normalizeAnomalyBadges(flags) + '</div>' + detailLine + '</td>'
+                + '<td class="text-nowrap">'
+                + '<button type="button" class="btn btn-sm btn-success me-1" data-approve-change-request="' + esc(row.id || "") + '">Approve</button>'
+                + '<button type="button" class="btn btn-sm btn-outline-danger" data-reject-change-request="' + esc(row.id || "") + '">Reject</button>'
+                + '</td>'
                 + '</tr>';
             }).join("")
             + "</tbody></table></div>";
@@ -535,7 +592,73 @@
           const id = renewBtn.getAttribute("data-renew-subscription");
           self.openRenewModal(id);
         }
+
+        const approveChangeBtn = e.target.closest("[data-approve-change-request]");
+        if (approveChangeBtn) {
+          e.preventDefault();
+          const id = approveChangeBtn.getAttribute("data-approve-change-request");
+          self.approveChangeRequest(id);
+        }
+
+        const rejectChangeBtn = e.target.closest("[data-reject-change-request]");
+        if (rejectChangeBtn) {
+          e.preventDefault();
+          const id = rejectChangeBtn.getAttribute("data-reject-change-request");
+          self.rejectChangeRequest(id);
+        }
       });
+    },
+
+    approveChangeRequest: function (id) {
+      const self = this;
+      if (!id) {
+        this.showError("Request ID tidak valid.");
+        return;
+      }
+
+      if (!window.confirm("Approve pengajuan downgrade/upgrade ini?")) {
+        return;
+      }
+
+      apiRequest("POST", "/v1/saas/subscription-change-requests/" + encodeURIComponent(id) + "/approve", null)
+        .then(function (response) {
+          if (response.success) {
+            self.showSuccess("Pengajuan berhasil di-approve.");
+            self.loadChangeRequestQueue();
+          } else {
+            self.showError(response.error?.message || "Approve gagal.");
+          }
+        })
+        .catch(function (err) {
+          self.showError(err?.data?.error?.message || "Approve gagal.");
+        });
+    },
+
+    rejectChangeRequest: function (id) {
+      const self = this;
+      if (!id) {
+        this.showError("Request ID tidak valid.");
+        return;
+      }
+
+      const notesRaw = window.prompt("Alasan reject (opsional):", "");
+      if (notesRaw === null) {
+        return;
+      }
+      const notes = String(notesRaw || "").trim();
+
+      apiRequest("POST", "/v1/saas/subscription-change-requests/" + encodeURIComponent(id) + "/reject", notes ? { notes: notes } : {})
+        .then(function (response) {
+          if (response.success) {
+            self.showSuccess("Pengajuan berhasil di-reject.");
+            self.loadChangeRequestQueue();
+          } else {
+            self.showError(response.error?.message || "Reject gagal.");
+          }
+        })
+        .catch(function (err) {
+          self.showError(err?.data?.error?.message || "Reject gagal.");
+        });
     },
 
     suggestSubscriptionEndDate: function () {
@@ -742,7 +865,7 @@
                       sub.status === "suspended" ||
                       sub.status === "inactive";
                     return `
-                      <tr data-subscription-row="${sub.id}">
+                      <tr data-subscription-row="${subscriptionRouteKey(sub)}">
                         <td>${esc(companyName)}</td>
                         <td>${esc(packageName)}</td>
                         <td>
@@ -759,28 +882,28 @@
                         </td>
                         <td>
                           <div class="action-icon d-inline-flex">
-                            <button class="btn btn-icon btn-sm me-2" data-view-subscription="${sub.id}" title="View Details">
+                            <button class="btn btn-icon btn-sm me-2" data-view-subscription="${subscriptionRouteKey(sub)}" title="View Details">
                               <i class="ti ti-eye"></i>
                             </button>
                             ${this.canManageSubscriptions ? `
-                              <button class="btn btn-icon btn-sm me-2" data-edit-subscription="${sub.id}" title="Edit">
+                              <button class="btn btn-icon btn-sm me-2" data-edit-subscription="${subscriptionRouteKey(sub)}" title="Edit">
                                 <i class="ti ti-edit"></i>
                               </button>
                               ${
                                 showRenew
-                                  ? `<button class="btn btn-icon btn-sm me-2" data-renew-subscription="${sub.id}" title="Renew">
+                                  ? `<button class="btn btn-icon btn-sm me-2" data-renew-subscription="${subscriptionRouteKey(sub)}" title="Renew">
                                       <i class="ti ti-refresh"></i>
                                     </button>`
                                   : ""
                               }
                               ${
                                 canCancel
-                                  ? `<button class="btn btn-icon btn-sm me-2" data-cancel-subscription="${sub.id}" title="Cancel">
+                                  ? `<button class="btn btn-icon btn-sm me-2" data-cancel-subscription="${subscriptionRouteKey(sub)}" title="Cancel">
                                       <i class="ti ti-x"></i>
                                     </button>`
                                   : ""
                               }
-                              <button class="btn btn-icon btn-sm" data-delete-subscription="${sub.id}" title="Delete">
+                              <button class="btn btn-icon btn-sm" data-delete-subscription="${subscriptionRouteKey(sub)}" title="Delete">
                                 <i class="ti ti-trash"></i>
                               </button>
                             ` : ""}
@@ -1160,7 +1283,7 @@
       }
 
       const sub = this.subscriptions.find(function (item) {
-        return String(item.id) === String(id);
+        return String(subscriptionRouteKey(item)) === String(id);
       });
 
       if (!sub) {
@@ -1221,13 +1344,23 @@
         return;
       }
       const raw = document.getElementById("input_renew_lookup_id")?.value;
-      const id = parseInt(String(raw || "").trim(), 10);
-      if (!id || id < 1) {
-        this.showError("Masukkan Subscription ID yang valid (angka positif).");
+      const lookupRaw = String(raw || "").trim();
+      if (!lookupRaw) {
+        this.showError("Masukkan Subscription UUID atau ID yang valid.");
         return;
       }
 
-      apiRequest("GET", API_BASE + "/" + id, null)
+      let lookupKey = lookupRaw;
+      if (/^\d+$/.test(lookupRaw)) {
+        const byNumericId = this.subscriptions.find(function (item) {
+          return String(item.id) === lookupRaw;
+        });
+        if (byNumericId) {
+          lookupKey = subscriptionRouteKey(byNumericId);
+        }
+      }
+
+      apiRequest("GET", API_BASE + "/" + encodeURIComponent(lookupKey), null)
         .then(function (response) {
           if (!response.success || !response.data) {
             self.showError(response.error?.message || "Subscription tidak ditemukan.");
@@ -1270,7 +1403,8 @@
     confirmRenewById: function () {
       const self = this;
       const sub = this.renewByIdLoadedSub;
-      if (!sub || !sub.id) {
+      const routeKey = subscriptionRouteKey(sub);
+      if (!sub || !routeKey) {
         this.showError("Muat subscription dulu (Load).");
         return;
       }
@@ -1280,7 +1414,7 @@
         return;
       }
 
-      apiRequest("POST", API_BASE + "/" + sub.id + "/renew", { ends_at: endsAt })
+      apiRequest("POST", API_BASE + "/" + encodeURIComponent(routeKey) + "/renew", { ends_at: endsAt })
         .then(function (response) {
           if (response.success) {
             self.showSuccess("Berhasil diperpanjang / renewed successfully.");

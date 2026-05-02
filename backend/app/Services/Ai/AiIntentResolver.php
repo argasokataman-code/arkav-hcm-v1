@@ -11,9 +11,12 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\Invoice;
 use App\Models\LeaveRequest;
+use App\Models\PlatformRevenueTransaction;
 use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\BillingTaxCalculationService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -56,6 +59,7 @@ class AiIntentResolver
             'employee.list.company'      => $this->employeeListCompany($companyId),
             'saas.company.summary'       => $this->saasCompanySummary(),
             'saas.billing.summary'       => $this->saasBillingSummary(),
+            'saas.tax.monthly'           => $this->saasTaxMonthlySummary(),
             'leave.balance.other'        => $this->leaveBalanceOther($companyId),
             'leave.history.other'        => $this->leaveHistoryOther($companyId),
             'department.info'            => $this->departmentInfo($companyId),
@@ -344,13 +348,42 @@ class AiIntentResolver
 
         $recent = LeaveRequest::when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->where('status', 'pending')
+            ->with('user:id,name')
             ->latest()
             ->limit(10)
-            ->get(['leave_type', 'date_from', 'date_to', 'days', 'status'])
+            ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days', 'status'])
+            ->map(fn ($r) => [
+                'user_name'  => $r->user?->name ?? 'Unknown',
+                'leave_type' => $r->leave_type,
+                'date_from'  => $r->date_from,
+                'date_to'    => $r->date_to,
+                'days'       => $r->days,
+                'status'     => $r->status,
+            ])
+            ->toArray();
+
+        $todayActive = LeaveRequest::when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->whereIn('status', ['approved', 'active'])
+            ->where('date_from', '<=', today()->toDateString())
+            ->where('date_to', '>=', today()->toDateString())
+            ->with('user:id,name')
+            ->limit(20)
+            ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days'])
+            ->map(fn ($r) => [
+                'user_name'  => $r->user?->name ?? 'Unknown',
+                'leave_type' => $r->leave_type,
+                'date_from'  => $r->date_from,
+                'date_to'    => $r->date_to,
+                'days'       => $r->days,
+            ])
             ->toArray();
 
         return [
-            'data'   => ['status_counts' => $counts, 'pending_requests' => $recent],
+            'data'   => [
+                'status_counts'   => $counts,
+                'pending_requests' => $recent,
+                'on_leave_today'  => $todayActive,
+            ],
             'source' => [
                 'label'        => 'Company Leave Summary',
                 'endpoint'     => 'local:LeaveRequest',
@@ -454,6 +487,8 @@ class AiIntentResolver
             ->whereMonth('paid_date', now()->month)
             ->sum('amount_due');
 
+        $taxMonthly = $this->saasTaxMonthlySummary();
+
         return [
             'data'   => [
                 'total_revenue_paid'   => $totalRevenue,
@@ -462,10 +497,60 @@ class AiIntentResolver
                 'unpaid_invoice_amount' => $unpaidAmount,
                 'active_subscriptions' => $activeSubs,
                 'trial_subscriptions'  => $trialSubs,
+                'tax_monthly_summary'  => $taxMonthly['data'] ?? [],
             ],
             'source' => [
                 'label'        => 'SaaS Billing Summary',
                 'endpoint'     => 'local:Invoice + local:Subscription',
+                'retrieved_at' => $this->now(),
+            ],
+        ];
+    }
+
+    /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
+    private function saasTaxMonthlySummary(): ?array
+    {
+        $month = now()->format('Y-m');
+
+        $baseQuery = PlatformRevenueTransaction::query()
+            ->forMonth($month)
+            ->where('status', PlatformRevenueTransaction::STATUS_POSTED);
+
+        $totalTaxObserved = (float) (clone $baseQuery)->sum('tax_amount');
+        $taxCleared = (float) (clone $baseQuery)
+            ->where('clearing_status', PlatformRevenueTransaction::CLEARING_CLEARED)
+            ->sum('tax_amount');
+        $taxUncleared = (float) (clone $baseQuery)
+            ->where('clearing_status', PlatformRevenueTransaction::CLEARING_UNCLEARED)
+            ->sum('tax_amount');
+        $taxDisputed = (float) (clone $baseQuery)
+            ->where('clearing_status', PlatformRevenueTransaction::CLEARING_DISPUTED)
+            ->sum('tax_amount');
+        $taxReversed = (float) (clone $baseQuery)
+            ->where('clearing_status', PlatformRevenueTransaction::CLEARING_REVERSED)
+            ->sum('tax_amount');
+
+        $taxDueFromComplianceReport = 0.0;
+        try {
+            $report = app(BillingTaxCalculationService::class)->generateCrossTenantMonthlyReport($month);
+            $taxDueFromComplianceReport = (float) ($report['summary']['total_tax_due'] ?? 0);
+        } catch (\Throwable) {
+            // Best effort only. AI should still return available runtime tax metrics.
+        }
+
+        return [
+            'data'   => [
+                'month' => $month,
+                'government_tax_paid_this_month' => round($taxCleared, 2),
+                'government_tax_due_this_month' => round($taxDueFromComplianceReport, 2),
+                'observed_tax_amount_this_month' => round($totalTaxObserved, 2),
+                'unpaid_tax_liability_this_month' => round($taxUncleared, 2),
+                'disputed_tax_liability_this_month' => round($taxDisputed, 2),
+                'reversed_tax_amount_this_month' => round($taxReversed, 2),
+            ],
+            'source' => [
+                'label'        => 'SaaS Government Tax Summary',
+                'endpoint'     => 'local:PlatformRevenueTransaction + local:BillingTaxCalculationService',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -502,6 +587,9 @@ class AiIntentResolver
     /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
     private function leaveHistoryOther(?int $companyId): ?array
     {
+        $previousPeriodStart = now()->subMonthNoOverflow()->startOfMonth();
+        $previousPeriodEnd = now()->subMonthNoOverflow()->endOfMonth();
+
         $byStatus = LeaveRequest::when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->selectRaw('status, COUNT(*) as count, SUM(days) as total_days')
             ->groupBy('status')
@@ -515,10 +603,62 @@ class AiIntentResolver
             ->get()
             ->toArray();
 
-        $recent = LeaveRequest::when($companyId, fn ($q) => $q->where('company_id', $companyId))
+        $recentRows = LeaveRequest::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->with('user:id,name')
             ->latest()
             ->limit(10)
-            ->get(['leave_type', 'date_from', 'date_to', 'days', 'status'])
+            ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days', 'status']);
+
+        $recent = $recentRows->map(function (LeaveRequest $row): array {
+            return [
+                'id' => (int) $row->id,
+                'user_id' => (int) $row->user_id,
+                'user_name' => (string) ($row->user?->name ?? '-'),
+                'leave_type' => (string) $row->leave_type,
+                'date_from' => $row->date_from?->toDateString(),
+                'date_to' => $row->date_to?->toDateString(),
+                'days' => (float) $row->days,
+                'status' => (string) $row->status,
+            ];
+        })->values()->toArray();
+
+        $previousPeriodRows = LeaveRequest::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->with('user:id,name')
+            ->where(function ($query) use ($previousPeriodStart, $previousPeriodEnd): void {
+                $query->whereBetween('date_from', [$previousPeriodStart->toDateString(), $previousPeriodEnd->toDateString()])
+                    ->orWhereBetween('date_to', [$previousPeriodStart->toDateString(), $previousPeriodEnd->toDateString()])
+                    ->orWhere(function ($overlap) use ($previousPeriodStart, $previousPeriodEnd): void {
+                        $overlap->whereDate('date_from', '<=', $previousPeriodStart->toDateString())
+                            ->whereDate('date_to', '>=', $previousPeriodEnd->toDateString());
+                    });
+            })
+            ->orderByDesc('date_from')
+            ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days', 'status']);
+
+        $previousPeriodApplicants = $previousPeriodRows
+            ->groupBy('user_id')
+            ->map(function ($rows, $userId): array {
+                /** @var LeaveRequest $first */
+                $first = $rows->first();
+
+                return [
+                    'user_id' => (int) $userId,
+                    'user_name' => (string) ($first?->user?->name ?? '-'),
+                    'request_count' => (int) $rows->count(),
+                    'total_days' => (float) $rows->sum('days'),
+                    'latest_request_date' => $rows
+                        ->pluck('date_from')
+                        ->filter(fn ($date): bool => $date instanceof Carbon)
+                        ->sortDesc()
+                        ->map(fn (Carbon $date): string => $date->toDateString())
+                        ->first(),
+                ];
+            })
+            ->values()
+            ->sortByDesc('request_count')
+            ->values()
             ->toArray();
 
         if (empty($byStatus)) {
@@ -530,6 +670,12 @@ class AiIntentResolver
                 'by_status'  => $byStatus,
                 'by_type_this_year' => $byType,
                 'recent'     => $recent,
+                'previous_period' => [
+                    'from' => $previousPeriodStart->toDateString(),
+                    'to' => $previousPeriodEnd->toDateString(),
+                    'total_requests' => $previousPeriodRows->count(),
+                    'applicants' => $previousPeriodApplicants,
+                ],
             ],
             'source' => [
                 'label'        => 'Company Leave History',

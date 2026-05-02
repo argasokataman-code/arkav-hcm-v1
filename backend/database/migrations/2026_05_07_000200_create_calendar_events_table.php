@@ -13,6 +13,7 @@ return new class extends Migration
             $table->uuid('uuid')->unique()->nullable();
             $table->unsignedBigInteger('user_id')->index();
             $table->unsignedBigInteger('company_id')->index();
+            $table->uuid('company_uuid')->nullable()->index();
             $table->string('title', 255);
             $table->string('location', 255)->nullable();
             $table->text('description')->nullable();
@@ -21,7 +22,7 @@ return new class extends Migration
             $table->boolean('all_day')->default(false);
             $table->timestamps();
 
-            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->foreign('company_uuid')->references('uuid')->on('companies')->nullOnDelete();
         });
     }
 

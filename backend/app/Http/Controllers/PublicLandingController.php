@@ -21,6 +21,7 @@ class PublicLandingController extends Controller
                     $q->orderBy('feature_name');
                 }])
                 ->where('status', 'active')
+                ->where('is_global_admin_only', false)
                 ->orderBy('sort_order')
                 ->orderBy('monthly_price')
                 ->get([

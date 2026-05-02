@@ -154,12 +154,13 @@
                         </li>
 @elseif ($hasCompanyBillingAccess)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('company/invoices') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('company/invoices','upgrade') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-receipt-2"></i><span>Billing</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('company/invoices')}}" class="{{ Request::is('company/invoices') ? 'active' : '' }}">My Invoices</a></li>
+                                <li><a href="{{ route('upgrade') }}" class="{{ Request::is('upgrade') ? 'active' : '' }}">Upgrade Plan</a></li>
                             </ul>
                         </li>
 @endif
@@ -510,7 +511,7 @@
                                 <li><a href="{{url('daily-report')}}" class="{{ Request::is('daily-report') ? 'active' : '' }}">Daily Report</a></li>
                             </ul>
                         </li>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-map-pin-check"></i><span>Data Alamat</span>
@@ -591,17 +592,15 @@
                                 <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
                                 <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
                                 @endif
+                                @if ($isGlobalHcmAdmin)
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
-                                        @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
-                                        @endif
-                                        @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
-                                        @endif
                                     </ul>
                                 </li>
+                                @endif
                                 @if ($isGlobalHcmAdmin)
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow inside-submenu"></span></a>
@@ -621,7 +620,7 @@
 @endif
                     </ul>
                 </li>
-@if ($isHcmAdmin)
+@if ($isGlobalHcmAdmin)
                 <li class="menu-title"><span>CONTENT</span></li>
                 <li>
                     <ul>

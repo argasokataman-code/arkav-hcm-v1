@@ -464,12 +464,11 @@
                         <li><a href="{{url('api-keys')}}" class="{{ Request::is('api-keys') ? 'active' : '' }}"><span>API Keys</span></a></li>
                         <li><a href="{{url('privacy-policy')}}" class="{{ Request::is('privacy-policy') ? 'active' : '' }}"><span>Privacy Policy</span></a></li>
                         <li><a href="{{url('terms-condition')}}"  class="{{ Request::is('terms-condition') ? 'active' : '' }}"><span>Terms & Conditions</span></a></li>
+                        @if ($isGlobalHcmAdmin)
                         <li class="submenu">
                             <a href="#" class="{{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}"><span>Content</span> <span class="menu-arrow"></span></a>
                             <ul>
-                                @if ($isHcmAdmin)
                                 <li class="{{ Request::is('pages') ? 'active' : '' }}"><a href="{{url('pages')}}">Pages</a></li>
-                                @endif
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('blogs','blog-categories','blog-comments','blog-tags') ? 'active' : '' }}">Blogs<span class="menu-arrow"></span></a>
                                     <ul>
@@ -491,6 +490,7 @@
                                 <li><a href="{{url('faq')}}" class="{{ Request::is('faq') ? 'active' : '' }}">FAQ’S</a></li>
                             </ul>
                         </li>
+                        @endif
                         @if ($showTemplateCatalogMenus)
                         <li class="submenu">
                             <a href="#" class="{{ Request::is('login','login-2','login-3','register','register-2','register-3','forgot-password','forgot-password-2','forgot-password-3',

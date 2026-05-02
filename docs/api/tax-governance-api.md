@@ -7,6 +7,12 @@ Middleware: `api.token` + tenant scope resolver + server-side RBAC guardrails
 
 Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 done (UUID bridge + deprecation), phase-9 done (platform billing tax runtime + tenant compliance snapshot), revenue-capture-layer active (2026-04-27)`.
 
+## Runtime Clarification (2026-05-02)
+
+1. `GET /platform-tax-compliance/reports` menganggap `policy_configured=true` hanya jika ada policy `status=active` untuk bulan terpilih. Policy `draft` tidak dipakai untuk perhitungan liability.
+2. Snapshot policy compliance government (`transaction_tax_rate`) untuk report hanya mengambil policy `active`.
+3. `GET /platform-tax-compliance/policies` pada mode global mengembalikan history global yang sudah di-dedup dari keseluruhan dataset hasil filter (bukan hanya subset page yang sedang diminta), sehingga histori versi lama tetap terbaca saat `per_page` kecil.
+
 ## Revenue Capture Layer (Internal Event Architecture — No Public Endpoint)
 
 Revenue capture bukan endpoint publik API. Capture terjadi secara otomatis via event listeners yang di-trigger dari domain events.

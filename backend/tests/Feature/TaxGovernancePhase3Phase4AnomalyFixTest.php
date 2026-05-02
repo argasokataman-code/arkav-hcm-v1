@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -46,6 +47,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         ]);
 
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([
+            'uuid'         => (string) Str::uuid(),
             'company_id'   => $company->id,
             'period_year'  => 2026,
             'period_month' => 5,
@@ -68,6 +70,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         // No published policy for this company
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([
+            'uuid'         => (string) Str::uuid(),
             'company_id'   => $company->id,
             'period_year'  => 2026,
             'period_month' => 5,
@@ -104,6 +107,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         ]);
 
         $periodAprilId = DB::table('hcm_payroll_periods')->insertGetId([
+            'uuid' => (string) Str::uuid(),
             'company_id' => $company->id,
             'period_year' => 2026,
             'period_month' => 4,
@@ -112,6 +116,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
             'updated_at' => now(),
         ]);
         $periodMayId = DB::table('hcm_payroll_periods')->insertGetId([
+            'uuid' => (string) Str::uuid(),
             'company_id' => $company->id,
             'period_year' => 2026,
             'period_month' => 5,
@@ -154,6 +159,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
             'company_id' => $company->id,
             'period_year' => 2026,
             'period_month' => 1,
+            'uuid' => (string) Str::uuid(),
             'status' => 'closed',
             'created_at' => now(),
             'updated_at' => now(),
@@ -161,9 +167,9 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         // 3 finalized runs: 2 with policy, 1 without
         DB::table('hcm_payroll_runs')->insert([
-            ['company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => $policy->id, 'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-15 00:00:00', 'created_at' => now(), 'updated_at' => now()],
-            ['company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => $policy->id, 'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-20 00:00:00', 'created_at' => now(), 'updated_at' => now()],
-            ['company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => null,        'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-25 00:00:00', 'created_at' => now(), 'updated_at' => now()],
+            ['uuid' => (string) Str::uuid(), 'company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => $policy->id, 'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-15 00:00:00', 'created_at' => now(), 'updated_at' => now()],
+            ['uuid' => (string) Str::uuid(), 'company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => $policy->id, 'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-20 00:00:00', 'created_at' => now(), 'updated_at' => now()],
+            ['uuid' => (string) Str::uuid(), 'company_id' => $company->id, 'status' => 'finalized', 'purpose' => 'monthly', 'hcm_tax_governance_policy_id' => null,        'hcm_payroll_period_id' => $periodId, 'finalized_at' => '2026-01-25 00:00:00', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $service = app(TaxGovernanceReportingService::class);

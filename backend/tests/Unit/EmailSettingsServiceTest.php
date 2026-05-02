@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Setting;
 use App\Services\EmailSettingsService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -25,6 +26,7 @@ class EmailSettingsServiceTest extends TestCase
         }
 
         Setting::query()->where('group', 'email')->delete();
+        Cache::flush();
     }
 
     public function test_update_profile_encrypts_secrets_at_rest_and_masks_response(): void

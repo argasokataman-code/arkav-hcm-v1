@@ -8,6 +8,7 @@ use App\Services\MailtrapAccountApiService;
 use App\Services\SmtpConnectionProbeService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use RuntimeException;
@@ -30,6 +31,7 @@ class HcmEmailSettingsControllerTest extends TestCase
         }
 
         Setting::query()->where('group', 'email')->delete();
+        Cache::flush();
     }
 
     public function test_mailtrap_status_returns_connected_for_global_admin(): void

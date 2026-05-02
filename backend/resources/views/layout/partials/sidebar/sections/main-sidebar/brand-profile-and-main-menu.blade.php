@@ -154,12 +154,13 @@
                         </li>
 @elseif ($hasCompanyBillingAccess)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('company/invoices') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('company/invoices','upgrade') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-receipt-2"></i><span>Billing</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
                                 <li><a href="{{url('company/invoices')}}" class="{{ Request::is('company/invoices') ? 'active' : '' }}">My Invoices</a></li>
+                                <li><a href="{{ route('upgrade') }}" class="{{ Request::is('upgrade') ? 'active' : '' }}">Upgrade Plan</a></li>
                             </ul>
                         </li>
 @endif

@@ -145,4 +145,47 @@ describe('notification inbox header wiring', () => {
     expect(markAllCall).toBeTruthy();
     expect(markAllCall[1].headers.Authorization).toBe('Bearer fallback-token');
   });
+
+  it('subscription change_approval_needed notification links to /saas/subscriptions', async () => {
+    // Override fetch to return a subscription approval notification
+    global.fetch = vi.fn((target) => {
+      if (target === '/v1/hcm/notifications/unread-count') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: { unreadCount: 1 } }),
+        });
+      }
+      if (String(target).startsWith('/v1/hcm/notifications?page=1&perPage=5')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              items: [
+                {
+                  uuid: 'notif-sub-1',
+                  eventKey: 'subscription.change_approval_needed',
+                  title: 'Subscription change approval needed',
+                  body: 'downgrade',
+                  severity: 'critical',
+                  isRead: false,
+                  createdAt: new Date().toISOString(),
+                  data: { requestId: 'req-uuid-1', action: 'downgrade' },
+                },
+              ],
+              meta: { unreadCount: 1 },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, data: {} }) });
+    });
+
+    await import('../../../frontend/resources/js/notification-inbox-data.js');
+    await flush();
+
+    const content = document.querySelector('[data-notification-content]').innerHTML;
+    expect(content).toContain('/saas/subscriptions');
+    expect(content).toContain('Subscription change approval needed');
+  });
 });

@@ -114,6 +114,14 @@ Katalog lengkap dipisah di [INTENT-CATALOG.md](./INTENT-CATALOG.md).
 | `ticket.status.self` | Status tiket saya | `GET /v1/hcm/tickets?scope=self` | `ticket.view` |
 | `profile.info.self` | Divisi/jabatan saya apa? | `GET /v1/hcm/employees/self` | authenticated |
 
+## Global Admin Scope (Implemented)
+
+| Intent ID | Contoh pertanyaan | Data source internal |
+|-----------|-------------------|----------------------|
+| `saas.company.summary` | Berapa company aktif sekarang? | `Company` summary lintas tenant |
+| `saas.billing.summary` | Total revenue bulan ini berapa? | `Invoice` + `Subscription` summary |
+| `saas.tax.monthly` | Berapa pajak yang kita bayarkan ke pemerintah bulan ini? | `PlatformRevenueTransaction` (cleared tax) + `BillingTaxCalculationService` |
+
 ---
 
 ## Kontrak API AI

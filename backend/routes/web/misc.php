@@ -7,7 +7,9 @@ Route::get('/invoices', function () { return view('finance.invoices'); })->name(
 Route::get('/add-invoices', function () { return view('finance.add-invoices'); })->name('add-invoices');
 Route::get('/edit-invoices', function () { return view('finance.edit-invoices'); })->name('edit-invoices');
 Route::get('/invoice-details', function () { return view('finance.invoice-details'); })->name('invoice-details');
-Route::get('/invoice', function () { return view(view: 'invoice'); })->name('invoice');
+Route::get('/invoice', function () {
+	return redirect()->route('company.invoices');
+})->name('invoice');
 
 // Finance/budget stubs
 Route::get('/budget-expenses', function () { return view('finance.budget-expenses'); })->name('budget-expenses');

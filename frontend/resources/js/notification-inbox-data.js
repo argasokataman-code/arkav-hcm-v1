@@ -124,6 +124,17 @@
 
         var data = (item && item.data && typeof item.data === 'object') ? item.data : {};
         var eventKey = String(item.eventKey || data.eventKey || data.event || '').trim().toLowerCase();
+
+        // Subscription change approval → link to saas/subscriptions page (super admin)
+        if (eventKey === 'subscription.change_approval_needed') {
+            return '/saas/subscriptions';
+        }
+
+        // Subscription change decision → link to tenant upgrade/history page
+        if (eventKey === 'subscription.change_approved' || eventKey === 'subscription.change_rejected') {
+            return '/upgrade';
+        }
+
         if (!eventKey || eventKey.indexOf('leave.') !== 0) {
             return null;
         }

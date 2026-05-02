@@ -61,6 +61,7 @@ class AiIntentGate
     private const GLOBAL_ADMIN_INTENTS = [
         'saas.company.summary',
         'saas.billing.summary',
+        'saas.tax.monthly',
         'general.fallback.global',
     ];
 

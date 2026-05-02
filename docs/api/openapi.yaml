@@ -9019,6 +9019,9 @@ paths:
         Dry-run perhitungan selisih harga dan jadwal berlakunya untuk upgrade / downgrade / cancel.
         Tidak menulis apa pun; aman dipanggil berulang dari UI `/upgrade`.
         `to_package_uuid` untuk upgrade/downgrade wajib mengarah ke package `status=active`.
+        Package `trial` ditolak sebagai target (`422 TRIAL_PACKAGE_NOT_ALLOWED`).
+        Response preview juga memuat `anomaly_flags` + `anomaly_details` untuk skenario
+        billing negatif (invoice overdue/partial/unpaid) tanpa memblok downgrade.
       security:
         - bearerAuth: []
       requestBody:
@@ -9049,6 +9052,9 @@ paths:
         Mencatat request status `pending` untuk disetujui super-admin. Hanya boleh ada satu request
         pending per company (duplicate → `409 CHANGE_REQUEST_PENDING`).
         `to_package_uuid` untuk upgrade/downgrade wajib package aktif (`422 PACKAGE_NOT_ACTIVE`).
+        Package `trial` ditolak sebagai target (`422 TRIAL_PACKAGE_NOT_ALLOWED`).
+        Downgrade tetap diizinkan walau tenant memiliki anomali billing; ringkasan anomali
+        disimpan di `preview.notes` dan `preview.anomaly_flags`.
       security:
         - bearerAuth: []
       requestBody:

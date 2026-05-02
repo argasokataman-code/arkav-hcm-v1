@@ -14,6 +14,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::post('/subscriptions/change-plan', [HcmSubscriptionChangeController::class, 'changePlan']);
     Route::post('/subscriptions/cancel-change', [HcmSubscriptionChangeController::class, 'cancelChange']);
     Route::get('/subscriptions/change-requests', [HcmSubscriptionChangeController::class, 'index']);
+    Route::post('/subscriptions/change-requests/{id}/activate-early', [HcmSubscriptionChangeController::class, 'activateEarly']);
 
     // Tenant invoices (my billing)
     Route::get('/billing/invoices', [HcmCompanyInvoiceController::class, 'index']);

@@ -301,7 +301,7 @@
                         @if ($currentPackage)
                             <div class="mt-3 pt-3 border-top">
                                 <div class="small text-muted mb-2">Atau tambahkan fitur dengan</div>
-                                <a href="{{ url('subscription-checkout') }}" class="btn btn-outline-info btn-sm w-100">
+                                <a href="{{ route('subscription') }}" class="btn btn-outline-info btn-sm w-100">
                                     <i class="ti ti-puzzle me-1"></i> Tambah Add-on
                                 </a>
                             </div>

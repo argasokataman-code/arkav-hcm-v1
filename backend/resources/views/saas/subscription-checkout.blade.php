@@ -184,7 +184,7 @@
     >
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h4 class="mb-1">Subscription</h4>
+                <h4 class="mb-1">Checkout Paket & Add-on</h4>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         @if (! $isPendingPaymentLock)
@@ -364,6 +364,38 @@
                                         <button type="button" class="btn btn-sm btn-outline-secondary" data-checkout-copy-code title="Copy company code" aria-label="Copy company code">
                                             <i class="ti ti-copy"></i>
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Success state: show current active package -->
+                            <div class="alert d-none border-success bg-success-subtle" role="status" data-checkout-success-state>
+                                <div class="d-flex align-items-start gap-2 mb-3">
+                                    <i class="ti ti-circle-check text-success mt-1"></i>
+                                    <div>
+                                        <div class="fw-semibold text-success mb-2">Checkout Berhasil!</div>
+                                        <div class="small text-muted mb-2" data-checkout-success-message>Invoice telah dibuat dan siap untuk pembayaran.</div>
+                                        <div class="card bg-white border-0 p-3 mb-3">
+                                            <div class="small mb-2"><strong>Paket Aktif Sekarang:</strong></div>
+                                            <div class="d-flex align-items-start justify-content-between gap-2">
+                                                <div>
+                                                    <div class="fw-semibold" data-checkout-active-package-name>—</div>
+                                                    <div class="small text-muted mt-1" data-checkout-active-package-code>—</div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="fw-semibold text-primary" data-checkout-active-package-price>—</div>
+                                                    <div class="small text-muted" data-checkout-active-package-unit>—</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <a href="{{ route('upgrade') }}" class="btn btn-sm btn-primary">
+                                                <i class="ti ti-chevron-left me-1"></i> Kembali ke Upgrade Plan
+                                            </a>
+                                            <a href="{{ url('/company/invoices') }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="ti ti-file-invoice me-1"></i> Lihat Invoice
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -27,6 +27,12 @@
     var openInvoicesBtn = document.querySelector("[data-checkout-open-invoices]");
     var payNowBtn = document.querySelector("[data-checkout-pay-now]");
     var goDashboardBtn = document.querySelector("[data-checkout-go-dashboard]");
+    var successState = document.querySelector("[data-checkout-success-state]");
+    var successMessage = document.querySelector("[data-checkout-success-message]");
+    var activePackageName = document.querySelector("[data-checkout-active-package-name]");
+    var activePackageCode = document.querySelector("[data-checkout-active-package-code]");
+    var activePackagePrice = document.querySelector("[data-checkout-active-package-price]");
+    var activePackageUnit = document.querySelector("[data-checkout-active-package-unit]");
     var mockPayEnabled = String(root.getAttribute("data-checkout-mock-pay-enabled") || "0") === "1";
     var isPendingLock = String(root.getAttribute("data-checkout-pending-lock") || "0") === "1";
     var upgradeForm = document.querySelector("[data-checkout-form].checkout-upgrade-form") || form;
@@ -281,6 +287,9 @@
 
         updateInvoiceActions(currentInvoice);
 
+        // Load and display active subscription in success state
+        loadAndShowActiveSubscription();
+
         // Once an invoice is the active focus of this page, keep the creation form locked.
         // Pending invoices must be paid first, and paid-return states should not invite users
         // to immediately create another invoice from the same success screen.
@@ -288,6 +297,36 @@
             Array.prototype.slice.call(document.querySelectorAll("[data-checkout-form]")).forEach(function (checkoutForm) {
                 checkoutForm.classList.add("d-none");
             });
+        }
+    }
+
+    async function loadAndShowActiveSubscription() {
+        if (!successState) return;
+        try {
+            var payload = await api("get", "/v1/hcm/subscriptions/current");
+            if (!payload || payload.success !== true || !payload.data) {
+                successState.classList.add("d-none");
+                return;
+            }
+
+            var subscription = payload.data;
+            var pkg = subscription && subscription.package ? subscription.package : null;
+            if (!pkg) {
+                successState.classList.add("d-none");
+                return;
+            }
+
+            // Populate active package info
+            if (activePackageName) activePackageName.textContent = String(pkg.name || "—");
+            if (activePackageCode) activePackageCode.textContent = String(pkg.code || "—");
+            if (activePackagePrice) activePackagePrice.textContent = formatRupiah(Number(pkg.monthlyPrice || pkg.monthly_price || 0));
+            if (activePackageUnit) activePackageUnit.textContent = "per bulan";
+
+            // Show success state
+            successState.classList.remove("d-none");
+        } catch (_e) {
+            // Silently fail - don't break the page if fetch fails
+            successState.classList.add("d-none");
         }
     }
 

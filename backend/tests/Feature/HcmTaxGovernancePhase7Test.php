@@ -84,6 +84,8 @@ class HcmTaxGovernancePhase7Test extends TestCase
                     'recommended_actions',
                 ],
             ]);
+
+        $this->assertMatchesRegularExpression('/^\d{4}-Q[1-4]$/', (string) $response->json('data.reporting_period'));
     }
 
     public function test_tenant_compliance_status_counts_only_unpaid_invoices_in_billing_snapshot(): void

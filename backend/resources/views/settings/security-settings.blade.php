@@ -1,4 +1,8 @@
 <?php $page = 'security-settings'; ?>
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
+
 @extends('layout.mainlayout')
 @section('content')
 
@@ -34,21 +38,30 @@
             <li class="nav-item">
                 <a class="nav-link active" href="{{ url('profile-settings') }}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
+
+            @endif
             <li class="nav-item">
-                <a class="nav-link" href="{{ url('salary-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('email-settings') }}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+
+            @endif
+            @if ($isGlobalHcmAdmin)
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('custom-css') }}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
+            @endif
         </ul>
         <div class="row">
             <div class="col-xl-3 theiaStickySidebar">
@@ -58,7 +71,6 @@
                             <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Profile Settings</a>
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Security Settings</a>
                             <a href="{{ url('notification-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Notifications</a>
-                            <a href="{{ url('connected-apps') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Connected Apps</a>
                         </div>
                     </div>
                 </div>
@@ -70,115 +82,128 @@
                             <h4>Security Settings</h4>
                         </div>
                         <div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Password</h5>
-                                    <div class="d-flex align-items-center">
-                                        <p class="mb-0 me-2 pe-2 border-end">Set a unique password to protect the account</p>
-                                        <p>Last Changed 03 Jan 2024, 09:00 AM</p>
+                            <!-- Change Password -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium mb-1">Change Password</h5>
+                                        <p class="text-muted mb-0">Set a unique password to protect your account</p>
+                                    </div>
+                                    <div>
+                                        <a href="#changePasswordForm" class="btn btn-dark" data-bs-toggle="collapse" aria-expanded="false" data-security-change-password-toggle>
+                                            Change Password
+                                        </a>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">Change Pasword</a>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Two Factor Authentication</h5>
-                                    <p>Receive codes via SMS or email every time you login</p>
-                                </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">Enable</a>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Password</h5>
-                                    <div class="d-flex align-items-center">
-                                        <p class="mb-0 me-2 pe-2 border-end">Set a unique password to protect the account</p>
-                                        <p>Last Changed 03 Jan 2024, 09:00 AM</p>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">Change Pasword</a>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium d-flex align-items-center mb-1">
-                                        Google Authentication 
-                                        <span class="badge badge-xs ms-2 bg-outline-success rounded-pill d-flex align-items-center">
-                                            <i class="ti ti-point-filled"></i>Connected
-                                        </span>
-                                    </h5>
-                                    <p>Connect to Google</p>
-                                </div>
-                                <div class="mb-3">
-                                    <div class="form-check form-check-md form-switch me-2">
-                                        <input class="form-check-input me-2" type="checkbox" role="switch">
+                                <div class="collapse mt-3" id="changePasswordForm">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Current Password</label>
+                                            <div class="pass-group">
+                                                <input type="password" class="pass-input form-control" data-security-current-password autocomplete="current-password" placeholder="Enter current password">
+                                                <span class="ti toggle-password ti-eye-off"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">New Password</label>
+                                            <div class="pass-group">
+                                                <input type="password" class="pass-inputs form-control" data-security-new-password autocomplete="new-password" placeholder="Enter new password">
+                                                <span class="ti toggle-passwords ti-eye-off"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Confirm New Password</label>
+                                            <div class="pass-group">
+                                                <input type="password" class="pass-inputa form-control" data-security-confirm-password autocomplete="new-password" placeholder="Confirm new password">
+                                                <span class="ti toggle-passworda ti-eye-off"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-primary" data-security-save-password>Save Password</button>
+                                                <button type="button" class="btn btn-outline-light border" data-bs-toggle="collapse" data-bs-target="#changePasswordForm">Cancel</button>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="alert d-none" role="alert" data-security-password-feedback></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium d-flex align-items-center mb-1">Phone Number Verification <span><i class="ti ti-discount-check-filled text-success ms-2"></i></span></h5>
-                                    <div class="d-flex align-items-center">
-                                        <p class="mb-0 me-2 pe-2 border-end">The Phone Number associated with the account</p>
-                                        <p>Verified Mobile Number : +99264710583</p>
+                            <!-- Two Factor Authentication -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium mb-1">Two Factor Authentication</h5>
+                                        <p class="text-muted mb-0">Receive codes via SMS or email every time you log in</p>
+                                    </div>
+                                    <div>
+                                        <div class="form-check form-check-md form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="twoFactorSwitch" data-security-2fa>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-outline-light border me-2">Remove</a>
-                                    <a href="#" class="btn btn-dark">Change </a>
-                                </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium d-flex align-items-center mb-1">Email Verification <span><i class="ti ti-discount-check-filled text-success ms-2"></i></span></h5>
-                                    <div class="d-flex align-items-center">
-                                        <p class="mb-0 me-2 pe-2 border-end">The email address associated with the account</p>
-                                        <p>Verified Email : info@example.com</p>
+                            <!-- Google Authentication -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium d-flex align-items-center mb-1">
+                                            Google Authentication
+                                            <span class="badge badge-xs ms-2 bg-outline-success rounded-pill d-flex align-items-center">
+                                                <i class="ti ti-point-filled me-1"></i>Connected
+                                            </span>
+                                        </h5>
+                                        <p class="text-muted mb-0">Connect your Google account for faster sign-in</p>
+                                    </div>
+                                    <div>
+                                        <div class="form-check form-check-md form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="googleAuthSwitch" data-security-google-auth>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-outline-light border me-2">Remove</a>
-                                    <a href="#" class="btn btn-dark">Change </a>
+                            </div>
+                            <!-- Phone Number Verification -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium d-flex align-items-center mb-1">
+                                            Phone Number Verification
+                                            <i class="ti ti-discount-check-filled text-success ms-2"></i>
+                                        </h5>
+                                        <p class="text-muted mb-0">The phone number associated with your account</p>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="#" class="btn btn-outline-light border" data-security-remove-phone>Remove</a>
+                                        <a href="#" class="btn btn-dark" data-security-change-phone>Change</a>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Device Management</h5>
-                                    <p>The devices associated with the account</p>
-                                </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">Manage</a>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Account Activity</h5>
-                                    <p>The activities of the account</p>
-                                </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">View</a>
+                            <!-- Email Verification -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium d-flex align-items-center mb-1">
+                                            Email Verification
+                                            <i class="ti ti-discount-check-filled text-success ms-2"></i>
+                                        </h5>
+                                        <p class="text-muted mb-0">Verified email: <strong>{{ auth()->user()?->email }}</strong></p>
+                                    </div>
+                                    <div>
+                                        <a href="#" class="btn btn-dark" data-security-change-email>Change Email</a>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap border-bottom mb-3">
-                                <div class="mb-3">
-                                    <h5 class="fw-medium mb-1">Deactivate Account</h5>
-                                    <p>This will shutdown your account. Your account will be reactive when you sign in again</p>
-                                </div>
-                                <div class="mb-3">
-                                    <a href="#" class="btn btn-dark">Deactivate</a>
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center flex-wrap row-gap-3">
-                                <div>
-                                    <h5 class="fw-medium mb-1">Delete Account</h5>
-                                    <p>Your account will be permanently deleted</p>
-                                </div>
-                                <div>
-                                    <a href="#" class="btn btn-dark">Delete</a>
+                            <!-- Deactivate Account -->
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
+                                    <div>
+                                        <h5 class="fw-medium mb-1">Deactivate Account</h5>
+                                        <p class="text-muted mb-0">Your account will be temporarily disabled. You can reactivate it by signing in again.</p>
+                                    </div>
+                                    <div>
+                                        <a href="#" class="btn btn-danger" data-security-deactivate>Deactivate</a>
+                                    </div>
                                 </div>
                             </div>
                         </div>

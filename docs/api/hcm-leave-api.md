@@ -38,10 +38,13 @@ Success `200`:
 
 Sumber data: `hcm_leave_type_settings`
 
+> **Multi-tenant isolation:** Semua query di-scope ke `company_id` aktif dari header `X-Company-Id`. Setiap tenant hanya melihat dan mengelola leave type milik perusahaannya sendiri.
+
 ### GET `/leave-types`
 
 RBAC:
-- HCM Admin only
+- HCM Admin only (permission: `leave.view`)
+- Scoped ke active company (`WHERE company_id = ?`)
 
 Success `200`:
 
@@ -67,7 +70,7 @@ Success `200`:
 ### POST `/leave-types`
 
 Body:
-- `code` required string max 64, regex `[a-z0-9_]+`, unique
+- `code` required string max 64, regex `[a-z0-9_]+`, unique per company
 - `name` required string max 150
 - `days` optional numeric 0..366
 - `carryForward` optional boolean
@@ -76,6 +79,9 @@ Body:
 - `isEnabled` optional boolean
 - `sortOrder` optional integer 0..255
 
+Errors:
+- `422 DUPLICATE_CODE` — kode sudah dipakai oleh company ini
+
 Success `201`:
 
 ```json
@@ -83,6 +89,8 @@ Success `201`:
 ```
 
 ### PUT `/leave-types/{id}`
+
+Hanya boleh update record milik company aktif (`WHERE company_id = ? AND id = ?`). Return 404 jika ID tidak ditemukan di company ini.
 
 Body:
 - `name` required string max 150
@@ -101,7 +109,7 @@ Success `200`:
 
 ### DELETE `/leave-types/{id}`
 
-Soft-disable leave type by setting `is_enabled = false`.
+Soft-disable leave type by setting `is_enabled = false`. Hanya boleh akses record milik company aktif.
 
 Success `200`:
 

@@ -1,7 +1,7 @@
 /**
  * tax-tenant-compliance.js
  * Phase 5 – Tenant Compliance Summary Screen
- * Renders compliance checklist, policy snapshot, billing reconciliation,
+ * Renders compliance checklist, policy snapshot,
  * and change history from the tenant-self-audit API.
  */
 (function (window, document) {
@@ -44,10 +44,10 @@
     /* Checklist rendering                                                 */
     /* ------------------------------------------------------------------ */
     var CHECKS = [
-        { iconAttr: '[data-compliance-check-icon-policy]',  labelAttr: '[data-compliance-check-label-policy]',  key: 'has_published_policy',        pass: 'Kebijakan aktif sudah dipublikasikan',     fail: 'Belum ada kebijakan yang dipublikasikan'  },
-        { iconAttr: '[data-compliance-check-icon-recent]',  labelAttr: '[data-compliance-check-label-recent]',  key: 'has_recent_publication',       pass: 'Publikasi terkini dalam 90 hari terakhir', fail: 'Tidak ada publikasi dalam 90 hari terakhir' },
-        { iconAttr: '[data-compliance-check-icon-payroll]', labelAttr: '[data-compliance-check-label-payroll]', key: 'all_payroll_runs_covered',      pass: 'Semua payroll run tercakup kebijakan',     fail: 'Ada payroll run yang tidak tercakup'      },
-        { iconAttr: '[data-compliance-check-icon-anomaly]', labelAttr: '[data-compliance-check-label-anomaly]', key: 'no_unresolved_anomalies',       pass: 'Tidak ada anomali yang belum diselesaikan', fail: 'Ada anomali aktif yang perlu ditindaklanjuti' },
+        { iconAttr: '[data-compliance-check-icon-policy]',  labelAttr: '[data-compliance-check-label-policy]',  key: 'has_published_policy',        pass: 'Kebijakan PPh 21 sudah diterbitkan',               fail: 'Belum ada kebijakan yang diterbitkan'              },
+        { iconAttr: '[data-compliance-check-icon-recent]',  labelAttr: '[data-compliance-check-label-recent]',  key: 'has_recent_publication',       pass: 'Diterbitkan dalam 90 hari terakhir — tidak kedaluwarsa', fail: 'Publikasi terakhir lebih dari 90 hari yang lalu'   },
+        { iconAttr: '[data-compliance-check-icon-payroll]', labelAttr: '[data-compliance-check-label-payroll]', key: 'all_payroll_runs_covered',      pass: 'Semua proses payroll terhubung ke kebijakan aktif', fail: 'Ada proses payroll yang belum menggunakan kebijakan' },
+        { iconAttr: '[data-compliance-check-icon-anomaly]', labelAttr: '[data-compliance-check-label-anomaly]', key: 'no_unresolved_anomalies',       pass: 'Tidak ada anomali yang belum diselesaikan',        fail: 'Ada anomali terbuka yang perlu ditindaklanjuti'    },
     ];
 
     function renderChecklist(checklist) {
@@ -91,25 +91,6 @@
     }
 
     /* ------------------------------------------------------------------ */
-    /* Billing reconciliation                                              */
-    /* ------------------------------------------------------------------ */
-    function renderBilling(billing) {
-        if (!billing) { return; }
-
-        var invoiceCount = billing.total_invoices !== undefined ? billing.total_invoices : billing.invoice_count;
-        var paidInvoices = billing.paid_invoices !== undefined ? billing.paid_invoices : billing.paid_invoice_count;
-        var unpaidInvoices = billing.unpaid_invoices !== undefined ? billing.unpaid_invoices : billing.unpaid_invoice_count;
-        var clearedRevenue = billing.cleared_revenue !== undefined ? billing.cleared_revenue : billing.cleared_revenue_amount;
-        var taxPayable = billing.tax_due !== undefined ? billing.tax_due : billing.tax_amount_due;
-
-        setText('[data-compliance-billing-invoice-count]', String(Number(invoiceCount || 0)));
-        setText('[data-compliance-billing-paid]', String(Number(paidInvoices || 0)));
-        setText('[data-compliance-billing-unpaid]', String(Number(unpaidInvoices || 0)));
-        setText('[data-compliance-billing-cleared]', 'Rp ' + Number(clearedRevenue || 0).toLocaleString('id-ID'));
-        setText('[data-compliance-billing-tax-due]', 'Rp ' + Number(taxPayable || 0).toLocaleString('id-ID'));
-    }
-
-    /* ------------------------------------------------------------------ */
     /* Change history                                                      */
     /* ------------------------------------------------------------------ */
     function renderHistory(history, periodLabel) {
@@ -121,8 +102,12 @@
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Tidak ada perubahan kebijakan pada periode ini.</td></tr>';
             return;
         }
-        var html = '';
-        history.forEach(function (row) {
+        var MAX_ROWS = 50;
+        var displayed = history.slice(0, MAX_ROWS);
+        var html = displayed.length < history.length
+            ? '<tr><td colspan="4" class="text-center text-muted small py-2">Menampilkan ' + MAX_ROWS + ' event terbaru. Gunakan filter periode lebih sempit untuk detail lebih lanjut.</td></tr>'
+            : '';
+        displayed.forEach(function (row) {
             html += '<tr>'
                 + '<td>' + escHtml(formatDate(row.occurred_at || row.created_at || row.timestamp || '')) + '</td>'
                 + '<td><span class="badge bg-secondary-subtle text-secondary">' + escHtml(row.event_type || row.action || '-') + '</span></td>'
@@ -190,7 +175,6 @@
                 if (data && data.data && typeof data.data === 'object') { data = data.data; }
                 renderChecklist(data.compliance_checklist || data.checklist || {});
                 renderPolicySnapshot(data.policy_snapshot || data.policySnapshot || null);
-                renderBilling(data.billing_tax_compliance || data.billingCompliance || null);
                 renderHistory(
                     data.change_history || data.changeHistory || [],
                     startMonth && endMonth ? startMonth + ' – ' + endMonth : ''

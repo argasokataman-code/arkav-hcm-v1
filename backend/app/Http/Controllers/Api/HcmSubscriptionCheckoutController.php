@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
 use App\Models\PackageAddon;
+use App\Services\AddonRecurringSubscriptionService;
 use App\Services\BillingTaxCalculationService;
 use App\Models\Package;
 use App\Models\PurchaseTransaction;
@@ -23,6 +24,10 @@ class HcmSubscriptionCheckoutController
 {
     use ChecksPermissions;
     use EnsuresHcmAdmin;
+
+    public function __construct(
+        private readonly AddonRecurringSubscriptionService $addonRecurringSubscriptionService,
+    ) {}
 
     /**
      * POST /v1/hcm/billing/checkout
@@ -292,6 +297,23 @@ class HcmSubscriptionCheckoutController
         }
         $addon = $addonQuery->firstOrFail();
 
+        $alreadyActiveAddon = PurchaseTransaction::query()
+            ->where('company_id', $company->id)
+            ->where('package_addon_id', $addon->id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->exists();
+
+        if ($alreadyActiveAddon) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADDON_ALREADY_ACTIVE',
+                    'message' => 'Add-on ini sudah aktif pada company Anda.',
+                ],
+            ], 409);
+        }
+
         $baseAmount = (float) $addon->price_per_unit;
         $pricingBreakdown = $this->buildAddonPricingBreakdown($company->id, $baseAmount);
         $amountDue = (float) $pricingBreakdown['total_amount'];
@@ -302,6 +324,10 @@ class HcmSubscriptionCheckoutController
                 ->where('company_id', $company->id)
                 ->where('is_paid', false)
                 ->whereIn('status', ['draft', 'sent'])
+                ->whereHas('purchaseTransaction', function ($query) use ($addon): void {
+                    $query->where('transaction_type', 'addon')
+                        ->where('package_addon_id', $addon->id);
+                })
                 ->lockForUpdate()
                 ->latest('id')
                 ->first();
@@ -377,6 +403,7 @@ class HcmSubscriptionCheckoutController
                     'status' => 'paid',
                     'paid_at' => now(),
                 ]);
+                $this->addonRecurringSubscriptionService->applyFromTransaction($transaction->fresh());
             } else {
                 $billingEmail = $validated['billingEmail'] ?? null;
                 SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();

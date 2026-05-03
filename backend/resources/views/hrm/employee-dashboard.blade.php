@@ -311,7 +311,7 @@
                                             <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
                                                 <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>Data minggu ini belum tersedia</span>
+                                            <span data-employee-legacy-stat-today-hint>Progress hari ini akan tampil otomatis.</span>
                                         </p>
                                     </div>
                                 </div>
@@ -330,7 +330,7 @@
                                             <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
                                                 <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>Data pekan lalu belum tersedia</span>
+                                            <span data-employee-legacy-stat-week-hint>Progress minggu ini akan tampil otomatis.</span>
                                         </p>
                                     </div>
                                 </div>
@@ -349,7 +349,7 @@
                                             <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
                                                 <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>Data bulan lalu belum tersedia</span>
+                                            <span data-employee-legacy-stat-month-hint>Progress bulan ini akan tampil otomatis.</span>
                                         </p>
                                     </div>
                                 </div>
@@ -368,7 +368,7 @@
                                             <span class="avatar avatar-xs rounded-circle bg-secondary flex-shrink-0 me-2">
                                                 <i class="ti ti-info-circle fs-12"></i>
                                             </span>
-                                            <span>Data bulan lalu belum tersedia</span>
+                                            <span data-employee-legacy-stat-ot-hint>Ringkasan lembur bulan ini akan tampil otomatis.</span>
                                         </p>
                                     </div>
                                 </div>
@@ -405,40 +405,17 @@
                                     </div>
                                     <div class="row">
                                         <div class="col-md-12">
-                                            <div class="progress bg-transparent-dark mb-3" style="height: 24px;">
-                                                <div class="progress-bar bg-white rounded" role="progressbar" style="width: 18%;"></div>
-                                                <div class="progress-bar bg-success rounded me-2" role="progressbar" style="width: 18%;"></div>
-                                                <div class="progress-bar bg-warning rounded me-2" role="progressbar" style="width: 5%;"></div>
-                                                <div class="progress-bar bg-success rounded me-2" role="progressbar" style="width: 28%;"></div>
-                                                <div class="progress-bar bg-warning rounded me-2" role="progressbar" style="width: 17%;"></div>
-                                                <div class="progress-bar bg-success rounded me-2" role="progressbar" style="width: 22%;"></div>
-                                                <div class="progress-bar bg-warning rounded me-2" role="progressbar" style="width: 5%;"></div>
-                                                <div class="progress-bar bg-info rounded me-2" role="progressbar" style="width: 3%;"></div>
-                                                <div class="progress-bar bg-info rounded" role="progressbar" style="width: 2%;"></div>
-                                                <div class="progress-bar bg-white rounded" role="progressbar" style="width: 18%;"></div>
+                                            <div class="progress bg-transparent-dark mb-3" style="height: 24px;" data-employee-legacy-timeline-bars>
+                                                <div class="progress-bar bg-transparent rounded" role="progressbar" style="width: 100%;"></div>
                                             </div>
                                             
                                         </div>
-                                        <div class="co-md-12">
-                                            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                                <span class="fs-10">06:00</span>
-                                                <span class="fs-10">07:00</span>
+                                        <div class="col-md-12">
+                                            <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2" data-employee-legacy-timeline-labels>
+                                                <span class="fs-10">00:00</span>
                                                 <span class="fs-10">08:00</span>
-                                                <span class="fs-10">09:00</span>
-                                                <span class="fs-10">10:00</span>
-                                                <span class="fs-10">11:00</span>
-                                                <span class="fs-10">12:00</span>
-                                                <span class="fs-10">01:00</span>
-                                                <span class="fs-10">02:00</span>
-                                                <span class="fs-10">03:00</span>
-                                                <span class="fs-10">04:00</span>
-                                                <span class="fs-10">05:00</span>
-                                                <span class="fs-10">06:00</span>
-                                                <span class="fs-10">07:00</span>
-                                                <span class="fs-10">08:00</span>
-                                                <span class="fs-10">09:00</span>
-                                                <span class="fs-10">10:00</span>
-                                                <span class="fs-10">11:00</span>
+                                                <span class="fs-10">16:00</span>
+                                                <span class="fs-10">24:00</span>
                                             </div>
                                         </div>
                                     </div>
@@ -682,6 +659,7 @@
                         </div>
                     </div>
                 </div>
+                @if(false)
                 <div class="col-xl-4 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header">
@@ -710,6 +688,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
             @endif
         </div>

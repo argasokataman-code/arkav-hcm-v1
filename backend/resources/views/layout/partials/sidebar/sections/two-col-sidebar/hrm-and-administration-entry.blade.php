@@ -175,9 +175,9 @@
                     'asset-categories',
                     'knowledgebase','knowledgebase/*',                    'users','roles-permissions',
                     'expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
-                    'profile-settings','security-settings','notification-settings','connected-apps',
+                    'profile-settings','security-settings','notification-settings',
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                    'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields',
+                    'approval-settings','invoice-settings','leave-type',
                     'email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
                     'payment-gateways','currencies',
                     'custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'

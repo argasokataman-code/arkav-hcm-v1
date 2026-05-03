@@ -446,6 +446,7 @@
 
             <div class="row">
 
+                @if(false)
                 <!-- Jobs Applicants -->
                 <div class="col-xxl-4 d-flex">
                     <div class="card flex-fill">
@@ -568,9 +569,10 @@
                     </div>
                 </div>
                 <!-- /Jobs Applicants -->
+                @endif
                 
                 <!-- Employees -->
-                <div class="col-xxl-4 col-xl-6 d-flex">
+                <div class="col-xxl-12 col-xl-12 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                             <h5 class="mb-2">Employees</h5>
@@ -680,6 +682,7 @@
 
             <div class="row">
                 
+                @if(false)
                 <!-- Sales Overview -->
                 <div class="col-xl-7 d-flex">
                     <div class="card flex-fill">
@@ -717,9 +720,10 @@
                     </div>
                 </div>
                 <!-- /Sales Overview -->
+                @endif
                 
                 <!-- Invoices -->
-                <div class="col-xl-5 d-flex">
+                <div class="col-xl-12 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                             <h5 class="mb-2">Invoices</h5>
@@ -877,6 +881,7 @@
 
             <div class="row">
 
+                @if(false)
                 <!-- Schedules -->
                 <div class="col-xxl-4 d-flex">
                     <div class="card flex-fill">
@@ -951,9 +956,10 @@
                     </div>
                 </div>
                 <!-- /Schedules -->
+                @endif
 
                 <!-- Recent Activities -->
-                <div class="col-xxl-4 col-xl-6 d-flex">
+                <div class="col-xxl-6 col-xl-6 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                             <h5 class="mb-2">Recent Activities</h5>
@@ -1062,7 +1068,7 @@
                 <!-- /Recent Activities -->
 
                 <!-- Birthdays -->
-                <div class="col-xxl-4 col-xl-6 d-flex">
+                <div class="col-xxl-6 col-xl-6 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                             <h5 class="mb-2">Birthdays</h5>

@@ -11,66 +11,71 @@ return [
             'title' => 'Memulai dan akun',
             'icon' => 'ti ti-book',
             'visible_to' => ['authenticated'],
-            'description' => 'Autentikasi, peran pengguna, dan cara menavigasi Arcav HCM tanpa salah konteks admin vs karyawan.',
+            'description' => 'Cara masuk aplikasi, memahami peran pengguna, dan menavigasi Arcav HCM dengan benar.',
             'articles' => [
                 [
                     'slug' => 'login-perusahaan-dan-token',
-                    'title' => 'Login, cookie API, dan konteks perusahaan',
+                    'title' => 'Cara login dan memilih konteks perusahaan',
                     'reading_minutes' => 4,
-                    'excerpt' => 'Alur login web, cookie arcav_access_token, header X-Company-Code, serta apa yang terjadi bila sesi habis atau multi-tenant.',
+                    'excerpt' => 'Langkah masuk ke Arcav HCM, memastikan perusahaan yang aktif sudah benar, dan apa yang dilakukan saat sesi habis atau tampilan kosong.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Arcav HCM memakai <strong>autentikasi API</strong> yang disematkan ke browser lewat cookie <code>arcav_access_token</code> setelah Anda berhasil login di <a href="/login">/login</a>. Halaman Blade yang dilindungi middleware web akan memeriksa token ini (atau sesi web legacy bila ada) sebelum me-render konten.</p>
-<h6 class="fs-14 fw-semibold mb-2">Multi-perusahaan (tenant)</h6>
-<p class="fs-14 fw-normal mb-3">Jika organisasi Anda memakai beberapa perusahaan, permintaan API ke domain HCM sering membutuhkan konteks aktif: header <code>X-Company-Code</code> (kode perusahaan) atau setara yang dipakai di lingkungan Anda. Tanpa konteks yang benar, daftar cuti/absensi/payroll bisa kosong atau menampilkan data tenant lain — itu bukan bug, melainkan isolasi data.</p>
-<h6 class="fs-14 fw-semibold mb-2">Sesi habis atau “lock screen”</h6>
-<p class="fs-14 fw-normal mb-3">Jika Anda tiba-tiba diarahkan ke halaman kunci / login lagi, cookie mungkin kedaluwarsa atau dicabut. Lakukan login ulang; hindari membuka banyak tab lama yang masih memuat JS versi lawas (lakukan <em>hard refresh</em> bila UI tidak sinkron setelah deploy).</p>
-<h6 class="fs-14 fw-semibold mb-2">Checklist singkat operator</h6>
+<p class="fs-14 fw-normal mb-3">Masuk ke Arcav HCM melalui <a href="/login">/login</a> dengan email dan kata sandi yang diberikan admin Anda. Setelah berhasil, sistem menyimpan sesi login di browser Anda secara otomatis.</p>
+<h6 class="fs-14 fw-semibold mb-2">Organisasi dengan lebih dari satu perusahaan</h6>
+<p class="fs-14 fw-normal mb-3">Jika organisasi Anda terdaftar dengan beberapa entitas perusahaan, pastikan perusahaan yang aktif di layar sudah sesuai. Data cuti, absensi, dan payroll tampil berdasarkan perusahaan yang sedang aktif — jika daftar terlihat kosong padahal seharusnya ada data, periksa konteks perusahaan di sudut kanan atas.</p>
+<h6 class="fs-14 fw-semibold mb-2">Sesi habis atau diarahkan ke halaman login</h6>
+<p class="fs-14 fw-normal mb-3">Jika tiba-tiba diarahkan kembali ke halaman login di tengah pekerjaan, sesi Anda telah berakhir. Cukup login ulang dan lanjutkan aktivitas. Jika tampilan terasa tidak sesuai setelah pembaruan sistem, muat ulang halaman dengan menekan Ctrl + Shift + R (atau Cmd + Shift + R di Mac).</p>
+<h6 class="fs-14 fw-semibold mb-2">Tips login yang baik</h6>
 <ul class="knowledgebase ps-3 mb-0">
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Pastikan URL backend yang dipakai frontend (proxy) sama dengan tempat cookie di-set.</li>
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Untuk uji peran: gunakan akun QA admin vs akun karyawan seed — jangan mengandalkan “saya tahu URL-nya” karena API tetap mengembalikan <strong>403</strong> bila bukan HCM admin.</li>
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Dokumentasi kontrak API ada di <code>docs/api/</code> dan koleksi <code>docs/api/openapi.yaml</code> untuk verifikasi field.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Gunakan akun yang sesuai peran Anda — akun admin dan akun karyawan menampilkan menu yang berbeda.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Jangan berbagi akun login dengan orang lain; setiap pengguna sebaiknya memiliki akun sendiri agar jejak aktivitas tetap akurat.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Jika lupa kata sandi, gunakan tautan <strong>Lupa Kata Sandi</strong> di halaman login untuk mereset lewat email.</li>
 </ul>
 HTML,
                 ],
                 [
                     'slug' => 'peran-hcm-admin-vs-karyawan',
-                    'title' => 'Perbedaan HCM Admin dan karyawan (RBAC)',
+                    'title' => 'Perbedaan akses: admin HCM dan karyawan',
                     'reading_minutes' => 5,
-                    'excerpt' => 'Siapa yang boleh mutasi master data, siapa yang hanya self-service, dan di mana backend mengunci akses meskipun tombol UI disembunyikan.',
+                    'excerpt' => 'Siapa yang bisa mengelola data semua orang, siapa yang hanya mengakses data diri sendiri, dan apa yang terjadi saat akses ditolak.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Arcav memisahkan <strong>tampilan menu</strong> (UX) dan <strong>otorisasi server</strong> (sumber kebenaran). Tombol yang disembunyikan di UI tidak menggantikan pengecekan <code>EnsuresHcmAdmin</code> / ownership di controller API.</p>
+<p class="fs-14 fw-normal mb-3">Arcav HCM membedakan dua jenis pengguna utama: <strong>Admin HCM</strong> dan <strong>Karyawan</strong>. Perbedaan ini menentukan menu apa yang tampil dan aksi apa yang bisa dilakukan.</p>
 <h6 class="fs-14 fw-semibold mb-2">HCM Admin</h6>
-<p class="fs-14 fw-normal mb-3">Biasanya diidentifikasi lewat <code>User::isHcmAdmin()</code> (heuristik email QA utama/sekunder + kata kunci jabatan/departemen) atau peran admin perusahaan sesuai implementasi. Admin membuka direktori karyawan, master shift, payroll run, pengaturan cuti, tiket admin, dll.</p>
-<h6 class="fs-14 fw-semibold mb-2">Karyawan (authenticated, bukan admin)</h6>
-<p class="fs-14 fw-normal mb-3">Akses ke <code>/leaves-employee</code>, <code>/attendance-employee</code>, <code>/payslip</code>, tiket jalur karyawan, dll. Endpoint memakai scope <code>me</code> atau ownership: hanya data milik pengguna yang login kecuali aturan “manager team” pada modul tertentu.</p>
-<h6 class="fs-14 fw-semibold mb-2">Respons <code>GET /v1/identity/auth/me</code></h6>
-<p class="fs-14 fw-normal mb-3">Field boolean <code>hcmAdmin</code> harus dipakai frontend untuk menyamakan perilaku dengan server. Jangan menyimpulkan admin dari nama menu saja.</p>
-<div class="table-responsive mb-0"><table class="table table-sm table-bordered fs-13 mb-0"><thead><tr><th>Skenario</th><th>UI</th><th>API</th></tr></thead><tbody><tr><td>Admin membuka URL karyawan untuk modul admin-only</td><td>Boleh tampil ringkas</td><td><strong>403</strong> pada mutasi</td></tr><tr><td>Karyawan memanggil endpoint admin</td><td>Sebaiknya tidak ada tautan</td><td><strong>403</strong></td></tr><tr><td>Token hilang</td><td>Redirect lock</td><td><strong>401</strong></td></tr></tbody></table></div>
+<p class="fs-14 fw-normal mb-3">Admin dapat mengelola data seluruh karyawan di perusahaan: membuka direktori karyawan, mengatur shift dan jadwal, menjalankan payroll, menyetujui cuti, mengelola pengaturan sistem, dan melihat laporan agregat. Jika menu-menu ini tidak muncul, kemungkinan akun Anda belum dikonfigurasi sebagai admin oleh administrator utama.</p>
+<h6 class="fs-14 fw-semibold mb-2">Karyawan</h6>
+<p class="fs-14 fw-normal mb-3">Karyawan hanya bisa mengakses data milik sendiri: absensi, pengajuan cuti, slip gaji, dan tiket bantuan. Halaman seperti direktori karyawan lengkap atau pengaturan sistem tidak dapat diakses oleh akun karyawan biasa.</p>
+<h6 class="fs-14 fw-semibold mb-2">Saat akses ditolak</h6>
+<p class="fs-14 fw-normal mb-3">Jika Anda mencoba membuka halaman yang bukan hak Anda, sistem akan menolak atau mengalihkan ke halaman yang sesuai. Ini bukan error — melainkan perlindungan data agar informasi karyawan lain tidak bisa diakses sembarangan.</p>
+<div class="table-responsive mb-0"><table class="table table-sm table-bordered fs-13 mb-0"><thead><tr><th>Skenario</th><th>Yang terjadi</th></tr></thead><tbody><tr><td>Karyawan membuka halaman admin</td><td>Dialihkan ke halaman yang sesuai atau ditolak</td></tr><tr><td>Admin membuka halaman self-service karyawan</td><td>Biasanya dialihkan ke tampilan admin setara</td></tr><tr><td>Sesi habis</td><td>Diarahkan kembali ke halaman login</td></tr></tbody></table></div>
 HTML,
                 ],
                 [
                     'slug' => 'peta-modul-dari-halaman-pages',
-                    'title' => 'Peta modul dari halaman /pages',
+                    'title' => 'Daftar modul dan halaman (/pages)',
                     'reading_minutes' => 3,
-                    'excerpt' => 'Indeks navigasi ke route HCM aktif; mempercepat onboarding admin baru yang belum hafal sidebar.',
+                    'excerpt' => 'Indeks cepat seluruh halaman Arcav HCM; berguna untuk admin baru yang ingin tahu ada fitur apa saja.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Halaman <a href="/pages">/pages</a> berisi indeks modul HCM yang ter-wire ke API (bukan daftar CMS artikel acak). Gunakan filter di halaman tersebut untuk menemukan route web dan catatan integrasi singkat.</p>
-<p class="fs-14 fw-normal mb-0">Untuk kedalaman kontrak per domain, buka folder <code>docs/features/&lt;nama-fitur&gt;/</code> di repositori — setiap area besar punya README dan IMPLEMENTATION.</p>
+<p class="fs-14 fw-normal mb-3">Halaman <a href="/pages">/pages</a> menampilkan daftar seluruh modul dan halaman yang tersedia di Arcav HCM. Gunakan halaman ini jika Anda ingin menjelajahi fitur yang belum pernah Anda buka sebelumnya.</p>
+<p class="fs-14 fw-normal mb-0">Cukup klik nama halaman yang ingin Anda buka. Halaman yang memerlukan akses admin tidak akan bisa dibuka oleh akun karyawan biasa — sistem akan mengalihkan secara otomatis.</p>
 HTML,
                 ],
                 [
                     'slug' => 'troubleshooting-akses-401-403-422',
-                    'title' => 'Troubleshooting: 401, 403, dan 422 dari API',
+                    'title' => 'Mengatasi masalah akses: tidak bisa masuk, ditolak, atau data tidak valid',
                     'reading_minutes' => 4,
-                    'excerpt' => 'Cara membaca envelope error API, membedakan auth vs RBAC vs validasi bisnis.',
+                    'excerpt' => 'Panduan untuk tiga masalah umum: sesi habis, akses ditolak, dan isian yang ditolak sistem.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Respons API memakai bentuk umum <code>{ "success": false, "error": { "code": "...", "message": "..." } }</code>. Kode HTTP membantu kategori masalah.</p>
-<ul class="knowledgebase ps-3 mb-3">
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>401</strong> — tidak terautentikasi atau token tidak valid. Perbaiki login / cookie.</li>
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>403</strong> — terautentikasi tetapi tidak berhak (bukan HCM admin, atau bukan pemilik data). Perbaiki akun atau minta admin tenant menaikkan peran sesuai kebijakan.</li>
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> <strong>422</strong> — validasi input atau aturan bisnis (contoh: punch tanpa koordinat, selfie sebelum punch). Baca <code>error.code</code> untuk logika otomatis di UI.</li>
+<p class="fs-14 fw-normal mb-3">Ada tiga jenis masalah akses yang paling sering dialami pengguna Arcav HCM. Berikut cara mengenali dan mengatasinya.</p>
+<h6 class="fs-14 fw-semibold mb-2">Diarahkan kembali ke halaman login</h6>
+<p class="fs-14 fw-normal mb-3">Artinya sesi Anda telah berakhir atau belum login. Solusi: masuk kembali dengan akun Anda. Jika terjadi berulang dalam waktu singkat, hubungi admin untuk memeriksa status akun.</p>
+<h6 class="fs-14 fw-semibold mb-2">Muncul pesan akses ditolak</h6>
+<p class="fs-14 fw-normal mb-3">Artinya halaman atau aksi tersebut memerlukan peran yang lebih tinggi dari akun Anda. Misalnya, halaman pengelolaan payroll hanya bisa dibuka oleh admin HCM. Jika Anda merasa seharusnya punya akses, hubungi admin HR untuk menyesuaikan peran akun Anda.</p>
+<h6 class="fs-14 fw-semibold mb-2">Sistem menolak data yang diisi</h6>
+<p class="fs-14 fw-normal mb-3">Artinya ada isian yang tidak sesuai aturan, misalnya: tanggal cuti yang sudah lewat, absensi tanpa izin lokasi, atau konfirmasi kata sandi yang tidak cocok. Baca pesan yang muncul di layar — sistem akan menunjukkan bagian mana yang perlu diperbaiki.</p>
+<ul class="knowledgebase ps-3 mb-0">
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Izinkan browser mengakses lokasi jika melakukan absensi.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Pastikan semua kolom wajib sudah diisi sebelum menekan tombol simpan.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Jika masalah berlanjut setelah mencoba langkah di atas, buat tiket bantuan lewat <a href="/tickets-employee">/tickets-employee</a>.</li>
 </ul>
-<p class="fs-14 fw-normal mb-0">Jangan menampilkan stack trace ke pengguna akhir; gunakan pesan dari API yang sudah disanitasi.</p>
 HTML,
                 ],
                 [
@@ -217,10 +222,10 @@ HTML,
                     'reading_minutes' => 4,
                     'excerpt' => 'Ringkasan widget, chart template, dan bagian mana yang perlu di-wire ke API produksi.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/index">/index</a> adalah beranda utama setelah login untuk banyak akun admin. Beberapa kartu/chart dapat masih berupa demo template — bedakan dengan kartu yang sudah membaca API HCM (cek modul JS yang termuat di footer untuk halaman ini).</p>
+<p class="fs-14 fw-normal mb-3"><a href="/index">/index</a> adalah beranda utama setelah login. Beranda menampilkan ringkasan status terkini: total karyawan aktif, absensi hari ini, cuti yang menunggu persetujuan, dan notifikasi penting lainnya sesuai konfigurasi perusahaan.</p>
 <h6 class="fs-14 fw-semibold mb-2">Langkah</h6>
-<ol class="fs-14 mb-3"><li>Pastikan cookie login valid; reload bila widget kosong mendadak.</li><li>Buka submenu prioritas (Employees, Attendance, Payroll) dari sidebar — dashboard tidak menggantikan halaman operasional.</li><li>Untuk KPI resmi, gunakan halaman laporan terkait (<code>/employee-report</code>, dll.) yang terikat query.</li></ol>
-<p class="fs-14 fw-normal mb-0">Admin sekunder (email sekunder QA) mungkin melihat subset menu — itu sesuai kebijakan <em>template catalog</em>; fitur SaaS Super Admin tetap mengikuti <code>hcmAdmin</code>.</p>
+<ol class="fs-14 mb-3"><li>Jika widget beranda mendadak kosong, coba muat ulang halaman atau login ulang jika sesi telah habis.</li><li>Buka submenu prioritas (Karyawan, Absensi, Payroll) dari sidebar — beranda merupakan ringkasan, bukan pengganti halaman operasional.</li><li>Untuk laporan resmi, gunakan halaman laporan terkait seperti <a href="/employee-report">/employee-report</a> yang menampilkan data lengkap.</li></ol>
+<p class="fs-14 fw-normal mb-0">Admin sekunder atau dengan peran terbatas mungkin melihat subset menu — itu sudah sesuai konfigurasi akses yang ditentukan admin utama; hubungi admin utama jika ada menu yang seharusnya tersedia.</p>
 HTML,
                 ],
                 [
@@ -258,11 +263,11 @@ HTML,
 <p class="fs-14 fw-normal mb-3">Non-admin yang membuka detail profil hanya menyentuh data diri. Field yang boleh di-<code>PUT</code> dibatasi subset (mis. kontak, rekening jika diizinkan kebijakan) — kompensasi pokok dan item payroll sering <strong>hanya admin</strong>.</p>
 <h6 class="fs-14 fw-semibold mb-2">Praktik data yang rapi</h6>
 <ul class="knowledgebase ps-3 mb-3">
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Isi <strong>departemen</strong> dan <strong>jabatan</strong> sebelum impor massal agar foreign key / dropdown tidak gagal.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Isi <strong>departemen</strong> dan <strong>jabatan</strong> sebelum impor massal agar pilihan dropdown di form karyawan baru sudah tersedia.</li>
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Samakan format NIK/employee code dengan kebijakan unik per tenant.</li>
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Setelah perubahan besar, refresh halaman detail untuk memastikan cache sisi klien tidak menampilkan label lama.</li>
 </ul>
-<p class="fs-14 fw-normal mb-0">Rujukan use case per field: <code>docs/features/employees-organization/USE-CASES.md</code>.</p>
+<p class="fs-14 fw-normal mb-0">Pastikan seluruh data master (jabatan, departemen, status kepegawaian) sudah diisi sebelum mengisi detail karyawan untuk menghindari isian kosong atau error validasi.</p>
 HTML,
                 ],
                 [
@@ -295,8 +300,8 @@ HTML,
                     'reading_minutes' => 3,
                     'excerpt' => 'Kapan memakai tampilan grid, filter massal, dan batasan yang sama dengan /employees.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/employees-grid">/employees-grid</a> memakai sumber data API yang sama dengan <a href="/employees">/employees</a> tetapi tata letak grid untuk skenario review cepat atau presentasi. Semua aksi admin (tambah, bulk) tetap mengikuti aturan <code>hcmAdmin</code>.</p>
-<ol class="fs-14 mb-0"><li>Pilih periode filter yang sama dengan laporan yang akan Anda cocokkan.</li><li>Untuk edit detail kompensasi, buka tetap dari kartu ke <code>/employee-details</code>.</li><li>Jangan mengandalkan URL grid untuk “menyembunyikan” tombol — non-admin tetap dialihkan oleh guard web.</li></ol>
+<p class="fs-14 fw-normal mb-3"><a href="/employees-grid">/employees-grid</a> memakai sumber data yang sama dengan <a href="/employees">/employees</a> tetapi dengan tata letak grid untuk skenario review cepat atau presentasi. Semua aksi admin (tambah, bulk) tetap memerlukan akses admin HCM.</p>
+<ol class="fs-14 mb-0"><li>Pilih periode filter yang sama dengan laporan yang akan Anda cocokkan.</li><li>Untuk edit detail kompensasi, buka lewat kartu karyawan ke <a href="/employee-details">/employee-details</a>.</li><li>Tampilan grid bersifat ringkas — untuk aksi lengkap gunakan halaman karyawan standar.</li></ol>
 HTML,
                 ],
             ],
@@ -321,7 +326,7 @@ HTML,
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> “Tipe cuti kosong” — pastikan master <code>/leave-type</code> dan pengaturan cuti perusahaan sudah mengaktifkan tipe yang dibutuhkan.</li>
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> “Tanggal tidak bisa dipilih” — cek overlap hari libur, kuota, atau minimum notice di pengaturan.</li>
 </ul>
-<p class="fs-14 fw-normal mb-0">API memakai query <code>scope=me</code> pada beberapa list agar server memfilter ownership — jangan mengandalkan filter hanya di grid.</p>
+<p class="fs-14 fw-normal mb-0">Sistem secara otomatis menyaring data agar karyawan hanya melihat cuti milik sendiri — tidak perlu konfigurasi tambahan.</p>
 HTML,
                 ],
                 [
@@ -329,11 +334,11 @@ HTML,
                     'visible_to' => ['admin'],
                     'title' => 'Cuti admin: persetujuan dan monitoring',
                     'reading_minutes' => 5,
-                    'excerpt' => 'Halaman /leaves untuk HCM admin: filter, approve/decline orang lain, dan batas siapa yang boleh mengubah userId target.',
+                    'excerpt' => 'Halaman /leaves untuk HCM admin: filter, approve/decline, dan batas siapa yang boleh mengubah cuti orang lain.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/leaves">/leaves</a> ditujukan untuk operator HR. Di sinilah persetujuan atas nama orang lain dilakukan. Non-admin yang membuka URL ini akan dialihkan ke jalur karyawan sesuai guard web.</p>
+<p class="fs-14 fw-normal mb-3"><a href="/leaves">/leaves</a> ditujukan untuk operator HR. Di sinilah persetujuan cuti atas nama karyawan lain dilakukan. Jika Anda bukan admin HCM dan membuka halaman ini, sistem akan mengalihkan ke tampilan cuti karyawan secara otomatis.</p>
 <h6 class="fs-14 fw-semibold mb-2">Aturan bisnis penting</h6>
-<p class="fs-14 fw-normal mb-3">Parameter <code>userId</code> pada mutasi sensitif hanya boleh dipakai oleh HCM admin — mencegah karyawan mengubah cuti rekan lewat manipulasi request.</p>
+<p class="fs-14 fw-normal mb-3">Hanya admin HCM yang dapat mengubah cuti milik karyawan lain — karyawan biasa tidak bisa mengubah cuti rekan melalui halaman ini meski mengetahui URL-nya. Ini adalah perlindungan data kepegawaian.</p>
 <ul class="knowledgebase ps-3 mb-0">
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Gunakan filter periode saat menangani antrian besar.</li>
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Setelah decline, pastikan karyawan mendapat notifikasi (jika saluran notifikasi tenant aktif).</li>
@@ -379,11 +384,11 @@ HTML,
                     'reading_minutes' => 6,
                     'excerpt' => '/attendance-employee: koordinat wajib, fallback peta OSM, urutan punch in sebelum selfie, dan ringkasan produktivitas.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Halaman <a href="/attendance-employee">/attendance-employee</a> menggabungkan peta Leaflet + OpenStreetMap dengan Geolocation API. Endpoint <code>POST /attendance/me/punch</code> memerlukan <code>latitude</code> dan <code>longitude</code> — tanpa itu server menolak dengan <strong>422</strong>.</p>
+<p class="fs-14 fw-normal mb-3">Halaman <a href="/attendance-employee">/attendance-employee</a> memudahkan absensi berbasis lokasi langsung dari browser. Saat melakukan punch in atau punch out, browser akan meminta izin untuk mengakses lokasi Anda — izinkan agar sistem dapat mencatat koordinat kehadiran.</p>
 <h6 class="fs-14 fw-semibold mb-2">Browser menolak GPS</h6>
 <p class="fs-14 fw-normal mb-3">Gunakan titik di peta sebagai lokasi manual; koordinat yang dipilih tetap dikirim ke server. Edukasikan pengguna untuk memberi izin lokasi pada HTTPS.</p>
 <h6 class="fs-14 fw-semibold mb-2">Selfie</h6>
-<p class="fs-14 fw-normal mb-3">Selfie dilampirkan ke baris absensi hari yang sama. Jika belum punch in, API mengembalikan <code>ATTENDANCE_NOT_STARTED</code> — UI menampilkan modal penjelasan, bukan hanya toast.</p>
+<p class="fs-14 fw-normal mb-3">Foto selfie dapat dilampirkan saat absensi sesuai kebijakan perusahaan. Jika Anda menekan tombol selfie tanpa melakukan punch in lebih dulu, sistem akan menginformasikan bahwa Anda perlu melakukan absensi masuk terlebih dahulu.</p>
 <h6 class="fs-14 fw-semibold mb-2">Admin</h6>
 <p class="fs-14 fw-normal mb-0"><a href="/attendance-admin">/attendance-admin</a> untuk rekap seluruh karyawan; koordinasi dengan <a href="/timesheets">/timesheets</a> untuk analisis jam.</p>
 HTML,
@@ -393,9 +398,9 @@ HTML,
                     'visible_to' => ['admin'],
                     'title' => 'Jadwal per karyawan dan master shift',
                     'reading_minutes' => 5,
-                    'excerpt' => '/schedule-timing, /shift-master, dan relasi ke shiftId pada payload schedule.',
+                    'excerpt' => '/schedule-timing, /shift-master, dan cara menghubungkan jadwal karyawan ke master shift.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/shift-master">/shift-master</a> mendefinisikan jam kerja referensi. <a href="/schedule-timing">/schedule-timing</a> menetapkan shift per user; payload mendukung <code>shiftId</code> opsional sehingga jam efektif mengikuti master.</p>
+<p class="fs-14 fw-normal mb-3"><a href="/shift-master">/shift-master</a> mendefinisikan jam kerja referensi. <a href="/schedule-timing">/schedule-timing</a> menetapkan shift per karyawan; jika shift tidak dipilih, sistem menggunakan jam kerja default yang telah dikonfigurasi.</p>
 <p class="fs-14 fw-normal mb-0">Semua mutasi di area ini memerlukan HCM admin — kesalahan jadwal berdampak ke perhitungan lembur dan produktivitas.</p>
 HTML,
                 ],
@@ -450,9 +455,9 @@ HTML,
                     'slug' => 'gaji-karyawan-compensation',
                     'title' => 'Kompensasi per karyawan (/employee-salary)',
                     'reading_minutes' => 5,
-                    'excerpt' => 'Base salary, tunjangan tetap, dan assignment payroll item; middleware hcm.web.admin.',
+                    'excerpt' => 'Base salary, tunjangan tetap, dan penugasan komponen gaji per karyawan; halaman ini hanya untuk admin.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/employee-salary">/employee-salary</a> memusatkan suntingan kompensasi dan assignment item per karyawan. Halaman ini dilindungi middleware admin web — karyawan biasa tidak boleh mengubah gaji rekan lewat URL langsung.</p>
+<p class="fs-14 fw-normal mb-3"><a href="/employee-salary">/employee-salary</a> memusatkan pengelolaan kompensasi dan penugasan komponen gaji per karyawan. Halaman ini hanya bisa diakses oleh admin HCM — karyawan biasa tidak dapat melihat atau mengubah gaji rekan meski mengetahui URL-nya.</p>
 <p class="fs-14 fw-normal mb-0">Setelah mengubah kompensasi, jalankan ulang draft payroll periode berjalan agar angka slip mencerminkan perubahan.</p>
 HTML,
                 ],
@@ -485,7 +490,7 @@ HTML,
                     'reading_minutes' => 4,
                     'excerpt' => 'Gate wajib export untuk operator bila fitur diaktifkan; mencegah finalize/disburse tanpa bukti.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Pada tenant yang mengaktifkan gate rekonsiliasi, operator wajib menghasilkan bukti export (CSV/ZIP sesuai konfigurasi) sebelum menekan aksi kritis pada payroll atau modul terkait. Detail alur ada di <code>docs/features/export-reconciliation/</code>.</p>
+<p class="fs-14 fw-normal mb-3">Pada perusahaan yang mengaktifkan fitur rekonsiliasi, admin wajib menghasilkan bukti export (CSV/ZIP sesuai konfigurasi) sebelum menekan aksi kritis pada payroll. Ini memastikan setiap run gaji punya jejak audit yang lengkap.</p>
 <p class="fs-14 fw-normal mb-0">Jika tombol aksi tetap nonaktif, periksa status evidence di API dan ulangi export dengan parameter periode yang sama dengan run.</p>
 HTML,
                 ],
@@ -522,7 +527,7 @@ HTML,
                     'body_html' => <<<'HTML'
 <p class="fs-14 fw-normal mb-3">Halaman <a href="/cronjob">/cronjob</a> hanya untuk <strong>HCM admin</strong>. Perubahan mempengaruhi job berjadwal (reminder, sinkronisasi, dll.) — dokumentasikan perubahan di runbook internal.</p>
 <ol class="fs-14 mb-3"><li>Baca nilai saat ini sebelum mengubah ekspresi jadwal.</li><li>Simpan perubahan; pantau log aplikasi setelah window eksekusi berikutnya.</li><li>Jika ada halaman terkait <a href="/cronjob-schedule">/cronjob-schedule</a>, gunakan sebagai referensi visual tanpa menggandakan sumber kebenaran.</li></ol>
-<p class="fs-14 fw-normal mb-0">Jangan menonaktifkan job kritikal (backup token, batas karyawan) tanpa mitigasi — lihat <code>routes/console.php</code> di repo untuk daftar command terdaftar.</p>
+<p class="fs-14 fw-normal mb-0">Jangan menonaktifkan proses terjadwal yang kritis (seperti backup token atau pemantauan batas karyawan) tanpa mitigasi yang memadai — konsultasikan dengan tim teknis sebelum mengubah konfigurasi penjadwalan.</p>
 HTML,
                 ],
                 [
@@ -531,7 +536,7 @@ HTML,
                     'reading_minutes' => 6,
                     'excerpt' => 'Membedakan user web template vs API user-management HCM; kapan perlu keduanya.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3"><a href="/users">/users</a> dan <a href="/roles-permissions">/roles-permissions</a> mengatur akun yang login ke shell HCM dan izin menu tingkat tinggi. Endpoint API lanjutan user/permission tenant ada di <code>/v1/hcm/user-management/*</code> (admin-only) — UI web final dapat berbeda, tetapi prinsip RBAC sama.</p>
+<p class="fs-14 fw-normal mb-3"><a href="/users">/users</a> dan <a href="/roles-permissions">/roles-permissions</a> mengatur akun yang bisa login ke Arcav HCM dan izin menu tingkat tinggi. Perubahan peran pengguna berlaku segera setelah disimpan — karyawan yang baru diberi akses admin tidak perlu logout dan login ulang.</p>
 <ol class="fs-14 mb-3"><li>Tambah user → assign role minimal.</li><li>Uji login sekunder di browser privat untuk memastikan tidak ada cache token lama.</li><li>Catat perubahan role di tiket internal bila organisasi Anda mewajibkan jejak audit.</li></ol>
 <p class="fs-14 fw-normal mb-0">Jangan memberi role luas hanya untuk “mempermudah demo” — gunakan akun QA terpisah.</p>
 HTML,
@@ -559,10 +564,10 @@ HTML,
                     'slug' => 'tutorial-laporan-karyawan',
                     'title' => 'Laporan karyawan (/employee-report)',
                     'reading_minutes' => 4,
-                    'excerpt' => 'Paginasi API, perPage maksimal, dan menyelaraskan dengan direktori.',
+                    'excerpt' => 'Filter departemen/jabatan, export data, dan memastikan jumlah baris sesuai direktori karyawan.',
                     'body_html' => <<<'HTML'
-<ol class="fs-14 mb-3"><li>Buka <a href="/employee-report">/employee-report</a> sebagai HCM admin.</li><li>Terapkan filter departemen/jabatan jika dataset besar — API membatasi <code>perPage</code> (lihat spec).</li><li>Export bila tersedia; bandingkan jumlah baris dengan <a href="/employees">/employees</a> untuk sanity check.</li></ol>
-<p class="fs-14 fw-normal mb-0">Non-admin tidak boleh mengandalkan URL ini untuk data seluruh karyawan — server mengembalikan <strong>403</strong>.</p>
+<ol class="fs-14 mb-3"><li>Buka <a href="/employee-report">/employee-report</a> sebagai HCM admin.</li><li>Terapkan filter departemen/jabatan jika dataset besar untuk mempercepat hasil dan memudahkan export.</li><li>Export bila tersedia; bandingkan jumlah baris dengan <a href="/employees">/employees</a> untuk memastikan tidak ada data yang terlewat.</li></ol>
+<p class="fs-14 fw-normal mb-0">Halaman ini hanya dapat diakses oleh admin HCM — akun karyawan tidak dapat melihat laporan seluruh karyawan dari halaman ini.</p>
 HTML,
                 ],
                 [
@@ -625,10 +630,10 @@ HTML,
                     'slug' => 'tutorial-goal-type-dan-goal-tracking',
                     'title' => 'Goals: tipe sasaran & tracking (/goal-type, /goal-tracking)',
                     'reading_minutes' => 6,
-                    'excerpt' => 'Scope me / team / all — selaras API performance/goals.',
+                    'excerpt' => 'Sasaran pribadi, tim, dan seluruh organisasi — tampilan disesuaikan otomatis berdasarkan peran Anda.',
                     'body_html' => <<<'HTML'
-<ol class="fs-14 mb-3"><li>Admin siapkan katalog di <a href="/goal-type">/goal-type</a>.</li><li>Penetapan sasaran dan progres di <a href="/goal-tracking">/goal-tracking</a>: pilih scope — <strong>me</strong> untuk self, <strong>team</strong> untuk manager, <strong>all</strong> hanya admin.</li><li>Export CSV dari UI bila tersedia untuk review kuartalan.</li></ol>
-<p class="fs-14 fw-normal mb-0">Jika pengguna mengeluh “tidak ada data tim”, verifikasi relasi atasan di data karyawan, bukan hanya label jabatan.</p>
+<ol class="fs-14 mb-3"><li>Admin siapkan katalog tipe sasaran di <a href="/goal-type">/goal-type</a>.</li><li>Penetapan sasaran dan pencatatan progres di <a href="/goal-tracking">/goal-tracking</a>: karyawan melihat sasaran milik sendiri, manajer melihat sasaran tim, admin dapat melihat seluruh organisasi.</li><li>Export CSV dari UI bila tersedia untuk review kuartalan.</li></ol>
+<p class="fs-14 fw-normal mb-0">Jika pengguna mengeluh "tidak ada data tim", verifikasi relasi atasan di data karyawan — pastikan atasan sudah ditentukan, bukan hanya label jabatan.</p>
 HTML,
                 ],
                 [
@@ -637,8 +642,8 @@ HTML,
                     'reading_minutes' => 7,
                     'excerpt' => 'Fase 1: peserta manual user ID; master harus lengkap sebelum komunikasi ke karyawan.',
                     'body_html' => <<<'HTML'
-<ol class="fs-14 mb-3"><li>Isi <a href="/training-type">/training-type</a> dan <a href="/trainers">/trainers</a> agar form utama tidak punya opsi kosong.</li><li>Buat pelatihan di <a href="/training">/training</a>; lampirkan peserta dengan user ID sesuai kontrak API fase ini.</li><li>Umumkan ke peserta lewat channel internal; integrasi notifikasi otomatis mengikuti pengaturan tenant.</li></ol>
-<p class="fs-14 fw-normal mb-0">Detail field dan status: <code>docs/features/training/README.md</code>.</p>
+<ol class="fs-14 mb-3"><li>Isi <a href="/training-type">/training-type</a> dan <a href="/trainers">/trainers</a> agar form utama tidak punya opsi kosong.</li><li>Buat pelatihan di <a href="/training">/training</a>; pilih peserta dari daftar karyawan yang tersedia.</li><li>Umumkan ke peserta lewat channel internal; notifikasi otomatis mengikuti pengaturan yang ada di perusahaan Anda.</li></ol>
+<p class="fs-14 fw-normal mb-0">Pastikan data peserta sudah lengkap sebagai karyawan aktif sebelum didaftarkan ke program pelatihan.</p>
 HTML,
                 ],
             ],
@@ -692,7 +697,7 @@ HTML,
 <h6 class="fs-14 fw-semibold mb-2">Kapan memakai tiket</h6>
 <ul class="knowledgebase ps-3 mb-0">
 <li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Permintaan perubahan data sensitif (role, gaji) dengan jejak persetujuan.</li>
-<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Insiden integrasi (token, header tenant) yang perlu triase tim platform.</li>
+<li class="d-flex align-items-baseline mb-2"><i class="ti ti-point-filled me-1"></i> Masalah teknis di level platform (gangguan sistem, akses yang tidak bisa diperbaiki sendiri) yang perlu ditangani tim teknis.</li>
 </ul>
 HTML,
                 ],
@@ -754,7 +759,7 @@ HTML,
                     'excerpt' => 'Verifikasi domain dan jejak transaksi pembelian untuk audit billing.',
                     'body_html' => <<<'HTML'
 <p class="fs-14 fw-normal mb-3"><a href="/domain">/domain</a> mengelola hostname tenant dan status verifikasi. <a href="/purchase-transaction">/purchase-transaction</a> merangkum transaksi terkait paket/add-on.</p>
-<p class="fs-14 fw-normal mb-0">Kombinasikan dengan dokumentasi fitur <code>subscriptions</code> dan <code>domain-management</code> di repo untuk parameter API terbaru.</p>
+<p class="fs-14 fw-normal mb-0">Untuk pertanyaan tentang domain custom atau status verifikasi, hubungi tim operator platform melalui tiket dukungan.</p>
 HTML,
                 ],
                 [
@@ -764,7 +769,7 @@ HTML,
                     'excerpt' => 'Membedakan /invoices CRM umum vs jalur /saas/* dan /company/* untuk operator tenant.',
                     'body_html' => <<<'HTML'
 <p class="fs-14 fw-normal mb-3">Billing memiliki beberapa permukaan web: <a href="/invoices">/invoices</a> (aliran umum), <a href="/saas/invoices">/saas/invoices</a>, <a href="/company/invoices">/company/invoices</a>, serta halaman tambah/edit terkait. Gunakan yang sesuai peran operasional Anda — jangan membagikan URL admin ke pemilik tenant jika mereka hanya perlu portal terbatas.</p>
-<ol class="fs-14 mb-3"><li>Cocokkan invoice dengan entri di <a href="/subscription">/subscription</a> (status langganan, paket).</li><li>Rekam pembayaran lewat <a href="/payments">/payments</a> atau <a href="/saas/payments">/saas/payments</a> sesuai konteks deployment.</li><li>Untuk jatuh tempo & penghentian layanan otomatis, baca <code>docs/features/subscriptions/README.md</code> dan skenario terminasi.</li></ol>
+<ol class="fs-14 mb-3"><li>Cocokkan invoice dengan entri di <a href="/subscription">/subscription</a> (status langganan, paket).</li><li>Rekam pembayaran lewat <a href="/payments">/payments</a> atau <a href="/saas/payments">/saas/payments</a> sesuai konteks deployment.</li><li>Untuk memahami skenario jatuh tempo dan penghentian layanan otomatis, hubungi operator platform Anda.</li></ol>
 <p class="fs-14 fw-normal mb-0">Semua aksi finansial sensitif harus punya jejak tiket atau runbook internal.</p>
 HTML,
                 ],
@@ -784,7 +789,7 @@ HTML,
                     'excerpt' => 'Employee report, attendance report, payslip report — mode live vs arsip bila snapshot aktif.',
                     'body_html' => <<<'HTML'
 <p class="fs-14 fw-normal mb-3">Halaman seperti <a href="/employee-report">/employee-report</a>, <a href="/attendance-report">/attendance-report</a>, dan <a href="/payslip-report">/payslip-report</a> memakai pola admin: filter, export, dan batas per halaman sesuai API.</p>
-<p class="fs-14 fw-normal mb-0">Jika organisasi memakai snapshot reporting, pahami perbedaan mode Live vs Archive dari dokumentasi <code>docs/features/reporting/</code>.</p>
+<p class="fs-14 fw-normal mb-0">Jika organisasi Anda memakai fitur snapshot reporting, tanyakan kepada admin utama perbedaan antara mode laporan langsung (live) dan arsip untuk memastikan laporan yang Anda lihat sesuai kebutuhan.</p>
 HTML,
                 ],
                 [
@@ -795,18 +800,18 @@ HTML,
                     'excerpt' => 'Tutorial langkah demi langkah dipindah ke kategori khusus agar mudah dijelaskan ke admin baru.',
                     'body_html' => <<<'HTML'
 <p class="fs-14 fw-normal mb-3">Ringkasan modul: Performance, Goals, Training. Untuk <strong>SOP lengkap bernomor</strong> (template → siklus → review, goal tracking, administrasi training), buka kategori <a href="/knowledgebase/category/kinerja-goals-training">Kinerja, goals, dan pelatihan</a> di Knowledge Base ini.</p>
-<p class="fs-14 fw-normal mb-0">Dokumentasi mendalam per domain tetap di <code>docs/features/performance</code>, <code>goal</code>, <code>training</code>.</p>
+<p class="fs-14 fw-normal mb-0">Untuk panduan lengkap masing-masing modul kinerja, sasaran, dan pelatihan, buka kategori <a href="/knowledgebase/category/kinerja-goals-training">Kinerja, goals, dan pelatihan</a> di Knowledge Base ini.</p>
 HTML,
                 ],
                 [
                     'slug' => 'export-rekonsiliasi-api-operator',
                     'visible_to' => ['admin'],
-                    'title' => 'Export rekonsiliasi (API operator)',
+                    'title' => 'Export rekonsiliasi dan audit payroll',
                     'reading_minutes' => 3,
-                    'excerpt' => 'Tidak ada halaman web final; operator memakai POST/GET /v1/reconciliation/exports.',
+                    'excerpt' => 'Cara menghasilkan bukti export sebelum finalisasi payroll, dan mengapa langkah ini penting untuk audit.',
                     'body_html' => <<<'HTML'
-<p class="fs-14 fw-normal mb-3">Bukti export rekonsiliasi diatur lewat API <code>/v1/reconciliation/exports</code> (admin/operator tenant). UI web khusus belum menjadi jalur utama — gunakan Swagger koleksi <code>docs/api/openapi.yaml</code> atau skrip internal.</p>
-<p class="fs-14 fw-normal mb-0">Gate payroll yang memaksa export sebelum finalize/disburse menjembatani kebutuhan audit ini; jika tombol payroll terkunci, selesaikan evidence terlebih dahulu.</p>
+<p class="fs-14 fw-normal mb-3">Sebelum menjalankan finalisasi payroll, sistem mungkin mensyaratkan export data rekonsiliasi terlebih dahulu. Langkah ini memastikan ada jejak audit yang lengkap setiap kali gaji diproses.</p>
+<p class="fs-14 fw-normal mb-0">Jika tombol finalisasi payroll terkunci, periksa apakah langkah export rekonsiliasi sudah diselesaikan. Jika belum ada halaman web khusus untuk ini di perusahaan Anda, hubungi operator platform untuk panduan lebih lanjut.</p>
 HTML,
                 ],
                 [

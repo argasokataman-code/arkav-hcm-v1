@@ -67,13 +67,130 @@
             })
             ->values();
     }
+
+    $checkedOutAddonIds = collect();
+
+    $fallbackPackages = \App\Models\Package::query()
+        ->with('features')
+        ->where('status', 'active')
+        ->when(! $isGlobalHcmAdmin, function ($query): void {
+            $query->where('is_global_admin_only', false);
+        })
+        ->when($currentPackage, function ($query) use ($currentPackage): void {
+            $query->where('uuid', '!=', $currentPackage->uuid);
+        })
+        ->orderByRaw('COALESCE(monthly_price, 0) asc')
+        ->get(['uuid', 'name', 'code', 'description', 'monthly_price', 'yearly_price', 'is_global_admin_only'])
+        ->map(function (\App\Models\Package $package): array {
+            return [
+                'uuid' => $package->uuid,
+                'name' => $package->name,
+                'code' => $package->code,
+                'description' => $package->description,
+                'monthly_price' => (float) ($package->monthly_price ?? 0),
+                'yearly_price' => (float) ($package->yearly_price ?? 0),
+                'feature_codes' => $package->features->pluck('feature_code')->values()->all(),
+            ];
+        })
+        ->values();
+
+    $recommendationMode = 'empty';
+    $recommendationPackages = collect();
+    $hasFeatureContext = $normalizedBlockedFeature !== '';
+
+    if ($recommendedPackages->isNotEmpty()) {
+        $recommendationMode = 'match';
+        $recommendationPackages = $recommendedPackages->take(3)->values();
+    } elseif ($fallbackPackages->isNotEmpty()) {
+        $recommendationMode = 'fallback';
+        $recommendationPackages = $fallbackPackages->take(3)->values();
+    }
+
+    if ($hasFeatureContext) {
+        $recommendationKicker = 'Rekomendasi Fitur';
+        $recommendationTitle = 'Paket untuk Membuka Fitur '.($blockedFeatureLabel ?: 'yang diminta');
+        $recommendationHeadline = $recommendationMode === 'fallback'
+            ? 'Belum ada paket yang langsung memuat fitur ini, tapi kamu bisa pilih paket alternatif berikut.'
+            : 'Prioritas paket yang memuat fitur '.($blockedFeatureLabel ?: 'yang diminta').'.';
+        $recommendationBadge = $recommendationMode === 'fallback'
+            ? 'Alternatif Paket'
+            : 'Rekomendasi Fitur';
+    } else {
+        $recommendationKicker = 'Rekomendasi Upgrade';
+        $recommendationTitle = 'Pilihan Paket untuk Upgrade';
+        $recommendationHeadline = $recommendationMode === 'fallback'
+            ? 'Belum ada paket yang bisa direkomendasikan dari konteks saat ini, tapi kamu tetap bisa pilih opsi upgrade berikut.'
+            : 'Bandingkan paket aktif yang tersedia untuk menentukan upgrade terbaik sesuai kebutuhan tim kamu.';
+        $recommendationBadge = $recommendationMode === 'fallback'
+            ? 'Alternatif Upgrade'
+            : 'Rekomendasi Upgrade';
+    }
+    if ($activeCompany instanceof \App\Models\Company) {
+        $checkedOutAddonIds = \App\Models\PurchaseTransaction::query()
+            ->where('company_id', $activeCompany->id)
+            ->where('transaction_type', 'addon')
+            ->whereIn('status', ['draft', 'issued', 'sent', 'paid', 'overdue'])
+            ->whereNotNull('package_addon_id')
+            ->pluck('package_addon_id')
+            ->map(fn ($addonId) => (int) $addonId)
+            ->unique()
+            ->values();
+    }
+
+    $activeAddons = \App\Models\PackageAddon::query()
+        ->active()
+        ->when($checkedOutAddonIds->isNotEmpty(), function ($query) use ($checkedOutAddonIds): void {
+            $query->whereNotIn('id', $checkedOutAddonIds->all());
+        })
+        ->orderByRaw('COALESCE(price_per_unit, 0) asc')
+        ->limit(8)
+        ->get(['id', 'uuid', 'code', 'name', 'description', 'price_per_unit', 'unit_name'])
+        ->values();
 @endphp
 
 <style>
+    .upgrade-shell {
+        display: grid;
+        gap: 1rem;
+    }
+
     .upgrade-hero-card,
     .upgrade-package-card,
-    .upgrade-preview-card {
+    .upgrade-preview-card,
+    .upgrade-stage-card {
         border-radius: 1rem;
+    }
+
+    .upgrade-hero-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    .upgrade-stage-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+    }
+
+    .upgrade-kicker {
+        font-size: .74rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #0d6efd;
+    }
+
+    .upgrade-headline {
+        font-size: clamp(1.1rem, 1rem + .5vw, 1.4rem);
+        font-weight: 700;
+        line-height: 1.25;
+        color: #0f172a;
+        margin-bottom: .25rem;
+    }
+
+    .upgrade-subline {
+        color: #64748b;
+        font-size: .9rem;
+        margin-bottom: 0;
     }
 
     .upgrade-package-card {
@@ -102,7 +219,7 @@
     }
 
     #upgrade-package-catalog {
-        max-height: 72vh;
+        max-height: 68vh;
         overflow: auto;
         padding-right: .25rem;
     }
@@ -208,6 +325,74 @@
         background: rgba(var(--bs-light-rgb), .45);
     }
 
+    .upgrade-primary-action {
+        background: linear-gradient(90deg, #f97316, #ea580c);
+        border: none;
+    }
+
+    .upgrade-primary-action:hover,
+    .upgrade-primary-action:focus {
+        background: linear-gradient(90deg, #ea580c, #c2410c);
+    }
+
+    .upgrade-current-panel {
+        background: linear-gradient(180deg, rgba(var(--bs-primary-rgb), .05), #fff 42%);
+        border: 1px solid rgba(var(--bs-primary-rgb), .15);
+        border-radius: .95rem;
+        padding: 1rem;
+    }
+
+    .upgrade-recommend-panel {
+        background: linear-gradient(180deg, rgba(var(--bs-success-rgb), .08), #fff 46%);
+        border: 1px solid rgba(var(--bs-success-rgb), .2);
+        border-radius: .95rem;
+        padding: 1rem;
+    }
+
+    .upgrade-addon-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: .95rem;
+        background: #fff;
+        height: 100%;
+        transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+
+    .upgrade-addon-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(var(--bs-primary-rgb), .35);
+        box-shadow: 0 .8rem 1.6rem rgba(15, 23, 42, .08);
+    }
+
+    .upgrade-addon-icon {
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: .65rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(var(--bs-primary-rgb), .1);
+        color: var(--bs-primary);
+        font-size: 1.15rem;
+    }
+
+    .upgrade-addon-title {
+        font-size: .95rem;
+        line-height: 1.25;
+        font-weight: 700;
+        color: #0f172a;
+        min-height: 2.35rem;
+    }
+
+    .upgrade-addon-description {
+        font-size: .82rem;
+        color: #64748b;
+        min-height: 2.4rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
     @media (max-width: 991.98px) {
         #upgrade-package-catalog {
             max-height: none;
@@ -256,116 +441,178 @@
             <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
         @endif
 
-        <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-4">
-                <div class="card border-0 shadow-sm upgrade-hero-card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <div>
-                                <span class="badge bg-primary-subtle text-primary mb-2">Paket aktif</span>
-                                <h4 class="mb-1" id="upgrade-current-package-name">{{ $currentPackage?->name ?? 'Belum ada paket aktif' }}</h4>
-                                <div class="text-muted small" id="upgrade-current-package-code">{{ $currentPackage?->code ?? 'Aktifkan paket dulu untuk mulai berlangganan.' }}</div>
-                            </div>
-                            <div class="avatar avatar-lg rounded-circle bg-light text-primary">
-                                <i class="ti ti-package fs-24"></i>
-                            </div>
-                        </div>
+        <div class="upgrade-shell mb-4">
+            <div class="row g-3">
+                <div class="col-12 col-xl-5">
+                    <div class="card border-0 upgrade-hero-card h-100">
+                        <div class="card-body p-4">
+                            <div class="upgrade-kicker mb-1">Current Plan</div>
+                            <div class="upgrade-headline">Paket Aktif Saat Ini</div>
+                            <p class="upgrade-subline mb-3">Lihat status paket berjalan sebelum mengajukan perubahan.</p>
 
-                        <div id="upgrade-current-change-status" class="alert alert-info py-2 d-none" role="status"></div>
-                        <div id="upgrade-early-activate-wrap" class="d-none mt-2">
-                            <button type="button" class="btn btn-warning btn-sm w-100" id="upgrade-early-activate-btn">
-                                <i class="ti ti-bolt me-1"></i>Aktifkan Sekarang
-                            </button>
-                        </div>
-
-                        @if ($currentPackage)
-                            <div class="upgrade-summary-list">
-                                <div class="upgrade-summary-item">
-                                    <div class="text-muted small mb-1">Harga bulanan</div>
-                                    <div class="upgrade-price text-primary fw-bold" id="upgrade-current-package-monthly">Rp {{ number_format((float) ($currentPackage->monthly_price ?? 0), 0, ',', '.') }}</div>
-                                    <div class="upgrade-price-meta">per bulan</div>
-                                </div>
-                                <div class="upgrade-summary-item">
-                                    <div class="text-muted small mb-1">Status fitur yang diblok</div>
-                                    <div id="upgrade-current-feature-status" class="fw-semibold {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'text-success' : 'text-warning' }}">
-                                        {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'Sudah tersedia' : 'Belum termasuk di paket aktif' }}
+                            <div class="upgrade-current-panel mb-3">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                    <div>
+                                        <h4 class="mb-1" id="upgrade-current-package-name">{{ $currentPackage?->name ?? 'Belum ada paket aktif' }}</h4>
+                                        <div class="text-muted small" id="upgrade-current-package-code">{{ $currentPackage?->code ?? 'Aktifkan paket dulu untuk mulai berlangganan.' }}</div>
+                                    </div>
+                                    <div class="avatar avatar-lg rounded-circle bg-white text-primary border">
+                                        <i class="ti ti-package fs-24"></i>
                                     </div>
                                 </div>
-                            </div>
-                        @else
-                            <div class="upgrade-state-empty small text-muted">
-                                Tenant ini belum punya paket aktif yang bisa dipakai sebagai baseline perubahan.
-                            </div>
-                        @endif
 
-                        @if ($currentPackage)
-                            <div class="mt-3 pt-3 border-top">
-                                <div class="small text-muted mb-2">Atau tambahkan fitur dengan</div>
-                                <a href="{{ route('subscription') }}" class="btn btn-outline-info btn-sm w-100">
-                                    <i class="ti ti-puzzle me-1"></i> Tambah Add-on
-                                </a>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-12 col-xl-8">
-                <div class="card border-0 shadow-sm upgrade-hero-card h-100">
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-                            <div>
-                                <span class="badge bg-success-subtle text-success mb-2">Rekomendasi</span>
-                                <h4 class="mb-1">Paket yang cocok untuk buka fitur ini</h4>
-                                <div class="text-muted small">
-                                    Sistem hanya menampilkan paket aktif yang memang memuat feature
-                                    <span class="fw-semibold">{{ $blockedFeatureLabel ?: $normalizedBlockedFeature ?: 'yang diminta' }}</span>.
+                                <div id="upgrade-current-change-status" class="alert alert-info py-2 d-none mb-2" role="status"></div>
+                                <div id="upgrade-early-activate-wrap" class="d-none mb-2">
+                                    <button type="button" class="btn btn-warning btn-sm w-100" id="upgrade-early-activate-btn">
+                                        <i class="ti ti-bolt me-1"></i>Aktifkan Sekarang
+                                    </button>
                                 </div>
-                            </div>
-                            @if ($recommendedPackages->isNotEmpty())
-                                <span class="badge bg-light text-dark">{{ $recommendedPackages->count() }} opsi</span>
-                            @endif
-                        </div>
 
-                        <div id="upgrade-recommendation-grid" class="row g-3">
-                            @forelse ($recommendedPackages->take(3) as $package)
-                                <div class="col-12 col-md-6 col-xl-4">
-                                    <div class="card h-100 border bg-light-subtle shadow-none">
-                                        <div class="card-body">
-                                            <div class="fw-semibold">{{ $package['name'] }}</div>
-                                            <div class="text-muted small mb-2">{{ $package['code'] }}</div>
-                                            <div class="upgrade-price text-primary fw-bold mb-1">Rp {{ number_format((float) ($package['monthly_price'] ?? 0), 0, ',', '.') }}</div>
-                                            <div class="upgrade-price-meta mb-2">per bulan</div>
-                                            <div class="small text-muted">{{ $package['description'] ?: 'Paket aktif yang mendukung fitur terblokir.' }}</div>
+                                @if ($currentPackage)
+                                    <div class="upgrade-summary-list">
+                                        <div class="upgrade-summary-item">
+                                            <div class="text-muted small mb-1">Harga bulanan</div>
+                                            <div class="upgrade-price text-primary fw-bold" id="upgrade-current-package-monthly">Rp {{ number_format((float) ($currentPackage->monthly_price ?? 0), 0, ',', '.') }}</div>
+                                            <div class="upgrade-price-meta">per bulan</div>
+                                        </div>
+                                        <div class="upgrade-summary-item">
+                                            <div class="text-muted small mb-1">Ketersediaan fitur target</div>
+                                            <div id="upgrade-current-feature-status" class="fw-semibold {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'text-success' : 'text-warning' }}">
+                                                {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'Sudah tersedia' : 'Belum termasuk di paket aktif' }}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            @empty
-                                <div class="col-12">
+                                @else
                                     <div class="upgrade-state-empty small text-muted">
-                                        Belum ada paket aktif yang terdeteksi cocok untuk fitur ini. Anda tetap bisa memuat katalog paket di bawah untuk cek opsi lain.
+                                        Tenant ini belum punya paket aktif yang bisa dipakai sebagai baseline perubahan.
                                     </div>
+                                @endif
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-7">
+                    <div class="card border-0 upgrade-hero-card h-100">
+                        <div class="card-body p-4">
+                            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                                <div>
+                                    <div class="upgrade-kicker mb-1">{{ $recommendationKicker }}</div>
+                                    <div class="upgrade-headline">{{ $recommendationTitle }}</div>
+                                    <p class="upgrade-subline">{{ $recommendationHeadline }}</p>
                                 </div>
-                            @endforelse
+                                @if ($recommendationPackages->isNotEmpty())
+                                    <span class="badge bg-light text-dark">{{ $recommendationBadge }} · {{ $recommendationPackages->count() }} opsi</span>
+                                @endif
+                            </div>
+
+                            <div class="upgrade-recommend-panel">
+                                <div id="upgrade-recommendation-grid" class="row g-3">
+                                    @forelse ($recommendationPackages as $package)
+                                        <div class="col-12 col-md-6">
+                                            <div class="card h-100 border bg-white shadow-none">
+                                                <div class="card-body">
+                                                    <div class="fw-semibold">{{ $package['name'] }}</div>
+                                                    <div class="text-muted small mb-2">{{ $package['code'] }}</div>
+                                                    <div class="upgrade-price text-primary fw-bold mb-1">Rp {{ number_format((float) ($package['monthly_price'] ?? 0), 0, ',', '.') }}</div>
+                                                    <div class="upgrade-price-meta mb-2">per bulan</div>
+                                                    <div class="small text-muted">
+                                                        @if ($recommendationMode === 'fallback')
+                                                            {{ $package['description'] ?: 'Alternatif paket aktif yang bisa kamu pilih sambil menunggu paket dengan fitur target tersedia.' }}
+                                                        @else
+                                                            {{ $package['description'] ?: 'Paket aktif yang mendukung fitur terblokir.' }}
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="col-12">
+                                            <div class="upgrade-state-empty small text-muted">
+                                                Belum ada paket aktif yang tersedia untuk ditampilkan saat ini. Coba lagi setelah admin menambahkan paket baru atau hubungi tim platform.
+                                            </div>
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h4 class="card-title mb-0">Ajukan Perubahan Paket</h4>
+        <div class="card border-0 upgrade-hero-card mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                    <div>
+                        <div class="upgrade-kicker mb-1">Add-on Catalog</div>
+                        <div class="upgrade-headline">Fitur Tambahan Siap Aktif</div>
+                        <p class="upgrade-subline">Pilih add-on, buat invoice, selesaikan pembayaran, lalu fitur aktif otomatis di tenant kamu.</p>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary">Alur E2E Add-on</span>
+                </div>
+
+                <div class="alert alert-light border mb-3 small" role="status">
+                    <div class="fw-semibold mb-1">Alur tambah add-on (end-to-end):</div>
+                    <ol class="mb-0 ps-3">
+                        <li>Pilih add-on dari katalog di bawah.</li>
+                        <li>Klik <span class="fw-semibold">Buat Invoice Add-on</span> pada kartu add-on.</li>
+                        <li>Jika invoice terbentuk, lanjutkan pembayaran dari halaman invoice.</li>
+                        <li>Setelah paid, add-on aktif otomatis untuk company aktif saat ini.</li>
+                    </ol>
+                </div>
+
+                <div id="upgrade-addon-feedback" class="d-none mb-3"></div>
+
+                <div class="row g-3">
+                    @forelse ($activeAddons as $addon)
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="upgrade-addon-card p-3">
+                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                    <span class="upgrade-addon-icon">
+                                        <i class="ti ti-puzzle"></i>
+                                    </span>
+                                    <span class="badge bg-light text-dark">{{ strtoupper((string) ($addon->unit_name ?: 'unit')) }}</span>
+                                </div>
+                                <div class="upgrade-addon-title mb-1">{{ $addon->name }}</div>
+                                <div class="text-muted small mb-2">{{ strtoupper((string) $addon->code) }}</div>
+                                <div class="fw-bold text-primary mb-2">Rp {{ number_format((float) $addon->price_per_unit, 0, ',', '.') }}</div>
+                                <div class="upgrade-addon-description mb-3">{{ $addon->description ?: 'Add-on untuk memperluas kemampuan operasional tim.' }}</div>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary w-100"
+                                    data-upgrade-addon-checkout="{{ $addon->id }}"
+                                    data-upgrade-addon-name="{{ $addon->name }}"
+                                >
+                                    <i class="ti ti-receipt me-1"></i> Buat Invoice Add-on
+                                </button>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-12">
+                            <div class="upgrade-state-empty small text-muted">
+                                Saat ini belum ada add-on aktif yang bisa ditampilkan.
+                            </div>
+                        </div>
+                    @endforelse
+                </div>
             </div>
-            <div class="card-body">
-                <p class="text-muted mb-3">
-                    Pilih paket target, sistem akan menampilkan preview harga & jadwal berlakunya. Permintaan
-                    diteruskan ke admin platform untuk approval. Jika sudah disetujui, paket baru akan aktif
-                    pada tanggal yang ditampilkan di preview.
-                </p>
+        </div>
+
+        <div class="card upgrade-stage-card">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                    <div>
+                        <div class="upgrade-kicker mb-1">Step By Step</div>
+                        <h4 class="card-title mb-1">Ajukan Perubahan Paket</h4>
+                        <p class="text-muted mb-0">Pilih aksi, tentukan paket target, cek preview biaya, lalu ajukan untuk approval admin platform.</p>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary">Flow Upgrade</span>
+                </div>
 
                 <div class="row g-4 align-items-start">
-                    <div class="col-12 col-xl-7">
+                    <div class="col-12 col-xl-8">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Aksi</label>
@@ -398,14 +645,14 @@
                                 <button type="button" class="btn btn-outline-primary" id="upgrade-preview-btn">
                                     <i class="ti ti-eye me-1"></i>Preview
                                 </button>
-                                <button type="button" class="btn btn-primary" id="upgrade-submit-btn">
+                                <button type="button" class="btn btn-primary upgrade-primary-action" id="upgrade-submit-btn">
                                     <i class="ti ti-send me-1"></i>Ajukan Upgrade
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-12 col-xl-5">
+                    <div class="col-12 col-xl-4">
                         <div class="card border bg-light-subtle shadow-none upgrade-preview-card mb-3">
                             <div class="card-body">
                                 <div class="d-flex align-items-center justify-content-between mb-2">

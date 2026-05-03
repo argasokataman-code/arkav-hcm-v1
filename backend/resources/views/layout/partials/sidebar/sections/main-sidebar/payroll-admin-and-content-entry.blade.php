@@ -69,7 +69,7 @@
                                 <li><a href="{{url('daily-report')}}" class="{{ Request::is('daily-report') ? 'active' : '' }}">Daily Report</a></li>
                             </ul>
                         </li>
-@if ($isHcmAdmin)
+@if ($isHcmAdmin && !$isGlobalHcmAdmin)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('countries','states','cities','villages') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-map-pin-check"></i><span>Data Alamat</span>
@@ -84,9 +84,9 @@
                         </li>
 @endif
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps',
+                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings',
                             'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
+                            'approval-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
                             'payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'
 
 
@@ -96,13 +96,14 @@
                             </a>
                             <ul>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings','connected-apps') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
+                                        @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
+                                        @endif
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
-                                        <li><a href="{{url('connected-apps')}}" class="{{ Request::is('connected-apps') ? 'active' : '' }}">Connected Apps</a></li>
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
@@ -116,19 +117,19 @@
                                         <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
                                         <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
                                         @endif
+                                        @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('prefixes')}}" class="{{ Request::is('prefixes') ? 'active' : '' }}">Prefixes</a></li>
+                                        @endif
                                         <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
                                         <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
                                     </ul>
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('salary-settings','approval-settings','invoice-settings','leave-type','custom-fields') ? 'active subdrop' : '' }}">App Settings<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('approval-settings','leave-type') ? 'active subdrop' : '' }}">App Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
-                                        <li><a href="{{url('salary-settings')}}" class="{{ Request::is('salary-settings') ? 'active' : '' }}">Salary Settings</a></li>
                                         <li><a href="{{url('approval-settings')}}" class="{{ Request::is('approval-settings') ? 'active' : '' }}">Approval Settings</a></li>
-                                        <li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>
+                                        @if ($isGlobalHcmAdmin)<li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>@endif
                                         <li><a href="{{url('leave-type')}}" class="{{ Request::is('leave-type') ? 'active' : '' }}">Leave Type</a></li>
-                                        <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                     </ul>
                                 </li>
                                 @if ($isGlobalHcmAdmin)
@@ -147,7 +148,7 @@
                                 @endif
                                 @if ($isGlobalHcmAdmin)
                                 <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
-                                <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Finance - Government Tax & Compliance</a></li>
+                                <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax & Compliance</a></li>
                                 @endif
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}" >Financial Settings<span class="menu-arrow inside-submenu"></span></a>
@@ -179,7 +180,7 @@
 @endif
                     </ul>
                 </li>
-@if ($isHcmAdmin)
+@if ($isHcmAdmin && !$isGlobalHcmAdmin)
                 <li class="menu-title"><span>CONTENT</span></li>
                 <li>
                     <ul>

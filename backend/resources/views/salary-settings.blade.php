@@ -1,1 +1,0 @@
-@include('settings.salary-settings')

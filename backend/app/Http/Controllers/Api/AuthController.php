@@ -636,6 +636,37 @@ class AuthController extends Controller
         ];
     }
 
+    public function changePassword(Request $request): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('AUTH_UNAUTHORIZED', 'Unauthorized.', 401, $request);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'currentPassword' => ['required', 'string', 'max:64'],
+            'newPassword' => ['required', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
+            'confirmPassword' => ['required', 'same:newPassword'],
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors()->toArray(), $request);
+        }
+
+        if (! Hash::check((string) $request->input('currentPassword'), $user->password)) {
+            return $this->errorResponse('AUTH_INVALID_CREDENTIALS', 'Current password is incorrect.', 422, $request);
+        }
+
+        $user->password = Hash::make((string) $request->input('newPassword'));
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['message' => 'Password changed successfully.'],
+        ], 200);
+    }
+
     public function updateProfile(Request $request): JsonResponse
     {
         /** @var User|null $user */

@@ -1,4 +1,8 @@
 <?php $page = 'leave-type'; ?>
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
+
 @extends('layout.mainlayout')
 @section('content')
 @php
@@ -22,9 +26,6 @@
                 </nav>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#leaveTypeModal" data-leave-type-mode="create">
-                    <i class="ti ti-circle-plus me-2"></i>Add Leave Type
-                </button>
                 <div class="head-icons ms-2">
                     <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
                         <i class="ti ti-chevrons-up"></i>
@@ -38,18 +39,26 @@
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('profile-settings') }}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
+
+            @endif
             <li class="nav-item">
-                <a class="nav-link active" href="{{ url('salary-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
+                <a class="nav-link" href="{{ url('approval-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('email-settings') }}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+
+            @endif
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('custom-css') }}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
@@ -60,11 +69,11 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
-                            <a href="{{ url('salary-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Salary Settings</a>
                             <a href="{{ url('approval-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Approval Settings</a>
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{ url('invoice-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Invoice Settings</a>
+                            @endif
                             <a href="{{ url('leave-type') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Leave Type</a>
-                            <a href="{{ url('custom-fields') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Custom Fields</a>
                         </div>
                     </div>
                 </div>

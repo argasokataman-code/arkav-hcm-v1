@@ -1,5 +1,7 @@
 <?php $page = 'profile-settings'; ?>
-@php($isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin()))
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
 @extends('layout.mainlayout')
 @section('content')
 
@@ -35,18 +37,25 @@
             <li class="nav-item">
                 <a class="nav-link active" href="{{ url('profile-settings') }}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('business-settings') }}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
+
+            @endif
             <li class="nav-item">
-                <a class="nav-link" href="{{ url('salary-settings') }}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('email-settings') }}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+
+            @endif
             @if ($isGlobalHcmAdmin)
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('custom-css') }}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
@@ -62,7 +71,6 @@
                             <a href="{{ url('company-profile') }}" class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Company Profile</a>
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
                             <a href="{{ url('notification-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Notifications</a>
-                            <a href="{{ url('connected-apps') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Connected Apps</a>
                         </div>
                     </div>
                 </div>
@@ -265,50 +273,6 @@
                                             <div class="col-md-8">
                                                 <input type="text" class="form-control" data-general-setting="postal_code">
                                             </div>	
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="border-bottom mb-3 pb-3">
-                                <h6 class="mb-3">Change Password</h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="row align-items-center mb-3">
-                                            <div class="col-md-5">
-                                                <label class="form-label mb-md-0">Current Password</label>
-                                            </div>
-                                            <div class="col-md-7">
-                                                <div class="pass-group">
-                                                    <input type="password" class="pass-input form-control" data-profile-settings-current-password autocomplete="current-password">
-                                                    <span class="ti toggle-password ti-eye-off"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="row align-items-center mb-3">
-                                            <div class="col-md-5">
-                                                <label class="form-label mb-md-0">New Password</label>
-                                            </div>
-                                            <div class="col-md-7">
-                                                <div class="pass-group">
-                                                    <input type="password" class="pass-inputs form-control" data-profile-settings-new-password autocomplete="new-password">
-                                                    <span class="ti toggle-passwords ti-eye-off"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="row align-items-center mb-3">
-                                            <div class="col-md-5">
-                                                <label class="form-label mb-md-0">Confirm Password</label>
-                                            </div>
-                                            <div class="col-md-7">
-                                                <div class="pass-group">
-                                                    <input type="password" class="pass-inputa form-control" data-profile-settings-confirm-password autocomplete="new-password">
-                                                    <span class="ti toggle-passworda ti-eye-off"></span>
-                                                </div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>

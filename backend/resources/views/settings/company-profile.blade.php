@@ -1,4 +1,8 @@
 <?php $page = 'company-profile'; ?>
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
+
 @php($isOwner = false) {{-- JS will handle visibility based on /me role --}}
 @extends('layout.mainlayout')
 @section('content')
@@ -36,9 +40,10 @@
                         <div class="d-flex flex-column list-group settings-list">
                             <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Profile Settings</a>
                             <a href="{{ url('company-profile') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Company Profile</a>
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
+                            @endif
                             <a href="{{ url('notification-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Notifications</a>
-                            <a href="{{ url('connected-apps') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Connected Apps</a>
                         </div>
                     </div>
                 </div>

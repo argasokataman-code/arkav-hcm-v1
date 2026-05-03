@@ -1,4 +1,8 @@
 <?php $page = 'ai-settings'; ?>
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
+
 @extends('layout.mainlayout')
 @section('content')
 
@@ -34,36 +38,61 @@
             <li class="nav-item">
                 <a class="nav-link " href="{{url('profile-settings')}}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
+                @if ($isGlobalHcmAdmin)
                 <a class="nav-link active" href="{{url('business-settings')}}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
+                @endif
             </li>
+
+            @endif
             <li class="nav-item">
-                <a class="nav-link" href="{{url('salary-settings')}}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{url('email-settings')}}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{url('payment-gateways')}}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+
+            @endif
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{url('custom-css')}}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
+
+            @endif
         </ul>
         <div class="row">
             <div class="col-xl-3 theiaStickySidebar">
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('business-settings')}}" class="d-inline-flex align-items-center rounded  py-2 px-3">Business Settings</a>
+                            @endif
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('seo-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">SEO Settings</a>
+                            @endif
                             <a href="{{url('localization')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Localization</a>
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('prefixes')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Prefixes</a>
+                            @endif
                             <a href="{{url('preference')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Preferences</a>
                             <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('language')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Language</a>
+                            @endif
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('authentication-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Authentication Settings</a>
+                            @endif
+                            @if ($isGlobalHcmAdmin)
                             <a href="{{url('ai-settings')}}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>AI Settings</a>
+                            @endif
                         </div>
                     </div>
                 </div>

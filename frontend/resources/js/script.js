@@ -43,7 +43,9 @@ Template Name: Smarthr - Bootstrap Admin Template
 		$('#task_window').removeClass('opened');
 	}
 
-	$(document).on('click', '#mobile_btn', function() {
+	$(document)
+		.off('click.arcavSidebarMobile', '#mobile_btn')
+		.on('click.arcavSidebarMobile', '#mobile_btn', function() {
 		if ($wrapper.hasClass('slide-nav')) {
 			closeMobileSidebar();
 		} else {
@@ -52,11 +54,15 @@ Template Name: Smarthr - Bootstrap Admin Template
 		return false;
 	});
 
-	$(".sidebar-overlay").on("click", function () {
+	$(".sidebar-overlay")
+		.off('click.arcavSidebarMobile')
+		.on("click.arcavSidebarMobile", function () {
 		closeMobileSidebar();
 	});
 
-	$(document).on('click', '.sidebar .sidebar-menu a', function() {
+	$(document)
+		.off('click.arcavSidebarMobile', '.sidebar .sidebar-menu a')
+		.on('click.arcavSidebarMobile', '.sidebar .sidebar-menu a', function() {
 		if (!isMobileViewport()) {
 			return;
 		}
@@ -68,7 +74,7 @@ Template Name: Smarthr - Bootstrap Admin Template
 		closeMobileSidebar();
 	});
 
-	$(window).on('resize', function() {
+	$(window).off('resize.arcavSidebarMobile').on('resize.arcavSidebarMobile', function() {
 		if (!isMobileViewport()) {
 			closeMobileSidebar();
 		}
@@ -217,23 +223,47 @@ Template Name: Smarthr - Bootstrap Admin Template
 
 	// Sidebar Slimscroll
 	if($slimScrolls.length > 0) {
-		$slimScrolls.slimScroll({
-			height: 'auto',
-			width: '100%',
-			position: 'right',
-			size: '7px',
-			color: '#ccc',
-			wheelStep: 10,
-			touchScrollStep: 100
-		});
-		var wHeight = $(window).height() - 60;
-		$slimScrolls.height(wHeight);
-		$('.sidebar .slimScrollDiv').height(wHeight);
-		$(window).resize(function() {
-			var rHeight = $(window).height() - 60;
-			$slimScrolls.height(rHeight);
-			$('.sidebar .slimScrollDiv').height(rHeight);
-		});
+		function syncSidebarScrollMode() {
+			var height = $(window).height() - 60;
+
+			if (isMobileViewport()) {
+				$slimScrolls.each(function () {
+					var $el = $(this);
+					if ($el.parent().hasClass('slimScrollDiv')) {
+						$el.slimScroll({ destroy: true });
+						$el.attr('style', '');
+					}
+				});
+				$slimScrolls.css({
+					height: height,
+					overflowY: 'auto',
+					overflowX: 'hidden',
+					WebkitOverflowScrolling: 'touch'
+				});
+				return;
+			}
+
+			$slimScrolls.each(function () {
+				var $el = $(this);
+				if (!$el.parent().hasClass('slimScrollDiv')) {
+					$el.slimScroll({
+						height: 'auto',
+						width: '100%',
+						position: 'right',
+						size: '7px',
+						color: '#ccc',
+						wheelStep: 10,
+						touchScrollStep: 100
+					});
+				}
+			});
+
+			$slimScrolls.height(height);
+			$('.sidebar .slimScrollDiv').height(height);
+		}
+
+		syncSidebarScrollMode();
+		$(window).off('resize.arcavSidebarScroll').on('resize.arcavSidebarScroll', syncSidebarScrollMode);
 	}
 
 	// Sidebar
@@ -243,22 +273,23 @@ Template Name: Smarthr - Bootstrap Admin Template
 
 	function init() {
 		var $this = Sidemenu;
-		$('.sidebar-menu a').on('click', function(e) {
+		$('.sidebar-menu a').off('click.arcavSidebar').on('click.arcavSidebar', function(e) {
 			var href = String($(this).attr('href') || '').trim().toLowerCase();
 			var isSubmenuToggle = $(this).parent().hasClass('submenu') && (href === '' || href === '#' || href === 'javascript:void(0)' || href === 'javascript:void(0);');
+			var animMs = isMobileViewport() ? 0 : 160;
 
 			if (isSubmenuToggle) {
 				e.preventDefault();
 			}
 
 			if(isSubmenuToggle && !$(this).hasClass('subdrop')) {
-				$('ul', $(this).parents('ul:first')).slideUp(250);
+				$('ul', $(this).parents('ul:first')).stop(true, true).slideUp(animMs);
 				$('a', $(this).parents('ul:first')).removeClass('subdrop');
-				$(this).next('ul').slideDown(350);
+				$(this).next('ul').stop(true, true).slideDown(animMs);
 				$(this).addClass('subdrop');
 			} else if(isSubmenuToggle && $(this).hasClass('subdrop')) {
 				$(this).removeClass('subdrop');
-				$(this).next('ul').slideUp(350);
+				$(this).next('ul').stop(true, true).slideUp(animMs);
 			}
 		});
 		$('.sidebar-menu ul li.submenu a.active').parents('li:last').children('a:first').addClass('active').trigger('click');
@@ -267,16 +298,16 @@ Template Name: Smarthr - Bootstrap Admin Template
 	
 	// Sidebar Initiate
 	init();
-	$(document).on('mouseover', function(e) {
+	$(document).off('mouseover.arcavMiniSidebar').on('mouseover.arcavMiniSidebar', function(e) {
         e.stopPropagation();
         if ($('body').hasClass('mini-sidebar') && $('#toggle_btn').is(':visible')) {
             var targ = $(e.target).closest('.sidebar, .header-left').length;
             if (targ) {
                 $('body').addClass('expand-menu');
-                $('.subdrop + ul').slideDown();
+				$('.subdrop + ul').stop(true, true).slideDown(120);
             } else {
                 $('body').removeClass('expand-menu');
-                $('.subdrop + ul').slideUp();
+				$('.subdrop + ul').stop(true, true).slideUp(120);
             }
             return false;
         }
@@ -289,22 +320,23 @@ Template Name: Smarthr - Bootstrap Admin Template
 
 	function colinit() {
 		var $this = Colsidemenu;
-		$('.sidebar-right ul a').on('click', function(e) {
+		$('.sidebar-right ul a').off('click.arcavColSidebar').on('click.arcavColSidebar', function(e) {
 			var href = String($(this).attr('href') || '').trim().toLowerCase();
 			var isSubmenuToggle = $(this).parent().hasClass('submenu') && (href === '' || href === '#' || href === 'javascript:void(0)' || href === 'javascript:void(0);');
+			var animMs = isMobileViewport() ? 0 : 160;
 
 			if (isSubmenuToggle) {
 				e.preventDefault();
 			}
 
 			if(isSubmenuToggle && !$(this).hasClass('subdrop')) {
-				$('ul', $(this).parents('ul:first')).slideUp(250);
+				$('ul', $(this).parents('ul:first')).stop(true, true).slideUp(animMs);
 				$('a', $(this).parents('ul:first')).removeClass('subdrop');
-				$(this).next('ul').slideDown(350);
+				$(this).next('ul').stop(true, true).slideDown(animMs);
 				$(this).addClass('subdrop');
 			} else if(isSubmenuToggle && $(this).hasClass('subdrop')) {
 				$(this).removeClass('subdrop');
-				$(this).next('ul').slideUp(350);
+				$(this).next('ul').stop(true, true).slideUp(animMs);
 			}
 		});
 		$('.sidebar-right ul li.submenu a.active').parents('li:last').children('a:first').addClass('active').trigger('click');

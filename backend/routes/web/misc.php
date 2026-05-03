@@ -16,7 +16,9 @@ Route::get('/budget-expenses', function () { return view('finance.budget-expense
 Route::get('/budget-revenues', function () { return view('finance.budget-revenues'); })->name('budget-revenues');
 Route::get('/budgets', function () { return view('finance.budgets'); })->name('budgets');
 Route::get('/categories', function () { return view('finance.categories'); })->name('categories');
-Route::get('/taxes', function () { return view('finance.taxes'); })->name('taxes');
+Route::get('/taxes', function () {
+	return redirect()->route('tax-employees');
+})->middleware('hcm.web.admin')->name('taxes');
 Route::get('/provident-fund', function () { return view('finance.provident-fund'); })->name('provident-fund');
 Route::get('/expenses', function () { return view('finance.expenses'); })->name('expenses');
 Route::get('/payments', function () { return view('finance.payments'); })->name('payments');

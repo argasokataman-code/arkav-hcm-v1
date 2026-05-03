@@ -191,20 +191,7 @@ class CustomAuthController extends Controller
             'email' => 'required|email|exists:users,email',
         ]);
 
-        try {
-            $status = Password::sendResetLink($request->only('email'));
-        } catch (\Throwable $e) {
-            $user = User::query()->where('email', $request->email)->first();
-            if (! $user) {
-                return back()->withErrors(['email' => 'Unable to send reset link.']);
-            }
-
-            // Dev fallback: still allow reset flow even if mail transport fails.
-            $token = Password::broker()->createToken($user);
-
-            return redirect()->route('password.reset', ['token' => $token, 'email' => $user->email])
-                ->with('status', 'Mail service unavailable. Using direct reset link for testing.');
-        }
+        $status = Password::sendResetLink($request->only('email'));
 
         return $status === Password::RESET_LINK_SENT
             ? back()->with('status', __($status))
@@ -222,9 +209,10 @@ class CustomAuthController extends Controller
     public function updatePassword(Request $request)
     {
         $request->validate([
-            'token' => 'required|string',
-            'email' => 'required|email',
-            'password' => 'required|string|min:8|confirmed',
+            'token'    => 'required|string',
+            'email'    => 'required|email',
+            'password' => ['required', 'string', 'confirmed',
+                'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
         ]);
 
         $status = Password::reset(

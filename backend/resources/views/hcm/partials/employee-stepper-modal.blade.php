@@ -206,11 +206,6 @@
 
                     <div class="employee-step-pane d-none" data-employee-step-pane="1">
                         <div class="row g-3">
-                            <div class="col-md-12">
-                                <label class="form-label">Team / Unit</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="team" placeholder="Operations, HR, Finance, dll">
-                            </div>
-
                             @include('hcm.partials.employee-modal-org-fields')
 
                             <div class="col-md-6">

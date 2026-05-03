@@ -27,6 +27,8 @@ class EnsureGlobalHcmWebAdminPage
             return redirect()->to(url('employee-dashboard'));
         }
 
+        $request->setUserResolver(fn () => $user);
+
         return $next($request);
     }
 

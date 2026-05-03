@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\Invoice;
+use App\Models\Package;
+use App\Models\PackageAddon;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -84,7 +87,7 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/subscription')
             ->assertOk()
-            ->assertSee('Subscription')
+            ->assertSee('Selesaikan pembayaran')
             ->assertDontSee('MAIN MENU')
             ->assertDontSee('Search in HRMS');
     }
@@ -133,6 +136,110 @@ class LoginWebTest extends TestCase
             ->assertOk()
             ->assertSee('Trial')
             ->assertSee('30 hari lagi');
+    }
+
+    public function test_active_subscription_page_shows_paid_addons_dynamically(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Active Addon',
+            'email' => 'owner.active.addon@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'active_addon_company',
+            'name' => 'Active Addon Company',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $package = Package::query()->create([
+            'code' => 'enterprise-addon-view',
+            'name' => 'Enterprise',
+            'monthly_price' => 1299000,
+            'yearly_price' => 12990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->startOfDay(),
+            'ends_at' => now()->addDays(30),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 1299000,
+        ]);
+
+        $paidAddon = PackageAddon::query()->create([
+            'code' => 'shift_scheduler',
+            'name' => 'Shift Scheduling',
+            'description' => 'Shift scheduler addon',
+            'price_per_unit' => 49000,
+            'unit_name' => 'tenant / month',
+            'status' => 'active',
+        ]);
+
+        $unpaidAddon = PackageAddon::query()->create([
+            'code' => 'asset_tracker',
+            'name' => 'Asset Tracker',
+            'description' => 'Asset tracker addon',
+            'price_per_unit' => 79000,
+            'unit_name' => 'tenant / month',
+            'status' => 'active',
+        ]);
+
+        PurchaseTransaction::query()->create([
+            'transaction_code' => PurchaseTransaction::generateCode(),
+            'company_id' => $company->id,
+            'package_addon_id' => $paidAddon->id,
+            'transaction_type' => 'addon',
+            'description' => 'Paid addon checkout',
+            'amount' => 49000,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total_amount' => 49000,
+            'status' => 'paid',
+            'paid_at' => now()->subMinute(),
+            'due_date' => now()->addDay(),
+        ]);
+
+        PurchaseTransaction::query()->create([
+            'transaction_code' => PurchaseTransaction::generateCode(),
+            'company_id' => $company->id,
+            'package_addon_id' => $unpaidAddon->id,
+            'transaction_type' => 'addon',
+            'description' => 'Unpaid addon checkout',
+            'amount' => 79000,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total_amount' => 79000,
+            'status' => 'issued',
+            'due_date' => now()->addDay(),
+        ]);
+
+        $this->actingAs($user)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/subscription')
+            ->assertOk()
+            ->assertSee('Add-on Aktif')
+            ->assertSee('Shift Scheduling')
+            ->assertDontSee('Asset Tracker');
     }
 
     public function test_authenticated_user_sees_notifications_entry_in_mobile_user_menu(): void

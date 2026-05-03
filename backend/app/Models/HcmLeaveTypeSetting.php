@@ -12,6 +12,7 @@ class HcmLeaveTypeSetting extends Model
     use AssignsUuid;
 
     protected $fillable = [
+        'company_id',
         'code',
         'leave_type_id',
         'name',
@@ -26,11 +27,12 @@ class HcmLeaveTypeSetting extends Model
     protected function casts(): array
     {
         return [
+            'company_id'    => 'integer',
             'leave_type_id' => 'integer',
-            'is_enabled' => 'boolean',
-            'days' => 'decimal:2',
+            'is_enabled'    => 'boolean',
+            'days'          => 'decimal:2',
             'carry_forward' => 'boolean',
-            'earned_leave' => 'boolean',
+            'earned_leave'  => 'boolean',
         ];
     }
 

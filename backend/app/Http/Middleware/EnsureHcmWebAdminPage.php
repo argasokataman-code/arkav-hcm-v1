@@ -86,6 +86,8 @@ class EnsureHcmWebAdminPage
 
     private function requiresGlobalHcmAdmin(Request $request): bool
     {
-        return $request->routeIs('dashboard') || $request->routeIs('saas-dashboard');
+        return $request->routeIs('dashboard')
+            || $request->routeIs('saas-dashboard')
+            || $request->routeIs('invoice-settings');
     }
 }

@@ -401,6 +401,13 @@ export function bindEmployeeCompensationFormsModule(deps) {
         }
         toggleContractEndDateVisibility(form);
         var stepIndex = Number(form.getAttribute("data-employee-step-index") || 0);
+
+        var passwordInput = form.querySelector('[data-employee-add-field="password"], [data-employee-edit-field="password"]');
+        var confirmPasswordInput = form.querySelector('[data-employee-add-field="confirmPassword"], [data-employee-edit-field="confirmPassword"]');
+        if (confirmPasswordInput && typeof confirmPasswordInput.setCustomValidity === "function") {
+            confirmPasswordInput.setCustomValidity("");
+        }
+
         var pane = form.querySelector('[data-employee-step-pane="' + stepIndex + '"]');
         if (pane) {
             var fields = pane.querySelectorAll("input, select, textarea");
@@ -411,6 +418,21 @@ export function bindEmployeeCompensationFormsModule(deps) {
                 if (typeof fields[i].reportValidity === "function" && !fields[i].reportValidity()) {
                     return false;
                 }
+            }
+        }
+
+        if (stepIndex === 0 && passwordInput && confirmPasswordInput) {
+            var passwordValue = String(passwordInput.value || "");
+            var confirmPasswordValue = String(confirmPasswordInput.value || "");
+            if (passwordValue !== confirmPasswordValue) {
+                if (typeof confirmPasswordInput.setCustomValidity === "function") {
+                    confirmPasswordInput.setCustomValidity("Konfirmasi password harus sama dengan password.");
+                }
+                if (typeof confirmPasswordInput.reportValidity === "function") {
+                    confirmPasswordInput.reportValidity();
+                }
+                showValidationToast("Password dan konfirmasi password harus sama sebelum lanjut ke step berikutnya.");
+                return false;
             }
         }
 
@@ -559,7 +581,6 @@ export function bindEmployeeCompensationFormsModule(deps) {
         var payload = {
             name: readField(form, "name"),
             email: readField(form, "email"),
-            team: readText(form, "team"),
             phone: readText(form, "phone"),
             nik: readText(form, "nik"),
             address: readText(form, "address"),
@@ -613,7 +634,6 @@ export function bindEmployeeCompensationFormsModule(deps) {
         var selectedTeamRaw = teamSelectEl ? String(teamSelectEl.value || "") : "";
         if (isEdit && inactiveTeamPref && selectedTeamRaw === "") {
             delete payload.teamId;
-            delete payload.team;
         }
 
         if (!isEdit) {
@@ -631,7 +651,6 @@ export function bindEmployeeCompensationFormsModule(deps) {
 
         writeField(editForm, "name", item.fullName || "");
         writeField(editForm, "email", item.email || "");
-        writeField(editForm, "team", item.team || "");
         writeField(editForm, "phone", item.phone && item.phone !== "-" ? item.phone : "");
         writeField(editForm, "nik", item.nik || (item.personal && item.personal.nik ? item.personal.nik : ""));
         writeField(editForm, "addressDetail", item.addressDetail && item.addressDetail !== "-" ? item.addressDetail : "");

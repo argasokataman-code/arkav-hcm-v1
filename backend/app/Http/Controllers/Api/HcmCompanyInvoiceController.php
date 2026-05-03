@@ -9,7 +9,6 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\InvoiceService;
 use App\Services\MockPaymentGatewayService;
-use App\Services\SubscriptionActivationFromInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +21,6 @@ class HcmCompanyInvoiceController
 
     public function __construct(
         private readonly InvoiceService $invoiceService,
-        private readonly SubscriptionActivationFromInvoiceService $activationService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -121,6 +119,7 @@ class HcmCompanyInvoiceController
         }
 
         $invoice = Invoice::query()
+            ->with('purchaseTransaction')
             ->where('company_id', $companyId)
             ->whereKey($id)
             ->firstOrFail();
@@ -214,16 +213,7 @@ class HcmCompanyInvoiceController
                 'verified_at' => now(),
             ]);
 
-            $invoice->update([
-                'is_paid' => true,
-                'paid_date' => now(),
-                'status' => 'paid',
-            ]);
-
-            // Activate subscription if this invoice belongs to a subscription.
-            if ($invoice->subscription_id) {
-                $this->activationService->activateIfEligible($invoice->fresh());
-            }
+            $invoice->markAsPaid();
 
             return $payment;
         });

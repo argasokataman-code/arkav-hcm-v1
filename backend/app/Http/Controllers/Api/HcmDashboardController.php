@@ -246,22 +246,40 @@ class HcmDashboardController extends Controller
         $attendanceAbsentPct = (int) round(($noCheckInToday / $attendancePercentageBase) * 100);
 
         $departmentBreakdown = $activeProfiles
-            ->groupBy(function (EmployeeProfile $profile) use ($departmentNameById): string {
-                $departmentId = (int) ($profile->department_id ?? 0);
-                if ($departmentId > 0 && isset($departmentNameById[$departmentId])) {
-                    return (string) $departmentNameById[$departmentId];
+            ->map(fn (EmployeeProfile $profile): int => (int) ($profile->department_id ?? 0))
+            ->filter(fn (int $departmentId): bool => $departmentId > 0)
+            ->countBy()
+            ->map(function (int $count, int|string $departmentId) use ($departmentNameById): array {
+                $resolvedName = trim((string) ($departmentNameById[(int) $departmentId] ?? ''));
+
+                return [
+                    'name' => $resolvedName !== '' ? $resolvedName : 'Unknown Department',
+                    'count' => $count,
+                ];
+            })
+            ->values();
+
+        $unassignedDepartmentCount = $activeProfiles
+            ->filter(fn (EmployeeProfile $profile): bool => (int) ($profile->department_id ?? 0) <= 0)
+            ->count();
+
+        if ($unassignedDepartmentCount > 0) {
+            $departmentBreakdown->push([
+                'name' => 'Unassigned Department',
+                'count' => $unassignedDepartmentCount,
+            ]);
+        }
+
+        $departmentBreakdown = $departmentBreakdown
+            ->sort(function (array $left, array $right): int {
+                $countCompare = ((int) ($right['count'] ?? 0)) <=> ((int) ($left['count'] ?? 0));
+                if ($countCompare !== 0) {
+                    return $countCompare;
                 }
 
-                $fallback = trim((string) ($profile->team ?? ''));
-                return $fallback !== '' ? $fallback : 'Unassigned';
+                return strcmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
             })
-            ->map(fn ($rows) => $rows->count())
-            ->sortDesc()
             ->take(6)
-            ->map(fn (int $count, string $name): array => [
-                'name' => $name,
-                'count' => $count,
-            ])
             ->values();
 
         $monthAttendanceRows = AttendanceRecord::query()

@@ -160,8 +160,8 @@
         'employee-report','payslip-report','attendance-report', 'leave-report', 'daily-report',
     ]))
     <!-- Chart JS -->
-    <script src="{{ URL::asset('build/plugins/apexchart/apexcharts.min.js') }}"></script>
-    <script src="{{ URL::asset('build/plugins/apexchart/chart-data.js') }}"></script>
+    <script src="{{ URL::asset('build/plugins/apexchart/apexcharts.min.js') }}?v={{ file_exists(public_path('build/plugins/apexchart/apexcharts.min.js')) ? filemtime(public_path('build/plugins/apexchart/apexcharts.min.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/plugins/apexchart/chart-data.js') }}?v={{ file_exists(public_path('build/plugins/apexchart/chart-data.js')) ? filemtime(public_path('build/plugins/apexchart/chart-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['chart-c3']))
@@ -176,8 +176,8 @@
 'layout-vertical-transparent', 'layout-without-header', 'layout-rtl', 'layout-dark'
 ]))
     <!-- Chart JS -->
-    <script src="{{ URL::asset('build/plugins/chartjs/chart.min.js') }}"></script>
-    <script src="{{ URL::asset('build/plugins/chartjs/chart-data.js') }}"></script>
+    <script src="{{ URL::asset('build/plugins/chartjs/chart.min.js') }}?v={{ file_exists(public_path('build/plugins/chartjs/chart.min.js')) ? filemtime(public_path('build/plugins/chartjs/chart.min.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/plugins/chartjs/chart-data.js') }}?v={{ file_exists(public_path('build/plugins/chartjs/chart-data.js')) ? filemtime(public_path('build/plugins/chartjs/chart-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['chart-morris']))
@@ -354,6 +354,10 @@
 
 @if (Route::is(['notification-settings']))
     <script src="{{ URL::asset('build/js/notification-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['security-settings']))
+    <script src="{{ URL::asset('build/js/security-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['notification-observability']))

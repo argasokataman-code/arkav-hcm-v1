@@ -34,7 +34,7 @@ class KnowledgebaseWebTest extends TestCase
         $this->actingAs($user)
             ->get('/knowledgebase/article/login-perusahaan-dan-token')
             ->assertOk()
-            ->assertSee('cookie', false);
+            ->assertSee('Cara login', false);
 
         $this->actingAs($user)
             ->get('/knowledgebase/article/hub-super-admin-menu')

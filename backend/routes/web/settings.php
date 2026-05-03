@@ -20,16 +20,7 @@ Route::get('/security-settings', function () {
 Route::get('/notification-settings', function () {
     return view('settings.notification-settings');
 })->name('notification-settings');
-
-Route::get('/connected-apps', function () {
-    return view('settings.connected-apps');
-})->name('connected-apps');
-
 // Admin-level settings
-Route::get('/salary-settings', function () {
-    return view('settings.salary-settings');
-})->middleware('hcm.web.admin')->name('salary-settings');
-
 Route::get('/approval-settings', function () {
     return view('settings.approval-settings');
 })->middleware('hcm.web.admin')->name('approval-settings');
@@ -38,17 +29,60 @@ Route::get('/invoice-settings', function () {
     return view('finance.invoice-settings');
 })->middleware('hcm.web.admin')->name('invoice-settings');
 
-Route::get('/custom-fields', function () {
-    return view('settings.custom-fields');
-})->middleware('hcm.web.admin')->name('custom-fields');
-
 Route::get('/prefixes', function () {
     return view('settings.prefixes');
-})->middleware('hcm.web.admin')->name('prefixes');
+})->middleware('hcm.web.global-admin')->name('prefixes');
 
 Route::get('/preferences', function () {
     return view('settings.preferences');
 })->middleware('hcm.web.admin')->name('preferences');
+
+// Tenant tax governance (company admin)
+Route::middleware('hcm.web.admin')->prefix('tax-employees')->group(function (): void {
+    Route::get('/', function () {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'landing',
+            'taxGovernancePolicyUuid' => null,
+        ]);
+    })->name('tax-employees');
+
+    Route::get('/policies', function () {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'tenant-policies',
+            'taxGovernancePolicyUuid' => null,
+        ]);
+    })->name('tax-employees.policies');
+
+    Route::get('/policies/{policyUuid}/edit', function (string $policyUuid) {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'policy-editor',
+            'taxGovernancePolicyUuid' => $policyUuid,
+        ]);
+    })->name('tax-employees.policies.edit');
+
+    Route::get('/tenant-compliance', function () {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'tenant-compliance',
+            'taxGovernancePolicyUuid' => null,
+        ]);
+    })->name('tax-employees.tenant-compliance');
+
+    Route::get('/employee-tax-profiles', function () {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'employee-tax-profiles',
+            'taxGovernancePolicyUuid' => null,
+        ]);
+    })->name('tax-employees.employee-tax-profiles');
+
+    Route::get('/reports', function () {
+        return view('finance.tax-rates', [
+            'taxGovernanceScreen' => 'tenant-reports',
+            'taxGovernancePolicyUuid' => null,
+        ]);
+    })->name('tax-employees.reports');
+
+
+});
 
 Route::get('/appearance', function () {
     return view('settings.appearance');

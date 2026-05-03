@@ -213,10 +213,6 @@ class HcmTaxGovernanceController extends Controller
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
 
-        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_DRAFT) {
-            return $this->errorResponse('TAX_POLICY_INVALID_STATE_TRANSITION', 'Only draft policy can be updated.', 422);
-        }
-
         $validated = $this->validateUpsertRequest($request, false);
         $normalized = $this->normalizeUpsertPayload($validated, $policy);
         if (array_key_exists('version', $normalized) && (int) $normalized['version'] !== (int) $policy->version) {
@@ -253,7 +249,7 @@ class HcmTaxGovernanceController extends Controller
     {
         return $this->errorResponse(
             'TAX_POLICY_WORKFLOW_DISABLED',
-            'Workflow submission is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            'Workflow submission is temporarily disabled.',
             409
         );
     }
@@ -262,7 +258,7 @@ class HcmTaxGovernanceController extends Controller
     {
         return $this->errorResponse(
             'TAX_POLICY_WORKFLOW_DISABLED',
-            'Approval workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            'Approval workflow is temporarily disabled.',
             409
         );
     }
@@ -271,18 +267,59 @@ class HcmTaxGovernanceController extends Controller
     {
         return $this->errorResponse(
             'TAX_POLICY_WORKFLOW_DISABLED',
-            'Approval workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
+            'Rejection workflow is temporarily disabled.',
             409
         );
     }
 
     public function publish(Request $request, string $policyRef): JsonResponse
     {
-        return $this->errorResponse(
-            'TAX_POLICY_WORKFLOW_DISABLED',
-            'Publication workflow is temporarily disabled. Tenant owner should manage policy directly from editor.',
-            409
-        );
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
+            return $response;
+        }
+
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
+        if (! $policy) {
+            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
+        }
+
+        $allowedFromStatuses = [
+            HcmTaxGovernancePolicy::STATUS_DRAFT,
+            HcmTaxGovernancePolicy::STATUS_SUBMITTED,
+            HcmTaxGovernancePolicy::STATUS_APPROVED,
+        ];
+        if (! in_array($policy->status, $allowedFromStatuses, true)) {
+            return $this->errorResponse(
+                'TAX_POLICY_INVALID_STATE_TRANSITION',
+                'Policy cannot be published from its current status: ' . $policy->status,
+                422
+            );
+        }
+
+        $before = $this->policyStateSnapshot($policy);
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+        $previousStatus = $policy->status;
+
+        DB::transaction(function () use ($policy, $before, $actorId): void {
+            $policy->status = HcmTaxGovernancePolicy::STATUS_PUBLISHED;
+            $policy->published_at = now();
+            $policy->save();
+            $this->recordEvent($policy, 'published', $before, $this->policyStateSnapshot($policy), null, $actorId);
+        });
+
+        $policy->refresh();
+
+        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
+
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
+            'success' => true,
+            'data' => $this->policyPayload($policy),
+        ]), $usedNumericLegacy);
     }
 
     public function tenantSelfAuditReport(Request $request): JsonResponse
@@ -626,6 +663,7 @@ class HcmTaxGovernanceController extends Controller
         $events = HcmTaxGovernancePolicyEvent::where('company_id', (int) $companyId)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->orderByDesc('created_at')
+            ->limit(50)
             ->get();
 
         $changeHistory = collect($events)
@@ -785,7 +823,7 @@ class HcmTaxGovernanceController extends Controller
             'data' => [
                 'company_id' => (int) $companyId,
                 'company_name' => $company->name,
-                'reporting_period' => now()->format('Y-\QQ'),
+                'reporting_period' => now()->year . '-Q' . now()->quarter,
                 'compliance_status' => [
                     'statutory_tax_compliance' => [
                         'has_active_policy' => (bool) $currentPolicy,

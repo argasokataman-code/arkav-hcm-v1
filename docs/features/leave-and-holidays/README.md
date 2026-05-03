@@ -57,8 +57,8 @@ Fitur ini mencakup master hari libur, pengajuan cuti, katalog tipe cuti, dan cus
   - `PUT /leave-requests/{id}` — pemilik hanya boleh mengubah field cuti sendiri selagi `status=pending`; **hcmAdmin** boleh mengubah `status`/`notes` untuk pengajuan milik orang lain (approve/decline).
   - `DELETE /leave-requests/{id}` — hanya pemilik, hanya `pending`.
 - Leave type catalog:
-  - `GET /leave-types` — katalog admin untuk `hcm_leave_type_settings`; dipakai juga oleh dropdown `GET /leave-type-options`.
-  - `POST /leave-types` / `PUT /leave-types/{id}` / `DELETE /leave-types/{id}` — CRUD admin dari halaman Blade `/leave-type`.
+  - `GET /leave-types` — katalog admin per-company (`company_id` scope) dari `hcm_leave_type_settings`; permission `leave.type`; dipakai juga oleh dropdown `GET /leave-type-options`.
+  - `POST /leave-types` / `PUT /leave-types/{id}` / `DELETE /leave-types/{id}` — CRUD admin per-company dari halaman Blade `/leave-type`; permission `leave.type` semua verb.
 - Leave settings (semua endpoint **hcmAdmin** saja — `HcmLeaveSettingController` + `EnsuresHcmAdmin`):
   - `GET /leave-settings`
   - `PUT /leave-settings/types/{code}`

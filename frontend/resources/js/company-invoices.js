@@ -62,6 +62,42 @@
         return '<span class="badge bg-' + (map[s] || "secondary") + '">' + esc(s || "-") + "</span>";
     }
 
+    function parseInvoiceNotes(inv) {
+        if (!inv || !inv.notes) return null;
+        var raw = String(inv.notes || "").trim();
+        if (!raw || raw.charAt(0) !== "{") return null;
+        try {
+            return JSON.parse(raw);
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    function invoiceSource(inv) {
+        var notes = parseInvoiceNotes(inv);
+        return notes && notes.source ? String(notes.source) : "";
+    }
+
+    function addonMeta(inv) {
+        var notes = parseInvoiceNotes(inv);
+        var pricing = notes && notes.pricing_breakdown && typeof notes.pricing_breakdown === "object"
+            ? notes.pricing_breakdown
+            : null;
+        if (!pricing) return null;
+        if (!pricing.addon_code && !pricing.addon_name) return null;
+        return {
+            code: String(pricing.addon_code || "").trim(),
+            name: String(pricing.addon_name || "Add-on").trim(),
+            unitName: String(pricing.unit_name || "tenant / month").trim(),
+        };
+    }
+
+    function isAddonInvoice(inv) {
+        var source = invoiceSource(inv);
+        if (source === "tenant_addon_checkout") return true;
+        return !!addonMeta(inv);
+    }
+
     function previewPill(label, tone) {
         return '<span class="company-invoice-pill company-invoice-pill--' + esc(tone || "muted") + '">' + esc(label || "-") + "</span>";
     }
@@ -80,6 +116,10 @@
     }
 
     function invoiceLineLabel(inv) {
+        if (isAddonInvoice(inv)) {
+            var addon = addonMeta(inv);
+            return (addon && addon.name ? addon.name : "Add-on") + " billing";
+        }
         if (inv && inv.packageName) {
             return inv.packageName + " billing";
         }
@@ -87,6 +127,15 @@
     }
 
     function invoiceLineCaption(inv) {
+        if (isAddonInvoice(inv)) {
+            var addon = addonMeta(inv);
+            var addonName = addon && addon.name ? addon.name : "Add-on";
+            var unit = addon && addon.unitName ? addon.unitName : "tenant / month";
+            var renewalText = inv && inv.subscriptionId
+                ? " Setelah paid, add-on akan ikut pada tagihan renewal berikutnya."
+                : "";
+            return "Tagihan aktivasi add-on " + addonName + " (" + unit + ")." + renewalText;
+        }
         if (inv && inv.subscriptionId) {
             var detail = [];
             if (inv.packageName) detail.push("Package " + inv.packageName);
@@ -98,6 +147,12 @@
     }
 
     function invoiceGuidance(inv) {
+        if (isAddonInvoice(inv)) {
+            if (inv && inv.isPaid) {
+                return "Pembayaran add-on sudah diterima. Fitur add-on aktif untuk tenant saat ini dan akan diperhitungkan pada billing renewal berikutnya.";
+            }
+            return "Selesaikan pembayaran add-on agar fitur aktif. Invoice add-on dipisah dari invoice bulanan agar detail pembelian tetap jelas.";
+        }
         if (inv && inv.isPaid) {
             if (inv.nextBillingDate) {
                 return "Pembayaran sudah diterima. Simpan invoice ini sebagai bukti billing resmi. Penagihan berikutnya dijadwalkan pada " + fmtDate(inv.nextBillingDate) + ".";
@@ -111,6 +166,11 @@
     }
 
     function packageSummary(inv) {
+        if (isAddonInvoice(inv)) {
+            var addon = addonMeta(inv);
+            var addonName = addon && addon.name ? addon.name : "Add-on";
+            return addonName + " · Add-on";
+        }
         var bits = [];
         if (inv && inv.packageName) bits.push(inv.packageName);
         if (inv && inv.billingCycleLabel) bits.push(inv.billingCycleLabel);
@@ -120,6 +180,12 @@
     }
 
     function nextBillingSummary(inv) {
+        if (isAddonInvoice(inv)) {
+            if (inv && inv.subscriptionId && inv.nextBillingDate) {
+                return "Masuk renewal " + fmtDate(inv.nextBillingDate);
+            }
+            return "Tagihan add-on terpisah";
+        }
         if (inv && inv.nextBillingDate) {
             return "Next payment " + fmtDate(inv.nextBillingDate);
         }
@@ -342,6 +408,16 @@
         return "Gagal memuat invoice company.";
     }
 
+    function redirectTo(url) {
+        var target = String(url || "").trim();
+        if (!target) return;
+        if (typeof window.__ARCAV_TEST_REDIRECT__ === "function") {
+            window.__ARCAV_TEST_REDIRECT__(target);
+            return;
+        }
+        window.location.href = target;
+    }
+
     function isSameMonth(dateValue) {
         if (!dateValue) return false;
         var date = new Date(dateValue);
@@ -467,11 +543,14 @@
                 <tbody>
                   ${(rows || []).map(function (r) {
                       var paid = r.isPaid ? '<span class="badge bg-success">paid</span>' : '<span class="badge bg-warning text-dark">unpaid</span>';
+                                            var typeBadge = isAddonInvoice(r)
+                                                    ? '<span class="badge bg-primary-subtle text-primary">addon</span>'
+                                                    : '<span class="badge bg-light text-dark">subscription</span>';
                       return `
                         <tr>
                           <td>
                             <div class="fw-semibold">${esc(r.invoiceNumber || ("INV-" + r.id))}</div>
-                                                        <div class="text-muted small">${esc(packageSummary(r))}</div>
+                                                        <div class="text-muted small d-flex align-items-center gap-2 flex-wrap">${esc(packageSummary(r))} ${typeBadge}</div>
                             <div class="text-muted small">#${esc(r.id)}</div>
                           </td>
                           <td>${esc(r.issueDate || "-")}</td>
@@ -662,8 +741,13 @@
             var payBtn = e.target.closest("[data-invoice-mock-pay]");
             if (payBtn) {
                 var id2 = payBtn.getAttribute("data-invoice-mock-pay");
-                api("post", "/hcm/billing/invoices/" + encodeURIComponent(id2) + "/mock-pay").then(function () {
-                    load();
+                api("post", "/hcm/billing/invoices/" + encodeURIComponent(id2) + "/mock-hosted-checkout", {}).then(function (payload) {
+                    var hostedCheckoutUrl = payload && payload.flow ? String(payload.flow.hostedCheckoutUrl || "").trim() : "";
+                    if (!payload || payload.success !== true || !hostedCheckoutUrl) {
+                        throw new Error("Gagal membuka halaman mock payment.");
+                    }
+                    clearFeedback();
+                    redirectTo(hostedCheckoutUrl);
                 }).catch(function (err) {
                     showFeedback(parseError(err));
                 });

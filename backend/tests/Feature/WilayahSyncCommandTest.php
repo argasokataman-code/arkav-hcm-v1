@@ -217,9 +217,7 @@ class WilayahSyncCommandTest extends TestCase
             ->from('/states')
             ->post('/locations/sync', ['_token' => $csrfToken]);
 
-        $response->assertRedirect('/states');
-        $response->assertSessionHas('wilayahSyncStatus');
-        $response->assertSessionHas('wilayahSyncStatus.message', 'Sync data wilayah hanya tersedia untuk global admin.');
+        $response->assertRedirect('/employee-dashboard');
         Http::assertNothingSent();
     }
 

@@ -71,4 +71,45 @@ class PasswordResetWebFlowTest extends TestCase
         $user->refresh();
         $this->assertTrue(Hash::check('NewPass123!', $user->password));
     }
+
+    public function test_reset_password_rejects_weak_password(): void
+    {
+        $csrfToken = 'weak-password-token';
+
+        $user = User::query()->create([
+            'name' => 'Weak Reset User',
+            'email' => 'weak.reset@example.com',
+            'password' => Hash::make('OldPass123!'),
+        ]);
+
+        $token = Password::broker()->createToken($user);
+
+        $response = $this->withSession(['_token' => $csrfToken])
+            ->post('/reset-password', [
+                '_token' => $csrfToken,
+                'token' => $token,
+                'email' => $user->email,
+                'password' => 'weakpass',
+                'password_confirmation' => 'weakpass',
+            ]);
+
+        $response->assertSessionHasErrors('password');
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('OldPass123!', $user->password), 'Password must not change on weak input.');
+    }
+
+    public function test_forgot_password_returns_error_when_email_not_found(): void
+    {
+        $csrfToken = 'not-found-token';
+
+        $response = $this->withSession(['_token' => $csrfToken])
+            ->from('/forgot-password')
+            ->post('/forgot-password', [
+                '_token' => $csrfToken,
+                'email' => 'nonexistent@example.com',
+            ]);
+
+        $response->assertSessionHasErrors('email');
+    }
 }

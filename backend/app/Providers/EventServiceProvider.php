@@ -6,10 +6,12 @@ use App\Events\AddonPurchased;
 use App\Events\PayrollFinalized;
 use App\Events\SubscriptionCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Notifications\Events\NotificationSending;
 use App\Events\TaxGovernancePolicyTransitioned;
 use App\Listeners\CaptureAddonRevenue;
 use App\Listeners\CapturePayrollServiceRevenue;
 use App\Listeners\CaptureSubscriptionRevenue;
+use App\Listeners\EnforceNotificationPreference;
 use App\Listeners\TaxGovernancePolicyEventListener;
 
 class EventServiceProvider extends ServiceProvider
@@ -31,6 +33,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         AddonPurchased::class => [
             CaptureAddonRevenue::class,
+        ],
+        NotificationSending::class => [
+            EnforceNotificationPreference::class,
         ],
     ];
 

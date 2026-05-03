@@ -35,6 +35,7 @@
     var activePackageUnit = document.querySelector("[data-checkout-active-package-unit]");
     var mockPayEnabled = String(root.getAttribute("data-checkout-mock-pay-enabled") || "0") === "1";
     var isPendingLock = String(root.getAttribute("data-checkout-pending-lock") || "0") === "1";
+    var isActiveOnly = String(root.getAttribute("data-checkout-active-only") || "0") === "1";
     var upgradeForm = document.querySelector("[data-checkout-form].checkout-upgrade-form") || form;
     var currentInvoice = null;
 
@@ -706,6 +707,10 @@
     async function boot() {
         try {
             await loadMeAndRenderContext();
+            if (isActiveOnly) {
+                clearFeedback();
+                return;
+            }
             await loadPackages();
             await loadAddons();
             if (form) form.addEventListener("submit", submitCheckout);

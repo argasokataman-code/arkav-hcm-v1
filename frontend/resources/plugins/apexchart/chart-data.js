@@ -2262,6 +2262,63 @@ if ($('#revenue-chart').length > 0) {
 // Employee Department
 
 if ($('#emp-department').length > 0) {
+  var initialDepartmentCategories = ['UI/UX', 'Development', 'Management', 'HR', 'Testing', 'Marketing'];
+  var initialDepartmentSeries = [80, 110, 80, 20, 60, 100];
+
+  function normalizeDepartmentCount(item) {
+    if (!item || typeof item !== 'object') return 0;
+
+    var raw = item.count;
+    if (raw == null) raw = item.total;
+    if (raw == null) raw = item.value;
+    if (raw == null) raw = item.employeeCount;
+
+    var parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.round(parsed);
+  }
+
+  function normalizeDepartmentBreakdown(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return {
+        categories: initialDepartmentCategories,
+        series: initialDepartmentSeries
+      };
+    }
+
+    var buckets = {};
+    for (var i = 0; i < items.length; i += 1) {
+      var item = items[i] || {};
+      var name = String(item.name == null ? '' : item.name).trim();
+      if (!name) continue;
+
+      if (!buckets[name]) {
+        buckets[name] = 0;
+      }
+      buckets[name] += normalizeDepartmentCount(item);
+    }
+
+    var categories = Object.keys(buckets);
+    var series = [];
+    for (var j = 0; j < categories.length; j += 1) {
+      series.push(buckets[categories[j]]);
+    }
+
+    if (categories.length === 0) {
+      return {
+        categories: initialDepartmentCategories,
+        series: initialDepartmentSeries
+      };
+    }
+
+    return {
+      categories: categories,
+      series: series
+    };
+  }
+
+  var initialDepartmentPayload = normalizeDepartmentBreakdown(window.__arcavPendingDepartmentBreakdown);
+
   var sBar = {
     chart: {
       height: 220,
@@ -2298,12 +2355,21 @@ if ($('#emp-department').length > 0) {
     dataLabels: {
       enabled: false
     },
+    tooltip: {
+      y: {
+        formatter: function (val) {
+          var parsed = Number(val);
+          if (!Number.isFinite(parsed)) parsed = 0;
+          return Math.round(parsed) + ' karyawan';
+        }
+      }
+    },
     series: [{
-      data: [80, 110, 80, 20, 60, 100],
+      data: initialDepartmentPayload.series,
       name: 'Employee'
     }],
     xaxis: {
-      categories: ['UI/UX', 'Development', 'Management', 'HR', 'Testing', 'Marketing'],
+      categories: initialDepartmentPayload.categories,
       labels: {
         style: {
           colors: '#111827', 
@@ -2313,12 +2379,30 @@ if ($('#emp-department').length > 0) {
     }
   }
 
-  var chart = new ApexCharts(
+  var employeeDepartmentChart = new ApexCharts(
     document.querySelector("#emp-department"),
     sBar
   );
 
-  chart.render();
+  employeeDepartmentChart.render();
+
+  window.__arcavEmployeeDepartmentChart = employeeDepartmentChart;
+  window.updateEmployeeDepartmentChart = function (items) {
+    var payload = normalizeDepartmentBreakdown(items);
+    employeeDepartmentChart.updateOptions({
+      series: [{
+        name: 'Employee',
+        data: payload.series
+      }],
+      xaxis: {
+        categories: payload.categories
+      }
+    }, false, true);
+  };
+
+  if (Array.isArray(window.__arcavPendingDepartmentBreakdown)) {
+    window.updateEmployeeDepartmentChart(window.__arcavPendingDepartmentBreakdown);
+  }
 }
 
 // Company Chart

@@ -2,8 +2,6 @@ var __arcavRenderPlatformReportModuleRef = null;
 var __arcavRenderPlatformReportModulePromise = null;
 var __arcavLoadPricingPlansScreenModuleRef = null;
 var __arcavLoadPricingPlansScreenModulePromise = null;
-var __arcavBindKomponentCrudModuleRef = null;
-var __arcavBindKomponentCrudModulePromise = null;
 
 function resolveRenderPlatformReportModule() {
     if (typeof __arcavRenderPlatformReportModuleRef === "function") {
@@ -79,43 +77,6 @@ function loadPricingPlansScreenModuleLoader() {
     return __arcavLoadPricingPlansScreenModulePromise;
 }
 
-function resolveBindKomponentCrudModule() {
-    if (typeof __arcavBindKomponentCrudModuleRef === "function") {
-        return __arcavBindKomponentCrudModuleRef;
-    }
-    if (window.ArcavTaxGovernanceModules && typeof window.ArcavTaxGovernanceModules.bindKomponentCrudModule === "function") {
-        __arcavBindKomponentCrudModuleRef = window.ArcavTaxGovernanceModules.bindKomponentCrudModule;
-        return __arcavBindKomponentCrudModuleRef;
-    }
-    return null;
-}
-
-function loadBindKomponentCrudModule() {
-    var resolved = resolveBindKomponentCrudModule();
-    if (resolved) {
-        return Promise.resolve(resolved);
-    }
-    if (__arcavBindKomponentCrudModulePromise) {
-        return __arcavBindKomponentCrudModulePromise;
-    }
-    try {
-        var dynamicImport = new Function("modulePath", "return import(modulePath);");
-        __arcavBindKomponentCrudModulePromise = dynamicImport("./tax-governance/tax-governance-komponen-crud.js")
-            .then(function (mod) {
-                if (mod && typeof mod.bindKomponentCrudModule === "function") {
-                    __arcavBindKomponentCrudModuleRef = mod.bindKomponentCrudModule;
-                }
-                return resolveBindKomponentCrudModule();
-            })
-            .catch(function () {
-                return null;
-            });
-    } catch (_error) {
-        __arcavBindKomponentCrudModulePromise = Promise.resolve(null);
-    }
-    return __arcavBindKomponentCrudModulePromise;
-}
-
 (function (window, document) {
     "use strict";
 
@@ -127,6 +88,14 @@ function loadBindKomponentCrudModule() {
 
     function qs(selector, root) {
         return (root || document).querySelector(selector);
+    }
+
+    function getPolicyUuid(root) {
+        // root is [data-tax-governance-page] itself; read directly from it
+        var page = (root && root.hasAttribute && root.hasAttribute('data-tax-governance-page'))
+            ? root
+            : qs("[data-tax-governance-page]", root || document);
+        return page ? (page.getAttribute('data-tax-governance-policy-uuid') || '').trim() || null : null;
     }
 
     function setText(el, value) {
@@ -316,12 +285,6 @@ function loadBindKomponentCrudModule() {
         if (!payload.effectiveStartDate) {
             errors.push("Tanggal mulai berlaku wajib diisi.");
         }
-        if (!getPolicyRuleValue(payload, "regulationReference")) {
-            errors.push("Referensi regulasi wajib diisi.");
-        }
-        if (!getPolicyRuleValue(payload, "regulationSourceType")) {
-            errors.push("Sumber regulasi wajib dipilih.");
-        }
         if (!Array.isArray(payload.rateSchedules) || payload.rateSchedules.length === 0) {
             errors.push("Minimal satu statutory schedule wajib tersedia.");
         }
@@ -333,7 +296,7 @@ function loadBindKomponentCrudModule() {
         }
         node.classList.add("alert-success");
         node.innerHTML = "<strong>Validasi OK.</strong> Policy statutory siap disimpan.<br>"
-            + "Kebijakan: <strong>" + escapeHtml(payload.policyCode) + "</strong>, Regulasi: <strong>" + escapeHtml(getPolicyRuleValue(payload, "regulationReference")) + "</strong>, Berlaku mulai: <strong>" + escapeHtml(payload.effectiveStartDate) + "</strong><br>"
+            + "Kebijakan: <strong>" + escapeHtml(payload.policyCode) + "</strong>, Berlaku mulai: <strong>" + escapeHtml(payload.effectiveStartDate) + "</strong><br>"
             + summarizePolicySchedules(payload.rateSchedules);
         return true;
     }
@@ -351,8 +314,6 @@ function loadBindKomponentCrudModule() {
         form.name.value = data.name || "";
         form.effectiveStartDate.value = data.effectiveStartDate || "";
         form.effectiveEndDate.value = data.effectiveEndDate || "";
-        form.regulationReference.value = getPolicyRuleValue(data, "regulationReference", "regulation_reference") || "PP 58/2023 & PMK 168/PMK.03/2023";
-        form.regulationSourceType.value = getPolicyRuleValue(data, "regulationSourceType") || "ministry_regulation";
 
         setText(qs("[data-tax-editor-policy-ref]", root), data.uuid || "draft-baru");
         setText(qs("[data-tax-editor-mode]", root), toTitleCase(data.status || "draft"));
@@ -546,6 +507,40 @@ function loadBindKomponentCrudModule() {
         }).join("");
     }
 
+    function extractEmployeeTotal(responsePayload) {
+        var payload = responsePayload;
+        if (payload && payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
+            payload = payload.data;
+        }
+        if (Array.isArray(payload)) {
+            return payload.length;
+        }
+
+        var meta = payload && (payload.meta || payload.pagination) ? (payload.meta || payload.pagination) : {};
+        if (typeof meta.total === "number") {
+            return meta.total;
+        }
+
+        if (typeof (payload && payload.total) === "number") {
+            return payload.total;
+        }
+
+        var rows = payload && Array.isArray(payload.data) ? payload.data : [];
+        return rows.length;
+    }
+
+    function renderRegisteredEmployeeCount(root, employeesResponse) {
+        var employeeTotal = extractEmployeeTotal(employeesResponse);
+        setText(qs("[data-tax-employee-count]", root), employeeTotal);
+
+        var hint = qs("[data-tax-employee-hint]", root);
+        if (hint) {
+            hint.textContent = employeeTotal > 0
+                ? "Profil pajak aktif di tenant"
+                : "Belum ada profil pajak aktif";
+        }
+    }
+
     function renderAnomalyTable(root, auditData) {
         var tbody = qs("[data-tax-anomaly-table]", root);
         if (!tbody) {
@@ -735,8 +730,8 @@ function loadBindKomponentCrudModule() {
         if (!form) {
             return null;
         }
-        var regulationReference = String(form.regulationReference.value || "").trim();
-        var regulationSourceType = String(form.regulationSourceType.value || "ministry_regulation").trim();
+        var regulationReference = "PP 58/2023 & PMK 168/PMK.03/2023";
+        var regulationSourceType = "ministry_regulation";
         var effectiveStartDate = String(form.effectiveStartDate.value || "").trim();
         var effectiveEndDate = String(form.effectiveEndDate.value || "").trim() || null;
         return {
@@ -782,9 +777,6 @@ function loadBindKomponentCrudModule() {
         if (!payload.effectiveStartDate) {
             errors.push("Tanggal mulai berlaku wajib diisi.");
         }
-        if (!payload.rules || !payload.rules.regulationReference) {
-            errors.push("Referensi regulasi wajib diisi.");
-        }
         node.classList.remove("d-none", "alert-info", "alert-danger", "alert-success");
         if (errors.length) {
             node.classList.add("alert-danger");
@@ -793,7 +785,7 @@ function loadBindKomponentCrudModule() {
         }
         node.classList.add("alert-success");
         node.innerHTML = "<strong>Validasi OK.</strong> Konfigurasi siap disimpan.<br>" +
-            "Kebijakan: <strong>" + escapeHtml(payload.policyCode) + "</strong>, Regulasi: <strong>" + escapeHtml(payload.rules.regulationReference) + "</strong>, Berlaku mulai: <strong>" + escapeHtml(payload.effectiveStartDate) + "</strong>";
+            "Kebijakan: <strong>" + escapeHtml(payload.policyCode) + "</strong>, Berlaku mulai: <strong>" + escapeHtml(payload.effectiveStartDate) + "</strong>";
         return true;
     }
 
@@ -810,15 +802,19 @@ function loadBindKomponentCrudModule() {
         form.name.value = data.name || "";
         form.effectiveStartDate.value = data.effectiveStartDate || "";
         form.effectiveEndDate.value = data.effectiveEndDate || "";
-        form.regulationReference.value = data.rules && (data.rules.regulationReference || data.rules.regulation_reference)
-            ? (data.rules.regulationReference || data.rules.regulation_reference)
-            : "PP 58/2023 & PMK 168/PMK.03/2023";
-        form.regulationSourceType.value = data.rules && data.rules.regulationSourceType
-            ? data.rules.regulationSourceType
-            : "ministry_regulation";
 
         setText(qs("[data-tax-editor-policy-ref]", root), data.uuid || "draft-baru");
         setText(qs("[data-tax-editor-mode]", root), toTitleCase(data.status || "draft"));
+
+        // Show publish button for all editable statuses (hide only for superseded/void)
+        var wfStatus = data.status || "draft";
+        var workflowArea = qs("[data-tax-policy-workflow-actions]", root);
+        if (workflowArea) {
+            Array.prototype.slice.call(workflowArea.querySelectorAll("[data-tax-policy-workflow-btn]")).forEach(function (btn) {
+                btn.classList.toggle("d-none", wfStatus === "superseded" || wfStatus === "void");
+                btn.disabled = false;
+            });
+        }
     }
 
     function bindPolicyEditor(root, refreshAll) {
@@ -847,6 +843,32 @@ function loadBindKomponentCrudModule() {
             validateBtn.addEventListener("click", function () {
                 var payload = buildPolicyEditorPayload(root);
                 renderValidationPreview(root, payload);
+            });
+        }
+
+        // Bind Submit / Approve / Publish workflow buttons
+        var workflowContainer = qs("[data-tax-policy-workflow-actions]", root);
+        if (workflowContainer) {
+            Array.prototype.slice.call(workflowContainer.querySelectorAll("[data-tax-policy-workflow-btn]")).forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    var action = btn.getAttribute("data-tax-policy-workflow-btn");
+                    var uuid = editorState.uuid;
+                    if (!uuid) {
+                        showError(root, "Simpan kebijakan terlebih dahulu sebelum mengubah status.");
+                        return;
+                    }
+                    clearError(root);
+                    btn.disabled = true;
+                    handlePolicyAction(root, action, uuid, {})
+                        .then(function (response) {
+                            if (!response.success) {
+                                throw new Error("Aksi gagal.");
+                            }
+                            populatePolicyEditor(root, response.data || {});
+                        })
+                        .catch(function () {})
+                        .finally(function () { btn.disabled = false; });
+                });
             });
         }
 
@@ -1196,26 +1218,12 @@ function loadBindKomponentCrudModule() {
     }
 
     // ─────────────────────────────────────────────────────
-    // Komponen Pajak screen
+    // Pricing & Plans screen (platform-billing)
     // ─────────────────────────────────────────────────────
-    var komponentData = [];
-    var komponentState = {
-        chip: "all",
-        search: "",
-        treatment: "",
-        category: "",
-        onlyIncomplete: false,
-    };
 
-    var TAX_TREATMENT_META = {
-        pph21_taxable_full: { label: "PPh 21 Taxable Full", badge: "bg-success-subtle text-success" },
-        pph21_taxable_partial: { label: "PPh 21 Taxable Partial", badge: "bg-success-subtle text-success" },
-        non_object: { label: "Non-Object", badge: "bg-secondary-subtle text-secondary" },
-        deductible: { label: "Deductible", badge: "bg-primary-subtle text-primary" },
-        pph21_final: { label: "PPh 21 Final", badge: "bg-warning-subtle text-warning" },
-        pph21_separate: { label: "Separate Handling", badge: "bg-info-subtle text-info" },
-        employer_display_only: { label: "Employer Display Only", badge: "bg-dark-subtle text-dark" },
-    };
+    function apiPut(path, payload) {
+        return apiRequest("put", path, payload);
+    }
 
     function inferLegacyTaxTreatment(component) {
         if (component.kind === "deduction" && component.includePph21AnnualReconciliation && !component.includePph21TerGross) {
@@ -1730,13 +1738,6 @@ function loadBindKomponentCrudModule() {
         return null;
     }
 
-    // ─────────────────────────────────────────────────────
-    // Pricing & Plans screen (platform-billing)
-    // ─────────────────────────────────────────────────────
-
-    function apiPut(path, payload) {
-        return apiRequest("put", path, payload);
-    }
     function loadPricingPlansScreen(root) {
         var moduleFn = resolveLoadPricingPlansScreenModule();
         var moduleArgs = {
@@ -1781,11 +1782,6 @@ function loadBindKomponentCrudModule() {
             return;
         }
 
-        if (activeScreen === "komponen-pajak") {
-            loadKomponenPajak(root);
-            return;
-        }
-
         Promise.allSettled([
             (activeScreen === "landing" || activeScreen === "tenant-reports" || activeScreen === "global-governance")
                 ? apiGet("/hcm/tax-governance/reports/tenant-compliance-status")
@@ -1793,6 +1789,9 @@ function loadBindKomponentCrudModule() {
             (activeScreen === "landing" || activeScreen === "tenant-reports" || activeScreen === "global-governance")
                 ? apiGet("/hcm/tax-governance/reports/tenant-self-audit-export", buildAuditQuery())
                 : Promise.resolve({ success: true, data: {} }),
+            (activeScreen === "landing" || activeScreen === "global-governance")
+                ? apiGet("/hcm/employees", { perPage: 1, page: 1, scope: "active_company" })
+                : Promise.resolve({ success: true, data: { data: [], meta: { total: 0 } } }),
             (activeScreen === "tenant-policies")
                 ? apiGet("/hcm/tax-governance/policies", { per_page: 50 })
                 : Promise.resolve({ success: true, data: { items: [] } }),
@@ -1813,12 +1812,17 @@ function loadBindKomponentCrudModule() {
                 renderTenantAuditReportTable(root, auditResponse.data || {});
             }
 
-            var tenantPoliciesResult = responses[2] || {};
+            var employeeCountResult = responses[2] || {};
+            if ((activeScreen === "landing" || activeScreen === "global-governance") && employeeCountResult.status === "fulfilled") {
+                renderRegisteredEmployeeCount(root, employeeCountResult.value || {});
+            }
+
+            var tenantPoliciesResult = responses[3] || {};
             if (tenantPoliciesResult.status === "fulfilled" && tenantPoliciesResult.value && tenantPoliciesResult.value.success) {
                 renderTenantPolicies(root, tenantPoliciesResult.value);
             }
 
-            var platformPoliciesResult = responses[3] || {};
+            var platformPoliciesResult = responses[4] || {};
             if (platformPoliciesResult.status === "fulfilled" && platformPoliciesResult.value && platformPoliciesResult.value.success) {
                 renderPlatformPolicies(root, platformPoliciesResult.value);
             } else {
@@ -1828,7 +1832,7 @@ function loadBindKomponentCrudModule() {
                 }
             }
 
-            var platformReportResult = responses[4] || {};
+            var platformReportResult = responses[5] || {};
             if (platformReportResult.status === "fulfilled" && platformReportResult.value && platformReportResult.value.success) {
                 renderPlatformReport(root, platformReportResult.value);
             } else {

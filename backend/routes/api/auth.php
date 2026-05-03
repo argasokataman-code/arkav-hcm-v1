@@ -14,5 +14,6 @@ Route::prefix('v1/identity')->group(function () {
     Route::middleware(['api.token', 'tenant.context'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
     });
 });

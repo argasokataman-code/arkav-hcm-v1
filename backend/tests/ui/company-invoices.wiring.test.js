@@ -155,8 +155,15 @@ describe('company invoices wiring', () => {
           });
         }
 
-        if (method === 'post' && path === '/hcm/billing/invoices/88/mock-pay') {
-          return Promise.resolve({ data: { success: true } });
+        if (method === 'post' && path === '/hcm/billing/invoices/88/mock-hosted-checkout') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              flow: {
+                hostedCheckoutUrl: '/mock-hosted-payment.html?payment_uuid=pay-88',
+              },
+            },
+          });
         }
 
         throw new Error(`Unexpected AuthApi call: ${method} ${path} ${JSON.stringify(payload)}`);
@@ -191,6 +198,22 @@ describe('company invoices wiring', () => {
     await flush();
 
     expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices', expect.objectContaining({ perPage: 50, is_paid: '1' }));
+  });
+
+  it('opens hosted mock payment page when mock pay is clicked', async () => {
+    const redirectSpy = vi.fn();
+    window.__ARCAV_TEST_REDIRECT__ = redirectSpy;
+
+    await import('../../../frontend/resources/js/company-invoices.js');
+    await flush();
+
+    document.querySelector('[data-invoice-mock-pay="88"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    expect(window.AuthApi.request).toHaveBeenCalledWith('post', '/hcm/billing/invoices/88/mock-hosted-checkout', {});
+    expect(redirectSpy).toHaveBeenCalledWith('/mock-hosted-payment.html?payment_uuid=pay-88');
+
+    delete window.__ARCAV_TEST_REDIRECT__;
   });
 
   it('falls back to cookie-based fetch when AuthApi is not initialized', async () => {

@@ -56,12 +56,10 @@
             <i class="ti ti-info-circle mt-1"></i>
             <div>
                 <div class="fw-semibold">
-                    {{ $taxGovernanceScreen === 'komponen-pajak' ? 'PPh 21 Component Mapping Workspace' : 'Tenant Employee Tax Setup' }}
+                    Tenant Employee Tax Setup
                 </div>
                 <div class="small">
-                    {{ $taxGovernanceScreen === 'komponen-pajak'
-                        ? 'Review every payroll component, assign the right PPh 21 treatment, and close unmapped items before payroll is processed.'
-                        : 'Manage the active company\'s PPh 21 policy, employee tax profiles, component mapping, and compliance evidence without mixing it with platform billing tax flows.' }}
+                    Manage the active company's PPh 21 policy, employee tax profiles, component mapping, and compliance evidence in one tenant-focused workspace.
                 </div>
             </div>
         </div>
@@ -81,13 +79,9 @@
                 <li class="nav-item">
                     <a href="{{ route('tax-employees.tenant-compliance') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'tenant-compliance' ? 'active' : '' }}"
-                      aria-current="{{ $taxGovernanceScreen === 'tenant-compliance' ? 'page' : 'false' }}">Platform Billing Tax</a>
+                        aria-current="{{ $taxGovernanceScreen === 'tenant-compliance' ? 'page' : 'false' }}">Tenant Compliance</a>
                 </li>
-                <li class="nav-item">
-                          <a href="{{ url('tax-employees/komponen-pajak') }}"
-                       class="nav-link btn btn-white {{ $taxGovernanceScreen === 'komponen-pajak' ? 'active' : '' }}"
-                      aria-current="{{ $taxGovernanceScreen === 'komponen-pajak' ? 'page' : 'false' }}">PPh 21 Component Mapping</a>
-                </li>
+
                 <li class="nav-item">
                     <a href="{{ route('tax-employees.employee-tax-profiles') }}"
                        class="nav-link btn btn-white {{ $taxGovernanceScreen === 'employee-tax-profiles' ? 'active' : '' }}"
@@ -277,33 +271,9 @@
             </div>
         @endif
 
-        @if ($taxGovernanceScreen === 'komponen-pajak')
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <h4 class="mb-1">PPh 21 Component Mapping</h4>
-                        <span class="text-muted small">Define how each payroll component is treated under PPh 21 taxation rules.</span>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-tax-map-sync>
-                            <i class="ti ti-refresh me-1"></i>Sync Components
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" data-tax-map-audit>
-                            <i class="ti ti-alert-triangle me-1"></i>Audit Mapping
-                        </button>
-                        <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
-                           data-bs-toggle="modal" data-bs-target="#arcav_salary_component_category_master">
-                            <i class="ti ti-tags me-1"></i>Master Kategori
-                        </a>
-                        <a href="javascript:void(0);" class="btn btn-sm btn-primary d-inline-flex align-items-center"
-                           data-bs-toggle="modal" data-bs-target="#arcav_add_salary_component">
-                            <i class="ti ti-circle-plus me-1"></i>Tambah Komponen
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-3" data-tax-map-summary>
+        {{-- komponen-pajak screen removed; CRUD ada di /salary-component-master --}}
+        @if (false)
+            <div class="row g-3 mb-3 d-none" data-tax-map-summary>
                 <div class="col-md-6 col-xl-2">
                     <button type="button" class="card w-100 text-start border-0 shadow-sm" data-tax-map-card="all">
                         <div class="card-body py-3">
@@ -418,7 +388,7 @@
                     <span><i class="ti ti-alert-triangle text-danger me-1"></i>Unmapped (requires action)</span>
                 </div>
             </div>
-        @endif
+        @endif {{-- /komponen-pajak removed block --}}
 
         @if ($taxGovernanceScreen === 'policy-editor')
             <div class="card">
@@ -452,19 +422,6 @@
                             <label class="form-label">Akhir Berlaku</label>
                             <input type="date" class="form-control" name="effectiveEndDate">
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Sumber Regulasi</label>
-                            <select class="form-select" name="regulationSourceType" required>
-                                <option value="ministry_regulation">Ministerial Regulation</option>
-                                <option value="government_regulation">Government Regulation</option>
-                                <option value="director_general_regulation">Director General Regulation</option>
-                                <option value="company_policy_reference">Company Policy Reference</option>
-                            </select>
-                        </div>
-                        <div class="col-md-9">
-                            <label class="form-label">Referensi Regulasi</label>
-                            <input type="text" class="form-control" name="regulationReference" value="PP 58/2023 & PMK 168/PMK.03/2023" required>
-                        </div>
                         <div class="col-12 d-flex gap-2 flex-wrap">
                             <button type="button" class="btn btn-outline-secondary" data-tax-policy-validate>Validation Preview</button>
                             <button type="submit" class="btn btn-primary" data-tax-policy-save>Save Configuration</button>
@@ -473,6 +430,10 @@
                     </form>
 
                     <div class="alert alert-info mt-3 d-none" data-tax-policy-validation-preview></div>
+
+                    <div class="d-flex gap-2 flex-wrap mt-3" data-tax-policy-workflow-actions>
+                        <button type="button" class="btn btn-success d-none" data-tax-policy-workflow-btn="publish">Publikasikan</button>
+                    </div>
                 </div>
             </div>
         @endif
@@ -619,15 +580,15 @@
 
         {{-- ================================================================ --}}
         {{-- SCREEN: tenant-compliance                                        --}}
-        {{-- Dedicated compliance summary: checklist + event history + billing --}}
+        {{-- Dedicated compliance summary: checklist + policy snapshot + history --}}
         {{-- ================================================================ --}}
         @if ($taxGovernanceScreen === 'tenant-compliance')
-            <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
-                <i class="ti ti-building-bank mt-1"></i>
+            <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
+                <i class="ti ti-shield-check mt-1"></i>
                 <div>
-                    <div class="fw-semibold">Platform billing tax is a separate control surface</div>
+                    <div class="fw-semibold">Tenant compliance tracker</div>
                     <div class="small">
-                        Use this tab only to reconcile tax attached to tenant subscription invoices and service billing. Employee PPh 21 setup, payroll mapping, and employee tax profiles stay in the other tabs for the active company.
+                        This tab tracks company-level PPh 21 readiness: policy publication status, payroll coverage, anomaly status, and policy change history for the selected period.
                     </div>
                 </div>
             </div>
@@ -653,7 +614,7 @@
                             <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Kebijakan Dipublikasikan">
                                 <span class="fs-4" data-compliance-check-icon-policy aria-hidden="true">&#x23F3;</span>
                                 <div>
-                                    <div class="fw-semibold">Kebijakan Aktif Dipublikasikan</div>
+                                    <div class="fw-semibold">Kebijakan PPh 21 Diterbitkan</div>
                                     <div class="small text-muted" data-compliance-check-label-policy>Memeriksa...</div>
                                 </div>
                             </div>
@@ -662,7 +623,7 @@
                             <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Publikasi Terbaru">
                                 <span class="fs-4" data-compliance-check-icon-recent aria-hidden="true">&#x23F3;</span>
                                 <div>
-                                    <div class="fw-semibold">Publikasi Terkini (&lt;90 hari)</div>
+                                    <div class="fw-semibold">Publikasi Tidak Kedaluwarsa</div>
                                     <div class="small text-muted" data-compliance-check-label-recent>Memeriksa...</div>
                                 </div>
                             </div>
@@ -671,16 +632,16 @@
                             <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Cakupan Payroll Run">
                                 <span class="fs-4" data-compliance-check-icon-payroll aria-hidden="true">&#x23F3;</span>
                                 <div>
-                                    <div class="fw-semibold">Semua Payroll Run Tercakup</div>
+                                    <div class="fw-semibold">Seluruh Proses Payroll Menggunakan Kebijakan</div>
                                     <div class="small text-muted" data-compliance-check-label-payroll>Memeriksa...</div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6 col-xl-3">
-                            <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Anomali Aktif">
+                                <div class="border rounded p-3 h-100 d-flex align-items-center gap-3" role="status" aria-label="Status: Anomali Terbuka">
                                 <span class="fs-4" data-compliance-check-icon-anomaly aria-hidden="true">&#x23F3;</span>
                                 <div>
-                                    <div class="fw-semibold">Tidak Ada Anomali Aktif</div>
+                                    <div class="fw-semibold">Tidak Ada Anomali Terbuka</div>
                                     <div class="small text-muted" data-compliance-check-label-anomaly>Memeriksa...</div>
                                 </div>
                             </div>
@@ -690,7 +651,7 @@
             </div>
 
             <div class="row g-3 mb-3">
-                <div class="col-xl-6">
+                <div class="col-xl-12">
                     <div class="card h-100">
                         <div class="card-header">
                             <h5 class="mb-0">Snapshot Kebijakan Aktif</h5>
@@ -711,28 +672,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h5 class="mb-0">Rekonsiliasi Pajak Billing Platform</h5>
-                        </div>
-                        <div class="card-body" data-compliance-billing-area>
-                            <p class="text-muted small mb-3">Nilai di bawah ini berasal dari invoice langganan tenant dan kewajiban pajak layanan platform, bukan dari pemotongan PPh 21 karyawan.</p>
-                            <dl class="row mb-0">
-                                <dt class="col-6">Total Invoice</dt>
-                                <dd class="col-6" data-compliance-billing-invoice-count>-</dd>
-                                <dt class="col-6">Invoice Dibayar</dt>
-                                <dd class="col-6" data-compliance-billing-paid>-</dd>
-                                <dt class="col-6">Invoice Belum Dibayar</dt>
-                                <dd class="col-6" data-compliance-billing-unpaid>-</dd>
-                                <dt class="col-6">Pendapatan Terverifikasi</dt>
-                                <dd class="col-6" data-compliance-billing-cleared>-</dd>
-                                <dt class="col-6">Total Pajak Layanan ke Pemerintah</dt>
-                                <dd class="col-6 fw-semibold text-danger" data-compliance-billing-tax-due>Rp 0</dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="card">
@@ -741,7 +680,7 @@
                     <small class="text-muted" data-compliance-change-period>-</small>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                         <table class="table mb-0" role="grid" aria-label="Riwayat Perubahan Kebijakan">
                             <thead class="thead-light">
                                 <tr>
@@ -766,17 +705,67 @@
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="taxEmployeeGuideModalLabel">Employee Tax Usage Guide</h5>
+                        <h5 class="modal-title" id="taxEmployeeGuideModalLabel">Panduan Penggunaan — Tax &amp; Payroll Compliance</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <ol class="mb-0 ps-3">
-                            <li>Open <strong>PPh 21 Component Mapping</strong> and click <strong>Sync Components</strong> to load the latest payroll components.</li>
-                            <li>Focus on rows marked <strong>Unmapped</strong> first, because they can create payroll tax risk.</li>
-                            <li>For each component, choose one explicit <strong>Tax Classification</strong> that matches the statutory handling of the component.</li>
-                            <li>Use <strong>Audit Mapping</strong> to instantly filter incomplete rows before payroll cut-off.</li>
-                            <li>For BPJS components, verify <strong>Employee</strong> vs <strong>Employer</strong> contribution treatment carefully.</li>
-                            <li>To add or edit a component, click <strong>Tambah Komponen</strong> or the edit icon on any row. Deletions are disabled for system-locked components.</li>
+
+                        {{-- Section 1: Kebijakan PPh 21 --}}
+                        <h6 class="fw-semibold mb-2 d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary rounded-pill">1</span>
+                            Kebijakan PPh 21 Tenant
+                        </h6>
+                        <p class="text-muted small mb-2">
+                            Kebijakan adalah <strong>aturan dasar perhitungan PPh 21</strong> perusahaan Anda — metode
+                            perhitungan, PTKP, tarif TER, dan lain-lain. Setiap perusahaan perlu memiliki minimal
+                            <strong>1 kebijakan berstatus Published</strong> agar fitur payroll pajak aktif.
+                        </p>
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-body py-2 px-3">
+                                <p class="small fw-semibold mb-1">Kenapa bisa ada lebih dari satu kebijakan?</p>
+                                <ul class="small mb-0 ps-3">
+                                    <li><strong>Pergantian regulasi pemerintah</strong> — Saat ada PMK atau PP baru (seperti PMK 168/2023 menggantikan PMK 252), kebijakan lama tetap disimpan sebagai arsip audit, bukan dihapus.</li>
+                                    <li><strong>Periode berlaku berbeda</strong> — Tiap kebijakan punya tanggal <em>Mulai Berlaku</em> dan <em>Akhir Berlaku</em>. Payroll bulan Januari 2024 pakai kebijakan yang aktif di tanggal tersebut.</li>
+                                    <li><strong>Revisi/versi</strong> — Jika ada koreksi interpretasi aturan di tengah tahun, kebijakan baru dibuat (versi naik), kebijakan lama otomatis di-<em>supersede</em>.</li>
+                                    <li><strong>Kepatuhan audit DJP</strong> — DJP dapat memeriksa data hingga 5 tahun ke belakang. Riwayat kebijakan menjadi bukti bahwa perhitungan pajak sudah sesuai aturan yang berlaku di periode tersebut.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card border-0 bg-light mb-3">
+                            <div class="card-body py-2 px-3">
+                                <p class="small fw-semibold mb-1">Lifecycle status kebijakan</p>
+                                <div class="d-flex flex-wrap gap-2 small">
+                                    <span><span class="badge bg-secondary">Draft</span> — sedang disusun, belum berlaku</span>
+                                    <span><span class="badge bg-success">Published</span> — aktif, dipakai payroll</span>
+                                    <span><span class="badge bg-warning text-dark">Superseded</span> — digantikan versi baru, arsip saja</span>
+                                    <span><span class="badge bg-danger">Void</span> — dibatalkan, tidak pernah berlaku</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card border-warning border mb-4">
+                            <div class="card-body py-2 px-3">
+                                <p class="small fw-semibold mb-1 text-warning-emphasis">Kapan harus buat kebijakan baru vs edit kebijakan lama?</p>
+                                <ul class="small mb-0 ps-3">
+                                    <li><strong>Edit kebijakan lama</strong> — jika ada kesalahan kecil sebelum kebijakan tersebut dipakai payroll (masih Draft).</li>
+                                    <li><strong>Buat kebijakan baru</strong> — jika ada pergantian aturan pemerintah, atau kebijakan lama sudah digunakan untuk payroll bulan sebelumnya (sudah Published dan ada slip gaji yang mengacu ke sana).</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <hr class="my-3">
+
+                        {{-- Section 2: Component Mapping --}}
+                        <h6 class="fw-semibold mb-2 d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary rounded-pill">2</span>
+                            PPh 21 Component Mapping
+                        </h6>
+                        <ol class="mb-0 ps-3 small">
+                            <li>Buka tab <strong>PPh 21 Component Mapping</strong> lalu klik <strong>Sync Components</strong> untuk memuat komponen payroll terbaru.</li>
+                            <li>Prioritaskan baris berlabel <strong>Unmapped</strong> — komponen tanpa klasifikasi pajak dapat menyebabkan risiko pelaporan PPh 21.</li>
+                            <li>Untuk setiap komponen, pilih satu <strong>Tax Classification</strong> yang sesuai dengan perlakuan statutori komponen tersebut.</li>
+                            <li>Gunakan <strong>Audit Mapping</strong> untuk memfilter baris yang belum lengkap sebelum cut-off payroll.</li>
+                            <li>Untuk komponen BPJS, verifikasi dengan hati-hati perlakuan iuran <strong>Karyawan</strong> vs <strong>Perusahaan</strong>.</li>
+                            <li>Untuk menambah atau mengedit komponen, klik <strong>Tambah Komponen</strong> atau ikon edit pada baris terkait. Penghapusan dinonaktifkan untuk komponen yang dikunci sistem.</li>
                         </ol>
                     </div>
                 </div>

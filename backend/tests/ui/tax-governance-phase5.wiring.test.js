@@ -160,13 +160,6 @@ describe('tax-tenant-compliance.js', function () {
                 rules_count: 3,
             },
         },
-        billing_tax_compliance: {
-            invoice_count: 10,
-            paid_invoice_count: 8,
-            unpaid_invoice_count: 2,
-            cleared_revenue_amount: 50000000,
-            tax_amount_due: 2500000,
-        },
         change_history: [
             { created_at: '2024-03-15T10:00:00Z', event_type: 'PUBLISHED', created_by: 'Admin HR', note: 'Publikasi kebijakan Q1' },
         ],
@@ -194,13 +187,6 @@ describe('tax-tenant-compliance.js', function () {
                 <dd data-compliance-policy-version></dd>
                 <dd data-compliance-policy-effective></dd>
                 <dd data-compliance-payroll-runs></dd>
-            </div>
-            <div data-compliance-billing-area>
-                <dd data-compliance-billing-invoice-count></dd>
-                <dd data-compliance-billing-paid></dd>
-                <dd data-compliance-billing-unpaid></dd>
-                <dd data-compliance-billing-cleared></dd>
-                <dd data-compliance-billing-tax-due></dd>
             </div>
             <table>
                 <tbody data-compliance-history-tbody></tbody>
@@ -256,27 +242,6 @@ describe('tax-tenant-compliance.js', function () {
         expect(nameEl.textContent).toBe('Kebijakan PPh 21 Tahun 2024');
     });
 
-    it('populates billing total invoices', async function () {
-        loadScript(dom, 'tax-tenant-compliance.js');
-        await flush();
-        const el = dom.window.document.querySelector('[data-compliance-billing-invoice-count]');
-        expect(el.textContent).toBe('10');
-    });
-
-    it('populates billing unpaid invoices', async function () {
-        loadScript(dom, 'tax-tenant-compliance.js');
-        await flush();
-        const el = dom.window.document.querySelector('[data-compliance-billing-unpaid]');
-        expect(el.textContent).toBe('2');
-    });
-
-    it('renders billing tax payable amount', async function () {
-        loadScript(dom, 'tax-tenant-compliance.js');
-        await flush();
-        const el = dom.window.document.querySelector('[data-compliance-billing-tax-due]');
-        expect(el.textContent).toContain('2.500.000');
-    });
-
     it('renders change history row', async function () {
         loadScript(dom, 'tax-tenant-compliance.js');
         await flush();
@@ -292,5 +257,165 @@ describe('tax-tenant-compliance.js', function () {
         const errBox = dom.window.document.querySelector('[data-compliance-error]');
         expect(errBox.classList.contains('d-none')).toBe(false);
         expect(errBox.textContent).toContain('Server error');
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/* SCREEN: tax-governance-dashboard landing                            */
+/* ------------------------------------------------------------------ */
+describe('tax-governance-dashboard.js (landing)', function () {
+    let dom;
+
+    function buildCompliancePayload() {
+        return {
+            success: true,
+            data: {
+                reporting_period: '2026-Q2',
+                compliance_status: {
+                    overall_status: 'attention_required',
+                    next_review_date: '2026-06-03',
+                    statutory_tax_compliance: {
+                        policy_version: 6,
+                        last_publication_date: '2026-05-03',
+                        anomalies_unresolved: 0,
+                    },
+                    billing_tax_compliance: {
+                        amount_outstanding: 0,
+                        payment_status: 'current',
+                    },
+                },
+                recommended_actions: [
+                    {
+                        action: 'Reconcile unpaid billing tax invoices.',
+                        priority: 'medium',
+                    },
+                ],
+            },
+        };
+    }
+
+    function buildAuditPayload() {
+        return {
+            success: true,
+            data: {
+                period: { start: '2026-02-01', end: '2026-05-03' },
+                anomalies_detected: [],
+                change_history: [
+                    {
+                        version: '6',
+                        action: 'updated',
+                        actor_name: 'Deltas',
+                        timestamp: '2026-05-03T12:57:00Z',
+                        change_summary: '-',
+                    },
+                ],
+            },
+        };
+    }
+
+    function createDom() {
+        dom = new JSDOM(`<!DOCTYPE html><html><body>
+            <div class="page-wrapper"
+                 data-tax-governance-page
+                 data-tax-governance-screen="landing"
+                 data-tax-governance-policy-uuid="">
+                <div data-tax-overall-status>-</div>
+                <div data-tax-overall-badge>Unknown</div>
+                <div data-tax-next-review>Next review: -</div>
+                <div data-tax-policy-version>-</div>
+                <div data-tax-policy-publication>-</div>
+                <div data-tax-anomaly-count>0</div>
+                <div data-tax-anomaly-hint>No active anomaly</div>
+                <div data-tax-employee-count>0</div>
+                <div data-tax-employee-hint>Dengan profil pajak</div>
+                <ol data-tax-action-list>
+                    <li>Rekomendasi tindakan akan ditampilkan di sini.</li>
+                </ol>
+                <table>
+                    <thead><tr><th>Tipe</th><th>Prioritas</th><th>Status</th></tr></thead>
+                    <tbody data-tax-anomaly-table><tr><td>Belum ada data</td></tr></tbody>
+                </table>
+                <table>
+                    <thead><tr><th>Versi</th><th>Aksi</th><th>Pelaku</th><th>Waktu</th><th>Ringkasan</th></tr></thead>
+                    <tbody data-tax-event-table><tr><td>Belum ada riwayat</td></tr></tbody>
+                </table>
+                <table>
+                    <tbody data-tax-report-audit-table><tr><td>Belum ada audit</td></tr></tbody>
+                </table>
+                <div data-tax-audit-period>-</div>
+                <div data-tax-billing-outstanding>-</div>
+                <div data-tax-billing-status>-</div>
+                <div data-tax-reporting-period>-</div>
+                <div data-tax-governance-error class="d-none"></div>
+                <div data-tax-platform-gate class="d-none"></div>
+            </div>
+        </body></html>`, { runScripts: 'dangerously', resources: 'usable' });
+    }
+
+    afterEach(function () {
+        if (dom) {
+            dom.window.close();
+        }
+    });
+
+    it('hydrates registered employee count from employee API meta total', async function () {
+        createDom();
+        dom.window.AuthApi = {
+            request: vi.fn().mockImplementation(function (method, path) {
+                if (path === '/hcm/tax-governance/reports/tenant-compliance-status') {
+                    return Promise.resolve(buildCompliancePayload());
+                }
+                if (path === '/hcm/tax-governance/reports/tenant-self-audit-export') {
+                    return Promise.resolve(buildAuditPayload());
+                }
+                if (path === '/hcm/employees') {
+                    return Promise.resolve({
+                        data: {
+                            data: [{ id: '1', name: 'A' }],
+                            meta: { total: 42, last_page: 3 },
+                        },
+                    });
+                }
+                return Promise.resolve({ success: true, data: {} });
+            }),
+        };
+
+        loadScript(dom, 'tax-governance-dashboard.js');
+        await flush();
+
+        const countEl = dom.window.document.querySelector('[data-tax-employee-count]');
+        const hintEl = dom.window.document.querySelector('[data-tax-employee-hint]');
+
+        expect(countEl.textContent).toBe('42');
+        expect(hintEl.textContent).toBe('Profil pajak aktif di tenant');
+        expect(dom.window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/employees', expect.any(Object));
+    });
+
+    it('falls back to data array length when employee meta total is missing', async function () {
+        createDom();
+        dom.window.AuthApi = {
+            request: vi.fn().mockImplementation(function (method, path) {
+                if (path === '/hcm/tax-governance/reports/tenant-compliance-status') {
+                    return Promise.resolve(buildCompliancePayload());
+                }
+                if (path === '/hcm/tax-governance/reports/tenant-self-audit-export') {
+                    return Promise.resolve(buildAuditPayload());
+                }
+                if (path === '/hcm/employees') {
+                    return Promise.resolve({
+                        data: {
+                            data: [{ id: '1' }, { id: '2' }, { id: '3' }],
+                        },
+                    });
+                }
+                return Promise.resolve({ success: true, data: {} });
+            }),
+        };
+
+        loadScript(dom, 'tax-governance-dashboard.js');
+        await flush();
+
+        const countEl = dom.window.document.querySelector('[data-tax-employee-count]');
+        expect(countEl.textContent).toBe('3');
     });
 });

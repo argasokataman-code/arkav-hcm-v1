@@ -23,7 +23,7 @@
     var topFailedNode = document.querySelector('[data-observability-top-failed]');
     var lastUpdatedNode = document.querySelector('[data-observability-last-updated]');
 
-    var MODULES = [
+    var DEFAULT_MODULES = [
         {
             eventKey: 'asset.assigned',
             title: 'Asset Assignment and Return',
@@ -55,6 +55,7 @@
             description: 'Security-critical notifications, including password reset flows.'
         }
     ];
+    var modules = DEFAULT_MODULES.slice();
 
     var CHANNELS = [
         { key: 'database', label: 'Push' },
@@ -179,8 +180,8 @@
         }
 
         var html = '';
-        MODULES.forEach(function (module, index) {
-            var isLast = index === MODULES.length - 1;
+        modules.forEach(function (module, index) {
+            var isLast = index === modules.length - 1;
             var rowClass = isLast ? ' border-0 pb-0' : '';
             html += '<tr>';
             html += '<td class="ps-0' + rowClass + '">';
@@ -207,6 +208,51 @@
         });
 
         rowsNode.innerHTML = html;
+    }
+
+    function normalizeTemplateItems(items) {
+        if (!Array.isArray(items)) {
+            return [];
+        }
+
+        return items
+            .map(function (item) {
+                var eventKey = String(item.eventKey || '').trim();
+                if (!eventKey) {
+                    return null;
+                }
+
+                return {
+                    eventKey: eventKey,
+                    title: String(item.title || eventKey),
+                    description: String(item.description || '')
+                };
+            })
+            .filter(Boolean);
+    }
+
+    async function loadTemplateCatalog() {
+        var token = await getApiToken();
+        if (!token) {
+            return;
+        }
+
+        var response = await fetch('/v1/hcm/notifications/templates', {
+            method: 'GET',
+            headers: buildHeaders(token),
+            credentials: 'same-origin'
+        });
+
+        var payload = await response.json().catch(function () { return null; });
+        if (!response.ok || !payload || payload.success !== true) {
+            return;
+        }
+
+        var items = normalizeTemplateItems(payload.data && payload.data.items);
+        if (items.length > 0) {
+            modules = items;
+            renderRows();
+        }
     }
 
     function applySnapshot() {
@@ -442,7 +488,11 @@
         });
     }
 
-    loadPreferences().catch(function () {
+    loadTemplateCatalog().catch(function () {
+        // Template catalog is optional — fall back to DEFAULT_MODULES silently.
+    }).then(function () {
+        return loadPreferences();
+    }).catch(function () {
         showFeedback('danger', 'Failed to load notification preferences.');
         setStatus('Unable to load preferences');
     });

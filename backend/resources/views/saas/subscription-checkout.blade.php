@@ -5,10 +5,41 @@
 @php
     $checkoutCompany = request()->attributes->get('activeCompany');
     $latestCheckoutSubscription = $checkoutCompany instanceof \App\Models\Company
-        ? $checkoutCompany->latestSubscription()->first()
+        ? $checkoutCompany->latestSubscription()->with('package')->first()
         : null;
     $isPendingPaymentLock = ($latestCheckoutSubscription?->status ?? null) === 'pending_payment';
     $isTrialContext = ($latestCheckoutSubscription?->status ?? null) === 'trial';
+    $isActiveCheckoutOnly = ($latestCheckoutSubscription?->status ?? null) === 'active'
+        && ($latestCheckoutSubscription?->ends_at === null || $latestCheckoutSubscription?->ends_at->isFuture());
+    $activePackage = $latestCheckoutSubscription?->package;
+    $activeBillingCycle = (string) ($latestCheckoutSubscription?->billing_cycle ?? 'monthly');
+    $activePackageAmount = $activeBillingCycle === 'yearly'
+        ? (float) ($activePackage?->yearly_price ?? 0)
+        : (float) ($activePackage?->monthly_price ?? 0);
+    $activePackageCycleLabel = $activeBillingCycle === 'yearly' ? '/tahun' : '/bulan';
+    $activeStartDate = $latestCheckoutSubscription?->starts_at
+        ? $latestCheckoutSubscription->starts_at->timezone('Asia/Jakarta')->format('d M Y')
+        : '-';
+    $activeEndDate = $latestCheckoutSubscription?->ends_at
+        ? $latestCheckoutSubscription->ends_at->timezone('Asia/Jakarta')->format('d M Y')
+        : 'Tidak dibatasi';
+    $activeAutoRenewLabel = $latestCheckoutSubscription?->auto_renew ? 'Aktif' : 'Nonaktif';
+    $activePaidAddons = collect();
+    if ($isActiveCheckoutOnly && $checkoutCompany instanceof \App\Models\Company) {
+        $activePaidAddons = \App\Models\PurchaseTransaction::query()
+            ->with(['packageAddon:id,code,name,price_per_unit,unit_name'])
+            ->where('company_id', $checkoutCompany->id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->whereNotNull('package_addon_id')
+            ->orderByDesc('paid_at')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('package_addon_id')
+            ->values();
+    }
+    $checkoutPageTitle = $isActiveCheckoutOnly ? 'Langganan Aktif' : 'Checkout Paket & Add-on';
+    $checkoutBreadcrumbLabel = $isActiveCheckoutOnly ? 'Langganan Aktif' : 'Checkout';
 
     $checkoutHeading = $isPendingPaymentLock
         ? 'Aktifkan langganan'
@@ -165,6 +196,108 @@
         font-size: 0.9rem;
         color: var(--checkout-muted);
     }
+    [data-subscription-checkout-page] .active-subscription-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.09);
+        border-radius: 1rem;
+    }
+    [data-subscription-checkout-page] .active-subscription-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    [data-subscription-checkout-page] .active-kicker {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #0d6efd;
+        margin-bottom: 0.25rem;
+    }
+    [data-subscription-checkout-page] .active-title {
+        font-size: 1.65rem;
+        line-height: 1.2;
+        margin-bottom: 0.35rem;
+        color: #0f172a;
+        font-weight: 700;
+    }
+    [data-subscription-checkout-page] .active-lead {
+        color: #64748b;
+        margin-bottom: 0;
+        max-width: 62ch;
+    }
+    [data-subscription-checkout-page] .active-meta-card {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 0.8rem;
+        padding: 0.85rem 1rem;
+        background: #fff;
+        min-height: 94px;
+    }
+    [data-subscription-checkout-page] .active-plan-shell {
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        border-radius: 0.95rem;
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(13, 110, 253, 0.05), #ffffff 55%);
+    }
+    [data-subscription-checkout-page] .active-plan-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    [data-subscription-checkout-page] .active-plan-price {
+        font-size: 1.55rem;
+        line-height: 1.1;
+        font-weight: 800;
+        color: #0d6efd;
+    }
+    [data-subscription-checkout-page] .active-facts {
+        border-top: 1px dashed rgba(15, 23, 42, 0.15);
+        margin-top: 0.85rem;
+        padding-top: 0.85rem;
+    }
+    [data-subscription-checkout-page] .active-addon-shell {
+        border-top: 1px dashed rgba(15, 23, 42, 0.15);
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+    }
+    [data-subscription-checkout-page] .active-addon-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+    [data-subscription-checkout-page] .active-addon-item {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 0.75rem;
+        background: #fff;
+        padding: 0.65rem 0.75rem;
+    }
+    [data-subscription-checkout-page] .active-addon-name {
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+    [data-subscription-checkout-page] .active-addon-meta {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+    [data-subscription-checkout-page] .active-addon-price {
+        font-weight: 700;
+        color: #0d6efd;
+        font-size: 0.9rem;
+    }
+    @media (max-width: 767.98px) {
+        [data-subscription-checkout-page] .active-subscription-hero {
+            flex-direction: column;
+        }
+        [data-subscription-checkout-page] .active-title {
+            font-size: 1.35rem;
+        }
+        [data-subscription-checkout-page] .active-addon-grid {
+            grid-template-columns: 1fr;
+        }
+    }
     @media (max-width: 767.98px) {
         [data-subscription-checkout-page] .checkout-focus-hero {
             flex-direction: column;
@@ -181,10 +314,11 @@
         data-subscription-checkout-page
         data-checkout-mock-pay-enabled="{{ app()->isLocal() || config('app.mock_payments_enabled') ? '1' : '0' }}"
         data-checkout-pending-lock="{{ $isPendingPaymentLock ? '1' : '0' }}"
+        data-checkout-active-only="{{ $isActiveCheckoutOnly ? '1' : '0' }}"
     >
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h4 class="mb-1">Checkout Paket & Add-on</h4>
+                <h4 class="mb-1">{{ $checkoutPageTitle }}</h4>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         @if (! $isPendingPaymentLock)
@@ -193,7 +327,7 @@
                             </li>
                         @endif
                         <li class="breadcrumb-item">Billing</li>
-                        <li class="breadcrumb-item active" aria-current="page">Checkout</li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ $checkoutBreadcrumbLabel }}</li>
                     </ol>
                 </nav>
             </div>
@@ -281,6 +415,107 @@
 
                         <div class="text-muted" data-checkout-invoice-hint>
                             Kami sedang memuat invoice pendaftaran kamu.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @elseif ($isActiveCheckoutOnly)
+            <div class="row justify-content-center">
+                <div class="col-12 col-xxl-9">
+                    <div class="card active-subscription-card">
+                        <div class="card-body p-4 p-lg-5">
+                            <div class="active-subscription-hero">
+                                <div>
+                                    <div class="active-kicker">Subscription Overview</div>
+                                    <h5 class="active-title">Paket Kamu Sedang Aktif</h5>
+                                    <p class="active-lead">Halaman ini hanya menampilkan detail paket aktif. Untuk upgrade, downgrade, atau perubahan plan, gunakan halaman Upgrade Plan.</p>
+                                </div>
+                                <span class="badge bg-success-subtle text-success px-3 py-2">Status Aktif</span>
+                            </div>
+
+                            <div class="row g-3 mb-4">
+                                <div class="col-12 col-md-4">
+                                    <div class="active-meta-card">
+                                        <div class="label">Company</div>
+                                        <div class="value">{{ $checkoutCompany?->name ?: '—' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="active-meta-card">
+                                        <div class="label">Company Code</div>
+                                        <div class="value">{{ $checkoutCompany?->code ?: '—' }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <div class="active-meta-card">
+                                        <div class="label">Auto Renew</div>
+                                        <div class="value">{{ $activeAutoRenewLabel }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="active-plan-shell">
+                                <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                                    <div>
+                                        <div class="small text-muted mb-1">Paket Aktif</div>
+                                        <div class="active-plan-name">{{ $activePackage?->name ?: '—' }}</div>
+                                        <div class="text-muted small mt-1">{{ strtoupper((string) ($activePackage?->code ?: '-')) }}</div>
+                                    </div>
+                                    <div class="text-lg-end">
+                                        <div class="active-plan-price">Rp {{ number_format($activePackageAmount, 0, ',', '.') }}</div>
+                                        <div class="small text-muted">{{ $activePackageCycleLabel }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 active-facts">
+                                    <div class="col-12 col-md-6">
+                                        <div class="small text-muted">Mulai aktif</div>
+                                        <div class="fw-semibold">{{ $activeStartDate }}</div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <div class="small text-muted">Akhir masa aktif</div>
+                                        <div class="fw-semibold">{{ $activeEndDate }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="active-addon-shell">
+                                    <div class="small text-muted mb-2">Add-on Aktif</div>
+                                    @if ($activePaidAddons->isNotEmpty())
+                                        <div class="active-addon-grid">
+                                            @foreach ($activePaidAddons as $addonTransaction)
+                                                @php
+                                                    $addon = $addonTransaction->packageAddon;
+                                                    $addonName = $addon?->name ?: 'Add-on';
+                                                    $addonCode = strtoupper((string) ($addon?->code ?: '-'));
+                                                    $addonUnit = (string) ($addon?->unit_name ?: 'tenant / month');
+                                                    $addonPrice = (float) ($addon?->price_per_unit ?? $addonTransaction->total_amount ?? 0);
+                                                @endphp
+                                                <div class="active-addon-item">
+                                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                                        <div>
+                                                            <div class="active-addon-name">{{ $addonName }}</div>
+                                                            <div class="active-addon-meta">{{ $addonCode }} · {{ $addonUnit }}</div>
+                                                        </div>
+                                                        <span class="badge bg-primary-subtle text-primary">aktif</span>
+                                                    </div>
+                                                    <div class="active-addon-price mt-1">Rp {{ number_format($addonPrice, 0, ',', '.') }}</div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="text-muted small">Belum ada add-on aktif pada langganan ini.</div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap mt-4">
+                                <a href="{{ route('upgrade') }}" class="btn btn-primary">
+                                    <i class="ti ti-arrow-up-right-circle me-1"></i> Buka Upgrade Plan
+                                </a>
+                                <a href="{{ url('/company/invoices') }}" class="btn btn-outline-secondary">
+                                    <i class="ti ti-file-invoice me-1"></i> Lihat Invoice
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

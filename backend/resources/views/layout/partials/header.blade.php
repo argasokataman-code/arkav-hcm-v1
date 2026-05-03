@@ -421,16 +421,16 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
+                                    <a href="#" class="{{ Request::is('estimates','invoices','payments','expenses','provident-fund','tax-employees*','taxes','categories','budgets','budget-expenses','budget-revenues','employee-salary','payslip','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation',
                                     'assets','asset-categories','knowledgebase','knowledgebase/*', 'users','roles-permissions','expenses-report','invoice-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
-                                    'profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                                     'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
+                                    'profile-settings','security-settings','notification-settings','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
+                                     'approval-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-user-star"></i><span>Administration</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('estimates','invoice','payments','expenses','provident-fund','taxes') ? 'active subdrop' : '' }}"><span>Sales</span>
+                                            <a href="javascript:void(0);" class="{{ Request::is('estimates','invoice','payments','expenses','provident-fund') ? 'active subdrop' : '' }}"><span>Sales</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
@@ -439,7 +439,6 @@
                                                 <li><a href="{{url('payments')}}" class="{{ Request::is('payments') ? 'active' : '' }}">Payments</a></li>
                                                 <li><a href="{{url('expenses')}}" class="{{ Request::is('expenses') ? 'active' : '' }}">Expenses</a></li>
                                                 <li><a href="{{url('provident-fund')}}" class="{{ Request::is('provident-fund') ? 'active' : '' }}">Provident Fund</a></li>
-                                                <li><a href="{{url('taxes')}}" class="{{ Request::is('taxes') ? 'active' : '' }}">Taxes</a></li>
                                             </ul>
                                         </li>
                                         <li class="submenu">
@@ -528,18 +527,23 @@
                                             </ul>
                                         </li>
                                         <li class="submenu">
-                                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'salary-settings','approval-settings','invoice-settings','leave-type','custom-fields','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
+                                            <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
+                            'approval-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
                                                 <li class="submenu">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','connected-apps') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
                                                     <ul>
                                                         <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                                        @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
+                                                        @endif
                                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
-                                                        <li><a href="{{url('connected-apps')}}" class="{{ Request::is('connected-apps') ? 'active' : '' }}">Connected Apps</a></li>                                                    </ul>
+                                                        @if (!$isGlobalHcmAdmin)
+                                                        <li><a href="{{url('tax-employees')}}" class="{{ Request::is('tax-employees*','taxes') ? 'active' : '' }}">Tax Governance</a></li>
+                                                        @endif
+                                                    </ul>
                                                 </li>
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">Website Settings<span class="menu-arrow"></span></a>
@@ -558,13 +562,11 @@
                                                     </ul>
                                                 </li>
                                                 <li class="submenu">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('salary-settings','approval-settings','invoice-settings','leave-type','custom-fields') ? 'active subdrop' : '' }}">App Settings<span class="menu-arrow"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('approval-settings','leave-type') ? 'active subdrop' : '' }}">App Settings<span class="menu-arrow"></span></a>
                                                     <ul>
-                                                        <li><a href="{{url('salary-settings')}}" class="{{ Request::is('salary-settings') ? 'active' : '' }}">Salary Settings</a></li>
                                         <li><a href="{{url('approval-settings')}}" class="{{ Request::is('approval-settings') ? 'active' : '' }}">Approval Settings</a></li>
-                                        <li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>
+                                        @if ($isGlobalHcmAdmin)<li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>@endif
                                         <li><a href="{{url('leave-type')}}" class="{{ Request::is('leave-type') ? 'active' : '' }}">Leave Type</a></li>
-                                        <li><a href="{{url('custom-fields')}}" class="{{ Request::is('custom-fields') ? 'active' : '' }}">Custom Fields</a></li>
                                                     </ul>
                                                 </li>
                                                 @if ($isGlobalHcmAdmin)
@@ -1237,33 +1239,7 @@
                             <i class="ti ti-mail"></i>
                         </a>
                     </div>
-                    <div class="me-1 notification_item">
-                        <a href="#" class="btn btn-menubar position-relative me-1" id="notification_popup"
-                            data-bs-toggle="dropdown">
-                            <i class="ti ti-bell"></i>
-                            <span class="notification-status-dot d-none" data-notification-status-dot></span>
-                            <span class="badge bg-danger rounded-pill d-none align-items-center justify-content-center header-badge" data-notification-unread-badge>0</span>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end notification-dropdown p-4">
-                            <div class="d-flex align-items-center justify-content-between border-bottom p-0 pb-3 mb-3">
-                                <h4 class="notification-title" data-notification-title>Notifications (0)</h4>
-                                <div class="d-flex align-items-center">
-                                    <a href="javascript:void(0);" class="text-primary fs-15 me-3 lh-1" data-notification-mark-all>Mark all as read</a>
-                                </div>
-                            </div>
-                            <div class="noti-content" data-notification-content>
-                                <div class="text-muted text-center py-3" data-notification-empty-state>Loading notifications...</div>
-                            </div>
-                            <div class="d-flex p-0">
-                                <a href="javascript:void(0);" class="btn btn-light w-100 me-2" data-notification-refresh>Refresh</a>
-                                @if ($isPrimarySuperAdmin)
-                                <a href="{{ url('activity') }}" class="btn btn-primary w-100">Open Activity</a>
-                                @else
-                                <a href="{{ url('notification-settings') }}" class="btn btn-primary w-100">Notification Settings</a>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
+                    @include('layout.partials.header.notification-dropdown')
                     @php
                         $trialEndsAt = $activeCompanySubscription?->trial_ends_at;
                         $trialDaysLeft = null;
@@ -1376,17 +1352,7 @@
             </div>
         </div>
 
-        <!-- Mobile Menu -->
-        <div class="dropdown mobile-user-menu">
-            <a href="javascript:void(0);" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa fa-ellipsis-v"></i></a>
-            <div class="dropdown-menu dropdown-menu-end">
-                <a class="dropdown-item" href="{{url('notification-settings')}}">Notifications</a>
-                <a class="dropdown-item" href="{{url('profile')}}">My Profile</a>
-                <a class="dropdown-item" href="{{url('profile-settings')}}">Settings</a>
-                <a class="dropdown-item" href="javascript:void(0);" data-auth-logout>Logout</a>
-            </div>
-        </div>
-        <!-- /Mobile Menu -->
+        @include('layout.partials.header.mobile-user-menu')
 
     </div>
 

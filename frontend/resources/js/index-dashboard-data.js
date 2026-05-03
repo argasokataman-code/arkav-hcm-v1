@@ -62,6 +62,13 @@
         return (part / total) * 100;
     }
 
+    function updateAttendanceChart(overview) {
+        window.__arcavPendingAttendanceOverview = overview || {};
+        if (typeof window.updateAttendanceOverviewChart === "function") {
+            window.updateAttendanceOverviewChart(window.__arcavPendingAttendanceOverview);
+        }
+    }
+
     function renderDepartmentBreakdown(items) {
         var wrap = document.querySelector("[data-legacy-department-breakdown]");
         var summary = document.querySelector("[data-legacy-department-summary]");
@@ -82,6 +89,13 @@
                 + '<span class="fs-12 fw-medium">' + escapeHtml(item.count) + '</span>'
                 + '</div>';
         }).join("");
+    }
+
+    function updateDepartmentChart(items) {
+        window.__arcavPendingDepartmentBreakdown = Array.isArray(items) ? items : [];
+        if (typeof window.updateEmployeeDepartmentChart === "function") {
+            window.updateEmployeeDepartmentChart(window.__arcavPendingDepartmentBreakdown);
+        }
     }
 
     function renderClockList(items) {
@@ -276,6 +290,7 @@
             setText("[data-legacy-attendance-permission-pct]", (legacyAttendance.permissionPct || 0) + "%");
             setText("[data-legacy-attendance-absent-pct]", (legacyAttendance.absentPct || 0) + "%");
             setText("[data-legacy-attendance-absent-total]", legacyAttendance.absentTotal || 0);
+            updateAttendanceChart(legacyAttendance);
 
             // Top performer card
             setText("[data-legacy-top-performer-name]", (legacy.topPerformer || {}).name || "Employee");
@@ -283,6 +298,7 @@
             setText("[data-legacy-top-performer-score]", ((legacy.topPerformer || {}).score || 0) + "%");
 
             renderDepartmentBreakdown(legacy.departmentBreakdown || []);
+            updateDepartmentChart(legacy.departmentBreakdown || []);
             renderClockList(legacy.clockInOut || []);
             renderLateList(legacy.lateEmployees || []);
             renderEmployees(legacy.employees || []);

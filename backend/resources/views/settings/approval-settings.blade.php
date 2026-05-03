@@ -1,4 +1,8 @@
 <?php $page = 'approval-settings'; ?>
+@php
+    $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+@endphp
+
 @extends('layout.mainlayout')
 @section('content')
 
@@ -34,32 +38,41 @@
             <li class="nav-item">
                 <a class="nav-link " href="{{url('profile-settings')}}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{url('business-settings')}}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
+
+            @endif
             <li class="nav-item">
-                <a class="nav-link active" href="{{url('salary-settings')}}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{url('email-settings')}}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{url('payment-gateways')}}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
             </li>
+
+            @endif
+            @if ($isGlobalHcmAdmin)
+
             <li class="nav-item">
                 <a class="nav-link" href="{{url('custom-css')}}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
+
+            @endif
         </ul>
         <div class="row">
             <div class="col-xl-3 theiaStickySidebar">
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
-                            <a href="{{url('salary-settings')}}" class="d-inline-flex align-items-center rounded  py-2 px-3">Salary Settings</a>
                             <a href="{{url('approval-settings')}}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Approval Settings</a>
                             <a href="{{url('invoice-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Invoice Settings</a>
                             <a href="{{url('leave-type')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Leave Type</a>
-                            <a href="{{url('custom-fields')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Custom Fields</a>
                         </div>
                     </div>
                 </div>

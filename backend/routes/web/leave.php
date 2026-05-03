@@ -34,7 +34,9 @@ Route::middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->group(
 });
 
 Route::get('/leave-type', function () {
+    $companyId = request()->attributes->get('activeCompanyId');
     $leaveTypes = HcmLeaveTypeSetting::query()
+        ->where('company_id', $companyId)
         ->orderBy('sort_order')
         ->orderBy('id')
         ->get();

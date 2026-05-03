@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
+use App\Services\AddonRecurringSubscriptionService;
 use App\Services\SubscriptionActivationFromInvoiceService;
 use App\Support\WebsiteSettings;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -97,6 +98,16 @@ class Invoice extends Model
             'paid_date' => now(),
             'status' => 'paid',
         ]);
+
+        $transaction = $this->purchaseTransaction()->first();
+        if ($transaction && (string) ($transaction->transaction_type ?? '') === 'addon' && (string) ($transaction->status ?? '') !== 'paid') {
+            $transaction->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+            ]);
+            app(AddonRecurringSubscriptionService::class)
+                ->applyFromTransaction($transaction->fresh());
+        }
 
         app(SubscriptionActivationFromInvoiceService::class)
             ->activateIfEligible($this->fresh());

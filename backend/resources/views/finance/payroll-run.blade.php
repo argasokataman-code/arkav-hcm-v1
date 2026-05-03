@@ -437,14 +437,14 @@
                         <div class="col-lg-4">
                             <div class="border rounded p-3 h-100">
                                 <div class="text-muted text-uppercase small fw-semibold mb-1">Aksi Lanjutan</div>
-                                <h6 class="mb-3">Koreksi dan utilitas</h6>
+                                <h6 class="mb-3">Koreksi payroll run</h6>
                                 <div class="d-flex flex-wrap gap-2">
-                                    <button type="button" class="btn btn-outline-warning" data-payroll-run-void disabled title="Hanya aktif untuk run finalized yang belum ada pembayaran.">Void Finalized Run</button>
+                                    <button type="button" class="btn btn-outline-warning" data-payroll-run-void disabled title="Aktif jika run masih finalized dan belum ada pembayaran/transaksi gateway.">Void Run Finalized</button>
                                     @if (app()->environment(['local', 'development', 'testing']) && $isPrimarySuperAdminCodeOne)
                                         <button type="button" class="btn btn-outline-danger" data-payroll-run-reset-payments>Reset Pembayaran (DEV)</button>
                                     @endif
                                 </div>
-                                <div class="small text-muted mt-2">Aksi di sini dipakai untuk koreksi setup, QA runtime, atau rollback sebelum run dibayar.</div>
+                                <div class="small text-muted mt-2">Dipakai operator payroll company saat perlu koreksi data/cutoff sebelum payroll dibayar. Setelah di-void, run bisa dihitung ulang.</div>
                             </div>
                         </div>
                     </div>

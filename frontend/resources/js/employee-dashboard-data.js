@@ -75,6 +75,94 @@
         return val.toFixed(1);
     }
 
+    function parseDurationToMinutes(raw) {
+        var str = String(raw || "").trim();
+        if (!str || str === "-") return 0;
+
+        var hourMatch = str.match(/(\d+)\s*h/i);
+        var minuteMatch = str.match(/(\d+)\s*m/i);
+        var secondMatch = str.match(/(\d+)\s*s/i);
+
+        var hours = hourMatch ? Number(hourMatch[1] || 0) : 0;
+        var minutes = minuteMatch ? Number(minuteMatch[1] || 0) : 0;
+        var seconds = secondMatch ? Number(secondMatch[1] || 0) : 0;
+
+        if (!Number.isFinite(hours)) hours = 0;
+        if (!Number.isFinite(minutes)) minutes = 0;
+        if (!Number.isFinite(seconds)) seconds = 0;
+
+        return (hours * 60) + minutes + Math.round(seconds / 60);
+    }
+
+    function shiftClockLabel(baseClock, shiftMinutes) {
+        var match = String(baseClock || "").match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return null;
+
+        var hh = Number(match[1]);
+        var mm = Number(match[2]);
+        if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+
+        var total = (hh * 60) + mm + Number(shiftMinutes || 0);
+        total = ((total % 1440) + 1440) % 1440;
+
+        var outH = String(Math.floor(total / 60)).padStart(2, "0");
+        var outM = String(total % 60).padStart(2, "0");
+        return outH + ":" + outM;
+    }
+
+    function renderLegacyTimeline(attendanceToday, attendanceStats) {
+        var barsRoot = document.querySelector("[data-employee-legacy-timeline-bars]");
+        var labelsRoot = document.querySelector("[data-employee-legacy-timeline-labels]");
+        if (!barsRoot || !labelsRoot) return;
+
+        var productiveMinutes = parseDurationToMinutes(attendanceToday && attendanceToday.summaryProductive);
+        var breakMinutes = parseDurationToMinutes(attendanceToday && attendanceToday.summaryBreak);
+        var overtimeMinutes = parseDurationToMinutes(attendanceToday && attendanceToday.summaryOvertime);
+
+        var targetMinutes = Math.max(1, Math.round(Number(attendanceStats && attendanceStats.todayTarget || 8) * 60));
+        var productiveOnTargetMinutes = Math.max(0, productiveMinutes - overtimeMinutes);
+        var remainingMinutes = Math.max(0, targetMinutes - productiveOnTargetMinutes);
+
+        var segments = [
+            { minutes: productiveOnTargetMinutes, cls: "bg-success" },
+            { minutes: breakMinutes, cls: "bg-warning" },
+            { minutes: overtimeMinutes, cls: "bg-info" },
+            { minutes: remainingMinutes, cls: "bg-white" }
+        ];
+
+        var totalMinutes = segments.reduce(function (sum, seg) {
+            return sum + Math.max(0, Number(seg.minutes || 0));
+        }, 0);
+
+        if (totalMinutes <= 0) {
+            barsRoot.innerHTML = '<div class="progress-bar bg-transparent rounded" role="progressbar" style="width: 100%;"></div>';
+        } else {
+            barsRoot.innerHTML = segments
+                .filter(function (seg) { return Number(seg.minutes || 0) > 0; })
+                .map(function (seg, index) {
+                    var pct = Math.max(0, Math.min(100, (Number(seg.minutes || 0) / totalMinutes) * 100));
+                    var spacing = index === segments.length - 1 ? "" : " me-2";
+                    return '<div class="progress-bar ' + seg.cls + ' rounded' + spacing + '" role="progressbar" style="width: ' + pct.toFixed(2) + '%;"></div>';
+                })
+                .join("");
+        }
+
+        var clockIn = attendanceToday && attendanceToday.punchInAt && attendanceToday.punchInAt !== "-"
+            ? String(attendanceToday.punchInAt)
+            : "00:00";
+        var clockOut = attendanceToday && attendanceToday.punchOutAt && attendanceToday.punchOutAt !== "-"
+            ? String(attendanceToday.punchOutAt)
+            : null;
+        var targetClock = shiftClockLabel(clockIn, targetMinutes) || "08:00";
+        var endClock = clockOut || shiftClockLabel(clockIn, productiveOnTargetMinutes + breakMinutes + overtimeMinutes) || "24:00";
+
+        labelsRoot.innerHTML = [clockIn, targetClock, endClock, "24:00"]
+            .map(function (label) {
+                return '<span class="fs-10">' + escapeHtml(label) + '</span>';
+            })
+            .join("");
+    }
+
     function formatRupiah(amount) {
         var val = Number(amount || 0);
         if (!Number.isFinite(val)) val = 0;
@@ -680,10 +768,30 @@
         setText("[data-employee-legacy-stat-ot-hours]", formatHours(attendanceStats.monthOvertimeHours), "0.0");
         setText("[data-employee-legacy-stat-ot-target]", attendanceStats.monthOvertimeTarget || 28, "28");
 
+        var todayHours = Number(attendanceStats.todayHours || 0);
+        var todayTarget = Number(attendanceStats.todayTarget || 8);
+        var weekHours = Number(attendanceStats.weekHours || 0);
+        var weekTarget = Number(attendanceStats.weekTarget || 40);
+        var monthHours = Number(attendanceStats.monthHours || 0);
+        var monthTarget = Number(attendanceStats.monthTarget || 98);
+        var otHours = Number(attendanceStats.monthOvertimeHours || 0);
+        var otTarget = Number(attendanceStats.monthOvertimeTarget || 28);
+
+        var todayPct = todayTarget > 0 ? Math.min(100, Math.round((todayHours / todayTarget) * 100)) : 0;
+        var weekPct = weekTarget > 0 ? Math.min(100, Math.round((weekHours / weekTarget) * 100)) : 0;
+        var monthPct = monthTarget > 0 ? Math.min(100, Math.round((monthHours / monthTarget) * 100)) : 0;
+        var otPct = otTarget > 0 ? Math.min(100, Math.round((otHours / otTarget) * 100)) : 0;
+
+        setText("[data-employee-legacy-stat-today-hint]", "Tercapai " + todayPct + "% dari target harian.");
+        setText("[data-employee-legacy-stat-week-hint]", "Progress minggu ini " + weekPct + "% dari target.");
+        setText("[data-employee-legacy-stat-month-hint]", "Progress bulan ini " + monthPct + "% dari target.");
+        setText("[data-employee-legacy-stat-ot-hint]", "Lembur bulan ini " + otPct + "% dari batas acuan.");
+
         setText("[data-employee-legacy-summary-total-working]", attendanceToday.summaryTotalWorking);
         setText("[data-employee-legacy-summary-productive]", attendanceToday.summaryProductive);
         setText("[data-employee-legacy-summary-break]", attendanceToday.summaryBreak);
         setText("[data-employee-legacy-summary-overtime]", attendanceToday.summaryOvertime);
+        renderLegacyTimeline(attendanceToday, attendanceStats);
 
         setText("[data-employee-legacy-leave-total]", leave.total || 0, "0");
         setText("[data-employee-legacy-leave-taken]", leave.approved || 0, "0");

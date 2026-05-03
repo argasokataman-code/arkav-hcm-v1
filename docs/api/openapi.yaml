@@ -4543,7 +4543,8 @@ paths:
   /v1/hcm/leave-types:
     get:
       tags: [Leave]
-      summary: Leave type catalog (admin only)
+      summary: Leave type catalog (admin only, scoped per tenant company)
+      description: Returns leave types belonging to the active company (X-Company-Id). Multi-tenant isolated — each company manages its own catalog.
       security:
         - bearerAuth: []
       responses:
@@ -4552,7 +4553,8 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
     post:
       tags: [Leave]
-      summary: Create leave type (admin only)
+      summary: Create leave type (admin only, per tenant)
+      description: Creates a leave type for the active company. Code must be unique within the company.
       security:
         - bearerAuth: []
       responses:
@@ -4563,7 +4565,8 @@ paths:
   /v1/hcm/leave-types/{id}:
     put:
       tags: [Leave]
-      summary: Update leave type (admin only)
+      summary: Update leave type (admin only, per tenant)
+      description: Updates a leave type. Returns 404 if the record does not belong to the active company.
       security:
         - bearerAuth: []
       parameters:
@@ -4572,10 +4575,12 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Not found — record does not belong to active company }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [Leave]
-      summary: Disable leave type (admin only)
+      summary: Disable leave type (admin only, per tenant)
+      description: Soft-disables a leave type (is_enabled=false). Returns 404 if the record does not belong to the active company.
       security:
         - bearerAuth: []
       parameters:
@@ -4584,6 +4589,7 @@ paths:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { description: Not found — record does not belong to active company }
   /v1/hcm/leave-requests/export:
     get:
       tags: [Leave]

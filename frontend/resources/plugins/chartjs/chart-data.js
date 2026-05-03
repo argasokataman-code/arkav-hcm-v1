@@ -573,39 +573,89 @@ if ($('#chartDonut').length > 0) {
 	if (_arcavAtt && _arcavAtt.getContext) {
 		arcavDestroyChartOnCanvas(_arcavAtt);
 		var ctx = _arcavAtt.getContext('2d');
-    var mySemiDonutChart = new Chart(ctx, {
-        type: 'doughnut', // Chart type
-        data: {
-            labels: ['Late','Present', 'Permission', 'Absent'],
-            datasets: [{
-                label: 'Semi Donut',
-                data: [40, 20, 30, 10],
-                backgroundColor: ['#0C4B5E', '#03C95A', '#FFC107', '#E70D0D'],
-                borderWidth: 5,
-				borderRadius: 10,
-                borderColor: '#fff', // Border between segments
-                hoverBorderWidth: 0,   // Border radius for curved edges
-                cutout: '60%',   
-            }]
-        },
-		options: {
-			rotation: -100,
-			circumference: 200,
-			layout: {
-				padding: {
-					top: -20,    // Set to 0 to remove top padding
-					bottom: -20, // Set to 0 to remove bottom padding
-				}
+
+		function clampAttendancePercent(value) {
+			var parsed = Number(value || 0);
+			if (!Number.isFinite(parsed)) {
+				return 0;
+			}
+			if (parsed < 0) {
+				return 0;
+			}
+			if (parsed > 100) {
+				return 100;
+			}
+			return Math.round(parsed);
+		}
+
+		function normalizeAttendanceOverview(overview) {
+			overview = overview || {};
+			return {
+				presentPct: clampAttendancePercent(overview.presentPct),
+				latePct: clampAttendancePercent(overview.latePct),
+				permissionPct: clampAttendancePercent(overview.permissionPct),
+				absentPct: clampAttendancePercent(overview.absentPct),
+			};
+		}
+
+		var initialAttendance = normalizeAttendanceOverview(window.__arcavPendingAttendanceOverview || {});
+
+		var attendanceOverviewChart = new Chart(ctx, {
+			type: 'doughnut',
+			data: {
+				labels: ['Present', 'Late', 'Permission', 'Absent'],
+				datasets: [{
+					label: 'Attendance Distribution',
+					data: [
+						initialAttendance.presentPct,
+						initialAttendance.latePct,
+						initialAttendance.permissionPct,
+						initialAttendance.absentPct,
+					],
+					backgroundColor: ['#03C95A', '#0C4B5E', '#FFC107', '#E70D0D'],
+					borderWidth: 2,
+					borderColor: '#fff',
+					hoverBorderWidth: 2,
+					cutout: '72%',
+				}]
 			},
-			responsive: true,
-			maintainAspectRatio: false,
-			plugins: {
-				legend: {
-					display: false // Hide the legend
+			options: {
+				rotation: -90,
+				circumference: 360,
+				responsive: true,
+				maintainAspectRatio: false,
+				plugins: {
+					legend: {
+						display: false
+					},
+					tooltip: {
+						callbacks: {
+							label: function (context) {
+								var label = context.label || '';
+								var value = Number(context.raw || 0);
+								return label + ': ' + Math.round(value) + '%';
+							}
+						}
+					}
 				}
-			},
-		  }
-    });
+			}
+		});
+
+		window.__arcavAttendanceOverviewChart = attendanceOverviewChart;
+		window.updateAttendanceOverviewChart = function (overview) {
+			var payload = normalizeAttendanceOverview(overview || {});
+			attendanceOverviewChart.data.datasets[0].data = [
+				payload.presentPct,
+				payload.latePct,
+				payload.permissionPct,
+				payload.absentPct,
+			];
+			attendanceOverviewChart.update();
+		};
+
+		if (window.__arcavPendingAttendanceOverview) {
+			window.updateAttendanceOverviewChart(window.__arcavPendingAttendanceOverview);
+		}
 	}
 
 	var _arcavDeal = document.getElementById('deal_chart');

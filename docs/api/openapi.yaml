@@ -1818,7 +1818,7 @@ paths:
     get:
       tags: [HCM]
       summary: List teams with pagination and search
-      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
+      description: 'Requires `team.manage` permission (transitional fallback: `employee.manage`).'
       security:
         - bearerAuth: []
       parameters:
@@ -1846,7 +1846,7 @@ paths:
     post:
       tags: [HCM]
       summary: Create team
-      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
+      description: 'Requires `team.manage` permission (transitional fallback: `employee.manage`).'
       security:
         - bearerAuth: []
       requestBody:
@@ -1917,7 +1917,7 @@ paths:
     get:
       tags: [HCM]
       summary: Get single team
-      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
+      description: 'Requires `team.manage` permission (transitional fallback: `employee.manage`).'
       security:
         - bearerAuth: []
       responses:
@@ -1936,7 +1936,7 @@ paths:
     put:
       tags: [HCM]
       summary: Update team
-      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
+      description: 'Requires `team.manage` permission (transitional fallback: `employee.manage`).'
       security:
         - bearerAuth: []
       requestBody:
@@ -1963,7 +1963,7 @@ paths:
     delete:
       tags: [HCM]
       summary: Delete team (blocks if team has members)
-      description: Requires `team.manage` permission (transitional fallback: `employee.manage`).
+      description: 'Requires `team.manage` permission (transitional fallback: `employee.manage`).'
       security:
         - bearerAuth: []
       responses:
@@ -10471,7 +10471,7 @@ paths:
                             label: { type: string, example: Tiket (admin) }
                             description: { type: string, nullable: true, example: Antrian & SLA. }
                             path: { type: string, example: /tickets-admin }
-                            href: { type: string, format: uri, example: https://example.test/tickets-admin }
+                            href: { type: string, format: uri, example: 'https://example.test/tickets-admin' }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '422':
           description: Validation error

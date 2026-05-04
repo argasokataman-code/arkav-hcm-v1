@@ -235,7 +235,14 @@
             </div>
             <div class="card-body p-0">
                 <div class="px-3 py-2 border-bottom bg-light">
-                    <span class="text-muted small" data-bpjs-employee-summary>0 karyawan</span>
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span class="text-muted small" data-bpjs-employee-summary>0 karyawan</span>
+                        <div class="d-flex flex-wrap gap-2" data-bpjs-employee-status-kpis>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Lengkap: <span data-bpjs-employee-complete>0</span></span>
+                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle">Parsial: <span data-bpjs-employee-partial>0</span></span>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Missing: <span data-bpjs-employee-missing>0</span></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
@@ -313,6 +320,11 @@
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bpjs-baseline-refresh>
                     <i class="ti ti-refresh me-1"></i>Refresh
                 </button>
+            </div>
+            <div class="px-3 pt-3">
+                <div class="alert alert-warning py-2 small mb-0" role="alert" data-bpjs-baseline-warning>
+                    Jika baseline JKK belum menetapkan kategori risiko, payroll akan memakai default risiko terendah (kategori 1 / 0,24%) sampai dikonfigurasi.
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

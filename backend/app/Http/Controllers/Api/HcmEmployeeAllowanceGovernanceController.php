@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
+use App\Models\EmployeeCompensation;
+use App\Models\EmployeeProfile;
 use App\Models\HcmEmployeeAllowanceAssignment;
 use App\Models\HcmEmployeeAllowanceAssignmentHistory;
+use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\HcmEmployeeAllowancePolicyHistory;
 use App\Models\HcmPayrollItem;
@@ -389,58 +392,58 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
         $asOf = isset($validated['as_of']) ? Carbon::parse((string) $validated['as_of'])->toDateString() : now()->toDateString();
         $perPage = (int) ($validated['perPage'] ?? 20);
 
-        $query = HcmEmployeeAllowanceAssignment::query()
+        // Source of truth: hcm_employee_payroll_item_assignments filtered for fixed_allowance items.
+        // hcm_employee_allowance_assignments is reserved for future governance-only flows;
+        // all existing allowance assignments are managed via Employee Salary page and stored here.
+        $query = HcmEmployeePayrollItemAssignment::query()
+            ->with(['payrollItem.salaryComponent', 'user'])
             ->where('company_id', $companyId)
+            ->whereHas('payrollItem', fn ($piq) => $piq->where('category', 'fixed_allowance'))
+            ->orderByDesc('is_active')
             ->orderByDesc('id');
 
-        if (! empty($validated['policyRef'])) {
-            $query->where(function ($builder) use ($validated): void {
-                $policyRef = (string) $validated['policyRef'];
-                if (str_contains($policyRef, '-')) {
-                    $builder->where('policy_uuid', $policyRef);
-                } else {
-                    $builder->where('policy_id', (int) $policyRef);
-                }
-            });
-        }
-
         if (! empty($validated['status'])) {
-            $query->where('status', (string) $validated['status']);
+            $status = (string) $validated['status'];
+            if ($status === 'active') {
+                $query->where('is_active', true);
+            } elseif (in_array($status, ['ended', 'suspended', 'draft'], true)) {
+                $query->where('is_active', false);
+            }
         }
 
-        $query->whereDate('effective_start_date', '<=', $asOf)
-            ->where(function ($builder) use ($asOf): void {
-                $builder->whereNull('effective_end_date')
-                    ->orWhereDate('effective_end_date', '>=', $asOf);
-            });
+        // Treat NULL effective_start_date as always-valid (legacy records without date set).
+        $query->where(function ($builder) use ($asOf): void {
+            $builder->whereNull('effective_start_date')
+                ->orWhereDate('effective_start_date', '<=', $asOf);
+        })->where(function ($builder) use ($asOf): void {
+            $builder->whereNull('effective_end_date')
+                ->orWhereDate('effective_end_date', '>=', $asOf);
+        });
 
         $paginator = $query->paginate($perPage);
 
-        $userIds = collect($paginator->items())->pluck('user_id')->filter()->unique()->values();
-        $policyIds = collect($paginator->items())->pluck('policy_id')->filter()->unique()->values();
-
-        $userMap = User::query()->whereIn('id', $userIds)->get(['id', 'uuid', 'name', 'email'])->keyBy('id');
-        $policyMap = HcmEmployeeAllowancePolicy::query()->whereIn('id', $policyIds)->get()->keyBy('id');
-
-        $items = collect($paginator->items())->map(function (HcmEmployeeAllowanceAssignment $row) use ($userMap, $policyMap): array {
-            $user = $userMap->get((int) $row->user_id);
-            $policy = $policyMap->get((int) $row->policy_id);
+        $items = collect($paginator->items())->map(function (HcmEmployeePayrollItemAssignment $row): array {
+            $user = $row->user;
+            $payrollItem = $row->payrollItem;
+            $salaryComponent = $payrollItem?->salaryComponent;
+            $policyName = $salaryComponent?->name ?? $payrollItem?->name ?? '-';
+            $policyCode = $salaryComponent?->code ?? $payrollItem?->code;
 
             return [
                 'id' => (int) $row->id,
                 'uuid' => $row->uuid,
-                'policyId' => (int) $row->policy_id,
-                'policyUuid' => $row->policy_uuid,
-                'policyCode' => $policy?->code,
-                'policyName' => $policy?->name,
-                'userId' => (int) $row->user_id,
+                'policyId' => $payrollItem ? (int) $payrollItem->id : null,
+                'policyUuid' => $payrollItem?->uuid ?? null,
+                'policyCode' => $policyCode,
+                'policyName' => $policyName,
+                'userId' => $user ? (int) $user->id : null,
                 'userUuid' => $user?->uuid,
                 'fullName' => $user?->name,
                 'email' => $user?->email,
-                'amountOverride' => $row->amount_override !== null ? number_format((float) $row->amount_override, 2, '.', '') : null,
+                'amountOverride' => $row->amount !== null ? number_format((float) $row->amount, 2, '.', '') : null,
                 'effectiveStartDate' => optional($row->effective_start_date)->toDateString(),
                 'effectiveEndDate' => optional($row->effective_end_date)->toDateString(),
-                'status' => (string) $row->status,
+                'status' => $row->is_active ? 'active' : 'ended',
                 'isActive' => (bool) $row->is_active,
                 'notes' => $row->notes,
             ];
@@ -451,14 +454,74 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
             $items = $items->filter(function (array $row) use ($search): bool {
                 return str_contains(strtolower((string) ($row['fullName'] ?? '')), $search)
                     || str_contains(strtolower((string) ($row['email'] ?? '')), $search)
-                    || str_contains(strtolower((string) ($row['policyName'] ?? '')), $search);
+                    || str_contains(strtolower((string) ($row['policyName'] ?? '')), $search)
+                    || str_contains(strtolower((string) ($row['policyCode'] ?? '')), $search);
             })->values();
         }
+
+            // ── Compensation-based fixed allowances (tunjangan_tetap dari employee_compensations) ──
+            // These are set via the Employee Salary page (not through governance), so they are
+            // invisible in the assignment flow. We surface them here as read-only entries.
+            $employeeMembershipIds = CompanyUser::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'active')
+                ->where('role', '!=', 'owner')
+                ->pluck('user_id');
+
+            $profileMap = EmployeeProfile::query()
+                ->where('company_id', $companyId)
+                ->whereIn('user_id', $employeeMembershipIds)
+                ->get(['id', 'user_id'])
+                ->keyBy('user_id');
+
+            $compensationRows = EmployeeCompensation::query()
+                ->whereIn('employee_id', $profileMap->pluck('id'))
+                ->whereDate('effective_date', '<=', $asOf)
+                ->where(function ($q) use ($asOf): void {
+                    $q->whereNull('end_date')->orWhereDate('end_date', '>=', $asOf);
+                })
+                ->orderByDesc('effective_date')
+                ->get(['id', 'employee_id', 'fixed_allowance', 'effective_date', 'end_date'])
+                ->groupBy('employee_id')
+                ->map(fn ($rows) => $rows->first()) // latest per employee
+                ->filter(fn ($row) => (float) ($row->fixed_allowance ?? 0) > 0);
+
+            $compensationUserIds = $compensationRows->keys()->map(function ($profileId) use ($profileMap): ?int {
+                $entry = $profileMap->first(fn ($p) => (int) $p->id === (int) $profileId);
+                return $entry ? (int) $entry->user_id : null;
+            })->filter()->values();
+
+            $compUsers = User::query()
+                ->whereIn('id', $compensationUserIds)
+                ->get(['id', 'uuid', 'name', 'email'])
+                ->keyBy('id');
+
+            $compensationAllowances = $compensationRows->map(function ($comp) use ($profileMap, $compUsers): array {
+                $profile = $profileMap->first(fn ($p) => (int) $p->id === (int) $comp->employee_id);
+                $userId = $profile ? (int) $profile->user_id : null;
+                $user = $userId ? $compUsers->get($userId) : null;
+
+                return [
+                    'source' => 'employee_compensations',
+                    'userId' => $userId,
+                    'userUuid' => $user?->uuid,
+                    'fullName' => $user?->name,
+                    'email' => $user?->email,
+                    'policyCode' => 'tunjangan_tetap',
+                    'policyName' => 'Tunjangan Tetap (Payroll Bulanan)',
+                    'amount' => number_format((float) $comp->fixed_allowance, 2, '.', ''),
+                    'effectiveStartDate' => optional($comp->effective_date)->toDateString(),
+                    'effectiveEndDate' => optional($comp->end_date)->toDateString(),
+                    'status' => 'active',
+                    'readonly' => true,
+                ];
+            })->values();
 
         return response()->json([
             'success' => true,
             'data' => [
                 'items' => $items,
+                    'compensationAllowances' => $compensationAllowances,
                 'meta' => [
                     'page' => $paginator->currentPage(),
                     'perPage' => $paginator->perPage(),
@@ -666,39 +729,65 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
         $employeeIds = $employeeMemberships->pluck('user_id')->unique()->values();
         $users = User::query()->whereIn('id', $employeeIds)->get(['id', 'uuid', 'name', 'email'])->keyBy('id');
 
-        $activeAssignments = HcmEmployeeAllowanceAssignment::query()
+        // Resolve active assignments: fixed_allowance items only
+        $activeItemAssignments = HcmEmployeePayrollItemAssignment::query()
+            ->with(['payrollItem.salaryComponent'])
             ->where('company_id', $companyId)
             ->where('is_active', true)
-            ->where('status', 'active')
             ->whereIn('user_id', $employeeIds)
-            ->whereDate('effective_start_date', '<=', $asOf)
+            ->where(function ($builder) use ($asOf): void {
+                $builder->whereNull('effective_start_date')
+                    ->orWhereDate('effective_start_date', '<=', $asOf);
+            })
             ->where(function ($builder) use ($asOf): void {
                 $builder->whereNull('effective_end_date')
                     ->orWhereDate('effective_end_date', '>=', $asOf);
             })
-            ->get(['id', 'policy_id', 'user_id']);
+            ->get(['id', 'user_id', 'hcm_payroll_item_id', 'is_active', 'effective_start_date', 'effective_end_date']);
 
-        $assignmentIndex = [];
-        foreach ($activeAssignments as $assignment) {
-            $assignmentIndex[(int) $assignment->user_id . ':' . (int) $assignment->policy_id] = true;
-        }
+        // Build set of user_ids that have at least 1 active allowance assignment.
+        // Comply = punya minimal 1 tunjangan aktif, tidak perlu punya semua policy.
+        $assignedFromItemAssignments = collect($activeItemAssignments)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        // Also include employees whose tunjangan_tetap comes from employee_compensations.fixed_allowance
+        // (set via Employee Salary page, NOT through governance assignments). These are equally compliant.
+        $profileMapForCompliance = EmployeeProfile::query()
+            ->where('company_id', $companyId)
+            ->whereIn('user_id', $employeeIds->all())
+            ->get(['id', 'user_id'])
+            ->keyBy('id'); // keyed by profile_id
+
+        $complianceCompensationRows = EmployeeCompensation::query()
+            ->whereIn('employee_id', $profileMapForCompliance->keys())
+            ->whereDate('effective_date', '<=', $asOf)
+            ->where(function ($q) use ($asOf): void {
+                $q->whereNull('end_date')->orWhereDate('end_date', '>=', $asOf);
+            })
+            ->orderByDesc('effective_date')
+            ->get(['employee_id', 'fixed_allowance'])
+            ->groupBy('employee_id')
+            ->map(fn ($rows) => $rows->first())
+            ->filter(fn ($row) => (float) ($row->fixed_allowance ?? 0) > 0);
+
+        $assignedFromCompensation = $complianceCompensationRows
+            ->keys()
+            ->map(fn ($profileId) => (int) ($profileMapForCompliance->get((int) $profileId)?->user_id ?? 0))
+            ->filter(fn ($id) => $id > 0)
+            ->values();
+
+        $assignedUserIds = $assignedFromItemAssignments
+            ->merge($assignedFromCompensation)
+            ->unique()
+            ->flip(); // flip for O(1) lookup
 
         $nonCompliantEmployees = [];
 
         foreach ($employeeIds as $userId) {
-            $missingPolicies = [];
-            foreach ($mandatoryPolicies as $policy) {
-                if (! isset($assignmentIndex[(int) $userId . ':' . (int) $policy->id])) {
-                    $missingPolicies[] = [
-                        'policyId' => (int) $policy->id,
-                        'policyUuid' => $policy->uuid,
-                        'policyCode' => (string) $policy->code,
-                        'policyName' => (string) $policy->name,
-                    ];
-                }
-            }
-
-            if ($missingPolicies !== []) {
+            if (! isset($assignedUserIds[(int) $userId])) {
                 $user = $users->get((int) $userId);
                 $nonCompliantEmployees[] = [
                     'userId' => (int) $userId,
@@ -707,39 +796,13 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
                     'email' => $user?->email,
                     'issues' => [[
                         'code' => 'allowance_assignment_missing',
-                        'label' => 'Belum memiliki assignment untuk allowance mandatory.',
-                        'missingPolicies' => $missingPolicies,
+                        'label' => 'Belum memiliki assignment tunjangan apapun.',
                     ]],
                 ];
             }
         }
 
-        $overlapRows = HcmEmployeeAllowanceAssignment::query()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->where('status', 'active')
-            ->whereIn('user_id', $employeeIds)
-            ->whereDate('effective_start_date', '<=', $asOf)
-            ->where(function ($builder) use ($asOf): void {
-                $builder->whereNull('effective_end_date')
-                    ->orWhereDate('effective_end_date', '>=', $asOf);
-            })
-            ->selectRaw('user_id, policy_id, COUNT(*) as total')
-            ->groupBy('user_id', 'policy_id')
-            ->havingRaw('COUNT(*) > 1')
-            ->get();
-
-        $overlapItems = $overlapRows->map(function ($row) use ($users): array {
-            $user = $users->get((int) $row->user_id);
-            return [
-                'userId' => (int) $row->user_id,
-                'userUuid' => $user?->uuid,
-                'fullName' => $user?->name,
-                'email' => $user?->email,
-                'policyId' => (int) $row->policy_id,
-                'overlapCount' => (int) $row->total,
-            ];
-        })->values();
+        $overlapItems = collect(); // Overlap detection not applicable for payroll-item-assignment model
 
         $checks = [
             [

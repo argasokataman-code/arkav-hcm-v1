@@ -500,6 +500,10 @@ final class PayrollDraftBuilder
                     }
                 }
 
+                // Track fixed_allowance additions from assignments for BPJS base inclusion.
+                // Per regulation, semua tunjangan tetap (fixed) harus masuk ke upah BPJS.
+                $assignmentFixedAllowanceTotal = 0.0;
+
                 $customAssignments = collect($assignmentsByUser->get($user->id, []))
                     ->filter(function (HcmEmployeePayrollItemAssignment $assignment): bool {
                         return $assignment->payrollItem !== null
@@ -546,6 +550,11 @@ final class PayrollDraftBuilder
 
                     if ((string) $item->kind === 'addition' && (bool) ($master?->include_pph21_ter_gross ?? false)) {
                         $taxableGross += $amount;
+                    }
+
+                    // Fixed allowance assignments masuk ke BPJS upah base (per regulasi PP 44/2015).
+                    if ((string) $item->kind === 'addition' && (string) $item->category === 'fixed_allowance') {
+                        $assignmentFixedAllowanceTotal += $amount;
                     }
                 }
 
@@ -717,7 +726,8 @@ final class PayrollDraftBuilder
                     }
                 }
 
-                $bpjsRawBase = $base + $fixed;
+                // BPJS upah base = gaji pokok + tunjangan tetap dari kompensasi + tunjangan tetap dari assignment
+                $bpjsRawBase = $base + $fixed + $assignmentFixedAllowanceTotal;
                 $taxProfile = $snapshotService->latestTaxProfile($profile, $asOf);
 
                 // ── BPJS Kesehatan (employee) ─────────────────────────────────────────
@@ -815,11 +825,13 @@ final class PayrollDraftBuilder
                             'meta'                     => [
                                 'source'         => 'bpjs_jkk_employer',
                                 'userName'       => $user->name,
-                                'affectsNetPay'  => false,
+                                'affectsNetPay'  => (bool) ($bpjsJkkComponent->affects_net_pay ?? false),
                                 'basisAmount'    => round($bpjsRawBase, 2),
                                 'ratePercent'    => $jkkRate,
                                 'rateSource'     => 'risk_category',
                                 'riskCategory'   => $jkkRiskCat,
+                                'wageBaseCode'   => 'wage_bpjs_tk',
+                                'componentKind'  => 'addition',
                             ],
                         ]);
                     }
@@ -917,8 +929,11 @@ final class PayrollDraftBuilder
             'sort_order' => $sortOrder++,
             'meta' => array_merge($meta, [
                 'affectsNetPay' => (bool) ($component->affects_net_pay ?? true),
-                'defaultPercent' => round($percent, 4),
+                'ratePercent' => round($percent, 4),
+                'defaultPercent' => round((float) ($component->default_percent ?? $percent), 4),
+                'rateSource' => $percentOverride !== null ? 'bpjs_governance_baseline' : 'salary_component_default_percent',
                 'percentBasis' => $component->percent_basis,
+                'componentKind' => 'deduction',
             ]),
         ]);
     }

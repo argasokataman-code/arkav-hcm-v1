@@ -585,6 +585,9 @@
     function loadMembership(searchText) {
         var body = q('[data-bpjs-employee-membership-body]');
         var summary = q('[data-bpjs-employee-summary]');
+        var completeEl = q('[data-bpjs-employee-complete]');
+        var partialEl = q('[data-bpjs-employee-partial]');
+        var missingEl = q('[data-bpjs-employee-missing]');
         if (body) {
             body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Memuat membership karyawan...</td></tr>';
         }
@@ -623,8 +626,22 @@
             }
 
             if (summary) {
-                summary.textContent = String(meta.total || items.length) + ' karyawan, ' + String(meta.complete || 0) + ' membership lengkap';
+                var total = Number(meta.total || 0);
+                var complete = Number(meta.complete || 0);
+                var displayed = Number(meta.displayedTotal || items.length);
+                var filtered = Number(meta.filteredTotal || displayed || total);
+                var searchApplied = !!(searchText && String(searchText).trim());
+
+                if (searchApplied) {
+                    summary.textContent = complete + '/' + total + ' membership lengkap (menampilkan ' + displayed + ' dari ' + filtered + ' hasil pencarian)';
+                } else {
+                    summary.textContent = complete + '/' + total + ' membership lengkap (menampilkan ' + displayed + ' data)';
+                }
             }
+
+            if (completeEl) { completeEl.textContent = String(meta.complete || 0); }
+            if (partialEl) { partialEl.textContent = String(meta.partial || 0); }
+            if (missingEl) { missingEl.textContent = String(meta.missing || 0); }
 
             var membershipKpi = q('[data-bpjs-kpi-membership]');
             if (membershipKpi) {
@@ -930,6 +947,7 @@
 
     function loadRateBaselines() {
         var body = q('[data-bpjs-baseline-table-body]');
+        var warningEl = q('[data-bpjs-baseline-warning]');
         if (body) {
             body.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Memuat konfigurasi baseline...</td></tr>';
         }
@@ -938,17 +956,40 @@
                 var data = unwrapData(res);
                 var items = Array.isArray(data.items) ? data.items : [];
                 rateBaselineCache = items;
+                var jkkBaseline = items.find(function (item) {
+                    return item.programCode === 'jkk' && item.contributionParty === 'employer';
+                });
+
+                if (warningEl) {
+                    if (jkkBaseline && jkkBaseline.riskCategory) {
+                        warningEl.classList.remove('alert-warning');
+                        warningEl.classList.add('alert-info');
+                        warningEl.textContent = 'JKK aktif pada kategori risiko ' + String(jkkBaseline.riskCategory)
+                            + '. Payroll akan menghitung premi JKK mengikuti kategori ini.';
+                    } else {
+                        warningEl.classList.remove('alert-info');
+                        warningEl.classList.add('alert-warning');
+                        warningEl.textContent = 'Baseline JKK belum menetapkan kategori risiko. Payroll akan memakai default kategori 1 (0,24%) sampai dikonfigurasi.';
+                    }
+                }
+
                 if (body) {
                     if (!items.length) {
                         body.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada data baseline.</td></tr>';
                     } else {
                         body.innerHTML = items.map(function (row) {
+                            var riskInfo = '';
+                            if (row.programCode === 'jkk' && row.contributionParty === 'employer') {
+                                riskInfo = row.riskCategory
+                                    ? '<div class="text-muted small mt-1">Kategori Risiko: ' + escapeHtml(String(row.riskCategory)) + '</div>'
+                                    : '<div class="text-warning small mt-1">Kategori risiko belum diset (default: 1 / 0,24%)</div>';
+                            }
                             return '<tr>'
                                 + '<td>' + escapeHtml(programLabel(row.programCode)) + '</td>'
                                 + '<td>' + escapeHtml(partyLabel(row.contributionParty)) + '</td>'
                                 + '<td>' + escapeHtml(formatPercent(row.minRate)) + '</td>'
                                 + '<td>' + escapeHtml(formatPercent(row.maxRate)) + '</td>'
-                                + '<td>' + escapeHtml(basisLabel(row.wageBase)) + '</td>'
+                                + '<td>' + escapeHtml(basisLabel(row.wageBase)) + riskInfo + '</td>'
                                 + '<td>' + rateBaselineSourceBadge(row.source) + '</td>'
                                 + '<td><button type="button" class="btn btn-sm btn-outline-primary" data-bpjs-baseline-edit'
                                 + ' data-program="' + escapeHtml(row.programCode) + '" data-party="' + escapeHtml(row.contributionParty) + '">Edit</button></td>'
@@ -959,6 +1000,11 @@
                 return items;
             })
             .catch(function (err) {
+                if (warningEl) {
+                    warningEl.classList.remove('alert-info');
+                    warningEl.classList.add('alert-warning');
+                    warningEl.textContent = 'Gagal memuat baseline. Validasi kategori risiko JKK belum bisa dilakukan.';
+                }
                 if (body) {
                     body.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Gagal memuat baseline: '
                         + escapeHtml(err && err.message ? err.message : 'unknown error') + '</td></tr>';

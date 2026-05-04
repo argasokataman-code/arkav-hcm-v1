@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CompanyUser;
+use App\Models\EmployeeCompensation;
+use App\Models\EmployeeProfile;
 use App\Models\HcmEmployeeAllowanceAssignment;
 use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\User;
@@ -175,6 +177,64 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $checks = collect($report->json('data.checks'));
         $coverageCheck = $checks->firstWhere('code', 'mandatory_assignment_coverage');
         $this->assertIsArray($coverageCheck['evidence']['nonCompliantEmployees'] ?? null);
+    }
+
+    public function test_assignments_and_compliance_include_compensation_fixed_allowance_source(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-compensation-source@example.com']);
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $admin['token'],
+        ], $admin['company_id']);
+
+        $employee = User::factory()->create(['email' => 'allowance-compensation-only@example.com']);
+        CompanyUser::query()->create([
+            'company_id' => $admin['company_id'],
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $profile = EmployeeProfile::query()->create([
+            'company_id' => (int) $admin['company_id'],
+            'user_id' => (int) $employee->id,
+            'employment_status' => 'active',
+            'base_salary' => 5_000_000,
+            'fixed_allowance' => 0,
+        ]);
+
+        EmployeeCompensation::query()->create([
+            'employee_id' => (int) $profile->id,
+            'salary_type' => 'monthly',
+            'base_salary' => 5_000_000,
+            'fixed_allowance' => 750_000,
+            'effective_date' => now()->toDateString(),
+        ]);
+
+        $assignments = $this->withHeaders($headers)
+            ->getJson('/v1/hcm/allowance-governance/assignments?page=1&perPage=50')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $compItems = collect($assignments->json('data.compensationAllowances', []));
+        $forEmployee = $compItems->firstWhere('userId', (int) $employee->id);
+
+        $this->assertNotNull($forEmployee);
+        $this->assertSame('employee_compensations', $forEmployee['source'] ?? null);
+        $this->assertSame('tunjangan_tetap', $forEmployee['policyCode'] ?? null);
+        $this->assertSame('750000.00', $forEmployee['amount'] ?? null);
+
+        $report = $this->withHeaders($headers)
+            ->getJson('/v1/hcm/allowance-governance/reports/compliance')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $checks = collect($report->json('data.checks', []));
+        $coverage = $checks->firstWhere('code', 'mandatory_assignment_coverage');
+        $this->assertIsArray($coverage);
+        $nonCompliantEmployees = collect($coverage['evidence']['nonCompliantEmployees'] ?? []);
+
+        $this->assertFalse($nonCompliantEmployees->pluck('userId')->contains((int) $employee->id));
     }
 
     public function test_assignment_overlap_is_rejected_for_active_periods(): void

@@ -1981,7 +1981,11 @@ class HcmPayrollRunController extends Controller
     {
         $missingTaxProfileUserIds = HcmPayrollLine::query()
             ->where('hcm_payroll_run_id', $run->id)
-            ->where('category', 'pph21')
+            ->where(function ($query): void {
+                $query->where('category', 'pph21')
+                    ->orWhere('category', 'pph21_ter')
+                    ->orWhere('component_code', 'pph21_ter');
+            })
             ->get(['user_id', 'meta'])
             ->filter(function (HcmPayrollLine $line): bool {
                 $meta = is_array($line->meta) ? $line->meta : [];

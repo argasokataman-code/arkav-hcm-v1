@@ -12582,6 +12582,21 @@ components:
         status: { type: string, enum: [draft, active, suspended, ended] }
         isActive: { type: boolean }
         notes: { type: string, nullable: true }
+    AllowanceGovernanceCompensationAllowanceItem:
+      type: object
+      properties:
+        source: { type: string, example: employee_compensations }
+        userId: { type: integer, nullable: true }
+        userUuid: { type: string, format: uuid, nullable: true }
+        fullName: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        policyCode: { type: string, example: tunjangan_tetap }
+        policyName: { type: string, example: Tunjangan Tetap (Payroll Bulanan) }
+        amount: { type: string, nullable: true }
+        effectiveStartDate: { type: string, format: date, nullable: true }
+        effectiveEndDate: { type: string, format: date, nullable: true }
+        status: { type: string, example: active }
+        readonly: { type: boolean, example: true }
     AllowanceGovernanceAssignmentsResponse:
       type: object
       properties:
@@ -12593,6 +12608,11 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/AllowanceGovernanceAssignmentItem'
+            compensationAllowances:
+              type: array
+              description: Read-only fixed allowances sourced from employee compensation records.
+              items:
+                $ref: '#/components/schemas/AllowanceGovernanceCompensationAllowanceItem'
             meta:
               type: object
               properties:

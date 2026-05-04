@@ -303,14 +303,16 @@ class HcmBpjsGovernanceController extends Controller
 
         $perPage = (int) ($validated['perPage'] ?? 20);
 
-        $membershipQuery = CompanyUser::query()
+        $companyUserIds = CompanyUser::query()
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->where('role', '!=', 'owner')
             ->pluck('user_id');
 
+        $membershipSummary = $this->membershipCoverageSummary($companyUserIds);
+
         $usersQuery = User::query()
-            ->whereIn('id', $membershipQuery)
+            ->whereIn('id', $companyUserIds)
             ->with(['employeeProfile.benefits'])
             ->orderBy('name');
 
@@ -349,7 +351,7 @@ class HcmBpjsGovernanceController extends Controller
             ];
         })->values();
 
-        $completeCount = $rows->filter(fn (array $row): bool => $row['membershipStatus'] === 'complete')->count();
+        $displayedCompleteCount = $rows->filter(fn (array $row): bool => $row['membershipStatus'] === 'complete')->count();
 
         return response()->json([
             'success' => true,
@@ -358,11 +360,72 @@ class HcmBpjsGovernanceController extends Controller
                 'meta' => [
                     'page' => $paginator->currentPage(),
                     'perPage' => $paginator->perPage(),
-                    'total' => $paginator->total(),
-                    'complete' => $completeCount,
+                    'total' => $membershipSummary['total'],
+                    'complete' => $membershipSummary['complete'],
+                    'partial' => $membershipSummary['partial'],
+                    'missing' => $membershipSummary['missing'],
+                    'filteredTotal' => $paginator->total(),
+                    'displayedTotal' => $rows->count(),
+                    'displayedComplete' => $displayedCompleteCount,
                 ],
             ],
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, int|string>  $companyUserIds
+     * @return array{total:int, complete:int, partial:int, missing:int}
+     */
+    private function membershipCoverageSummary($companyUserIds): array
+    {
+        if ($companyUserIds->isEmpty()) {
+            return ['total' => 0, 'complete' => 0, 'partial' => 0, 'missing' => 0];
+        }
+
+        $profiles = EmployeeProfile::query()
+            ->whereIn('user_id', $companyUserIds)
+            ->get(['id', 'user_id']);
+
+        $profileByUserId = $profiles->keyBy('user_id');
+        $latestMembership = EmployeeBenefit::query()
+            ->whereIn('employee_id', $profiles->pluck('id'))
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('employee_id')
+            ->map(fn ($items) => $items->first());
+
+        $counts = ['complete' => 0, 'partial' => 0, 'missing' => 0];
+
+        foreach ($companyUserIds as $userId) {
+            $profile = $profileByUserId->get($userId);
+            if (! $profile) {
+                $counts['missing']++;
+
+                continue;
+            }
+
+            $benefit = $latestMembership->get((int) $profile->id);
+            if (! $benefit) {
+                $counts['missing']++;
+
+                continue;
+            }
+
+            $status = $this->membershipStatus(
+                (string) ($benefit->bpjs_kesehatan_no ?? ''),
+                (string) ($benefit->bpjs_ketenagakerjaan_no ?? '')
+            );
+
+            $counts[$status]++;
+        }
+
+        return [
+            'total' => (int) $companyUserIds->count(),
+            'complete' => (int) $counts['complete'],
+            'partial' => (int) $counts['partial'],
+            'missing' => (int) $counts['missing'],
+        ];
     }
 
     public function updateEmployeeMembership(Request $request, int $userId): JsonResponse

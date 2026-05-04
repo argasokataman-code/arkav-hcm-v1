@@ -21,6 +21,13 @@ type PayrollLine = {
         taxPolicyUuid?: string;
         taxPolicyCode?: string;
         taxPolicyVersion?: number;
+        ratePercent?: number;
+        rateSource?: string;
+        basisAmount?: number;
+        salaryCap?: number;
+        capApplied?: boolean;
+        riskCategory?: number;
+        wageBaseCode?: string;
     };
 };
 
@@ -158,6 +165,36 @@ const _workConfigState: {
 
 function formatIdr(n: number): string {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+}
+
+function formatLineAuditMeta(line: PayrollLine): string {
+    const meta = line.meta || {};
+    const bits: string[] = [];
+
+    if (Number.isFinite(Number(meta.ratePercent))) {
+        bits.push(`Rate ${Number(meta.ratePercent).toFixed(4)}%`);
+    }
+
+    if (Number.isFinite(Number(meta.basisAmount))) {
+        bits.push(`Basis ${formatIdr(Number(meta.basisAmount))}`);
+    }
+
+    if (meta.capApplied && Number.isFinite(Number(meta.salaryCap))) {
+        bits.push(`Cap ${formatIdr(Number(meta.salaryCap))}`);
+    }
+
+    if (Number.isFinite(Number(meta.riskCategory))) {
+        bits.push(`Risk Cat ${Number(meta.riskCategory)}`);
+    }
+
+    const auditLine = bits.length > 0
+        ? `<div class="text-muted small mt-1">${bits.join(" • ")}</div>`
+        : "";
+    const employerInfo = line.category === "employer_cost_display"
+        ? '<div class="text-info small mt-1">Info slip perusahaan, tidak mengubah THP karyawan.</div>'
+        : "";
+
+    return auditLine + employerInfo;
 }
 
 function toast(msg: string, danger: boolean): void {
@@ -2151,8 +2188,9 @@ function openEmployeeDetailModal(userId: number): void {
             ? '<tr><td colspan="7" class="text-center text-muted py-3">Belum ada data komponen.</td></tr>'
             : sorted.map((line, index) => {
                 const label = line.componentName || line.componentCode || "Komponen";
-                const kindLabel = line.kind === "addition" ? "Addition" : "Deduction";
-                const kindClass = line.kind === "addition" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle";
+                const isEmployerCost = line.category === "employer_cost_display";
+                const kindLabel = isEmployerCost ? "Biaya Perusahaan" : (line.kind === "addition" ? "Addition" : "Deduction");
+                const kindClass = isEmployerCost ? "bg-info-subtle text-info border border-info-subtle" : (line.kind === "addition" ? "bg-success-subtle text-success border border-success-subtle" : "bg-danger-subtle text-danger border border-danger-subtle");
                 const affectsNetPay = line.affectsNetPay !== false;
                 const payLabel = (line.paymentStatus || "unpaid") === "paid" ? "PAID" : "UNPAID";
                 const payClass = payLabel === "PAID" ? "bg-success-subtle text-success border border-success-subtle" : "bg-secondary-subtle text-dark border border-secondary-subtle";
@@ -2162,6 +2200,7 @@ function openEmployeeDetailModal(userId: number): void {
                         <td>
                             <div class="fw-semibold">${label}</div>
                             <div class="text-muted small">${line.componentCode || "-"}</div>
+                            ${formatLineAuditMeta(line)}
                         </td>
                         <td><span class="badge ${kindClass}">${kindLabel}</span></td>
                         <td>${line.category || "-"}</td>

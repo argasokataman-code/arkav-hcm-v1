@@ -924,8 +924,9 @@ class AuthController extends Controller
             ->where('subscription_id', $subscription->id)
             ->where('is_paid', false)
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-            ->latest('due_date')
-            ->latest('issue_date')
+            ->orderBy('due_date')
+            ->orderBy('issue_date')
+            ->orderBy('id')
             ->first();
 
         $nextPaymentDate = $nextInvoice?->due_date?->toDateString()

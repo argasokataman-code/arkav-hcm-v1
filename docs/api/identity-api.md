@@ -197,6 +197,7 @@ Frontend hardening note:
 - Jika payload sukses login company tidak menyertakan tenant aktif yang valid, FE membatalkan redirect dan menampilkan error.
 - `roles` dan `currentUserRole` sekarang mengikuti role tenant aktif. Owner/admin tidak lagi dipaksa tampil sebagai `employee` di snapshot identitas.
 - `subscription` memberi ringkasan paket aktif, billing cycle, dan pembayaran berikutnya untuk halaman profile/account tanpa perlu memanggil endpoint billing terpisah.
+- `subscription.nextPayment` menampilkan invoice unpaid terdekat (due_date ascending) — bukan yang terjauh. Bug fix: sebelumnya query menggunakan `latest('due_date')` sehingga menampilkan invoice paling jauh.
 - `subscription.employeeSlots` memberi info limit employee paket aktif agar tenant admin tahu kapasitas input employee tanpa membuka halaman billing lain.
 
 ### PUT `/auth/profile` (protected)

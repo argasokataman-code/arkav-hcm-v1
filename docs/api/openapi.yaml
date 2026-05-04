@@ -13903,6 +13903,7 @@ components:
                   type: boolean
                 nextPayment:
                   type: object
+                  description: Nearest upcoming unpaid invoice (due_date ascending). Returns null if no unpaid invoice exists.
                   properties:
                     date:
                       type: string
@@ -14120,6 +14121,7 @@ components:
                   type: boolean
                 nextPayment:
                   type: object
+                  description: Nearest upcoming unpaid invoice (due_date ascending). Returns null if no unpaid invoice exists.
                   properties:
                     date:
                       type: string

@@ -1182,9 +1182,6 @@
                                     <a href="{{url('notes')}}" class="d-block py-2">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-notes text-gray-9"></i></span>Notes
                                     </a>										
-                                    <a href="{{url('invoices')}}" class="d-block py-2 pb-0">
-                                        <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-file-invoice text-gray-9"></i></span>Invoices
-                                    </a>
                                 </div>
                             </div>
                         </div>

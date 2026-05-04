@@ -278,6 +278,100 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.subscription.employeeSlots.isConfigured', true);
     }
 
+    public function test_company_owner_me_uses_nearest_unpaid_invoice_for_next_payment_summary(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'enterprise',
+            'name' => 'Enterprise',
+            'monthly_price' => 1299000,
+            'yearly_price' => 12990000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Owner Next Payment',
+            'email' => 'owner.next-payment@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_next_payment_co',
+            'name' => 'Owner Next Payment Co',
+            'legal_name' => 'Owner Next Payment Co LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => 'enterprise',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 1299000,
+        ]);
+
+        $laterInvoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(20)->toDateString(),
+            'amount_due' => 1999000,
+            'status' => 'draft',
+            'is_paid' => false,
+            'notes' => 'Later unpaid invoice',
+        ]);
+
+        $nearestInvoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(3)->toDateString(),
+            'amount_due' => 1299000,
+            'status' => 'draft',
+            'is_paid' => false,
+            'notes' => 'Nearest unpaid invoice',
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.next-payment@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'owner_next_payment_co',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $response = $this->withHeader('Cookie', $cookieHeader)
+            ->getJson('/v1/identity/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.subscription.nextPayment.invoiceId', $nearestInvoice->id)
+            ->assertJsonPath('data.subscription.nextPayment.invoiceNumber', $nearestInvoice->invoice_number)
+            ->assertJsonPath('data.subscription.nextPayment.amount', 1299000);
+
+        $this->assertNotSame(
+            $laterInvoice->id,
+            (int) data_get($response->json(), 'data.subscription.nextPayment.invoiceId')
+        );
+    }
+
     public function test_remember_me_login_has_longer_expiry_than_regular_login(): void
     {
         $this->postJson('/v1/identity/auth/register', [

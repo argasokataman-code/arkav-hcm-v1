@@ -385,6 +385,19 @@ export function bindEmployeeCompensationFormsModule(deps) {
         }
     }
 
+    function maybeShowEmployeeLimitPopup(payload, fallbackMessage) {
+        var error = payload && payload.error ? payload.error : null;
+        var code = String((error && error.code) || "").trim();
+        if (code !== "EMPLOYEE_COUNT_EXCEEDED") {
+            return false;
+        }
+        var message = String((error && error.message) || fallbackMessage || "Plan employee limit reached.").trim();
+        if (window.ArcavUi && typeof window.ArcavUi.showInfo === "function") {
+            window.ArcavUi.showInfo("Kapasitas Karyawan Penuh", message);
+        }
+        return true;
+    }
+
     function toggleContractEndDateVisibility(form) {
         if (!form) {
             return;
@@ -815,6 +828,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
             requestJson("post", "/v1/hcm/employees", payload)
                 .then(function (resp) {
                     if (!resp || resp.success !== true) {
+                        maybeShowEmployeeLimitPopup(resp, formatApiError(resp, 0));
                         window.ArcavUi && window.ArcavUi.showToast && window.ArcavUi.showToast(formatApiError(resp, 0), "danger");
                         return;
                     }
@@ -831,6 +845,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
                     if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
                         return;
                     }
+                    maybeShowEmployeeLimitPopup(error && error.data, formatApiError(error && error.data, error && error.status));
                     if (window.ArcavUi && window.ArcavUi.showToast) {
                         window.ArcavUi.showToast(formatApiError(error && error.data, error && error.status), "danger");
                     }

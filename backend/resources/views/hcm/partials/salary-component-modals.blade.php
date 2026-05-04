@@ -79,7 +79,7 @@
                                 <option value="wage_bpjs_health">Dasar upah BPJS Kesehatan</option>
                                 <option value="wage_bpjs_tk">Dasar upah BPJS Ketenagakerjaan</option>
                                 <option value="gross_monthly_ter">Bruto bulanan (lapisan TER)</option>
-                                <option value="thr_calculation_base">Basis THR (pokok + tunjangan tetap)</option>
+                                <option value="thr_calculation_base">Basis THR (implementasi saat ini: gaji pokok)</option>
                             </select>
                         </div>
                     </div>
@@ -99,7 +99,7 @@
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="includeThrCalculationBase" id="sc_add_thr">
-                                    <label class="form-check-label" for="sc_add_thr">Masuk basis THR (pokok + tunjangan tetap)</label>
+                                    <label class="form-check-label" for="sc_add_thr">Masuk basis THR (implementasi saat ini: gaji pokok)</label>
                                 </div>
                                 <div class="form-check mb-0">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="subjectOvertimeRegulation" id="sc_add_ot">
@@ -206,7 +206,7 @@
                                 <option value="wage_bpjs_health">Dasar upah BPJS Kesehatan</option>
                                 <option value="wage_bpjs_tk">Dasar upah BPJS Ketenagakerjaan</option>
                                 <option value="gross_monthly_ter">Bruto bulanan (lapisan TER)</option>
-                                <option value="thr_calculation_base">Basis THR (pokok + tunjangan tetap)</option>
+                                <option value="thr_calculation_base">Basis THR (implementasi saat ini: gaji pokok)</option>
                             </select>
                         </div>
                     </div>
@@ -226,7 +226,7 @@
                                 </div>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="includeThrCalculationBase" id="sc_ed_thr">
-                                    <label class="form-check-label" for="sc_ed_thr">Masuk basis THR</label>
+                                    <label class="form-check-label" for="sc_ed_thr">Masuk basis THR (implementasi saat ini: gaji pokok)</label>
                                 </div>
                                 <div class="form-check mb-0">
                                     <input class="form-check-input" type="checkbox" data-hcm-field="subjectOvertimeRegulation" id="sc_ed_ot">

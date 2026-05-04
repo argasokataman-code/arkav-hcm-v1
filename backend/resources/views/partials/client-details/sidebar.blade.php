@@ -33,7 +33,7 @@
                                         </div>
                                         <div class="col-6">
                                             <div>
-                                                <a href="{{url('chat')}}" class="btn btn-primary w-100"><i class="ti ti-message-heart me-1"></i>Message</a>
+                                                <a href="{{url('email')}}" class="btn btn-primary w-100"><i class="ti ti-mail me-1"></i>Email</a>
                                             </div>
                                         </div>
                                     </div>

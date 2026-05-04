@@ -40,7 +40,7 @@ final class PkwtCompensationService
         $start = Carbon::parse($contractStartDate)->startOfDay();
         $end = Carbon::parse($contractEndDate)->startOfDay();
         $notes = [
-            'Dasar kompensasi = gaji pokok + tunjangan tetap per bulan.',
+            'Dasar kompensasi = gaji pokok per bulan.',
             'Contract compensation dibayar saat kontrak selesai sesuai kebijakan perusahaan.',
             'Nominal final tetap perlu review HR/payroll sebelum dibayarkan atau diposting ke slip.',
         ];
@@ -51,7 +51,7 @@ final class PkwtCompensationService
                 'status' => 'invalid_dates',
                 'monthsOfService' => 0,
                 'multiplier' => 0.0,
-                'referenceMonthlyWage' => round(max(0, $baseMonthlySalary) + max(0, $fixedMonthlyAllowance), 2),
+                'referenceMonthlyWage' => round(max(0, $baseMonthlySalary), 2),
                 'compensationAmount' => 0.0,
                 'contractStartDate' => $start->toDateString(),
                 'contractEndDate' => $end->toDateString(),
@@ -60,7 +60,7 @@ final class PkwtCompensationService
         }
 
         $months = $this->wholeMonthsBetween($start, $end);
-        $reference = round(max(0, $baseMonthlySalary) + max(0, $fixedMonthlyAllowance), 2);
+        $reference = round(max(0, $baseMonthlySalary), 2);
 
         if ($months < 1) {
             return [
@@ -121,7 +121,7 @@ final class PkwtCompensationService
                 $start,
                 $end,
                 (float) ($profile?->base_salary ?? 0),
-                (float) ($profile?->fixed_allowance ?? 0),
+                0.0,
             );
         }
 
@@ -134,7 +134,7 @@ final class PkwtCompensationService
             'estimatedCompensationThisMonth' => (float) ($calc['compensationAmount'] ?? 0),
             'monthsOfService' => (int) ($calc['monthsOfService'] ?? 0),
             'multiplier' => (float) ($calc['multiplier'] ?? 0),
-            'referenceMonthlyWage' => (float) ($calc['referenceMonthlyWage'] ?? round(max(0, (float) ($profile?->base_salary ?? 0)) + max(0, (float) ($profile?->fixed_allowance ?? 0)), 2)),
+            'referenceMonthlyWage' => (float) ($calc['referenceMonthlyWage'] ?? round(max(0, (float) ($profile?->base_salary ?? 0)), 2)),
         ];
     }
 
@@ -196,7 +196,7 @@ final class PkwtCompensationService
                     $summary['contractStartDate'],
                     $summary['contractEndDate'],
                     (float) ($profile->base_salary ?? 0),
-                    (float) ($profile->fixed_allowance ?? 0),
+                    0.0,
                 );
             }
 
@@ -211,7 +211,7 @@ final class PkwtCompensationService
                 'contractStartDate' => $summary['contractStartDate'],
                 'contractEndDate' => $summary['contractEndDate'],
                 'baseSalary' => (float) ($profile->base_salary ?? 0),
-                'fixedAllowance' => (float) ($profile->fixed_allowance ?? 0),
+                'fixedAllowance' => 0.0,
                 'referenceMonthlyWage' => (float) ($calc['referenceMonthlyWage'] ?? $summary['referenceMonthlyWage']),
                 'monthsOfService' => (int) ($calc['monthsOfService'] ?? $summary['monthsOfService']),
                 'multiplier' => (float) ($calc['multiplier'] ?? $summary['multiplier']),

@@ -9,7 +9,7 @@ Route::get('/profile-settings', function () {
 
 Route::get('/company-profile', function () {
     return view('settings.company-profile');
-})->name('company-profile');
+})->middleware('hcm.web.admin')->name('company-profile');
 
 Route::redirect('/profile-settingsrout', '/profile-settings', 301)->name('profile-settings.alias');
 

@@ -23,7 +23,7 @@
 
 ## Dependensi Data
 
-- Upah acuan berasal dari `baseSalary + fixedAllowance` employee profile.
+- Upah acuan batch THR runtime sekarang hanya memakai `baseSalary`; fixed allowance legacy dari salary profile tidak lagi dipakai sebagai source operasional.
 - Katalog komponen payroll THR harus aktif agar post-payroll bisa membentuk line final.
 - Payment date tahunan menentukan periode payroll THR saat posting.
 

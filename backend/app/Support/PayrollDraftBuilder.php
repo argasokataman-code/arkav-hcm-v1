@@ -220,23 +220,6 @@ final class PayrollDraftBuilder
             self::applyTenantScope($upahPokokQuery, $companyId);
             $upahPokok = $upahPokokQuery->first();
 
-            $fixedAllowanceQuery = HcmSalaryComponent::query()
-                ->where('code', HcmSalaryComponent::CODE_FIXED_ALLOWANCE)
-                ->where('is_active', true);
-            self::applyTenantScope($fixedAllowanceQuery, $companyId);
-            $fixedAllowanceComponent = $fixedAllowanceQuery->first();
-
-            if ($fixedAllowanceComponent === null) {
-                $fixedAllowanceFallbackQuery = HcmSalaryComponent::query()
-                    ->where('kind', 'addition')
-                    ->where('category', 'fixed_allowance')
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('id');
-                self::applyTenantScope($fixedAllowanceFallbackQuery, $companyId);
-                $fixedAllowanceComponent = $fixedAllowanceFallbackQuery->first();
-            }
-
             $overtimeComponent = HcmSalaryComponent::resolveForOvertimePay();
             $bpjsHealthQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_HEALTH_EMPLOYEE)->where('is_active', true);
             self::applyTenantScope($bpjsHealthQuery, $companyId);
@@ -475,33 +458,11 @@ final class PayrollDraftBuilder
                     $taxableGross += $base;
                 }
 
-                $fixed = max(0.0, (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0));
-                if ($fixed > 0) {
-                    HcmPayrollLine::query()->create([
-                        'company_id' => $companyId,
-                        'hcm_payroll_run_id' => $run->id,
-                        'user_id' => $user->id,
-                        'hcm_salary_component_id' => $fixedAllowanceComponent?->id,
-                        'component_code' => $fixedAllowanceComponent?->code ?? 'tunjangan_tetap',
-                        'component_name' => $fixedAllowanceComponent?->name ?? 'Tunjangan tetap',
-                        'kind' => 'addition',
-                        'category' => $fixedAllowanceComponent?->category ?? 'fixed_allowance',
-                        'amount' => round($fixed, 2),
-                        'sort_order' => $sortOrder++,
-                        'meta' => [
-                            'source' => 'employee_compensations.fixed_allowance',
-                            'userName' => $user->name,
-                            'affectsNetPay' => (bool) ($fixedAllowanceComponent?->affects_net_pay ?? true),
-                        ],
-                    ]);
-
-                    if ((bool) ($fixedAllowanceComponent?->include_pph21_ter_gross ?? true)) {
-                        $taxableGross += $fixed;
-                    }
-                }
+                // Business rule: fixed allowance from compensation table is excluded from payroll lines.
+                // Allowance that participates in payroll must come from payroll item assignment flow.
+                $fixed = 0.0;
 
                 // Track fixed_allowance additions from assignments for BPJS base inclusion.
-                // Per regulation, semua tunjangan tetap (fixed) harus masuk ke upah BPJS.
                 $assignmentFixedAllowanceTotal = 0.0;
 
                 $customAssignments = collect($assignmentsByUser->get($user->id, []))
@@ -726,7 +687,7 @@ final class PayrollDraftBuilder
                     }
                 }
 
-                // BPJS upah base = gaji pokok + tunjangan tetap dari kompensasi + tunjangan tetap dari assignment
+                // BPJS upah base = gaji pokok + tunjangan tetap dari assignment aktif payroll item.
                 $bpjsRawBase = $base + $fixed + $assignmentFixedAllowanceTotal;
                 $taxProfile = $snapshotService->latestTaxProfile($profile, $asOf);
 

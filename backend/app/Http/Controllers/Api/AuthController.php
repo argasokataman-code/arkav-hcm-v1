@@ -218,7 +218,7 @@ class AuthController extends Controller
                 'hcmGlobalAdmin' => $isGlobalHcmAdmin,
                 'permissions' => $permissions,
                 'permissionCodes' => array_keys($permissions),
-                'subscription' => $this->buildSubscriptionSummary($resolvedActiveCompany),
+                'subscription' => $isTenantHcmAdmin ? $this->buildSubscriptionSummary($resolvedActiveCompany) : null,
                 'activeCompany' => $activeCompany ? [
                     'id' => $activeCompany->id,
                     'uuid' => $activeCompany->uuid,
@@ -757,6 +757,8 @@ class AuthController extends Controller
             ? Company::query()->with('latestSubscription.package')->find($activeCompany->id)
             : null;
         $companyProfileData = $this->resolveOwnerCompanyProfile($resolvedActiveCompany, $activeCompanyRole);
+        $activeCompanyId = $activeCompany instanceof Company ? (int) $activeCompany->id : 0;
+        $isTenantHcmAdminForUpdate = $activeCompanyId > 0 ? $user->isHcmAdminForCompany($activeCompanyId) : $user->isHcmAdmin();
 
         return response()->json([
             'success' => true,
@@ -766,7 +768,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'profile' => $this->buildProfilePayload($user, $user->employeeProfile, $resolvedActiveCompany, $activeCompanyRole),
                 'currentUserRole' => $this->resolveCurrentUserRole($activeCompanyRole, $user->employeeProfile),
-                'subscription' => $this->buildSubscriptionSummary($resolvedActiveCompany),
+                'subscription' => $isTenantHcmAdminForUpdate ? $this->buildSubscriptionSummary($resolvedActiveCompany) : null,
                 'companyProfile' => $companyProfileData,
             ],
         ]);

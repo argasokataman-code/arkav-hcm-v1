@@ -68,5 +68,5 @@ Route::get('/api-keys', function () { return view('misc.api-keys'); })->name('ap
 Route::get('/timeline', function () { return view('misc.timeline'); })->name('timeline');
 Route::get('/search-result', function () { return view('misc.search-result'); })->name('search-result');
 Route::get('/gallery', function () { return view('misc.gallery'); })->name('gallery');
-Route::get('/profile', function () { return view('misc.profile'); })->name('profile');
+Route::redirect('/profile', '/profile-settings', 301)->name('profile');
 Route::get('/starter', function () { return view('misc.starter'); })->name('starter');

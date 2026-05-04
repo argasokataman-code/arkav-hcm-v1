@@ -48,8 +48,7 @@ export function bindQuickPreviewModule(deps) {
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Department</span><strong>' + escapeHtml(item.departmentName || "-") + "</strong></div>" +
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Status</span><strong>' + escapeHtml(item.employmentStatus || "-") + "</strong></div>" +
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Join Date</span><strong>' + escapeHtml(item.joinDate || "-") + "</strong></div>" +
-            '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Base Salary</span><strong>' + escapeHtml(formatRupiah(item.baseSalary)) + "</strong></div>" +
-            '<div class="d-flex justify-content-between"><span class="text-muted">Fixed Allowance</span><strong>' + escapeHtml(formatRupiah(item.fixedAllowance)) + "</strong></div>" +
+            '<div class="d-flex justify-content-between"><span class="text-muted">Base Salary</span><strong>' + escapeHtml(formatRupiah(item.baseSalary)) + "</strong></div>" +
             "</div>" +
             '<div class="small text-muted">' + escapeHtml(item.email || "-") + "</div>" +
             '<div class="small text-muted">' + escapeHtml(item.phone || "-") + "</div>";

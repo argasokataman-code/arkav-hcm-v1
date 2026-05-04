@@ -807,17 +807,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="card-img card-img-hover mb-3">
-                                <a href="javascript:void(0);" class="rounded"><img src="{{ URL::asset('build/img/social/social-feed-04.jpg') }}" class="rounded" alt="Img"></a>
-                            </div>
-                            <h6 class="text-center"><a href="javascript:void(0);">Enjoy Unlimited Access on a small price monthly.</a></h6>
-                            <div class="mt-3">
-                                <a href="javascript:void(0);" class="btn btn-outline-light w-100 border">Upgrade Now <i class="ti ti-arrow-right ms-2"></i></a>
-                            </div>
-                        </div>
-                    </div>
                     <div class="d-flex align-items-center flex-wrap justify-content-center template-more-links mb-4">
                         <a href="javascript:void(0);" class="d-inline-flex">About</a>
                         <a href="javascript:void(0);" class="d-inline-flex">Privacy</a>

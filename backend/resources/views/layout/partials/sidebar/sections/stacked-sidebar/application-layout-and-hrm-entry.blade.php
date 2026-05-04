@@ -3,10 +3,9 @@
                             </ul>
                         </div>
 @endif
-                        <div class="tab-pane fade {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
+                        <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
                             <ul class="stack-submenu">
-                                <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                                 <li class="submenu submenu-two">
                                     <a href="{{url('call')}}" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history') ? 'active' : '' }}">Calls<span
                                             class="menu-arrow inside-submenu"></span></a>
@@ -22,7 +21,6 @@
                                 <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                                 <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                                 <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
-                                <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                                 <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </div>

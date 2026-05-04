@@ -66,7 +66,7 @@ class HcmDashboardApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonStructure([
                 'data' => [
-                    'profile' => ['name', 'designation'],
+                    'profile' => ['name', 'designation', 'profilePhotoUrl'],
                     'attendanceToday' => ['punchState', 'canPunch', 'summaryTotalWorking'],
                     'attendanceStats' => ['todayHours', 'weekHours', 'monthHours'],
                     'leave' => ['total', 'pending', 'approved', 'declined'],

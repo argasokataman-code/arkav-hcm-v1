@@ -154,52 +154,27 @@
             }).join('');
     }
 
-    function renderAssignmentRows(items, compensationAllowances) {
+    function renderAssignmentRows(items) {
         var body = q('[data-allowance-assignment-body]');
         if (!body) { return; }
 
-        var compItems = Array.isArray(compensationAllowances) ? compensationAllowances : [];
         var hasAssignments = items.length > 0;
-        var hasCompItems = compItems.length > 0;
 
-        if (!hasAssignments && !hasCompItems) {
+        if (!hasAssignments) {
             body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Belum ada assignment allowance.</td></tr>';
             return;
         }
 
-        var rows = '';
-
-        if (hasAssignments) {
-            rows += items.map(function (row) {
-                var displayAmount = row.amountOverride ? amountLabel(row.amountOverride) : (row.amount ? amountLabel(row.amount) : '-');
-                return '<tr>'
-                    + '<td><div class="fw-semibold">' + escapeHtml(row.fullName || '-') + '</div><span class="text-muted small">' + escapeHtml(row.email || '-') + '</span></td>'
-                    + '<td>' + escapeHtml(row.policyName || '-') + '</td>'
-                    + '<td>' + escapeHtml(displayAmount) + '</td>'
-                    + '<td>' + escapeHtml((row.effectiveStartDate || '-') + ' - ' + (row.effectiveEndDate || '...')) + '</td>'
-                    + '<td>' + statusBadge(row.status) + '</td>'
-                    + '</tr>';
-            }).join('');
-        }
-
-        if (hasCompItems) {
-            // Separator row
-            rows += '<tr class="table-light"><td colspan="5" class="small fw-semibold text-muted py-2 ps-3">'
-                + '<i class="ti ti-lock me-1"></i>Tunjangan Tetap dari Kompensasi Karyawan (read-only, dikelola via halaman Salary karyawan)'
-                + '</td></tr>';
-
-            rows += compItems.map(function (row) {
-                return '<tr class="table-light">'
-                    + '<td><div class="fw-semibold">' + escapeHtml(row.fullName || '-') + '</div><span class="text-muted small">' + escapeHtml(row.email || '-') + '</span></td>'
-                    + '<td>' + escapeHtml(row.policyName || '-') + ' <span class="badge bg-secondary-subtle text-secondary ms-1">Kompensasi</span></td>'
-                    + '<td>' + escapeHtml(row.amount ? amountLabel(row.amount) : '-') + '</td>'
-                    + '<td>' + escapeHtml((row.effectiveStartDate || '-') + ' - ' + (row.effectiveEndDate || '...')) + '</td>'
-                    + '<td><span class="badge bg-success-subtle text-success">Active</span> <span class="badge bg-light text-muted border">Read-only</span></td>'
-                    + '</tr>';
-            }).join('');
-        }
-
-        body.innerHTML = rows;
+        body.innerHTML = items.map(function (row) {
+            var displayAmount = row.amountOverride ? amountLabel(row.amountOverride) : (row.amount ? amountLabel(row.amount) : '-');
+            return '<tr>'
+                + '<td><div class="fw-semibold">' + escapeHtml(row.fullName || '-') + '</div><span class="text-muted small">' + escapeHtml(row.email || '-') + '</span></td>'
+                + '<td>' + escapeHtml(row.policyName || '-') + '</td>'
+                + '<td>' + escapeHtml(displayAmount) + '</td>'
+                + '<td>' + escapeHtml((row.effectiveStartDate || '-') + ' - ' + (row.effectiveEndDate || '...')) + '</td>'
+                + '<td>' + statusBadge(row.status) + '</td>'
+                + '</tr>';
+        }).join('');
     }
 
     function renderReport(data) {
@@ -273,10 +248,8 @@
         return apiGet('/hcm/allowance-governance/assignments', params).then(function (res) {
             var data = unwrapData(res);
             var items = Array.isArray(data.items) ? data.items : [];
-            var compensationAllowances = Array.isArray(data.compensationAllowances) ? data.compensationAllowances : [];
             state.assignments = items;
-            state.compensationAllowances = compensationAllowances;
-            renderAssignmentRows(items, compensationAllowances);
+            renderAssignmentRows(items);
             return items;
         });
     }

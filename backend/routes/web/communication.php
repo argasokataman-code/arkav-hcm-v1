@@ -7,10 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/chat', function () {
-    return view('applications.chat');
-})->name('chat');
-
 Route::get('/voice-call', function () {
     return view('applications.voice-call');
 })->name('voice-call');
@@ -160,10 +156,6 @@ Route::get('/notes', function () {
 Route::get('/social-feed', function () {
     return view('applications.social-feed');
 })->name('social-feed');
-
-Route::get('/file-manager', function () {
-    return view('applications.file-manager');
-})->name('file-manager');
 
 Route::get('/calendar', function () {
     return view('applications.calendar');

@@ -10,8 +10,8 @@
                     <a href="#" class="nav-link {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}" title="Dashboard" data-bs-toggle="tab" data-bs-target="#dashboard">
                         <i class="ti ti-smart-home"></i>
                     </a>
-                    <a href="#" class="nav-link {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices') ? ' show active ' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#application">
+                        <a href="#" class="nav-link {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices') ? ' show active ' : '' }}" title="Apps" data-bs-toggle="tab" data-bs-target="#application">
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
                     @if ($isGlobalHcmAdmin)
@@ -150,8 +150,8 @@
                             <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
                         </ul>
                     </div>
-                    <div class="tab-pane fade {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' show active ' : '' }}" id="application">
+                        <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices','invoice-details') ? ' show active ' : '' }}" id="application">
                         <ul>
                             <li class="menu-title"><span>APPLICATION</span></li>
                             <li><a href="{{url('voice-call')}}"class="{{ Request::is('voice-call') ? 'active' : '' }}" >Voice Call</a></li>
@@ -163,7 +163,6 @@
                             <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                             <li><a href="{{url('notes')}}"class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                             <li><a href="{{url('social-active')}}" class="{{ Request::is('social-active') ? 'active' : '' }}">File Manager</a></li>
-                            <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                             <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                         </ul>
                     </div>

@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/training', function () {
     return view(view: 'training');
-})->middleware('hcm.web.feature:training')->name('training');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:training'])->name('training');
 
 Route::get('/trainers', function () {
     return view(view: 'trainers');

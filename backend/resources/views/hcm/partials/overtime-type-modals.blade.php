@@ -99,7 +99,7 @@
                 </p>
                 <div class="alert alert-light border mb-3">
                     <p class="mb-1 fw-medium">Rumus dasar upah per jam</p>
-                    <p class="mb-0"><code>(Gaji pokok + tunjangan tetap) / 173</code></p>
+                    <p class="mb-0"><code>Gaji pokok / 173</code></p>
                 </div>
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -123,7 +123,7 @@
                 </div>
                 <div class="mt-3">
                     <h6 class="mb-2">Contoh cepat</h6>
-                    <p class="mb-1">Gaji + tunjangan tetap: <strong>Rp5.000.000</strong></p>
+                    <p class="mb-1">Gaji pokok: <strong>Rp5.000.000</strong></p>
                     <p class="mb-1">Upah per jam: <strong>Rp5.000.000 / 173 = Rp28.901,73</strong></p>
                     <p class="mb-0">Lembur 2 jam hari kerja: <strong>(1.5 x 28.901,73) + (2 x 28.901,73) = Rp101.156,06</strong></p>
                 </div>
@@ -135,10 +135,6 @@
                         <div class="col-md-6">
                             <label class="form-label">Gaji pokok</label>
                             <input type="number" class="form-control" data-ot-guide-field="baseSalary" min="0" step="1000" value="5000000">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Tunjangan tetap</label>
-                            <input type="number" class="form-control" data-ot-guide-field="fixedAllowance" min="0" step="1000" value="0">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Durasi lembur (menit)</label>

@@ -141,7 +141,7 @@ final class ThrBatchService
                 $joinYmd = $this->effectiveJoinDate($user, $profile);
                 $compensation = $snapshotService->latestCompensation($profile, $asOf);
                 $base = max(0.0, (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0));
-                $fixed = max(0.0, (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0));
+                $fixed = 0.0;
 
                 $calc = $this->calculator->calculate($joinYmd, $cutoff, $base, $fixed);
                 $rowStatus = $this->mapRowStatus($calc['status']);
@@ -675,7 +675,7 @@ final class ThrBatchService
             'bankAccountNo' => $bankAccountNo !== '' ? $bankAccountNo : null,
             'joinDateUsed' => $l->join_date_used->toDateString(),
             'baseSalary' => (float) $l->base_salary,
-            'fixedAllowance' => (float) $l->fixed_allowance,
+            'fixedAllowance' => 0.0,
             'referenceWage' => (float) $l->reference_wage,
             'monthsOfService' => (int) $l->months_of_service,
             'multiplier' => (float) $l->multiplier,

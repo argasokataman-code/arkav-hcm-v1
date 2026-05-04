@@ -176,7 +176,7 @@ class HcmPayrollApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.run.status', 'finalized')
             ->assertJsonPath('data.run.purpose', 'monthly')
-            ->assertJsonCount(10, 'data.lines');
+            ->assertJsonCount(9, 'data.lines');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
@@ -453,7 +453,6 @@ class HcmPayrollApiTest extends TestCase
             'employee_id' => $profile->id,
             'salary_type' => 'monthly',
             'base_salary' => 6500000,
-            'fixed_allowance' => 500000,
             'effective_date' => '2026-04-01',
             'created_at' => now(),
             'updated_at' => now(),
@@ -475,8 +474,9 @@ class HcmPayrollApiTest extends TestCase
         $line = $details->firstWhere('employee_id', $employee->id);
 
         $this->assertNotNull($line);
-        $this->assertSame(7016800, (int) ($line['gross_pay'] ?? 0));
-        $this->assertLessThanOrEqual(7016800, (int) ($line['net_pay'] ?? 0));
+        // fixed_allowance from employee compensation is excluded from payroll lines.
+        $this->assertSame(6515600, (int) ($line['gross_pay'] ?? 0));
+        $this->assertLessThanOrEqual(6515600, (int) ($line['net_pay'] ?? 0));
         $this->assertGreaterThan(0, (int) ($line['net_pay'] ?? 0));
     }
 
@@ -923,11 +923,11 @@ class HcmPayrollApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.period.periodYear', 2026)
             ->assertJsonPath('data.period.periodMonth', 6)
-            ->assertJsonPath('data.totals.earningsTotal', 4182947.98)
-            ->assertJsonPath('data.totals.deductionsTotal', 164000)
-            ->assertJsonPath('data.totals.netPay', 4018947.98)
+            ->assertJsonPath('data.totals.earningsTotal', 4080924.86)
+            ->assertJsonPath('data.totals.deductionsTotal', 160000)
+            ->assertJsonPath('data.totals.netPay', 3920924.86)
             ->assertJsonPath('data.slipNumber', 'PS-2026-06-'.$worker->id)
-            ->assertJsonCount(3, 'data.earnings')
+            ->assertJsonCount(2, 'data.earnings')
             ->assertJsonCount(3, 'data.deductions');
     }
 

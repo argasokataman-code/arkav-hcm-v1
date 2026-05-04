@@ -17,7 +17,7 @@ Fondasi **actual payroll** per kalender bulan: **periode** (`hcm_payroll_periods
 Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen periode berjalan:
 
 - **`base_salary`** → selalu satu baris addition **upah pokok** per karyawan eligible (nilai ≥ 0), agar karyawan **active/probation** tidak “hilang” dari run bila gaji pokok 0.
-- **`fixed_allowance`** → baris addition tambahan hanya jika nominal **> 0** (komponen master kategori `fixed_allowance` pertama yang aktif).
+- **Allowance tetap** → tidak lagi dibaca dari kolom kompensasi legacy; allowance yang ikut payroll monthly harus datang dari assignment payroll item/governance yang aktif.
 - **Lembur approved** dalam periode ikut diakumulasi sebagai addition payroll bulanan.
 - **Potongan karyawan** dasar (mis. BPJS & **PPh21 bulanan berbasis lookup TER A/B/C** sesuai status pajak) ikut dibentuk sebagai deduction lines.
 - Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**.
@@ -547,6 +547,7 @@ Menghasilkan **PDF** slip gaji bulanan milik sendiri untuk periode yang diminta.
 - `preview.period`: `{ periodYear, periodMonth }`
 - `preview.summary`: `totalEmployees`, `eligibleEmployees`, `grandTotal`
 - `preview.lines[]`: `userId`, `employeeNo`, `fullName`, `designation`, `contractStartDate`, `contractEndDate`, `baseSalary`, `fixedAllowance`, `referenceMonthlyWage`, `monthsOfService`, `multiplier`, `compensationAmount`
+- `fixedAllowance` pada preview PKWT dipertahankan untuk backward compatibility payload, tetapi runtime saat ini selalu `0` karena tunjangan tetap operasional hanya dikelola lewat allowance governance.
 - `run`: `null` atau ringkasan payroll run PKWT saat ini: `id`, `purpose`, `status`, `finalizedAt`, `period`, `payment { status, employeeCount, paidEmployeeCount, paidUserIds[], paidAt, gatewayReference }`
 
 Endpoint ini dipakai untuk preview sekaligus membaca status payroll kompensasi PKWT aktif pada periode tersebut.

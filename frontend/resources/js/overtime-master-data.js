@@ -92,8 +92,8 @@
         return "Rp" + n.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function computeOvertimeSimulation(baseSalary, fixedAllowance, minutes, dayType, weeklyWorkDays) {
-        var monthlyWage = Math.max(0, baseSalary + fixedAllowance);
+    function computeOvertimeSimulation(baseSalary, minutes, dayType, weeklyWorkDays) {
+        var monthlyWage = Math.max(0, baseSalary);
         var hourly = monthlyWage / 173;
         var hours = Math.max(0, minutes / 60);
         var totalMultiplierHours = 0;
@@ -141,7 +141,6 @@
         }
 
         var baseSalaryInput = modal.querySelector('[data-ot-guide-field="baseSalary"]');
-        var fixedAllowanceInput = modal.querySelector('[data-ot-guide-field="fixedAllowance"]');
         var minutesInput = modal.querySelector('[data-ot-guide-field="minutes"]');
         var dayTypeInput = modal.querySelector('[data-ot-guide-field="dayType"]');
         var weeklyWorkDaysInput = modal.querySelector('[data-ot-guide-field="weeklyWorkDays"]');
@@ -150,7 +149,7 @@
         var hoursEl = modal.querySelector('[data-ot-guide-result="hours"]');
         var totalPayEl = modal.querySelector('[data-ot-guide-result="totalPay"]');
 
-        if (!baseSalaryInput || !fixedAllowanceInput || !minutesInput || !dayTypeInput || !weeklyWorkDaysInput || !hourlyWageEl || !hoursEl || !totalPayEl) {
+        if (!baseSalaryInput || !minutesInput || !dayTypeInput || !weeklyWorkDaysInput || !hourlyWageEl || !hoursEl || !totalPayEl) {
             return;
         }
 
@@ -161,12 +160,11 @@
 
         function updateResult() {
             var baseSalary = readNumber(baseSalaryInput);
-            var fixedAllowance = readNumber(fixedAllowanceInput);
             var minutes = Math.max(1, parseInt(minutesInput.value, 10) || 0);
             var dayType = String(dayTypeInput.value || "workday");
             var weeklyWorkDays = parseInt(weeklyWorkDaysInput.value, 10) === 6 ? 6 : 5;
 
-            var calc = computeOvertimeSimulation(baseSalary, fixedAllowance, minutes, dayType, weeklyWorkDays);
+            var calc = computeOvertimeSimulation(baseSalary, minutes, dayType, weeklyWorkDays);
 
             hourlyWageEl.textContent = formatRupiah(calc.hourly);
             hoursEl.textContent = calc.hours.toFixed(2).replace(".", ",") + " jam";
@@ -175,7 +173,6 @@
 
         ["input", "change"].forEach(function (evt) {
             baseSalaryInput.addEventListener(evt, updateResult);
-            fixedAllowanceInput.addEventListener(evt, updateResult);
             minutesInput.addEventListener(evt, updateResult);
             dayTypeInput.addEventListener(evt, updateResult);
             weeklyWorkDaysInput.addEventListener(evt, updateResult);

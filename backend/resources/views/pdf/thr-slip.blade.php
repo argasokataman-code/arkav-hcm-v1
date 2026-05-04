@@ -136,12 +136,6 @@
                 </div>
                 <div class="panel-row">
                     <table class="panel-row-flex"><tr>
-                        <td>Tunjangan tetap / bulan</td>
-                        <td>Rp {{ number_format((float) $line->fixed_allowance, 0, ',', '.') }}</td>
-                    </tr></table>
-                </div>
-                <div class="panel-row">
-                    <table class="panel-row-flex"><tr>
                         <td>Upah acuan</td>
                         <td>Rp {{ number_format((float) $line->reference_wage, 0, ',', '.') }}</td>
                     </tr></table>

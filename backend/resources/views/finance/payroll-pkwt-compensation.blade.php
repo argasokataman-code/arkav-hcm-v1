@@ -31,7 +31,7 @@
             </div>
 
             <div class="alert alert-light border mb-4" role="status">
-                <strong>Contract compensation:</strong> halaman ini membantu HR melihat <strong>siapa saja karyawan contract yang kontraknya berakhir bulan ini</strong>, berikut estimasi kompensasi berdasarkan <strong>gaji pokok + tunjangan tetap</strong> dan lama masa kerja kontrak.
+                <strong>Contract compensation:</strong> halaman ini membantu HR melihat <strong>siapa saja karyawan contract yang kontraknya berakhir bulan ini</strong>, berikut estimasi kompensasi berdasarkan <strong>gaji pokok</strong> dan lama masa kerja kontrak.
                 Cocok untuk review payroll sebelum pembayaran final / posting manual.
             </div>
 
@@ -108,10 +108,6 @@
                                     <label class="form-label">Gaji pokok / bulan</label>
                                     <input type="number" class="form-control" name="baseMonthlySalary" min="0" step="1000" required placeholder="5000000">
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Tunjangan tetap / bulan</label>
-                                    <input type="number" class="form-control" name="fixedMonthlyAllowance" min="0" step="1000" value="0" placeholder="0">
-                                </div>
                                 <div class="col-12 mt-2">
                                     <button type="submit" class="btn btn-primary">Hitung estimasi</button>
                                 </div>
@@ -151,6 +147,75 @@
                                 <tr><td colspan="10" class="text-center text-muted py-4">Memuat data…</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="pkwt_reconciliation_preview_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Preview Reconciliation PKWT</h5>
+                        <p class="text-muted small mb-0">Tinjau data kompensasi PKWT sebelum membuat dan mengunduh file evidence.</p>
+                    </div>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="px-3 pt-3 pb-2 bg-light border-bottom">
+                        <div class="row g-3 small">
+                            <div class="col-sm-3 d-flex justify-content-between border-end">
+                                <span class="text-muted">Periode</span>
+                                <strong data-pkwt-recon-preview-period>—</strong>
+                            </div>
+                            <div class="col-sm-3 d-flex justify-content-between border-end">
+                                <span class="text-muted">Karyawan eligible</span>
+                                <strong data-pkwt-recon-preview-count>0</strong>
+                            </div>
+                            <div class="col-sm-3 d-flex justify-content-between border-end">
+                                <span class="text-muted">Grand total</span>
+                                <strong class="text-primary" data-pkwt-recon-preview-total>Rp0</strong>
+                            </div>
+                            <div class="col-sm-3 d-flex justify-content-between">
+                                <span class="text-muted">Total kontrak</span>
+                                <strong data-pkwt-recon-preview-all-count>0</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-nowrap table-hover mb-0 align-middle">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Karyawan</th>
+                                    <th class="text-end">Upah acuan/bln</th>
+                                    <th class="text-center">Masa kerja</th>
+                                    <th class="text-center">Multiplier</th>
+                                    <th class="text-end">Kompensasi</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody data-pkwt-recon-preview-body>
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Memuat data…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <p class="text-muted small mb-0">
+                        <i class="ti ti-info-circle me-1"></i>
+                        File CSV akan dibuat dari data di atas. Setelah diunduh, tombol Pay Compensation akan terbuka.
+                    </p>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                        <button type="button" class="btn btn-secondary" data-pkwt-recon-preview-download>
+                            <i class="ti ti-download me-1"></i>Download CSV &amp; Konfirmasi Evidence
+                        </button>
                     </div>
                 </div>
             </div>

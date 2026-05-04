@@ -831,7 +831,6 @@ function boot(): void {
                     `<td class="align-middle text-center">${eligibleBadgeHtml(l)}</td>` +
                     `<td class="align-middle"><span class="text-gray-5">${escapeHtml(l.joinDateUsed)}</span></td>` +
                     `<td class="align-middle text-end fs-12 text-gray-5">${formatIdr(l.baseSalary)}</td>` +
-                    `<td class="align-middle text-end fs-12 text-gray-5">${formatIdr(l.fixedAllowance)}</td>` +
                     `<td class="align-middle text-end fw-medium">${formatIdr(l.referenceWage)}</td>` +
                     `<td class="align-middle text-center"><span class="text-gray-5">${l.monthsOfService}</span></td>` +
                     `<td class="align-middle text-end fs-12 text-gray-5">${formatMultiplierPercent(l.multiplier)}</td>` +
@@ -992,10 +991,75 @@ function boot(): void {
         }
     });
 
-    exportBtn?.addEventListener("click", async () => {
+    function openThrReconciliationPreviewModal(): void {
         if (!batch?.id) {
             toast("Belum ada batch THR", true);
             return;
+        }
+
+        const modal = document.getElementById("thr_reconciliation_preview_modal");
+        if (!modal) return;
+
+        const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
+        const eligibleLines = lines.filter((l) => l.eligible);
+
+        const yearEl = modal.querySelector("[data-thr-recon-preview-year]");
+        const countEl = modal.querySelector("[data-thr-recon-preview-count]");
+        const totalEl = modal.querySelector("[data-thr-recon-preview-total]");
+        const statusEl = modal.querySelector("[data-thr-recon-preview-status]");
+        const tbody = modal.querySelector("[data-thr-recon-preview-body]");
+
+        if (yearEl) yearEl.textContent = String(batch.calendarYear);
+        if (countEl) countEl.textContent = String(eligibleLines.length);
+        if (totalEl) totalEl.textContent = fmt(batch.grandTotalEligible);
+        if (statusEl) statusEl.textContent = batch.status ?? "—";
+
+        if (tbody) {
+            if (eligibleLines.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada karyawan eligible.</td></tr>`;
+            } else {
+                tbody.innerHTML = eligibleLines
+                    .map(
+                        (l) => `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${l.fullName || "—"}</div>
+                            <div class="text-muted small">${l.employeeNo || String(l.userId)}</div>
+                        </td>
+                        <td class="text-end">${fmt(l.referenceWage)}</td>
+                        <td class="text-center">${l.monthsOfService} bln</td>
+                        <td class="text-center">${(l.multiplier * 100).toFixed(0)}%</td>
+                        <td class="text-end fw-semibold text-primary">${fmt(l.thrGross)}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">${l.paymentStatus || "pending"}</span></td>
+                    </tr>`,
+                    )
+                    .join("");
+
+                tbody.innerHTML += `
+                    <tr class="table-light fw-semibold">
+                        <td>Total (${eligibleLines.length} karyawan eligible)</td>
+                        <td colspan="3"></td>
+                        <td class="text-end text-primary">${fmt(batch.grandTotalEligible)}</td>
+                        <td></td>
+                    </tr>`;
+            }
+        }
+
+        const { Modal } = window.bootstrap as any;
+        Modal.getOrCreateInstance(modal).show();
+    }
+
+    exportBtn?.addEventListener("click", () => {
+        openThrReconciliationPreviewModal();
+    });
+
+    const thrReconPreviewDownloadBtn = document.querySelector<HTMLButtonElement>("[data-thr-recon-preview-download]");
+    thrReconPreviewDownloadBtn?.addEventListener("click", async () => {
+        if (!batch?.id) return;
+        const modal = document.getElementById("thr_reconciliation_preview_modal");
+        if (modal) {
+            const { Modal } = window.bootstrap as any;
+            Modal.getOrCreateInstance(modal).hide();
         }
         try {
             void await triggerThrExportReconciliation(batch.id, lines);

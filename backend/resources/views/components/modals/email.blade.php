@@ -160,7 +160,6 @@
                                 </div>
                                 <div class="d-flex align-items-center justify-content-center">
                                     <a href="{{url('video-call')}}" class="btn btn-gray call-item p-0 d-flex align-items-center justify-content-center me-3"><i class="ti ti-video fs-20"></i></a>
-                                    <a href="{{url('chat')}}" class="btn btn-gray call-item p-0 d-flex align-items-center justify-content-center me-3"><i class="ti ti-message fs-20"></i></a>
                                     <a href="{{url('voice-call')}}" class="btn btn-gray call-item p-0 d-flex align-items-center justify-content-center"><i class="ti ti-phone fs-20"></i></a>
                                 </div>
                             </div>

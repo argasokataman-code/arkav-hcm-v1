@@ -119,7 +119,6 @@ Query opsional:
 
 Response `200`:
 1. `data.items[]`
-2. `data.compensationAllowances[]`
 2. `data.meta.page`
 3. `data.meta.perPage`
 4. `data.meta.total`
@@ -127,8 +126,7 @@ Response `200`:
 
 Catatan:
 1. `data.items[]` berasal dari assignment payroll item aktif dengan kategori `fixed_allowance`.
-2. `data.compensationAllowances[]` berisi `tunjangan_tetap` yang berasal dari `employee_compensations.fixed_allowance`.
-3. Item di `compensationAllowances[]` bersifat read-only di governance UI karena sumber mutasinya adalah halaman salary/kompensasi karyawan.
+2. Mulai Mei 2026, governance **tidak lagi** menampilkan source tunjangan dari `employee_compensations`; semua allowance operasional harus masuk lewat assignment governance/payroll item.
 
 ### `POST /v1/hcm/allowance-governance/assignments`
 
@@ -177,7 +175,7 @@ Pada `mandatory_assignment_coverage`, evidence menyertakan `nonCompliantEmployee
 
 Catatan compliance saat ini:
 1. Karyawan dianggap comply bila memiliki minimal satu tunjangan aktif.
-2. Sumber tunjangan aktif dihitung dari dua jalur: assignment payroll item `fixed_allowance` dan `employee_compensations.fixed_allowance`.
+2. Sumber tunjangan aktif hanya dihitung dari assignment payroll item kategori `fixed_allowance` yang aktif pada tanggal evaluasi.
 
 ### `GET /v1/hcm/allowance-governance/reports/compliance/export`
 

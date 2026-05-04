@@ -41,7 +41,7 @@ Flow ini terpisah dari payroll bulanan karena tanggal bayar THR sering tidak sam
 
 - Payroll Runs: hasil post-payroll membuat run purpose `thr` yang ikut terbaca di histori payroll dan agregasi payslip. Lihat `../payroll-runs/README.md`.
 - Payslip: periode yang sama akan menampilkan hasil THR di `/payslip`. Lihat `../payslip/README.md`.
-- Employee Salary: dasar pro rata memakai gaji pokok + tunjangan tetap. Lihat `../employee-salary/README.md`.
+- Employee Salary: dasar pro rata memakai gaji pokok pada implementasi saat ini. Lihat `../employee-salary/README.md`.
 - Export Reconciliation: disburse dan post-payroll bisa digate oleh evidence export. Lihat `../export-reconciliation/README.md`.
 
 ## Kontrak API

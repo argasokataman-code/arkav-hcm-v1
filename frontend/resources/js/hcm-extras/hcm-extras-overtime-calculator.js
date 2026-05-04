@@ -11,13 +11,12 @@ export function bindOvertimeCalculatorModule(deps) {
     var btn = document.querySelector('[data-hcm-ot-calc="run"]');
     var employeeSelect = document.querySelector('[data-hcm-ot-calc="employeeId"]');
     var baseSalaryInput = document.querySelector('[data-hcm-ot-calc="baseSalary"]');
-    var fixedAllowanceInput = document.querySelector('[data-hcm-ot-calc="fixedAllowance"]');
     if (!resultEl || !btn) {
         return;
     }
 
     function applyCompensationFromEmployee() {
-        if (!employeeSelect || !baseSalaryInput || !fixedAllowanceInput) {
+        if (!employeeSelect || !baseSalaryInput) {
             return;
         }
         var employeesById = getEmployeeCompensationById();
@@ -26,7 +25,6 @@ export function bindOvertimeCalculatorModule(deps) {
             return;
         }
         baseSalaryInput.value = String(Math.round(emp.baseSalary));
-        fixedAllowanceInput.value = String(Math.round(emp.fixedAllowance));
     }
 
     if (employeeSelect) {
@@ -37,7 +35,7 @@ export function bindOvertimeCalculatorModule(deps) {
         var selectedDayType = normalizeOvertimeDayType((document.querySelector('[data-hcm-ot-calc="dayType"]') || {}).value || "workday");
         var payload = {
             baseMonthlySalary: parseFloat((document.querySelector('[data-hcm-ot-calc="baseSalary"]') || {}).value || "0"),
-            fixedAllowance: parseFloat((document.querySelector('[data-hcm-ot-calc="fixedAllowance"]') || {}).value || "0"),
+            fixedAllowance: 0,
             minutes: parseInt((document.querySelector('[data-hcm-ot-calc="minutes"]') || {}).value || "0", 10),
             dayType: selectedDayType,
             weeklyWorkDays: parseInt((document.querySelector('[data-hcm-ot-calc="weeklyWorkDays"]') || {}).value || "5", 10),

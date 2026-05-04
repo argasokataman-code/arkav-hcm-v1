@@ -1281,7 +1281,7 @@ class HcmTerminationController extends Controller
         $daysInMonth = (int) $monthEnd->day;
         $ratio = $daysInMonth > 0 ? $workedDays / $daysInMonth : 0.0;
         $baseMonthlySalary = max(0, (float) ($profile?->base_salary ?? 0));
-        $fixedMonthlyAllowance = max(0, (float) ($profile?->fixed_allowance ?? 0));
+        $fixedMonthlyAllowance = 0.0;
 
         return [
             'workedDays' => $workedDays,

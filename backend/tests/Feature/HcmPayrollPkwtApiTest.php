@@ -138,12 +138,12 @@ class HcmPayrollPkwtApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.preview.summary.totalEmployees', 1)
             ->assertJsonPath('data.preview.summary.eligibleEmployees', 1)
-            ->assertJsonPath('data.preview.summary.grandTotal', 5500000)
+            ->assertJsonPath('data.preview.summary.grandTotal', 5000000)
             ->assertJsonPath('data.preview.lines.0.userId', $eligibleUser->id)
             ->assertJsonPath('data.preview.lines.0.contractType', 'contract')
             ->assertJsonPath('data.preview.lines.0.contractEndDate', '2026-04-20')
             ->assertJsonPath('data.preview.lines.0.monthsOfService', 12)
-            ->assertJsonPath('data.preview.lines.0.compensationAmount', 5500000)
+            ->assertJsonPath('data.preview.lines.0.compensationAmount', 5000000)
             ->assertJsonPath('data.run', null);
     }
 

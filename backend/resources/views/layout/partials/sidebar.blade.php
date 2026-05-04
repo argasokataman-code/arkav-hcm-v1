@@ -37,7 +37,7 @@
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription( )
         : null;
-    $hasCompanyBillingAccess = (bool) $activeCompanySubscription;
+    $hasCompanyBillingAccess = $isHcmAdmin && (bool) $activeCompanySubscription;
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
     $hasTickets = (bool) ($activeCompanySubscription?->package?->hasFeature('tickets') ?? false);
     $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
@@ -55,8 +55,8 @@
     $activeCompanyIdentifier = $activeCompany instanceof \App\Models\Company
         ? ((string) ($activeCompany->uuid ?? '') !== '' ? (string) $activeCompany->uuid : (string) ((int) ($activeCompany->id ?? 0)))
         : null;
-    $canManageTrainingMenu = $featureBypass || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
-    $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
+    $canManageTrainingMenu = $featureBypass || ($hasTraining && $isHcmAdmin && (bool) ($authUser?->hasPermissionForCompany('training.manage', $activeCompanyIdentifier)));
+    $canViewTrainingMenu = $canManageTrainingMenu || ($hasTraining && $isHcmAdmin && (bool) ($authUser?->hasPermissionForCompany('training.view', $activeCompanyIdentifier)));
     $hasDocumentCenter = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_document_center') ?? false);
     $canManageDocumentCenterMenu = $isGlobalHcmAdmin || $featureBypass || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.manage', $activeCompanyIdentifier)));
     $canViewDocumentCenterMenu = $canManageDocumentCenterMenu || ($hasDocumentCenter && (bool) ($authUser?->hasPermissionForCompany('document_center.view', $activeCompanyIdentifier)));

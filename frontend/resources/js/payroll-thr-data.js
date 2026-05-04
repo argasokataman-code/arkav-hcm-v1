@@ -146,12 +146,11 @@
 
             var fd = new FormData(form);
             var base = parseFloat(String(fd.get("baseMonthlySalary") || "0").replace(/,/g, ".")) || 0;
-            var fixed = parseFloat(String(fd.get("fixedMonthlyAllowance") || "0").replace(/,/g, ".")) || 0;
             var payload = {
                 joinDate: String(fd.get("joinDate") || "").trim(),
                 cutoffDate: String(fd.get("cutoffDate") || "").trim(),
                 baseMonthlySalary: base,
-                fixedMonthlyAllowance: fixed,
+                fixedMonthlyAllowance: 0,
             };
 
             apiRequest("post", "/v1/hcm/payroll/thr-calculate", payload)

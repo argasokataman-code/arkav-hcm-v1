@@ -67,13 +67,75 @@ Response envelope:
 {
   "success": true,
   "data": {
-    "scheduleToday": {},
-    "attendanceThisMonth": {},
-    "leaveBalance": {},
-    "payrollSnapshot": {}
+    "profile": {
+      "name": "Budi Santoso",
+      "email": "bs3@d.id",
+      "designation": "Staff",
+      "team": "General",
+      "phone": "08123456789",
+      "joinDate": "2026-01-10",
+      "reportOffice": "-",
+      "profilePhotoUrl": "/storage/avatars/35/example.jpg",
+      "greeting": "Selamat pagi"
+    },
+    "attendanceToday": {
+      "nowLabel": "08:35, 04 May 2026",
+      "progressPercent": 65,
+      "productionHours": 5.75,
+      "punchInAt": "08:01",
+      "punchOutAt": "-",
+      "punchState": "in",
+      "canPunch": true,
+      "needsReview": false,
+      "summaryTotalWorking": "5h 45m",
+      "summaryProductive": "5h 15m",
+      "summaryBreak": "30m",
+      "summaryOvertime": "-",
+      "checkInLatitude": -6.2,
+      "checkInLongitude": 106.8,
+      "checkOutLatitude": null,
+      "checkOutLongitude": null
+    },
+    "attendanceStats": {
+      "todayHours": 5.75,
+      "todayTarget": 8,
+      "weekHours": 32,
+      "weekTarget": 40,
+      "monthHours": 84,
+      "monthTarget": 98,
+      "monthOvertimeHours": 6,
+      "monthOvertimeTarget": 28
+    },
+    "leave": {
+      "total": 4,
+      "pending": 1,
+      "approved": 2,
+      "declined": 1
+    },
+    "overtime": {
+      "pending": 0,
+      "approvedThisMonth": 2,
+      "approvedHoursThisMonth": 6
+    },
+    "payroll": {
+      "latestPeriod": "04/2026",
+      "latestRunStatus": "finalized",
+      "paymentStatus": "paid",
+      "latestNetPay": 4500000
+    },
+    "ui": {
+      "referenceDate": "2026-05-04",
+      "referenceYear": 2026,
+      "isCurrentDay": true
+    }
   }
 }
 ```
+
+Catatan kontrak runtime:
+
+- `profile.profilePhotoUrl` bersifat nullable dan dipakai dashboard employee untuk sinkron avatar dengan foto profil terbaru.
+- Tombol GPS di card attendance menggunakan koordinat browser untuk preview lokasi, tetapi source of truth attendance tetap berasal dari `attendanceToday.checkIn*` / `checkOut*`.
 
 ### 3. Global HRMS search catalog
 
@@ -129,3 +191,8 @@ Validasi query:
 
 - Path baru additive: `GET /v1/hcm/search`.
 - Tidak mengubah path atau struktur endpoint dashboard existing.
+
+## Contract Notes (2026-05-04)
+
+- Payload `GET /v1/hcm/employee-dashboard-summary` kini mendokumentasikan `profile.profilePhotoUrl` (nullable) untuk sinkron avatar card employee dashboard.
+- Tidak ada perubahan path atau authorization flow.

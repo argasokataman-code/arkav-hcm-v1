@@ -24,12 +24,6 @@
                         </a>
                     </div>
                     <div class="mb-1">
-                        <a href="{{url('chat')}}" class="btn btn-menubar position-relative">
-                            <i class="ti ti-brand-hipchat"></i>
-                            <span class="badge bg-info rounded-pill d-flex align-items-center justify-content-center header-badge">5</span>
-                        </a>
-                    </div>
-                    <div class="mb-1">
                         <a href="{{url('email')}}" class="btn btn-menubar">
                             <i class="ti ti-mail"></i>
                         </a>
@@ -57,8 +51,8 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-application" role="tab" class="nav-link {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
+                                <a href="#menu-application" role="tab" class="nav-link {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
                                     <span><i class="ti ti-layout-grid-add"></i></span>
                                     <p>Applications</p>
                                 </a>

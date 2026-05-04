@@ -62,7 +62,7 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 5. Saat perusahaan siap mengeksekusi settlement akhir, admin membuka mode finalization dan menekan `Refresh from payroll & assets`.
 5. Sistem menghitung settlement preview berdasarkan runtime existing:
 	- resolve periode payroll aktual terdekat;
-	- hitung gaji pokok dan tunjangan tetap secara prorata sampai `terminationDate`;
+	- hitung gaji pokok secara prorata sampai `terminationDate`;
 	- tarik komponen payroll lain sebagai reference bila monthly payroll run untuk periode itu sudah tersedia;
 	- tambahkan kompensasi PKWT bila kontrak memang due pada bulan tersebut;
 	- tampilkan clearance item asset yang masih outstanding.
@@ -167,7 +167,7 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 - lifecycle `pending | approved | finalized | cancelled` sudah aktif end-to-end;
 - workflow stage compliance dasar `draft_review | legal_review | approved_internal | finalized_execution | cancelled` sudah aktif dengan audit actor/timestamp;
 - finalization sudah bisa menarik preview settlement dari source runtime;
-- settlement sudah menghitung prorata gaji pokok dan tunjangan tetap;
+- settlement sudah menghitung prorata gaji pokok; tunjangan tetap legacy dari salary profile tidak lagi dipakai sebagai source settlement.
 - kompensasi PKWT sudah ikut ditambahkan bila due pada bulan termination;
 - clearance asset sudah tampil sebagai item terstruktur dan bisa di-return langsung dari feature Termination;
 - snapshot final sudah menyimpan periode payroll target, breakdown settlement, dan clearance outstanding.

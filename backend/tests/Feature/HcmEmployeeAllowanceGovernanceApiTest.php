@@ -179,7 +179,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $this->assertIsArray($coverageCheck['evidence']['nonCompliantEmployees'] ?? null);
     }
 
-    public function test_assignments_and_compliance_include_compensation_fixed_allowance_source(): void
+    public function test_assignments_and_compliance_ignore_legacy_compensation_fixed_allowance_source(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-compensation-source@example.com']);
 
@@ -216,13 +216,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
             ->assertStatus(200)
             ->assertJsonPath('success', true);
 
-        $compItems = collect($assignments->json('data.compensationAllowances', []));
-        $forEmployee = $compItems->firstWhere('userId', (int) $employee->id);
-
-        $this->assertNotNull($forEmployee);
-        $this->assertSame('employee_compensations', $forEmployee['source'] ?? null);
-        $this->assertSame('tunjangan_tetap', $forEmployee['policyCode'] ?? null);
-        $this->assertSame('750000.00', $forEmployee['amount'] ?? null);
+        $this->assertArrayNotHasKey('compensationAllowances', $assignments->json('data', []));
 
         $report = $this->withHeaders($headers)
             ->getJson('/v1/hcm/allowance-governance/reports/compliance')
@@ -234,7 +228,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $this->assertIsArray($coverage);
         $nonCompliantEmployees = collect($coverage['evidence']['nonCompliantEmployees'] ?? []);
 
-        $this->assertFalse($nonCompliantEmployees->pluck('userId')->contains((int) $employee->id));
+        $this->assertTrue($nonCompliantEmployees->pluck('userId')->contains((int) $employee->id));
     }
 
     public function test_assignment_overlap_is_rejected_for_active_periods(): void

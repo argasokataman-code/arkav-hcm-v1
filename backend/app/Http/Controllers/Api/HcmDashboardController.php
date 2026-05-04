@@ -699,6 +699,7 @@ class HcmDashboardController extends Controller
                     'phone' => $profile?->phone ?: '-',
                     'joinDate' => optional($profile?->hire_date)?->toDateString(),
                     'reportOffice' => '-',
+                    'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
                     'greeting' => $this->employeeGreeting($now),
                 ],
                 'attendanceToday' => [

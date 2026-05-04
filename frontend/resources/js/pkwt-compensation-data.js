@@ -3,6 +3,8 @@
 
     var currentRun = null;
     var pendingPayRunId = null;
+    var _pkwtPreviewLines = [];
+    var _pkwtPreviewSummary = null;
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -350,6 +352,9 @@
         }
         updateRunState(run);
         var lines = payload && Array.isArray(payload.lines) ? payload.lines : [];
+        // Store for preview modal
+        _pkwtPreviewLines = lines;
+        _pkwtPreviewSummary = payload && payload.summary ? payload.summary : null;
         var paidUserIds = run && run.payment && Array.isArray(run.payment.paidUserIds) ? run.payment.paidUserIds : [];
         if (total) total.textContent = String(payload && payload.summary ? payload.summary.totalEmployees || 0 : 0);
         if (eligible) eligible.textContent = String(payload && payload.summary ? payload.summary.eligibleEmployees || 0 : 0);
@@ -436,6 +441,63 @@
             });
     }
 
+    function openPkwtReconciliationPreviewModal() {
+        var year = document.querySelector("[data-pkwt-period-year]");
+        var month = document.querySelector("[data-pkwt-period-month]");
+        if (!year || !month) {
+            notify("Pilih periode terlebih dahulu", true);
+            return;
+        }
+        var periodStr = String(year.value) + "-" + String(month.value).padStart(2, "0");
+
+        var modal = document.getElementById("pkwt_reconciliation_preview_modal");
+        if (!modal) return;
+
+        var eligibleLines = _pkwtPreviewLines.filter(function (l) { return l.eligible; });
+        var grandTotal = _pkwtPreviewSummary ? (_pkwtPreviewSummary.grandTotal || 0) : 0;
+        var totalEmployees = _pkwtPreviewSummary ? (_pkwtPreviewSummary.totalEmployees || 0) : 0;
+
+        var periodEl = modal.querySelector("[data-pkwt-recon-preview-period]");
+        var countEl = modal.querySelector("[data-pkwt-recon-preview-count]");
+        var totalEl = modal.querySelector("[data-pkwt-recon-preview-total]");
+        var allCountEl = modal.querySelector("[data-pkwt-recon-preview-all-count]");
+        var tbody = modal.querySelector("[data-pkwt-recon-preview-body]");
+
+        if (periodEl) periodEl.textContent = periodStr;
+        if (countEl) countEl.textContent = String(eligibleLines.length);
+        if (totalEl) totalEl.textContent = formatIdr(grandTotal);
+        if (allCountEl) allCountEl.textContent = String(totalEmployees);
+
+        if (tbody) {
+            if (eligibleLines.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada karyawan eligible.</td></tr>';
+            } else {
+                tbody.innerHTML = eligibleLines.map(function (l) {
+                    var multiplierPct = ((Number(l.multiplier || 0) * 100).toFixed(2)).replace(/\.00$/, "") + "%";
+                    return "<tr>" +
+                        "<td><div class=\"fw-semibold\">" + escapeHtml(l.fullName || "—") + "</div>" +
+                        "<div class=\"text-muted small\">" + escapeHtml(formatEmployeeCode(l.userId)) + "</div></td>" +
+                        "<td class=\"text-end\">" + escapeHtml(formatIdr(l.referenceMonthlyWage || 0)) + "</td>" +
+                        "<td class=\"text-center\">" + escapeHtml(String(l.monthsOfService || 0)) + " bln</td>" +
+                        "<td class=\"text-center\">" + escapeHtml(multiplierPct) + "</td>" +
+                        "<td class=\"text-end fw-semibold text-primary\">" + escapeHtml(formatIdr(l.compensationAmount || 0)) + "</td>" +
+                        "<td class=\"text-center\"><span class=\"badge bg-light text-dark border\">" + escapeHtml(l.eligible ? "eligible" : "tidak eligible") + "</span></td>" +
+                        "</tr>";
+                }).join("");
+                tbody.innerHTML += "<tr class=\"table-light fw-semibold\">" +
+                    "<td>Total (" + eligibleLines.length + " karyawan eligible)</td>" +
+                    "<td colspan=\"3\"></td>" +
+                    "<td class=\"text-end text-primary\">" + escapeHtml(formatIdr(grandTotal)) + "</td>" +
+                    "<td></td></tr>";
+            }
+        }
+
+        var Bootstrap = window.bootstrap;
+        if (Bootstrap && Bootstrap.Modal) {
+            Bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+    }
+
     function initList() {
         var form = document.querySelector("[data-pkwt-list-form]");
         var exportBtn = document.querySelector("[data-pkwt-export-evidence]");
@@ -463,27 +525,27 @@
 
         if (exportBtn) {
             exportBtn.addEventListener("click", function () {
+                openPkwtReconciliationPreviewModal();
+            });
+        }
+
+        // Wire preview modal download button
+        var previewDownloadBtn = document.querySelector("[data-pkwt-recon-preview-download]");
+        if (previewDownloadBtn) {
+            previewDownloadBtn.addEventListener("click", function () {
                 var year = document.querySelector("[data-pkwt-period-year]");
                 var month = document.querySelector("[data-pkwt-period-month]");
-                var body = document.querySelector("[data-pkwt-list-body]");
-                if (!year || !month) {
-                    notify("Pilih periode terlebih dahulu", true);
-                    return;
-                }
+                if (!year || !month) return;
                 var yearMonth = String(year.value) + "-" + String(month.value).padStart(2, "0");
-                var rows = body ? body.querySelectorAll("tr") : [];
-                var lines = [];
-                rows.forEach(function (row) {
-                    var idEl = row.querySelector("[data-line-id]");
-                    var eligibleEl = row.querySelector("[data-eligible]");
-                    if (idEl && eligibleEl) {
-                        lines.push({
-                            id: parseInt(idEl.getAttribute("data-line-id"), 10),
-                            eligible: eligibleEl.getAttribute("data-eligible") === "1"
-                        });
-                    }
+                var modal = document.getElementById("pkwt_reconciliation_preview_modal");
+                if (modal && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modal).hide();
+                }
+                var domLines = [];
+                _pkwtPreviewLines.forEach(function (l) {
+                    domLines.push({ id: l.userId, eligible: l.eligible });
                 });
-                void triggerPkwtExportReconciliation(yearMonth, lines);
+                void triggerPkwtExportReconciliation(yearMonth, domLines);
             });
         }
 
@@ -603,7 +665,6 @@
             var startDate = String(fd.get("contractStartDate") || "").trim();
             var endDate = String(fd.get("contractEndDate") || "").trim();
             var baseSalary = Number(fd.get("baseMonthlySalary"));
-            var fixedAllowance = Number(fd.get("fixedMonthlyAllowance") || 0);
 
             if (!startDate || !endDate) {
                 if (err) {
@@ -616,14 +677,6 @@
             if (Number.isNaN(baseSalary) || baseSalary < 0) {
                 if (err) {
                     err.textContent = "Gaji pokok wajib angka >= 0.";
-                    err.classList.remove("d-none");
-                }
-                out.innerHTML = '';
-                return;
-            }
-            if (Number.isNaN(fixedAllowance) || fixedAllowance < 0) {
-                if (err) {
-                    err.textContent = "Tunjangan tetap wajib angka >= 0.";
                     err.classList.remove("d-none");
                 }
                 out.innerHTML = '';
@@ -643,7 +696,7 @@
                 contractStartDate: startDate,
                 contractEndDate: endDate,
                 baseMonthlySalary: baseSalary,
-                fixedMonthlyAllowance: fixedAllowance,
+                fixedMonthlyAllowance: 0,
             })
                 .then(function (resp) {
                     if (!resp || resp.success !== true || !resp.data) {

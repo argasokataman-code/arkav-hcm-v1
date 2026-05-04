@@ -47,13 +47,12 @@
                 </li>
 @endif
                 <li class="submenu">
-                    <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' subdrop active ' : '' }}">
+                    <a href="#" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices','invoice-details') ? ' subdrop active ' : '' }}">
                         <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                         <span class="menu-arrow"></span>
                     </a>
                     <ul>
-                        <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                         <li class="submenu submenu-two">
                             <a href="{{url('call')}}" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history') ? 'active subdrop' : '' }}">Calls<span class="menu-arrow inside-submenu"></span></a>
                             <ul>
@@ -68,7 +67,6 @@
                         <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                         <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                         <li><a href="{{url('social-feed')}}" class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
-                        <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                         <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                     </ul>
                 </li>

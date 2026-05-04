@@ -17,7 +17,6 @@ class EmployeeCompensation extends Model
         'employee_id',
         'salary_type',
         'base_salary',
-        'fixed_allowance',
         'currency',
         'effective_date',
         'end_date',
@@ -26,7 +25,6 @@ class EmployeeCompensation extends Model
 
     protected $casts = [
         'base_salary' => 'decimal:2',
-        'fixed_allowance' => 'decimal:2',
         'effective_date' => 'date',
         'end_date' => 'date',
     ];

@@ -440,7 +440,7 @@ class HcmEmployeeController extends Controller
                 'designation' => $designationLabel,
                 'employeeType' => $snapshot['employeeType'],
                 'baseSalary' => (float) ($snapshot['baseSalary'] ?? 0),
-                'fixedAllowance' => (float) ($snapshot['fixedAllowance'] ?? 0),
+                'fixedAllowance' => 0.0,
                 'employmentStatus' => $employmentStatus,
                 'hireDate' => optional($profile?->hire_date)->toDateString(),
                 'joinDate' => $this->effectiveJoinDate($user, $profile),
@@ -891,9 +891,6 @@ class HcmEmployeeController extends Controller
         if (array_key_exists('baseSalary', $validated)) {
             $profilePayload['base_salary'] = (float) ($validated['baseSalary'] ?? 0);
         }
-        if (array_key_exists('fixedAllowance', $validated)) {
-            $profilePayload['fixed_allowance'] = (float) ($validated['fixedAllowance'] ?? 0);
-        }
         if (array_key_exists('hireDate', $validated)) {
             $profilePayload['hire_date'] = $validated['hireDate'];
         } elseif (array_key_exists('startDate', $validated)) {
@@ -1052,7 +1049,7 @@ class HcmEmployeeController extends Controller
                 'team' => $snapshot['team'] ?: 'HCM',
                 'employeeType' => $snapshot['employeeType'],
                 'baseSalary' => (float) ($snapshot['baseSalary'] ?? 0),
-                'fixedAllowance' => (float) ($snapshot['fixedAllowance'] ?? 0),
+                'fixedAllowance' => 0.0,
                 'employmentStatus' => $employmentStatus,
                 'hireDate' => optional($profile?->hire_date)->toDateString(),
                 'startDate' => $snapshot['startDate'],

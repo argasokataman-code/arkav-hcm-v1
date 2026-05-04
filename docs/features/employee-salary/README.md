@@ -2,7 +2,7 @@
 
 ## Ringkasan
 
-Halaman **`/employee-salary`** memberi HCM Admin tampilan terpusat untuk **gaji pokok** (`baseSalary`) dan **tunjangan tetap** (`fixedAllowance`) yang disimpan di `employee_profiles`, konsisten dengan **`GET/PUT /v1/hcm/employees`** dan halaman detail karyawan.
+Halaman **`/employee-salary`** memberi HCM Admin tampilan terpusat untuk **gaji pokok** (`baseSalary`) dan assignment payroll item per karyawan, konsisten dengan **`GET/PUT /v1/hcm/employees`** dan halaman detail karyawan.
 
 Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll item custom per karyawan** (tunjangan/potongan) tanpa mengubah katalog global payroll item.
 
@@ -27,7 +27,7 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 ## Perilaku
 
 - Tabel: data dari **`GET /v1/hcm/employees`** (paginasi, `search`, `status`), termasuk **`departmentName`** (FK ke master departemen).
-- Kolom **Dasar / bln** = `baseSalary + fixedAllowance` (sama dengan pembilang ÷173 pada kalkulator lembur).
+- Kolom **Dasar / bln** = `baseSalary`; tunjangan tetap operasional tidak lagi disimpan di salary profile dan harus diatur lewat allowance governance/payroll item assignment.
 - **Set kompensasi:** modal dengan dropdown karyawan (agregasi halaman API hingga batas aman).
 - **Edit** baris: modal yang sama, tanpa dropdown.
 - **Custom payroll item per karyawan:** di modal edit tersedia section assignment dengan flow tambah, ubah nominal, aktif/nonaktif, dan hapus assignment.
@@ -36,7 +36,7 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 
 ## Integrasi
 
-- **Lembur:** `POST /v1/hcm/overtime-requests/calculate` memakai gaji pokok + tunjangan tetap dari profil; pastikan nilai di halaman ini selaras dengan yang dipakai kalkulator.
+- **Lembur:** halaman ini tetap menjadi sumber gaji pokok, tetapi tunjangan tetap legacy tidak lagi berasal dari profil salary karyawan.
 - **Payroll items:** tautan ke `/payroll` (komponen slip / katalog, termasuk konteks upah lembur).
 - **Payroll draft:** assignment custom aktif akan ikut terbentuk sebagai payroll line saat admin menghitung draft periode (`POST /v1/hcm/payroll-periods/{id}/calculate-draft`).
 - **Payslip:** perubahan kompensasi utama dan assignment custom di sini menjadi salah satu input utama yang akhirnya muncul di `/payslip` saat payroll monthly/THR/PKWT pada bulan tersebut sudah final.
@@ -55,5 +55,5 @@ Mulai update April 2026, halaman ini juga memfasilitasi **assignment payroll ite
 ## Existing Vs Target
 
 - Existing: halaman admin, modal kompensasi, custom payroll item assignment per karyawan, dan integrasi ke overtime/payroll draft sudah aktif.
-- Existing: kompensasi utama tetap bersumber dari `employee_profiles` dan sinkron ke employees API/detail karyawan.
+- Existing: kompensasi utama yang dikelola di halaman ini adalah gaji pokok; tunjangan tetap operasional dipindahkan ke allowance governance/payroll item assignment.
 - Target: penyatuan dokumentasi business flow dan lifecycle kompensasi dengan modul payroll terkait bisa dibuat lebih detail bila area ini diaudit lebih dalam lagi.

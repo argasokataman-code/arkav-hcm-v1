@@ -48,8 +48,7 @@
                             </div>
                             <div class="p-3 border-bottom">
                                 <h6 class="mb-2">Compensation</h6>
-                                <div class="d-flex align-items-center justify-content-between mb-2"><span><i class="ti ti-cash me-2"></i>Base Salary</span><p class="text-dark" data-employee-base-salary>-</p></div>
-                                <div class="d-flex align-items-center justify-content-between"><span><i class="ti ti-wallet me-2"></i>Fixed Allowance</span><p class="text-dark" data-employee-fixed-allowance>-</p></div>
+                                <div class="d-flex align-items-center justify-content-between"><span><i class="ti ti-cash me-2"></i>Base Salary</span><p class="text-dark" data-employee-base-salary>-</p></div>
                             </div>
                             <div class="p-3 border-bottom">
                                 <h6 class="mb-2">Shift & Schedule</h6>
@@ -151,7 +150,6 @@
                 setText('[data-employee-email]', item.email);
                 setText('[data-employee-address]', item.address);
                 setText('[data-employee-base-salary]', formatRupiah(item.baseSalary));
-                setText('[data-employee-fixed-allowance]', formatRupiah(item.fixedAllowance));
                 setText('[data-employee-report-office]', item.reportOffice || '-');
                 setText('[data-employee-initial]', ((item.fullName || '?').charAt(0) || '?').toUpperCase());
 

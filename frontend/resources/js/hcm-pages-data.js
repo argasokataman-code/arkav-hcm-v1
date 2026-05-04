@@ -609,7 +609,6 @@
         set("[data-employee-email]", item.email);
         set("[data-employee-address]", item.address);
         set("[data-employee-base-salary]", formatRupiah(item.baseSalary));
-        set("[data-employee-fixed-allowance]", formatRupiah(item.fixedAllowance));
         set("[data-employee-report-office]", item.reportOffice || "-");
         set("[data-employee-initial]", (item.fullName || "?").charAt(0).toUpperCase());
 
@@ -686,7 +685,7 @@
                 return '<li class="mb-2"><strong>' + esc(row.teamName || row.departmentName || "-") + '</strong> — ' + esc(row.designationName || "-") + ' <span class="text-muted">(' + esc((row.startDate || "—") + ' - ' + (row.endDate || "Present")) + ')</span></li>';
             }).join("");
             var compensationHistoryHtml = compensationHistory.map(function (row) {
-                return '<li class="mb-2"><strong>' + formatRupiah(row.baseSalary || 0) + '</strong> + allowance ' + formatRupiah(row.fixedAllowance || 0) + ' <span class="text-muted">(' + esc((row.salaryType || "monthly") + ', ' + (row.effectiveDate || "—")) + ')</span></li>';
+                return '<li class="mb-2"><strong>' + formatRupiah(row.baseSalary || 0) + '</strong> <span class="text-muted">(' + esc((row.salaryType || "monthly") + ', ' + (row.effectiveDate || "—")) + ')</span></li>';
             }).join("");
             var contractHistoryHtml = contractHistory.map(function (row) {
                 return '<li class="mb-2"><strong>' + esc((row.contractType || "-").toUpperCase()) + '</strong> — ' + esc(row.status || "-") + ' <span class="text-muted">(' + esc((row.startDate || "—") + ' - ' + (row.endDate || "Present")) + ')</span></li>';

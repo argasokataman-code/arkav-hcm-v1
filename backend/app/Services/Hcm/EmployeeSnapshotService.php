@@ -77,7 +77,6 @@ final class EmployeeSnapshotService
                 [
                     'salary_type' => $this->normalizeSalaryType($payload['salaryType'] ?? 'monthly'),
                     'base_salary' => round((float) ($payload['baseSalary'] ?? $profile->getRawOriginal('base_salary') ?? 0), 2),
-                    'fixed_allowance' => round((float) ($payload['fixedAllowance'] ?? $profile->getRawOriginal('fixed_allowance') ?? 0), 2),
                     'currency' => 'IDR',
                     'end_date' => null,
                     'notes' => 'Synced from employee profile form',
@@ -349,12 +348,12 @@ final class EmployeeSnapshotService
             'managerUserId' => $assignment?->manager_user_id ?? $profile->getRawOriginal('manager_user_id'),
                 'managerName' => $managerName,
             'baseSalary' => (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0),
-                'fixedAllowance' => (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0),
+                'fixedAllowance' => 0.0,
             'compensation' => [
                 'salaryType' => $compensation?->salary_type ?? 'monthly',
                 'currency' => $compensation?->currency ?? 'IDR',
                 'baseSalary' => (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0),
-                'fixedAllowance' => (float) ($compensation?->fixed_allowance ?? $profile->getRawOriginal('fixed_allowance') ?? 0),
+                'fixedAllowance' => 0.0,
                 'effectiveDate' => optional($compensation?->effective_date)->toDateString(),
             ],
             'contract' => [
@@ -523,7 +522,7 @@ final class EmployeeSnapshotService
             ->map(fn (EmployeeCompensation $item) => [
                 'salaryType' => $item->salary_type,
                 'baseSalary' => (float) $item->base_salary,
-                'fixedAllowance' => (float) $item->fixed_allowance,
+                'fixedAllowance' => 0.0,
                 'currency' => $item->currency,
                 'effectiveDate' => optional($item->effective_date)->toDateString(),
                 'endDate' => optional($item->end_date)->toDateString(),

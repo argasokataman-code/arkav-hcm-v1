@@ -189,6 +189,20 @@ class HcmGlobalSearchController extends Controller
             return $isGlobalAdmin;
         }
 
+        // Routes that require hcm.web.admin middleware (tenant admin only)
+        $adminOnlyRoutes = [
+            'training',
+            'training-type',
+            'trainers',
+            'upgrade',
+            'subscription',
+            'company.invoices',
+        ];
+
+        if (in_array($routeName, $adminOnlyRoutes, true)) {
+            return $isAdmin;
+        }
+
         if ($isAdmin) {
             return true;
         }
@@ -243,9 +257,6 @@ class HcmGlobalSearchController extends Controller
             'performance-review' => ['performance.view'],
             'goal-type' => ['goal.view'],
             'goal-tracking' => ['goal.view'],
-            'training' => ['training.view'],
-            'training-type' => ['training.view'],
-            'trainers' => ['trainer.view', 'training.view'],
             'tickets-admin' => ['ticket.view'],
             'tickets-grid' => ['ticket.view'],
             'ticket-master' => ['ticket.category.manage', 'ticket.view'],

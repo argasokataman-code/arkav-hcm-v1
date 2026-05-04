@@ -17,7 +17,7 @@ Status runtime saat ini: sudah ada halaman dedicated Allowance Governance.
 
 Surface existing yang terkait tunjangan saat ini:
 
-1. Employee Salary: halaman kompensasi per karyawan (fixed allowance).
+1. Employee Salary: halaman kompensasi per karyawan untuk gaji pokok; tunjangan tetap legacy dari halaman ini sudah dipensiunkan.
 2. Payroll Items: katalog item addition/deduction yang dipakai payroll runtime.
 3. Payroll Salary Components: master komponen sebagai source-of-truth istilah komponen.
 4. Employee Allowance Governance: policy + assignment + compliance report dedicated.
@@ -107,7 +107,7 @@ Kontrak runtime aktif:
 
 Existing saat ini:
 
-1. Tunjangan umum kini punya surface governance dedicated, tetapi tetap terintegrasi ke employee salary/payroll items/salary components.
+1. Tunjangan umum kini punya surface governance dedicated, dan source operasionalnya tidak lagi berasal dari kolom kompensasi salary legacy.
 2. Governance score allowance dan detail gap per karyawan sudah tersedia di endpoint compliance report.
 3. Policy lifecycle allowance baseline sudah berjalan (draft/active/superseded/archived).
 

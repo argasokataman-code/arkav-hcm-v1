@@ -37,7 +37,6 @@
         <div class="sidebar-nav mb-3">
             <ul class="nav nav-tabs nav-tabs-solid nav-tabs-rounded nav-justified bg-transparent" role="tablist">
                 <li class="nav-item"><a class="nav-link active border-0" href="#">Menu</a></li>
-                <li class="nav-item"><a class="nav-link border-0" href="{{url('chat')}}">Chats</a></li>
                 <li class="nav-item"><a class="nav-link border-0" href="{{url('email')}}">Inbox</a></li>
             </ul>
         </div>
@@ -65,12 +64,6 @@
             <div class="me-3">
                 <a href="{{url('calendar')}}" class="btn btn-menubar">
                     <i class="ti ti-layout-grid-remove"></i>
-                </a>
-            </div>
-            <div class="me-3">
-                <a href="{{url('chat')}}" class="btn btn-menubar position-relative">
-                    <i class="ti ti-brand-hipchat"></i>
-                    <span class="badge bg-info rounded-pill d-flex align-items-center justify-content-center header-badge">5</span>
                 </a>
             </div>
             <div class="me-3 notification-item">
@@ -107,13 +100,12 @@
                             </ul>
                         </li>
                         <!-- <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices','invoice-details') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
-                                <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                                 <li class="submenu submenu-two">
                                     <a href="{{url('call')}}" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history') ? 'active subdrop' : '' }}">Calls<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
@@ -128,7 +120,6 @@
                                 <li><a href="{{url('email')}}"  class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                                 <li><a href="{{url('notes')}}"  class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                                 <li><a href="{{url('social-feed')}}"  class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
-                                <li><a href="{{url('file-manager')}}"  class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                                 <li><a href="{{url('invoices')}}"  class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </li> -->

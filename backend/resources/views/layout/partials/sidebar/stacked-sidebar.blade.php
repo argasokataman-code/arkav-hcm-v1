@@ -24,12 +24,6 @@
                         </a>
                     </div>
                     <div class="mb-1">
-                        <a href="{{url('chat')}}" class="btn btn-menubar position-relative">
-                            <i class="ti ti-brand-hipchat"></i>
-                            <span class="badge bg-info rounded-pill d-flex align-items-center justify-content-center header-badge">5</span>
-                        </a>
-                    </div>
-                    <div class="mb-1">
                         <a href="{{url('email')}}" class="btn btn-menubar">
                             <i class="ti ti-mail"></i>
                         </a>
@@ -57,8 +51,8 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                <a href="#menu-application" role="tab" class="nav-link {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
+                                <a href="#menu-application" role="tab" class="nav-link {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices') ? ' show active ' : '' }} " title="Apps" data-bs-toggle="tab" data-bs-target="#menu-application" aria-selected="false">
                                     <span><i class="ti ti-layout-grid-add"></i></span>
                                     <p>Applications</p>
                                 </a>
@@ -236,10 +230,9 @@
                             </ul>
                         </div>
 @endif
-                        <div class="tab-pane fade {{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                            'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
+                        <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                            'calendar','email','notes','social-feed','invoices','invoice-details') ? ' show active ' : '' }}" id="menu-application">
                             <ul class="stack-submenu">
-                                <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                                 <li class="submenu submenu-two">
                                     <a href="{{url('call')}}" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history') ? 'active' : '' }}">Calls<span
                                             class="menu-arrow inside-submenu"></span></a>
@@ -255,7 +248,6 @@
                                 <li><a href="{{url('calendar')}}" class="{{ Request::is('calendar') ? 'active' : '' }}">Calendar</a></li>
                                 <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                                 <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
-                                <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                                 <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                             </ul>
                         </div>

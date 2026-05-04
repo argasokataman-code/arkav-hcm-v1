@@ -36,7 +36,7 @@ Fitur overtime mengelola master tipe lembur, pengajuan lembur oleh employee atau
 
 ## Integrasi
 
-- Employee Salary: kalkulator memakai `baseSalary + fixedAllowance` sebagai dasar upah sejam. Lihat `docs/features/employee-salary/README.md`.
+- Employee Salary: kalkulator memakai `baseSalary` sebagai dasar upah sejam pada implementasi saat ini. Lihat `docs/features/employee-salary/README.md`.
 - Payroll Salary Components: request lembur dapat menunjuk `hcm_salary_component_id` ke komponen `upah_lembur` atau kategori `overtime`. Lihat `docs/features/payroll-salary-components/README.md`.
 - Payroll Runs: lembur approved yang masuk scope payroll sudah diagregasi ke payroll draft per periode melalui builder payroll, selama komponen dan kompensasi dasarnya valid. Lihat `docs/features/payroll-runs/README.md`.
 - Leave & Holidays: overtime request diblok jika bertabrakan dengan leave approved pada tenant yang sama. Lihat `docs/features/leave-and-holidays/README.md`.
@@ -83,7 +83,7 @@ Fitur overtime mengelola master tipe lembur, pengajuan lembur oleh employee atau
 
 ## Formula lembur (acuan)
 
-- Upah sejam = `(gaji pokok + tunjangan tetap) / 173`
+- Upah sejam = `gaji pokok / 173`
 - Guard legal di create/update request:
   - max 4 jam/hari (`OT_DAILY_LIMIT_EXCEEDED`)
   - max 18 jam/minggu (`OT_WEEKLY_LIMIT_EXCEEDED`, minggu Senin-Minggu untuk status pending/approved)

@@ -114,38 +114,6 @@
                         </span>
                     </div>
                     <!-- /Search -->
-                    <div class="dropdown crm-dropdown">
-                        <a href="#" class="btn btn-menubar me-1" data-bs-toggle="dropdown">
-                            <i class="ti ti-layout-grid"></i>
-                        </a>
-                        <div class="dropdown-menu dropdown-lg dropdown-menu-start">
-                            <div class="card mb-0 border-0 shadow-none">
-                                <div class="card-header">
-                                    <h4>CRM</h4>
-                                </div>
-                                <div class="card-body pb-1">		
-                                    <div class="row">
-                                        <div class="col-sm-6">							
-                                            <a href="{{url('contacts')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-user-shield text-default me-2"></i>Contacts
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>							
-                                        </div>
-                                        <div class="col-sm-6">							
-                                            <a href="{{url('companies-grid')}}" class="d-flex align-items-center justify-content-between p-2 crm-link mb-3">
-                                                <span class="d-flex align-items-center me-3">
-                                                    <i class="ti ti-building text-default me-2"></i>Companies
-                                                </span>
-                                                <i class="ti ti-arrow-right"></i>
-                                            </a>								
-                                        </div>
-                                    </div>		
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <a href="{{url('profile-settings')}}" class="btn btn-menubar">
                         <i class="ti ti-settings-cog"></i>
                     </a>	
@@ -196,13 +164,12 @@
                                 </li>
 @endif
                                 <li class="submenu">
-                                        <a href="#" class="{{ Request::is('chat','voice-call','video-call','outgoing-call','incoming-call','call-history',
-                                    'calendar','email','notes','social-feed','file-manager','invoices','invoice-details') ? 'active subdrop' : '' }}">
+                                        <a href="#" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
+                                    'calendar','email','notes','social-feed','invoices','invoice-details') ? 'active subdrop' : '' }}">
                                         <i class="ti ti-layout-grid-add"></i><span>Applications</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
-                                        <li><a href="{{url('chat')}}" class="{{ Request::is('chat') ? 'active' : '' }}">Chat</a></li>
                                         <li class="submenu submenu-two">
                                             <a href="{{url('call')}}" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history') ? 'active subdrop' : '' }}">Calls<span
                                                     class="menu-arrow inside-submenu"></span></a>
@@ -218,7 +185,6 @@
                         <li><a href="{{url('email')}}" class="{{ Request::is('email') ? 'active' : '' }}">Email</a></li>
                         <li><a href="{{url('notes')}}" class="{{ Request::is('notes') ? 'active' : '' }}">Notes</a></li>
                         <li><a href="{{url('social-feed')}}" class="{{ Request::is('social-feed') ? 'active' : '' }}">Social Feed</a></li>
-                        <li><a href="{{url('file-manager')}}" class="{{ Request::is('file-manager') ? 'active' : '' }}">File Manager</a></li>
                         <li><a href="{{url('invoices')}}" class="{{ Request::is('invoices','invoice-details') ? 'active' : '' }}">Invoices</a></li>
                                     </ul>
                                 </li>
@@ -1216,21 +1182,12 @@
                                     <a href="{{url('notes')}}" class="d-block py-2">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-notes text-gray-9"></i></span>Notes
                                     </a>										
-                                    <a href="{{url('file-manager')}}" class="d-block py-2">
-                                        <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-folder text-gray-9"></i></span>File Manager
-                                    </a>								
                                     <a href="{{url('invoices')}}" class="d-block py-2 pb-0">
                                         <span class="avatar avatar-md bg-transparent-dark me-2"><i class="ti ti-file-invoice text-gray-9"></i></span>Invoices
                                     </a>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="me-1">
-                        <a href="{{url('chat')}}" class="btn btn-menubar position-relative">
-                            <i class="ti ti-brand-hipchat"></i>
-                            <span class="badge bg-info rounded-pill d-flex align-items-center justify-content-center header-badge">5</span>
-                        </a>
                     </div>
                     <div class="me-1">
                         <a href="{{url('email')}}" class="btn btn-menubar">
@@ -1277,70 +1234,50 @@
                                 <img src="{{ $headerProfilePhotoUrl }}" alt="Img" class="img-fluid rounded-circle" data-profile-display-avatar="1">
                             </span>
                         </a>
-                        <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width:260px;border-radius:12px;overflow:hidden;">
-                            <div class="card mb-0 border-0">
-                                {{-- Profile header --}}
-                                <div class="card-header bg-primary bg-opacity-10 border-0 px-3 py-3">
-                                    <div class="d-flex align-items-center gap-3">
-                                        {{-- Avatar with initials fallback --}}
-                                        @php
-                                            $initials = collect(explode(' ', $headerProfileName))->map(fn($w) => strtoupper(substr($w,0,1)))->take(2)->join('');
-                                        @endphp
-                                        <div class="position-relative flex-shrink-0">
-                                            <img src="{{ $headerProfilePhotoUrl }}"
-                                                alt="{{ $initials }}"
-                                                data-profile-display-avatar="1"
-                                                class="rounded-circle border border-2 border-white shadow-sm"
-                                                style="width:48px;height:48px;object-fit:cover;"
-                                                onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                                            <div class="rounded-circle bg-primary text-white fw-bold border border-2 border-white shadow-sm"
-                                                style="width:48px;height:48px;display:none;align-items:center;justify-content:center;font-size:16px;">
-                                                {{ $initials }}
-                                            </div>
-                                            <span class="position-absolute bottom-0 end-0 bg-success rounded-circle border border-white" style="width:10px;height:10px;"></span>
-                                        </div>
-                                        <div class="overflow-hidden">
-                                            <div class="fw-semibold text-dark lh-sm text-truncate" style="max-width:170px;" data-profile-display-name="1">{{ $headerProfileName }}</div>
-                                            <div class="text-muted fs-12 text-truncate" style="max-width:170px;" data-profile-display-email="1">{{ $headerProfileEmail }}</div>
-                                            @if ($headerActiveCompanyName !== '' || $headerActiveCompanyCode !== '')
-                                                <div class="d-flex align-items-center flex-wrap gap-1 mt-1">
-                                                    <span class="badge bg-white text-dark border rounded-pill fs-11" style="font-weight:500;">
-                                                        <i class="ti ti-building me-1" style="font-size:10px;"></i>{{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
+                        <div class="dropdown-menu shadow-none">
+                            <div class="card mb-0">
+                                <div class="card-header">
+                                    <div class="d-flex align-items-center">
+                                        <span class="avatar avatar-lg me-2 avatar-rounded">
+                                            <img src="{{ $headerProfilePhotoUrl }}" alt="img" data-profile-display-avatar="1">
+                                        </span>
+                                        <div>
+                                            <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>
+                                            <p class="fs-12 fw-medium mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
+                                            @if ($headerActiveCompanyCode !== '' || $headerActiveCompanyName !== '')
+                                                <div class="mt-1">
+                                                    <span class="badge badge-soft-dark me-1">
+                                                        <i class="ti ti-building me-1"></i>{{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
                                                     </span>
-                                                    <span class="badge bg-primary-subtle text-primary rounded-pill fs-11">{{ $headerRoleBadge }}</span>
+                                                    <span class="badge badge-soft-primary me-1">{{ $headerRoleBadge }}</span>
                                                     @if ($headerPackageCode !== '')
-                                                        <span class="badge {{ $headerPackageIsInternal ? 'bg-dark text-white' : 'bg-success-subtle text-success' }} rounded-pill fs-11"
-                                                            title="{{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">
-                                                            {{ $headerPackageCode }}
-                                                        </span>
+                                                        <span class="badge {{ $headerPackageBadgeClass }}">{{ $headerPackageCode }}</span>
                                                     @endif
                                                 </div>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
-                                {{-- Menu items --}}
-                                <div class="card-body p-2">
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('profile')}}">
-                                        <i class="ti ti-user-circle fs-16 text-muted"></i><span>My Profile</span>
+                                <div class="card-body">
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile-settings')}}">
+                                        <i class="ti ti-user-circle me-1"></i>My Profile
                                     </a>
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
-                                        <i class="ti ti-settings fs-16 text-muted"></i><span>Settings</span>
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
+                                        <i class="ti ti-settings me-1"></i>Settings
                                     </a>
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('security-settings')}}">
-                                        <i class="ti ti-shield-lock fs-16 text-muted"></i><span>Security</span>
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('security-settings')}}">
+                                        <i class="ti ti-status-change me-1"></i>Security
                                     </a>
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('profile-settings')}}">
-                                        <i class="ti ti-user-cog fs-16 text-muted"></i><span>My Account</span>
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile-settings')}}">
+                                        <i class="ti ti-circle-arrow-up me-1"></i>My Account
                                     </a>
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3" href="{{url('knowledgebase')}}">
-                                        <i class="ti ti-help-circle fs-16 text-muted"></i><span>Knowledge Base</span>
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('knowledgebase')}}">
+                                        <i class="ti ti-question-mark me-1"></i>Knowledge Base
                                     </a>
                                 </div>
-                                {{-- Logout --}}
-                                <div class="card-footer border-top p-2">
-                                    <a class="dropdown-item rounded-2 d-flex align-items-center gap-2 py-2 px-3 text-danger" href="javascript:void(0);" data-auth-logout>
-                                        <i class="ti ti-logout fs-16"></i><span>Logout</span>
+                                <div class="card-footer">
+                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="javascript:void(0);" data-auth-logout>
+                                        <i class="ti ti-login me-2"></i>Logout
                                     </a>
                                 </div>
                             </div>

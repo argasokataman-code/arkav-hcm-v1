@@ -89,7 +89,7 @@
                         </div>
                         <div class="card-body">
                             <p class="small text-muted mb-3">
-                                Upah acuan = gaji pokok + tunjangan tetap. Masa kerja <em>M</em> bulan penuh sampai tanggal cut-off.
+                                Upah acuan = gaji pokok. Masa kerja <em>M</em> bulan penuh sampai tanggal cut-off.
                                 Tanggal cut-off di form bisa diisi otomatis dari pengaturan tahun di kiri setelah simpan / pilih tahun.
                             </p>
                             <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-thr-error></div>
@@ -105,10 +105,6 @@
                                 <div class="col-md-6">
                                     <label class="form-label">Gaji pokok / bulan</label>
                                     <input type="number" name="baseMonthlySalary" class="form-control" min="0" step="1000" required placeholder="6000000">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Tunjangan tetap / bulan</label>
-                                    <input type="number" name="fixedMonthlyAllowance" class="form-control" min="0" step="1000" value="0" placeholder="0">
                                 </div>
                                 <div class="col-12 mt-2">
                                     <button type="submit" class="btn btn-primary">Hitung estimasi THR</button>
@@ -165,7 +161,6 @@
                                     <th class="text-center">Eligible</th>
                                     <th>Tgl masuk</th>
                                     <th class="text-end">Gaji pokok</th>
-                                    <th class="text-end">Tunj. tetap</th>
                                     <th class="text-end">Upah acuan</th>
                                     <th class="text-center">M</th>
                                     <th class="text-end">%</th>
@@ -212,6 +207,75 @@
                 </div>
             </div>
 
+            <div class="modal fade" id="thr_reconciliation_preview_modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div>
+                                <h5 class="modal-title">Preview Reconciliation THR</h5>
+                                <p class="text-muted small mb-0">Tinjau data THR sebelum membuat dan mengunduh file evidence.</p>
+                            </div>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="px-3 pt-3 pb-2 bg-light border-bottom">
+                                <div class="row g-3 small">
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Tahun THR</span>
+                                        <strong data-thr-recon-preview-year>—</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Karyawan eligible</span>
+                                        <strong data-thr-recon-preview-count>0</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Grand total THR</span>
+                                        <strong class="text-primary" data-thr-recon-preview-total>Rp0</strong>
+                                    </div>
+                                    <div class="col-sm-3 d-flex justify-content-between">
+                                        <span class="text-muted">Status batch</span>
+                                        <strong data-thr-recon-preview-status>—</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-nowrap table-hover mb-0 align-middle">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Karyawan</th>
+                                            <th class="text-end">Upah acuan</th>
+                                            <th class="text-center">Masa kerja</th>
+                                            <th class="text-center">Multiplier</th>
+                                            <th class="text-end">THR bruto</th>
+                                            <th class="text-center">Status bayar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-thr-recon-preview-body>
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-4">Memuat data…</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <p class="text-muted small mb-0">
+                                <i class="ti ti-info-circle me-1"></i>
+                                File CSV akan dibuat dari data di atas. Setelah diunduh, tombol Pay THR akan terbuka.
+                            </p>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                                <button type="button" class="btn btn-secondary" data-thr-recon-preview-download>
+                                    <i class="ti ti-download me-1"></i>Download CSV &amp; Konfirmasi Evidence
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal fade" id="thrBatchSlipPreviewModal" tabindex="-1" aria-hidden="true" aria-labelledby="thrBatchSlipPreviewModalLabel">
                 <div class="modal-dialog modal-xl modal-dialog-centered">
                     <div class="modal-content">
@@ -246,7 +310,7 @@
                 </div>
                 <div class="card-body small">
                     <ul class="mb-0 ps-3">
-                        <li><strong>Gaji pokok</strong> + <strong>tunjangan tetap</strong> → biasanya masuk upah acuan THR.</li>
+                        <li><strong>Gaji pokok</strong> → menjadi basis upah acuan THR pada implementasi saat ini.</li>
                         <li><strong>Tunjangan tidak tetap</strong> (makan/harian, transport hadir) → biasanya tidak masuk upah acuan.</li>
                         <li>Daftar item penghasilan di katalog: <a href="{{ url('payroll') }}">Payroll — Additions</a>.</li>
                     </ul>

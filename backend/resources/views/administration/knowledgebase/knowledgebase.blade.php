@@ -71,7 +71,7 @@
                             <a href="{{ route('knowledgebase.article', ['slug' => 'absensi-dan-gps']) }}" class="btn btn-light border btn-sm">Absensi</a>
                         </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
 

@@ -44,11 +44,11 @@
             </li>
 
             @endif
-            <li class="nav-item">
-            </li>
+            @if ($isGlobalHcmAdmin)
             <li class="nav-item">
                 <a class="nav-link" href="{{ url('email-settings') }}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
+            @endif
             @if ($isGlobalHcmAdmin)
 
             <li class="nav-item">
@@ -68,7 +68,9 @@
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
                             <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Profile Settings</a>
+                            @if ($isHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isHcmAdmin()))
                             <a href="{{ url('company-profile') }}" class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Company Profile</a>
+                            @endif
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
                             <a href="{{ url('notification-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Notifications</a>
                         </div>
@@ -85,6 +87,7 @@
                             </div>
                         </div>
 
+                        @if ($isHcmAdmin)
                         <div class="border rounded-3 p-3 mb-3 bg-light" data-company-context-card>
                             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
                                 <div>
@@ -118,9 +121,11 @@
                                 Tips: simpan <strong>Company Code</strong> ini untuk login mode <em>Login Company</em>.
                             </div>
                         </div>
+                        @endif
                             <div class="alert alert-info d-none" data-company-profile-hint>
                                 <i class="ti ti-building me-2"></i>Atur profil perusahaan (nama legal, alamat billing, dll) di menu <a href="{{ url('company-profile') }}" class="alert-link">Company Profile</a>.
                             </div>
+                        @if ($isHcmAdmin)
                         <div class="border rounded-3 p-3 mb-3 d-none" data-subscription-summary-card>
                             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
                                 <div>
@@ -154,6 +159,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                         <div class="alert d-none" data-profile-settings-feedback></div>
                         <form action="javascript:void(0);" data-profile-settings-form>
                             <div class="border-bottom mb-3">
@@ -162,18 +168,23 @@
                                         <div>					
                                             <h6 class="mb-3">Basic Information</h6>
                                             <div class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">                                                
-                                                <div class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
-                                                    <i class="ti ti-photo text-gray-3 fs-16"></i>
+                                                <div class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames overflow-hidden" style="width:80px;height:80px;">
+                                                    <img src="" alt="Profile Photo" class="img-fluid rounded-circle w-100 h-100 d-none" data-profile-photo-preview style="object-fit:cover;">
+                                                    <i class="ti ti-photo text-gray-3 fs-16" data-profile-photo-placeholder></i>
                                                 </div>                                              
                                                 <div class="profile-upload">
                                                     <div class="mb-2">
                                                         <h6 class="mb-1">Profile Photo</h6>
-                                                        <p class="fs-12">Kelola foto profil user lewat halaman Profile.</p>
+                                                        <p class="fs-12 mb-0">JPG, PNG, atau GIF. Maks 2MB.</p>
+                                                        <p class="fs-12 text-danger d-none" data-profile-photo-error></p>
                                                     </div>
-                                                    <div class="profile-uploader d-flex align-items-center">
-                                                        <a href="{{ url('profile') }}" class="btn btn-sm btn-primary me-2">Buka My Profile</a>
+                                                    <div class="profile-uploader d-flex align-items-center gap-2">
+                                                        <label class="btn btn-sm btn-primary mb-0" style="cursor:pointer;">
+                                                            <i class="ti ti-upload me-1"></i>Upload Foto
+                                                            <input type="file" accept="image/*" class="d-none" data-profile-photo-input>
+                                                        </label>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger d-none" data-profile-photo-remove>Hapus</button>
                                                     </div>
-                                                    
                                                 </div>
                                             </div>
                                         </div>

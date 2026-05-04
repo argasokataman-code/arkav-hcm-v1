@@ -432,7 +432,7 @@ class TerminationApiTest extends TestCase
                 ->assertJsonPath('data.resolvedPeriod.isExisting', false)
                 ->assertJsonPath('data.source', 'termination_policy_prorated')
                 ->assertJsonPath('data.summary.finalSalaryAmount', '2419354.84')
-                ->assertJsonPath('data.summary.finalAllowanceAmount', '362903.23')
+                ->assertJsonPath('data.summary.finalAllowanceAmount', '0.00')
                 ->assertJsonPath('data.summary.finalDeductionAmount', '0.00')
                 ->assertJsonPath('data.clearance.outstandingCount', 1)
                 ->assertJsonPath('data.breakdown.0.componentCode', 'termination_prorated_salary')
@@ -460,9 +460,9 @@ class TerminationApiTest extends TestCase
                 ->assertJsonPath('data.settlement.payrollPeriod', '2026-05')
                 ->assertJsonPath('data.settlement.payrollPeriodStatus', 'open')
                 ->assertJsonPath('data.settlement.finalSalaryAmount', '2419354.84')
-                ->assertJsonPath('data.settlement.finalAllowanceAmount', '362903.23')
+                ->assertJsonPath('data.settlement.finalAllowanceAmount', '0.00')
                 ->assertJsonPath('data.settlement.finalDeductionAmount', '0.00')
-                ->assertJsonPath('data.settlement.finalNetAmount', '2782258.07')
+                ->assertJsonPath('data.settlement.finalNetAmount', '2419354.84')
                 ->assertJsonPath('data.settlement.clearanceItems.0.assetCode', 'LAP-001')
                 ->assertJsonPath('data.settlement.breakdown.0.componentCode', 'termination_prorated_salary');
         } finally {

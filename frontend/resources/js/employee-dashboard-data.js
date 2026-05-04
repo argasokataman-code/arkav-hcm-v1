@@ -6,6 +6,7 @@
     var latestDashboardData = null;
     var attendanceMap = null;
     var attendanceMarker = null;
+    var attendancePreviewMarker = null;
     var latestDashboardNotifications = [];
 
     function escapeHtml(value) {
@@ -250,9 +251,12 @@
         var checkOutLng = parseCoordinate(attendanceToday && attendanceToday.checkOutLongitude);
         var checkInLat = parseCoordinate(attendanceToday && attendanceToday.checkInLatitude);
         var checkInLng = parseCoordinate(attendanceToday && attendanceToday.checkInLongitude);
+        var previewLat = parseCoordinate(attendanceToday && attendanceToday.previewLatitude);
+        var previewLng = parseCoordinate(attendanceToday && attendanceToday.previewLongitude);
 
         var hasCheckOut = checkOutLat !== null && checkOutLng !== null;
         var hasCheckIn = checkInLat !== null && checkInLng !== null;
+        var hasPreview = previewLat !== null && previewLng !== null;
 
         var lat = null;
         var lng = null;
@@ -266,18 +270,45 @@
             lat = checkInLat;
             lng = checkInLng;
             label = "Lokasi punch in tercatat.";
+        } else if (hasPreview) {
+            lat = previewLat;
+            lng = previewLng;
+            label = String(attendanceToday.previewLabel || "Lokasi GPS perangkat siap digunakan untuk punch.");
         }
 
         if (lat !== null && lng !== null) {
             attendanceMap.setView([lat, lng], 16);
-            if (!attendanceMarker) {
-                attendanceMarker = window.L.marker([lat, lng]).addTo(attendanceMap);
+            var usePreviewMarker = hasPreview && !hasCheckOut && !hasCheckIn;
+            if (usePreviewMarker) {
+                if (!attendancePreviewMarker) {
+                    attendancePreviewMarker = window.L.marker([lat, lng]).addTo(attendanceMap);
+                } else {
+                    attendancePreviewMarker.setLatLng([lat, lng]);
+                }
+                if (attendanceMarker) {
+                    attendanceMap.removeLayer(attendanceMarker);
+                    attendanceMarker = null;
+                }
             } else {
-                attendanceMarker.setLatLng([lat, lng]);
+                if (!attendanceMarker) {
+                    attendanceMarker = window.L.marker([lat, lng]).addTo(attendanceMap);
+                } else {
+                    attendanceMarker.setLatLng([lat, lng]);
+                }
+                if (attendancePreviewMarker) {
+                    attendanceMap.removeLayer(attendancePreviewMarker);
+                    attendancePreviewMarker = null;
+                }
             }
-        } else if (attendanceMarker) {
-            attendanceMap.removeLayer(attendanceMarker);
-            attendanceMarker = null;
+        } else {
+            if (attendanceMarker) {
+                attendanceMap.removeLayer(attendanceMarker);
+                attendanceMarker = null;
+            }
+            if (attendancePreviewMarker) {
+                attendanceMap.removeLayer(attendancePreviewMarker);
+                attendancePreviewMarker = null;
+            }
             attendanceMap.setView([-6.200000, 106.816666], 11);
         }
 
@@ -713,6 +744,10 @@
         setText("[data-employee-legacy-email]", profile.email);
         setText("[data-employee-legacy-report-office]", profile.reportOffice || "-");
         setText("[data-employee-legacy-join-date]", formatDate(profile.joinDate));
+        var avatar = document.querySelector("[data-employee-legacy-avatar]");
+        if (avatar && profile.profilePhotoUrl) {
+            avatar.setAttribute("src", profile.profilePhotoUrl);
+        }
 
         setText("[data-employee-legacy-now-label]", attendanceToday.nowLabel);
         setText("[data-employee-legacy-total-hours]", attendanceToday.summaryTotalWorking);
@@ -1044,6 +1079,39 @@
         });
     }
 
+    function bindGpsPreviewAction() {
+        var gpsButton = document.querySelector("[data-employee-legacy-gps-button]");
+        if (!gpsButton || gpsButton.dataset.gpsBound === "1") return;
+        gpsButton.dataset.gpsBound = "1";
+
+        gpsButton.addEventListener("click", function () {
+            if (!navigator.geolocation) {
+                notify("Browser tidak mendukung geolocation untuk preview GPS attendance.", "warning");
+                return;
+            }
+
+            var originalHtml = gpsButton.innerHTML;
+            gpsButton.disabled = true;
+            gpsButton.innerHTML = '<i class="ti ti-loader-2 me-1"></i> Memuat GPS...';
+
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                var attendanceToday = Object.assign({}, (latestDashboardData && latestDashboardData.attendanceToday) || {}, {
+                    previewLatitude: Number(pos.coords && pos.coords.latitude || 0),
+                    previewLongitude: Number(pos.coords && pos.coords.longitude || 0),
+                    previewLabel: "GPS perangkat terdeteksi. Lokasi siap dipakai untuk attendance."
+                });
+                renderAttendanceMap(attendanceToday);
+                notify("Lokasi GPS berhasil dimuat.", "success");
+                gpsButton.disabled = false;
+                gpsButton.innerHTML = originalHtml;
+            }, function () {
+                gpsButton.disabled = false;
+                gpsButton.innerHTML = originalHtml;
+                notify("Akses lokasi ditolak. Izinkan GPS untuk preview lokasi attendance.", "warning");
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        });
+    }
+
     function bindDashboard(data) {
         latestDashboardData = data || {};
         bindModernTemplate(data || {});
@@ -1072,6 +1140,7 @@
 
         var ui = (data && data.ui) || {};
         bindPunchAction(ui.referenceDate || "");
+        bindGpsPreviewAction();
     }
 
     function loadDashboardSummary(dateIso) {

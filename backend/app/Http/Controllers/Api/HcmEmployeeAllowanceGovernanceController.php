@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
-use App\Models\EmployeeCompensation;
-use App\Models\EmployeeProfile;
 use App\Models\HcmEmployeeAllowanceAssignment;
 use App\Models\HcmEmployeeAllowanceAssignmentHistory;
 use App\Models\HcmEmployeePayrollItemAssignment;
@@ -459,69 +457,10 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
             })->values();
         }
 
-            // ── Compensation-based fixed allowances (tunjangan_tetap dari employee_compensations) ──
-            // These are set via the Employee Salary page (not through governance), so they are
-            // invisible in the assignment flow. We surface them here as read-only entries.
-            $employeeMembershipIds = CompanyUser::query()
-                ->where('company_id', $companyId)
-                ->where('status', 'active')
-                ->where('role', '!=', 'owner')
-                ->pluck('user_id');
-
-            $profileMap = EmployeeProfile::query()
-                ->where('company_id', $companyId)
-                ->whereIn('user_id', $employeeMembershipIds)
-                ->get(['id', 'user_id'])
-                ->keyBy('user_id');
-
-            $compensationRows = EmployeeCompensation::query()
-                ->whereIn('employee_id', $profileMap->pluck('id'))
-                ->whereDate('effective_date', '<=', $asOf)
-                ->where(function ($q) use ($asOf): void {
-                    $q->whereNull('end_date')->orWhereDate('end_date', '>=', $asOf);
-                })
-                ->orderByDesc('effective_date')
-                ->get(['id', 'employee_id', 'fixed_allowance', 'effective_date', 'end_date'])
-                ->groupBy('employee_id')
-                ->map(fn ($rows) => $rows->first()) // latest per employee
-                ->filter(fn ($row) => (float) ($row->fixed_allowance ?? 0) > 0);
-
-            $compensationUserIds = $compensationRows->keys()->map(function ($profileId) use ($profileMap): ?int {
-                $entry = $profileMap->first(fn ($p) => (int) $p->id === (int) $profileId);
-                return $entry ? (int) $entry->user_id : null;
-            })->filter()->values();
-
-            $compUsers = User::query()
-                ->whereIn('id', $compensationUserIds)
-                ->get(['id', 'uuid', 'name', 'email'])
-                ->keyBy('id');
-
-            $compensationAllowances = $compensationRows->map(function ($comp) use ($profileMap, $compUsers): array {
-                $profile = $profileMap->first(fn ($p) => (int) $p->id === (int) $comp->employee_id);
-                $userId = $profile ? (int) $profile->user_id : null;
-                $user = $userId ? $compUsers->get($userId) : null;
-
-                return [
-                    'source' => 'employee_compensations',
-                    'userId' => $userId,
-                    'userUuid' => $user?->uuid,
-                    'fullName' => $user?->name,
-                    'email' => $user?->email,
-                    'policyCode' => 'tunjangan_tetap',
-                    'policyName' => 'Tunjangan Tetap (Payroll Bulanan)',
-                    'amount' => number_format((float) $comp->fixed_allowance, 2, '.', ''),
-                    'effectiveStartDate' => optional($comp->effective_date)->toDateString(),
-                    'effectiveEndDate' => optional($comp->end_date)->toDateString(),
-                    'status' => 'active',
-                    'readonly' => true,
-                ];
-            })->values();
-
         return response()->json([
             'success' => true,
             'data' => [
                 'items' => $items,
-                    'compensationAllowances' => $compensationAllowances,
                 'meta' => [
                     'page' => $paginator->currentPage(),
                     'perPage' => $paginator->perPage(),
@@ -753,36 +692,7 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
             ->unique()
             ->values();
 
-        // Also include employees whose tunjangan_tetap comes from employee_compensations.fixed_allowance
-        // (set via Employee Salary page, NOT through governance assignments). These are equally compliant.
-        $profileMapForCompliance = EmployeeProfile::query()
-            ->where('company_id', $companyId)
-            ->whereIn('user_id', $employeeIds->all())
-            ->get(['id', 'user_id'])
-            ->keyBy('id'); // keyed by profile_id
-
-        $complianceCompensationRows = EmployeeCompensation::query()
-            ->whereIn('employee_id', $profileMapForCompliance->keys())
-            ->whereDate('effective_date', '<=', $asOf)
-            ->where(function ($q) use ($asOf): void {
-                $q->whereNull('end_date')->orWhereDate('end_date', '>=', $asOf);
-            })
-            ->orderByDesc('effective_date')
-            ->get(['employee_id', 'fixed_allowance'])
-            ->groupBy('employee_id')
-            ->map(fn ($rows) => $rows->first())
-            ->filter(fn ($row) => (float) ($row->fixed_allowance ?? 0) > 0);
-
-        $assignedFromCompensation = $complianceCompensationRows
-            ->keys()
-            ->map(fn ($profileId) => (int) ($profileMapForCompliance->get((int) $profileId)?->user_id ?? 0))
-            ->filter(fn ($id) => $id > 0)
-            ->values();
-
-        $assignedUserIds = $assignedFromItemAssignments
-            ->merge($assignedFromCompensation)
-            ->unique()
-            ->flip(); // flip for O(1) lookup
+        $assignedUserIds = $assignedFromItemAssignments->flip(); // flip for O(1) lookup
 
         $nonCompliantEmployees = [];
 

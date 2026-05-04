@@ -29,6 +29,13 @@
     var subscriptionNextPaymentAmountNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-next-payment-amount]') : null;
     var subscriptionEmployeeSlotsNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-slots]') : null;
     var subscriptionEmployeeUsageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-usage]') : null;
+    var subscriptionEmployeeUsageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-usage]') : null;
+    var photoPreviewNode = document.querySelector('[data-profile-photo-preview]');
+    var photoPlaceholderNode = document.querySelector('[data-profile-photo-placeholder]');
+    var photoInputNode = document.querySelector('[data-profile-photo-input]');
+    var photoRemoveBtn = document.querySelector('[data-profile-photo-remove]');
+    var photoErrorNode = document.querySelector('[data-profile-photo-error]');
+    var currentUserId = null;
     var snapshot = {};
 
     function normalize(value) {
@@ -94,6 +101,70 @@
         }
         return headers;
     }
+
+        function setPhotoPreview(url) {
+            if (!photoPreviewNode || !photoPlaceholderNode) { return; }
+            if (url) {
+                photoPreviewNode.src = url;
+                photoPreviewNode.classList.remove('d-none');
+                photoPlaceholderNode.classList.add('d-none');
+                if (photoRemoveBtn) { photoRemoveBtn.classList.remove('d-none'); }
+            } else {
+                photoPreviewNode.src = '';
+                photoPreviewNode.classList.add('d-none');
+                photoPlaceholderNode.classList.remove('d-none');
+                if (photoRemoveBtn) { photoRemoveBtn.classList.add('d-none'); }
+            }
+        }
+
+        function showPhotoError(msg) {
+            if (!photoErrorNode) { return; }
+            if (msg) {
+                photoErrorNode.textContent = msg;
+                photoErrorNode.classList.remove('d-none');
+            } else {
+                photoErrorNode.textContent = '';
+                photoErrorNode.classList.add('d-none');
+            }
+        }
+
+        async function uploadPhoto(file) {
+            if (!currentUserId) { showPhotoError('User ID belum dimuat, coba refresh halaman.'); return; }
+            if (file.size > 2 * 1024 * 1024) { showPhotoError('Ukuran foto maks 2MB.'); return; }
+            showPhotoError('');
+
+            var reader = new FileReader();
+            reader.onload = function (e) { setPhotoPreview(e.target.result); };
+            reader.readAsDataURL(file);
+
+            var formData = new FormData();
+            formData.append('photo', file);
+
+            var headers = buildHeaders();
+            delete headers['Content-Type'];
+
+            try {
+                var response = await fetch('/v1/hcm/employees/' + encodeURIComponent(currentUserId) + '/profile-photo', {
+                    method: 'POST',
+                    headers: headers,
+                    credentials: 'same-origin',
+                    body: formData
+                });
+                var body = await response.json().catch(function () { return null; });
+                if (!response.ok || !body || body.success !== true) {
+                    setPhotoPreview(null);
+                    showPhotoError((body && body.error && body.error.message) ? body.error.message : 'Gagal mengupload foto.');
+                    return;
+                }
+                if (body.data && body.data.profilePhotoUrl) {
+                    setPhotoPreview(body.data.profilePhotoUrl);
+                }
+                showFeedback('success', 'Foto profil berhasil diperbarui.');
+            } catch (_e) {
+                setPhotoPreview(null);
+                showPhotoError('Gagal mengupload foto.');
+            }
+        }
 
     function formatDate(value) {
         var raw = normalize(value);
@@ -474,10 +545,20 @@
         });
         var mePayload = await meResponse.json().catch(function () { return null; });
         if (meResponse.ok && mePayload && mePayload.success && mePayload.data) {
+            currentUserId = mePayload.data.id || null;
             renderCompanyContext(mePayload);
             renderSubscriptionSummary(mePayload);
+            if (mePayload.data.profile && mePayload.data.profile.profilePhotoUrl) {
+                setPhotoPreview(mePayload.data.profile.profilePhotoUrl);
+            }
             merged.identityEmail = normalize(mePayload.data.email || '');
             merged.companyProfile = mePayload.data.companyProfile || {};
+            if (!merged.general_first_name && mePayload.data.profile && mePayload.data.profile.firstName) {
+                merged.general_first_name = mePayload.data.profile.firstName;
+            }
+            if (!merged.general_last_name && mePayload.data.profile && mePayload.data.profile.lastName) {
+                merged.general_last_name = mePayload.data.profile.lastName;
+            }
             if (!merged.general_name && mePayload.data.name) {
                 merged.general_name = mePayload.data.name;
             }
@@ -558,7 +639,7 @@
             if (settingsSaved) {
                 showFeedback('success', identityResult.passwordUpdated ? 'Profile settings dan password berhasil disimpan.' : 'Profile settings berhasil disimpan.');
             } else {
-                showFeedback('success', identityResult.passwordUpdated ? 'Profil dan password berhasil disimpan. Beberapa settings admin dilewati karena keterbatasan akses.' : 'Profil berhasil disimpan. Beberapa settings admin dilewati karena keterbatasan akses.');
+                showFeedback('success', identityResult.passwordUpdated ? 'Profil dan password berhasil disimpan.' : 'Profil berhasil disimpan.');
             }
         } catch (error) {
             showFeedback('danger', error && error.message ? error.message : 'Gagal menyimpan profile settings.');
@@ -570,6 +651,22 @@
     form.addEventListener('submit', saveSettings);
     if (resetButton) {
         resetButton.addEventListener('click', resetFields);
+    }
+
+    if (photoInputNode) {
+        photoInputNode.addEventListener('change', function () {
+            var file = photoInputNode.files && photoInputNode.files[0];
+            if (file) {
+                uploadPhoto(file);
+                photoInputNode.value = '';
+            }
+        });
+    }
+    if (photoRemoveBtn) {
+        photoRemoveBtn.addEventListener('click', function () {
+            setPhotoPreview(null);
+            showPhotoError('');
+        });
     }
 
     loadSettings().catch(function (error) {

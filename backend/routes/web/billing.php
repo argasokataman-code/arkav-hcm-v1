@@ -9,7 +9,7 @@ Route::get('/company/invoices', function () {
 
 Route::get('/upgrade', function () {
     return view('misc.upgrade');
-})->name('upgrade');
+})->middleware('hcm.web.admin')->name('upgrade');
 
 Route::get('/subscription', function () {
     return view('saas.subscription-checkout');

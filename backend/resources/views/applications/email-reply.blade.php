@@ -140,17 +140,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="bg-dark rounded text-center position-relative p-4">
-                                    <span class="avatar avatar-lg rounded-circle bg-white mb-2">
-                                        <i class="ti ti-alert-triangle text-dark"></i>
-                                    </span>
-                                    <h6 class="text-white mb-3">Enjoy Unlimited Access on a small price monthly.</h6>
-                                    <a href="javascript:void(0);" class="btn btn-white">Upgrade Now <i class="ti ti-arrow-right"></i></a>
-                                    <div class="box-bg">
-                                        <span class="bg-right"><img src="{{ URL::asset('build/img/bg/email-bg-01.png') }}" alt="Img"></span>
-                                        <span class="bg-left"><img src="{{ URL::asset('build/img/bg/email-bg-02.png') }}" alt="Img"></span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

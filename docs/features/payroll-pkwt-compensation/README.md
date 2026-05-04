@@ -22,7 +22,7 @@ Fitur ini menutup jarak antara data kontrak di profil karyawan dan kebutuhan pem
 ## Flow Bisnis End-to-End
 
 1. HCM Admin memilih tahun dan bulan untuk melihat kontrak PKWT yang berakhir pada periode itu.
-2. Sistem menampilkan preview employee eligible, masa kerja, upah acuan, dan nominal kompensasi.
+2. Sistem menampilkan preview employee eligible, masa kerja, upah acuan berbasis gaji pokok aktif, dan nominal kompensasi.
 3. Admin dapat menjalankan quick calculator untuk satu kontrak sebagai verifikasi cepat.
 4. Jika data sudah benar, admin menjalankan `Generate draft payroll` untuk membuat atau membangun ulang run purpose `pkwt_compensation` pada periode tersebut.
 5. Pembayaran aktual dilakukan lewat flow payroll run/disburse untuk run yang sudah terbentuk.

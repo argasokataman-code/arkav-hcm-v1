@@ -362,7 +362,7 @@ class EmployeeProfile extends Model
     protected function fixedAllowance(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $this->currentCompensationSnapshot()?->fixed_allowance ?? $value,
+            get: fn () => 0.0,
         );
     }
 

@@ -115,7 +115,7 @@
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-2">
                     <h5>Kalkulator Overtime (PP 35/2021)</h5>
-                    <span class="text-muted small">Upah sejam = (Gaji Pokok + Tunjangan Tetap) / 173</span>
+                    <span class="text-muted small">Upah sejam = Gaji Pokok / 173</span>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -130,10 +130,6 @@
                         <div class="col-lg-2">
                             <label class="form-label">Gaji Pokok</label>
                             <input type="number" class="form-control" data-hcm-ot-calc="baseSalary" min="0" step="1000" placeholder="5000000">
-                        </div>
-                        <div class="col-lg-2">
-                            <label class="form-label">Tunjangan Tetap</label>
-                            <input type="number" class="form-control" data-hcm-ot-calc="fixedAllowance" min="0" step="1000" placeholder="500000">
                         </div>
                         <div class="col-lg-2">
                             <label class="form-label">Menit Lembur</label>

@@ -12608,11 +12608,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/AllowanceGovernanceAssignmentItem'
-            compensationAllowances:
-              type: array
-              description: Read-only fixed allowances sourced from employee compensation records.
-              items:
-                $ref: '#/components/schemas/AllowanceGovernanceCompensationAllowanceItem'
             meta:
               type: object
               properties:
@@ -12729,16 +12724,92 @@ components:
         data:
           type: object
           properties:
-            scheduleToday:
+            profile:
+              type: object
+              properties:
+                name: { type: string, example: Budi Santoso }
+                email: { type: string, format: email, example: bs3@d.id }
+                designation: { type: string, example: Staff }
+                team: { type: string, example: General }
+                phone: { type: string, example: '08123456789' }
+                joinDate: { type: string, format: date, nullable: true }
+                reportOffice: { type: string, example: '-' }
+                profilePhotoUrl: { type: string, nullable: true, example: /storage/avatars/35/example.jpg }
+                greeting: { type: string, example: Selamat pagi }
+            attendanceToday:
+              type: object
+              properties:
+                nowLabel: { type: string, example: '08:35, 04 May 2026' }
+                progressPercent: { type: integer, example: 65 }
+                productionHours: { type: number, format: float, example: 5.75 }
+                punchInAt: { type: string, example: '08:01' }
+                punchOutAt: { type: string, example: '-' }
+                punchState: { type: string, enum: [none, in, done] }
+                canPunch: { type: boolean, example: true }
+                needsReview: { type: boolean, example: false }
+                summaryTotalWorking: { type: string, example: '5h 45m' }
+                summaryProductive: { type: string, example: '5h 15m' }
+                summaryBreak: { type: string, example: '30m' }
+                summaryOvertime: { type: string, example: '-' }
+                checkInLatitude: { type: number, format: double, nullable: true }
+                checkInLongitude: { type: number, format: double, nullable: true }
+                checkOutLatitude: { type: number, format: double, nullable: true }
+                checkOutLongitude: { type: number, format: double, nullable: true }
+            attendanceStats:
+              type: object
+              properties:
+                todayHours: { type: number, format: float, example: 5.75 }
+                todayTarget: { type: integer, example: 8 }
+                weekHours: { type: number, format: float, example: 32 }
+                weekTarget: { type: integer, example: 40 }
+                monthHours: { type: number, format: float, example: 84 }
+                monthTarget: { type: integer, example: 98 }
+                monthOvertimeHours: { type: number, format: float, example: 6 }
+                monthOvertimeTarget: { type: integer, example: 28 }
+            leave:
+              type: object
+              properties:
+                total: { type: integer, example: 4 }
+                pending: { type: integer, example: 1 }
+                approved: { type: integer, example: 2 }
+                declined: { type: integer, example: 1 }
+            overtime:
+              type: object
+              properties:
+                pending: { type: integer, example: 0 }
+                approvedThisMonth: { type: integer, example: 2 }
+                approvedHoursThisMonth: { type: number, format: float, example: 6 }
+            payroll:
+              type: object
+              properties:
+                latestPeriod: { type: string, example: '04/2026' }
+                latestRunStatus: { type: string, example: finalized }
+                paymentStatus: { type: string, example: paid }
+                latestNetPay: { type: number, format: float, example: 4500000 }
+            ui:
+              type: object
+              properties:
+                referenceDate: { type: string, format: date, example: '2026-05-04' }
+                referenceYear: { type: integer, example: 2026 }
+                isCurrentDay: { type: boolean, example: true }
+            nextHoliday:
               type: object
               additionalProperties: true
-            attendanceThisMonth:
+            leavePolicy:
               type: object
               additionalProperties: true
-            leaveBalance:
+            teamBirthday:
               type: object
               additionalProperties: true
-            payrollSnapshot:
+            teamMembers:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            performance:
+              type: object
+              additionalProperties: true
+            mySkills:
               type: object
               additionalProperties: true
           additionalProperties: true
@@ -12989,7 +13060,9 @@ components:
         designation: { type: string, description: 'Label tampilan; prioritas nama master designation jika ada' }
         employeeType: { type: string, nullable: true, example: contract }
         baseSalary: { type: number }
-        fixedAllowance: { type: number }
+        fixedAllowance:
+          type: number
+          description: Legacy compatibility field. Runtime currently always returns 0 because fixed allowance is governed through allowance governance assignments.
         employmentStatus:
           type: string
           enum: [active, inactive, probation, resigned, terminated]
@@ -13089,6 +13162,7 @@ components:
           type: number
           format: float
           nullable: true
+          description: Legacy compatibility field. Accepted but ignored by runtime.
         salaryType:
           type: string
           enum: [monthly, daily, hourly]
@@ -13286,6 +13360,7 @@ components:
           type: number
           format: float
           nullable: true
+          description: Legacy compatibility field. Accepted but ignored by runtime.
         salaryType:
           type: string
           enum: [monthly, daily, hourly]
@@ -13429,7 +13504,9 @@ components:
             team: { type: string, nullable: true }
             employeeType: { type: string, nullable: true }
             baseSalary: { type: number }
-            fixedAllowance: { type: number }
+            fixedAllowance:
+              type: number
+              description: Legacy compatibility field. Runtime currently always returns 0.
             employmentStatus:
               type: string
               enum: [active, inactive, probation, resigned, terminated]

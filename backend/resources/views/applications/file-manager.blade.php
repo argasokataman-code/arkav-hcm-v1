@@ -343,16 +343,6 @@
                     </div>
                     <!-- /Storage Details -->
 
-                    <!-- Upgrade Details -->
-                    <div class="card bg-black bg-01">
-                        <div class="card-body text-center">
-                            <img src="{{ URL::asset('build/img/icons/upgrade.svg') }}" alt="img" class="mb-3">
-                            <h6 class="mb-3 text-white">Upgrade to Pro for Unlimited Storage</h6>
-                            <a href="javascript:void(0);" class="btn btn-white btn-sm">Upgrade Now<i class="ti ti-arrow-right ms-1"></i></a>
-                        </div>
-                    </div>
-                    <!-- /Upgrade Details -->
-
                 </div>
                 <!-- /Sidebar -->
 

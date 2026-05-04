@@ -39,6 +39,7 @@ Success `200`:
 - `uuid` disertakan sebagai identifier user stabil untuk modul yang mengirim payload UUID ke endpoint lain, termasuk Termination.
 - `designation` = label tampilan (prioritas nama master `designation_id` jika ada).
 - `employeeType`, gaji, pajak, assignment, dan kontrak di-resolve dari tabel riwayat relasional (`employee_employment_history`, `employee_assignments`, `employee_compensations`, `employee_contracts`, `employee_tax_profiles`) dengan fallback legacy agar backward-compatible.
+- `fixedAllowance` dipertahankan di payload untuk kompatibilitas UI lama, tetapi runtime saat ini selalu `0`; tunjangan tetap operasional sudah dipindahkan ke allowance governance.
 - `ptkpAnnualNominal` = nominal PTKP tahunan berdasarkan `ptkpStatus` ter-normalisasi (`TK/K` otomatis dipetakan ke `TK0/K0`); bernilai `null` jika status pajak tidak valid/kosong.
 - `contractType` distandardkan ke `pkwt|pkwtt` (alias legacy `permanent` masih diterima pada input lama, tetapi disimpan/ditampilkan sebagai `pkwtt`).
 - `hireDate` = tanggal bergabung di profil (nullable ISO). `joinDate` = `startDate` / `hireDate` jika ada, jika tidak → tanggal `created_at` user.
@@ -67,7 +68,7 @@ Body:
 - `employeeType` **required** string (`permanent|contract|intern|...`)
 - `startDate` optional `date` — effective start untuk employment history
 - `baseSalary` **required** angka non-negatif dengan pola digit `^[0-9]+$`
-- `fixedAllowance` optional numeric min 0
+- `fixedAllowance` optional numeric min 0, tetapi diabaikan runtime (accepted for backward compatibility only)
 - `salaryType` **required** `monthly|daily|hourly`
 - `contractType` **required** `pkwt|pkwtt` (alias `permanent` masih diterima untuk kompatibilitas lalu dinormalisasi ke `pkwtt`)
 - `contractStatus` **required** `active|ended|terminated`
@@ -121,6 +122,7 @@ Success `200`:
   - `personal { nik, ktpNo, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, nationality }`
   - `assignment { team, departmentId, departmentName, designationId, designationName, managerUserId }`
   - `compensation { salaryType, currency, baseSalary, fixedAllowance, effectiveDate }`
+  - `compensation.fixedAllowance` selalu `0` pada runtime sekarang; source tunjangan tetap legacy sudah dipensiunkan.
   - `contract { contractType, startDate, endDate, status }`
   - `bank { name, accountNo, accountHolderName, ifscCode, branch }`
   - `taxProfile { npwp, taxStatus, ptkpStatus }`
@@ -153,7 +155,7 @@ Admin body (semua `sometimes`):
 - `employeeType` optional string
 - `startDate` optional `date`
 - `baseSalary` numeric min 0
-- `fixedAllowance` numeric min 0
+- `fixedAllowance` numeric min 0, tetapi diabaikan runtime (accepted for backward compatibility only)
 - `salaryType` optional `monthly|daily|hourly`
 - `contractType` optional `pkwt|pkwtt` (alias `permanent` diterima)
 - `contractStatus` optional `active|ended|terminated`

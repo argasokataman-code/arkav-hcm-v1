@@ -80,7 +80,7 @@
                         <div class="card-header bg-dark">
                             <div class="d-flex align-items-center">
                                 <span class="avatar avatar-lg avatar-rounded border border-white border-2 flex-shrink-0 me-2">
-                                    <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" alt="Img">
+                                    <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" alt="Img" data-employee-legacy-avatar>
                                 </span>
                                 <div>
                                     <h5 class="text-white mb-1" data-employee-legacy-name>User</h5>
@@ -287,6 +287,9 @@
                                 <div class="rounded border mb-3" data-employee-legacy-attendance-map style="height: 180px;"></div>
                                 <p class="small text-muted mb-3" data-employee-legacy-map-hint>Map attendance belum tersedia.</p>
                                 <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-info" data-employee-legacy-gps-button title="Cek lokasi GPS untuk preview attendance">
+                                        <i class="ti ti-map-pin-check me-1"></i> Cek GPS
+                                    </button>
                                     <button type="button" class="btn btn-outline-success" data-attendance-me-selfie-btn data-arcav-selfie-allowed="0" title="Memuat status absensi…">
                                         <i class="ti ti-camera me-1"></i> Ambil Selfie
                                     </button>

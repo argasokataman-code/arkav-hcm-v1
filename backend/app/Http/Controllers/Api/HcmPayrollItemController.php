@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,6 +36,7 @@ class HcmPayrollItemController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
+        $this->ensureAllowanceLinkedRows($companyId);
         $this->syncLinkedRowsWithMaster($companyId);
 
         $query = HcmPayrollItem::query()
@@ -42,12 +44,13 @@ class HcmPayrollItemController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id');
         $this->applyTenantScope($query, $companyId);
+        $allowanceAmountByCode = $this->activeAllowanceAmountByCode($companyId);
 
         if (! empty($validated['kind'] ?? null)) {
             $query->where('kind', $validated['kind']);
         }
 
-        $payrollItems = $query->get()->map(fn (HcmPayrollItem $item) => $this->serializePayrollItem($item));
+        $payrollItems = $query->get()->map(fn (HcmPayrollItem $item) => $this->serializePayrollItem($item, $allowanceAmountByCode));
 
         $linkedSalaryComponentIds = HcmPayrollItem::query()
             ->whereNotNull('hcm_salary_component_id')
@@ -90,6 +93,7 @@ class HcmPayrollItemController extends Controller
 
         $companyId = $this->activeCompanyId($request);
 
+        $this->ensureAllowanceLinkedRows($companyId);
         $this->syncLinkedRowsWithMaster($companyId);
 
         $query = HcmPayrollItem::query()->with('salaryComponent')->orderBy('sort_order')->orderBy('id');
@@ -98,7 +102,8 @@ class HcmPayrollItemController extends Controller
             $query->where('kind', $validated['kind']);
         }
 
-        $rows = $query->get()->map(fn (HcmPayrollItem $item) => $this->serializePayrollItem($item))->values();
+        $allowanceAmountByCode = $this->activeAllowanceAmountByCode($companyId);
+        $rows = $query->get()->map(fn (HcmPayrollItem $item) => $this->serializePayrollItem($item, $allowanceAmountByCode))->values();
         $format = strtolower((string) ($validated['format'] ?? 'csv'));
         $kindPart = $validated['kind'] ?? 'all';
         $fileBase = 'payroll-items-'.$kindPart.'-'.now()->format('YmdHis');
@@ -467,7 +472,7 @@ class HcmPayrollItemController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function serializePayrollItem(HcmPayrollItem $item): array
+    private function serializePayrollItem(HcmPayrollItem $item, array $allowanceAmountByCode = []): array
     {
         $linked = $item->hcm_salary_component_id !== null;
         $master = $linked ? $item->salaryComponent : null;
@@ -475,6 +480,15 @@ class HcmPayrollItemController extends Controller
         $name = $linked && $master ? $master->name : $item->name;
         $kind = $linked && $master ? $master->kind : $item->kind;
         $category = $linked && $master ? $master->category : $item->category;
+        $sourceModule = $linked && $master ? $master->source_module : null;
+        $allowanceDefaultAmount = null;
+        $inAllowanceGovernance = false;
+        if ($sourceModule === HcmSalaryComponent::SOURCE_MODULE_ALLOWANCE && is_string($code) && $code !== '') {
+            if (array_key_exists($code, $allowanceAmountByCode)) {
+                $inAllowanceGovernance = true;
+                $allowanceDefaultAmount = $allowanceAmountByCode[$code];
+            }
+        }
 
         return [
             'id' => $item->id,
@@ -487,13 +501,37 @@ class HcmPayrollItemController extends Controller
             'notes' => $item->notes,
             'sortOrder' => (int) $item->sort_order,
             'isActive' => (bool) $item->is_active,
-            'masterDefaultPercent' => $linked && $item->salaryComponent
-                ? ($item->salaryComponent->default_percent !== null ? (string) $item->salaryComponent->default_percent : null)
-                : null,
-            'masterPercentBasis' => $linked && $item->salaryComponent
-                ? $item->salaryComponent->percent_basis
-                : null,
+            'sourceModule' => $sourceModule,
+            'isSystemLocked' => $linked && $master ? (bool) $master->is_system_locked : false,
+            'allowanceDefaultAmount' => $allowanceDefaultAmount,
+            'inAllowanceGovernance' => $inAllowanceGovernance,
         ];
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function activeAllowanceAmountByCode(?int $companyId): array
+    {
+        if ($companyId === null) {
+            return [];
+        }
+
+        $asOf = now()->toDateString();
+
+        return HcmEmployeeAllowancePolicy::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->whereDate('effective_start_date', '<=', $asOf)
+            ->where(function (Builder $builder) use ($asOf): void {
+                $builder->whereNull('effective_end_date')
+                    ->orWhereDate('effective_end_date', '>=', $asOf);
+            })
+            ->get(['code', 'default_amount'])
+            ->mapWithKeys(function (HcmEmployeeAllowancePolicy $policy): array {
+                return [(string) $policy->code => round((float) $policy->default_amount, 2)];
+            })
+            ->all();
     }
 
     private function syncLinkedRowsWithMaster(?int $companyId): void
@@ -538,6 +576,104 @@ class HcmPayrollItemController extends Controller
         }
     }
 
+    private function ensureAllowanceLinkedRows(?int $companyId): void
+    {
+        $this->ensureAllowanceComponentsFromPolicies($companyId);
+
+        $componentsQuery = HcmSalaryComponent::query()
+            ->where('source_module', HcmSalaryComponent::SOURCE_MODULE_ALLOWANCE)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+
+        if ($companyId !== null) {
+            $componentsQuery->where(function (Builder $inner) use ($companyId): void {
+                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+            });
+        } else {
+            $componentsQuery->whereNull('company_id');
+        }
+
+        $components = $componentsQuery->get();
+        if ($components->isEmpty()) {
+            return;
+        }
+
+        $existingComponentIds = HcmPayrollItem::query()
+            ->whereIn('hcm_salary_component_id', $components->pluck('id')->all())
+            ->pluck('hcm_salary_component_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        foreach ($components as $component) {
+            if (in_array((int) $component->id, $existingComponentIds, true)) {
+                continue;
+            }
+
+            HcmPayrollItem::query()->create([
+                'company_id' => $component->company_id,
+                'hcm_salary_component_id' => $component->id,
+                'code' => $component->code,
+                'name' => $component->name,
+                'kind' => $component->kind,
+                'category' => $component->category,
+                'notes' => 'Auto-linked from allowance governance.',
+                'sort_order' => (int) $component->sort_order,
+                'is_active' => (bool) $component->is_active,
+            ]);
+        }
+    }
+
+    private function ensureAllowanceComponentsFromPolicies(?int $companyId): void
+    {
+        if ($companyId === null) {
+            return;
+        }
+
+        $policies = HcmEmployeeAllowancePolicy::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get(['code', 'name', 'is_taxable']);
+
+        foreach ($policies as $policy) {
+            $code = (string) $policy->code;
+            $name = (string) $policy->name;
+            $isTaxable = (bool) $policy->is_taxable;
+
+            if ($code === '' || $name === '') {
+                continue;
+            }
+
+            $isIrregular = str_contains($code, 'insentif')
+                || str_contains($code, 'irregular')
+                || str_contains($code, 'tidak_tetap');
+            $category = $isIrregular ? 'irregular_allowance' : 'fixed_allowance';
+            $taxTreatmentCode = $isTaxable
+                ? HcmSalaryComponent::TAX_TREATMENT_PPH21_TAXABLE_FULL
+                : HcmSalaryComponent::TAX_TREATMENT_NON_OBJECT;
+
+            HcmSalaryComponent::ensureComponent(
+                $companyId,
+                $code,
+                $name,
+                'addition',
+                $category,
+                HcmSalaryComponent::SOURCE_MODULE_ALLOWANCE,
+                [
+                    'tax_treatment_code' => $taxTreatmentCode,
+                    'include_pph21_ter_gross' => $isTaxable,
+                    'include_pph21_annual_reconciliation' => $isTaxable,
+                    'include_thr_calculation_base' => true,
+                    'include_bpjs_health_wage_base' => false,
+                    'include_bpjs_tk_wage_base' => false,
+                    'affects_net_pay' => true,
+                    'employer_cost_line' => false,
+                ]
+            );
+        }
+    }
+
     private function activeCompanyId(Request $request): ?int
     {
         $value = $request->attributes->get('activeCompanyId');
@@ -547,9 +683,18 @@ class HcmPayrollItemController extends Controller
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
     {
-        return $query->where(function (Builder $inner) use ($companyId): void {
+        $supportsSalaryComponentRelation = $query->getModel() instanceof HcmPayrollItem;
+
+        return $query->where(function (Builder $inner) use ($companyId, $supportsSalaryComponentRelation): void {
             if ($companyId !== null) {
-                $inner->where('company_id', $companyId)->orWhereNull('company_id');
+                $inner->where('company_id', $companyId)
+                    ->orWhereNull('company_id');
+
+                if ($supportsSalaryComponentRelation) {
+                    // Governance items seeded under a specific company are still
+                    // visible to all tenants when linked to a global salary component.
+                    $inner->orWhereHas('salaryComponent', fn (Builder $scQ) => $scQ->whereNull('company_id'));
+                }
 
                 return;
             }

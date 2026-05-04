@@ -29,10 +29,6 @@ Route::get('/invoice-settings', function () {
     return view('finance.invoice-settings');
 })->middleware('hcm.web.admin')->name('invoice-settings');
 
-Route::get('/prefixes', function () {
-    return view('settings.prefixes');
-})->middleware('hcm.web.global-admin')->name('prefixes');
-
 Route::get('/preferences', function () {
     return view('settings.preferences');
 })->middleware('hcm.web.admin')->name('preferences');
@@ -68,9 +64,18 @@ Route::middleware('hcm.web.admin')->prefix('tax-employees')->group(function (): 
     })->name('tax-employees.tenant-compliance');
 
     Route::get('/employee-tax-profiles', function () {
+        $statusOptions = collect((array) config('hcm.tax_statuses', ['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']))
+            ->map(fn ($status) => strtoupper(trim((string) $status)))
+            ->filter(fn (string $status) => $status !== '')
+            ->merge(['TK', 'K'])
+            ->unique()
+            ->values()
+            ->all();
+
         return view('finance.tax-rates', [
             'taxGovernanceScreen' => 'employee-tax-profiles',
             'taxGovernancePolicyUuid' => null,
+            'taxStatusOptions' => $statusOptions,
         ]);
     })->name('tax-employees.employee-tax-profiles');
 
@@ -82,6 +87,62 @@ Route::middleware('hcm.web.admin')->prefix('tax-employees')->group(function (): 
     })->name('tax-employees.reports');
 
 
+});
+
+Route::middleware('hcm.web.admin')->prefix('bpjs-governance')->name('bpjs-governance.')->group(function (): void {
+    Route::get('/', function () {
+        return view('finance.bpjs-governance', [
+            'bpjsGovernanceScreen' => 'landing',
+        ]);
+    })->name('index');
+
+    Route::get('/policies', function () {
+        return view('finance.bpjs-governance', [
+            'bpjsGovernanceScreen' => 'policies',
+        ]);
+    })->name('policies');
+
+    Route::get('/employee-membership', function () {
+        return view('finance.bpjs-governance', [
+            'bpjsGovernanceScreen' => 'employee-membership',
+        ]);
+    })->name('employee-membership');
+
+    Route::get('/reports', function () {
+        return view('finance.bpjs-governance', [
+            'bpjsGovernanceScreen' => 'reports',
+        ]);
+    })->name('reports');
+
+    Route::get('/rate-baselines', function () {
+        return view('finance.bpjs-governance', [
+            'bpjsGovernanceScreen' => 'rate-baselines',
+        ]);
+    })->name('rate-baselines');
+});
+
+Route::middleware('hcm.web.admin')->prefix('employee-allowance-governance')->name('employee-allowance-governance.')->group(function (): void {
+    Route::get('/', function () {
+        return view('finance.employee-allowance-governance', [
+            'allowanceGovernanceScreen' => 'landing',
+        ]);
+    })->name('index');
+
+    Route::get('/policies', function () {
+        return view('finance.employee-allowance-governance', [
+            'allowanceGovernanceScreen' => 'policies',
+        ]);
+    })->name('policies');
+
+    Route::get('/assignments', function () {
+        return view('finance.employee-allowance-governance', [
+            'allowanceGovernanceScreen' => 'assignments',
+        ]);
+    })->name('assignments');
+
+    Route::get('/reports', function () {
+        return redirect()->route('employee-allowance-governance.index');
+    })->name('reports');
 });
 
 Route::get('/appearance', function () {

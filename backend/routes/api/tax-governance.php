@@ -11,10 +11,14 @@ Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context
     Route::patch('/policies/{policyRef}', [HcmTaxGovernanceController::class, 'update']);
     Route::post('/policies/{policyRef}/submit', [HcmTaxGovernanceController::class, 'submit']);
     Route::post('/policies/{policyRef}/approve', [HcmTaxGovernanceController::class, 'approve']);
+    Route::post('/policies/{policyRef}/reject', [HcmTaxGovernanceController::class, 'reject']);
     Route::post('/policies/{policyRef}/publish', [HcmTaxGovernanceController::class, 'publish']);
     Route::get('/policies/{policyRef}/events', [HcmTaxGovernanceController::class, 'policyEventHistory']);
 
+    Route::get('/governance/dashboard', [HcmTaxGovernanceController::class, 'dashboardSummary']);
     Route::get('/governance/anomalies', [HcmTaxGovernanceController::class, 'anomalyRegistry']);
+    Route::post('/governance/break-glass/requests', [HcmTaxGovernanceController::class, 'requestBreakGlassAccess']);
+    Route::post('/governance/break-glass/requests/{requestUuid}/approve', [HcmTaxGovernanceController::class, 'approveBreakGlassRequest']);
     Route::patch('/governance/anomalies/{anomalyId}/resolve', [HcmTaxGovernanceController::class, 'resolveAnomaly']);
     Route::patch('/governance/anomalies/{anomalyId}/acknowledge', [HcmTaxGovernanceController::class, 'acknowledgeAnomaly']);
     Route::get('/reports/tenant-self-audit', [HcmTaxGovernanceController::class, 'tenantSelfAuditReportEnhanced']);

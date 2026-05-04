@@ -63,6 +63,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 40 | Tax Governance & Taxonomy | 🚧 In Progress | [→](tax-governance/) | [📘 Implementation](tax-governance/IMPLEMENTATION.md) | [🧭 Tracker](tax-governance/tracker.md), `/tax-rates` audit-readiness mapping |
 | 41 | Global HRMS Search | ✅ Complete | [→](global-search/) | [ID Details](global-search/) | Shortcut `Ctrl+/`, quick search, full-result panel, RBAC-aware catalog |
 | 42 | AI Assistant | 🚧 Planning | [→](ai-assistant/) | [📋 RBAC Policy](ai-assistant/RBAC-POLICY.md), [📖 Intent Catalog](ai-assistant/INTENT-CATALOG.md) | RBAC-aware chatbot, deny-by-default, self-service employee (cuti/absensi/payslip), intent-to-endpoint mapping |
+| 43 | Employee Allowance Governance | 🚧 In Progress | [→](employee-allowance-governance/) | [📘 Implementation](employee-allowance-governance/IMPLEMENTATION.md) | [🧭 Tracker](employee-allowance-governance/tracker.md), policy + assignment + compliance runtime baseline active |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -140,6 +141,9 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `ai-assistant/README.md` - **AI Assistant:** arsitektur, flow end-to-end, prinsip deny-by-default, dan gap/keputusan yang perlu ditetapkan sebelum implementasi.
 - `ai-assistant/RBAC-POLICY.md` - **AI RBAC Policy:** tabel allow/deny per intent per role, pesan deny standar, pseudocode gate, dan schema audit log.
 - `ai-assistant/INTENT-CATALOG.md` - **Intent Catalog:** mapping intent → endpoint internal → parameter → contoh jawaban, lengkap dengan status ready/planned.
+- `employee-allowance-governance/README.md` - **Employee Allowance Governance:** flow end-to-end modul tunjangan umum (policy, assignment, compliance score, audit trail) dengan baseline default allowance Indonesia yang bisa di-override tenant.
+- `employee-allowance-governance/IMPLEMENTATION.md` - Blueprint teknis implementasi allowance governance termasuk data model, API surface, rule bisnis, risiko, dan test plan.
+- `employee-allowance-governance/tracker.md` - Snapshot status runtime baseline yang sudah aktif, gap lanjutan, dan milestone integrasi payroll berikutnya.
 - `tax-governance/README.md` - **Tax Governance & Taxonomy:** pemetaan source of truth pajak runtime, dampak audit, anomaly, dan negative scenario seputar `/tax-rates`.
 - `tax-governance/IMPLEMENTATION.md` - Catatan implementasi teknis mengenai web shell `/tax-rates`, employee tax profile, salary component tax flags, dan payroll tax engine.
 - `tax-governance/tracker.md` - Snapshot status, evidence, dan rencana implementasi governance pajak bertahap.

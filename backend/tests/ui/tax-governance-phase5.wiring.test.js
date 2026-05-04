@@ -94,6 +94,30 @@ describe('tax-employee-profiles.js', function () {
         expect(tbody.querySelectorAll('tr').length).toBe(3);
     });
 
+    it('renders employee fullName when API uses camelCase field', async function () {
+        dom.window.AuthApi.request = vi.fn().mockResolvedValue({
+            data: {
+                data: [
+                    {
+                        id: '1',
+                        fullName: 'Camel Case Name',
+                        email: 'camel@example.com',
+                        npwp: '',
+                        tax_status: '',
+                        ptkp_status: '',
+                    },
+                ],
+                meta: { total: 1, last_page: 1 },
+            },
+        });
+
+        loadScript(dom, 'tax-employee-profiles.js');
+        await flush();
+
+        const tbody = dom.window.document.querySelector('[data-emp-tax-tbody]');
+        expect(tbody.innerHTML).toContain('Camel Case Name');
+    });
+
     it('renders NPWP value for employee with NPWP', async function () {
         loadScript(dom, 'tax-employee-profiles.js');
         await flush();

@@ -418,11 +418,14 @@
     <script src="{{ URL::asset('build/js/shift-master-data.js') }}"></script>
 @endif
 
-@if (Route::is(['payroll', 'payroll-deduction']))
-    <script src="{{ URL::asset('build/js/payroll-items-data.js') }}"></script>
-@endif
 @if (Route::is(['salary-component-master']))
     <script src="{{ URL::asset('build/js/salary-component-master-data.js') }}"></script>
+@endif
+@if (request()->is('bpjs-governance*'))
+    <script src="{{ URL::asset('build/js/bpjs-governance-data.js') }}?v={{ file_exists(public_path('build/js/bpjs-governance-data.js')) ? filemtime(public_path('build/js/bpjs-governance-data.js')) : time() }}"></script>
+@endif
+@if (request()->is('employee-allowance-governance*'))
+    <script src="{{ URL::asset('build/js/employee-allowance-governance-data.js') }}?v={{ file_exists(public_path('build/js/employee-allowance-governance-data.js')) ? filemtime(public_path('build/js/employee-allowance-governance-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['payroll-run']))
     <script src="{{ URL::asset('build/js/payroll-run.js') }}?v={{ file_exists(public_path('build/js/payroll-run.js')) ? filemtime(public_path('build/js/payroll-run.js')) : time() }}"></script>

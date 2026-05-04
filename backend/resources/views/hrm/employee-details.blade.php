@@ -114,6 +114,14 @@
                 }
             }
 
+                function formatEmployeeCode(value) {
+                    var n = Number(value);
+                    if (!Number.isFinite(n) || n <= 0) {
+                        return '-';
+                    }
+                    return 'EMP-' + String(Math.trunc(n));
+                }
+
             function formatRupiah(value) {
                 var n = Number(value || 0);
                 if (!isFinite(n)) {
@@ -133,7 +141,7 @@
 
             function renderFallback(item) {
                 setText('[data-employee-name]', item.fullName);
-                setText('[data-employee-no]', item.employeeNo);
+                setText('[data-employee-no]', formatEmployeeCode(item.id));
                 setText('[data-employee-team]', item.team);
                 setText('[data-employee-department]', item.departmentName);
                 setText('[data-employee-team-leader]', (item.assignment && item.assignment.managerName) || item.managerName || 'Belum ditentukan');

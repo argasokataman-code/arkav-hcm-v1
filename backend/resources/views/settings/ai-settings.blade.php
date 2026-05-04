@@ -80,7 +80,6 @@
                             @endif
                             <a href="{{url('localization')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Localization</a>
                             @if ($isGlobalHcmAdmin)
-                            <a href="{{url('prefixes')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Prefixes</a>
                             @endif
                             <a href="{{url('preference')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Preferences</a>
                             <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>

@@ -6,11 +6,17 @@ use App\Events\TaxGovernancePolicyTransitioned;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
+use App\Models\EmployeeTaxProfile;
 use App\Models\HcmBillingTaxPolicy;
+use App\Models\HcmSalaryComponent;
+use App\Models\HcmTaxGovernanceBreakGlassRequest;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
+use App\Models\User;
 use App\Services\BillingTaxCalculationService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
@@ -247,29 +253,144 @@ class HcmTaxGovernanceController extends Controller
 
     public function submit(Request $request, string $policyRef): JsonResponse
     {
-        return $this->errorResponse(
-            'TAX_POLICY_WORKFLOW_DISABLED',
-            'Workflow submission is temporarily disabled.',
-            409
-        );
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
+            return $response;
+        }
+
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
+        if (! $policy) {
+            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
+        }
+
+        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_DRAFT) {
+            return $this->errorResponse(
+                'TAX_POLICY_INVALID_STATE_TRANSITION',
+                'Only draft policies can be submitted.',
+                422
+            );
+        }
+
+        $validated = $request->validate([
+            'submissionNote' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
+            'success' => true,
+            'data' => $this->policyPayload($this->transitionPolicyStatus(
+                $policy,
+                HcmTaxGovernancePolicy::STATUS_SUBMITTED,
+                'submitted',
+                $actorId,
+                $validated['submissionNote'] ?? null,
+                [
+                    'submitted_by_user_id' => $actorId,
+                    'submitted_at' => now(),
+                ],
+            )),
+        ]), $usedNumericLegacy);
     }
 
     public function approve(Request $request, string $policyRef): JsonResponse
     {
-        return $this->errorResponse(
-            'TAX_POLICY_WORKFLOW_DISABLED',
-            'Approval workflow is temporarily disabled.',
-            409
-        );
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
+            return $response;
+        }
+
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
+        if (! $policy) {
+            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
+        }
+
+        if ($policy->status !== HcmTaxGovernancePolicy::STATUS_SUBMITTED) {
+            return $this->errorResponse(
+                'TAX_POLICY_INVALID_STATE_TRANSITION',
+                'Only submitted policies can be approved.',
+                422
+            );
+        }
+
+        $validated = $request->validate([
+            'approvalNote' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
+            'success' => true,
+            'data' => $this->policyPayload($this->transitionPolicyStatus(
+                $policy,
+                HcmTaxGovernancePolicy::STATUS_APPROVED,
+                'approved',
+                $actorId,
+                $validated['approvalNote'] ?? null,
+                [
+                    'approved_by_user_id' => $actorId,
+                    'approved_at' => now(),
+                ],
+            )),
+        ]), $usedNumericLegacy);
     }
 
     public function reject(Request $request, string $policyRef): JsonResponse
     {
-        return $this->errorResponse(
-            'TAX_POLICY_WORKFLOW_DISABLED',
-            'Rejection workflow is temporarily disabled.',
-            409
-        );
+        if ($response = $this->ensurePermission($request, 'tax.tenant.policy.draft.manage')) {
+            return $response;
+        }
+
+        if ($response = $this->ensureTenantOwnerOrGlobalAdmin($request)) {
+            return $response;
+        }
+
+        $usedNumericLegacy = false;
+        $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
+        if (! $policy) {
+            return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
+        }
+
+        if (! in_array($policy->status, [HcmTaxGovernancePolicy::STATUS_SUBMITTED, HcmTaxGovernancePolicy::STATUS_APPROVED], true)) {
+            return $this->errorResponse(
+                'TAX_POLICY_INVALID_STATE_TRANSITION',
+                'Only submitted or approved policies can be rejected back to draft.',
+                422
+            );
+        }
+
+        $validated = $request->validate([
+            'rejectionNote' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $actorId = (int) ($request->user()?->id ?? 0) ?: null;
+
+        return $this->withNumericPolicyDeprecationHeaders(response()->json([
+            'success' => true,
+            'data' => $this->policyPayload($this->transitionPolicyStatus(
+                $policy,
+                HcmTaxGovernancePolicy::STATUS_DRAFT,
+                'rejected',
+                $actorId,
+                $validated['rejectionNote'] ?? null,
+                [
+                    'approved_by_user_id' => null,
+                    'approved_by_user_uuid' => null,
+                    'approved_at' => null,
+                    'submitted_by_user_id' => null,
+                    'submitted_by_user_uuid' => null,
+                    'submitted_at' => null,
+                ],
+            )),
+        ]), $usedNumericLegacy);
     }
 
     public function publish(Request $request, string $policyRef): JsonResponse
@@ -305,11 +426,19 @@ class HcmTaxGovernanceController extends Controller
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
         $previousStatus = $policy->status;
 
-        DB::transaction(function () use ($policy, $before, $actorId): void {
+        $validated = $request->validate([
+            'publishReason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($policy, $before, $actorId, $validated): void {
             $policy->status = HcmTaxGovernancePolicy::STATUS_PUBLISHED;
             $policy->published_at = now();
+            $policy->published_by_user_id = $actorId;
+            $policy->last_note = $validated['publishReason'] ?? $policy->last_note;
+            $policy->version = (int) $policy->version + 1;
             $policy->save();
-            $this->recordEvent($policy, 'published', $before, $this->policyStateSnapshot($policy), null, $actorId);
+            HcmSalaryComponent::ensurePph21Components((int) $policy->company_id);
+            $this->recordEvent($policy, 'published', $before, $this->policyStateSnapshot($policy), $validated['publishReason'] ?? null, $actorId);
         });
 
         $policy->refresh();
@@ -458,6 +587,80 @@ class HcmTaxGovernanceController extends Controller
                     'total' => $projections->total(),
                 ],
             ],
+        ]);
+    }
+
+    public function requestBreakGlassAccess(Request $request): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.governance.break_glass.request')) {
+            return $response;
+        }
+
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $validated = $request->validate([
+            'targetTenantUuid' => ['required', 'string', 'uuid', 'exists:companies,uuid'],
+            'reasonCode' => ['required', 'string', 'max:100'],
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $targetCompany = Company::query()->where('uuid', $validated['targetTenantUuid'])->firstOrFail();
+        $record = HcmTaxGovernanceBreakGlassRequest::query()->create([
+            'target_company_id' => (int) $targetCompany->id,
+            'target_company_uuid' => (string) $targetCompany->uuid,
+            'requested_by_user_id' => (int) ($request->user()?->id ?? 0) ?: null,
+            'reason_code' => $validated['reasonCode'],
+            'reason' => $validated['reason'],
+            'status' => 'requested',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->breakGlassPayload($record),
+        ], 201);
+    }
+
+    public function approveBreakGlassRequest(Request $request, string $requestUuid): JsonResponse
+    {
+        if ($response = $this->ensurePermission($request, 'tax.governance.break_glass.approve')) {
+            return $response;
+        }
+
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
+            return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
+        }
+
+        $validated = $request->validate([
+            'approvalNote' => ['required', 'string', 'max:1000'],
+            'expiresAt' => ['required', 'date', 'after:now'],
+        ]);
+
+        $record = HcmTaxGovernanceBreakGlassRequest::query()
+            ->where('uuid', $requestUuid)
+            ->first();
+
+        if (! $record) {
+            return $this->errorResponse('BREAK_GLASS_REQUEST_NOT_FOUND', 'Break-glass request not found.', 404);
+        }
+
+        if ($record->status !== 'requested') {
+            return $this->errorResponse('BREAK_GLASS_REQUEST_INVALID_STATE', 'Break-glass request can only be approved from requested status.', 422);
+        }
+
+        $record->fill([
+            'status' => 'approved',
+            'approval_note' => $validated['approvalNote'],
+            'approved_by_user_id' => (int) ($request->user()?->id ?? 0) ?: null,
+            'approved_at' => now(),
+            'expires_at' => Carbon::parse($validated['expiresAt']),
+        ]);
+        $record->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->breakGlassPayload($record),
         ]);
     }
 
@@ -791,7 +994,16 @@ class HcmTaxGovernanceController extends Controller
         $billingCompliance = app(BillingTaxCalculationService::class)
             ->calculateBillingTax((int) $companyId, now()->format('Y-m'));
 
-        $overallStatus = ($currentPolicy && $unresolvedAnomalies === 0 && (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0)
+        $employeePph21Compliance = $this->buildEmployeePph21ComplianceSnapshot((int) $companyId);
+
+        $overallStatus = (
+            $currentPolicy
+            && $unresolvedAnomalies === 0
+            && (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0
+            && (int) ($employeePph21Compliance['missing_npwp'] ?? 0) === 0
+            && (int) ($employeePph21Compliance['invalid_npwp_format'] ?? 0) === 0
+            && (int) ($employeePph21Compliance['missing_ptkp_status'] ?? 0) === 0
+        )
             ? 'compliant'
             : 'attention_required';
 
@@ -815,6 +1027,27 @@ class HcmTaxGovernanceController extends Controller
                 'priority' => 'medium',
                 'action' => 'Reconcile unpaid billing tax invoices.',
                 'target_date' => now()->addDays(10)->toDateString(),
+            ];
+        }
+        if ((int) ($employeePph21Compliance['missing_npwp'] ?? 0) > 0) {
+            $recommendedActions[] = [
+                'priority' => 'high',
+                'action' => 'Lengkapi NPWP untuk seluruh karyawan aktif yang wajib pajak.',
+                'target_date' => now()->addDays(7)->toDateString(),
+            ];
+        }
+        if ((int) ($employeePph21Compliance['invalid_npwp_format'] ?? 0) > 0) {
+            $recommendedActions[] = [
+                'priority' => 'high',
+                'action' => 'Normalisasi format NPWP karyawan agar sesuai format numerik resmi.',
+                'target_date' => now()->addDays(7)->toDateString(),
+            ];
+        }
+        if ((int) ($employeePph21Compliance['missing_ptkp_status'] ?? 0) > 0) {
+            $recommendedActions[] = [
+                'priority' => 'high',
+                'action' => 'Tetapkan status PTKP valid untuk seluruh karyawan aktif.',
+                'target_date' => now()->addDays(7)->toDateString(),
             ];
         }
 
@@ -843,12 +1076,208 @@ class HcmTaxGovernanceController extends Controller
                         'reversed_revenue_amount' => (float) ($billingCompliance['reversed_revenue_amount'] ?? 0),
                         'payment_status' => ((int) ($billingCompliance['unpaid_invoice_count'] ?? 0) === 0) ? 'current' : 'overdue',
                     ],
+                    'employee_pph21_compliance' => [
+                        'active_employees' => (int) ($employeePph21Compliance['active_employees'] ?? 0),
+                        'profiles_available' => (int) ($employeePph21Compliance['profiles_available'] ?? 0),
+                        'complete_profiles' => (int) ($employeePph21Compliance['complete_profiles'] ?? 0),
+                        'missing_npwp' => (int) ($employeePph21Compliance['missing_npwp'] ?? 0),
+                        'invalid_npwp_format' => (int) ($employeePph21Compliance['invalid_npwp_format'] ?? 0),
+                        'missing_ptkp_status' => (int) ($employeePph21Compliance['missing_ptkp_status'] ?? 0),
+                        'completion_rate' => (float) ($employeePph21Compliance['completion_rate'] ?? 0),
+                        'non_compliant_employees' => array_values((array) ($employeePph21Compliance['non_compliant_employees'] ?? [])),
+                    ],
                     'overall_status' => $overallStatus,
                     'next_review_date' => now()->addMonth()->toDateString(),
                 ],
                 'recommended_actions' => $recommendedActions,
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, int|float|array<int, array<string, mixed>>>
+     */
+    private function buildEmployeePph21ComplianceSnapshot(int $companyId): array
+    {
+        $activeUserIds = CompanyUser::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('role', '!=', 'owner')
+            ->pluck('user_id');
+
+        $activeUsers = User::query()
+            ->whereIn('id', $activeUserIds)
+            ->get(['id', 'uuid', 'name', 'email'])
+            ->keyBy('id');
+
+        $activeEmployeeCount = $activeUserIds->count();
+        if ($activeEmployeeCount === 0) {
+            return [
+                'active_employees' => 0,
+                'profiles_available' => 0,
+                'complete_profiles' => 0,
+                'missing_npwp' => 0,
+                'invalid_npwp_format' => 0,
+                'missing_ptkp_status' => 0,
+                'completion_rate' => 0.0,
+                'non_compliant_employees' => [],
+            ];
+        }
+
+        $employeeProfiles = EmployeeProfile::query()
+            ->whereIn('user_id', $activeUserIds)
+            ->get(['id', 'user_id', 'marital_status']);
+
+        $profileByUserId = $employeeProfiles->keyBy('user_id');
+        $profileIds = $employeeProfiles->pluck('id');
+
+        $latestTaxProfiles = EmployeeTaxProfile::query()
+            ->whereIn('employee_id', $profileIds)
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('employee_id')
+            ->map(fn ($items) => $items->first());
+
+        $allowedPtkpStatuses = $this->allowedPtkpStatuses();
+        $profilesAvailable = 0;
+        $completeProfiles = 0;
+        $missingNpwp = 0;
+        $invalidNpwpFormat = 0;
+        $missingPtkpStatus = 0;
+        $nonCompliantEmployees = [];
+
+        foreach ($activeUserIds as $userId) {
+            $user = $activeUsers->get((int) $userId);
+            $profile = $profileByUserId->get($userId);
+            $issues = [];
+
+            if (! $profile) {
+                $missingNpwp++;
+                $missingPtkpStatus++;
+                $issues[] = ['code' => 'employee_profile_missing', 'label' => 'Profil karyawan belum tersedia.'];
+                $issues[] = ['code' => 'npwp_missing', 'label' => 'NPWP belum diisi.'];
+                $issues[] = ['code' => 'ptkp_status_missing', 'label' => 'Status PTKP belum diisi.'];
+
+                $nonCompliantEmployees[] = [
+                    'user_id' => (int) $userId,
+                    'user_uuid' => $user?->uuid,
+                    'full_name' => $user?->name ?? 'Unknown Employee',
+                    'email' => $user?->email,
+                    'issues' => $issues,
+                ];
+                continue;
+            }
+
+            $derivedPtkpStatus = $this->inferTaxStatusFromMaritalStatus($profile->marital_status);
+
+            /** @var EmployeeTaxProfile|null $taxProfile */
+            $taxProfile = $latestTaxProfiles->get((int) $profile->id);
+            if (! $taxProfile) {
+                $missingNpwp++;
+                $issues[] = ['code' => 'npwp_missing', 'label' => 'NPWP belum diisi.'];
+                if ($derivedPtkpStatus === null) {
+                    $missingPtkpStatus++;
+                    $issues[] = ['code' => 'ptkp_status_missing', 'label' => 'Status PTKP belum diisi.'];
+                }
+
+                $nonCompliantEmployees[] = [
+                    'user_id' => (int) $userId,
+                    'user_uuid' => $user?->uuid,
+                    'full_name' => $user?->name ?? 'Unknown Employee',
+                    'email' => $user?->email,
+                    'issues' => $issues,
+                ];
+                continue;
+            }
+
+            $profilesAvailable++;
+
+            $rawNpwp = trim((string) ($taxProfile->npwp ?? ''));
+            $npwp = $this->normalizeNpwp($rawNpwp);
+            $hasRawNpwp = $rawNpwp !== '';
+            $npwpFormatValid = $hasRawNpwp && $this->isValidNpwpFormat($npwp);
+
+            if (! $hasRawNpwp) {
+                $missingNpwp++;
+                $issues[] = ['code' => 'npwp_missing', 'label' => 'NPWP belum diisi.'];
+            } elseif (! $npwpFormatValid) {
+                $invalidNpwpFormat++;
+                $issues[] = [
+                    'code' => 'npwp_invalid_format',
+                    'label' => 'Format NPWP tidak valid.',
+                    'current_value' => $rawNpwp,
+                ];
+            }
+
+            $ptkpStatus = strtoupper(trim((string) ($taxProfile->ptkp_status ?: $taxProfile->tax_status ?: $derivedPtkpStatus ?: '')));
+            $ptkpValid = $ptkpStatus !== '' && in_array($ptkpStatus, $allowedPtkpStatuses, true);
+            if (! $ptkpValid) {
+                $missingPtkpStatus++;
+                $issues[] = [
+                    'code' => 'ptkp_status_missing',
+                    'label' => 'Status PTKP belum valid.',
+                    'current_value' => $ptkpStatus,
+                ];
+            }
+
+            if ($npwpFormatValid && $ptkpValid) {
+                $completeProfiles++;
+            } else {
+                $nonCompliantEmployees[] = [
+                    'user_id' => (int) $userId,
+                    'user_uuid' => $user?->uuid,
+                    'full_name' => $user?->name ?? 'Unknown Employee',
+                    'email' => $user?->email,
+                    'issues' => $issues,
+                ];
+            }
+        }
+
+        $completionRate = $activeEmployeeCount > 0
+            ? round(($completeProfiles / $activeEmployeeCount) * 100, 2)
+            : 0;
+
+        return [
+            'active_employees' => $activeEmployeeCount,
+            'profiles_available' => $profilesAvailable,
+            'complete_profiles' => $completeProfiles,
+            'missing_npwp' => $missingNpwp,
+            'invalid_npwp_format' => $invalidNpwpFormat,
+            'missing_ptkp_status' => $missingPtkpStatus,
+            'completion_rate' => $completionRate,
+            'non_compliant_employees' => array_slice($nonCompliantEmployees, 0, 100),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedPtkpStatuses(): array
+    {
+        $statuses = (array) config('hcm.tax_statuses', ['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']);
+        return array_values(array_unique(array_map(fn ($item): string => strtoupper(trim((string) $item)), $statuses)));
+    }
+
+    private function inferTaxStatusFromMaritalStatus(?string $maritalStatus): ?string
+    {
+        $normalized = strtolower(trim((string) $maritalStatus));
+
+        return match ($normalized) {
+            'married' => 'K0',
+            'single', 'divorced', 'widowed' => 'TK0',
+            default => null,
+        };
+    }
+
+    private function normalizeNpwp(string $value): string
+    {
+        return preg_replace('/[^0-9]/', '', trim($value)) ?? '';
+    }
+
+    private function isValidNpwpFormat(string $normalizedNpwp): bool
+    {
+        return preg_match('/^[0-9]{15,16}$/', $normalizedNpwp) === 1;
     }
 
     private function validateUpsertRequest(Request $request, bool $isCreate): array
@@ -956,27 +1385,15 @@ class HcmTaxGovernanceController extends Controller
             return null;
         }
 
-        $usedNumericLegacy = ctype_digit($policyRef);
+        $usedNumericLegacy = false;
 
-        if ($usedNumericLegacy) {
-            Log::notice('tax_governance.numeric_policy_reference_used', [
-                'user_id' => (int) ($request->user()?->id ?? 0) ?: null,
-                'company_id' => (int) $companyId,
-                'method' => $request->method(),
-                'path' => $request->path(),
-                'policy_reference' => $policyRef,
-                'sunset_at' => self::NUMERIC_POLICY_ID_SUNSET_AT,
-            ]);
+        if (! Str::isUuid($policyRef)) {
+            return null;
         }
 
         $query = HcmTaxGovernancePolicy::query()
-            ->where('company_id', $companyId);
-
-        if ($usedNumericLegacy) {
-            $query->where('id', (int) $policyRef);
-        } else {
-            $query->where('uuid', $policyRef);
-        }
+            ->where('company_id', $companyId)
+            ->where('uuid', $policyRef);
 
         return $query->first();
     }
@@ -1018,6 +1435,49 @@ class HcmTaxGovernanceController extends Controller
         }
 
         return $payload;
+    }
+
+    private function transitionPolicyStatus(
+        HcmTaxGovernancePolicy $policy,
+        string $nextStatus,
+        string $eventType,
+        ?int $actorId,
+        ?string $note = null,
+        array $extraAttributes = [],
+    ): HcmTaxGovernancePolicy {
+        $before = $this->policyStateSnapshot($policy);
+        $previousStatus = $policy->status;
+
+        DB::transaction(function () use ($policy, $nextStatus, $eventType, $actorId, $note, $extraAttributes, $before): void {
+            $policy->fill(array_merge([
+                'status' => $nextStatus,
+                'version' => (int) $policy->version + 1,
+                'last_note' => $note,
+            ], $extraAttributes));
+            $policy->save();
+
+            $this->recordEvent($policy, $eventType, $before, $this->policyStateSnapshot($policy), $note, $actorId);
+        });
+
+        $policy->refresh();
+
+        TaxGovernancePolicyTransitioned::dispatch($policy, $previousStatus, $policy->status, (int) ($actorId ?? 0));
+
+        return $policy;
+    }
+
+    private function breakGlassPayload(HcmTaxGovernanceBreakGlassRequest $record): array
+    {
+        return [
+            'requestUuid' => $record->uuid,
+            'targetTenantUuid' => $record->target_company_uuid,
+            'status' => $record->status,
+            'requestedByUserUuid' => $record->requested_by_user_uuid,
+            'approvedByUserUuid' => $record->approved_by_user_uuid,
+            'expiresAt' => optional($record->expires_at)?->toIso8601String(),
+            'createdAt' => optional($record->created_at)?->toIso8601String(),
+            'updatedAt' => optional($record->updated_at)?->toIso8601String(),
+        ];
     }
 
     /**

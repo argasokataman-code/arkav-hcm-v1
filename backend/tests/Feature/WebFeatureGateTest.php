@@ -136,7 +136,7 @@ class WebFeatureGateTest extends TestCase
     {
         $tenant = $this->makeAdminTenant('NoPayroll', ['employee_management']);
 
-        foreach (['/payroll', '/payroll-run', '/employee-salary'] as $path) {
+        foreach (['/salary-component-master', '/payroll-run', '/employee-salary'] as $path) {
             $this->actingAs($tenant['user'])
                 ->withHeader('X-Company-Code', $tenant['company']->code)
                 ->get($path)

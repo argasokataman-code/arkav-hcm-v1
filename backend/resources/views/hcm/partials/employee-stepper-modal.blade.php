@@ -87,7 +87,7 @@
                     <div class="alert alert-light border d-flex align-items-start justify-content-between flex-wrap gap-2 mb-4">
                         <div>
                             <strong class="d-block">Employee ID</strong>
-                            <span class="text-muted small" data-employee-modal-employee-no>{{ $isEdit ? 'Load employee data…' : 'Auto-generated after save' }}</span>
+                            <span class="text-muted small" data-employee-modal-employee-no>{{ $isEdit ? 'Load employee data…' : 'ID akan tersedia setelah save' }}</span>
                         </div>
                         <span class="badge bg-soft-primary text-primary" data-employee-step-caption>Step 1 of 5</span>
                     </div>
@@ -243,18 +243,6 @@
                             <div class="col-md-4">
                                 <label class="form-label">Base Salary (IDR) <span class="text-danger">*</span></label>
                                 <input type="number" min="0" step="1" class="form-control" {{ $fieldAttr }}="baseSalary" placeholder="0" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Fixed Allowance (IDR)</label>
-                                <input type="number" min="0" step="0.01" class="form-control" {{ $fieldAttr }}="fixedAllowance" placeholder="0">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Salary Type <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="salaryType" required>
-                                    <option value="monthly" selected>Monthly</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="hourly">Hourly</option>
-                                </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Contract Type <span class="text-danger">*</span></label>

@@ -34,7 +34,7 @@ class SettingsApiTest extends TestCase
         return $token;
     }
 
-    public function test_can_save_and_load_prefix_settings(): void
+    public function test_prefix_group_is_rejected_after_feature_removal(): void
     {
         $token = $this->bearerToken();
 
@@ -46,18 +46,15 @@ class SettingsApiTest extends TestCase
                 'employee' => 'EMPX-',
                 'invoice' => 'INVX-',
             ],
-        ])->assertOk()->assertJsonPath('success', true);
+        ])->assertStatus(422);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->getJson('/v1/hcm/settings?group=prefix')
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.prefix_employee', 'EMPX-')
-            ->assertJsonPath('data.prefix_invoice', 'INVX-');
+            ->assertStatus(422);
 
-        $this->assertSame('EMPX-', Setting::get('prefix_employee'));
-        $this->assertSame('INVX-', Setting::get('prefix_invoice'));
+        $this->assertNull(Setting::get('prefix_employee'));
+        $this->assertNull(Setting::get('prefix_invoice'));
     }
 
     public function test_can_upload_business_branding_file(): void
@@ -83,27 +80,6 @@ class SettingsApiTest extends TestCase
     public function test_settings_index_returns_centralized_full_payloads(): void
     {
         $token = $this->bearerToken();
-
-        $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->getJson('/v1/hcm/settings?group=prefix')
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonStructure([
-                'data' => [
-                    'prefix_employee',
-                    'prefix_clients',
-                    'prefix_invoice',
-                    'prefix_tickets',
-                    'prefix_candidate',
-                    'prefix_job',
-                    'prefix_referral',
-                    'prefix_contract',
-                    'prefix_department',
-                    'prefix_leave',
-                    'prefix_assets',
-                ],
-            ]);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,

@@ -19,10 +19,6 @@
                         <input type="number" class="form-control" data-hcm-field="baseSalary" min="0" step="0.01" max="999999999999.99" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tunjangan tetap (Rp)</label>
-                        <input type="number" class="form-control" data-hcm-field="fixedAllowance" min="0" step="0.01" max="999999999999.99" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Jenis kontrak</label>
                         <input type="hidden" data-hcm-field="contractType" value="permanent">
                         <div class="form-control bg-light text-muted d-flex align-items-center" data-hcm-field="contractType-display" style="cursor:default;">—</div>
@@ -68,7 +64,7 @@
                             </table>
                         </div>
                     </div>
-                    <p class="text-muted small mb-0 mt-3">Halaman ini hanya untuk update gaji pokok dan tunjangan tetap. Flow kompensasi PKWT diproses dari menu Contract Compensation.</p>
+                    <p class="text-muted small mb-0 mt-3">Halaman ini hanya untuk update gaji pokok. Flow kompensasi PKWT diproses dari menu Contract Compensation.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-white border me-2" data-bs-dismiss="modal">Batal</button>

@@ -290,19 +290,13 @@ final class PkwtCompensationService
             throw new \InvalidArgumentException('PKWT_COMPENSATION_EMPTY');
         }
 
-        $component = HcmSalaryComponent::query()
-            ->where('code', 'kompensasi_pkwt')
-            ->where('is_active', true)
-            ->where(function (Builder $query) use ($companyId): void {
-                if ($companyId !== null) {
-                    $query->where('company_id', $companyId)->orWhereNull('company_id');
-
-                    return;
-                }
-
-                $query->whereNull('company_id');
-            })
-            ->first();
+        $component = $companyId !== null
+            ? HcmSalaryComponent::ensurePkwtCompensationComponent($companyId)
+            : HcmSalaryComponent::query()
+                ->where('code', HcmSalaryComponent::CODE_PKWT_COMPENSATION)
+                ->where('is_active', true)
+                ->whereNull('company_id')
+                ->first();
 
         if ($component === null) {
             throw new \InvalidArgumentException('PKWT_COMPENSATION_COMPONENT_MISSING');

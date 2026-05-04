@@ -3,6 +3,45 @@
     $taxGovernanceScreen = $taxGovernanceScreen ?? 'landing';
     $taxGovernancePolicyUuid = $taxGovernancePolicyUuid ?? null;
     $isGlobalHcmAdmin = auth()->user()?->isGlobalHcmAdmin() ?? false;
+    $taxStatusOptions = $taxStatusOptions ?? collect((array) config('hcm.tax_statuses', ['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']))
+        ->map(fn ($status) => strtoupper(trim((string) $status)))
+        ->filter(fn (string $status) => $status !== '')
+        ->merge(['TK', 'K'])
+        ->unique()
+        ->values()
+        ->all();
+
+    $taxStatusLabel = function (string $status): string {
+        return match ($status) {
+            'TK0' => 'TK/0 (Tidak Kawin, 0 tanggungan)',
+            'TK1' => 'TK/1 (Tidak Kawin, 1 tanggungan)',
+            'TK2' => 'TK/2 (Tidak Kawin, 2 tanggungan)',
+            'TK3' => 'TK/3 (Tidak Kawin, 3 tanggungan)',
+            'K0' => 'K/0 (Kawin, 0 tanggungan)',
+            'K1' => 'K/1 (Kawin, 1 tanggungan)',
+            'K2' => 'K/2 (Kawin, 2 tanggungan)',
+            'K3' => 'K/3 (Kawin, 3 tanggungan)',
+            'TK' => 'TK (Tidak Kawin)',
+            'K' => 'K (Kawin)',
+            default => $status,
+        };
+    };
+
+    $taxStatusDescription = function (string $status): string {
+        return match ($status) {
+            'TK0' => 'Tidak kawin dengan PTKP dasar tanpa tanggungan.',
+            'TK1' => 'Tidak kawin dengan tambahan PTKP untuk 1 tanggungan.',
+            'TK2' => 'Tidak kawin dengan tambahan PTKP untuk 2 tanggungan.',
+            'TK3' => 'Tidak kawin dengan tambahan PTKP untuk 3 tanggungan.',
+            'K0' => 'Kawin dengan PTKP dasar pasangan tanpa tanggungan.',
+            'K1' => 'Kawin dengan tambahan PTKP untuk 1 tanggungan.',
+            'K2' => 'Kawin dengan tambahan PTKP untuk 2 tanggungan.',
+            'K3' => 'Kawin dengan tambahan PTKP untuk 3 tanggungan.',
+            'TK' => 'Tidak kawin; gunakan jika detail tanggungan belum tersedia.',
+            'K' => 'Kawin; gunakan jika detail tanggungan belum tersedia.',
+            default => 'Kategori PTKP/PPh21 untuk menentukan pengurangan pajak tahunan.',
+        };
+    };
 
 @endphp
 @extends('layout.mainlayout')
@@ -11,14 +50,14 @@
     <div class="content">
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Employee Tax & Payroll Compliance</h2>
+                <h2 class="mb-1">PPh 21 Governance</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
                             <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                         </li>
                         <li class="breadcrumb-item">HR / Payroll</li>
-                        <li class="breadcrumb-item active" aria-current="page">Employee Tax & Compliance</li>
+                        <li class="breadcrumb-item active" aria-current="page">PPh 21 Governance</li>
                     </ol>
                 </nav>
             </div>
@@ -56,10 +95,10 @@
             <i class="ti ti-info-circle mt-1"></i>
             <div>
                 <div class="fw-semibold">
-                    Tenant Employee Tax Setup
+                    Tenant PPh 21 Setup
                 </div>
                 <div class="small">
-                    Manage the active company's PPh 21 policy, employee tax profiles, component mapping, and compliance evidence in one tenant-focused workspace.
+                    Manage the active company's PPh 21 policy, employee tax profiles, and compliance evidence in one tenant-focused workspace.
                 </div>
             </div>
         </div>
@@ -110,42 +149,20 @@
 
         @if ($taxGovernanceScreen === 'landing')
             <div class="row g-3 mb-3" data-tax-governance-summary>
-                <div class="col-md-6 col-xl-3">
+                <div class="col-12">
                     <div class="card h-100">
                         <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Status Kepatuhan PPh 21</div>
-                            <div class="d-flex align-items-center justify-content-between">
-                                <h4 class="mb-0" data-tax-overall-status>-</h4>
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div>
+                                    <div class="text-muted fs-13 mb-1">Skor Kepatuhan PPh 21</div>
+                                    <h2 class="mb-0" data-tax-compliance-score>0%</h2>
+                                </div>
                                 <span class="badge bg-secondary-subtle text-secondary" data-tax-overall-badge>Unknown</span>
                             </div>
-                            <div class="small text-muted mt-2" data-tax-next-review>Next review: -</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Kebijakan PPh 21 Aktif</div>
-                            <h4 class="mb-1" data-tax-policy-version>-</h4>
-                            <div class="small text-muted" data-tax-policy-publication>-</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Anomali Belum Selesai</div>
-                            <h4 class="mb-1" data-tax-anomaly-count>0</h4>
-                            <div class="small text-muted" data-tax-anomaly-hint>No active anomaly</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="text-muted fs-13 mb-1">Karyawan Terdaftar</div>
-                            <h4 class="mb-1" data-tax-employee-count>0</h4>
-                            <div class="small text-muted" data-tax-employee-hint>Dengan profil pajak</div>
+                            <div class="small text-muted mt-2" data-tax-compliance-summary>Belum ada evaluasi compliance.</div>
+                            <div class="progress mt-3" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuemin="0" aria-valuemax="100" data-tax-compliance-score-bar></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -185,6 +202,27 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Detail Ketidakpatuhan Karyawan (PPh 21)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-sm mb-0" role="grid" aria-label="Detail Ketidakpatuhan Karyawan PPh21">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th scope="col" style="font-size: 11px;">Karyawan</th>
+                                    <th scope="col" style="font-size: 11px;">Issue</th>
+                                </tr>
+                            </thead>
+                            <tbody data-tax-non-compliant-employee-body>
+                                <tr><td colspan="2" class="text-center text-muted py-3" style="font-size: 12px;">Memuat detail ketidakpatuhan...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -398,7 +436,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-secondary mb-3" data-tax-editor-meta>
-                        Referensi kebijakan: <strong data-tax-editor-policy-ref>{{ $taxGovernancePolicyUuid ?? 'draft-baru' }}</strong>
+                        Referensi kebijakan: <strong data-tax-editor-policy-ref>{{ $taxGovernancePolicyUuid ? 'tersimpan' : 'draft-baru' }}</strong>
                     </div>
 
                     <div class="alert alert-info mb-3">
@@ -432,6 +470,9 @@
                     <div class="alert alert-info mt-3 d-none" data-tax-policy-validation-preview></div>
 
                     <div class="d-flex gap-2 flex-wrap mt-3" data-tax-policy-workflow-actions>
+                        <button type="button" class="btn btn-outline-primary d-none" data-tax-policy-workflow-btn="submit">Submit</button>
+                        <button type="button" class="btn btn-outline-success d-none" data-tax-policy-workflow-btn="approve">Approve</button>
+                        <button type="button" class="btn btn-outline-danger d-none" data-tax-policy-workflow-btn="reject">Reject</button>
                         <button type="button" class="btn btn-success d-none" data-tax-policy-workflow-btn="publish">Publikasikan</button>
                     </div>
                 </div>
@@ -506,13 +547,14 @@
                                     <th scope="col">Email</th>
                                     <th scope="col">NPWP</th>
                                     <th scope="col">Status PTKP</th>
+                                    <th scope="col">Nominal PTKP</th>
                                     <th scope="col">Status Pajak</th>
                                     <th scope="col">Kelengkapan</th>
                                     <th scope="col">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody data-emp-tax-tbody>
-                                <tr><td colspan="7" class="text-center text-muted py-4" aria-live="polite">Belum ada profil pajak karyawan untuk ditampilkan.</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted py-4" aria-live="polite">Belum ada profil pajak karyawan untuk ditampilkan.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -550,18 +592,24 @@
                                     <div id="npwp-hint" class="form-text">Format 15 atau 16 digit. Kosongkan jika belum tersedia.</div>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label" for="emp-tax-edit-tax-status">Status PTKP / Pajak</label>
+                                    <label class="form-label d-flex align-items-center gap-1" for="emp-tax-edit-tax-status">
+                                        <span>Status PTKP / Pajak</span>
+                                        <button type="button"
+                                                class="btn btn-link p-0 border-0 text-muted"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-placement="top"
+                                                title="Pilih status sesuai kondisi kawin dan jumlah tanggungan. Penjelasan singkat akan tampil di bawah field.">
+                                            <i class="ti ti-info-circle" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Bantuan status PTKP</span>
+                                        </button>
+                                    </label>
                                     <select class="form-select" id="emp-tax-edit-tax-status" name="taxStatus" data-emp-tax-edit-tax-status>
                                         <option value="">— Pilih Status —</option>
-                                        <option value="TK0">TK/0 (Tidak Kawin, 0 tanggungan)</option>
-                                        <option value="TK1">TK/1 (Tidak Kawin, 1 tanggungan)</option>
-                                        <option value="TK2">TK/2 (Tidak Kawin, 2 tanggungan)</option>
-                                        <option value="TK3">TK/3 (Tidak Kawin, 3 tanggungan)</option>
-                                        <option value="K0">K/0 (Kawin, 0 tanggungan)</option>
-                                        <option value="K1">K/1 (Kawin, 1 tanggungan)</option>
-                                        <option value="K2">K/2 (Kawin, 2 tanggungan)</option>
-                                        <option value="K3">K/3 (Kawin, 3 tanggungan)</option>
+                                        @foreach ($taxStatusOptions as $statusOption)
+                                            <option value="{{ $statusOption }}" data-description="{{ $taxStatusDescription($statusOption) }}">{{ $taxStatusLabel($statusOption) }}</option>
+                                        @endforeach
                                     </select>
+                                    <div class="form-text" data-emp-tax-status-hint aria-live="polite">Pilih status untuk melihat arti singkatnya.</div>
                                 </div>
                                 <div class="alert alert-danger d-none" data-emp-tax-edit-error role="alert" aria-live="assertive"></div>
                             </div>

@@ -1,42 +1,96 @@
-# Payroll Salary Components Tracker
+# Registri Komponen Gaji — Tracker
 
-## Snapshot 2026-04-27
+## Snapshot 2026-05-04 — Cross-Module Employee Integration Matrix
 
-- Status: salary component dan category master sekarang sudah murni CRUD; lock delete legacy/hardcoded dihapus dari runtime.
+- **Status:** Delivered — tab audit employee-level sekarang memeriksa integrasi lintas domain (PPh21, BPJS, Allowance, Payroll assignment), bukan allowance-only.
 
-### Evidence Runtime
+### Perubahan Utama
 
-- `HcmSalaryComponent::categoriesForKind()` sekarang membaca master kategori dinamis apa adanya saat tabel `hcm_salary_component_categories` tersedia, tanpa merge paksa daftar default.
-- `DELETE /v1/hcm/salary-components/{id}` sekarang mengizinkan hapus semua komponen, termasuk seed/system dan komponen dengan integrasi legacy.
-- `DELETE /v1/hcm/salary-component-categories/{id}` sekarang menghapus kategori beserta seluruh komponen di kategori itu agar tidak menyisakan referensi kategori yatim.
-- UI `salary-component-master-data.js` sekarang menampilkan aksi hapus untuk semua row kategori/komponen, dengan konfirmasi eksplisit untuk delete kategori yang bersifat cascading.
+1. Endpoint `GET /v1/hcm/salary-components/employee-profiles` menambahkan `integrationSummary.checks[]` untuk modul `pph21`, `bpjs`, `allowance`, `payroll`.
+2. Endpoint menambahkan `integrationSummary.gaps[]` untuk alasan gap yang actionable (`pph21Profile`, `bpjsMembership`, `allowanceAssignment`, dst).
+3. `assignmentSummary` kini menyertakan `sourceModuleCounts` agar asal assignment aktif dapat diaudit langsung per karyawan.
+4. UI tab **Profil Integrasi Karyawan** menampilkan badge kesiapan per modul + daftar gap integrasi per baris employee.
 
-### Evidence Test
+### Evidence
+
+- Controller: `backend/app/Http/Controllers/Api/HcmSalaryComponentController.php` (method `employeeProfiles`).
+- UI renderer: `frontend/resources/js/salary-component-master-data.js`.
+- Tabel tab profile: `backend/resources/views/finance/salary-component-master.blade.php`.
+- Kontrak API sinkron: `docs/api/hcm-salary-components-api.md` + `docs/api/openapi.yaml`.
+
+## Snapshot 2026-05-04 — Employee Integration Profile Tab
+
+- **Status:** Delivered — tab audit employee-level integration sudah aktif di `/salary-component-master`.
+
+### Perubahan Utama
+
+1. API baru `GET /v1/hcm/salary-components/employee-profiles` untuk snapshot integrasi employee.
+2. UI tab baru **Profil Integrasi Karyawan** pada halaman Salary Component.
+3. Ringkasan status integrasi (`ready/partial/missing`) ditampilkan langsung di header tab.
+4. Baris employee menampilkan `identityGaps` + summary assignment allowance governance.
+
+### Evidence
+
+- Route baru ditambahkan di `backend/routes/api/salary-component.php`.
+- Controller `HcmSalaryComponentController::employeeProfiles()` mengembalikan `data.rows` + `meta.statusSummary`.
+- JS `salary-component-master-data.js` me-render tab baru dan tabel profil integrasi.
+
+## Snapshot 2026-05-01 — Governance-Driven Refactor
+
+- **Status:** Refactor in progress — migrating from fully-mutable CRUD to governance-driven registry
+- **Arsitektur target:** System-locked components auto-registered from governance modules; tenant-custom components remain editable
+
+### Perubahan Utama Refactor Ini
+
+1. **Kolom baru `source_module`** di `hcm_salary_components` — menandai origin setiap komponen
+2. **Server-side lock** — `update()` dan `destroy()` mengembalikan `403` untuk komponen `is_system_locked=1`
+3. **`HcmSalaryComponent::ensureComponent()`** — static helper yang dipanggil governance modules saat aktivasi policy
+4. **Auto-register** di 5 governance controllers: BPJS, Allowance, PPh21, Overtime, THR/PKWT
+5. **UI refactor** — badge source_module, tombol edit/hapus disembunyikan untuk locked, nama halaman diperbarui
+6. **Pembersihan hardcoded runtime** — integrasi registry tidak lagi bergantung pada daftar kode komponen statis; allowance governance tidak lagi auto-seed baseline policy statis saat dibuka
+
+### Evidence DB (snapshot sebelum refactor)
+
+- `hcm_salary_components`: 61 rows — 24 system_locked, 37 tenant
+- `hcm_salary_component_categories`: 27 rows — semua system
+- Breakdown source governance berdasarkan code pattern:
+  - `bpjs`: 8 komponen (`iuran_bpjs_*`, `premi_jk*`)
+  - `allowance`: 9 komponen (`tunjangan_*`, `uang_makan_*`)
+  - `pph21`: 2 komponen (`pph21_*`)
+  - `overtime`: 1 komponen (`upah_lembur`)
+  - `thr`: 1 komponen (`thr`)
+  - `pkwt`: 1 komponen (`kompensasi_pkwt`)
+  - `system`: 2 komponen (`upah_pokok`, `bonus`)
+  - tenant-custom: 37 komponen (`reimbursement_*`, `potongan_*`, dll)
+
+### Anomali Ditemukan
+
+| # | Anomali | Severity | Fix |
+|---|---|---|---|
+| 1 | `source_module` belum ada | MEDIUM | Migrasi tambah kolom + backfill |
+| 2 | `is_system_locked` tidak enforce di server | HIGH | Block di controller |
+| 3 | 1 payroll item dengan `hcm_salary_component_id IS NULL` | LOW | Test data, tidak breaking |
+
+### Evidence Test Target
 
 - `php artisan test tests/Feature/HcmSalaryComponentApiTest.php`
-- Suite ini sekarang mencakup delete komponen integrated/system dan delete kategori dengan efek cascade ke komponennya.
+- `php artisan test tests/Feature/HcmEmployeeAllowanceGovernanceApiTest.php`
+- Test tambah: assert 403 pada update/destroy komponen system_locked
+- Test tambah: assert policy allowance dibuat eksplisit tanpa runtime seed default
 
-## Snapshot Status
+## Snapshot 2026-04-27 (pre-refactor baseline)
 
-- Tanggal: 2026-04-20
-- Status: ready for deployment
-- Ringkasan: source of truth master komponen payroll sudah siap dipakai runtime; komponen inti, linking, dan batas compliance policy vs implementasi teknis sekarang sudah jelas.
-
-## Evidence Terbaru
-
-- README feature sudah menegaskan `/salary-component-master` tetap menjadi halaman CRUD master aktif.
-- Halaman `/salary-component-master` kini menampilkan lifecycle note bahwa koreksi komponen payroll reguler harus memakai void + recalculation selama run belum paid.
-- Evidence backend API tersedia di `backend/tests/Feature/HcmSalaryComponentApiTest.php`.
-- Guard web admin master component surface ikut ter-cover di `backend/tests/Feature/WebHcmRouteGuardTest.php`.
-- README feature sekarang memuat decision matrix komponen yang wajib dimasterkan vs yang boleh tetap sebagai payroll item kustom.
-- Compliance boundary kini ditulis eksplisit: sign-off kebijakan payroll berbeda dari readiness runtime master component.
+- Status: salary component dan category master sekarang sudah murni CRUD; lock delete legacy/hardcoded dihapus dari runtime.
+- `HcmSalaryComponent::categoriesForKind()` membaca master kategori dinamis apa adanya saat tabel tersedia.
+- `DELETE /v1/hcm/salary-components/{id}` mengizinkan hapus semua komponen termasuk seed/system.
+- UI menampilkan aksi hapus untuk semua row.
 
 ## Gap Aktif
 
-1. Matriks kepatuhan internal yang lebih detail masih bisa ditambahkan bila owner bisnis memerlukannya sebagai artefak governance terpisah.
-2. Decision matrix harus tetap dijaga sinkron jika daftar komponen inti payroll bertambah.
-
-## Keputusan Saat Ini
+1. `source_module` enum belum terdefinisi di schema — **target refactor ini**
+2. Governance modules (BPJS, Allowance, PPh21) belum memanggil `ensureComponent()` — **target refactor ini**
+3. UI tidak membedakan locked vs unlocked components secara visual — **target refactor ini**
+4. Matriks kepatuhan internal (sign-off klien) masih perlu dilengkapi oleh owner bisnis — out of scope teknis
 
 - Anggap audit teknis integrasi utama, pemisahan surface, dan readiness deploy master component sudah tertutup.
 - Perlakukan sisa pekerjaan sebagai governance/policy maintenance, bukan blocker deploy atau regression CRUD/API inti.

@@ -171,7 +171,7 @@ class HcmPayrollItemApiTest extends TestCase
         $this->assertSame('Bonus proyek API (ubah)', $row->name);
         $this->assertSame('catatan', $row->notes);
 
-        $comp = HcmSalaryComponent::query()->where('code', 'upah_pokok')->firstOrFail();
+        $comp = HcmSalaryComponent::query()->where('code', 'tunjangan_tetap_transport')->firstOrFail();
         $existingLink = HcmPayrollItem::query()->where('hcm_salary_component_id', $comp->id)->first();
         $this->assertNotNull($existingLink);
 

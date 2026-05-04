@@ -9,6 +9,14 @@ export function bindQuickPreviewModule(deps) {
     var escapeHtml = deps.escapeHtml;
     var formatRupiah = deps.formatRupiah;
 
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return "-";
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
     var panelEl = document.getElementById("employee_quick_preview");
     var contentEl = document.querySelector("[data-employee-quick-preview-content]");
     var openLinkEl = document.querySelector("[data-employee-quick-open-link]");
@@ -36,7 +44,7 @@ export function bindQuickPreviewModule(deps) {
             '<div class="mb-2"><h5 class="mb-1">' + escapeHtml(item.fullName || "-") + '</h5>' +
             '<span class="badge badge-soft-dark">' + escapeHtml(item.designation || "Employee") + '</span></div>' +
             '<div class="border rounded p-2 mb-2">' +
-            '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Employee ID</span><strong>' + escapeHtml(item.employeeNo || "-") + "</strong></div>" +
+            '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Employee ID</span><strong>' + escapeHtml(formatEmployeeCode(item.id)) + "</strong></div>" +
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Department</span><strong>' + escapeHtml(item.departmentName || "-") + "</strong></div>" +
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Status</span><strong>' + escapeHtml(item.employmentStatus || "-") + "</strong></div>" +
             '<div class="d-flex justify-content-between mb-1"><span class="text-muted">Join Date</span><strong>' + escapeHtml(item.joinDate || "-") + "</strong></div>" +

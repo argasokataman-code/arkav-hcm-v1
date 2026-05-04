@@ -578,6 +578,14 @@ function loadBindSalaryBulkUploadModule() {
             .replace(/'/g, "&#39;");
     }
 
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return "-";
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
     function formatApiError(data, status) {
         if (window.ApiErrorHelper && typeof window.ApiErrorHelper.format === "function") {
             return window.ApiErrorHelper.format(data, status);
@@ -710,7 +718,7 @@ function loadBindSalaryBulkUploadModule() {
             return (
                 '<tr data-employees-row-preview="' + escapeHtml(row.id) + '" data-employee-id="' + escapeHtml(row.id) + '" data-employee-profile-id="' + escapeHtml(employeeProfileId) + '" data-employee-team-id="' + escapeHtml(row.teamId != null ? String(row.teamId) : "") + '" class="cursor-pointer">' +
                 '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox" data-employees-select data-employee-profile-id="' + escapeHtml(employeeProfileId) + '"' + checked + '></div></td>' +
-                '<td><a href="' + buildEmployeeDetailUrl(row.id) + '" data-employee-detail-link data-employee-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.employeeNo) + "</a></td>" +
+                '<td><a href="' + buildEmployeeDetailUrl(row.id) + '" data-employee-detail-link data-employee-id="' + escapeHtml(row.id) + '">' + escapeHtml(formatEmployeeCode(row.id)) + "</a></td>" +
                 "<td>" + nameCell + "</td>" +
                 "<td>" + escapeHtml(row.email) + "</td>" +
                 "<td>" + escapeHtml(teamLabel) + teamBadge + "</td>" +
@@ -983,7 +991,7 @@ function loadBindSalaryBulkUploadModule() {
                 '<h6 class="mb-1 mt-3"><a href="' + buildEmployeeDetailUrl(row.id) + '" data-employee-detail-link data-employee-id="' + escapeHtml(row.id) + '">' + escapeHtml(row.fullName) + "</a></h6>" +
                 '<span class="badge badge-purple-transparent fs-10 fw-medium">' + escapeHtml(row.designation || "Employee") + "</span>" +
                 "</div>" +
-                '<p class="mb-1 text-center"><strong>ID:</strong> ' + escapeHtml(row.employeeNo) + "</p>" +
+                '<p class="mb-1 text-center"><strong>ID:</strong> ' + escapeHtml(formatEmployeeCode(row.id)) + "</p>" +
                 '<p class="mb-1 text-center"><strong>Dept:</strong> ' + escapeHtml(row.departmentName || "—") + "</p>" +
                 '<p class="mb-1 text-center"><strong>Email:</strong> ' + escapeHtml(row.email) + "</p>" +
                 '<p class="mb-0 text-center"><strong>Status:</strong> ' + escapeHtml(st) + "</p>" +
@@ -1428,7 +1436,7 @@ function loadBindSalaryBulkUploadModule() {
                 return (
                     "<tr>" +
                     "<td>" +
-                    escapeHtml(row.employeeNo || "") +
+                    escapeHtml(formatEmployeeCode(row.id)) +
                     "</td><td>" +
                     escapeHtml(row.fullName || "") +
                     "</td><td>" +
@@ -1525,7 +1533,7 @@ function loadBindSalaryBulkUploadModule() {
         return Object.keys(byStatus).map(function (status) {
             var item = byStatus[status] || {};
             return {
-                employeeNo: "#" + String(snapshot.id || "-"),
+                uuid: "archive-snapshot-" + String(snapshot.id || "-"),
                 fullName: "Status: " + String(item.status || status),
                 email: "Employees: " + String(item.count || 0),
                 team: "Share: " + String(item.percentage != null ? item.percentage : 0) + "%",

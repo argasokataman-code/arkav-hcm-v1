@@ -32,13 +32,14 @@ Query:
   - user non-global-admin tetap selalu scope tenant aktif (parameter ini diabaikan).
 
 Success `200`:
-- `data[]`: `{ id, uuid, employeeNo(EMP-0001), fullName, email, phone, team, teamId, teamName, teamIsActive, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth }`
+- `data[]`: `{ id, uuid, fullName, email, phone, team, teamId, teamName, teamIsActive, departmentId, departmentName, designationId, designationName, designation, employeeType, baseSalary, fixedAllowance, employmentStatus, hireDate, joinDate, contractType, contractStartDate, contractEndDate, pkwtDueThisMonth, estimatedPkwtCompensationThisMonth, npwp, taxStatus, ptkpStatus, ptkpAnnualNominal }`
 - `team`: label backward-compatible untuk UI lama.
 - `teamId` + `teamName`: field canonical untuk UI list/report baru.
 - `teamIsActive`: `true/false/null` untuk indikator UX assignment team inactive.
 - `uuid` disertakan sebagai identifier user stabil untuk modul yang mengirim payload UUID ke endpoint lain, termasuk Termination.
 - `designation` = label tampilan (prioritas nama master `designation_id` jika ada).
 - `employeeType`, gaji, pajak, assignment, dan kontrak di-resolve dari tabel riwayat relasional (`employee_employment_history`, `employee_assignments`, `employee_compensations`, `employee_contracts`, `employee_tax_profiles`) dengan fallback legacy agar backward-compatible.
+- `ptkpAnnualNominal` = nominal PTKP tahunan berdasarkan `ptkpStatus` ter-normalisasi (`TK/K` otomatis dipetakan ke `TK0/K0`); bernilai `null` jika status pajak tidak valid/kosong.
 - `contractType` distandardkan ke `pkwt|pkwtt` (alias legacy `permanent` masih diterima pada input lama, tetapi disimpan/ditampilkan sebagai `pkwtt`).
 - `hireDate` = tanggal bergabung di profil (nullable ISO). `joinDate` = `startDate` / `hireDate` jika ada, jika tidak → tanggal `created_at` user.
 - `phone` kosong → `"—"`; `departmentName` kosong → `"—"`.
@@ -95,7 +96,7 @@ Success `201`:
 ```json
 {
   "success": true,
-  "data": { "id": 10, "employeeNo": "EMP-0010", "fullName": "Budi", "email": "budi@company.com" }
+  "data": { "id": 10, "uuid": "9ad3476b-9d62-4a4d-8c48-7f44322edc7f", "fullName": "Budi", "email": "budi@company.com" }
 }
 ```
 
@@ -212,10 +213,10 @@ Error `422`:
 - `BULK_UPLOAD_VALIDATION_FAILED` — file bulk dibatalkan secara **all-or-nothing** jika ada **satu saja** baris tidak valid; tidak ada perubahan yang disimpan.
 
 Catatan:
-- parsing menerima `employee_no` (`EMP-0001`) atau `email` untuk match existing
+- parsing menerima `employee_uuid` atau `email` untuk match existing
 - create baru butuh `name,email,password,confirm_password`
-- validasi enum sekarang ketat untuk `employment_status`, `salary_type`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
-- kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `salary_type`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
+- validasi enum sekarang ketat untuk `employment_status`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
+- kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
 - `department_id`, `designation_id` (integer, harus ada di master); `designation` teks tetap didukung; kombinasi id divalidasi seperti API POST
 - Jika `team_id` dikirim, importer memverifikasi team tenant aktif dan status team harus `active`.
 - Jika hanya `team` (nama) dikirim, importer akan resolve ke master team tenant aktif bila nama match; jika match ke team inactive maka baris ditolak.

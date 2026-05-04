@@ -87,6 +87,18 @@
       });
   }
 
+  function formatCompanyReference(company) {
+    const companyCode = company && company.code ? String(company.code).trim() : "";
+    if (companyCode) {
+      return companyCode;
+    }
+    const companyId = Number(company && company.id);
+    if (Number.isFinite(companyId) && companyId > 0) {
+      return "CMP-" + String(Math.trunc(companyId));
+    }
+    return "-";
+  }
+
   // Helper: escape HTML
   function esc(v) {
     return String(v || "")
@@ -385,7 +397,7 @@
             <td>
               <div class="d-flex flex-column">
                 <h6 class="fw-medium mb-1">${esc(company.name)}</h6>
-                <span class="text-muted fs-12">ID: ${esc(company.uuid || "-")}</span>
+                <span class="text-muted fs-12">ID: ${esc(formatCompanyReference(company))}</span>
               </div>
             </td>
             <td>

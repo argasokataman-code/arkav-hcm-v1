@@ -17,6 +17,7 @@
     }
     function apiGet(path, params) { return apiRequest('GET', path, params); }
     function apiPatch(path, payload) { return apiRequest('PATCH', path, payload); }
+    function apiPut(path, payload) { return apiRequest('PUT', path, payload); }
 
     /* ------------------------------------------------------------------ */
     /* State                                                               */
@@ -51,42 +52,59 @@
         var tbody = q('[data-emp-tax-tbody]');
         if (!tbody) { return; }
         if (!employees || employees.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada data karyawan.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Tidak ada data karyawan.</td></tr>';
             return;
         }
         var html = '';
         employees.forEach(function (emp) {
+            var employeeName = emp.name || emp.full_name || emp.fullName || emp.employee_name || '-';
             var npwp = emp.npwp || '';
             var taxStatus = emp.tax_status || emp.taxStatus || '';
             var ptkpStatus = emp.ptkp_status || emp.ptkpStatus || taxStatus;
+            var ptkpAnnualNominal = emp.ptkp_annual_nominal;
+            if (ptkpAnnualNominal === null || ptkpAnnualNominal === undefined) {
+                ptkpAnnualNominal = emp.ptkpAnnualNominal;
+            }
             var npwpDisplay = npwp
                 ? '<code>' + escHtml(npwp) + '</code>'
                 : '<span class="text-muted small">Kosong</span>';
             var ptkpDisplay = ptkpStatus
                 ? '<span class="badge bg-info-subtle text-info">' + escHtml(ptkpStatus) + '</span>'
                 : '<span class="text-muted small">-</span>';
+            var ptkpNominalDisplay = (ptkpAnnualNominal === null || ptkpAnnualNominal === undefined || Number.isNaN(Number(ptkpAnnualNominal)))
+                ? '<span class="text-muted small">-</span>'
+                : '<span class="fw-semibold">' + escHtml(formatRupiah(Number(ptkpAnnualNominal))) + '</span>';
             var taxStatusDisplay = taxStatus
                 ? '<span class="badge bg-secondary-subtle text-secondary">' + escHtml(taxStatus) + '</span>'
                 : '<span class="text-muted small">-</span>';
             html += '<tr>'
-                + '<td>' + escHtml(emp.name || emp.full_name || '-') + '</td>'
+                + '<td>' + escHtml(employeeName) + '</td>'
                 + '<td class="text-muted small">' + escHtml(emp.email || '-') + '</td>'
                 + '<td>' + npwpDisplay + '</td>'
                 + '<td>' + ptkpDisplay + '</td>'
+                + '<td>' + ptkpNominalDisplay + '</td>'
                 + '<td>' + taxStatusDisplay + '</td>'
                 + '<td>' + completenessBadge(npwp, taxStatus) + '</td>'
                 + '<td><button type="button" class="btn btn-sm btn-outline-primary" '
                 +   'data-emp-edit-btn '
                 +   'data-emp-id="' + escAttr(String(emp.id || emp.uuid || '')) + '" '
-                +   'data-emp-name="' + escAttr(emp.name || emp.full_name || '') + '" '
+                +   'data-emp-name="' + escAttr(employeeName === '-' ? '' : employeeName) + '" '
                 +   'data-emp-npwp="' + escAttr(npwp) + '" '
                 +   'data-emp-taxstatus="' + escAttr(taxStatus) + '" '
-                +   'aria-label="Edit profil pajak ' + escAttr(emp.name || '') + '">'
+                +   'aria-label="Edit profil pajak ' + escAttr(employeeName === '-' ? '' : employeeName) + '">'
                 +   '<i class="ti ti-edit" aria-hidden="true"></i>'
                 + '</button></td>'
                 + '</tr>';
         });
         tbody.innerHTML = html;
+    }
+
+    function formatRupiah(value) {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            maximumFractionDigits: 0,
+        }).format(value);
     }
 
     function updateKpis(employees, total) {
@@ -128,7 +146,7 @@
     function loadEmployees() {
         var tbody = q('[data-emp-tax-tbody]');
         if (!tbody) { return; }
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">'
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">'
             + '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Memuat...</td></tr>';
 
         var searchEl  = q('[data-emp-tax-search]');
@@ -157,7 +175,7 @@
                 updatePagination();
             })
             .catch(function (err) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">'
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">'
                     + 'Gagal memuat data: ' + escHtml(String(err && err.message ? err.message : err)) + '</td></tr>';
             });
     }
@@ -175,12 +193,14 @@
         var nameInput = q('[data-emp-tax-edit-name]');
         var npwpInput = q('[data-emp-tax-edit-npwp]');
         var taxStatusSel = q('[data-emp-tax-edit-tax-status]');
+        var statusHint = q('[data-emp-tax-status-hint]');
         var errBox = q('[data-emp-tax-edit-error]');
 
         if (idInput) { idInput.value = empId; }
         if (nameInput) { nameInput.value = name; }
         if (npwpInput) { npwpInput.value = npwp; }
         if (taxStatusSel) { taxStatusSel.value = taxStatus; }
+        updateTaxStatusHint(taxStatusSel, statusHint);
         if (errBox) { errBox.classList.add('d-none'); errBox.textContent = ''; }
 
         var modal = document.getElementById('empTaxEditModal');
@@ -188,6 +208,18 @@
             var bsModal = window.bootstrap.Modal.getOrCreateInstance(modal);
             bsModal.show();
         }
+    }
+
+    function updateTaxStatusHint(selectEl, hintEl) {
+        if (!hintEl) { return; }
+        if (!selectEl || !selectEl.value) {
+            hintEl.textContent = 'Pilih status untuk melihat arti singkatnya.';
+            return;
+        }
+
+        var selectedOption = selectEl.options[selectEl.selectedIndex] || null;
+        var description = selectedOption ? (selectedOption.getAttribute('data-description') || '') : '';
+        hintEl.textContent = description || 'Kategori PTKP/PPh21 untuk menentukan pengurangan pajak tahunan.';
     }
 
     function handleEditSubmit(e) {
@@ -213,7 +245,7 @@
         if (spinner) { spinner.classList.remove('d-none'); }
         if (submitBtn) { submitBtn.disabled = true; }
 
-        apiPatch('/hcm/employees/' + empId, payload)
+        apiPut('/hcm/employees/' + empId, payload)
             .then(function () {
                 var modal = document.getElementById('empTaxEditModal');
                 if (modal && window.bootstrap && window.bootstrap.Modal) {
@@ -322,6 +354,15 @@
         var editForm = q('[data-emp-tax-edit-form]');
         if (editForm) {
             editForm.addEventListener('submit', handleEditSubmit);
+        }
+
+        var taxStatusSel = q('[data-emp-tax-edit-tax-status]');
+        var statusHint = q('[data-emp-tax-status-hint]');
+        if (taxStatusSel) {
+            taxStatusSel.addEventListener('change', function () {
+                updateTaxStatusHint(taxStatusSel, statusHint);
+            });
+            updateTaxStatusHint(taxStatusSel, statusHint);
         }
     }
 

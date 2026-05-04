@@ -104,6 +104,21 @@ function loadPricingPlansScreenModuleLoader() {
         }
     }
 
+    function formatPolicyReference(data) {
+        if (!data) {
+            return "draft-baru";
+        }
+        var policyCode = data.policyCode != null ? String(data.policyCode).trim() : "";
+        if (policyCode) {
+            return policyCode;
+        }
+        var policyId = Number(data.id);
+        if (Number.isFinite(policyId) && policyId > 0) {
+            return "TAXPOL-" + String(Math.trunc(policyId));
+        }
+        return "tersimpan";
+    }
+
     function escapeHtml(value) {
         return String(value == null ? "" : value)
             .replace(/&/g, "&amp;")
@@ -315,7 +330,7 @@ function loadPricingPlansScreenModuleLoader() {
         form.effectiveStartDate.value = data.effectiveStartDate || "";
         form.effectiveEndDate.value = data.effectiveEndDate || "";
 
-        setText(qs("[data-tax-editor-policy-ref]", root), data.uuid || "draft-baru");
+        setText(qs("[data-tax-editor-policy-ref]", root), formatPolicyReference(data));
         setText(qs("[data-tax-editor-mode]", root), toTitleCase(data.status || "draft"));
     }
 
@@ -470,6 +485,17 @@ function loadPricingPlansScreenModuleLoader() {
         var status = compliance && compliance.compliance_status ? compliance.compliance_status : {};
         var overallRaw = String(status.overall_status || "unknown");
         var badge = qs("[data-tax-overall-badge]", root);
+        var statutory = status.statutory_tax_compliance || {};
+        var billing = status.billing_tax_compliance || {};
+        var employee = status.employee_pph21_compliance || {};
+
+        // Score mirrors BPJS overview style: one normalized compliance score out of 100.
+        var policyScore = statutory.has_active_policy ? 25 : 0;
+        var anomalyScore = Number(statutory.anomalies_unresolved || 0) === 0 ? 25 : 0;
+        var billingScore = String(billing.payment_status || "").toLowerCase() === "current" ? 25 : 0;
+        var completionRate = Math.max(0, Math.min(100, Number(employee.completion_rate || 0)));
+        var employeeScore = completionRate * 0.25;
+        var complianceScore = Math.round(policyScore + anomalyScore + billingScore + employeeScore);
 
         setText(qs("[data-tax-overall-status]", root), toTitleCase(overallRaw));
         setText(badge, overallRaw === "compliant" ? "Patuh" : "Perlu Tindak Lanjut");
@@ -479,11 +505,25 @@ function loadPricingPlansScreenModuleLoader() {
                 : "badge bg-warning-subtle text-warning";
         }
 
+        setText(qs("[data-tax-compliance-score]", root), String(complianceScore) + "%");
+        setText(
+            qs("[data-tax-compliance-summary]", root),
+            "Review berikutnya: " + formatDateOnly(status.next_review_date)
+                + " | Kebijakan: " + (statutory.has_active_policy ? "Aktif" : "Belum aktif")
+                + " | Profil lengkap: " + Math.round(completionRate) + "%"
+        );
+        var scoreBar = qs("[data-tax-compliance-score-bar]", root);
+        if (scoreBar) {
+            scoreBar.style.width = String(complianceScore) + "%";
+            scoreBar.setAttribute("aria-valuenow", String(complianceScore));
+            scoreBar.className = complianceScore >= 80
+                ? "progress-bar bg-success"
+                : (complianceScore >= 60 ? "progress-bar bg-warning" : "progress-bar bg-danger");
+        }
+
         setText(qs("[data-tax-next-review]", root), "Review berikutnya: " + formatDateOnly(status.next_review_date));
         setText(qs("[data-tax-reporting-period]", root), String(compliance && compliance.reporting_period ? compliance.reporting_period : "-"));
 
-        var statutory = status.statutory_tax_compliance || {};
-        var billing = status.billing_tax_compliance || {};
         setText(qs("[data-tax-policy-version]", root), statutory.policy_version ? "v" + statutory.policy_version : "Belum ada kebijakan aktif");
         setText(qs("[data-tax-policy-publication]", root), statutory.last_publication_date ? "Dipublikasikan: " + formatDateOnly(statutory.last_publication_date) : "Belum ada riwayat publikasi");
         setText(qs("[data-tax-anomaly-count]", root), Number(statutory.anomalies_unresolved || 0));
@@ -505,6 +545,36 @@ function loadPricingPlansScreenModuleLoader() {
         list.innerHTML = actions.map(function (action) {
             return "<li class=\"list-group-item d-flex justify-content-between\"><span>" + escapeHtml(action.action || "Aksi") + "</span><span class=\"badge bg-warning-subtle text-warning\">" + escapeHtml(String(action.priority || "medium").toUpperCase()) + "</span></li>";
         }).join("");
+    }
+
+    function renderNonCompliantEmployees(root, compliance) {
+        var tbody = qs("[data-tax-non-compliant-employee-body]", root);
+        if (!tbody) {
+            return;
+        }
+
+        var status = compliance && compliance.compliance_status ? compliance.compliance_status : {};
+        var employee = status.employee_pph21_compliance || {};
+        var rows = Array.isArray(employee.non_compliant_employees) ? employee.non_compliant_employees : [];
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-success py-3">Semua profil karyawan sudah patuh.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.slice(0, 25).map(function (row) {
+            var issues = Array.isArray(row.issues) ? row.issues.map(function (issue) {
+                var label = issue && issue.label ? issue.label : '-';
+                var currentValue = issue && issue.current_value ? ' (' + issue.current_value + ')' : '';
+                return '<div class="small text-danger">• ' + escapeHtml(label + currentValue) + '</div>';
+            }).join('') : '<div class="small text-danger">• Data belum lengkap</div>';
+
+            return '<tr>'
+                + '<td><div class="fw-semibold">' + escapeHtml(row.full_name || '-') + '</div>'
+                + '<div class="small text-muted">' + escapeHtml(row.email || '-') + '</div></td>'
+                + '<td>' + issues + '</td>'
+                + '</tr>';
+        }).join('');
     }
 
     function extractEmployeeTotal(responsePayload) {
@@ -803,7 +873,7 @@ function loadPricingPlansScreenModuleLoader() {
         form.effectiveStartDate.value = data.effectiveStartDate || "";
         form.effectiveEndDate.value = data.effectiveEndDate || "";
 
-        setText(qs("[data-tax-editor-policy-ref]", root), data.uuid || "draft-baru");
+        setText(qs("[data-tax-editor-policy-ref]", root), formatPolicyReference(data));
         setText(qs("[data-tax-editor-mode]", root), toTitleCase(data.status || "draft"));
 
         // Show publish button for all editable statuses (hide only for superseded/void)
@@ -811,7 +881,16 @@ function loadPricingPlansScreenModuleLoader() {
         var workflowArea = qs("[data-tax-policy-workflow-actions]", root);
         if (workflowArea) {
             Array.prototype.slice.call(workflowArea.querySelectorAll("[data-tax-policy-workflow-btn]")).forEach(function (btn) {
-                btn.classList.toggle("d-none", wfStatus === "superseded" || wfStatus === "void");
+                var action = btn.getAttribute("data-tax-policy-workflow-btn") || "";
+                var visible = false;
+                if (wfStatus === "draft") {
+                    visible = action === "submit" || action === "publish";
+                } else if (wfStatus === "submitted") {
+                    visible = action === "approve" || action === "reject" || action === "publish";
+                } else if (wfStatus === "approved") {
+                    visible = action === "reject" || action === "publish";
+                }
+                btn.classList.toggle("d-none", !visible);
                 btn.disabled = false;
             });
         }
@@ -913,11 +992,12 @@ function loadPricingPlansScreenModuleLoader() {
     }
 
     function bindPolicyCreateButton(root) {
-        var createBtn = qs("[data-tax-policy-create]", root);
-        if (!createBtn) {
+        var createButtons = Array.prototype.slice.call(root.querySelectorAll("[data-tax-policy-create]"));
+        if (!createButtons.length) {
             return;
         }
-        createBtn.addEventListener("click", function () {
+        createButtons.forEach(function (createBtn) {
+            createBtn.addEventListener("click", function () {
             clearError(root);
             var payload = {
                 policyCode: "PPH21-STAT-" + String(Date.now()).slice(-6),
@@ -955,6 +1035,7 @@ function loadPricingPlansScreenModuleLoader() {
                     var parsed = parseApiError(error, "Gagal membuat draft kebijakan.");
                     showError(root, parsed.message);
                 });
+            });
         });
     }
 
@@ -1807,6 +1888,7 @@ function loadPricingPlansScreenModuleLoader() {
             if ((activeScreen === "landing" || activeScreen === "tenant-reports" || activeScreen === "global-governance") && complianceResponse.success) {
                 renderOverallStatus(root, complianceResponse.data || {});
                 renderRecommendedActions(root, complianceResponse.data || {});
+                renderNonCompliantEmployees(root, complianceResponse.data || {});
                 renderAnomalyTable(root, auditResponse.data || {});
                 renderEventTable(root, auditResponse.data || {});
                 renderTenantAuditReportTable(root, auditResponse.data || {});

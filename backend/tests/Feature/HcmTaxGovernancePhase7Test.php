@@ -2,9 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
+use App\Models\EmployeeTaxProfile;
 use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\Invoice;
 use App\Models\PlatformRevenueTransaction;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -175,5 +179,74 @@ class HcmTaxGovernancePhase7Test extends TestCase
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.uncleared_revenue_amount', 0)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.disputed_revenue_amount', 120000)
             ->assertJsonPath('data.compliance_status.billing_tax_compliance.reversed_revenue_amount', 80000);
+    }
+
+    public function test_tenant_compliance_status_includes_employee_pph21_profile_quality_snapshot(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-phase7-employee-profile-quality@example.com']);
+
+        $employeeComplete = User::factory()->create(['email' => 'tax-employee-complete@example.com']);
+        CompanyUser::query()->create([
+            'company_id' => $admin['company_id'],
+            'user_id' => $employeeComplete->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        $profileComplete = EmployeeProfile::query()->create([
+            'user_id' => $employeeComplete->id,
+            'company_id' => $admin['company_id'],
+            'employment_status' => 'active',
+            'contract_type' => 'permanent',
+        ]);
+        EmployeeTaxProfile::query()->create([
+            'employee_id' => $profileComplete->id,
+            'npwp' => '123456789012345',
+            'tax_status' => 'TK0',
+            'ptkp_status' => 'TK0',
+            'effective_date' => now()->toDateString(),
+        ]);
+
+        $employeeInvalid = User::factory()->create(['email' => 'tax-employee-invalid@example.com']);
+        CompanyUser::query()->create([
+            'company_id' => $admin['company_id'],
+            'user_id' => $employeeInvalid->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        $profileInvalid = EmployeeProfile::query()->create([
+            'user_id' => $employeeInvalid->id,
+            'company_id' => $admin['company_id'],
+            'employment_status' => 'active',
+            'contract_type' => 'permanent',
+        ]);
+        EmployeeTaxProfile::query()->create([
+            'employee_id' => $profileInvalid->id,
+            'npwp' => 'INVALID-NPWP',
+            'tax_status' => 'UNKNOWN',
+            'ptkp_status' => 'UNKNOWN',
+            'effective_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->withHeaders($this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $admin['token'],
+        ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.compliance_status.employee_pph21_compliance.active_employees', 3)
+            ->assertJsonPath('data.compliance_status.employee_pph21_compliance.complete_profiles', 1)
+            ->assertJsonPath('data.compliance_status.employee_pph21_compliance.invalid_npwp_format', 1)
+            ->assertJsonPath('data.compliance_status.employee_pph21_compliance.missing_npwp', 1)
+            ->assertJsonPath('data.compliance_status.employee_pph21_compliance.missing_ptkp_status', 2)
+            ->assertJsonPath('data.compliance_status.overall_status', 'attention_required');
+
+        $nonCompliantEmployees = collect($response->json('data.compliance_status.employee_pph21_compliance.non_compliant_employees'));
+        $this->assertTrue($nonCompliantEmployees->isNotEmpty());
+        $invalidEmployee = $nonCompliantEmployees->first(function ($row) {
+            return str_contains((string) ($row['email'] ?? ''), 'tax-employee-invalid@example.com');
+        });
+        $this->assertNotNull($invalidEmployee);
+        $issueCodes = collect($invalidEmployee['issues'] ?? [])->pluck('code')->all();
+        $this->assertContains('npwp_invalid_format', $issueCodes);
     }
 }

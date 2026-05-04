@@ -34,7 +34,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 ## Lifecycle Dan Keputusan Bisnis
 
 - Active period: layar operasional utama selalu menempel ke periode payroll aktif.
-- Draft: setiap karyawan `active` atau `probation` minimal mendapatkan baris upah pokok, walau nilainya bisa 0; tunjangan tetap hanya dibentuk jika nominalnya lebih dari 0.
+- Draft: setiap karyawan dengan membership tenant aktif non-owner dan status kerja `active` atau `probation` minimal mendapatkan baris upah pokok, walau nilainya bisa 0; tunjangan tetap hanya dibentuk jika nominalnya lebih dari 0.
 - Finalize: ditolak dengan `PAYROLL_RUN_EMPTY` jika run tidak memiliki baris eligible.
 - Posted: setelah finalize berhasil, periode induk berubah menjadi `posted`.
 - Void: hanya boleh untuk run `finalized` yang belum memiliki line `paid`; bila tidak ada finalized run lain di periode yang sama maka periode dibuka kembali agar draft bisa dihitung ulang.

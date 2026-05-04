@@ -269,7 +269,7 @@
                                             <input class="form-check-input" type="checkbox" data-employees-select-all>
                                         </div>
                                     </th>
-                                    <th>Emp ID</th>
+                                    <th>ID</th>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Team</th>
@@ -374,7 +374,7 @@
                 <form data-employee-bulk-upload-form>
                     <div class="modal-body">
                         <p class="text-muted mb-3">
-                            Gunakan template Excel resmi untuk update/create data employee secara massal berdasarkan `employee_no` atau `email`.
+                            Gunakan template Excel resmi untuk update/create data employee secara massal berdasarkan identifier employee (kolom teknis: employee_uuid) atau email.
                         </p>
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <a href="{{ url('/v1/hcm/employees/bulk-template') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer">
@@ -388,7 +388,7 @@
                             <small class="text-muted d-block mt-1">Format didukung: `.xlsx`, `.xls`, `.csv`.</small>
                         </div>
                         <div class="alert alert-light border mb-3">
-                            <strong>Kolom penting:</strong> `employee_no`, `name`, `email`, `department_id`, `designation_id`, `team_id`, `employment_status`, `salary_type`, `contract_type`, `contract_status`, `probation_end_date`, `tax_status`, dll.<br>
+                            <strong>Kolom penting:</strong> employee_uuid, name, email, department_id, designation_id, team_id, employment_status, contract_type, contract_status, probation_end_date, tax_status, dll.<br>
                             Untuk create baru wajib `name`, `email`, `password`, `confirm_password`. Jika ada 1 baris invalid, seluruh import dibatalkan agar data tetap konsisten.
                         </div>
                         <div class="alert d-none mb-0" data-employee-bulk-upload-results></div>

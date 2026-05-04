@@ -1,36 +1,6 @@
 (function (window, document) {
     "use strict";
 
-    var CATEGORY_LABELS = {
-        basic_wage: "Upah pokok",
-        fixed_allowance: "Tunjangan tetap",
-        common_allowance: "Tunjangan umum",
-        family_allowance: "Tunjangan keluarga",
-        irregular_allowance: "Tunjangan tidak tetap / insentif",
-        overtime: "Upah lembur",
-        thr: "THR",
-        bonus: "Bonus (luar THR)",
-        natura_taxable: "Natura kena pajak",
-        natura_non_taxable: "Natura tidak kena pajak",
-        special_allowance: "Tunjangan khusus / insidentil",
-        reimbursement: "Reimbursement",
-        termination_benefit: "Kompensasi terminasi",
-        employer_cost_display: "Beban perusahaan (info slip)",
-        other_addition: "Pendapatan lain",
-        bpjs_health_employee: "BPJS Kesehatan (pekerja)",
-        bpjs_jht_employee: "JHT (pekerja)",
-        bpjs_jp_employee: "JP / pensiun (pekerja)",
-        pension_employee: "Iuran pensiun pekerja",
-        pph21_ter: "PPh 21 — TER bulanan",
-        pph21_december_recon: "PPh 21 — rekonsiliasi",
-        other_statutory: "Potongan wajib lain",
-        internal_advance: "Kasbon / uang muka",
-        internal_loan: "Pinjaman internal",
-        internal_cooperative: "Koperasi / internal",
-        internal_other: "Potongan internal lain",
-        other_deduction: "Potongan lain",
-    };
-
     var PERCENT_BASIS_LABELS = {
         basic_wage: "Upah pokok",
         wage_bpjs_health: "Dasar BPJS Kes",
@@ -39,81 +9,14 @@
         thr_calculation_base: "Basis THR",
     };
 
-    var ADDITION_CATS = [
-        "basic_wage",
-        "fixed_allowance",
-        "irregular_allowance",
-        "overtime",
-        "thr",
-        "bonus",
-        "natura_taxable",
-        "natura_non_taxable",
-        "special_allowance",
-        "reimbursement",
-        "termination_benefit",
-        "employer_cost_display",
-        "other_addition",
-    ];
-
-    var DEDUCTION_CATS = [
-        "bpjs_health_employee",
-        "bpjs_jht_employee",
-        "bpjs_jp_employee",
-        "pension_employee",
-        "pph21_ter",
-        "pph21_december_recon",
-        "other_statutory",
-        "internal_advance",
-        "internal_loan",
-        "internal_cooperative",
-        "internal_other",
-        "other_deduction",
-    ];
-
     var rowCache = {};
     var categoryRows = [];
-    var categoryLabelByCode = Object.assign({}, CATEGORY_LABELS);
+    var categoryLabelByCode = {};
     var selectedCategoryTabKey = "all";
+    var selectedViewTabKey = "components";
     var componentRows = [];
-
-    var CATEGORY_UI_GROUPS = {
-        basic_wage: "earning_routine",
-        fixed_allowance: "earning_routine",
-        common_allowance: "earning_routine",
-        family_allowance: "earning_routine",
-        irregular_allowance: "earning_non_routine",
-        overtime: "earning_non_routine",
-        thr: "earning_non_routine",
-        bonus: "earning_non_routine",
-        natura_taxable: "benefit",
-        natura_non_taxable: "benefit",
-        special_allowance: "benefit",
-        reimbursement: "benefit",
-        termination_benefit: "benefit",
-        employer_cost_display: "benefit",
-        other_addition: "earning_non_routine",
-        bpjs_health_employee: "statutory_deduction",
-        bpjs_jht_employee: "statutory_deduction",
-        bpjs_jp_employee: "statutory_deduction",
-        pension_employee: "statutory_deduction",
-        pph21_ter: "statutory_deduction",
-        pph21_december_recon: "statutory_deduction",
-        other_statutory: "statutory_deduction",
-        internal_advance: "internal_deduction",
-        internal_loan: "internal_deduction",
-        internal_cooperative: "internal_deduction",
-        internal_other: "internal_deduction",
-        other_deduction: "internal_deduction",
-    };
-
-    var UI_GROUP_LABELS = {
-        earning_routine: "Penghasilan Rutin",
-        earning_non_routine: "Penghasilan Tidak Rutin",
-        benefit: "Benefit & Reimbursement",
-        statutory_deduction: "Potongan Wajib (PPh21/BPJS)",
-        internal_deduction: "Potongan Internal",
-        other: "Lainnya",
-    };
+    var employeeProfileRows = [];
+    var complianceSeverityRank = { high: 1, medium: 2, low: 3 };
 
     function onAuthFailure(status, data) {
         if (window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === "function") {
@@ -199,7 +102,7 @@
         if (!selectEl) {
             return;
         }
-        var dynamic = categoryRows
+        var list = categoryRows
             .filter(function (c) {
                 return c && c.kind === kind && c.isActive !== false;
             })
@@ -211,20 +114,25 @@
                 }
                 return String(a.name || "").localeCompare(String(b.name || ""));
             })
-            .map(function (c) {
-                return String(c.code || "");
+            .filter(function (c) {
+                return String(c.code || "") !== "";
             })
-            .filter(function (code) {
-                return code !== "";
+            .map(function (c) {
+                return {
+                    code: String(c.code || ""),
+                    name: String(c.name || c.code || ""),
+                };
             });
-        var fallback = kind === "deduction" ? DEDUCTION_CATS : ADDITION_CATS;
-        var list = dynamic.length ? dynamic : fallback;
-        selectEl.innerHTML = list
-            .map(function (c) {
-                return '<option value="' + esc(c) + '">' + esc(categoryLabelByCode[c] || CATEGORY_LABELS[c] || c) + "</option>";
-            })
-            .join("");
-        if (current && list.indexOf(current) >= 0) {
+        if (!list.length) {
+            selectEl.innerHTML = '<option value="">Tidak ada kategori aktif</option>';
+            selectEl.value = "";
+            return;
+        }
+        selectEl.innerHTML = list.map(function (item) {
+            return '<option value="' + esc(item.code) + '">' + esc(item.name) + '</option>';
+        }).join("");
+        var availableCodes = list.map(function (item) { return item.code; });
+        if (current && availableCodes.indexOf(current) >= 0) {
             selectEl.value = current;
         } else {
             selectEl.selectedIndex = 0;
@@ -283,6 +191,24 @@
             return s;
         }
         return s.slice(0, n - 1) + "…";
+    }
+
+    var SOURCE_MODULE_BADGE_MAP = {
+        salary:    { cls: "badge-orange",   label: "Gaji Pokok" },
+        bpjs:      { cls: "badge-info",     label: "BPJS" },
+        allowance: { cls: "badge-success",  label: "Tunjangan" },
+        pph21:     { cls: "badge-warning",  label: "PPh 21" },
+        overtime:  { cls: "badge-primary",  label: "Lembur" },
+        thr:       { cls: "badge-danger",   label: "THR" },
+        pkwt:      { cls: "badge-dark",     label: "PKWT" },
+    };
+    function sourceModuleBadge(row) {
+        var module = row ? row.sourceModule : null;
+        var m = module ? SOURCE_MODULE_BADGE_MAP[module] : null;
+        if (!m) {
+            return "";
+        }
+        return '<span class="badge ' + m.cls + ' badge-xs ms-1" title="Dikelola oleh: ' + m.label + '">' + m.label + '</span>';
     }
 
     /** Tampilan/input: hilangkan trailing zero dari penyimpanan decimal(8,4), e.g. 1.0000 → "1", 12.5 → "12.5" */
@@ -344,7 +270,12 @@
         if (fallbackName) {
             return String(fallbackName);
         }
-        return categoryLabelByCode[code] || CATEGORY_LABELS[code] || code;
+        if (categoryLabelByCode[code]) {
+            return categoryLabelByCode[code];
+        }
+        return String(code || "")
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
     }
 
     function categorySortMap(kind) {
@@ -360,7 +291,7 @@
     }
 
     function hydrateCategoryLabelMap(rows) {
-        categoryLabelByCode = Object.assign({}, CATEGORY_LABELS);
+        categoryLabelByCode = {};
         (rows || []).forEach(function (c) {
             if (c && c.code && c.name) {
                 categoryLabelByCode[String(c.code)] = String(c.name);
@@ -368,93 +299,432 @@
         });
     }
 
-    function groupTabKey(group) {
-        return String(group.kind || "") + "::" + String(group.category || "");
-    }
-
-    function uiGroupKeyForCategory(categoryCode, kind) {
-        var key = CATEGORY_UI_GROUPS[String(categoryCode || "")];
-        if (key) {
-            return key;
+    function severityBadge(severity) {
+        if (severity === "high") {
+            return { cls: "danger", label: "High" };
         }
-        return kind === "deduction" ? "internal_deduction" : "other";
+        if (severity === "medium") {
+            return { cls: "warning", label: "Medium" };
+        }
+        return { cls: "secondary", label: "Low" };
     }
 
-    function uiGroupSortOrder(key) {
-        return {
-            earning_routine: 10,
-            earning_non_routine: 20,
-            benefit: 30,
-            statutory_deduction: 40,
-            internal_deduction: 50,
-            other: 60,
-        }[key] || 999;
+    function findComplianceIssues(rows) {
+        var issues = [];
+        var codeCount = {};
+
+        rows.forEach(function (row) {
+            var code = String(row.code || "").trim().toLowerCase();
+            if (!code) {
+                return;
+            }
+            codeCount[code] = (codeCount[code] || 0) + 1;
+        });
+
+        rows.forEach(function (row) {
+            var code = String(row.code || "").trim().toLowerCase();
+            var hasPercent = row.defaultPercent != null && String(row.defaultPercent) !== "";
+            var hasBasis = !!String(row.percentBasis || "").trim();
+            var legalBasis = String(row.legalBasis || "").trim();
+
+            if (code && codeCount[code] > 1) {
+                issues.push({
+                    severity: "high",
+                    code: row.code || "-",
+                    name: row.name || "Untitled",
+                    detail: "Kode komponen duplikat pada master.",
+                    recommendation: "Gunakan kode unik per komponen untuk mencegah konflik referensi.",
+                });
+            }
+
+            if (hasPercent && !hasBasis) {
+                issues.push({
+                    severity: "high",
+                    code: row.code || "-",
+                    name: row.name || "Untitled",
+                    detail: "Default persen terisi tetapi dasar perhitungan kosong.",
+                    recommendation: "Isi percent basis atau kosongkan persen default.",
+                });
+            }
+
+            if (!hasPercent && hasBasis) {
+                issues.push({
+                    severity: "medium",
+                    code: row.code || "-",
+                    name: row.name || "Untitled",
+                    detail: "Dasar perhitungan persen terisi tanpa nilai persen.",
+                    recommendation: "Kosongkan percent basis bila komponen bersifat nominal.",
+                });
+            }
+
+            if (row.isSystemLocked && !row.isActive) {
+                issues.push({
+                    severity: "high",
+                    code: row.code || "-",
+                    name: row.name || "Untitled",
+                    detail: "Komponen governance terkunci berstatus nonaktif.",
+                    recommendation: "Aktifkan kembali dari modul governance asal agar kalkulasi tidak drift.",
+                });
+            }
+
+            if (row.integrationLocked && !row.sourceModule) {
+                issues.push({
+                    severity: "medium",
+                    code: row.code || "-",
+                    name: row.name || "Untitled",
+                    detail: "Komponen terkunci integrasi tanpa informasi source module.",
+                    recommendation: "Sinkronkan metadata source module pada registry governance.",
+                });
+            }
+        });
+
+        issues.sort(function (a, b) {
+            var aRank = complianceSeverityRank[a.severity] || 99;
+            var bRank = complianceSeverityRank[b.severity] || 99;
+            if (aRank !== bRank) {
+                return aRank - bRank;
+            }
+            return String(a.code || "").localeCompare(String(b.code || ""));
+        });
+
+        return issues;
     }
 
-    function renderCategoryTabs(groups, totalRows) {
+    function renderCompliance(rows) {
+        var summaryHost = document.querySelector("[data-hcm-salary-compliance-summary]");
+        var bodyHost = document.querySelector("[data-hcm-salary-compliance-body]");
+        if (!summaryHost || !bodyHost) {
+            return;
+        }
+
+        var dataRows = Array.isArray(rows) ? rows : [];
+        var issues = findComplianceIssues(dataRows);
+        var high = issues.filter(function (item) { return item.severity === "high"; }).length;
+        var medium = issues.filter(function (item) { return item.severity === "medium"; }).length;
+        var low = issues.filter(function (item) { return item.severity === "low"; }).length;
+        var weighted = (high * 3) + (medium * 2) + (low * 1);
+        var denominator = Math.max(dataRows.length * 3, 1);
+        var score = Math.max(0, 100 - Math.round((weighted / denominator) * 100));
+
+        summaryHost.innerHTML = [
+            '<div class="col-md-3"><div class="border rounded p-3 h-100 bg-light" style="min-height:132px;"><div class="text-muted small">Compliance Score</div><div class="fw-bold" style="display:block !important;font-size:36px !important;line-height:1.05 !important;letter-spacing:-0.02em !important;font-variant-numeric:tabular-nums !important;color:#111827 !important;">' + esc(String(score)) + '%</div><div class="small text-muted">Snapshot konfigurasi saat ini</div></div></div>',
+            '<div class="col-md-3"><div class="border rounded p-3 h-100" style="min-height:132px;"><div class="text-muted small">High Severity</div><div class="fw-bold" style="display:block !important;font-size:36px !important;line-height:1.05 !important;letter-spacing:-0.02em !important;font-variant-numeric:tabular-nums !important;color:#dc2626 !important;">' + esc(String(high)) + '</div><div class="small text-muted">Perlu tindakan prioritas</div></div></div>',
+            '<div class="col-md-3"><div class="border rounded p-3 h-100" style="min-height:132px;"><div class="text-muted small">Medium Severity</div><div class="fw-bold" style="display:block !important;font-size:36px !important;line-height:1.05 !important;letter-spacing:-0.02em !important;font-variant-numeric:tabular-nums !important;color:#d97706 !important;">' + esc(String(medium)) + '</div><div class="small text-muted">Perlu dirapikan</div></div></div>',
+            '<div class="col-md-3"><div class="border rounded p-3 h-100" style="min-height:132px;"><div class="text-muted small">Komponen Dipantau</div><div class="fw-bold" style="display:block !important;font-size:36px !important;line-height:1.05 !important;letter-spacing:-0.02em !important;font-variant-numeric:tabular-nums !important;color:#111827 !important;">' + esc(String(dataRows.length)) + '</div><div class="small text-muted">Total salary component</div></div></div>'
+        ].join("");
+
+        if (!issues.length) {
+            bodyHost.innerHTML = '<tr><td colspan="4" class="text-center text-success py-3">Tidak ada anomali compliance terdeteksi.</td></tr>';
+            return;
+        }
+
+        bodyHost.innerHTML = issues.slice(0, 12).map(function (issue) {
+            var badge = severityBadge(issue.severity);
+            return '<tr>' +
+                '<td><span class="badge badge-' + esc(badge.cls) + '">' + esc(badge.label) + '</span></td>' +
+                '<td><div class="fw-medium">' + esc(issue.name) + '</div><div class="text-muted small"><code>' + esc(issue.code) + '</code></div></td>' +
+                '<td class="small">' + esc(issue.detail) + '</td>' +
+                '<td class="small text-muted">' + esc(issue.recommendation) + '</td>' +
+                '</tr>';
+        }).join("");
+    }
+
+    function renderCategoryTabs(rows) {
         var host = document.querySelector("[data-hcm-salary-category-tabs]");
         if (!host) {
             return;
         }
 
-        var aggregate = {};
-        (groups || []).forEach(function (g) {
-            var key = uiGroupKeyForCategory(g.category, g.kind);
-            if (!aggregate[key]) {
-                aggregate[key] = { key: key, count: 0 };
-            }
-            aggregate[key].count += (g.rows || []).length;
-        });
-
-        var groupTabs = Object.keys(aggregate)
-            .map(function (key) {
-                return aggregate[key];
-            })
-            .sort(function (a, b) {
-                return uiGroupSortOrder(a.key) - uiGroupSortOrder(b.key);
-            });
-
-        var exists = groupTabs.some(function (g) {
-            return g.key === selectedCategoryTabKey;
-        });
-        if (selectedCategoryTabKey !== "all" && !exists) {
+        var data = Array.isArray(rows) ? rows : [];
+        var counts = {
+            all: data.length,
+            addition: data.filter(function (row) { return row.kind === "addition"; }).length,
+            deduction: data.filter(function (row) { return row.kind === "deduction"; }).length,
+        };
+        if (!["all", "addition", "deduction"].includes(selectedCategoryTabKey)) {
             selectedCategoryTabKey = "all";
         }
 
-        var tabs = [];
-        tabs.push(
-            '<button type="button" class="btn btn-sm ' +
-                (selectedCategoryTabKey === "all" ? "btn-primary" : "btn-outline-primary") +
-                '" data-hcm-tab-category="all" role="tab" aria-selected="' +
-                (selectedCategoryTabKey === "all" ? "true" : "false") +
-                '" tabindex="' +
-                (selectedCategoryTabKey === "all" ? "0" : "-1") +
-                '">Semua kategori (' +
-                esc(String(totalRows || 0)) +
-                ")</button>"
+        var tabs = [
+            { key: "all", label: "Semua" },
+            { key: "addition", label: "Pendapatan" },
+            { key: "deduction", label: "Potongan" },
+        ];
+
+        host.innerHTML = tabs.map(function (tab) {
+            var active = selectedCategoryTabKey === tab.key;
+            return '<button type="button" class="btn btn-sm ' +
+                (active ? "btn-primary" : "btn-outline-primary") +
+                '" data-hcm-tab-category="' + esc(tab.key) + '" role="tab" aria-selected="' +
+                (active ? "true" : "false") + '" tabindex="' + (active ? "0" : "-1") + '">' +
+                esc(tab.label) + ' (' + esc(String(counts[tab.key] || 0)) + ')</button>';
+        }).join("");
+    }
+
+    function integrationStatusBadge(status) {
+        if (status === "ready") {
+            return '<span class="badge badge-success badge-xs">Ready</span>';
+        }
+        if (status === "partial") {
+            return '<span class="badge badge-warning badge-xs">Partial</span>';
+        }
+        return '<span class="badge badge-danger badge-xs">Missing</span>';
+    }
+
+    function integrationGapLabel(gapKey) {
+        var map = {
+            pph21Policy: "Policy PPh21 belum aktif",
+            pph21Profile: "Profil pajak karyawan belum lengkap",
+            bpjsPolicy: "Policy BPJS tenant belum lengkap",
+            bpjsMembership: "Membership BPJS karyawan belum lengkap",
+            allowancePolicy: "Policy allowance belum aktif",
+            allowanceAssignment: "Assignment allowance governance belum ada",
+            payrollAssignment: "Belum ada payroll assignment aktif",
+        };
+        return map[String(gapKey || "")] || String(gapKey || "-");
+    }
+
+    function fmtRupiah(amount) {
+        return "Rp " + Number(amount || 0).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function sourceModuleLabel(mod) {
+        var map = {
+            pph21: "PPh 21",
+            bpjs: "BPJS",
+            allowance: "Allowance",
+            overtime: "Lembur",
+            thr: "THR",
+            pkwt: "PKWT",
+            system: "System",
+            manual: "Manual",
+        };
+        return map[String(mod || "")] || String(mod || "-");
+    }
+
+    function openEmployeeProfileDetail(row) {
+        var modalEl = document.getElementById("arcav_employee_profile_detail");
+        var titleEl = document.getElementById("arcav_employee_profile_detail_title");
+        var bodyEl = document.getElementById("arcav_employee_profile_detail_body");
+        if (!modalEl || !bodyEl) { return; }
+
+        if (titleEl) {
+            titleEl.textContent = (row.fullName || "-") + " — Profil Integrasi";
+        }
+
+        var identityClean = row.hasCleanIdentity === true;
+        var identityGaps = Array.isArray(row.identityGaps) ? row.identityGaps : [];
+        var integrationChecks = Array.isArray(row.integrationSummary && row.integrationSummary.checks) ? row.integrationSummary.checks : [];
+        var integrationGaps = Array.isArray(row.integrationSummary && row.integrationSummary.gaps) ? row.integrationSummary.gaps : [];
+        var componentDetails = Array.isArray(row.componentDetails) ? row.componentDetails : [];
+        var governanceComponents = Array.isArray(row.governanceComponents) ? row.governanceComponents : [];
+        var baseSalary = Number(row.baseSalary || 0);
+        var totalAdditions = Number(row.totalAdditions || 0);
+        var totalDeductions = Number(row.totalDeductions || 0);
+
+        // Compute governance BPJS deductions total for THP display
+        var govDeductions = governanceComponents.filter(function (g) { return g.kind === "deduction" && g.amount !== null && g.amount > 0; });
+        var govDeductionTotal = govDeductions.reduce(function (sum, g) { return sum + Number(g.amount || 0); }, 0);
+        var pph21Pending = governanceComponents.some(function (g) {
+            return g && g.sourceModule === "pph21" && (g.amount === null || g.amount === undefined);
+        });
+        var estimatedTakeHome = baseSalary + totalAdditions - totalDeductions - govDeductionTotal;
+
+        // Identity section
+        var identityHtml = '<div class="mb-3">' +
+            '<h6 class="fw-semibold mb-2 text-primary">Identitas Karyawan</h6>' +
+            '<div class="row g-2 small">' +
+                '<div class="col-sm-6"><span class="text-muted">Nama:</span> ' + esc(row.fullName || "-") + '</div>' +
+                '<div class="col-sm-6"><span class="text-muted">Kode:</span> ' + esc(row.employeeCode || "-") + '</div>' +
+                '<div class="col-sm-6"><span class="text-muted">Email:</span> ' + esc(row.email || "-") + '</div>' +
+                '<div class="col-sm-6"><span class="text-muted">Telepon:</span> ' + esc(row.phone || "-") + '</div>' +
+                '<div class="col-sm-6"><span class="text-muted">Departemen:</span> ' + esc(row.departmentName || "-") + '</div>' +
+                '<div class="col-sm-6"><span class="text-muted">Jabatan:</span> ' + esc(row.designationName || "-") + '</div>' +
+            '</div>' +
+            '<div class="mt-2">' +
+                (identityClean
+                    ? '<span class="badge badge-success badge-xs">Identitas Lengkap</span>'
+                    : '<span class="badge badge-danger badge-xs me-1">Identitas Tidak Lengkap</span><span class="small text-danger">' + esc(identityGaps.join(", ")) + '</span>') +
+            '</div>' +
+        '</div>';
+
+        // Governance checks section
+        var checksHtml = '<div class="mb-3">' +
+            '<h6 class="fw-semibold mb-2 text-primary">Status Integrasi Governance</h6>' +
+            '<div class="d-flex flex-wrap gap-2">' +
+            integrationChecks.map(function (check) {
+                var ready = !!(check && check.ready);
+                var label = check && check.label ? String(check.label) : "Integration";
+                return '<div class="border rounded p-2 text-center" style="min-width:130px">' +
+                    '<div class="small fw-medium">' + esc(label) + '</div>' +
+                    '<div class="mt-1">' +
+                        (ready
+                            ? '<span class="badge badge-success badge-xs">Ready</span>'
+                            : '<span class="badge badge-danger badge-xs">Gap</span>') +
+                    '</div>' +
+                '</div>';
+            }).join("") +
+            '</div>' +
+            (integrationGaps.length
+                ? '<div class="mt-2 small text-danger"><strong>Gap terdeteksi:</strong> ' + esc(integrationGaps.map(integrationGapLabel).join("; ")) + '</div>'
+                : '<div class="mt-2 small text-success">Tidak ada gap governance.</div>') +
+        '</div>';
+
+        // Take Home Pay breakdown (includes governance deductions)
+        var thpHtml = '<div class="mb-3">' +
+            '<h6 class="fw-semibold mb-2 text-primary">Estimasi Take Home Pay</h6>' +
+            '<table class="table table-sm table-borderless mb-1" style="max-width:420px">' +
+                '<tbody>' +
+                    '<tr><td class="text-muted small">Gaji Pokok</td><td class="text-end small fw-medium">' + esc(fmtRupiah(baseSalary)) + '</td></tr>' +
+                    (totalAdditions > 0 ? '<tr><td class="text-muted small text-success">+ Tunjangan/Tambahan</td><td class="text-end small text-success">' + esc(fmtRupiah(totalAdditions)) + '</td></tr>' : '') +
+                    (totalDeductions > 0 ? '<tr><td class="text-muted small text-danger">- Potongan Lainnya</td><td class="text-end small text-danger">' + esc(fmtRupiah(totalDeductions)) + '</td></tr>' : '') +
+                    govDeductions.map(function (g) {
+                        return '<tr><td class="text-muted small text-danger">- ' + esc(g.name) + (g.ratePercent ? ' (' + g.ratePercent + '%)' : '') + '</td><td class="text-end small text-danger">' + esc(fmtRupiah(g.amount)) + '</td></tr>';
+                    }).join("") +
+                    governanceComponents.filter(function (g) { return g.amount === null; }).map(function (g) {
+                        return '<tr><td class="text-muted small text-danger">- ' + esc(g.name) + '</td><td class="text-end small text-muted fst-italic">' + esc(g.note || "Dihitung saat payroll run") + '</td></tr>';
+                    }).join("") +
+                    '<tr class="border-top"><td class="small fw-semibold">Est. Take Home Pay</td><td class="text-end fw-semibold">' + esc(fmtRupiah(estimatedTakeHome)) + '</td></tr>' +
+                '</tbody>' +
+            '</table>' +
+            '<div class="small text-muted fst-italic">' +
+                (pph21Pending
+                    ? '* PPh 21 belum terestimasi karena status PTKP belum lengkap.'
+                    : '* Estimasi sudah memasukkan PPh 21 TER sesuai status PTKP aktif.') +
+            '</div>' +
+        '</div>';
+
+        // Active components table (assignment-based)
+        var compHtml = '<div class="mb-2">' +
+            '<h6 class="fw-semibold mb-2 text-primary">Komponen Aktif</h6>';
+
+        var allCompRows = [].concat(
+            componentDetails.map(function (cd) { return Object.assign({}, cd, { isEstimated: false }); }),
+            governanceComponents
         );
 
-        groupTabs.forEach(function (group) {
-            var key = group.key;
-            var label = UI_GROUP_LABELS[key] || key;
-            tabs.push(
-                '<button type="button" class="btn btn-sm ' +
-                    (selectedCategoryTabKey === key ? "btn-primary" : "btn-outline-primary") +
-                    '" data-hcm-tab-category="' +
-                    esc(key) +
-                    '" role="tab" aria-selected="' +
-                    (selectedCategoryTabKey === key ? "true" : "false") +
-                    '" tabindex="' +
-                    (selectedCategoryTabKey === key ? "0" : "-1") +
-                    '">' +
-                    esc(label) +
-                    " (" +
-                    esc(String(group.count || 0)) +
-                    ")</button>"
-            );
+        if (!allCompRows.length) {
+            compHtml += '<p class="text-muted small">Belum ada komponen aktif yang di-assign.</p>';
+        } else {
+            compHtml += '<div class="table-responsive"><table class="table table-sm small">' +
+                '<thead class="thead-light"><tr>' +
+                    '<th>Komponen</th><th>Kode</th><th>Modul</th><th>Jenis</th><th class="text-end">Nominal</th>' +
+                '</tr></thead><tbody>' +
+                allCompRows.map(function (cd) {
+                    var isAdd = cd.kind === "addition";
+                    var isDed = cd.kind === "deduction";
+                    var nominalCell;
+                    if (cd.amount === null || cd.amount === undefined) {
+                        nominalCell = '<span class="text-muted fst-italic small">' + esc(cd.note || "TER lookup") + '</span>';
+                    } else {
+                        nominalCell = '<span class="' + (isAdd ? 'text-success' : (isDed ? 'text-danger' : '')) + '">' + esc(fmtRupiah(cd.amount)) + '</span>' + (cd.ratePercent ? ' <span class="text-muted small">(' + cd.ratePercent + '%)</span>' : '') + (cd.isEstimated ? ' <span class="badge badge-soft-secondary badge-xs">Est.</span>' : '');
+                    }
+                    return '<tr>' +
+                        '<td>' + esc(cd.name || "-") + '</td>' +
+                        '<td class="text-muted">' + esc(cd.code || "-") + '</td>' +
+                        '<td><span class="badge badge-soft-secondary badge-xs">' + esc(sourceModuleLabel(cd.sourceModule)) + '</span></td>' +
+                        '<td>' + (isAdd ? '<span class="badge badge-success badge-xs">+ Tambahan</span>' : (isDed ? '<span class="badge badge-danger badge-xs">- Potongan</span>' : '<span class="badge badge-secondary badge-xs">' + esc(cd.kind) + '</span>')) + '</td>' +
+                        '<td class="text-end">' + nominalCell + '</td>' +
+                    '</tr>';
+                }).join("") +
+                '</tbody></table></div>';
+        }
+        compHtml += '</div>';
+
+        bodyEl.innerHTML = identityHtml + checksHtml + thpHtml + compHtml;
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            var bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+        }
+    }
+
+    function renderProfileSummary(rows, metaSummary) {
+        var host = document.querySelector("[data-hcm-salary-profile-summary]");
+        if (!host) {
+            return;
+        }
+
+        var data = Array.isArray(rows) ? rows : [];
+        var ready = metaSummary && Number.isFinite(metaSummary.ready)
+            ? Number(metaSummary.ready)
+            : data.filter(function (row) { return row.integrationStatus === "ready"; }).length;
+        var partial = metaSummary && Number.isFinite(metaSummary.partial)
+            ? Number(metaSummary.partial)
+            : data.filter(function (row) { return row.integrationStatus === "partial"; }).length;
+        var missing = metaSummary && Number.isFinite(metaSummary.missing)
+            ? Number(metaSummary.missing)
+            : data.filter(function (row) { return row.integrationStatus === "missing"; }).length;
+
+        host.innerHTML = [
+            '<div class="col-6 col-lg-3"><div class="border rounded p-3 bg-white h-100"><div class="text-muted small">Total karyawan</div><div class="fw-bold fs-2 lh-1 mt-2">' + esc(String(data.length)) + '</div></div></div>',
+            '<div class="col-6 col-lg-3"><div class="border rounded p-3 bg-white h-100"><div class="text-muted small">Ready</div><div class="fw-bold fs-2 lh-1 mt-2 text-success">' + esc(String(ready)) + '</div></div></div>',
+            '<div class="col-6 col-lg-3"><div class="border rounded p-3 bg-white h-100"><div class="text-muted small">Partial</div><div class="fw-bold fs-2 lh-1 mt-2 text-warning">' + esc(String(partial)) + '</div></div></div>',
+            '<div class="col-6 col-lg-3"><div class="border rounded p-3 bg-white h-100"><div class="text-muted small">Missing</div><div class="fw-bold fs-2 lh-1 mt-2 text-danger">' + esc(String(missing)) + '</div></div></div>'
+        ].join("");
+    }
+
+    function renderEmployeeProfiles(rows, metaSummary) {
+        employeeProfileRows = Array.isArray(rows) ? rows.slice() : [];
+        renderProfileSummary(employeeProfileRows, metaSummary);
+
+        var body = document.querySelector("[data-hcm-salary-profile-body]");
+        if (!body) {
+            return;
+        }
+
+        if (!employeeProfileRows.length) {
+            body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Belum ada data profil karyawan pada tenant aktif.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = employeeProfileRows.map(function (row, idx) {
+            var takeHomePay = Number(row.takeHomePay || 0);
+
+            return '<tr>' +
+                '<td>' +
+                    '<div class="fw-medium">' + esc(row.fullName || "-") + '</div>' +
+                    '<div class="small text-muted">' + esc(row.employeeCode || "-") + '</div>' +
+                '</td>' +
+                '<td>' +
+                    '<div class="small">' + esc(row.departmentName || "-") + '</div>' +
+                    '<div class="small text-muted">' + esc(row.designationName || "-") + '</div>' +
+                '</td>' +
+                '<td class="text-nowrap fw-medium">' + esc(fmtRupiah(takeHomePay)) + '</td>' +
+                '<td>' + integrationStatusBadge(row.integrationStatus) + '</td>' +
+                '<td class="text-end"><button type="button" class="btn btn-outline-primary btn-xs" data-hcm-profile-detail-idx="' + idx + '">Preview Detail</button></td>' +
+            '</tr>';
+        }).join("");
+
+        body.querySelectorAll("[data-hcm-profile-detail-idx]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var idx = parseInt(btn.getAttribute("data-hcm-profile-detail-idx"), 10);
+                var row = employeeProfileRows[idx];
+                if (row) { openEmployeeProfileDetail(row); }
+            });
+        });
+    }
+
+    function renderViewTabs() {
+        var host = document.querySelector("[data-hcm-salary-view-tabs]");
+        if (!host) {
+            return;
+        }
+
+        var tabs = host.querySelectorAll("[data-hcm-tab-view]");
+        tabs.forEach(function (btn) {
+            var key = String(btn.getAttribute("data-hcm-tab-view") || "components");
+            var active = key === selectedViewTabKey;
+            btn.classList.toggle("btn-primary", active);
+            btn.classList.toggle("btn-outline-primary", !active);
+            btn.setAttribute("aria-selected", active ? "true" : "false");
         });
 
-        host.innerHTML = tabs.join("");
+        var views = document.querySelectorAll("[data-hcm-salary-view]");
+        views.forEach(function (pane) {
+            var key = String(pane.getAttribute("data-hcm-salary-view") || "components");
+            pane.classList.toggle("d-none", key !== selectedViewTabKey);
+        });
     }
 
     function bind() {
@@ -472,53 +742,23 @@
             componentRows.forEach(function (r) {
                 rowCache[r.id] = r;
             });
+            renderCompliance(componentRows);
             if (!body) {
                 return;
             }
-            var grouped = {};
-            componentRows.forEach(function (r) {
-                var key = String(r.kind || "") + "::" + String(r.category || "");
-                if (!grouped[key]) {
-                    grouped[key] = { kind: r.kind, category: r.category, rows: [] };
-                }
-                grouped[key].rows.push(r);
-            });
-
             var additionSort = categorySortMap("addition");
             var deductionSort = categorySortMap("deduction");
 
-            var groups = Object.keys(grouped)
-                .map(function (key) {
-                    return grouped[key];
-                })
-                .sort(function (a, b) {
-                    if (a.kind !== b.kind) {
-                        return a.kind === "addition" ? -1 : 1;
-                    }
-                    var sortMap = a.kind === "deduction" ? deductionSort : additionSort;
-                    var as = sortMap[String(a.category)] != null ? sortMap[String(a.category)] : 9999;
-                    var bs = sortMap[String(b.category)] != null ? sortMap[String(b.category)] : 9999;
-                    if (as !== bs) {
-                        return as - bs;
-                    }
-                    return categoryLabel(String(a.category)).localeCompare(categoryLabel(String(b.category)));
-                });
-
-            renderCategoryTabs(groups, componentRows.length);
+            renderCategoryTabs(componentRows);
 
             var visibleRows = componentRows.filter(function (row) {
                 if (selectedCategoryTabKey === "all") {
                     return true;
                 }
-                return uiGroupKeyForCategory(row.category, row.kind) === selectedCategoryTabKey;
+                return row.kind === selectedCategoryTabKey;
             });
 
             visibleRows.sort(function (a, b) {
-                var ag = uiGroupKeyForCategory(a.category, a.kind);
-                var bg = uiGroupKeyForCategory(b.category, b.kind);
-                if (ag !== bg) {
-                    return uiGroupSortOrder(ag) - uiGroupSortOrder(bg);
-                }
                 if (a.kind !== b.kind) {
                     return a.kind === "addition" ? -1 : 1;
                 }
@@ -541,7 +781,7 @@
                         kindLabelText = "Info beban perusahaan";
                     }
                     var lockBadge = r.isSystemLocked
-                        ? ' <span class="badge badge-secondary badge-xs ms-1" title="System">System</span>'
+                        ? ' ' + sourceModuleBadge(r)
                         : "";
                     var legal = truncate(r.legalBasis || "—", 56);
                     var del =
@@ -550,15 +790,17 @@
                             : '<a href="#" class="ms-2" data-hcm-salary-component-delete="' +
                               esc(String(r.id)) +
                               '"><i class="ti ti-trash"></i></a>';
-                    var edit = '<a href="#" class="me-2" data-hcm-salary-component-edit="' +
-                        esc(String(r.id)) +
-                        '" data-bs-toggle="modal" data-bs-target="#arcav_edit_salary_component"><i class="ti ti-edit"></i></a>';
+                    var edit = (r.isSystemLocked || r.integrationLocked)
+                        ? ''
+                        : '<a href="#" class="me-2" data-hcm-salary-component-edit="' +
+                            esc(String(r.id)) +
+                            '" data-bs-toggle="modal" data-bs-target="#arcav_edit_salary_component"><i class="ti ti-edit"></i></a>';
                     var sectionHtml = "";
-                    var sectionKey = uiGroupKeyForCategory(r.category, r.kind);
+                    var sectionKey = String(r.kind || "");
                     if (selectedCategoryTabKey === "all" && sectionKey !== currentSection) {
                         currentSection = sectionKey;
                         sectionHtml = '<tr class="table-secondary"><td colspan="9" class="fw-semibold">' +
-                            esc(UI_GROUP_LABELS[sectionKey] || "Lainnya") +
+                            esc(kindLabel(sectionKey)) +
                             '</td></tr>';
                     }
                     return sectionHtml + (
@@ -670,9 +912,11 @@
             Promise.all([
                 reloadCategories(),
                 apiRequest("get", "/v1/hcm/salary-components", null),
+                apiRequest("get", "/v1/hcm/salary-components/employee-profiles?page=1&perPage=200", null),
             ])
                 .then(function (result) {
                     var p = result[1];
+                    var profileResp = result[2];
                     if (!p) {
                         notify("Silakan masuk kembali.", true);
                         return;
@@ -682,6 +926,18 @@
                         return;
                     }
                     render(p.data || []);
+
+                    if (profileResp && profileResp.success === true) {
+                        var rows = profileResp.data && Array.isArray(profileResp.data.rows)
+                            ? profileResp.data.rows
+                            : [];
+                        var statusSummary = profileResp.meta && profileResp.meta.statusSummary
+                            ? profileResp.meta.statusSummary
+                            : null;
+                        renderEmployeeProfiles(rows, statusSummary);
+                    } else {
+                        renderEmployeeProfiles([], null);
+                    }
                 })
                 .catch(function (e) {
                     notify(formatApiError(e.data, e.status), true);
@@ -829,6 +1085,14 @@
         }
 
         document.addEventListener("click", function (e) {
+            var viewTabBtn = e.target.closest("[data-hcm-tab-view]");
+            if (viewTabBtn) {
+                e.preventDefault();
+                selectedViewTabKey = String(viewTabBtn.getAttribute("data-hcm-tab-view") || "components");
+                renderViewTabs();
+                return;
+            }
+
             var tabBtn = e.target.closest("[data-hcm-tab-category]");
             if (tabBtn) {
                 e.preventDefault();
@@ -1046,6 +1310,7 @@
         );
 
         reload();
+        renderViewTabs();
     }
 
     function init() {

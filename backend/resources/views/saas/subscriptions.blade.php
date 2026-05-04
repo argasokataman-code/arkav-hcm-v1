@@ -205,9 +205,9 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted small mb-2">Gunakan jika langganan tidak terlihat di tabel (filter/halaman lain). Muat dulu dari server, lalu set tanggal akhir baru.</p>
-                <label class="form-label">Subscription ID / UUID *</label>
+                <label class="form-label">Subscription ID / Reference *</label>
                 <div class="input-group">
-                    <input type="text" class="form-control" id="input_renew_lookup_id" placeholder="e.g. 42 atau 6f7c8d90-...">
+                    <input type="text" class="form-control" id="input_renew_lookup_id" placeholder="e.g. 42 atau SUB-10042">
                     <button type="button" class="btn btn-outline-secondary" id="btn_renew_lookup_load">Load</button>
                 </div>
                 <div id="renew_by_id_summary" class="alert alert-light border mt-3 mb-0 d-none small" role="status"></div>

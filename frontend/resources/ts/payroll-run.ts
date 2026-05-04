@@ -15,11 +15,18 @@ type PayrollLine = {
     gatewayReference?: string | null;
     meta?: {
         userName?: string;
+        missingTaxProfile?: boolean;
+        taxStatusSource?: string;
         taxPolicyId?: number;
         taxPolicyUuid?: string;
         taxPolicyCode?: string;
         taxPolicyVersion?: number;
     };
+};
+
+type PayrollTaxAnomalies = {
+    missingTaxProfileUserCount: number;
+    missingTaxProfileUserIds: number[];
 };
 
 type TaxGovernancePolicySnapshot = {
@@ -269,6 +276,7 @@ const _state: {
     activeTenantContext: TenantContextSnapshot;
     currentRows: EmployeeRow[];
     currentRunServiceFeeAmount: number;
+    currentTaxAnomalies: PayrollTaxAnomalies;
     loading: boolean;
     /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
     reconciliationDownloadedForRunId: number | null;
@@ -284,6 +292,10 @@ const _state: {
     },
     currentRows: [],
     currentRunServiceFeeAmount: 0,
+    currentTaxAnomalies: {
+        missingTaxProfileUserCount: 0,
+        missingTaxProfileUserIds: [],
+    },
     loading: false,
     reconciliationDownloadedForRunId: null,
 };
@@ -298,6 +310,56 @@ const _payrollSettingsState: {
 
 function currentRunStatus(): string {
     return String(_state.currentRunStatus || "").toLowerCase();
+}
+
+function normalizeTaxAnomalies(raw: unknown): PayrollTaxAnomalies {
+    const source = (raw && typeof raw === "object") ? raw as Record<string, unknown> : {};
+    const missingIds = Array.isArray(source.missingTaxProfileUserIds)
+        ? source.missingTaxProfileUserIds
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value) && value > 0)
+        : [];
+    const rawCount = Number(source.missingTaxProfileUserCount || 0);
+    const missingCount = Number.isFinite(rawCount) && rawCount >= 0 ? Math.max(Math.trunc(rawCount), missingIds.length) : missingIds.length;
+
+    return {
+        missingTaxProfileUserCount: missingCount,
+        missingTaxProfileUserIds: Array.from(new Set(missingIds)),
+    };
+}
+
+function deriveTaxAnomaliesFromLines(lines: PayrollLine[] | null): PayrollTaxAnomalies {
+    if (!Array.isArray(lines) || lines.length === 0) {
+        return {
+            missingTaxProfileUserCount: 0,
+            missingTaxProfileUserIds: [],
+        };
+    }
+
+    const missingIds = lines
+        .filter((line) => {
+            const code = String(line.componentCode || line.category || "").toLowerCase();
+            if (code !== "pph21_ter") {
+                return false;
+            }
+            return line.meta?.missingTaxProfile === true;
+        })
+        .map((line) => Number(line.userId))
+        .filter((value) => Number.isFinite(value) && value > 0);
+
+    const uniqueIds = Array.from(new Set(missingIds));
+    return {
+        missingTaxProfileUserCount: uniqueIds.length,
+        missingTaxProfileUserIds: uniqueIds,
+    };
+}
+
+function missingTaxProfileCount(): number {
+    return Math.max(0, Number(_state.currentTaxAnomalies.missingTaxProfileUserCount || 0));
+}
+
+function hasMissingTaxProfileAnomaly(): boolean {
+    return missingTaxProfileCount() > 0;
 }
 
 function setBadgeState(element: HTMLElement | null, state: WorkflowBadge): void {
@@ -347,9 +409,11 @@ function renderPayrollWorkflow(): void {
     const tenantReady = !!_state.activeTenantContext.companyId;
     const policyReady = !_state.currentRunId || !!_state.currentTaxGovernancePolicy || !!_state.currentPolicySnapshot;
     const reviewOnly = isPostCutoffReviewOnlyMode();
+    const hasMissingTaxProfile = hasMissingTaxProfileAnomaly();
+    const missingTaxProfileUsers = missingTaxProfileCount();
     const evidenceDownloaded = hasDownloadedReconciliationForCurrentRun();
-    const canExport = hasRun && hasRows && runStatus === "draft" && !reviewOnly;
-    const canPayWindow = hasRun && hasRows && (runStatus === "draft" || runStatus === "finalized") && !reviewOnly;
+    const canExport = hasRun && hasRows && runStatus === "draft" && !reviewOnly && !hasMissingTaxProfile;
+    const canPayWindow = hasRun && hasRows && (runStatus === "draft" || runStatus === "finalized") && !reviewOnly && !hasMissingTaxProfile;
 
     let stageTitle = "Langkah berikutnya: Calculate Draft";
     let stageDescription = "Mulai atau refresh draft payroll untuk periode aktif sebelum operator meninjau rincian payroll.";
@@ -376,6 +440,15 @@ function renderPayrollWorkflow(): void {
         primaryActionState = { label: "REVIEW", badgeClass: "bg-warning text-dark" };
         guidance = "Kalau run finalized tetapi belum paid, operator masih bisa void lalu calculate ulang sesuai kebutuhan.";
         readinessBadge = { label: "DRAFT KOSONG", badgeClass: "bg-warning text-dark" };
+    } else if (hasMissingTaxProfile) {
+        stageTitle = "Lengkapi profil PPh21 terlebih dahulu";
+        stageDescription = `${missingTaxProfileUsers} karyawan masih fallback tax status karena profil PPh21 belum lengkap. Export evidence dan payment dikunci sampai anomali selesai.`;
+        stageBadge = { label: "ANOMALI PPH21", badgeClass: "bg-danger" };
+        primaryActionTitle = "Perbaiki profil PPh21 di modul Tax Employee";
+        primaryActionNote = "Payroll sekarang membaca status pajak dari modul PPh21. Lengkapi tax status karyawan lalu Calculate Draft ulang.";
+        primaryActionState = { label: "BLOCKED", badgeClass: "bg-danger" };
+        guidance = "Buka menu Tax Employee Profiles, lengkapi status pajak karyawan yang belum terisi, lalu kembali ke payroll untuk Calculate Draft ulang.";
+        readinessBadge = { label: "PPH21 INCOMPLETE", badgeClass: "bg-danger" };
     } else if (reviewOnly) {
         stageTitle = "Mode post-cutoff: review-only";
         stageDescription = "Operator masih bisa meninjau draft payroll, tetapi export evidence dan payment menunggu payday sesuai snapshot policy run aktif.";
@@ -444,10 +517,12 @@ function renderPayrollWorkflow(): void {
 
     const tenantNote = root.querySelector<HTMLElement>("[data-payroll-checklist-tenant-note]");
     const policyNote = root.querySelector<HTMLElement>("[data-payroll-checklist-policy-note]");
+    const taxProfileNote = root.querySelector<HTMLElement>("[data-payroll-checklist-tax-profile-note]");
     const evidenceNote = root.querySelector<HTMLElement>("[data-payroll-checklist-evidence-note]");
     const disburseNote = root.querySelector<HTMLElement>("[data-payroll-checklist-disburse-note]");
     const tenantBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-tenant]");
     const policyBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-policy]");
+    const taxProfileBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-tax-profile]");
     const evidenceBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-evidence]");
     const disburseBadge = root.querySelector<HTMLElement>("[data-payroll-checklist-disburse]");
 
@@ -463,15 +538,24 @@ function renderPayrollWorkflow(): void {
                 : "Snapshot payroll policy untuk run aktif tersedia dan dapat dipakai sebagai referensi operasional.")
             : "Run aktif belum menyimpan snapshot policy yang jelas. Review policy tenant sebelum calculate ulang atau payment.";
     }
+    if (taxProfileNote) {
+        taxProfileNote.textContent = hasMissingTaxProfile
+            ? `${missingTaxProfileUsers} karyawan masih fallback tax status karena profil PPh21 belum lengkap. Payroll dikunci hingga data dilengkapi.`
+            : "Semua karyawan pada run aktif sudah punya profil PPh21 valid; payroll memakai data status pajak dari modul PPh21.";
+    }
     if (evidenceNote) {
         evidenceNote.textContent = evidenceDownloaded
             ? "Evidence reconciliation payroll run ini sudah terunduh. Payment dapat dibuka sesuai selection employee."
+            : hasMissingTaxProfile
+                ? "Evidence belum bisa dibuat karena masih ada profil PPh21 yang missing pada run ini."
             : canExport
                 ? "Evidence belum terunduh. Operator wajib export lalu menyelesaikan unduhan CSV sebelum payment."
                 : "Evidence belum siap karena draft belum lengkap atau window payment belum terbuka.";
     }
     if (disburseNote) {
-        disburseNote.textContent = reviewOnly
+        disburseNote.textContent = hasMissingTaxProfile
+            ? "Window disburse dikunci sampai semua profil PPh21 karyawan di run ini lengkap, lalu draft dihitung ulang."
+            : reviewOnly
             ? POST_CUTOFF_REVIEW_ONLY_HINT
             : canPayWindow
                 ? (selectedCount > 0 ? `${selectedCount} employee dipilih untuk payment berikutnya.` : "Window disburse terbuka. Pilih employee eligible dari tabel payroll untuk lanjut.")
@@ -480,8 +564,9 @@ function renderPayrollWorkflow(): void {
 
     setBadgeState(tenantBadge, tenantReady ? { label: "OK", badgeClass: "bg-success" } : { label: "CHECK", badgeClass: "bg-warning text-dark" });
     setBadgeState(policyBadge, policyReady ? { label: "READY", badgeClass: "bg-success" } : { label: "MISSING", badgeClass: "bg-warning text-dark" });
-    setBadgeState(evidenceBadge, evidenceDownloaded ? { label: "DOWNLOADED", badgeClass: "bg-success" } : canExport ? { label: "PENDING", badgeClass: "bg-primary" } : { label: "WAITING", badgeClass: "bg-secondary" });
-    setBadgeState(disburseBadge, reviewOnly ? { label: "BLOCKED", badgeClass: "bg-warning text-dark" } : canPayWindow ? { label: "OPEN", badgeClass: "bg-success" } : { label: "WAITING", badgeClass: "bg-secondary" });
+    setBadgeState(taxProfileBadge, hasMissingTaxProfile ? { label: "BLOCKED", badgeClass: "bg-danger" } : { label: "READY", badgeClass: "bg-success" });
+    setBadgeState(evidenceBadge, hasMissingTaxProfile ? { label: "BLOCKED", badgeClass: "bg-danger" } : evidenceDownloaded ? { label: "DOWNLOADED", badgeClass: "bg-success" } : canExport ? { label: "PENDING", badgeClass: "bg-primary" } : { label: "WAITING", badgeClass: "bg-secondary" });
+    setBadgeState(disburseBadge, hasMissingTaxProfile ? { label: "BLOCKED", badgeClass: "bg-danger" } : reviewOnly ? { label: "BLOCKED", badgeClass: "bg-warning text-dark" } : canPayWindow ? { label: "OPEN", badgeClass: "bg-success" } : { label: "WAITING", badgeClass: "bg-secondary" });
 
     const calculateBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-calculate]");
     const exportBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-export-evidence]");
@@ -489,7 +574,7 @@ function renderPayrollWorkflow(): void {
 
     toneButton(calculateBtn, "btn-primary", "btn-outline-primary", !hasRun || (!hasRows && !reviewOnly));
     toneButton(exportBtn, "btn-secondary", "btn-outline-secondary", canExport && !evidenceDownloaded);
-    toneButton(disburseBtn, "btn-success", "btn-outline-success", evidenceDownloaded && !reviewOnly);
+    toneButton(disburseBtn, "btn-success", "btn-outline-success", evidenceDownloaded && !reviewOnly && !hasMissingTaxProfile);
 }
 
 function canVoidCurrentRun(): boolean {
@@ -1446,6 +1531,20 @@ function setPayrollTaxPolicyHint(message: string): void {
     hintEl.classList.remove("d-none");
 }
 
+function setPayrollTaxAnomalyHint(message: string): void {
+    const root = _getRoot();
+    if (!root) return;
+    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-tax-anomaly-hint]");
+    if (!hintEl) return;
+    if (!message) {
+        hintEl.classList.add("d-none");
+        hintEl.textContent = "";
+        return;
+    }
+    hintEl.textContent = message;
+    hintEl.classList.remove("d-none");
+}
+
 function renderRunContextSummary(): void {
     const root = _getRoot();
     if (!root) {
@@ -1484,6 +1583,12 @@ function renderRunContextSummary(): void {
         setPayrollTaxPolicyHint("Run ini belum menyimpan snapshot policy tax governance. Pastikan tenant punya policy published yang efektif sebelum Calculate Draft.");
     } else {
         setPayrollTaxPolicyHint("");
+    }
+
+    if (_state.currentRunId && hasMissingTaxProfileAnomaly()) {
+        setPayrollTaxAnomalyHint(`Terdeteksi ${missingTaxProfileCount()} karyawan dengan profil PPh21 belum lengkap (fallback status pajak). Lengkapi di modul Tax Employee lalu Calculate Draft ulang.`);
+    } else {
+        setPayrollTaxAnomalyHint("");
     }
 
     renderPayrollWorkflow();
@@ -1764,16 +1869,20 @@ function refreshSelectionSummary(): void {
     if (disburseBtn) {
         const st = currentRunStatus();
         const reviewOnly = isPostCutoffReviewOnlyMode();
+        const hasMissingTaxProfile = hasMissingTaxProfileAnomaly();
         const canDisburse = !_state.currentRunId ||
             _state.currentRows.length === 0 ||
             selectedIds.length === 0 ||
             !hasDownloadedReconciliationForCurrentRun() ||
             !(st === "draft" || st === "finalized") ||
-            reviewOnly;
-        console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), status: st, disabled: canDisburse });
+            reviewOnly ||
+            hasMissingTaxProfile;
+        console.log("[refreshSelectionSummary]", { runId: _state.currentRunId, rows: _state.currentRows.length, selected: selectedIds.length, downloaded: hasDownloadedReconciliationForCurrentRun(), status: st, hasMissingTaxProfile, disabled: canDisburse });
         disburseBtn.disabled = canDisburse;
         if (reviewOnly) {
             setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
+        } else if (hasMissingTaxProfile) {
+            setPayrollReconciliationHint("Payment dikunci: masih ada profil PPh21 karyawan yang belum lengkap pada run ini.");
         }
     }
     if (resetBtn) {
@@ -1821,8 +1930,9 @@ function syncExportReconciliationButton(): void {
     const exportBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-export-evidence]");
     if (exportBtn) {
         const st = String(_state.currentRunStatus || "").toLowerCase();
-        const exportAllowed = !!_state.currentRunId && _state.currentRows.length > 0 && st === "draft" && !isPostCutoffReviewOnlyMode();
-        console.log("[syncExportReconciliationButton]", { runId: _state.currentRunId, rows: _state.currentRows.length, status: st, exportAllowed });
+        const hasMissingTaxProfile = hasMissingTaxProfileAnomaly();
+        const exportAllowed = !!_state.currentRunId && _state.currentRows.length > 0 && st === "draft" && !isPostCutoffReviewOnlyMode() && !hasMissingTaxProfile;
+        console.log("[syncExportReconciliationButton]", { runId: _state.currentRunId, rows: _state.currentRows.length, status: st, hasMissingTaxProfile, exportAllowed });
         exportBtn.disabled = !exportAllowed;
     }
 
@@ -1867,6 +1977,7 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
         _state.currentPolicySnapshot = null;
         _state.currentTaxGovernancePolicy = null;
         _state.currentRunServiceFeeAmount = 0;
+        _state.currentTaxAnomalies = normalizeTaxAnomalies(null);
     }
 
     const empCountEl = root.querySelector<HTMLElement>("[data-payroll-run-emp-count]");
@@ -1882,6 +1993,7 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
 
     if (Array.isArray(lines)) {
         _state.currentRows = aggregateRows(lines);
+        _state.currentTaxAnomalies = deriveTaxAnomaliesFromLines(lines);
 
         const thrSet = new Set(
             (Array.isArray(specialRecipients?.thrUserIds) ? specialRecipients.thrUserIds : [])
@@ -2066,14 +2178,16 @@ function openEmployeeDetailModal(userId: number): void {
 
 async function loadRunDetails(runId: number): Promise<void> {
     try {
-        const resp = await apiRequest("get", `/v1/hcm/payroll-runs/${runId}`) as ApiResponse<{ run: PayrollRun; lines: PayrollLine[]; specialRecipients?: SpecialRecipients }>;
+        const resp = await apiRequest("get", `/v1/hcm/payroll-runs/${runId}`) as ApiResponse<{ run: PayrollRun; lines: PayrollLine[]; specialRecipients?: SpecialRecipients; anomalies?: PayrollTaxAnomalies }>;
         if (!resp.success) {
             showErr(formatApiError(resp, 400));
             return;
         }
+        const lines = Array.isArray(resp.data.lines) ? resp.data.lines : [];
+        _state.currentTaxAnomalies = normalizeTaxAnomalies(resp.data?.anomalies || deriveTaxAnomaliesFromLines(lines));
         updateRunUI(
             resp.data.run,
-            Array.isArray(resp.data.lines) ? resp.data.lines : [],
+            lines,
             (resp.data?.specialRecipients || null) as SpecialRecipients | null,
         );
         void fetchLatestEvidence();
@@ -2197,8 +2311,12 @@ async function calculateDraft(silent = false): Promise<void> {
             return;
         }
         _state.currentRunId = Number(resp.data?.run?.id || 0) || null;
+        _state.currentTaxAnomalies = normalizeTaxAnomalies(resp.data?.anomalies);
         if (resp.data?.run) {
             _state.currentRunStatus = deriveRunLifecycleStatus(resp.data.run);
+        }
+        if (_state.currentTaxAnomalies.missingTaxProfileUserCount > 0) {
+            toast(`Anomali PPh21 terdeteksi pada ${_state.currentTaxAnomalies.missingTaxProfileUserCount} karyawan. Lengkapi Tax Employee Profiles sebelum export/payment.`, true);
         }
         if (!silent) {
             toast("Draft payroll berhasil direfresh.", false);
@@ -2379,6 +2497,12 @@ function openDisburseModal(userIds?: number[]): void {
         toast("Periode saat ini post-cutoff review-only. Pembayaran menunggu payday sesuai policy run aktif.", true);
         return;
     }
+    if (hasMissingTaxProfileAnomaly()) {
+        const totalMissing = missingTaxProfileCount();
+        setPayrollTaxAnomalyHint(`Terdeteksi ${totalMissing} profil PPh21 karyawan belum lengkap pada run ini. Payment dikunci sampai data dilengkapi dan draft dihitung ulang.`);
+        toast("Payment dikunci karena masih ada profil PPh21 karyawan yang belum lengkap.", true);
+        return;
+    }
     if (!hasDownloadedReconciliationForCurrentRun()) {
         setPayrollReconciliationHint(
             "Urutan wajib: Calculate Draft → Export Reconciliation → unduh file CSV → Pay via Gateway.",
@@ -2401,6 +2525,12 @@ async function disburseSelected(): Promise<void> {
     if (isPostCutoffReviewOnlyMode()) {
         setPayrollReconciliationHint(POST_CUTOFF_REVIEW_ONLY_HINT);
         toast("Periode saat ini post-cutoff review-only. Pembayaran menunggu payday sesuai policy run aktif.", true);
+        return;
+    }
+
+    if (hasMissingTaxProfileAnomaly()) {
+        setPayrollTaxAnomalyHint(`Terdeteksi ${missingTaxProfileCount()} profil PPh21 karyawan belum lengkap pada run ini. Payment dikunci sampai data dilengkapi dan draft dihitung ulang.`);
+        toast("Payment diblokir karena ada profil PPh21 yang belum lengkap.", true);
         return;
     }
 

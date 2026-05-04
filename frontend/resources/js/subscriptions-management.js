@@ -87,6 +87,18 @@
       });
   }
 
+  function formatCompanyReference(row) {
+    const companyCode = row && row.company_code ? String(row.company_code).trim() : "";
+    if (companyCode) {
+      return companyCode;
+    }
+    const companyId = Number(row && row.company_id);
+    if (Number.isFinite(companyId) && companyId > 0) {
+      return "CMP-" + String(Math.trunc(companyId));
+    }
+    return "Company tercatat";
+  }
+
   // Helper: escape HTML
   function esc(v) {
     return String(v || "")
@@ -368,7 +380,7 @@
               ? '<div class="alert alert-danger py-2 mb-2">Perhatian: <strong>' + anomalyCount + '</strong> pengajuan memiliki anomali billing. Wajib review sebelum approve.</div>'
               : '<div class="alert alert-success py-2 mb-2">Semua pengajuan pending tidak memiliki anomali billing kritikal.</div>')
             + '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
-            + '<thead><tr><th>Company UUID</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th><th>Risk</th><th>Aksi Admin</th></tr></thead><tbody>'
+            + '<thead><tr><th>Company</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th><th>Risk</th><th>Aksi Admin</th></tr></thead><tbody>'
             + rows.map(function (row) {
               const preview = row?.preview || {};
               const toPackage = preview?.to_package || null;
@@ -377,7 +389,7 @@
                 ? ('<div class="small text-muted mt-1">Invoice ' + esc(preview.anomaly_details.invoice_number) + '</div>')
                 : '';
               return '<tr>'
-                + '<td>' + esc(row.company_uuid || "-") + '</td>'
+                + '<td>' + esc(formatCompanyReference(row)) + '</td>'
                 + '<td>' + esc(row.action || "-") + '</td>'
                 + '<td>' + esc(toPackage ? ((toPackage.name || "-") + " (" + (toPackage.code || "-") + ")") : "-") + '</td>'
                 + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'
@@ -1346,7 +1358,7 @@
       const raw = document.getElementById("input_renew_lookup_id")?.value;
       const lookupRaw = String(raw || "").trim();
       if (!lookupRaw) {
-        this.showError("Masukkan Subscription UUID atau ID yang valid.");
+        this.showError("Masukkan Subscription ID atau Reference yang valid.");
         return;
       }
 

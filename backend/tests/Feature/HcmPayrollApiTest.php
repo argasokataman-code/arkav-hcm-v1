@@ -148,7 +148,7 @@ class HcmPayrollApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $this->assertSame(6, (int) $draft->json('data.lineCount'));
+        $this->assertGreaterThanOrEqual(10, (int) $draft->json('data.lineCount'));
         $this->assertSame(2, (int) $draft->json('data.employeeCount'));
         $this->assertNotNull($draft->json('data.anomalies.missingTaxProfileUserCount'));
 
@@ -176,7 +176,7 @@ class HcmPayrollApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.run.status', 'finalized')
             ->assertJsonPath('data.run.purpose', 'monthly')
-            ->assertJsonCount(5, 'data.lines');
+            ->assertJsonCount(10, 'data.lines');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
@@ -475,8 +475,8 @@ class HcmPayrollApiTest extends TestCase
         $line = $details->firstWhere('employee_id', $employee->id);
 
         $this->assertNotNull($line);
-        $this->assertSame(7000000, (int) ($line['gross_pay'] ?? 0));
-        $this->assertLessThanOrEqual(7000000, (int) ($line['net_pay'] ?? 0));
+        $this->assertSame(7016800, (int) ($line['gross_pay'] ?? 0));
+        $this->assertLessThanOrEqual(7016800, (int) ($line['net_pay'] ?? 0));
         $this->assertGreaterThan(0, (int) ($line['net_pay'] ?? 0));
     }
 

@@ -302,7 +302,7 @@ class HcmOvertimeRequestController extends Controller
             ], 422);
         }
 
-        $otComp = HcmSalaryComponent::resolveForOvertimePay();
+        $otComp = $this->resolveOvertimeSalaryComponent($request);
 
         $r = OvertimeRequest::query()->create([
             'user_id' => $userId,
@@ -410,7 +410,7 @@ class HcmOvertimeRequestController extends Controller
         }
 
         if ($r->status === 'pending' && $r->user_id === $actor->id) {
-            $payload['hcm_salary_component_id'] = HcmSalaryComponent::resolveForOvertimePay()?->id;
+            $payload['hcm_salary_component_id'] = $this->resolveOvertimeSalaryComponent($request)?->id;
         }
 
         $effectiveWorkDate = (string) ($payload['work_date'] ?? $r->work_date?->toDateString());
@@ -452,7 +452,7 @@ class HcmOvertimeRequestController extends Controller
             (int) ($validated['weeklyWorkDays'] ?? 5),
         );
 
-        $otComp = HcmSalaryComponent::resolveForOvertimePay();
+        $otComp = $this->resolveOvertimeSalaryComponent($request);
         $result['salaryComponent'] = $otComp ? [
             'id' => $otComp->id,
             'code' => $otComp->code,
@@ -493,6 +493,16 @@ class HcmOvertimeRequestController extends Controller
                 }
             })
             ->firstOrFail();
+    }
+
+    private function resolveOvertimeSalaryComponent(Request $request): ?HcmSalaryComponent
+    {
+        $companyId = $this->activeCompanyId($request);
+        if ($companyId) {
+            return HcmSalaryComponent::ensureOvertimePayComponent($companyId);
+        }
+
+        return HcmSalaryComponent::resolveForOvertimePay();
     }
 
     /**

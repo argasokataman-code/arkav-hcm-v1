@@ -413,19 +413,13 @@ final class ThrBatchService
                 throw new \InvalidArgumentException('THR_PAYROLL_FINALIZED_EXISTS');
             }
 
-            $thrComponent = HcmSalaryComponent::query()
-                ->where('code', 'thr')
-                ->where('is_active', true)
-                ->where(function (Builder $query) use ($companyId): void {
-                    if ($companyId !== null) {
-                        $query->where('company_id', $companyId)->orWhereNull('company_id');
-
-                        return;
-                    }
-
-                    $query->whereNull('company_id');
-                })
-                ->first();
+            $thrComponent = $companyId !== null
+                ? HcmSalaryComponent::ensureThrComponent($companyId)
+                : HcmSalaryComponent::query()
+                    ->where('code', HcmSalaryComponent::CODE_THR)
+                    ->where('is_active', true)
+                    ->whereNull('company_id')
+                    ->first();
             if ($thrComponent === null) {
                 throw new \InvalidArgumentException('THR_SALARY_COMPONENT_MISSING');
             }

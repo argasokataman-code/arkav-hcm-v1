@@ -393,12 +393,6 @@
                                                 <input type="number" min="0" step="0.01" class="form-control" data-employee-add-field="baseSalary" placeholder="0">
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Fixed Allowance (IDR)</label>
-                                                <input type="number" min="0" step="0.01" class="form-control" data-employee-add-field="fixedAllowance" placeholder="0">
-                                            </div>
-                                        </div>
                                         <div class="col-md-12">
                                             <div class="mb-3">
                                                 <label class="form-label">About <span class="text-danger"> *</span></label>
@@ -1052,12 +1046,6 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Base Salary (IDR)</label>
                                                 <input type="number" min="0" step="0.01" class="form-control" data-employee-edit-field="baseSalary" placeholder="0">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Fixed Allowance (IDR)</label>
-                                                <input type="number" min="0" step="0.01" class="form-control" data-employee-edit-field="fixedAllowance" placeholder="0">
                                             </div>
                                         </div>
                                         <div class="col-md-12">

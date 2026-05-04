@@ -308,13 +308,22 @@ export function bindEmployeeCompensationFormsModule(deps) {
         return isNaN(n) ? null : n;
     }
 
-    function updateModalEmployeeNo(form, item) {
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return null;
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
+    function updateModalEmployeeUuid(form, item) {
         var modal = form ? form.closest(".modal") : null;
         var label = modal ? modal.querySelector("[data-employee-modal-employee-no]") : null;
         if (!label) {
             return;
         }
-        label.textContent = item && item.employeeNo ? String(item.employeeNo) : "Auto-generated after save";
+        var employeeCode = item ? formatEmployeeCode(item.id) : null;
+        label.textContent = employeeCode ? ("ID " + employeeCode) : "ID akan tersedia setelah save";
     }
 
     function setStep(form, index) {
@@ -561,7 +570,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
         form.removeAttribute("data-employee-edit-org-snapshot-dept");
         form.removeAttribute("data-employee-edit-org-snapshot-des");
         writeField(form, "nationality", "Indonesia");
-        updateModalEmployeeNo(form, null);
+        updateModalEmployeeUuid(form, null);
         resetRepeatable(form, "emergencyContacts", []);
         resetRepeatable(form, "educationItems", []);
         resetRepeatable(form, "experienceItems", []);
@@ -601,8 +610,6 @@ export function bindEmployeeCompensationFormsModule(deps) {
             startDate: readText(form, "startDate"),
             probationEndDate: readText(form, "probationEndDate"),
             baseSalary: readNumberOrNull(readField(form, "baseSalary")),
-            fixedAllowance: readNumberOrNull(readField(form, "fixedAllowance")),
-            salaryType: readText(form, "salaryType") || "monthly",
             contractType: contractType,
             contractStatus: readText(form, "contractStatus") || "active",
             contractStartDate: readText(form, "contractStartDate"),
@@ -672,8 +679,6 @@ export function bindEmployeeCompensationFormsModule(deps) {
                 : ""
         );
         writeField(editForm, "baseSalary", item.baseSalary != null ? String(Math.round(Number(item.baseSalary || 0))) : "");
-        writeField(editForm, "fixedAllowance", item.fixedAllowance != null ? String(Math.round(Number(item.fixedAllowance || 0))) : "");
-        writeField(editForm, "salaryType", item.compensation && item.compensation.salaryType ? item.compensation.salaryType : "monthly");
         writeField(editForm, "contractType", normalizeContractTypeValue(item.contract && item.contract.contractType ? item.contract.contractType : item.contractType || "permanent"));
         writeField(editForm, "contractStatus", item.contract && item.contract.status ? item.contract.status : "active");
         writeField(editForm, "contractStartDate", item.contract && item.contract.startDate ? item.contract.startDate : item.contractStartDate || "");
@@ -710,7 +715,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
         resetRepeatable(editForm, "educationItems", Array.isArray(item.educationItems) ? item.educationItems : []);
         resetRepeatable(editForm, "experienceItems", Array.isArray(item.experienceItems) ? item.experienceItems : []);
         setWilayahCascade(editForm, item.addressRegion || null, item.address && item.address !== "-" ? item.address : "");
-        updateModalEmployeeNo(editForm, item);
+        updateModalEmployeeUuid(editForm, item);
         setStep(editForm, 0);
     }
 

@@ -8,6 +8,7 @@
     var searchTimer = null;
     var rowById = {};
     var payrollItemOptionCache = null;
+    var payrollItemOptionById = {};
     var currentAssignmentUserId = null;
 
     function onAuthFailure(status, data) {
@@ -112,6 +113,14 @@
         return "Rp\u00a0" + n.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return "-";
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
     function formatJoinLabel(iso) {
         if (!iso || iso === "—") {
             return "—";
@@ -185,19 +194,54 @@
 
     function renderAssignmentItemOptions(items) {
         var select = document.querySelector("[data-hcm-assignment-item]");
+        var amountInput = document.querySelector("[data-hcm-assignment-amount]");
         if (!select) {
             return;
         }
+        payrollItemOptionById = {};
+        (items || []).forEach(function (item) {
+            payrollItemOptionById[String(item.id)] = item;
+        });
         var current = select.value;
         select.innerHTML = '<option value="">Pilih payroll item aktif</option>' +
             (items || []).map(function (item) {
-                var label = (item.name || "Payroll item") + " [" + String(item.kind || "-").toUpperCase() + "]";
+                var govBadge = item.linkedToMaster ? " [GOV]" : "";
+                var label = (item.name || "Payroll item") + " [" + String(item.kind || "-").toUpperCase() + "]" + govBadge;
                 var code = item.code ? " — " + item.code : "";
                 return '<option value="' + esc(String(item.id)) + '">' + esc(label + code) + '</option>';
             }).join("");
         if (current) {
             select.value = current;
         }
+        if (amountInput) {
+            amountInput.readOnly = true;
+        }
+        updateGovernanceAmountFromSelection();
+    }
+
+    function updateGovernanceAmountFromSelection() {
+        var select = document.querySelector("[data-hcm-assignment-item]");
+        var amountInput = document.querySelector("[data-hcm-assignment-amount]");
+        if (!select || !amountInput) {
+            return;
+        }
+        var selectedId = String(select.value || "").trim();
+        if (!selectedId) {
+            amountInput.value = "";
+            return;
+        }
+
+        var item = payrollItemOptionById[selectedId] || null;
+        var governanceAmount = item && typeof item.allowanceDefaultAmount === "number"
+            ? Number(item.allowanceDefaultAmount)
+            : NaN;
+
+        if (isNaN(governanceAmount) || governanceAmount < 0) {
+            amountInput.value = "0.00";
+            return;
+        }
+
+        amountInput.value = String(governanceAmount.toFixed(2));
     }
 
     function loadPayrollItemOptions() {
@@ -215,7 +259,11 @@
 
             var items = Array.isArray(resp.data && resp.data.payrollItems) ? resp.data.payrollItems : [];
             payrollItemOptionCache = items.filter(function (item) {
-                return !!item && item.isActive === true;
+                return !!item
+                    && item.isActive === true
+                    && item.sourceModule === "allowance"
+                    && item.linkedToMaster === true
+                    && item.inAllowanceGovernance === true;
             });
             renderAssignmentItemOptions(payrollItemOptionCache);
             return payrollItemOptionCache;
@@ -242,15 +290,14 @@
             return "" +
                 "<tr data-hcm-assignment-row=\"" + esc(String(row.id)) + "\">" +
                 "<td>" +
-                    '<div class="fw-medium">' + esc(item.name || "Payroll item") + "</div>" +
+                    '<div class="fw-medium">' + esc(item.name || "Payroll item") + (item.linkedToMaster ? ' <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" title="Komponen governance">GOV</span>' : '') + "</div>" +
                     '<div class="small text-muted">' + esc((item.code || "-") + " • " + (item.category || "-")) + "</div>" +
                 "</td>" +
                 "<td>" + assignmentKindBadge(item.kind) + "</td>" +
-                "<td class=\"text-end\"><input type=\"number\" min=\"0.01\" step=\"0.01\" class=\"form-control form-control-sm text-end\" data-hcm-assignment-edit-amount value=\"" + esc(String(Number(row.amount || 0))) + "\"></td>" +
+                "<td class=\"text-end\"><input type=\"number\" min=\"0.01\" step=\"0.01\" class=\"form-control form-control-sm text-end\" data-hcm-assignment-edit-amount readonly value=\"" + esc(String(Number(row.amount || 0))) + "\"></td>" +
                 "<td>" + assignmentStatusBadge(row.isActive === true) + "</td>" +
                 "<td>" +
                     '<div class="d-inline-flex align-items-center gap-1">' +
-                        '<button type="button" class="btn btn-sm btn-outline-primary" data-hcm-assignment-save="' + esc(String(row.id)) + '">Simpan</button>' +
                         '<button type="button" class="btn btn-sm btn-outline-' + (row.isActive === true ? 'secondary' : 'success') + '" data-hcm-assignment-toggle="' + esc(String(row.id)) + '" data-hcm-next-active="' + (row.isActive === true ? '0' : '1') + '">' + (row.isActive === true ? 'Nonaktifkan' : 'Aktifkan') + '</button>' +
                         '<button type="button" class="btn btn-sm btn-outline-danger" data-hcm-assignment-delete="' + esc(String(row.id)) + '">Hapus</button>' +
                     '</div>' +
@@ -290,14 +337,17 @@
         var amountInput = document.querySelector("[data-hcm-assignment-amount]");
         var addBtn = document.querySelector("[data-hcm-assignment-add]");
         var payrollItemId = itemSelect ? String(itemSelect.value || "").trim() : "";
-        var amount = amountInput ? parseFloat(amountInput.value || "") : NaN;
+        var selectedItem = payrollItemOptionById[payrollItemId] || null;
+        var amount = selectedItem && typeof selectedItem.allowanceDefaultAmount === "number"
+            ? Number(selectedItem.allowanceDefaultAmount)
+            : NaN;
 
         if (!payrollItemId) {
             notify("Pilih payroll item custom terlebih dahulu.", true);
             return;
         }
         if (isNaN(amount) || amount <= 0) {
-            notify("Nominal assignment harus lebih besar dari 0.", true);
+            notify("Default amount belum diatur di modul Allowance Governance untuk item ini. Atur dulu di sana, baru bisa di-assign.", true);
             return;
         }
 
@@ -306,7 +356,7 @@
         }
 
         apiRequest("post", "/v1/hcm/payroll-item-assignments", {
-            userId: Number(currentAssignmentUserId),
+            userId: currentAssignmentUserId,
             payrollItemId: Number(payrollItemId),
             amount: amount,
             isActive: true,
@@ -315,9 +365,7 @@
                 notify(formatApiError(resp, 0) || "Gagal menambah assignment.", true);
                 return;
             }
-            if (amountInput) {
-                amountInput.value = "";
-            }
+            updateGovernanceAmountFromSelection();
             notify("Custom item berhasil di-assign.", false);
             return loadAssignments(currentAssignmentUserId);
         }).catch(function (err) {
@@ -366,20 +414,18 @@
         }
         rowById = {};
         if (!rows || !rows.length) {
-            body.innerHTML = '<tr><td colspan="13" class="text-center py-4 text-muted">Tidak ada data.</td></tr>';
+            body.innerHTML = '<tr><td colspan="12" class="text-center py-4 text-muted">Tidak ada data.</td></tr>';
             return;
         }
         body.innerHTML = rows
             .map(function (r) {
                 rowById[String(r.id)] = r;
                 var base = Number(r.baseSalary) || 0;
-                var fix = Number(r.fixedAllowance) || 0;
-                var monthly = base + fix;
                 var st = r.employmentStatus || "active";
                 return (
                     "<tr>" +
                     "<td>" +
-                    esc(r.employeeNo) +
+                    esc(formatEmployeeCode(r.id)) +
                     "</td><td><div class=\"fw-medium\"><a href=\"" +
                     esc(employeeDetailsUrl(r.id)) +
                     "\">" +
@@ -398,10 +444,6 @@
                     formatJoinLabel(r.joinDate) +
                     '</td><td class="text-end">' +
                     esc(formatRupiah(base)) +
-                    '</td><td class="text-end">' +
-                    esc(formatRupiah(fix)) +
-                    '</td><td class="text-end fw-medium">' +
-                    esc(formatRupiah(monthly)) +
                     "</td><td>" +
                     renderContractInfo(r) +
                     "</td><td><div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-employee-salary-edit=\"" +
@@ -415,7 +457,7 @@
     function loadList() {
         var body = document.querySelector("[data-hcm-employee-salary-body]");
         if (body) {
-            body.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4">Memuat data…</td></tr>';
+            body.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">Memuat data…</td></tr>';
         }
         return apiRequest("get", buildListUrl(salaryPage, salaryPerPage), null).then(function (p) {
             if (p === null) {
@@ -481,19 +523,31 @@
         }
         var title = document.querySelector("[data-hcm-employee-salary-modal-title]");
         if (title) {
+
+            var assignmentSelect = form.querySelector("[data-hcm-assignment-item]");
+            if (assignmentSelect) {
+                assignmentSelect.addEventListener("change", function () {
+                    updateGovernanceAmountFromSelection();
+                });
+            }
             title.textContent = "Edit gaji bulanan";
         }
         writeField(form, "userId", String(r.id));
         writeField(form, "fullNameDisplay", r.fullName || "");
         writeField(form, "baseSalary", String(Math.round((Number(r.baseSalary) || 0) * 100) / 100));
-        writeField(form, "fixedAllowance", String(Math.round((Number(r.fixedAllowance) || 0) * 100) / 100));
         writeField(form, "contractType", normalizeContractType(r.contractType));
         var m = getModal();
         if (m) {
             m.show();
         }
 
-        currentAssignmentUserId = String(r.id);
+        currentAssignmentUserId = String(r.uuid || "").trim();
+        if (!currentAssignmentUserId) {
+            notify("Identifier teknis karyawan tidak tersedia. Assignment payroll item tidak bisa dimuat.", true);
+            renderAssignments([]);
+            return;
+        }
+
         loadPayrollItemOptions().then(function () {
             return loadAssignments(currentAssignmentUserId);
         });
@@ -513,9 +567,8 @@
                 return;
             }
             var base = parseFloat(readField(form, "baseSalary"));
-            var fix = parseFloat(readField(form, "fixedAllowance"));
-            if (isNaN(base) || base < 0 || isNaN(fix) || fix < 0) {
-                notify("Nilai gaji pokok dan tunjangan harus angka ≥ 0.", true);
+            if (isNaN(base) || base < 0) {
+                notify("Nilai gaji pokok harus angka >= 0.", true);
                 return;
             }
             var btn = form.querySelector("[data-hcm-employee-salary-submit]");
@@ -524,7 +577,6 @@
             }
             apiRequest("put", "/v1/hcm/employees/" + encodeURIComponent(uid), {
                 baseSalary: base,
-                fixedAllowance: fix,
             })
                 .then(function (p) {
                     if (btn) {

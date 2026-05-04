@@ -48,17 +48,20 @@ class SettingsController extends Controller
 
     /**
      * Get all settings by group
-     * GET /api/settings?group=prefix
+    * GET /api/settings?group=general
      */
     public function index(Request $request): JsonResponse
     {
-        $group = (string) $request->get('group', 'general');
+        $validated = $request->validate([
+            'group' => 'nullable|string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+        ]);
+
+        $group = (string) ($validated['group'] ?? 'general');
         if ($forbidden = $this->ensureGroupPermission($request, $group)) {
             return $forbidden;
         }
 
         $settings = match ($group) {
-            'prefix' => WebsiteSettings::allPrefixSettings(),
             'localization' => WebsiteSettings::allLocalizationSettings(),
             'business' => array_merge(
                 WebsiteSettings::allBusinessSettings(),
@@ -77,7 +80,7 @@ class SettingsController extends Controller
     /**
      * Save settings for a group
      * POST /api/settings
-     * Body: { group: 'prefix', settings: { prefix_employee: 'Emp-', prefix_invoice: 'Inv-', ... } }
+    * Body: { group: 'general', settings: { key: value, ... } }
      */
     public function store(Request $request): JsonResponse
     {
@@ -87,7 +90,7 @@ class SettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'group' => 'required|string|in:general,prefix,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+            'group' => 'required|string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
             'settings' => 'required|array',
         ]);
 
@@ -109,7 +112,6 @@ class SettingsController extends Controller
         }
 
         $responseSettings = match ($group) {
-            'prefix' => WebsiteSettings::allPrefixSettings(),
             'localization' => WebsiteSettings::allLocalizationSettings(),
             'business' => array_merge(
                 WebsiteSettings::allBusinessSettings(),
@@ -162,7 +164,7 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'value' => 'required',
-            'group' => 'string|in:general,prefix,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+            'group' => 'string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
         ]);
 
         $group = $validated['group'] ?? 'general';

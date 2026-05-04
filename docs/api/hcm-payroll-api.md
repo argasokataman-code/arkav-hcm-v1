@@ -206,6 +206,7 @@ Snapshot tersebut ikut dipublish ke payload API dalam bentuk camelCase (`platfor
 - `PAYROLL_RUN_NOT_DRAFT` jika run bukan `draft`.
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run `finalized` lain dengan **`purpose` yang sama** (gaji bulanan dan THR boleh sama-sama final dalam satu periode jika `purpose` berbeda).
 - `PAYROLL_RUN_EMPTY` jika run tidak memiliki satupun baris (mis. tidak ada karyawan active/probation di draft).
+- `PAYROLL_TAX_PROFILE_INCOMPLETE` jika masih ada line PPh21 dengan `missingTaxProfile=true` (source of truth status pajak hanya dari modul profil pajak karyawan).
 
 ### `POST /payroll-runs/{id}/void`
 
@@ -266,6 +267,7 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 - `PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN` jika run `monthly` dibayar sebelum `resolvedPaydayDate` saat policy tenant melarang early disburse
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
+- `PAYROLL_TAX_PROFILE_INCOMPLETE` jika masih ada line PPh21 dengan `missingTaxProfile=true`
 - `PAYROLL_MOCK_PAYMENT_REQUIRED` jika sesi hosted payment belum dibuat/terkonfirmasi
 - `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID` jika `mockApprovalToken` tidak cocok dengan sesi hosted payment
 - `PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH` jika daftar user berbeda dari sesi hosted payment
@@ -290,6 +292,7 @@ Membuat sesi hosted mock payment untuk payroll run aktif dan daftar user yang di
 
 **422**
 - `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada user eligible untuk sesi payment.
+- `PAYROLL_TAX_PROFILE_INCOMPLETE` jika masih ada line PPh21 dengan `missingTaxProfile=true` pada run.
 
 ### `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`
 
@@ -607,6 +610,7 @@ Query wajib: `periodYear`, `periodMonth` (sama aturan seperti POST periode).
 | `PAYROLL_RUN_NOT_DRAFT` | 422 | `finalize` pada run non-draft |
 | `PAYROLL_FINALIZED_EXISTS` | 422 | Dua final **`purpose` sama** dalam satu periode |
 | `PAYROLL_RUN_EMPTY` | 422 | Finalize run tanpa baris |
+| `PAYROLL_TAX_PROFILE_INCOMPLETE` | 422 | Finalize/disburse ditolak karena ada karyawan fallback PPh21 (`missingTaxProfile=true`) |
 | `PKWT_COMPENSATION_EMPTY` | 422 | Tidak ada kompensasi PKWT eligible untuk diposting |
 | `PKWT_COMPENSATION_COMPONENT_MISSING` | 422 | Komponen master `kompensasi_pkwt` belum tersedia/aktif |
 | `PKWT_COMPENSATION_FINALIZED_EXISTS` | 422 | Periode sudah punya run final `purpose=pkwt_compensation` |

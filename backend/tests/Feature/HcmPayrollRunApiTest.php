@@ -6,6 +6,7 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
 use App\Models\CompanySetting;
+use App\Models\EmployeeTaxProfile;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
@@ -61,6 +62,8 @@ class HcmPayrollRunApiTest extends TestCase
             ],
         );
 
+        $this->ensureTaxProfileForUser($user->id);
+
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return $result['token'];
@@ -95,6 +98,8 @@ class HcmPayrollRunApiTest extends TestCase
                 'fixed_allowance' => 0,
             ],
         );
+
+        $this->ensureTaxProfileForUser($user->id);
 
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
@@ -136,6 +141,8 @@ class HcmPayrollRunApiTest extends TestCase
             ],
         );
 
+        $this->ensureTaxProfileForUser($user->id);
+
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
             'password' => 'StrongPass1',
@@ -145,6 +152,46 @@ class HcmPayrollRunApiTest extends TestCase
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return (string) $login->json('data.accessToken');
+    }
+
+    private function createOwnerWithEmployeeProfile(string $email = 'owner-payroll@example.com', float $baseSalary = 5_000_000): User
+    {
+        if (! $this->company) {
+            $this->company = $this->payrollCompany();
+        }
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Owner Payroll',
+            'email' => $email,
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $user = User::query()->where('email', $email)->firstOrFail();
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'role' => 'owner',
+                'status' => 'active',
+            ]
+        );
+
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_id' => $this->company->id,
+                'employment_status' => 'active',
+                'base_salary' => $baseSalary,
+                'fixed_allowance' => 0,
+            ],
+        );
+
+        $this->ensureTaxProfileForUser($user->id);
+
+        return $user;
     }
 
     private function createAndFinalizeDraft(string $admin, int $year, int $month): array
@@ -177,6 +224,25 @@ class HcmPayrollRunApiTest extends TestCase
         );
     }
 
+    private function ensureTaxProfileForUser(int $userId): void
+    {
+        $employeeProfile = EmployeeProfile::query()->where('user_id', $userId)->first();
+        if (! $employeeProfile) {
+            return;
+        }
+
+        EmployeeTaxProfile::query()->updateOrCreate(
+            ['employee_id' => $employeeProfile->id],
+            [
+                'tax_status' => 'TK0',
+                'ptkp_status' => 'TK0',
+                'npwp' => null,
+                'effective_date' => '2026-01-01',
+                'end_date' => null,
+            ],
+        );
+    }
+
     public function test_non_admin_cannot_show_payroll_run(): void
     {
         $employee = $this->employeeToken();
@@ -198,6 +264,22 @@ class HcmPayrollRunApiTest extends TestCase
             ->getJson('/v1/hcm/payroll-runs/history')
             ->assertOk()
             ->assertJsonPath('success', true);
+    }
+
+    public function test_monthly_draft_excludes_owner_members_even_if_employee_profile_exists(): void
+    {
+        $this->employeeToken('monthly-employee@example.com', 6_000_000);
+        $owner = $this->createOwnerWithEmployeeProfile('monthly-owner@example.com', 9_000_000);
+        $admin = $this->adminToken();
+
+        $data = $this->createAndFinalizeDraft($admin, 2026, 11);
+
+        $ownerLineCount = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $data['runId'])
+            ->where('user_id', $owner->id)
+            ->count();
+
+        $this->assertSame(0, $ownerLineCount);
     }
 
     public function test_payroll_runs_forbidden_when_switching_to_unowned_company(): void
@@ -261,6 +343,38 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame('finalized', $response->json('data.status'));
+    }
+
+    public function test_finalize_rejects_when_run_contains_missing_tax_profile_anomaly(): void
+    {
+        $this->employeeToken('employee@example.com', 20_000_000);
+        $admin = $this->adminToken();
+
+        $employee = User::query()->where('email', 'employee@example.com')->firstOrFail();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 6);
+
+        HcmPayrollLine::query()->create([
+            'hcm_payroll_run_id' => $data['runId'],
+            'user_id' => $employee->id,
+            'component_code' => 'pph21_manual_guard_test',
+            'component_name' => 'PPh21 Manual Guard Test',
+            'kind' => 'deduction',
+            'category' => 'pph21',
+            'amount' => 1,
+            'sort_order' => 999,
+            'meta' => [
+                'source' => 'test',
+                'missingTaxProfile' => true,
+            ],
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'PAYROLL_TAX_PROFILE_INCOMPLETE')
+            ->assertJsonPath('error.details.missingTaxProfileUserCount', 1)
+            ->assertJsonPath('error.details.missingTaxProfileUserIds.0', $employee->id);
     }
 
     public function test_finalize_always_stores_zero_payroll_service_fee_metadata(): void
@@ -534,6 +648,41 @@ class HcmPayrollRunApiTest extends TestCase
         foreach ($lines as $line) {
             $this->assertSame('paid', strtolower((string) $line->meta['paymentStatus']));
         }
+    }
+
+    public function test_disburse_rejects_when_run_contains_missing_tax_profile_anomaly(): void
+    {
+        $this->employeeToken('employee@example.com', 20_000_000);
+        $admin = $this->adminToken();
+        $this->setEarlyDisbursePolicy(true);
+
+        $employee = User::query()->where('email', 'employee@example.com')->firstOrFail();
+        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
+
+        HcmPayrollLine::query()->create([
+            'hcm_payroll_run_id' => $data['runId'],
+            'user_id' => $employee->id,
+            'component_code' => 'pph21_manual_guard_test',
+            'component_name' => 'PPh21 Manual Guard Test',
+            'kind' => 'deduction',
+            'category' => 'pph21',
+            'amount' => 1,
+            'sort_order' => 999,
+            'meta' => [
+                'source' => 'test',
+                'missingTaxProfile' => true,
+            ],
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
+                'applyAll' => true,
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'PAYROLL_TAX_PROFILE_INCOMPLETE')
+            ->assertJsonPath('error.details.missingTaxProfileUserCount', 1)
+            ->assertJsonPath('error.details.missingTaxProfileUserIds.0', $employee->id);
     }
 
     public function test_admin_cannot_disburse_monthly_run_before_payday_when_policy_blocks_early_payment(): void

@@ -5,7 +5,7 @@ Prefix platform billing: `/v1/hcm/tax-governance/platform-billing`
 Prefix government layer: `/v1/hcm/tax-governance/platform-tax-compliance`  
 Middleware: `api.token` + tenant scope resolver + server-side RBAC guardrails
 
-Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 done (UUID bridge + deprecation), phase-9 done (platform billing tax runtime + tenant compliance snapshot), revenue-capture-layer active (2026-04-27)`.
+Status dokumen: `phase-3 locked (contract baseline), phase-4 done (runtime tenant lifecycle), phase-5 done (governance dashboard + anomaly observability), phase-7 done (audit evidence pack), phase-8 closed (UUID-only runtime), phase-9 done (platform billing tax runtime + tenant compliance snapshot), revenue-capture-layer active (2026-04-27), gap-closure update done (2026-05-03)`.
 
 ## Runtime Clarification (2026-05-02)
 
@@ -108,10 +108,10 @@ Referensi keputusan permission taxonomy: [../features/tax-governance/IMPLEMENTAT
 | `POST /policies` | Buat draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
 | `GET /policies/{policyRef}` | Detail policy | `tax.tenant.policy.view` | Tenant sendiri |
 | `PATCH /policies/{policyRef}` | Ubah draft policy | `tax.tenant.policy.draft.manage` | Tenant sendiri |
-| `POST /policies/{policyRef}/submit` | Workflow submit (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
-| `POST /policies/{policyRef}/approve` | Workflow approve (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
-| `POST /policies/{policyRef}/reject` | Workflow reject (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
-| `POST /policies/{policyRef}/publish` | Workflow publish (temporary disabled) | N/A (returns `409 TAX_POLICY_WORKFLOW_DISABLED`) | Tenant domain |
+| `POST /policies/{policyRef}/submit` | Workflow submit | `tax.tenant.policy.draft.manage` | Tenant owner / global admin |
+| `POST /policies/{policyRef}/approve` | Workflow approve | `tax.tenant.policy.draft.manage` | Tenant owner / global admin |
+| `POST /policies/{policyRef}/reject` | Workflow reject back to draft | `tax.tenant.policy.draft.manage` | Tenant owner / global admin |
+| `POST /policies/{policyRef}/publish` | Workflow publish | `tax.tenant.policy.draft.manage` | Tenant owner / global admin |
 | `GET /policies/{policyRef}/events` | Event history immutable | `tax.tenant.policy.view` | Tenant sendiri |
 | `GET /reports/tenant-self-audit` | Read tenant self-audit enhanced snapshot | `tax.tenant.policy.view` | Tenant sendiri / Global admin |
 | `GET /reports/tenant-self-audit-export` | Export enhanced tenant self-audit (`json|pdf`) | `tax.tenant.report.export` | Tenant sendiri |
@@ -140,7 +140,7 @@ Guardrails wajib:
 1. Owner-first authoring: perubahan policy tenant dilakukan oleh tenant owner (global admin override tetap tersedia).
 2. Object scope: `resource.tenant_id == actor.active_tenant_id`.
 3. Semua perubahan policy menghasilkan immutable audit events.
-4. Endpoint workflow `submit/approve/reject/publish` sementara mengembalikan `409 TAX_POLICY_WORKFLOW_DISABLED`.
+4. Endpoint workflow `submit/approve/reject/publish` aktif pada mode owner-direct; approval chain multi-party formal belum diterapkan.
 
 ## Draft Endpoint Contract
 
@@ -183,7 +183,7 @@ Response:
 ### `GET /v1/hcm/tax-governance/policies/{policyRef}`
 
 Path:
-1. `policyRef` menerima UUID (utama) atau numeric legacy (sementara) selama migration window.
+1. `policyRef` menerima UUID saja.
 
 Response `200`:
 - detail policy + publication summary + audit summary.
@@ -194,45 +194,45 @@ Aturan:
 1. Hanya status `draft` yang bisa diubah.
 2. Optimistic lock via `version` wajib.
 3. Payload mengikuti kontrak statutory yang sama dengan endpoint create, termasuk `draftKey`, metadata regulasi, dan statutory `rateSchedules`.
-4. `policyRef` menerima UUID utama atau numeric legacy sementara selama migration window.
+4. `policyRef` menerima UUID saja.
 
 Response `200`:
 - policy draft terbaru, termasuk `draftKey`, `rules`, `rateSchedules`, dan timestamp audit ringkas.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/submit`
 
-Temporary behavior:
-1. Endpoint lifecycle workflow sementara dinonaktifkan.
-2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
+Behavior runtime:
+1. Hanya policy `draft` yang bisa disubmit.
+2. Response `200` dengan status baru `submitted`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/approve`
 
-Temporary behavior:
-1. Endpoint lifecycle workflow sementara dinonaktifkan.
-2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
+Behavior runtime:
+1. Hanya policy `submitted` yang bisa diapprove.
+2. Response `200` dengan status baru `approved`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/reject`
 
-Temporary behavior:
-1. Endpoint lifecycle workflow sementara dinonaktifkan.
-2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
+Behavior runtime:
+1. Policy `submitted` atau `approved` bisa dikembalikan ke `draft`.
+2. Response `200` dengan status baru `draft`.
 
 ### `POST /v1/hcm/tax-governance/policies/{policyRef}/publish`
 
-Temporary behavior:
-1. Endpoint lifecycle workflow sementara dinonaktifkan.
-2. Response `409` dengan code `TAX_POLICY_WORKFLOW_DISABLED`.
+Behavior runtime:
+1. Policy `draft`, `submitted`, atau `approved` bisa dipublish oleh tenant owner / global admin.
+2. Response `200` dengan status baru `published`.
 
 ### `GET /v1/hcm/tax-governance/policies/{policyRef}/events`
 
 Response `200`:
 1. history event immutable dengan field `policy_uuid` dan `event_uuid`.
-2. jika path menggunakan numeric legacy, response menyertakan header deprecation + sunset.
+2. Path event history menerima UUID policy.
 
 ### `GET /v1/hcm/tax-governance/governance/dashboard`
 
 Query opsional:
-1. `risk_level`: `low|medium|high|critical`
+1. `risk_level_filter`: `green|yellow|red`
 2. `page`
 3. `per_page`
 
@@ -257,7 +257,7 @@ Body minimum:
 3. `reason`
 
 Response `201`:
-- request break-glass status `requested`.
+- request break-glass status `requested` dan disimpan di `hcm_tax_governance_break_glass_requests`.
 
 ### `POST /v1/hcm/tax-governance/governance/break-glass/requests/{requestUuid}/approve`
 
@@ -272,6 +272,13 @@ Response `200`:
 
 Query opsional:
 1. `company_id` (global admin dapat override; tenant user tetap tenant aktif)
+
+Response `200` (tambahan smart-detection detail):
+1. `data.compliance_status.employee_pph21_compliance.non_compliant_employees[]`
+   - `user_id`, `user_uuid`, `full_name`, `email`
+   - `issues[]` dengan `code`, `label`, dan opsional `current_value`
+2. Field ini digunakan untuk menampilkan detail karyawan yang menyebabkan checklist belum patuh (mis. NPWP kosong/invalid, PTKP belum valid).
+3. Snapshot `employee_pph21_compliance` hanya menghitung user aktif non-owner (`company_users.role != owner`) agar owner tenant tidak ikut scope payroll default.
 2. `period_start` (date)
 3. `period_end` (date)
 
@@ -432,6 +439,14 @@ Response `200`:
    - `uncleared_revenue_amount`
    - `disputed_revenue_amount`
    - `reversed_revenue_amount`
+- section `compliance_status.employee_pph21_compliance` mencakup kualitas data pajak karyawan aktif:
+   - `active_employees`
+   - `profiles_available`
+   - `complete_profiles`
+   - `missing_npwp`
+   - `invalid_npwp_format`
+   - `missing_ptkp_status`
+   - `completion_rate`
 
 ## Negative/Forbidden Contract (Mandatory)
 
@@ -450,7 +465,7 @@ Response `200`:
 
 ## Catatan Transisi Identifier
 
-Status transisi domain tax governance: **UUID primary + temporary numeric fallback untuk policy path runtime**.  
+Status transisi domain tax governance: **UUID-only untuk policy path runtime**.  
 Numeric fallback mengirim header deprecation dan sunset, serta ditracking via telemetry sampai cutoff migration.
 
 ## Sinkronisasi Wajib

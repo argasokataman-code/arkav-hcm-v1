@@ -147,6 +147,13 @@ class HcmPayrollRunController extends Controller
             return $error;
         }
 
+        if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
+            return response()->json([
+                'success' => false,
+                'error' => $taxProfileBlocker,
+            ], 422);
+        }
+
         if ($run->status !== HcmPayrollRun::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
@@ -353,6 +360,13 @@ class HcmPayrollRunController extends Controller
                         'message' => 'Export reconciliation evidence is required before this action.',
                     ],
                     'status' => $error->getStatusCode(),
+                ];
+            }
+
+            if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
+                return [
+                    'error' => $taxProfileBlocker,
+                    'status' => 422,
                 ];
             }
 
@@ -650,6 +664,13 @@ class HcmPayrollRunController extends Controller
                     'message' => 'Export reconciliation evidence is required before this action.',
                 ],
             ], $error->getStatusCode());
+        }
+
+        if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
+            return response()->json([
+                'success' => false,
+                'error' => $taxProfileBlocker,
+            ], 422);
         }
 
         $lines = $run->lines;
@@ -1951,6 +1972,41 @@ class HcmPayrollRunController extends Controller
         }
 
         return (string) $line->category !== 'employer_cost_display';
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildMissingTaxProfileError(HcmPayrollRun $run): ?array
+    {
+        $missingTaxProfileUserIds = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $run->id)
+            ->where('category', 'pph21')
+            ->get(['user_id', 'meta'])
+            ->filter(function (HcmPayrollLine $line): bool {
+                $meta = is_array($line->meta) ? $line->meta : [];
+
+                return ($meta['missingTaxProfile'] ?? false) === true;
+            })
+            ->pluck('user_id')
+            ->map(fn (mixed $userId): int => (int) $userId)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($missingTaxProfileUserIds === []) {
+            return null;
+        }
+
+        return [
+            'code' => 'PAYROLL_TAX_PROFILE_INCOMPLETE',
+            'message' => 'Payroll tidak dapat diproses karena masih ada karyawan dengan profil PPh21 belum lengkap. Lengkapi profil pajak lalu hitung ulang draft payroll.',
+            'details' => [
+                'missingTaxProfileUserCount' => count($missingTaxProfileUserIds),
+                'missingTaxProfileUserIds' => $missingTaxProfileUserIds,
+            ],
+        ];
     }
 
     /**

@@ -205,7 +205,7 @@
                         </li> -->
 @if ($canSeePayrollMenu)
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll','payroll-overtime','payroll-deduction','payroll-thr','payroll-pkwt-compensation') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);" class="{{ Request::is('employee-salary','payslip','payroll-run','payroll-run-history','payroll-overtime','payroll-thr','payroll-pkwt-compensation','salary-component-master') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-cash"></i><span>Payroll</span>
                                 <span class="menu-arrow"></span>
                             </a>

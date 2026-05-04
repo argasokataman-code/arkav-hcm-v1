@@ -57,7 +57,6 @@
                                 <a href="{{url('business-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Business Settings</a>
                                 <a href="{{url('seo-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">SEO Settings</a>
                                 <a href="{{url('localization-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Localization</a>
-                                <a href="{{url('prefixes')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Prefixes</a>
                                 <a href="{{url('preferences')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Preferences</a>
                                 <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
                                 <a href="{{url('language')}}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Language</a>

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\HcmBpjsGovernanceRateBaseline;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmPayrollPeriod;
@@ -12,6 +13,7 @@ use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTermination;
 use App\Models\OvertimeRequest;
 use App\Models\User;
+use App\Services\Hcm\BpjsContributionCalculator;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\OvertimePayCalculator;
 use App\Services\Hcm\PayrollLeaveHolidayAdjuster;
@@ -213,13 +215,13 @@ final class PayrollDraftBuilder
             ]);
 
             $upahPokokQuery = HcmSalaryComponent::query()
-                ->where('code', 'upah_pokok')
+                ->where('code', HcmSalaryComponent::CODE_BASIC_WAGE)
                 ->where('is_active', true);
             self::applyTenantScope($upahPokokQuery, $companyId);
             $upahPokok = $upahPokokQuery->first();
 
             $fixedAllowanceQuery = HcmSalaryComponent::query()
-                ->where('code', 'tunjangan_tetap')
+                ->where('code', HcmSalaryComponent::CODE_FIXED_ALLOWANCE)
                 ->where('is_active', true);
             self::applyTenantScope($fixedAllowanceQuery, $companyId);
             $fixedAllowanceComponent = $fixedAllowanceQuery->first();
@@ -236,16 +238,46 @@ final class PayrollDraftBuilder
             }
 
             $overtimeComponent = HcmSalaryComponent::resolveForOvertimePay();
-            $bpjsHealthQuery = HcmSalaryComponent::query()->where('code', 'iuran_bpjs_kes_pekerja')->where('is_active', true);
+            $bpjsHealthQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_HEALTH_EMPLOYEE)->where('is_active', true);
             self::applyTenantScope($bpjsHealthQuery, $companyId);
             $bpjsHealthEmployeeComponent = $bpjsHealthQuery->first();
-            $bpjsJhtQuery = HcmSalaryComponent::query()->where('code', 'iuran_jht_pekerja')->where('is_active', true);
+            $bpjsJhtQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JHT_EMPLOYEE)->where('is_active', true);
             self::applyTenantScope($bpjsJhtQuery, $companyId);
             $bpjsJhtEmployeeComponent = $bpjsJhtQuery->first();
-            $bpjsJpQuery = HcmSalaryComponent::query()->where('code', 'iuran_jp_pekerja')->where('is_active', true);
+            $bpjsJpQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JP_EMPLOYEE)->where('is_active', true);
             self::applyTenantScope($bpjsJpQuery, $companyId);
             $bpjsJpEmployeeComponent = $bpjsJpQuery->first();
-            $pph21Query = HcmSalaryComponent::query()->where('code', 'pph21_ter')->where('is_active', true);
+
+            // Employer-side BPJS components (employer_cost_display — informasi slip)
+            $bpjsHealthEmployerQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_HEALTH_EMPLOYER)->where('is_active', true);
+            self::applyTenantScope($bpjsHealthEmployerQuery, $companyId);
+            $bpjsHealthEmployerComponent = $bpjsHealthEmployerQuery->first();
+
+            $bpjsJhtEmployerQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JHT_EMPLOYER)->where('is_active', true);
+            self::applyTenantScope($bpjsJhtEmployerQuery, $companyId);
+            $bpjsJhtEmployerComponent = $bpjsJhtEmployerQuery->first();
+
+            $bpjsJpEmployerQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JP_EMPLOYER)->where('is_active', true);
+            self::applyTenantScope($bpjsJpEmployerQuery, $companyId);
+            $bpjsJpEmployerComponent = $bpjsJpEmployerQuery->first();
+
+            $bpjsJkkQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JKK_EMPLOYER)->where('is_active', true);
+            self::applyTenantScope($bpjsJkkQuery, $companyId);
+            $bpjsJkkComponent = $bpjsJkkQuery->first();
+
+            $bpjsJkmQuery = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_BPJS_JKM_EMPLOYER)->where('is_active', true);
+            self::applyTenantScope($bpjsJkmQuery, $companyId);
+            $bpjsJkmComponent = $bpjsJkmQuery->first();
+
+            // Load BPJS rate baselines untuk perusahaan ini (salary cap, risk category)
+            $bpjsBaselines = HcmBpjsGovernanceRateBaseline::query()
+                ->where('company_id', $companyId)
+                ->get()
+                ->keyBy(fn ($row) => $row->program_code . '_' . $row->contribution_party);
+
+            $bpjsCalc = new BpjsContributionCalculator();
+
+            $pph21Query = HcmSalaryComponent::query()->where('code', HcmSalaryComponent::CODE_PPH21_TER)->where('is_active', true);
             self::applyTenantScope($pph21Query, $companyId);
             $pph21Component = $pph21Query->first();
             $overtimeCalculator = app(OvertimePayCalculator::class);
@@ -274,6 +306,14 @@ final class PayrollDraftBuilder
                         $q->where(function ($q2) use ($companyId): void {
                             $q2->where('company_id', $companyId)->orWhereNull('company_id');
                         });
+                    }
+                })
+                ->whereDoesntHave('companyMemberships', function ($q) use ($companyId): void {
+                    $q->where('status', 'active')
+                        ->where('role', 'owner');
+
+                    if ($companyId !== null) {
+                        $q->where('company_id', $companyId);
                     }
                 })
                 ->when($blockedUserIds !== [], fn ($q) => $q->whereNotIn('id', $blockedUserIds))
@@ -677,25 +717,122 @@ final class PayrollDraftBuilder
                     }
                 }
 
-                $bpjsHealthBase = $base + $fixed;
-                $bpjsTkBase = $base + $fixed;
+                $bpjsRawBase = $base + $fixed;
                 $taxProfile = $snapshotService->latestTaxProfile($profile, $asOf);
 
+                // ── BPJS Kesehatan (employee) ─────────────────────────────────────────
+                $bpjsKesBaselineEmp = $bpjsBaselines->get('bpjs_kesehatan_employee');
+                $bpjsKesBaselinePk  = $bpjsBaselines->get('bpjs_kesehatan_employer');
+                $bpjsKesRateEmp     = (float) ($bpjsKesBaselineEmp?->rate_percent ?? $bpjsHealthEmployeeComponent?->default_percent ?? 1.0);
+                $bpjsKesRatePk      = (float) ($bpjsKesBaselinePk?->rate_percent ?? $bpjsHealthEmployerComponent?->default_percent ?? 4.0);
+                $bpjsKesCap         = (float) ($bpjsKesBaselineEmp?->bpjs_kes_salary_cap ?? $bpjsKesBaselinePk?->bpjs_kes_salary_cap ?? BpjsContributionCalculator::BPJS_KES_DEFAULT_CAP);
+                $bpjsHealthBase     = min($bpjsRawBase, $bpjsKesCap);
+                $bpjsKesCapApplied  = $bpjsRawBase > $bpjsKesCap;
+
                 self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsHealthEmployeeComponent, $bpjsHealthBase, [
-                    'source' => 'bpjs_health_employee',
-                    'userName' => $user->name,
-                    'basisAmount' => round($bpjsHealthBase, 2),
-                ], $companyId);
+                    'source'          => 'bpjs_health_employee',
+                    'userName'        => $user->name,
+                    'basisAmount'     => round($bpjsHealthBase, 2),
+                    'grossSalary'     => round($bpjsRawBase, 2),
+                    'capApplied'      => $bpjsKesCapApplied,
+                    'salaryCap'       => $bpjsKesCapApplied ? round($bpjsKesCap, 2) : null,
+                ], $companyId, $bpjsKesRateEmp);
+
+                // ── BPJS Kesehatan (employer — informasi slip) ────────────────────────
+                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsHealthEmployerComponent, $bpjsHealthBase, [
+                    'source'          => 'bpjs_health_employer',
+                    'userName'        => $user->name,
+                    'basisAmount'     => round($bpjsHealthBase, 2),
+                    'grossSalary'     => round($bpjsRawBase, 2),
+                    'capApplied'      => $bpjsKesCapApplied,
+                    'salaryCap'       => $bpjsKesCapApplied ? round($bpjsKesCap, 2) : null,
+                ], $companyId, $bpjsKesRatePk);
+
+                // ── JHT (employee + employer) ─────────────────────────────────────────
+                $bpjsTkBase = $bpjsRawBase;  // JHT tidak ada salary cap
+                $jhtBaselineEmp = $bpjsBaselines->get('jht_employee');
+                $jhtBaselinePk  = $bpjsBaselines->get('jht_employer');
+                $jhtRateEmp     = (float) ($jhtBaselineEmp?->rate_percent ?? $bpjsJhtEmployeeComponent?->default_percent ?? 2.0);
+                $jhtRatePk      = (float) ($jhtBaselinePk?->rate_percent ?? $bpjsJhtEmployerComponent?->default_percent ?? 3.7);
+
                 self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJhtEmployeeComponent, $bpjsTkBase, [
-                    'source' => 'bpjs_jht_employee',
-                    'userName' => $user->name,
+                    'source'      => 'bpjs_jht_employee',
+                    'userName'    => $user->name,
                     'basisAmount' => round($bpjsTkBase, 2),
-                ], $companyId);
-                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJpEmployeeComponent, $bpjsTkBase, [
-                    'source' => 'bpjs_jp_employee',
-                    'userName' => $user->name,
+                ], $companyId, $jhtRateEmp);
+                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJhtEmployerComponent, $bpjsTkBase, [
+                    'source'      => 'bpjs_jht_employer',
+                    'userName'    => $user->name,
                     'basisAmount' => round($bpjsTkBase, 2),
-                ], $companyId);
+                ], $companyId, $jhtRatePk);
+
+                // ── JP (employee + employer) dengan salary cap ────────────────────────
+                $jpBaselineEmp = $bpjsBaselines->get('jp_employee');
+                $jpBaselinePk  = $bpjsBaselines->get('jp_employer');
+                $jpRateEmp     = (float) ($jpBaselineEmp?->rate_percent ?? $bpjsJpEmployeeComponent?->default_percent ?? 1.0);
+                $jpRatePk      = (float) ($jpBaselinePk?->rate_percent ?? $bpjsJpEmployerComponent?->default_percent ?? 2.0);
+                $jpCap         = (float) ($jpBaselineEmp?->jp_salary_cap ?? $jpBaselinePk?->jp_salary_cap ?? BpjsContributionCalculator::JP_DEFAULT_CAP);
+                $bpjsJpBase    = min($bpjsTkBase, $jpCap);
+                $jpCapApplied  = $bpjsTkBase > $jpCap;
+
+                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJpEmployeeComponent, $bpjsJpBase, [
+                    'source'      => 'bpjs_jp_employee',
+                    'userName'    => $user->name,
+                    'basisAmount' => round($bpjsJpBase, 2),
+                    'grossSalary' => round($bpjsTkBase, 2),
+                    'capApplied'  => $jpCapApplied,
+                    'salaryCap'   => $jpCapApplied ? round($jpCap, 2) : null,
+                ], $companyId, $jpRateEmp);
+                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJpEmployerComponent, $bpjsJpBase, [
+                    'source'      => 'bpjs_jp_employer',
+                    'userName'    => $user->name,
+                    'basisAmount' => round($bpjsJpBase, 2),
+                    'grossSalary' => round($bpjsTkBase, 2),
+                    'capApplied'  => $jpCapApplied,
+                    'salaryCap'   => $jpCapApplied ? round($jpCap, 2) : null,
+                ], $companyId, $jpRatePk);
+
+                // ── JKK (employer only) — rate berbasis risk category ─────────────────
+                $jkkBaseline    = $bpjsBaselines->get('jkk_employer');
+                $jkkRiskCat     = (int) ($jkkBaseline?->risk_category ?? 1);
+                $jkkRiskCat     = max(1, min(5, $jkkRiskCat));
+                $jkkRate        = BpjsContributionCalculator::JKK_RISK_RATES[$jkkRiskCat];
+
+                if ($bpjsJkkComponent !== null && $bpjsRawBase > 0) {
+                    $jkkAmount = round($bpjsRawBase * ($jkkRate / 100), 2);
+                    if ($jkkAmount > 0) {
+                        HcmPayrollLine::query()->create([
+                            'company_id'               => $companyId,
+                            'hcm_payroll_run_id'        => $run->id,
+                            'user_id'                  => $user->id,
+                            'hcm_salary_component_id'  => $bpjsJkkComponent->id,
+                            'component_code'           => $bpjsJkkComponent->code,
+                            'component_name'           => $bpjsJkkComponent->name,
+                            'kind'                     => 'addition',
+                            'category'                 => $bpjsJkkComponent->category ?? 'employer_cost_display',
+                            'amount'                   => $jkkAmount,
+                            'sort_order'               => $sortOrder++,
+                            'meta'                     => [
+                                'source'         => 'bpjs_jkk_employer',
+                                'userName'       => $user->name,
+                                'affectsNetPay'  => false,
+                                'basisAmount'    => round($bpjsRawBase, 2),
+                                'ratePercent'    => $jkkRate,
+                                'rateSource'     => 'risk_category',
+                                'riskCategory'   => $jkkRiskCat,
+                            ],
+                        ]);
+                    }
+                }
+
+                // ── JKM (employer only) — rate flat dari komponen ────────────────────
+                $jkmBaseline = $bpjsBaselines->get('jkm_employer');
+                $jkmRate     = (float) ($jkmBaseline?->rate_percent ?? $bpjsJkmComponent?->default_percent ?? 0.3);
+                self::addPercentDeductionLine($run->id, $user->id, $sortOrder, $bpjsJkmComponent, $bpjsRawBase, [
+                    'source'      => 'bpjs_jkm_employer',
+                    'userName'    => $user->name,
+                    'basisAmount' => round($bpjsRawBase, 2),
+                ], $companyId, $jkmRate);
 
                 $taxStatusUsed = (string) ($taxProfile?->tax_status ?? 'TK0');
                 $pph21Calculation = self::resolveMonthlyPph21Calculation($taxableGross, $taxStatusUsed, $taxPolicy);
@@ -740,13 +877,24 @@ final class PayrollDraftBuilder
     /**
      * @param  array<string, mixed>  $meta
      */
-    private static function addPercentDeductionLine(int $runId, int $userId, int &$sortOrder, ?HcmSalaryComponent $component, float $basisAmount, array $meta = [], ?int $companyId = null): void
+    private static function addPercentDeductionLine(
+        int $runId,
+        int $userId,
+        int &$sortOrder,
+        ?HcmSalaryComponent $component,
+        float $basisAmount,
+        array $meta = [],
+        ?int $companyId = null,
+        ?float $percentOverride = null
+    ): void
     {
         if ($component === null || $basisAmount <= 0) {
             return;
         }
 
-        $percent = (float) ($component->default_percent ?? 0);
+        $percent = $percentOverride !== null
+            ? (float) $percentOverride
+            : (float) ($component->default_percent ?? 0);
         if ($percent <= 0) {
             return;
         }

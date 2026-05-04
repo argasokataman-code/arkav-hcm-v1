@@ -27,13 +27,37 @@ Master data untuk **nama komponen** pada slip gaji beserta **metadata peraturan 
 - **Persen default (opsional):**
   - `defaultPercent` — angka 0–100 (disimpan empat desimal); `null` jika nilai di slip diisi nominal (bukan rumus % di master).
   - `percentBasis` — dasar perhitungan jika `defaultPercent` terisi: `basic_wage`, `wage_bpjs_health`, `wage_bpjs_tk`, `gross_monthly_ter`, `thr_calculation_base`. **Wajib berpasangan:** keduanya diisi atau keduanya kosong (`null`), selain itu `422`.
-- `isSystemLocked`: penanda origin seed/legacy untuk kebutuhan observasi UI. Setelah hardening CRUD 2026-04-27, flag ini **tidak lagi memblokir update atau delete**.
+- `isSystemLocked`: penanda bahwa komponen didaftarkan oleh governance/system registry dan **memblokir** update/delete langsung dari master registry.
+- `sourceModule`: asal registrasi komponen. Nilai umum: `system`, `bpjs`, `allowance`, `pph21`, `overtime`, `thr`, `pkwt`, atau `null` untuk komponen custom tenant.
 
 ## Endpoints
 
 ### `GET /v1/hcm/salary-components`
 
 - **200** `data[]` — array objek komponen (urut `sort_order`, `name`), camelCase seperti di `HcmSalaryComponentController::serialize`.
+
+### `GET /v1/hcm/salary-components/employee-profiles`
+
+- Endpoint snapshot integrasi employee-level untuk audit UI tab **Profil Integrasi Karyawan** pada halaman Salary Component.
+- Path ini tetap numeric/UUID-agnostic (tidak memakai path id); identifier user di payload mengembalikan dua bentuk:
+  - `userId` (numeric legacy internal), dan
+  - `userUuid` (UUID canonical runtime).
+- Query opsional:
+  - `page` (default `1`),
+  - `perPage` (default `200`, max `500`),
+  - `search` (nama/email/phone/designation/team).
+- **200** `data.rows[]` berisi:
+  - identitas karyawan (`employeeCode`, `fullName`, `email`, `phone`, `departmentName`, `designationName`, `baseSalary`),
+  - indikator kebersihan identitas (`hasCleanIdentity`, `identityGaps[]`),
+  - ringkasan assignment aktif (`assignmentSummary.totalActiveAssignments`, `allowanceAssignments`, `allowanceGovernanceAssignments`, `sourceModuleCounts`, `componentCodes[]`),
+  - matrix integrasi lintas domain (`integrationSummary.checks[]`) untuk:
+    - `pph21` (policy tenant + profil pajak employee),
+    - `bpjs` (policy tenant + membership employee),
+    - `allowance` (policy allowance aktif + assignment governance employee),
+    - `payroll` (adanya payroll assignment aktif),
+  - daftar gap integrasi (`integrationSummary.gaps[]`),
+  - status integrasi (`integrationStatus`: `ready` | `partial` | `missing`).
+- `meta.statusSummary` mengembalikan agregat jumlah status (`ready`, `partial`, `missing`) untuk panel ringkasan.
 
 ### `GET /v1/hcm/salary-components/{id}`
 
@@ -42,13 +66,9 @@ Master data untuk **nama komponen** pada slip gaji beserta **metadata peraturan 
 
 ### `POST /v1/hcm/salary-components`
 
-Body (JSON):
-
-- Wajib: `name`, `kind`, `category`.
-- Opsional: `code` (regex `^[a-z0-9_-]+$`, unik), `description`, `legalBasis`, `legalNotes`, `defaultPercent`, `percentBasis`, semua flag boolean, `isActive`, `sortOrder`.
-- Baris baru: `isSystemLocked = false`.
-
-**201** `data.id` | **403** | **422** (`code` duplikat, `category` tidak cocok `kind`, dll.).
+- Pembuatan komponen manual dari tenant **dinonaktifkan**.
+- Endpoint selalu mengembalikan **403** dengan `error.code = MANUAL_COMPONENT_CREATION_DISABLED`.
+- Penambahan komponen baru dilakukan lewat modul governance sumber (`sourceModule`) sesuai domain fitur.
 
 ### `PUT /v1/hcm/salary-components/{id}`
 
@@ -58,6 +78,9 @@ Body (JSON):
 - Kategori tetap harus valid terhadap master kategori aktif untuk `kind` terkait.
 
 **200** | **403** | **404** | **422**.
+
+Catatan:
+- Jika komponen `isSystemLocked = true`, endpoint mengembalikan `403` dengan `error.code = SYSTEM_LOCKED` dan perubahan harus dilakukan dari modul governance asal (`sourceModule`).
 
 ### `PATCH /v1/hcm/salary-components/{id}/tax-flags`
 
@@ -73,8 +96,9 @@ Body (JSON):
 
 ### `DELETE /v1/hcm/salary-components/{id}`
 
-- Semua baris dapat dihapus permanen, termasuk komponen seed/legacy dan komponen yang sebelumnya ditandai integrasi/managed.
-- Relasi downstream yang memakai foreign key `nullOnDelete` (mis. payroll items, overtime requests, payroll lines) akan otomatis dilepas tanpa mengubah histori slip lama.
+- Hanya komponen custom tenant (`isSystemLocked = false`) yang dapat dihapus permanen dari registry.
+- Komponen governance/system yang locked mengembalikan `403` + `error.code = SYSTEM_LOCKED`.
+- Relasi downstream yang memakai foreign key `nullOnDelete` (mis. payroll items, overtime requests, payroll lines) akan otomatis dilepas tanpa mengubah histori slip lama hanya untuk komponen custom yang memang boleh dihapus.
 
 **200** | **403** | **404** | **422**.
 
@@ -84,19 +108,18 @@ Body (JSON):
 
 ### `POST /v1/hcm/salary-component-categories`
 
-- Wajib: `kind`, `code`, `name`.
-- Opsional: `description`, `isActive`, `sortOrder`.
+- Master kategori bersifat global/default dan **read-only** untuk tenant.
+- Endpoint selalu **403** dengan `error.code = CATEGORY_MASTER_READ_ONLY`.
 
 ### `PUT /v1/hcm/salary-component-categories/{id}`
 
-- Body: `kind`, `code`, `name`, `description`, `isActive`, `sortOrder`.
-- Jika `kind`/`code` berubah, runtime ikut memindahkan komponen yang masih memakai pasangan lama ke pasangan baru.
+- Master kategori bersifat global/default dan **read-only** untuk tenant.
+- Endpoint selalu **403** dengan `error.code = CATEGORY_MASTER_READ_ONLY`.
 
 ### `DELETE /v1/hcm/salary-component-categories/{id}`
 
-- Semua kategori dapat dihapus, termasuk kategori seed/legacy bertanda sistem.
-- Delete kategori akan ikut menghapus seluruh komponen yang memakai kategori tersebut agar runtime tidak menyisakan referensi kategori yatim.
-- Relasi turunan dari komponen yang ikut terhapus tetap aman karena foreign key runtime memakai `nullOnDelete`.
+- Master kategori bersifat global/default dan **read-only** untuk tenant.
+- Endpoint selalu **403** dengan `error.code = CATEGORY_MASTER_READ_ONLY`.
 
 ## Seed
 
@@ -106,7 +129,7 @@ Migrasi `2026_04_11_120000_add_percent_fields_to_hcm_salary_components_table` me
 
 ## Tes
 
-`HcmSalaryComponentApiTest` — admin CRUD penuh untuk komponen + kategori, non-admin 403 pada list, delete kategori menghapus komponen turunannya.
+`HcmSalaryComponentApiTest` — list/detail komponen tetap tersedia untuk admin, create komponen manual ditolak (`MANUAL_COMPONENT_CREATION_DISABLED`), dan seluruh mutasi kategori ditolak (`CATEGORY_MASTER_READ_ONLY`).
 
 ## OpenAPI (Swagger UI)
 

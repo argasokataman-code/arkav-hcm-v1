@@ -1038,7 +1038,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent(
             'employees.csv',
-            "employee_no,name,email,password,confirm_password,team,designation,employment_status,base_salary,fixed_allowance\n,No Admin,noadmin@example.com,StrongPass1,StrongPass1,HR,Staff,active,5000000,600000\n",
+            "employee_uuid,name,email,password,confirm_password,team,designation,employment_status,base_salary\n,No Admin,noadmin@example.com,StrongPass1,StrongPass1,HR,Staff,active,5000000\n",
         );
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
@@ -1096,13 +1096,13 @@ class HcmEmployeeApiTest extends TestCase
             'base_salary' => 0,
             'fixed_allowance' => 0,
         ]);
-        $employeeNo = sprintf('EMP-%04d', $employee->id);
+        $employeeUuid = (string) $employee->uuid;
 
         $file = UploadedFile::fake()->createWithContent(
             'employees.csv',
-            "employee_no,name,email,password,confirm_password,team,designation,employment_status,base_salary,fixed_allowance,phone,address,bio,bank_name,bank_account_no,bank_ifsc_code,bank_branch\n"
-            ."{$employeeNo},Employee One,employee1@example.com,,,HR,Lead Staff,active,5500000,700000,08123,Jakarta,Senior Staff,BCA,123456,BCA001,Jakarta\n"
-            .",Employee Two,employee2@example.com,StrongPass1,StrongPass1,Finance,Analyst,probation,6000000,800000,08234,Bandung,,Mandiri,98765,MDR001,Bandung\n",
+            "employee_uuid,name,email,password,confirm_password,team,designation,employment_status,base_salary,phone,address,bio,bank_name,bank_account_no,bank_ifsc_code,bank_branch\n"
+            ."{$employeeUuid},Employee One,employee1@example.com,,,HR,Lead Staff,active,5500000,08123,Jakarta,Senior Staff,BCA,123456,BCA001,Jakarta\n"
+            .",Employee Two,employee2@example.com,StrongPass1,StrongPass1,Finance,Analyst,probation,6000000,08234,Bandung,,Mandiri,98765,MDR001,Bandung\n",
         );
 
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
@@ -1117,7 +1117,7 @@ class HcmEmployeeApiTest extends TestCase
         $this->assertDatabaseHas('employee_profiles', [
             'user_id' => $employee->id,
             'base_salary' => 5500000,
-            'fixed_allowance' => 700000,
+            'fixed_allowance' => 0,
             'team' => 'HR',
             'designation' => 'Lead Staff',
         ]);
@@ -1139,9 +1139,9 @@ class HcmEmployeeApiTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent(
             'employees-invalid.csv',
-            "employee_no,name,email,password,confirm_password,team,designation,employment_status,base_salary,fixed_allowance,salary_type,contract_type,gender,marital_status,bank_name,tax_status\n"
-            .",Valid Employee,valid.rollback@example.com,StrongPass1,StrongPass1,HR,Staff,active,5000000,500000,monthly,permanent,male,single,BCA,TK0\n"
-            .",Broken Employee,broken.rollback@example.com,StrongPass1,StrongPass1,HR,Staff,active,4000000,300000,weekly,invalid_contract,robot,complicated,Bank Khayalan,TK9\n",
+            "employee_uuid,name,email,password,confirm_password,team,designation,employment_status,base_salary,contract_type,gender,marital_status,bank_name,tax_status\n"
+            .",Valid Employee,valid.rollback@example.com,StrongPass1,StrongPass1,HR,Staff,active,5000000,permanent,male,single,BCA,TK0\n"
+            .",Broken Employee,broken.rollback@example.com,StrongPass1,StrongPass1,HR,Staff,active,4000000,invalid_contract,robot,complicated,Bank Khayalan,TK9\n",
         );
 
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
@@ -1157,7 +1157,7 @@ class HcmEmployeeApiTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'broken.rollback@example.com']);
     }
 
-    public function test_bulk_upload_rejects_conflicting_employee_no_and_email_mapping(): void
+    public function test_bulk_upload_rejects_conflicting_employee_uuid_and_email_mapping(): void
     {
         $token = $this->adminBearerToken();
         $first = User::factory()->create(['email' => 'bulk.conflict.first@example.com']);
@@ -1176,11 +1176,11 @@ class HcmEmployeeApiTest extends TestCase
             'fixed_allowance' => 100000,
         ]);
 
-        $employeeNo = sprintf('EMP-%04d', $first->id);
+        $employeeUuid = (string) $first->uuid;
         $file = UploadedFile::fake()->createWithContent(
             'employees-conflict.csv',
-            "employee_no,name,email,password,confirm_password,team,designation,employment_status,base_salary,fixed_allowance\n"
-            ."{$employeeNo},Conflict Row,bulk.conflict.second@example.com,,,HR,Staff,active,5000000,500000\n",
+            "employee_uuid,name,email,password,confirm_password,team,designation,employment_status,base_salary\n"
+            ."{$employeeUuid},Conflict Row,bulk.conflict.second@example.com,,,HR,Staff,active,5000000\n",
         );
 
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
@@ -1192,7 +1192,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $errors = $upload->json('data.errors') ?? [];
         $this->assertIsArray($errors);
-        $this->assertNotEmpty(array_filter($errors, fn ($item) => str_contains((string) $item, 'employee_no dan email mengacu ke user yang berbeda')));
+        $this->assertNotEmpty(array_filter($errors, fn ($item) => str_contains((string) $item, 'employee_uuid dan email mengacu ke user yang berbeda')));
     }
 
     public function test_contract_transition_to_pkwtt_keeps_history(): void

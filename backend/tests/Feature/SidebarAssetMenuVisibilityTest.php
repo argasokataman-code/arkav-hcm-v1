@@ -236,7 +236,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
 
         $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
-            ->get('/payroll')
+            ->get('/payroll-run')
             ->assertRedirect(url('employee-dashboard'));
     }
 

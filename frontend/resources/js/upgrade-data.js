@@ -71,6 +71,18 @@
         return '<span class="badge ' + cls + '">' + esc(value || "unknown") + "</span>";
     }
 
+    function formatCompanyReference(row) {
+        var companyCode = row && row.company_code ? String(row.company_code).trim() : "";
+        if (companyCode) {
+            return companyCode;
+        }
+        var companyId = Number(row && row.company_id);
+        if (Number.isFinite(companyId) && companyId > 0) {
+            return "CMP-" + String(Math.trunc(companyId));
+        }
+        return "Company tercatat";
+    }
+
     function normalizeAnomalyBadges(flags) {
         var list = Array.isArray(flags) ? flags : [];
         if (!list.length) {
@@ -450,7 +462,7 @@
             var toPackage = preview.to_package || null;
             var flags = Array.isArray(preview.anomaly_flags) ? preview.anomaly_flags : [];
             return '<tr>'
-                + '<td>' + esc(row.company_uuid || "-") + '</td>'
+                + '<td>' + esc(formatCompanyReference(row)) + '</td>'
                 + '<td>' + esc(normalizeActionLabel(row.action)) + '</td>'
                 + '<td>' + esc(toPackage ? (toPackage.name + ' (' + toPackage.code + ')') : '-') + '</td>'
                 + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'

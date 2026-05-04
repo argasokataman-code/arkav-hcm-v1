@@ -718,6 +718,38 @@
             var confirmed = false;
             var finished = false;
 
+            // Stacking fix: when another modal is already open, raise this
+            // modal (and its backdrop) above the existing one so the confirm
+            // buttons remain clickable. Without this, Bootstrap leaves the
+            // second modal's backdrop above the dialog and intercepts clicks.
+            function raiseAboveOpenModals() {
+                var openModals = Array.prototype.filter.call(
+                    document.querySelectorAll(".modal.show"),
+                    function (m) { return m !== el; }
+                );
+                if (!openModals.length) {
+                    el.style.zIndex = "";
+                    return;
+                }
+                var baseZ = 1055;
+                openModals.forEach(function (m) {
+                    var z = parseInt(window.getComputedStyle(m).zIndex, 10);
+                    if (!isNaN(z) && z > baseZ) {
+                        baseZ = z;
+                    }
+                });
+                var newZ = baseZ + 20;
+                el.style.zIndex = String(newZ);
+                window.setTimeout(function () {
+                    var backdrops = document.querySelectorAll(".modal-backdrop:not(.modal-backdrop-stacked)");
+                    var lastBackdrop = backdrops[backdrops.length - 1];
+                    if (lastBackdrop) {
+                        lastBackdrop.style.zIndex = String(newZ - 5);
+                        lastBackdrop.classList.add("modal-backdrop-stacked");
+                    }
+                }, 0);
+            }
+
             function cleanup() {
                 if (yesBtn) {
                     yesBtn.removeEventListener("click", onYes);
@@ -740,6 +772,13 @@
             }
 
             function onHidden() {
+                // Cleanup the stacked-backdrop marker so future opens recompute.
+                var stacked = document.querySelectorAll(".modal-backdrop-stacked");
+                stacked.forEach(function (b) {
+                    b.classList.remove("modal-backdrop-stacked");
+                    b.style.zIndex = "";
+                });
+                el.style.zIndex = "";
                 done(confirmed);
             }
 
@@ -749,6 +788,7 @@
                 yesBtn.addEventListener("click", onYes, { once: true });
             }
             el.addEventListener("hidden.bs.modal", onHidden, { once: true });
+            el.addEventListener("shown.bs.modal", raiseAboveOpenModals, { once: true });
             inst.show();
         });
     };

@@ -90,6 +90,14 @@
         return "Rp" + n.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return "-";
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
     function fillHcmDepartmentDropdown(fieldKey, emptyOptionText, departments) {
         var rows = Array.isArray(departments) ? departments : [];
         var selects = document.querySelectorAll('[data-hcm-field="' + fieldKey + '"]');
@@ -591,7 +599,7 @@
             if (el) el.textContent = value || "-";
         }
         set("[data-employee-name]", item.fullName);
-        set("[data-employee-no]", item.employeeNo);
+        set("[data-employee-no]", formatEmployeeCode(item.id));
         set("[data-employee-team]", item.team);
         set("[data-employee-department]", item.departmentName);
         set("[data-employee-team-leader]", (item.assignment && item.assignment.managerName) || item.managerName || "Belum ditentukan");
@@ -1179,7 +1187,7 @@
             if (!id) {
                 renderEmployeeDetail({
                     fullName: "Pilih karyawan",
-                    employeeNo: "—",
+                    uuid: "—",
                     email: "Buka Employees lalu klik nomor / nama untuk melihat detail.",
                     team: "—",
                     departmentName: "—",
@@ -1222,7 +1230,7 @@
                     var msg = (payload && payload.error && payload.error.message) ? payload.error.message : "Tidak dapat memuat data karyawan.";
                     renderEmployeeDetail({
                         fullName: "Error",
-                        employeeNo: "—",
+                        uuid: "—",
                         email: msg,
                         team: "—",
                         departmentName: "—",
@@ -1266,7 +1274,7 @@
                 var message = formatApiError(error && error.data, error && error.status) || "Tidak dapat memuat data karyawan.";
                 renderEmployeeDetail({
                     fullName: "Error",
-                    employeeNo: "—",
+                    uuid: "—",
                     email: message,
                     team: "—",
                     departmentName: "—",

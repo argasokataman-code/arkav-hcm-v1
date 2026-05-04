@@ -78,6 +78,14 @@
         return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
     }
 
+    function formatEmployeeCode(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) {
+            return "";
+        }
+        return "EMP-" + String(Math.trunc(n));
+    }
+
     function formatApiError(data, status) {
         var reconciliationMessages = {
             EXPORT_RECON_REQUIRED: "Sebelum lanjut, lakukan export reconciliation PKWT untuk periode yang sama.",
@@ -360,8 +368,9 @@
                 ? '<span class="badge bg-success">Paid</span>'
                 : '<span class="badge bg-light text-dark border">Belum dibayar</span>';
             var isEligible = row.eligible ? "1" : "0";
+            var identity = formatEmployeeCode(row.userId);
             return "<tr data-line-id=\"" + escapeHtml(String(row.userId || "")) + "\" data-eligible=\"" + isEligible + "\">" +
-                "<td><div class=\"fw-medium\">" + escapeHtml(row.fullName) + "</div><div class=\"small text-muted\">" + escapeHtml(row.employeeNo || "") + " · " + escapeHtml(row.email || "") + "</div></td>" +
+                "<td><div class=\"fw-medium\">" + escapeHtml(row.fullName) + "</div><div class=\"small text-muted\">" + escapeHtml(identity) + " · " + escapeHtml(row.email || "") + "</div></td>" +
                 "<td>" + escapeHtml(row.designation || "Employee") + "</td>" +
                 "<td><span class=\"badge bg-light text-dark border\">" + escapeHtml(row.employmentStatus || "active") + "</span></td>" +
                 "<td>" + escapeHtml(row.contractStartDate || "—") + "</td>" +

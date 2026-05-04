@@ -15,17 +15,10 @@ Route::middleware('hcm.web.admin')->group(function (): void {
             return view('hrm.employee-salary');
         })->name('employee-salary');
 
-        Route::get('/payroll', function () {
-            return view('finance.payroll');
-        })->name('payroll');
-
         Route::get('/payroll-overtime', function () {
             return view('finance.payroll-overtime');
         })->name('payroll-overtime');
 
-        Route::get('/payroll-deduction', function () {
-            return view('finance.payroll-deduction');
-        })->name('payroll-deduction');
 
         Route::get('/payroll-thr', function () {
             return view('finance.payroll-thr');

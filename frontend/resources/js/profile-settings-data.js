@@ -35,6 +35,18 @@
         return (value || '').toString().trim();
     }
 
+    function formatCompanyReference(company) {
+        var companyCode = normalize(company && company.code);
+        if (companyCode) {
+            return companyCode;
+        }
+        var companyId = Number(company && company.id);
+        if (Number.isFinite(companyId) && companyId > 0) {
+            return 'CMP-' + String(Math.trunc(companyId));
+        }
+        return '—';
+    }
+
     function getTenantContext() {
         try {
             if (window.AuthApi && typeof window.AuthApi.getTenantContext === 'function') {
@@ -161,9 +173,7 @@
             companyNameNode.textContent = activeCompany && activeCompany.name ? String(activeCompany.name) : '—';
         }
         if (companyIdNode) {
-            companyIdNode.textContent = activeCompany && activeCompany.uuid
-                ? String(activeCompany.uuid)
-                : (activeCompany && activeCompany.id ? String(activeCompany.id) : '—');
+            companyIdNode.textContent = formatCompanyReference(activeCompany);
         }
         if (companyCodeNode) {
             companyCodeNode.textContent = activeCompany && activeCompany.code ? String(activeCompany.code) : (tenant && tenant.companyCode ? String(tenant.companyCode) : '—');

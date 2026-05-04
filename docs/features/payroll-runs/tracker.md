@@ -90,6 +90,11 @@
 - **Payslip audience fix (2026-04-29)**: global super admin tidak lagi otomatis di-redirect dari `/payslip` ke `/payslip-report`, sehingga tetap bisa akses self-payslip pada tenant aktif.
 - Evidence update:
 	- Frontend audience guard: `frontend/resources/js/payslip-data.js`.
+- **Payroll candidate scope fix (2026-05-04)**: draft payroll monthly sekarang eksplisit mengecualikan membership role `owner`, sehingga owner legacy yang masih memiliki `employee_profiles` tidak ikut membentuk `hcm_payroll_lines`.
+- Evidence update:
+	- Engine filter: `backend/app/Support/PayrollDraftBuilder.php` (`whereHas companyMemberships` status active + role != owner).
+	- Regression test: `backend/tests/Feature/HcmPayrollRunApiTest.php::test_monthly_draft_excludes_owner_members_even_if_employee_profile_exists`.
+	- Validasi live DB (read-only audit): ditemukan owner legacy sempat muncul di draft run lama, lalu tertutup setelah patch + re-test.
 
 ## Status Revisi Gap CP-01..CP-04
 

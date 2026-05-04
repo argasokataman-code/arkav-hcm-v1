@@ -143,17 +143,21 @@ final class EmployeeSnapshotService
             );
         }
 
-        if ($this->hasAnyKey($payload, ['npwp', 'taxStatus', 'ptkpStatus', 'startDate', 'hireDate'])) {
-            $normalizedTaxStatus = $this->normalizeTaxStatus($payload['taxStatus'] ?? ($payload['ptkpStatus'] ?? null));
+        if ($this->hasAnyKey($payload, ['npwp', 'taxStatus', 'ptkpStatus', 'startDate', 'hireDate', 'maritalStatus'])) {
+            $normalizedTaxStatus = $this->normalizeTaxStatus($payload['taxStatus'] ?? ($payload['ptkpStatus'] ?? null))
+                ?? $this->inferTaxStatusFromMaritalStatus($payload['maritalStatus'] ?? $profile->getRawOriginal('marital_status'));
             $existingTaxProfileId = DB::table('employee_tax_profiles')
                 ->where('employee_id', $profile->id)
                 ->orderByDesc('effective_date')
                 ->orderByDesc('id')
                 ->value('id');
+            $existingTaxProfile = $existingTaxProfileId !== null
+                ? DB::table('employee_tax_profiles')->where('id', $existingTaxProfileId)->first()
+                : null;
 
             $taxPayload = [
                 'employee_id' => $profile->id,
-                'npwp' => $payload['npwp'] ?? null,
+                'npwp' => array_key_exists('npwp', $payload) ? $payload['npwp'] : ($existingTaxProfile->npwp ?? null),
                 'tax_status' => $normalizedTaxStatus,
                 'ptkp_status' => $normalizedTaxStatus,
                 'effective_date' => $effectiveDate,
@@ -368,8 +372,8 @@ final class EmployeeSnapshotService
             ],
             'taxProfile' => [
                 'npwp' => $tax?->npwp,
-                'taxStatus' => $tax?->tax_status,
-                'ptkpStatus' => $tax?->tax_status ?? $tax?->ptkp_status,
+                'taxStatus' => $tax?->tax_status ?? $this->inferTaxStatusFromMaritalStatus($profile->getRawOriginal('marital_status')),
+                'ptkpStatus' => $tax?->ptkp_status ?? $tax?->tax_status ?? $this->inferTaxStatusFromMaritalStatus($profile->getRawOriginal('marital_status')),
             ],
             'benefits' => [
                 'bpjsKesehatanNo' => $benefit?->bpjs_kesehatan_no,
@@ -627,6 +631,17 @@ final class EmployeeSnapshotService
         }
 
         return in_array($raw, $allowed, true) ? $raw : null;
+    }
+
+    private function inferTaxStatusFromMaritalStatus(?string $value): ?string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return match ($normalized) {
+            'married' => 'K0',
+            'single', 'divorced', 'widowed' => 'TK0',
+            default => null,
+        };
     }
 
     private function resolveTeamId(mixed $teamName, mixed $departmentId): ?int

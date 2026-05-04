@@ -384,6 +384,13 @@
                                         </div>
                                         <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-start gap-2">
                                             <div>
+                                                <div class="fw-semibold">Profil PPh21 karyawan</div>
+                                                <div class="text-muted" data-payroll-checklist-tax-profile-note>Menunggu hasil deteksi anomali profil PPh21…</div>
+                                            </div>
+                                            <span class="badge bg-light text-dark" data-payroll-checklist-tax-profile>Status</span>
+                                        </div>
+                                        <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-start gap-2">
+                                            <div>
                                                 <div class="fw-semibold">Evidence export</div>
                                                 <div class="text-muted" data-payroll-checklist-evidence-note>Belum ada evidence yang siap dipakai.</div>
                                             </div>
@@ -400,6 +407,7 @@
 
                                     <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-reconciliation-hint></div>
                                     <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-tenant-hint></div>
+                                    <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-tax-anomaly-hint></div>
                                     <div class="alert alert-info d-none py-2 small mb-2" role="alert" data-payroll-run-tax-policy-hint></div>
                                     <div class="alert alert-info d-none py-2 small mb-0" role="alert" data-payroll-run-void-hint></div>
 

@@ -26,7 +26,6 @@ use App\Models\WilayahVillage;
 use App\Services\EmployeeCountValidator;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
-use App\Support\WebsiteSettings;
 use Database\Seeders\HcmUserManagementSeeder;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -298,7 +297,7 @@ class HcmEmployeeController extends Controller
                 // Global admin still requires an employee profile record.
                 $q->whereHas('employeeProfile');
             })
-            ->select(['id', 'name', 'email', 'created_at']);
+            ->select(['id', 'uuid', 'name', 'email', 'created_at']);
 
         if ($search) {
             $term = trim($search);
@@ -411,16 +410,20 @@ class HcmEmployeeController extends Controller
             $employmentStatus = $snapshot['employmentStatus'] ?? 'active';
             $designationLabel = $snapshot['designation'] ?: 'Employee';
             $pkwtSummary = $this->pkwtCompensationService->summarizeProfile($profile);
+            $taxProfile = is_array($snapshot['taxProfile'] ?? null) ? $snapshot['taxProfile'] : [];
+            $personalProfile = is_array($snapshot['personal'] ?? null) ? $snapshot['personal'] : [];
             $teamName = $profile?->assignedTeam?->name ?: ($snapshot['team'] ?: '—');
             $teamLeaderName = $snapshot['managerName']
                 ?? $profile?->assignedTeam?->teamLead?->name
                 ?? null;
 
+            $ptkpStatusRaw = $taxProfile['ptkpStatus'] ?? $taxProfile['taxStatus'] ?? null;
+            $ptkpStatus = $this->normalizeTaxStatusInput($ptkpStatusRaw);
+
             return [
                 'id' => $user->id,
                 'uuid' => $user->uuid,
                 'employeeProfileId' => $profile?->id,
-                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
                 'phone' => $profile?->phone ? (string) $profile->phone : '—',
@@ -446,6 +449,15 @@ class HcmEmployeeController extends Controller
                 'contractEndDate' => $pkwtSummary['contractEndDate'],
                 'pkwtDueThisMonth' => (bool) $pkwtSummary['isDueThisMonth'],
                 'estimatedPkwtCompensationThisMonth' => (float) $pkwtSummary['estimatedCompensationThisMonth'],
+                'maritalStatus' => $personalProfile['maritalStatus'] ?? $profile?->getRawOriginal('marital_status'),
+                'marital_status' => $personalProfile['maritalStatus'] ?? $profile?->getRawOriginal('marital_status'),
+                'npwp' => $taxProfile['npwp'] ?? null,
+                'taxStatus' => $taxProfile['taxStatus'] ?? null,
+                'tax_status' => $taxProfile['taxStatus'] ?? null,
+                'ptkpStatus' => $ptkpStatus,
+                'ptkp_status' => $ptkpStatus,
+                'ptkpAnnualNominal' => $this->resolvePtkpAnnualNominal($ptkpStatus),
+                'ptkp_annual_nominal' => $this->resolvePtkpAnnualNominal($ptkpStatus),
                 'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
             ];
         })->values();
@@ -563,7 +575,7 @@ class HcmEmployeeController extends Controller
                 'manager_user_id' => $validated['managerUserId'] ?? null,
                 'designation' => $org['designation'],
                 'base_salary' => (float) ($validated['baseSalary'] ?? 0),
-                'fixed_allowance' => (float) ($validated['fixedAllowance'] ?? 0),
+                'fixed_allowance' => 0,
                 'contract_type' => $this->normalizeContractType($validated['contractType'] ?? 'permanent'),
                 'contract_start_date' => $validated['contractStartDate'] ?? ($validated['startDate'] ?? ($validated['hireDate'] ?? null)),
                 'contract_end_date' => $validated['contractEndDate'] ?? null,
@@ -599,8 +611,8 @@ class HcmEmployeeController extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
+                'uuid' => $user->uuid,
                 'employeeProfileId' => $profile?->id,
-                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
             ],
@@ -672,7 +684,7 @@ class HcmEmployeeController extends Controller
                     ]);
                 },
             ])
-            ->select(['id', 'name', 'email', 'created_at']);
+            ->select(['id', 'uuid', 'name', 'email', 'created_at']);
 
         if ($search) {
             $term = trim($search);
@@ -715,14 +727,14 @@ class HcmEmployeeController extends Controller
 
         $users = $query->orderByDesc('id')->get();
 
-        $headers = ['Employee No', 'Name', 'Email', 'Team', 'Phone', 'Department', 'Designation', 'Status', 'Join Date'];
+        $headers = ['Employee UUID', 'Name', 'Email', 'Team', 'Phone', 'Department', 'Designation', 'Status', 'Join Date'];
         $rows = $users->map(function (User $user): array {
             $profile = $user->employeeProfile;
             $snapshot = $this->employeeSnapshotService->snapshotForUser($user);
             $teamName = $profile?->assignedTeam?->name ?: ($snapshot['team'] ?: '');
 
             return [
-                $this->formatEmployeeNo($user->id),
+            (string) $user->uuid,
                 (string) $user->name,
                 (string) $user->email,
                 (string) $teamName,
@@ -1030,7 +1042,6 @@ class HcmEmployeeController extends Controller
             'data' => [
                 'id' => $user->id,
                 'uuid' => $user->uuid,
-                'employeeNo' => $this->formatEmployeeNo($user->id),
                 'fullName' => $user->name,
                 'email' => $user->email,
                 'departmentId' => $snapshot['departmentId'],
@@ -1197,9 +1208,9 @@ class HcmEmployeeController extends Controller
         }
 
         $headers = [
-            'employee_no', 'name', 'email', 'password', 'confirm_password',
+            'employee_uuid', 'name', 'email', 'password', 'confirm_password',
             'team_id', 'team', 'department_id', 'designation_id', 'designation', 'employment_status', 'employee_type', 'start_date', 'probation_end_date',
-            'base_salary', 'fixed_allowance', 'salary_type',
+            'base_salary',
             'contract_type', 'contract_status', 'contract_start_date', 'contract_end_date', 'manager_user_id',
             'nik', 'phone', 'address', 'place_of_birth', 'date_of_birth', 'gender', 'marital_status', 'religion', 'nationality', 'bio',
             'bank_name', 'bank_account_no', 'bank_account_holder_name', 'bank_ifsc_code', 'bank_branch',
@@ -1208,9 +1219,9 @@ class HcmEmployeeController extends Controller
 
         $rows = [
             [
-                $this->formatEmployeeNo(1), 'Budi Santoso', 'budi@company.com', '', '',
+                '', 'Budi Santoso', 'budi@company.com', '', '',
                 '', 'HR Shared Services', 1, 1, 'HR Officer', 'active', 'permanent', '2024-01-15', '',
-                5000000, 750000, 'monthly',
+                5000000,
                 'permanent', 'active', '2024-01-15', '', '',
                 '3175010101900001', '08123456789', 'Jakarta', 'Jakarta', '1990-01-01', 'male', 'married', 'Islam', 'Indonesia', 'HR Admin',
                 'BCA', '1234567890', 'Budi Santoso', 'BCA001', 'Jakarta Pusat',
@@ -1219,7 +1230,7 @@ class HcmEmployeeController extends Controller
             [
                 '', 'Siti Aminah', 'siti@company.com', 'StrongPass1', 'StrongPass1',
                 '', 'Finance Operations', 2, 3, 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
-                6200000, 1000000, 'monthly',
+                6200000,
                 'contract', 'active', '2025-02-01', '2026-01-31', '',
                 '3174010101900001', '08129876543', 'Bandung', 'Bandung', '1990-01-01', 'female', 'single', 'Islam', 'Indonesia', '',
                 'Bank Mandiri', '9876543210', 'Siti Aminah', 'MDR001', 'Bandung',
@@ -1282,19 +1293,17 @@ class HcmEmployeeController extends Controller
 
         $banks = array_map(fn (string $bank) => [$bank], $this->allowedBankNames());
         $employmentStatuses = $this->employmentStatusOptions();
-        $salaryTypes = $this->salaryTypeOptions();
         $contractTypes = $this->acceptedContractTypeInputs();
         $contractStatuses = $this->contractStatusOptions();
         $genders = ['male', 'female', 'other'];
         $maritalStatuses = $this->maritalStatusOptions();
         $religions = $this->religionOptions();
         $taxStatuses = $this->acceptedTaxStatusInputs();
-        $maxEnumRows = max(count($employmentStatuses), count($salaryTypes), count($contractTypes), count($contractStatuses), count($genders), count($maritalStatuses), count($religions), count($taxStatuses));
+        $maxEnumRows = max(count($employmentStatuses), count($contractTypes), count($contractStatuses), count($genders), count($maritalStatuses), count($religions), count($taxStatuses));
         $enumRows = [];
         for ($i = 0; $i < $maxEnumRows; $i++) {
             $enumRows[] = [
                 $employmentStatuses[$i] ?? null,
-                $salaryTypes[$i] ?? null,
                 $contractTypes[$i] ?? null,
                 $contractStatuses[$i] ?? null,
                 $genders[$i] ?? null,
@@ -1308,22 +1317,21 @@ class HcmEmployeeController extends Controller
         $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_designations', ['id', 'department_id', 'department_name', 'name', 'code'], $designations);
         $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_teams', ['id', 'department_id', 'department_name', 'name'], $teams);
         $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_banks', ['bank_name'], $banks);
-        $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_enums', ['employment_status', 'salary_type', 'contract_type', 'contract_status', 'gender', 'marital_status', 'religion', 'tax_status'], $enumRows);
+        $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_enums', ['employment_status', 'contract_type', 'contract_status', 'gender', 'marital_status', 'religion', 'tax_status'], $enumRows);
 
         $validationEndRow = 250;
-        $this->applyDropdownValidation($sheet, 'F2:F'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
-        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
-        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
-        $this->applyDropdownValidation($sheet, 'K2:K'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
-        $this->applyDropdownValidation($sheet, 'Q2:Q'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($salaryTypes) + 1, 2), 'Salary Type');
-        $this->applyDropdownValidation($sheet, 'R2:R'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractTypes) + 1, 2), 'Contract Type');
-        $this->applyDropdownValidation($sheet, 'S2:S'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
-        $this->applyDropdownValidation($sheet, 'AB2:AB'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($genders) + 1, 2), 'Gender');
-        $this->applyDropdownValidation($sheet, 'AC2:AC'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
-        $this->applyDropdownValidation($sheet, 'AD2:AD'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($religions) + 1, 2), 'Religion');
-        $this->applyDropdownValidation($sheet, 'AG2:AG'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
-        $this->applyDropdownValidation($sheet, 'AM2:AM'.$validationEndRow, '=ref_enums!$H$2:$H$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
-        $this->applyDropdownValidation($sheet, 'AN2:AN'.$validationEndRow, '=ref_enums!$H$2:$H$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
+        $this->applyDropdownValidation($sheet, 'E2:E'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
+        $this->applyDropdownValidation($sheet, 'G2:G'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
+        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
+        $this->applyDropdownValidation($sheet, 'J2:J'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
+        $this->applyDropdownValidation($sheet, 'O2:O'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
+        $this->applyDropdownValidation($sheet, 'P2:P'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
+        $this->applyDropdownValidation($sheet, 'Y2:Y'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
+        $this->applyDropdownValidation($sheet, 'Z2:Z'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
+        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
+        $this->applyDropdownValidation($sheet, 'AD2:AD'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
+        $this->applyDropdownValidation($sheet, 'AJ2:AJ'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
+        $this->applyDropdownValidation($sheet, 'AK2:AK'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
 
         $tmp = tempnam(sys_get_temp_dir(), 'employee-bulk-template-');
         if ($tmp === false) {
@@ -1401,13 +1409,12 @@ class HcmEmployeeController extends Controller
             ): void {
                 foreach ($rows as $index => $row) {
                     $lineNo = $index + 2;
-                    $employeeNo = strtoupper(trim((string) ($row['employee_no'] ?? '')));
+                    $employeeUuid = strtolower(trim((string) ($row['employee_uuid'] ?? '')));
                     $email = strtolower(trim((string) ($row['email'] ?? '')));
                     $name = trim((string) ($row['name'] ?? ''));
                     $password = (string) ($row['password'] ?? '');
                     $confirmPassword = (string) ($row['confirm_password'] ?? '');
                     $employmentStatus = strtolower(trim((string) ($row['employment_status'] ?? 'active')));
-                    $salaryType = strtolower(trim((string) ($row['salary_type'] ?? 'monthly')));
                     $contractTypeInput = $this->nullableString($row['contract_type'] ?? null);
                     $contractStatus = strtolower(trim((string) ($row['contract_status'] ?? '')));
                     $gender = $this->nullableString($row['gender'] ?? null);
@@ -1420,23 +1427,17 @@ class HcmEmployeeController extends Controller
                     $probationEndDate = $this->nullableString($row['probation_end_date'] ?? null);
 
             $baseSalaryRaw = $row['base_salary'] ?? 0;
-            $fixedAllowanceRaw = $row['fixed_allowance'] ?? 0;
-            if (!is_numeric($baseSalaryRaw) || !is_numeric($fixedAllowanceRaw)) {
-                $errors[] = "Row {$lineNo}: base_salary/fixed_allowance harus angka.";
+            if (!is_numeric($baseSalaryRaw)) {
+                $errors[] = "Row {$lineNo}: base_salary harus angka.";
                 continue;
             }
             $baseSalary = (float) $baseSalaryRaw;
-            $fixedAllowance = (float) $fixedAllowanceRaw;
-            if ($baseSalary < 0 || $fixedAllowance < 0) {
-                $errors[] = "Row {$lineNo}: salary tidak boleh negatif.";
+            if ($baseSalary < 0) {
+                $errors[] = "Row {$lineNo}: base_salary tidak boleh negatif.";
                 continue;
             }
             if (!in_array($employmentStatus, $this->employmentStatusOptions(), true)) {
                 $errors[] = "Row {$lineNo}: employment_status harus salah satu dari ".implode('|', $this->employmentStatusOptions()).'.';
-                continue;
-            }
-            if (!in_array($salaryType, $this->salaryTypeOptions(), true)) {
-                $errors[] = "Row {$lineNo}: salary_type harus monthly|daily|hourly.";
                 continue;
             }
             if ($contractTypeInput !== null && !in_array(strtolower($contractTypeInput), $this->acceptedContractTypeInputs(), true)) {
@@ -1469,16 +1470,16 @@ class HcmEmployeeController extends Controller
             }
 
             $user = null;
-            $userIdFromNo = $this->parseEmployeeNoToUserId($employeeNo);
-            $userByEmployeeNo = $userIdFromNo !== null ? User::query()->find($userIdFromNo) : null;
+            $userIdFromUuid = $this->parseEmployeeUuidToUserId($employeeUuid);
+            $userByUuid = $userIdFromUuid !== null ? User::query()->find($userIdFromUuid) : null;
             $userByEmail = $email !== '' ? User::query()->where('email', $email)->first() : null;
 
-            if ($userByEmployeeNo && $userByEmail && $userByEmployeeNo->id !== $userByEmail->id) {
-                $errors[] = "Row {$lineNo}: employee_no dan email mengacu ke user yang berbeda. Perbaiki salah satu identitas sebelum import.";
+            if ($userByUuid && $userByEmail && $userByUuid->id !== $userByEmail->id) {
+                $errors[] = "Row {$lineNo}: employee_uuid dan email mengacu ke user yang berbeda. Perbaiki salah satu identitas sebelum import.";
                 continue;
             }
 
-            $user = $userByEmployeeNo ?: $userByEmail;
+            $user = $userByUuid ?: $userByEmail;
 
             if (! $user) {
                 if ($planLimit !== null && ($currentEmployeeCount + $created + 1) > (int) $planLimit) {
@@ -1625,7 +1626,7 @@ class HcmEmployeeController extends Controller
             $profile->employment_status = $employmentStatus;
             $profile->hire_date = $this->nullableString($row['start_date'] ?? null) ?? $profile->hire_date;
             $profile->base_salary = $baseSalary;
-            $profile->fixed_allowance = $fixedAllowance;
+            $profile->fixed_allowance = 0;
             $profile->contract_type = $this->normalizeContractType($contractTypeInput ?? ($profile->contract_type ?? 'permanent'));
             $profile->contract_start_date = $this->nullableString($row['contract_start_date'] ?? null) ?? $profile->contract_start_date;
             $profile->contract_end_date = $this->nullableString($row['contract_end_date'] ?? null) ?? $profile->contract_end_date;
@@ -1657,8 +1658,7 @@ class HcmEmployeeController extends Controller
                         'probationEndDate' => $probationEndDate,
                         'startDate' => optional($profile->hire_date)->toDateString(),
                         'baseSalary' => $baseSalary,
-                        'fixedAllowance' => $fixedAllowance,
-                        'salaryType' => $salaryType,
+                        'fixedAllowance' => 0,
                         'contractType' => $contractTypeInput,
                         'contractStatus' => $contractStatus !== '' ? $contractStatus : null,
                         'contractStartDate' => $this->nullableString($row['contract_start_date'] ?? null),
@@ -1793,7 +1793,7 @@ class HcmEmployeeController extends Controller
                 }
                 $item[$key] = $sheet->getCell([$col, $row])->getCalculatedValue();
             }
-            if (($item['employee_no'] ?? '') === '' && ($item['email'] ?? '') === '' && ($item['name'] ?? '') === '') {
+            if (($item['employee_uuid'] ?? '') === '' && ($item['email'] ?? '') === '' && ($item['name'] ?? '') === '') {
                 continue;
             }
             $rows[] = $item;
@@ -1802,31 +1802,21 @@ class HcmEmployeeController extends Controller
         return $rows;
     }
 
-    private function parseEmployeeNoToUserId(string $employeeNo): ?int
+    private function parseEmployeeUuidToUserId(string $employeeUuid): ?int
     {
-        if ($employeeNo === '') {
+        if ($employeeUuid === '') {
             return null;
         }
 
-        $prefix = preg_quote($this->employeeNoPrefix(), '/');
-        if (!preg_match('/^'.$prefix.'\d+$/', $employeeNo)) {
+        if (! Str::isUuid($employeeUuid)) {
             return null;
         }
 
-        $idPart = ltrim(substr($employeeNo, strlen($this->employeeNoPrefix())), '0');
-        $userId = $idPart === '' ? 0 : (int) $idPart;
+        $userId = User::query()
+            ->where('uuid', $employeeUuid)
+            ->value('id');
 
-        return $userId > 0 ? $userId : null;
-    }
-
-    private function employeeNoPrefix(): string
-    {
-        return WebsiteSettings::prefixEmployee();
-    }
-
-    private function formatEmployeeNo(int $userId): string
-    {
-        return sprintf('%s%04d', $this->employeeNoPrefix(), $userId);
+        return is_numeric($userId) ? (int) $userId : null;
     }
 
     private function nullableString(mixed $value): ?string
@@ -2752,7 +2742,7 @@ class HcmEmployeeController extends Controller
             'startDate' => ['sometimes', 'nullable', 'date'],
             'baseSalary' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'numeric', 'min:0', 'regex:/^[0-9]+$/'],
             'fixedAllowance' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'salaryType' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', Rule::in($this->salaryTypeOptions())],
+            'salaryType' => ['sometimes', 'nullable', Rule::in($this->salaryTypeOptions())],
             'contractType' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', Rule::in($this->acceptedContractTypeInputs())],
             'contractStatus' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', Rule::in($this->contractStatusOptions())],
             'contractStartDate' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'date'],
@@ -2811,7 +2801,23 @@ class HcmEmployeeController extends Controller
             'bankAccountHolderName' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:150'],
             'bankIfscCode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'bankBranch' => ['sometimes', 'nullable', 'string', 'max:150'],
-            'npwp' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'npwp' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:100',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $raw = trim((string) $value);
+                    if ($raw === '') {
+                        return;
+                    }
+
+                    $normalized = preg_replace('/[^0-9]/', '', $raw) ?? '';
+                    if (! preg_match('/^[0-9]{15,16}$/', $normalized)) {
+                        $fail($attribute . ' harus berisi NPWP valid (15-16 digit, titik/strip diperbolehkan).');
+                    }
+                },
+            ],
             'taxStatus' => ['sometimes', 'nullable', Rule::in($this->acceptedTaxStatusInputs())],
             'ptkpStatus' => ['sometimes', 'nullable', Rule::in($this->acceptedTaxStatusInputs())],
             'bpjsKesehatanNo' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -3073,6 +3079,38 @@ class HcmEmployeeController extends Controller
     private function acceptedTaxStatusInputs(): array
     {
         return array_values(array_unique(array_merge($this->taxStatusOptions(), ['TK', 'K'])));
+    }
+
+    private function normalizeTaxStatusInput(?string $value): ?string
+    {
+        $raw = strtoupper(str_replace(['/', ' '], '', trim((string) $value)));
+        if ($raw === '') {
+            return null;
+        }
+
+        $normalized = match ($raw) {
+            'TK' => 'TK0',
+            'K' => 'K0',
+            default => $raw,
+        };
+
+        return in_array($normalized, $this->taxStatusOptions(), true) ? $normalized : null;
+    }
+
+    private function resolvePtkpAnnualNominal(?string $taxStatus): ?float
+    {
+        $normalized = $this->normalizeTaxStatusInput($taxStatus);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return match ($normalized) {
+            'TK1', 'K0' => 58_500_000.0,
+            'TK2', 'K1' => 63_000_000.0,
+            'TK3', 'K2' => 67_500_000.0,
+            'K3' => 72_000_000.0,
+            default => 54_000_000.0,
+        };
     }
 
     private function allowedBankNames(): array

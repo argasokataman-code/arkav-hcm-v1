@@ -49,6 +49,12 @@ require __DIR__ . '/api/salary-component.php';
 // Tax Governance
 require __DIR__ . '/api/tax-governance.php';
 
+// BPJS Governance
+require __DIR__ . '/api/bpjs-governance.php';
+
+// Employee Allowance Governance
+require __DIR__ . '/api/allowance-governance.php';
+
 // Asset Management
 require __DIR__ . '/api/asset.php';
 

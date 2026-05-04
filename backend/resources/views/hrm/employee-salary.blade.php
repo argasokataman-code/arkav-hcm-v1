@@ -25,7 +25,7 @@
                     </div>
                     <div class="me-2 mb-2">
                         <a href="{{ url('overtime') }}" class="btn btn-white d-inline-flex align-items-center">
-                            <i class="ti ti-clock-hour-4 me-1"></i>Lembur (pakai gaji pokok + tunj. tetap)
+                            <i class="ti ti-clock-hour-4 me-1"></i>Lembur (pakai gaji pokok)
                         </a>
                     </div>
                     <div class="me-2 mb-2">
@@ -79,15 +79,13 @@
                                     <th>Departemen</th>
                                     <th>Bergabung</th>
                                     <th class="text-end">Gaji pokok</th>
-                                    <th class="text-end">Tunj. tetap</th>
-                                    <th class="text-end">Dasar / bln</th>
                                     <th>Permanent / contract</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody data-hcm-employee-salary-body>
                                 <tr>
-                                    <td colspan="13" class="text-center text-muted py-4">Memuat data…</td>
+                                    <td colspan="12" class="text-center text-muted py-4">Memuat data…</td>
                                 </tr>
                             </tbody>
                         </table>

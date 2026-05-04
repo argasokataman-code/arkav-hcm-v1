@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::get('/salary-components', [HcmSalaryComponentController::class, 'index']);
+    Route::get('/salary-components/employee-profiles', [HcmSalaryComponentController::class, 'employeeProfiles']);
     Route::get('/salary-component-categories', [HcmSalaryComponentController::class, 'categories']);
     Route::post('/salary-component-categories', [HcmSalaryComponentController::class, 'storeCategory']);
     Route::put('/salary-component-categories/{id}', [HcmSalaryComponentController::class, 'updateCategory'])->whereNumber('id');

@@ -35,7 +35,7 @@ Tambah path tema (mis. `login-2`) hanya jika produk benar-benar membutuhkan hala
 
 ### Halaman web HCM Admin saja (middleware `hcm.web.admin`)
 
-Route **`GET /promotion`**, **`/resignation`**, **`/termination`**, **`/salary-component-master`**, **`/employee-salary`**, **`/payroll`**, **`/payroll-overtime`**, **`/payroll-deduction`**, **`/payroll-run`**, **`/payroll-run-history`**, **`/payroll-thr`** memakai middleware **`hcm.web.admin`** **setelah** guard auth umum. Pengguna terautentikasi yang **bukan** `User::isHcmAdmin()` mendapat **redirect 302** ke **`/employee-dashboard`** (sumber kebenaran sama dengan heuristik admin di API). Ini melengkapi redirect di JS; **tanpa** mengganti RBAC di endpoint `/v1/hcm/*`.
+Route **`GET /promotion`**, **`/resignation`**, **`/termination`**, **`/salary-component-master`**, **`/employee-salary`**, **`/payroll-overtime`**, **`/payroll-run`**, **`/payroll-run-history`**, **`/payroll-thr`** memakai middleware **`hcm.web.admin`** **setelah** guard auth umum. Pengguna terautentikasi yang **bukan** `User::isHcmAdmin()` mendapat **redirect 302** ke **`/employee-dashboard`** (sumber kebenaran sama dengan heuristik admin di API). Ini melengkapi redirect di JS; **tanpa** mengganti RBAC di endpoint `/v1/hcm/*`.
 
 ## Prinsip keamanan (ringkas)
 
@@ -46,7 +46,7 @@ Route **`GET /promotion`**, **`/resignation`**, **`/termination`**, **`/salary-c
 
 ## Tes
 
-`tests/Feature/WebHcmRouteGuardTest.php` — **`test_all_web_guarded_get_routes_public_or_guest_404`** mengiterasi **setiap** route `GET` yang memakai middleware grup `web` (ratusan path): tamu harus 404 + `no-store` kecuali path whitelist config; plus tes cookie API, sesi web, `HEAD`, `/up`, sampel halaman dengan auth, dan **admin vs non-admin** untuk `/promotion`, `/resignation`, `/termination`, `/salary-component-master`, `/employee-salary`, `/payroll`, `/payroll-overtime`, `/payroll-deduction`, `/payroll-run`, `/payroll-run-history`, `/payroll-thr`.
+`tests/Feature/WebHcmRouteGuardTest.php` — **`test_all_web_guarded_get_routes_public_or_guest_404`** mengiterasi **setiap** route `GET` yang memakai middleware grup `web` (ratusan path): tamu harus 404 + `no-store` kecuali path whitelist config; plus tes cookie API, sesi web, `HEAD`, `/up`, sampel halaman dengan auth, dan **admin vs non-admin** untuk `/promotion`, `/resignation`, `/termination`, `/salary-component-master`, `/employee-salary`, `/payroll-overtime`, `/payroll-run`, `/payroll-run-history`, `/payroll-thr`.
 
 ## Troubleshooting: halaman masih terbuka tanpa login
 

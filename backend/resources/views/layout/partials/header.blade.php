@@ -1230,16 +1230,16 @@
                     <div class="dropdown profile-dropdown">
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
-                            <span class="avatar avatar-sm online">
-                                <img src="{{ $headerProfilePhotoUrl }}" alt="Img" class="img-fluid rounded-circle" data-profile-display-avatar="1">
+                            <span class="avatar avatar-sm online" aria-hidden="true">
+                                <span class="avatar-placeholder rounded-circle"></span>
                             </span>
                         </a>
                         <div class="dropdown-menu shadow-none">
                             <div class="card mb-0">
                                 <div class="card-header">
                                     <div class="d-flex align-items-center">
-                                        <span class="avatar avatar-lg me-2 avatar-rounded">
-                                            <img src="{{ $headerProfilePhotoUrl }}" alt="img" data-profile-display-avatar="1">
+                                        <span class="avatar avatar-lg me-2 avatar-rounded" aria-hidden="true">
+                                            <span class="avatar-placeholder-lg rounded-circle"></span>
                                         </span>
                                         <div>
                                             <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>

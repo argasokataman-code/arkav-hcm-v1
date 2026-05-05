@@ -142,10 +142,20 @@ describe('Purchase transactions wiring', () => {
   });
 
   it('exports transactions from the active Download All button', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ success: true, data: [] }),
+    const fetchMock = vi.fn((url) => {
+      const urlString = String(url);
+      if (urlString.includes('/api-token')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'test-token-export' } }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [] }),
+      });
     });
 
     vi.stubGlobal('fetch', fetchMock);

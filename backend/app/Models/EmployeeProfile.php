@@ -1,18 +1,20 @@
 <?php
 namespace App\Models;
 
+use App\Casts\EncryptedOrPlaintext;
 use App\Models\Concerns\AssignsUuid;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 
 class EmployeeProfile extends Model
 {
-    use AssignsUuid;
+    use AssignsUuid, SoftDeletes;
 
     protected static function booted(): void
     {
@@ -76,6 +78,9 @@ class EmployeeProfile extends Model
         'education_items',
         'experience_items',
         'profile_photo_path',
+        'data_disclosed_at',
+        'data_disclosed_by_uuid',
+        'data_disclosed_ip',
     ];
 
     protected $casts = [
@@ -98,6 +103,12 @@ class EmployeeProfile extends Model
         'regency_id' => 'integer',
         'district_id' => 'integer',
         'village_id' => 'integer',
+        // UU PDP Encryption — C5
+        // Using custom EncryptedOrPlaintext cast for backward compatibility with existing plaintext data
+        'nik' => EncryptedOrPlaintext::class,
+        'bank_account_no' => EncryptedOrPlaintext::class,
+        'bank_ifsc_code' => EncryptedOrPlaintext::class,
+        'bank_branch' => EncryptedOrPlaintext::class,
     ];
 
     private function syncUuidColumnsFromLegacyIds(): void

@@ -111,6 +111,7 @@ tags:
   - name: SaaS
   - name: User Management
   - name: Reporting
+  - name: Data Privacy
 paths:
   /v1/identity/auth/register:
     post:
@@ -12014,6 +12015,236 @@ paths:
                 $ref: '#/components/schemas/AllowanceGovernanceComplianceResponse'
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/data-privacy/me/withdraw-consent:
+    post:
+      tags: [Data Privacy]
+      summary: Withdraw one or more consent scopes for current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope]
+              properties:
+                scope:
+                  type: string
+                  enum: [ai_chat, biometric, all]
+      responses:
+        '200':
+          description: Consent withdrawal processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/admin/security-incidents:
+    get:
+      tags: [Data Privacy]
+      summary: List data breach incidents for active tenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Incident list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Data Privacy]
+      summary: Create data breach incident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, detected_at]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                affected_data_types:
+                  type: array
+                  items:
+                    type: string
+                affected_subjects_count:
+                  type: integer
+                  minimum: 0
+                affected_user_uuids:
+                  type: array
+                  items:
+                    type: string
+                detected_at:
+                  type: string
+                  format: date-time
+                reported_to_bssn_at:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Incident created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/admin/security-incidents/{uuid}:
+    get:
+      tags: [Data Privacy]
+      summary: Get data breach incident detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Incident detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/admin/security-incidents/{uuid}/notify-subjects:
+    post:
+      tags: [Data Privacy]
+      summary: Queue breach notification delivery for affected subjects
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification job queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/admin/security-incidents/{uuid}/resolve:
+    post:
+      tags: [Data Privacy]
+      summary: Mark incident as resolved
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Company-Id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Incident resolved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
 components:
   securitySchemes:

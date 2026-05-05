@@ -28,7 +28,7 @@ class InvoiceController extends Controller
         $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
-        $query = Invoice::with(['company', 'purchaseTransaction']);
+        $query = Invoice::with(['company', 'purchaseTransaction', 'subscription.package', 'emailLogs', 'latestEmailLog']);
 
         // Security: If not admin, only show invoices for active company
         if (!$isAdmin && $activeCompanyId > 0) {
@@ -64,7 +64,9 @@ class InvoiceController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $invoices->items(),
+            'data' => collect($invoices->items())
+                ->map(fn(Invoice $inv) => $this->formatInvoice($inv))
+                ->values(),
             'pagination' => [
                 'total' => $invoices->total(),
                 'per_page' => $invoices->perPage(),

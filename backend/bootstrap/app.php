@@ -46,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hcm.web.primary-super-admin' => EnsurePrimarySuperAdminCodeOnePage::class,
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
             'hcm.web.feature' => EnsureCompanyFeatureForWebPage::class,
+            'biometric.consent' => \App\Http\Middleware\RequiresBiometricConsent::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

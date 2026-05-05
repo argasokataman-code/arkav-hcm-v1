@@ -1752,6 +1752,7 @@ class HcmTaxGovernanceController extends Controller
                 'payroll_service_fee' => 0.0,
                 'addon_markup_rate' => (float) $validated['addon_markup_rate'],
             ];
+            $propagationKey = (string) Str::uuid();
 
             $policySource = (string) $request->input('policy_source', 'global_platform_policy');
             $policyDomain = (string) $request->input('policy_domain', 'platform_billing');
@@ -1761,6 +1762,7 @@ class HcmTaxGovernanceController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'source' => $policySource,
                 'domain' => $policyDomain,
+                'propagation_key' => $propagationKey,
             ];
 
             DB::transaction(function () use ($companyIds, $billingMonth, $billingCycleType, $effectiveFrom, $status, $globalRates, $notesPayload, $actorId): void {
@@ -2225,15 +2227,21 @@ class HcmTaxGovernanceController extends Controller
 
         foreach ($policies as $policy) {
             $rates = $this->extractGlobalRatesFromPolicy($policy);
-            $key = implode('|', [
-                (string) $rates['subscription_tax_rate'],
-                (string) $rates['payroll_service_fee'],
-                (string) $rates['addon_markup_rate'],
-                (string) ($policy->billing_cycle_type ?? ''),
-                (string) $policy->status,
-                (string) optional($policy->effective_from)?->toDateString(),
-                (string) optional($policy->created_at)?->toDateTimeString(),
-            ]);
+            $key = (string) ($rates['propagation_key'] ?? '');
+            if ($key === '') {
+                $key = implode('|', [
+                    (string) ($policy->billing_month ?? ''),
+                    (string) $rates['subscription_tax_rate'],
+                    (string) $rates['payroll_service_fee'],
+                    (string) $rates['addon_markup_rate'],
+                    (string) ($policy->billing_cycle_type ?? ''),
+                    (string) $rates['source'],
+                    (string) $rates['domain'],
+                    (string) $policy->status,
+                    (string) optional($policy->effective_from)?->toDateString(),
+                    (string) optional($policy->created_at)?->toDateTimeString(),
+                ]);
+            }
 
             if (isset($seen[$key])) {
                 continue;
@@ -2260,7 +2268,7 @@ class HcmTaxGovernanceController extends Controller
     }
 
     /**
-     * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string, source: string, domain: string}
+    * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string, source: string, domain: string, propagation_key: string}
      */
     private function extractGlobalRatesFromPolicy(HcmBillingTaxPolicy $policy): array
     {
@@ -2277,6 +2285,7 @@ class HcmTaxGovernanceController extends Controller
             'notes' => (string) ($decoded['notes'] ?? (string) ($rawNotes ?? '')),
             'source' => (string) ($decoded['source'] ?? 'global_platform_policy'),
             'domain' => (string) ($decoded['domain'] ?? 'platform_billing'),
+            'propagation_key' => (string) ($decoded['propagation_key'] ?? ''),
         ];
     }
 

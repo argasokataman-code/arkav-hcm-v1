@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Events\AddonPurchased;
+use App\Events\EmployeeProfileUpdated;
 use App\Events\PayrollFinalized;
 use App\Events\SubscriptionCreated;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -12,6 +13,7 @@ use App\Listeners\CaptureAddonRevenue;
 use App\Listeners\CapturePayrollServiceRevenue;
 use App\Listeners\CaptureSubscriptionRevenue;
 use App\Listeners\EnforceNotificationPreference;
+use App\Listeners\SendProfileUpdateNotification;
 use App\Listeners\TaxGovernancePolicyEventListener;
 
 class EventServiceProvider extends ServiceProvider
@@ -36,6 +38,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         NotificationSending::class => [
             EnforceNotificationPreference::class,
+        ],
+        EmployeeProfileUpdated::class => [
+            SendProfileUpdateNotification::class,
         ],
     ];
 

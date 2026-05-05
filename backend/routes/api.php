@@ -92,6 +92,9 @@ require __DIR__ . '/api/termination.php';
 // User & Role Management
 require __DIR__ . '/api/user-management.php';
 
+// Data Privacy & Erasure (UU PDP compliance)
+require __DIR__ . '/api/data-privacy.php';
+
 // Settings
 require __DIR__ . '/api/settings.php';
 

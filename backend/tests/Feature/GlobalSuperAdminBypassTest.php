@@ -239,6 +239,7 @@ class GlobalSuperAdminBypassTest extends TestCase
                 'bankName' => 'BCA',
                 'bankAccountNo' => '1234567890',
                 'bankAccountHolderName' => 'Global Admin Hire',
+                'data_disclosure_acknowledged' => true,
                 'emergencyContacts' => [
                     [
                         'name' => 'Emergency Contact',

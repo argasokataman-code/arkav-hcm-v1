@@ -17,8 +17,10 @@ use App\Models\HcmResignation;
 use App\Models\HcmTermination;
 use App\Models\HcmTraining;
 use App\Models\Holiday;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\LeaveRequest;
+use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
 use App\Models\User;
@@ -1036,5 +1038,179 @@ class HcmDashboardController extends Controller
         }
 
         return $m.'m';
+    }
+
+    public function globalEmployeeMonitor(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.']], 403);
+        }
+
+        $now = Carbon::now('Asia/Jakarta');
+        $monthStart = $now->copy()->startOfMonth()->toDateString();
+        $monthEnd   = $now->copy()->endOfMonth()->toDateString();
+
+        // Aggregate employee counts grouped by company
+        $companyCounts = \App\Models\Company::query()
+            ->select([
+                'companies.id',
+                'companies.code',
+                'companies.name',
+                'companies.status',
+            ])
+            ->selectRaw('COUNT(ep.id) as total_employees')
+            ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('active','probation') THEN 1 ELSE 0 END) as active_employees")
+            ->selectRaw("SUM(CASE WHEN ep.employment_status = 'probation' THEN 1 ELSE 0 END) as probation_employees")
+            ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('resigned','terminated','inactive') THEN 1 ELSE 0 END) as inactive_employees")
+            ->selectRaw("SUM(CASE WHEN ep.hire_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as new_hires_this_month", [$monthStart, $monthEnd])
+            ->selectRaw("SUM(CASE WHEN ep.contract_end_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiring_contracts_30d", [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
+            ->leftJoin('employee_profiles as ep', 'ep.company_id', '=', 'companies.id')
+            ->groupBy('companies.id', 'companies.code', 'companies.name', 'companies.status')
+            ->orderBy('companies.name')
+            ->get();
+
+        // Global summary
+        $totalEmployees      = $companyCounts->sum('total_employees');
+        $totalActive         = $companyCounts->sum('active_employees');
+        $totalProbation      = $companyCounts->sum('probation_employees');
+        $totalInactive       = $companyCounts->sum('inactive_employees');
+        $totalNewHires       = $companyCounts->sum('new_hires_this_month');
+        $totalExpiringContracts = $companyCounts->sum('expiring_contracts_30d');
+        $totalCompanies      = $companyCounts->count();
+        $totalActiveCompanies = $companyCounts->where('status', 'active')->count();
+
+        // Global employment_status breakdown
+        $statusBreakdown = EmployeeProfile::query()
+            ->selectRaw('COALESCE(employment_status, "unknown") as status, COUNT(*) as count')
+            ->groupBy('employment_status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        // New hires trend (last 6 months)
+        $hireTrend = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $monthRef   = $now->copy()->subMonths($i);
+            $mStart     = $monthRef->copy()->startOfMonth()->toDateString();
+            $mEnd       = $monthRef->copy()->endOfMonth()->toDateString();
+            $count      = EmployeeProfile::query()
+                ->whereBetween('hire_date', [$mStart, $mEnd])
+                ->count();
+            $hireTrend[] = [
+                'month' => $monthRef->format('M Y'),
+                'count' => $count,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => [
+                    'total_companies'          => $totalCompanies,
+                    'total_active_companies'   => $totalActiveCompanies,
+                    'total_employees'          => $totalEmployees,
+                    'total_active'             => $totalActive,
+                    'total_probation'          => $totalProbation,
+                    'total_inactive'           => $totalInactive,
+                    'new_hires_this_month'     => $totalNewHires,
+                    'expiring_contracts_30d'   => $totalExpiringContracts,
+                    'month_label'              => $now->format('F Y'),
+                ],
+                'status_breakdown'   => $statusBreakdown,
+                'hire_trend'         => $hireTrend,
+                'companies'          => $companyCounts->map(fn ($c) => [
+                    'id'                     => $c->id,
+                    'code'                   => $c->code,
+                    'name'                   => $c->name,
+                    'status'                 => $c->status,
+                    'total_employees'        => (int) $c->total_employees,
+                    'active_employees'       => (int) $c->active_employees,
+                    'probation_employees'    => (int) $c->probation_employees,
+                    'inactive_employees'     => (int) $c->inactive_employees,
+                    'new_hires_this_month'   => (int) $c->new_hires_this_month,
+                    'expiring_contracts_30d' => (int) $c->expiring_contracts_30d,
+                ])->values()->all(),
+            ],
+        ]);
+    }
+
+    public function packageComplianceMonitor(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.']], 403);
+        }
+
+        // Load all active/trial/suspended subscriptions with package features and company
+        $subscriptions = Subscription::query()
+            ->with(['package.features', 'company'])
+            ->whereIn('status', ['active', 'trial', 'suspended'])
+            ->get();
+
+        $rows = [];
+        $summary = ['violation' => 0, 'warning' => 0, 'compliant' => 0, 'unlimited' => 0, 'total' => 0];
+
+        foreach ($subscriptions as $sub) {
+            if (! $sub->company || ! $sub->package) {
+                continue;
+            }
+
+            $feature = $sub->package->features->firstWhere('feature_code', 'max_employees');
+            $limit   = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
+
+            $actual = EmployeeProfile::query()
+                ->where('company_id', $sub->company_id)
+                ->whereNotIn('employment_status', ['terminated'])
+                ->count();
+
+            if ($limit === null) {
+                $usagePct = 0;
+                $status   = 'unlimited';
+                $summary['unlimited']++;
+            } else {
+                $usagePct = $limit > 0 ? round(($actual / $limit) * 100, 1) : ($actual > 0 ? 999 : 0);
+                if ($actual > $limit) {
+                    $status = 'violation';
+                    $summary['violation']++;
+                } elseif ($limit > 0 && ($actual / $limit) >= 0.80) {
+                    $status = 'warning';
+                    $summary['warning']++;
+                } else {
+                    $status = 'compliant';
+                    $summary['compliant']++;
+                }
+            }
+            $summary['total']++;
+
+            $rows[] = [
+                'company_id'        => $sub->company_id,
+                'company_name'      => $sub->company->name,
+                'company_code'      => $sub->company->code,
+                'company_status'    => $sub->company->status,
+                'package_name'      => $sub->package->name,
+                'plan_code'         => $sub->plan_code,
+                'sub_status'        => $sub->status,
+                'sub_ends_at'       => $sub->ends_at ? $sub->ends_at->toDateString() : null,
+                'limit'             => $limit,
+                'actual'            => $actual,
+                'excess'            => max(0, $actual - ($limit ?? $actual)),
+                'usage_pct'         => $usagePct,
+                'compliance_status' => $status,
+            ];
+        }
+
+        // Sort: violations first, then warnings, then compliant, then unlimited
+        usort($rows, function ($a, $b) {
+            $order = ['violation' => 0, 'warning' => 1, 'compliant' => 2, 'unlimited' => 3];
+            return ($order[$a['compliance_status']] ?? 9) <=> ($order[$b['compliance_status']] ?? 9);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'summary' => $summary,
+                'tenants' => $rows,
+            ],
+        ]);
     }
 }

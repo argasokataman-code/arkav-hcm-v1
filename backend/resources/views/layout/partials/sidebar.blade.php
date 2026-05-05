@@ -70,6 +70,21 @@
     $canSeeAttendanceMenu = $featureBypass || $hasAttendance || $hasLeaveManagement;
     $canSeeHolidaysMenu = $featureBypass || ($hasHolidayCalendar && $isHcmAdmin);
     $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
+
+    // Super admin hanya melihat menu platform/SaaS, bukan HRM operasional tenant
+    if ($isGlobalHcmAdmin) {
+        $canSeePayrollMenu          = false;
+        $canSeeEmployeesMenu        = false;
+        $canSeeAttendanceMenu       = false;
+        $canSeeHolidaysMenu         = false;
+        $canSeePerformanceMenu      = false;
+        $canViewTrainingMenu        = false;
+        $canManageTrainingMenu      = false;
+        $canSeeEmployeeLifecycleMenu = false;
+        $canSeeTicketsMenu          = false;
+        $canSeeAssetManagementMenu  = false;
+        $showTemplateCatalogMenus   = false;
+    }
 @endphp
 
 @include('layout.partials.sidebar.main-sidebar')

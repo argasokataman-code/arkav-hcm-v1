@@ -4,6 +4,44 @@
   const API_BASE = "/v1/saas/transactions";
   const PAGE_SIZE = 15;
 
+  // Get API token from server (same pattern as super-admin-dashboard-data.js)
+  function getApiToken() {
+    return new Promise(function (resolve, reject) {
+      var cached = localStorage.getItem("saas_api_token");
+      if (cached) {
+        resolve(cached);
+        return;
+      }
+      fetch("/api-token", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      })
+        .then(function (res) {
+          if (res.status === 302 || res.status === 401) {
+            window.location.href = "/lock-screen";
+            reject(new Error("Not authenticated."));
+            return;
+          }
+          if (res.status === 403) {
+            window.location.href = "/employee-dashboard";
+            reject(new Error("Admin access required."));
+            return;
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          if (data && data.success && data.data && data.data.token) {
+            localStorage.setItem("saas_api_token", data.data.token);
+            resolve(data.data.token);
+          } else {
+            reject(new Error("Failed to get API token"));
+          }
+        })
+        .catch(reject);
+    });
+  }
+
   // Utility: API request with auth headers
   function apiRequest(method, url, body) {
     const headers = {
@@ -15,10 +53,16 @@
       headers["Content-Type"] = "application/json";
     }
 
+    // Add authorization token if available
+    const token = localStorage.getItem("saas_api_token");
+    if (token) {
+      headers["Authorization"] = "Bearer " + token;
+    }
+
     const opts = {
       method: method,
       headers: headers,
-      credentials: "same-origin",
+      credentials: "include",
     };
 
     if (body && method !== "GET") {
@@ -110,8 +154,19 @@
      * Initialize the transactions list page
      */
     init: function () {
-      this.bindEvents();
-      this.loadTransactions();
+      var self = this;
+      getApiToken()
+        .then(function () {
+          self.bindEvents();
+          self.loadTransactions();
+        })
+        .catch(function (err) {
+          console.error("Transactions init error:", err);
+          var container = document.querySelector("[data-transactions-list-container]");
+          if (container) {
+            container.innerHTML = '<div class="card"><div class="card-body text-center text-danger py-4">Failed to initialize: ' + String(err.message || err) + '</div></div>';
+          }
+        });
     },
 
     /**

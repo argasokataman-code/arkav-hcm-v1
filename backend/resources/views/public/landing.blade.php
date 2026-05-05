@@ -936,6 +936,17 @@
 						</div>
 					</div>
 
+					<div class="mt-4 p-3 rounded-3 border">
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="consentAccepted" name="consent_accepted" value="1" required>
+							<label class="form-check-label" for="consentAccepted">
+								Saya menyetujui <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
+								dan <a href="/terms-condition" target="_blank" rel="noopener noreferrer">Syarat &amp; Ketentuan</a> ARCAV HCM.
+								Data saya akan digunakan untuk keperluan layanan manajemen SDM (HR).
+							</label>
+						</div>
+					</div>
+
 					<div class="mt-4 p-3 rounded-3 bg-light">
 						<div class="small text-muted">Catatan</div>
 						<div class="fw-semibold">Setelah onboarding berhasil, silakan login pakai email owner untuk masuk ke aplikasi.</div>

@@ -110,11 +110,14 @@ class PublicOnboardingController
             'owner.password' => ['required', 'string', 'min:8', 'max:64', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
             'owner.confirmPassword' => ['required', 'same:owner.password'],
             'billingEmail' => ['nullable', 'string', 'email:rfc', 'max:255'],
+            'consent_accepted' => ['required', 'accepted'],
         ]);
 
         $this->verifyTurnstileOrFail($request, $validated);
 
-        return DB::transaction(function () use ($validated): JsonResponse {
+        $consentIp = $request->ip();
+
+        return DB::transaction(function () use ($validated, $consentIp): JsonResponse {
             /** @var Package $package */
             $package = Package::query()->where('uuid', $validated['package_uuid'])->firstOrFail();
 
@@ -153,6 +156,9 @@ class PublicOnboardingController
                 'timezone' => $validated['company']['timezone'],
                 'currency' => $validated['company']['currency'],
                 'country_code' => $validated['company']['country_code'],
+                'onboarding_consent_accepted' => true,
+                'onboarding_consent_at' => now(),
+                'onboarding_consent_ip' => $consentIp,
             ]);
 
             $companyContactPhone = $validated['company']['contact_phone'] ?? null;

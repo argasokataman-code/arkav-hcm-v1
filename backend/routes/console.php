@@ -209,3 +209,27 @@ Schedule::call(function (): void {
     ->timezone((string) ($monthlyFinancialClose['timezone'] ?? 'Asia/Jakarta'))
     ->monthlyOn(1, (string) ($monthlyFinancialClose['time'] ?? '01:30'))
     ->withoutOverlapping(120);
+
+// UU PDP: Purge old completed erasure request records (data minimization — Pasal 43)
+Schedule::command('pdp:purge-completed-erasures')
+    ->name('pdp-purge-completed-erasures')
+    ->description('Purge completed erasure request records older than 90 days (UU PDP data minimization)')
+    ->timezone('Asia/Jakarta')
+    ->monthly()
+    ->withoutOverlapping(60);
+
+// UU PDP M2: AI chat log retention (1 year)
+Schedule::command('pdp:purge-ai-chat-logs')
+    ->name('pdp-purge-ai-chat-logs')
+    ->description('Purge AI chat logs older than configured retention window (default 1 year)')
+    ->timezone('Asia/Jakarta')
+    ->dailyAt('01:45')
+    ->withoutOverlapping(60);
+
+// UU PDP M3: attendance retention (5 years)
+Schedule::command('pdp:purge-attendance-records')
+    ->name('pdp-purge-attendance-records')
+    ->description('Purge attendance records older than configured retention window (default 5 years)')
+    ->timezone('Asia/Jakarta')
+    ->monthlyOn(1, '02:00')
+    ->withoutOverlapping(120);

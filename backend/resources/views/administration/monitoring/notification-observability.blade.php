@@ -29,7 +29,7 @@
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-3 mb-3">
                     <div>
                         <h4 class="mb-1">Delivery Summary</h4>
-                        <p class="text-muted mb-0">Operational monitoring for notification delivery across channels. Event taxonomy reference: docs/features/notifications/EVENT-TAXONOMY-MATRIX.md</p>
+                        <p class="text-muted mb-0">Pantau pengiriman notifikasi ke semua channel (Email, SMS, Database, Webhook) secara real-time.</p>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <select class="form-select" data-notification-observability-hours>

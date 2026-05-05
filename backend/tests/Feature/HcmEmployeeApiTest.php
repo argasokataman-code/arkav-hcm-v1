@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
-use App\Models\Company;
-use App\Models\Team;
 use App\Models\Policy;
+use App\Models\Team;
 use App\Models\User;
 use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -125,6 +125,7 @@ class HcmEmployeeApiTest extends TestCase
             'email' => 'valid.employee@example.com',
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
+            'data_disclosure_acknowledged' => true,
             'team' => $team->name,
             'teamId' => $team->id,
             'departmentId' => $department->id,
@@ -454,15 +455,14 @@ class HcmEmployeeApiTest extends TestCase
             ->assertJsonPath('data.religion', 'Islam')
             ->assertJsonPath('data.nationality', 'Indonesia');
 
-        $this->assertDatabaseHas('employee_profiles', [
-            'user_id' => $id,
-            'nik' => '3174011708980001',
-            'place_of_birth' => 'Jakarta',
-            'gender' => 'female',
-            'marital_status' => 'single',
-            'religion' => 'Islam',
-            'nationality' => 'Indonesia',
-        ]);
+        // Verify data via model (encrypted fields will be decrypted via cast)
+        $profile = EmployeeProfile::query()->where('user_id', $id)->firstOrFail();
+        $this->assertSame('3174011708980001', $profile->nik);
+        $this->assertSame('Jakarta', $profile->place_of_birth);
+        $this->assertSame('female', $profile->gender);
+        $this->assertSame('single', $profile->marital_status);
+        $this->assertSame('Islam', $profile->religion);
+        $this->assertSame('Indonesia', $profile->nationality);
 
         $profile = EmployeeProfile::query()->where('user_id', $id)->firstOrFail();
         $this->assertSame('1998-08-17', optional($profile->date_of_birth)->toDateString());

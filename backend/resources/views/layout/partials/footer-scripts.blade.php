@@ -158,6 +158,7 @@
         'layout-horizontal-single', 'layout-horizontal-box', 'layout-horizontal-sidemenu', 'layout-vertical-transparent', 'layout-without-header',
     'layout-rtl', 'layout-dark','expenses-report','invoice-report','payment-report',
         'employee-report','payslip-report','attendance-report', 'leave-report', 'daily-report',
+    'super-admin.employees-monitor', 'super-admin.package-compliance',
     ]))
     <!-- Chart JS -->
     <script src="{{ URL::asset('build/plugins/apexchart/apexcharts.min.js') }}?v={{ file_exists(public_path('build/plugins/apexchart/apexcharts.min.js')) ? filemtime(public_path('build/plugins/apexchart/apexcharts.min.js')) : time() }}"></script>
@@ -358,6 +359,10 @@
 
 @if (Route::is(['security-settings']))
     <script src="{{ URL::asset('build/js/security-settings-data.js') }}"></script>
+@endif
+
+@if (Route::is(['security-incidents']))
+    <script src="{{ URL::asset('build/js/security-incidents-data.js') }}?v={{ file_exists(public_path('build/js/security-incidents-data.js')) ? filemtime(public_path('build/js/security-incidents-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['notification-observability']))

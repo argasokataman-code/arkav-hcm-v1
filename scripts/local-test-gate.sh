@@ -48,9 +48,9 @@ fi
 echo "${GREEN}✓ Frontend assets built${NC}"
 echo ""
 
-# Step 4: Run migrations
+# Step 4: Run migrations (fresh to avoid MySQL 1412 table-definition-changed errors after ALTERs)
 echo "${YELLOW}[4/6]${NC} Running database migrations..."
-if ! php artisan migrate --force --env=testing; then
+if ! php artisan migrate:fresh --force --env=testing; then
   echo "${RED}✗ Database migration failed${NC}"
   exit 1
 fi

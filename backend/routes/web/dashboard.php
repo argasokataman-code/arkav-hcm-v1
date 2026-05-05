@@ -10,6 +10,14 @@ Route::get('/employee-dashboard', function () {
     return view('hrm.employee-dashboard');
 })->name('employee-dashboard');
 
+Route::get('/super-admin/employees-monitor', function () {
+    return view('super-admin.employees-monitor');
+})->middleware('hcm.web.global-admin')->name('super-admin.employees-monitor');
+
+Route::get('/super-admin/package-compliance', function () {
+    return view('super-admin.package-compliance');
+})->middleware('hcm.web.global-admin')->name('super-admin.package-compliance');
+
 Route::get('/dashboard', function () {
     return view('saas.saas-dashboard');
 })->middleware('hcm.web.global-admin')->name('dashboard');

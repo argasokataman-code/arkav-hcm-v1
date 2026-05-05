@@ -52,6 +52,7 @@ class PublicOnboardingApiTest extends TestCase
         $payload = [
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Inc',
                 'timezone' => 'Asia/Jakarta',
@@ -94,6 +95,7 @@ class PublicOnboardingApiTest extends TestCase
         $payload = [
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Inc',
                 'timezone' => 'Asia/Jakarta',
@@ -133,6 +135,7 @@ class PublicOnboardingApiTest extends TestCase
         $payload = [
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Inc',
                 'timezone' => 'Asia/Jakarta',
@@ -167,6 +170,7 @@ class PublicOnboardingApiTest extends TestCase
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
             'start_mode' => 'free_forever',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Inc',
                 'timezone' => 'Asia/Jakarta',
@@ -201,6 +205,7 @@ class PublicOnboardingApiTest extends TestCase
         $payload = [
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Inc',
                 'legal_name' => 'Acme Incorporated',
@@ -283,6 +288,7 @@ class PublicOnboardingApiTest extends TestCase
             'billing_cycle' => 'monthly',
             'start_mode' => 'pending_payment',
             'billingEmail' => 'billing@acme.test',
+            'consent_accepted' => true,
             'company' => [
                 'name' => 'Acme Paid Inc',
                 'timezone' => 'Asia/Jakarta',
@@ -363,6 +369,7 @@ class PublicOnboardingApiTest extends TestCase
         $payload = [
             'package_uuid' => $package->uuid,
             'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
             'company' => [
                 'code' => 'acme_1',
                 'name' => 'Acme Inc',

@@ -147,7 +147,7 @@
 @if ($isHcmAdmin)
                             <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
 @endif
-                            <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
+                            <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
                         </ul>
                     </div>
                         <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',

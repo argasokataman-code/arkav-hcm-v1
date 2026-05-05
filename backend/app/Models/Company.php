@@ -23,6 +23,9 @@ class Company extends Model
         'timezone',
         'currency',
         'country_code',
+        'onboarding_consent_accepted',
+        'onboarding_consent_at',
+        'onboarding_consent_ip',
     ];
 
     public function owner(): BelongsTo

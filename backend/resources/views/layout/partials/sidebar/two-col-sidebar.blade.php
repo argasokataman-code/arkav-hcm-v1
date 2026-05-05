@@ -147,7 +147,7 @@
 @if ($isHcmAdmin)
                             <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
 @endif
-                            <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
+                            <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
                         </ul>
                     </div>
                         <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
@@ -173,6 +173,7 @@
                             <li><a href="{{url('companies')}}" class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
                             <li><a href="{{url('saas/billing-overview')}}" class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
                             <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
+                            <li><a href="{{ route('super-admin.package-compliance') }}" class="{{ Request::is('super-admin/package-compliance') ? 'active' : '' }}">Package Compliance</a></li>
                             <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                             <li><a href="{{url('domain')}}" class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>
                             <li><a href="{{url('purchase-transaction')}}" class="{{ Request::is('purchase-transaction','saas/transactions') ? 'active' : '' }}">Purchase Transaction</a></li>

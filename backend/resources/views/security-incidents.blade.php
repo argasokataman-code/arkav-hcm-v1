@@ -1,0 +1,1 @@
+@include('hrm.security-incidents')

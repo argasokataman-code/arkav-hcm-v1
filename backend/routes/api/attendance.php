@@ -40,7 +40,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::post('/attendance/me/punch', [AttendanceController::class, 'punch']);
     Route::post('/attendance/me/break', [AttendanceController::class, 'toggleBreak']);
     Route::post('/attendance/me/correction-request', [AttendanceController::class, 'requestCorrection']);
-    Route::post('/attendance/me/selfie', [AttendanceController::class, 'meSelfie']);
+    Route::post('/attendance/me/selfie', [AttendanceController::class, 'meSelfie'])->middleware('biometric.consent');
     Route::get('/attendance/me/selfie/status', [AttendanceController::class, 'meSelfieStatus']);
     Route::get('/attendance/admin/records/{id}/selfie/download', [AttendanceController::class, 'adminSelfieDownload']);
 });

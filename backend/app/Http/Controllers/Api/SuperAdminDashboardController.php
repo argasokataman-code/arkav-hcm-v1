@@ -696,9 +696,15 @@ class SuperAdminDashboardController extends Controller
      */
     private function calculateMRR(): float
     {
-        return (float) Subscription::where('status', 'active')
-            ->whereMonth('created_at', now()->month)
+        $monthly = (float) Subscription::where('status', 'active')
+            ->where(fn ($q) => $q->where('billing_cycle', 'monthly')->orWhereNull('billing_cycle'))
             ->sum('amount');
+
+        $yearly = (float) Subscription::where('status', 'active')
+            ->where('billing_cycle', 'yearly')
+            ->sum('amount');
+
+        return round($monthly + ($yearly / 12), 2);
     }
 
     /**
@@ -706,7 +712,15 @@ class SuperAdminDashboardController extends Controller
      */
     private function calculateARR(): float
     {
-        return (float) Subscription::where('status', 'active')->sum('amount') * 12;
+        $monthly = (float) Subscription::where('status', 'active')
+            ->where(fn ($q) => $q->where('billing_cycle', 'monthly')->orWhereNull('billing_cycle'))
+            ->sum('amount');
+
+        $yearly = (float) Subscription::where('status', 'active')
+            ->where('billing_cycle', 'yearly')
+            ->sum('amount');
+
+        return round(($monthly * 12) + $yearly, 2);
     }
 
     /**

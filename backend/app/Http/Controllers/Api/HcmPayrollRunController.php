@@ -34,6 +34,7 @@ use Illuminate\Support\Str;
 class HcmPayrollRunController extends Controller
 {
     use ChecksPermissions;
+    use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
 
     public function __construct(
         private readonly MonthlyPayslipService $monthlyPayslipService,
@@ -215,6 +216,11 @@ class HcmPayrollRunController extends Controller
             'meta' => $meta,
         ]);
         PayrollFinalized::dispatch((int) $run->id, (int) ($user?->id ?? 0));
+
+        $this->logHcmActivity($request, 'payroll_run', (string) ($run->uuid ?? (string) $run->id), 'finalized', [], [
+            'period' => $run->hcm_payroll_period_id,
+            'purpose' => $purpose,
+        ]);
 
         // Notify company admins that payroll has been finalized/generated
         $this->notifyCompanyAdminsPayroll(

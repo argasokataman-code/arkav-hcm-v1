@@ -37,6 +37,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class HcmLeaveRequestController extends Controller
 {
+    use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
+
     private function canManageLeaveForCompany(Request $request): bool
     {
         $user = $request->user();
@@ -669,6 +671,8 @@ class HcmLeaveRequestController extends Controller
                     }
                 }
             });
+
+            $this->logHcmActivity($request, 'leave_request', (string) ($r->uuid ?? (string) $r->id), $validated['status'] === 'approved' ? 'approved' : 'declined');
 
             return response()->json(['success' => true]);
         }

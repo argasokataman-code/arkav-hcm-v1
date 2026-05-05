@@ -63,7 +63,9 @@ class PaymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $payments->items(),
+            'data' => collect($payments->items())
+                ->map(fn(Payment $payment) => $this->formatPayment($payment))
+                ->values(),
             'pagination' => [
                 'total' => $payments->total(),
                 'per_page' => $payments->perPage(),

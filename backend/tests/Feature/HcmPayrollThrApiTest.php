@@ -281,7 +281,10 @@ class HcmPayrollThrApiTest extends TestCase
         $workerLineAfterGen = collect($gen->json('data.lines'))->firstWhere('userId', $worker->id);
         $this->assertNotNull($workerLineAfterGen);
         $this->assertSame('BCA', $workerLineAfterGen['bankName']);
-        $this->assertSame('1234567890', $workerLineAfterGen['bankAccountNo']);
+        // bankAccountNo is encrypted (UU PDP C5 requirement)
+        // Verify encrypted value is present (base64-encoded with 'eyJ' prefix for AES encryption)
+        $this->assertNotEmpty($workerLineAfterGen['bankAccountNo']);
+        $this->assertStringStartsWith('eyJ', $workerLineAfterGen['bankAccountNo']);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll/thr-batch/post-payroll', [

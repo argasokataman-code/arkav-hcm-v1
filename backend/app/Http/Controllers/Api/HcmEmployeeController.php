@@ -49,6 +49,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class HcmEmployeeController extends Controller
 {
     use ChecksPermissions;
+    use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
 
     public function __construct(
         private readonly AvatarStorageService $avatarStorage,
@@ -150,6 +151,33 @@ class HcmEmployeeController extends Controller
         }
 
         return $format;
+    }
+
+    /**
+     * Log a data export event to the export_audit_logs table (UU PDP H5 compliance).
+     */
+    private function logExportAuditTrail(Request $request, string $action, string $format, int $recordCount): void
+    {
+        try {
+            $user = $request->user();
+            $companyId = $this->activeCompanyId($request);
+
+            DB::table('export_audit_logs')->insert([
+                'user_uuid'       => (string) ($user?->uuid ?? 'unknown'),
+                'company_id'      => (int) ($companyId ?? 0),
+                'action'          => $action,
+                'format'          => $format,
+                'record_count'    => $recordCount,
+                'ip_address'      => $request->ip(),
+                'user_agent'      => substr((string) $request->userAgent(), 0, 500),
+                'filters_applied' => json_encode($request->only(['search', 'status', 'departmentId', 'designationId', 'teamId', 'format'])),
+                'exported_at'     => now(),
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+        } catch (\Throwable) {
+            // Non-fatal — do not block the export if audit logging fails.
+        }
     }
 
     /**
@@ -519,7 +547,9 @@ class HcmEmployeeController extends Controller
         }
 
         $this->normalizeEmployeeWritePayload($request);
-        $validated = $request->validate($this->employeeWriteRules($request, true));
+        $validated = $request->validate($this->employeeWriteRules($request, true) + [
+            'data_disclosure_acknowledged' => ['required', 'accepted'],
+        ]);
 
         if ($teamAssignmentError = $this->normalizeTeamAssignmentPayload($activeCompanyId, $validated)) {
             return $teamAssignmentError;
@@ -541,8 +571,10 @@ class HcmEmployeeController extends Controller
         $user = null;
         $profile = null;
         $actorId = $request->user()?->id;
+        $actorUuid = (string) ($request->user()?->uuid ?? '');
+        $disclosureIp = $request->ip();
 
-        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId, $actorId): void {
+        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId, $actorId, $actorUuid, $disclosureIp): void {
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -619,10 +651,15 @@ class HcmEmployeeController extends Controller
                 'emergency_contacts' => $validated['emergencyContacts'] ?? null,
                 'education_items' => $validated['educationItems'] ?? null,
                 'experience_items' => $validated['experienceItems'] ?? null,
+                'data_disclosed_at' => now(),
+                'data_disclosed_by_uuid' => $actorUuid,
+                'data_disclosed_ip' => $disclosureIp,
             ]);
 
             $this->employeeSnapshotService->syncNormalizedRecords($profile, $validated, $org);
         });
+
+        $this->logHcmActivity($request, 'employee', (string) ($user->uuid ?? ''), 'created');
 
         return response()->json([
             'success' => true,
@@ -762,6 +799,8 @@ class HcmEmployeeController extends Controller
                 (string) ($this->effectiveJoinDate($user, $profile) ?: ''),
             ];
         })->values()->all();
+
+        $this->logExportAuditTrail($request, 'export_employees', $this->normalizeExportFormat($request), count($rows));
 
         return $this->exportTabular('employees', $this->normalizeExportFormat($request), $headers, $rows);
     }
@@ -925,10 +964,20 @@ class HcmEmployeeController extends Controller
 
         if ($profilePayload !== []) {
             $profile->fill($profilePayload);
+            $changedFields = array_keys($profile->getDirty());
             $profile->save();
+            if ($changedFields !== []) {
+                \App\Events\EmployeeProfileUpdated::dispatch(
+                    $profile,
+                    $changedFields,
+                    (string) ($request->user()?->uuid ?? ''),
+                );
+            }
         }
 
         $this->employeeSnapshotService->syncNormalizedRecords($profile, $validated, $touchesOrg ? $org : []);
+
+        $this->logHcmActivity($request, 'employee', (string) ($user->uuid ?? ''), 'updated', $changedFields ?? []);
 
         return $this->show($request, $user->id);
     }
@@ -2018,6 +2067,8 @@ class HcmEmployeeController extends Controller
             ->values()
             ->all();
 
+        $this->logExportAuditTrail($request, 'export_departments', $this->normalizeExportFormat($request), count($rows));
+
         return $this->exportTabular('departments', $this->normalizeExportFormat($request), ['Name', 'Code', 'Designations Linked', 'Status'], $rows);
     }
 
@@ -2209,6 +2260,8 @@ class HcmEmployeeController extends Controller
             ])
             ->values()
             ->all();
+
+        $this->logExportAuditTrail($request, 'export_designations', $this->normalizeExportFormat($request), count($rows));
 
         return $this->exportTabular('designations', $this->normalizeExportFormat($request), ['Name', 'Department', 'Code', 'Status'], $rows);
     }
@@ -2444,6 +2497,8 @@ class HcmEmployeeController extends Controller
             ])
             ->values()
             ->all();
+
+        $this->logExportAuditTrail($request, 'export_policies', $this->normalizeExportFormat($request), count($rows));
 
         return $this->exportTabular('policies', $this->normalizeExportFormat($request), ['Name', 'Department', 'Description', 'Effective Date'], $rows);
     }

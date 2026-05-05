@@ -62,6 +62,20 @@
             || (bool) ($authUser->is_super_admin ?? false)
         );
     $canSeeAssetManagementMenu = $featureBypass || ($hasAssetManagement && !$isEmployeeScopedUser && $isHcmAdmin);
+
+    // Super admin hanya melihat menu platform/SaaS, bukan HRM operasional tenant
+    if ($isGlobalHcmAdmin) {
+        $canSeePayrollMenu          = false;
+        $canSeeEmployeesMenu        = false;
+        $canSeeAttendanceMenu       = false;
+        $canSeeHolidaysMenu         = false;
+        $canSeePerformanceMenu      = false;
+        $canViewTrainingMenu        = false;
+        $canManageTrainingMenu      = false;
+        $canSeeEmployeeLifecycleMenu = false;
+        $canSeeTicketsMenu          = false;
+        $canSeeAssetManagementMenu  = false;
+    }
     $headerProfileName = trim((string) ($authUser->name ?? 'User')) ?: 'User';
     $headerProfileEmail = trim((string) ($authUser->email ?? '')) ?: 'user@example.com';
     $headerProfilePhotoPath = trim((string) ($authUser->employeeProfile->profile_photo_path ?? ''));
@@ -1237,9 +1251,9 @@
                             <div class="card mb-0">
                                 <div class="card-header">
                                     <div class="d-flex align-items-center">
-                                        <span class="avatar avatar-lg me-2 avatar-rounded" aria-hidden="true">
+                                        <span class="avatar avatar-lg me-2 avatar-rounded" aria-hidden="true" style="flex-shrink:0;width:2.813rem;height:2.813rem;">
                                             @if ($headerProfilePhotoPath !== '')
-                                                <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle w-100 h-100" style="object-fit:cover;" data-nav-profile-photo-lg>
+                                                <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle" style="width:2.813rem;height:2.813rem;object-fit:cover;aspect-ratio:1/1;display:block;" data-nav-profile-photo-lg>
                                             @else
                                                 <span class="avatar-placeholder-lg rounded-circle" data-nav-profile-photo-lg-placeholder></span>
                                             @endif

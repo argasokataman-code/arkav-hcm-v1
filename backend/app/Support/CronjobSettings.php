@@ -18,7 +18,7 @@ class CronjobSettings
         return [
             'payment_reminder' => [
                 'label' => 'Send Payment Reminder',
-                'description' => 'Dispatch SendPaymentReminder job.',
+                'description' => 'Kirim pengingat otomatis ke customer/tenant untuk tagihan yang mendekati atau melewati jatuh tempo.',
                 'frequencyExplanation' => 'Daily = sistem menjalankan pengecekan invoice belum lunas setiap hari pada jam yang diatur.',
                 'businessPurpose' => 'Mengingatkan customer/company owner terhadap tagihan yang mendekati atau melewati jatuh tempo.',
                 'expectedOutcome' => 'Rasio pembayaran tepat waktu meningkat dan aging invoice menurun.',
@@ -31,7 +31,7 @@ class CronjobSettings
             ],
             'wilayah_sync' => [
                 'label' => 'Wilayah Sync',
-                'description' => 'Sync wilayah.id master data to local DB.',
+                'description' => 'Sinkronisasi data referensi wilayah (provinsi/kabupaten/kecamatan/kelurahan) dari sumber resmi.',
                 'frequencyExplanation' => 'Monthly = sinkronisasi data master wilayah dijalankan bulanan pada hari dan jam yang diatur.',
                 'businessPurpose' => 'Menjaga data referensi provinsi/kabupaten/kecamatan/kelurahan tetap selaras dengan sumber resmi.',
                 'expectedOutcome' => 'Input alamat dan validasi lokasi tetap akurat dan tidak stale.',
@@ -45,7 +45,7 @@ class CronjobSettings
             ],
             'payroll_refresh_open_period' => [
                 'label' => 'Payroll Refresh Open Period',
-                'description' => 'Refresh monthly payroll draft for active open period.',
+                'description' => 'Perbarui otomatis draft payroll periode aktif agar selalu mencerminkan data karyawan dan komponen terkini.',
                 'frequencyExplanation' => 'Daily = setiap hari sistem mengecek periode payroll berstatus open lalu refresh draft payroll.',
                 'businessPurpose' => 'Memastikan draft payroll periode aktif selalu mengikuti data karyawan/komponen terbaru sebelum finalisasi.',
                 'expectedOutcome' => 'Perhitungan payroll bulanan lebih konsisten dan minim koreksi manual.',
@@ -58,7 +58,7 @@ class CronjobSettings
             ],
             'leave_monthly_accrual' => [
                 'label' => 'Leave Monthly Accrual',
-                'description' => 'Post monthly earned-leave accrual.',
+                'description' => 'Tambahkan hak cuti bulanan karyawan secara otomatis sesuai kebijakan perusahaan.',
                 'frequencyExplanation' => 'Daily = worker berjalan harian, namun logika hanya memproses accrual jatah cuti bulanan saat kondisi terpenuhi.',
                 'businessPurpose' => 'Menambahkan hak cuti earned leave karyawan secara otomatis sesuai policy.',
                 'expectedOutcome' => 'Saldo cuti bulanan akurat tanpa proses manual HR.',
@@ -71,7 +71,7 @@ class CronjobSettings
             ],
             'leave_yearly_carry' => [
                 'label' => 'Leave Yearly Carry',
-                'description' => 'Run yearly carry-forward logic (Jan 1 window).',
+                'description' => 'Pindahkan saldo cuti tahunan yang dapat dibawa ke tahun berikutnya sesuai kebijakan.',
                 'frequencyExplanation' => 'Daily = worker cek setiap hari, tetapi carry-forward efektif saat jendela policy tahunan terpenuhi.',
                 'businessPurpose' => 'Memindahkan saldo cuti tahunan yang boleh dibawa ke tahun berikutnya.',
                 'expectedOutcome' => 'Transisi saldo cuti antar tahun sesuai kebijakan perusahaan.',
@@ -84,7 +84,7 @@ class CronjobSettings
             ],
             'leave_daily_expire' => [
                 'label' => 'Leave Daily Expire',
-                'description' => 'Expire carry-forward balances by policy cutoff.',
+                'description' => 'Hapus otomatis saldo cuti carry-forward yang sudah melewati batas masa berlaku sesuai kebijakan.',
                 'frequencyExplanation' => 'Daily = setiap hari sistem mengecek apakah ada saldo carry-forward yang sudah melewati cutoff policy.',
                 'businessPurpose' => 'Menghapus otomatis saldo carry-forward yang masa berlakunya habis.',
                 'expectedOutcome' => 'Saldo cuti tetap patuh aturan expiry tanpa audit manual berkala.',
@@ -97,7 +97,7 @@ class CronjobSettings
             ],
             'saas_convert_ended_trials' => [
                 'label' => 'SaaS Convert Ended Trials',
-                'description' => 'Convert ended trials into pending payment and generate invoice.',
+                'description' => 'Konversi tenant yang masa trial-nya berakhir menjadi status menunggu pembayaran dan buat invoice otomatis.',
                 'frequencyExplanation' => 'Daily = sistem memeriksa trial yang berakhir setiap hari lalu memproses konversi status + invoice.',
                 'businessPurpose' => 'Mengubah tenant trial yang habis menjadi pending payment agar flow billing lanjut otomatis.',
                 'expectedOutcome' => 'Tidak ada tenant trial berakhir yang terlewat ke proses penagihan.',
@@ -110,7 +110,7 @@ class CronjobSettings
             ],
             'saas_terminate_expired_subscriptions' => [
                 'label' => 'SaaS Terminate Expired Subscriptions',
-                'description' => 'Expire pending payment/active subscriptions whose end date has passed.',
+                'description' => 'Nonaktifkan entitlement tenant yang masa berlangganannya sudah berakhir.',
                 'frequencyExplanation' => 'Daily = setiap hari sistem mengecek subscription yang sudah melewati end date.',
                 'businessPurpose' => 'Menonaktifkan entitlement tenant yang masa langganannya sudah berakhir.',
                 'expectedOutcome' => 'Akses fitur SaaS tetap sesuai masa berlaku langganan.',
@@ -123,7 +123,7 @@ class CronjobSettings
             ],
             'saas_suspend_overdue_services' => [
                 'label' => 'SaaS Suspend Overdue Services',
-                'description' => 'Suspend services when unpaid invoice is overdue beyond grace window.',
+                'description' => 'Suspend layanan tenant yang memiliki tagihan menunggak melebihi batas toleransi pembayaran.',
                 'frequencyExplanation' => 'Daily = sistem mengecek invoice unpaid yang lewat grace period setiap hari.',
                 'businessPurpose' => 'Mensuspend layanan tenant yang menunggak pembayaran melebihi batas toleransi.',
                 'expectedOutcome' => 'Kontrol risiko piutang lebih baik dan enforcement billing konsisten.',
@@ -136,7 +136,7 @@ class CronjobSettings
             ],
             'saas_check_employee_count_limits' => [
                 'label' => 'SaaS Check Employee Limits',
-                'description' => 'Monitor subscription plan employee-limit violations.',
+                'description' => 'Pantau dan deteksi tenant yang jumlah karyawan aktifnya melebihi batas paket berlangganan.',
                 'frequencyExplanation' => 'Daily = pengecekan jumlah employee aktif tenant dilakukan harian terhadap limit paket.',
                 'businessPurpose' => 'Mendeteksi pelanggaran limit seat/employee berdasarkan paket subscription.',
                 'expectedOutcome' => 'Usage tenant tetap sesuai kapasitas paket yang dibayar.',
@@ -149,7 +149,7 @@ class CronjobSettings
             ],
             'saas_recurring_billing' => [
                 'label' => 'SaaS Recurring Billing',
-                'description' => 'Process subscription renewals and recurring billing tasks.',
+                'description' => 'Jalankan perpanjangan berlangganan dan siklus penagihan berulang tenant SaaS secara otomatis.',
                 'frequencyExplanation' => 'Daily = setiap hari sistem mengecek subscription yang masuk siklus renewal/billing berulang.',
                 'businessPurpose' => 'Menjalankan automation perpanjangan dan siklus tagihan berulang tenant SaaS.',
                 'expectedOutcome' => 'Siklus billing periodik berjalan stabil tanpa intervensi manual rutin.',

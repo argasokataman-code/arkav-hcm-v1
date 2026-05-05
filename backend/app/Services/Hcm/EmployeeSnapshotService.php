@@ -363,11 +363,11 @@ final class EmployeeSnapshotService
                 'status' => $contract?->status,
             ],
             'bank' => [
-                'name' => $bank?->bank_name ?? $profile->getRawOriginal('bank_name'),
-                'accountNo' => $bank?->account_number ?? $profile->getRawOriginal('bank_account_no'),
+                'name' => $bank?->bank_name ?? $profile->bank_name,
+                'accountNo' => $bank?->account_number ?? $profile->bank_account_no,
                 'accountHolderName' => $bank?->account_holder_name,
-                'ifscCode' => $bank?->bank_ifsc_code ?? $profile->getRawOriginal('bank_ifsc_code'),
-                'branch' => $bank?->bank_branch ?? $profile->getRawOriginal('bank_branch'),
+                'ifscCode' => $bank?->bank_ifsc_code ?? $profile->bank_ifsc_code,
+                'branch' => $bank?->bank_branch ?? $profile->bank_branch,
             ],
             'taxProfile' => [
                 'npwp' => $tax?->npwp,
@@ -379,8 +379,8 @@ final class EmployeeSnapshotService
                 'bpjsKetenagakerjaanNo' => $benefit?->bpjs_ketenagakerjaan_no,
             ],
             'personal' => [
-                'nik' => $profile->getRawOriginal('nik'),
-                'ktpNo' => $profile->getRawOriginal('nik'),
+                'nik' => $profile->nik,
+                'ktpNo' => $profile->nik,
                 'placeOfBirth' => $profile->getRawOriginal('place_of_birth'),
                 'dateOfBirth' => optional($profile->date_of_birth)->toDateString(),
                 'gender' => $profile->getRawOriginal('gender'),

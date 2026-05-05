@@ -30,6 +30,17 @@
         </div>
         <!-- /Breadcrumb -->
 
+        <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
+            <i class="ti ti-info-circle mt-1"></i>
+            <div>
+                <strong>Disclosure Pemrosesan Pembayaran:</strong>
+                Informasi pembayaran Anda diproses oleh penyedia pembayaran pihak ketiga
+                (Xendit dan/atau Stripe). Untuk transaksi lintas negara, data tertentu dapat
+                diproses pada infrastruktur di luar Indonesia sesuai kebutuhan pelaksanaan kontrak
+                layanan (UU PDP Pasal 49 huruf b).
+            </div>
+        </div>
+
         <!-- Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">

@@ -20,6 +20,12 @@ Route::get('/security-settings', function () {
 Route::get('/notification-settings', function () {
     return view('settings.notification-settings');
 })->name('notification-settings');
+
+// PDP Compliance — Security Incidents (admin only, Pasal 46 UU PDP)
+Route::get('/security-incidents', function () {
+    return view('security-incidents');
+})->middleware('hcm.web.admin')->name('security-incidents');
+
 // Admin-level settings
 Route::get('/approval-settings', function () {
     return view('settings.approval-settings');

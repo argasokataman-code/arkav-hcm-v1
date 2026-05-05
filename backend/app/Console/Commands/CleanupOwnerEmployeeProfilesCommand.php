@@ -144,7 +144,7 @@ class CleanupOwnerEmployeeProfilesCommand extends Command
 
             DB::transaction(function () use ($company, $profile): void {
                 $this->backfillOwnerSettingsFromProfile($company->id, $profile);
-                $profile->delete();
+                 $profile->forceDelete();
             });
 
             $cleaned++;

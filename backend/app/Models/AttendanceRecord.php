@@ -4,11 +4,12 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 
 class AttendanceRecord extends Model
 {
-    use AssignsUuid;
+    use AssignsUuid, SoftDeletes;
 
     protected static function booted(): void
     {

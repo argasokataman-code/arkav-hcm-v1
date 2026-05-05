@@ -87,6 +87,9 @@ class AiLlmService
      *
      * Returns the reply string, or throws on hard failure.
      *
+     * UU PDP H3: Caller MUST check AI consent before calling this method.
+     * Use: checkUserHasAiConsent($userUuid) first.
+     *
      * @param  array<int, array{role: string, content: string}>  $messages
      */
     public function chat(array $messages): string
@@ -122,6 +125,28 @@ class AiLlmService
             throw new \RuntimeException('LLM provider unreachable: '.$e->getMessage(), 0, $e);
         }
     }
+
+    /**
+     * Check if a user has active AI Chat consent.
+     * UU PDP H3: Call before invoking chat() to ensure user has consented.
+     *
+     * @return bool true if user has active (non-withdrawn) AI consent
+     */
+    public function checkUserHasAiConsent(string $userUuid): bool
+    {
+        $employeeProfile = \App\Models\EmployeeProfile::query()
+            ->where('user_uuid', $userUuid)
+            ->first();
+
+        if (! $employeeProfile) {
+            return false;
+        }
+
+        $consent = \App\Models\EmployeeAiConsent::getActiveForEmployee($employeeProfile->uuid);
+
+        return $consent !== null && $consent->isActive();
+    }
+
 
     /**
      * Build a hardened message array from system prompt + data context + user question.

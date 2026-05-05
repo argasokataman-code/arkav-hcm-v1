@@ -6,9 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('hcm.web.admin')->group(function (): void {
-    Route::get('/expenses-report', function () {
-        return view('finance.expenses-report');
-    })->name('expenses-report');
+    // expenses-report hidden (not in use)
 
     Route::get('/invoice-report', function () {
         return view('finance.invoice-report');

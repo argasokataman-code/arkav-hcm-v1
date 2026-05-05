@@ -7,9 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\HcmResignation;
 use App\Models\HcmScheduleRoster;
 use App\Models\HcmSmartPlannerSetting;
 use App\Models\HcmShift;
+use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\Hcm\SmartAttendanceShiftingService;
 use Carbon\Carbon;
@@ -91,7 +93,8 @@ class HcmSmartAttendanceController extends Controller
 
         $shiftCategory = (string) ($validated['shiftCategory'] ?? 'office_hour');
 
-        $employees = $this->loadEmployees($companyId, $validated['employeeIds'] ?? null);
+        $weekEnd = $weekStart->addDays(6);
+        $employees = $this->loadEmployees($companyId, $validated['employeeIds'] ?? null, $weekStart, $weekEnd);
         if ($employees->isEmpty()) {
             return response()->json([
                 'success' => false,
@@ -445,6 +448,230 @@ class HcmSmartAttendanceController extends Controller
         ]);
     }
 
+    public function simulateSwap(Request $request): JsonResponse
+    {
+        $forbidden = $this->ensureHcmAdmin($request);
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return response()->json(['success' => false, 'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.']], 422);
+        }
+
+        $validated = $request->validate([
+            'userAId' => ['required', 'integer'],
+            'userBId' => ['required', 'integer'],
+            'swapDateA' => ['required', 'date'],
+            'swapDateB' => ['required', 'date'],
+            'rules' => ['nullable', 'array'],
+            'rules.min_rest_hours_between_shifts' => ['nullable', 'integer', 'min:1', 'max:24'],
+            'rules.max_consecutive_night_shifts' => ['nullable', 'integer', 'min:1', 'max:7'],
+            'rules.illegal_transition_rules' => ['nullable', 'array'],
+            'rules.illegal_transition_rules.*' => ['string'],
+        ]);
+
+        $companyUuid = $this->activeCompanyUuid($request);
+        $rules = $this->resolveRules($companyId, $companyUuid, $validated['rules'] ?? [], 'shifting_24h');
+        $timezone = (string) config('app.timezone');
+
+        $userAId = (int) $validated['userAId'];
+        $userBId = (int) $validated['userBId'];
+        $swapDateA = (string) $validated['swapDateA'];
+        $swapDateB = (string) $validated['swapDateB'];
+
+        // Determine week range covering both swap dates
+        $minDate = min($swapDateA, $swapDateB);
+        $maxDate = max($swapDateA, $swapDateB);
+        $weekStart = CarbonImmutable::parse($minDate, $timezone)->startOfWeek();
+        $weekEnd = $weekStart->addDays(13); // cover up to 2 weeks for context
+
+        $employees = $this->loadEmployees($companyId, [$userAId, $userBId], $weekStart, $weekEnd);
+        $employeeA = $employees->firstWhere('id', $userAId);
+        $employeeB = $employees->firstWhere('id', $userBId);
+
+        if (! $employeeA || ! $employeeB) {
+            return response()->json(['success' => false, 'error' => ['code' => 'EMPLOYEE_NOT_FOUND', 'message' => 'One or both employees not found in active tenant.']], 422);
+        }
+
+        // Load roster assignments for both employees from schedule roster
+        $rosterRows = HcmScheduleRoster::query()
+            ->where('company_id', $companyId)
+            ->whereIn('user_id', [$userAId, $userBId])
+            ->whereDate('work_date', '>=', $weekStart->toDateString())
+            ->whereDate('work_date', '<=', $weekEnd->toDateString())
+            ->with('shift:id,name,start_time,end_time,shift_type')
+            ->get();
+
+        $buildAssignments = function (int $userId) use ($rosterRows, $timezone): array {
+            return $rosterRows
+                ->where('user_id', $userId)
+                ->map(function (HcmScheduleRoster $r): array {
+                    $startTime = $r->start_time ? Carbon::parse((string) $r->start_time)->format('H:i') : null;
+                    $endTime = $r->end_time ? Carbon::parse((string) $r->end_time)->format('H:i') : null;
+                    return [
+                        'date' => (string) $r->work_date?->toDateString(),
+                        'shift_id' => $r->hcm_shift_id ? (string) $r->hcm_shift_id : 'OFF',
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                        'cross_day' => (bool) $r->cross_day,
+                    ];
+                })
+                ->values()
+                ->all();
+        };
+
+        $assignmentsA = collect($buildAssignments($userAId));
+        $assignmentsB = collect($buildAssignments($userBId));
+
+        // Fallback: if no roster rows for a date, insert a synthetic entry from schedule timing
+        foreach ([$swapDateA => $userAId, $swapDateB => $userBId] as $date => $uid) {
+            $assignments = $uid === $userAId ? $assignmentsA : $assignmentsB;
+            if ($assignments->firstWhere('date', $date) === null) {
+                $timing = \App\Models\HcmScheduleTiming::query()
+                    ->where('company_id', $companyId)
+                    ->where('user_id', $uid)
+                    ->first();
+                $syntheticShift = null;
+                if ($timing && $timing->hcm_shift_id) {
+                    $shift = HcmShift::query()->find($timing->hcm_shift_id);
+                    if ($shift) {
+                        $syntheticShift = [
+                            'date' => $date,
+                            'shift_id' => (string) $timing->hcm_shift_id,
+                            'start_time' => Carbon::parse((string) $shift->start_time)->format('H:i'),
+                            'end_time' => Carbon::parse((string) $shift->end_time)->format('H:i'),
+                            'cross_day' => (bool) (Carbon::parse((string) $shift->end_time)->lt(Carbon::parse((string) $shift->start_time))),
+                        ];
+                    }
+                }
+                if ($syntheticShift) {
+                    if ($uid === $userAId) {
+                        $assignmentsA = $assignmentsA->push($syntheticShift);
+                    } else {
+                        $assignmentsB = $assignmentsB->push($syntheticShift);
+                    }
+                }
+            }
+        }
+
+        $result = $this->service->simulateSwap(
+            $employeeA,
+            $employeeB,
+            $swapDateA,
+            $swapDateB,
+            $assignmentsA,
+            $assignmentsB,
+            $rules,
+            $timezone
+        );
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
+    public function findReplacement(Request $request): JsonResponse
+    {
+        $forbidden = $this->ensureHcmAdmin($request);
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return response()->json(['success' => false, 'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.']], 422);
+        }
+
+        $validated = $request->validate([
+            'absentUserId' => ['required', 'integer'],
+            'absentDates' => ['required', 'array', 'min:1'],
+            'absentDates.*' => ['date'],
+            'shiftId' => ['required', 'string'],
+            'employeeIds' => ['nullable', 'array'],
+            'employeeIds.*' => ['integer'],
+            'rules' => ['nullable', 'array'],
+        ]);
+
+        $companyUuid = $this->activeCompanyUuid($request);
+        $rules = $this->resolveRules($companyId, $companyUuid, $validated['rules'] ?? [], 'shifting_24h');
+        $timezone = (string) config('app.timezone');
+
+        $absentDates = array_values(array_map('strval', (array) $validated['absentDates']));
+        sort($absentDates);
+        $minDate = reset($absentDates);
+        $maxDate = end($absentDates);
+
+        $weekStart = CarbonImmutable::parse((string) $minDate, $timezone)->startOfWeek();
+        $weekEnd = CarbonImmutable::parse((string) $maxDate, $timezone)->endOfWeek();
+
+        $employees = $this->loadEmployees(
+            $companyId,
+            isset($validated['employeeIds']) && is_array($validated['employeeIds']) ? $validated['employeeIds'] : null,
+            $weekStart,
+            $weekEnd
+        );
+
+        if ($employees->isEmpty()) {
+            return response()->json(['success' => false, 'error' => ['code' => 'NO_EMPLOYEE_IN_SCOPE', 'message' => 'No employees in scope.']], 422);
+        }
+
+        // Find the shift template
+        $shiftIdRaw = (string) $validated['shiftId'];
+        $shift = HcmShift::query()
+            ->where('company_id', $companyId)
+            ->where('id', $shiftIdRaw)
+            ->first();
+
+        if (! $shift) {
+            return response()->json(['success' => false, 'error' => ['code' => 'SHIFT_NOT_FOUND', 'message' => 'Shift not found.']], 422);
+        }
+
+        $startTime = Carbon::parse((string) $shift->start_time)->format('H:i');
+        $endTime = Carbon::parse((string) $shift->end_time)->format('H:i');
+        $shiftTemplate = [
+            'shift_id' => (string) $shift->id,
+            'name' => (string) $shift->name,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'cross_day' => $endTime <= $startTime,
+        ];
+
+        // Load current roster for all employees in scope for the week
+        $rosterRows = HcmScheduleRoster::query()
+            ->where('company_id', $companyId)
+            ->whereIn('user_id', $employees->pluck('id'))
+            ->whereDate('work_date', '>=', $weekStart->toDateString())
+            ->whereDate('work_date', '<=', $weekEnd->toDateString())
+            ->with('shift:id,name,start_time,end_time')
+            ->get();
+
+        $rosterByUser = [];
+        foreach ($rosterRows as $row) {
+            $uid = (string) $row->user_id;
+            $st = $row->start_time ? Carbon::parse((string) $row->start_time)->format('H:i') : null;
+            $et = $row->end_time ? Carbon::parse((string) $row->end_time)->format('H:i') : null;
+            $rosterByUser[$uid][] = [
+                'date' => (string) $row->work_date?->toDateString(),
+                'shift_id' => $row->hcm_shift_id ? (string) $row->hcm_shift_id : 'OFF',
+                'start_time' => $st,
+                'end_time' => $et,
+                'cross_day' => (bool) $row->cross_day,
+            ];
+        }
+
+        $result = $this->service->findReplacement(
+            (int) $validated['absentUserId'],
+            $employees,
+            $rosterByUser,
+            $absentDates,
+            $shiftTemplate,
+            $rules,
+            $timezone
+        );
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
+
     private function activeCompanyId(Request $request): ?int
     {
         $value = $request->attributes->get('activeCompanyId');
@@ -490,7 +717,7 @@ class HcmSmartAttendanceController extends Controller
      * @param array<int,int>|null $employeeIds
      * @return \Illuminate\Support\Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>
      */
-    private function loadEmployees(int $companyId, ?array $employeeIds)
+    private function loadEmployees(int $companyId, ?array $employeeIds, ?CarbonImmutable $weekStart = null, ?CarbonImmutable $weekEnd = null)
     {
         $memberUserIds = CompanyUser::query()
             ->where('company_id', $companyId)
@@ -518,18 +745,70 @@ class HcmSmartAttendanceController extends Controller
             ->orderBy('name')
             ->get();
 
-        return $users->map(function (User $user): array {
+        // Build unavailable_dates from approved leaves + resigned employees
+        $weekStartDate = $weekStart?->toDateString();
+        $weekEndDate = $weekEnd?->toDateString();
+        $leavesByUser = [];
+        $resignedUserIds = [];
+
+        if ($weekStartDate && $weekEndDate) {
+            LeaveRequest::query()
+                ->where('company_id', $companyId)
+                ->where('status', 'approved')
+                ->whereIn('user_id', $memberUserIds)
+                ->where('date_from', '<=', $weekEndDate)
+                ->where('date_to', '>=', $weekStartDate)
+                ->get()
+                ->each(function (LeaveRequest $lr) use (&$leavesByUser, $weekStartDate, $weekEndDate): void {
+                    $uid = (int) $lr->user_id;
+                    $from = max((string) $weekStartDate, (string) ($lr->date_from?->toDateString() ?? $weekStartDate));
+                    $to = min((string) $weekEndDate, (string) ($lr->date_to?->toDateString() ?? $weekEndDate));
+                    $d = Carbon::parse($from);
+                    while ($d->toDateString() <= $to) {
+                        $leavesByUser[$uid][] = $d->toDateString();
+                        $d->addDay();
+                    }
+                });
+
+            $resignedUserIds = HcmResignation::query()
+                ->where('company_id', $companyId)
+                ->whereIn('user_id', $memberUserIds)
+                ->where('status', 'approved')
+                ->where('resignation_date', '<=', $weekEndDate)
+                ->pluck('user_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+        }
+
+        return $users->map(function (User $user) use ($leavesByUser, $resignedUserIds, $weekStartDate, $weekEndDate): array {
             /** @var EmployeeProfile|null $profile */
             $profile = $user->employeeProfile;
+            $userId = (int) $user->id;
+
+            $leaveDates = $leavesByUser[$userId] ?? [];
+            $isResigned = in_array($userId, $resignedUserIds, true);
+
+            // Resigned employees: mark the entire week as unavailable
+            if ($isResigned && $weekStartDate && $weekEndDate) {
+                $d = Carbon::parse($weekStartDate);
+                while ($d->toDateString() <= $weekEndDate) {
+                    $leaveDates[] = $d->toDateString();
+                    $d->addDay();
+                }
+            }
+
+            $unavailableDates = array_values(array_unique($leaveDates));
 
             return [
-                'id' => (int) $user->id,
+                'id' => $userId,
                 'name' => (string) $user->name,
                 'jobTitle' => (string) ($profile?->designation ?: 'Employee'),
                 'availability' => [
-                    'unavailable_dates' => [],
+                    'unavailable_dates' => $unavailableDates,
                     'preferred_shifts' => [],
                 ],
+                'on_leave_dates' => $unavailableDates,
+                'is_resigned' => $isResigned,
             ];
         })->values();
     }

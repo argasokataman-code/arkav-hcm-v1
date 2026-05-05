@@ -48,6 +48,7 @@ require __DIR__ . '/api/salary-component.php';
 
 // Tax Governance
 require __DIR__ . '/api/tax-governance.php';
+require __DIR__ . '/api/spt-masa.php';
 
 // BPJS Governance
 require __DIR__ . '/api/bpjs-governance.php';

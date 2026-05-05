@@ -936,6 +936,7 @@ class AuthController extends Controller
         $employeeLimit = $employeeLimitFeature?->limit;
         $employeeUsed = EmployeeProfile::query()
             ->where('company_id', $activeCompany->id)
+            ->when($activeCompany->owner_user_id, fn ($q) => $q->where('user_id', '!=', $activeCompany->owner_user_id))
             ->count();
 
         return [
@@ -961,9 +962,10 @@ class AuthController extends Controller
             'employeeSlots' => [
                 'limit' => $employeeLimit,
                 'used' => $employeeUsed,
-                'remaining' => $employeeLimit === null ? null : max($employeeLimit - $employeeUsed, 0),
+                'remaining' => $employeeLimit === null ? null : ($employeeLimit - $employeeUsed),
                 'isUnlimited' => $employeeLimitFeature !== null && $employeeLimit === null,
                 'isConfigured' => $employeeLimitFeature !== null,
+                'isOverLimit' => $employeeLimit !== null && $employeeUsed > $employeeLimit,
             ],
         ];
     }

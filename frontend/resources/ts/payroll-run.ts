@@ -28,6 +28,10 @@ type PayrollLine = {
         capApplied?: boolean;
         riskCategory?: number;
         wageBaseCode?: string;
+        taxRateApplied?: number;
+        monthlyTaxableGross?: number;
+        pph21TerCategory?: string;
+        taxStatusUsed?: string;
     };
 };
 
@@ -170,13 +174,19 @@ function formatIdr(n: number): string {
 function formatLineAuditMeta(line: PayrollLine): string {
     const meta = line.meta || {};
     const bits: string[] = [];
+    const resolvedRate = Number.isFinite(Number(meta.ratePercent))
+        ? Number(meta.ratePercent)
+        : (Number.isFinite(Number(meta.taxRateApplied)) ? Number(meta.taxRateApplied) : null);
+    const resolvedBasis = Number.isFinite(Number(meta.basisAmount))
+        ? Number(meta.basisAmount)
+        : (Number.isFinite(Number(meta.monthlyTaxableGross)) ? Number(meta.monthlyTaxableGross) : null);
 
-    if (Number.isFinite(Number(meta.ratePercent))) {
-        bits.push(`Rate ${Number(meta.ratePercent).toFixed(4)}%`);
+    if (resolvedRate !== null) {
+        bits.push(`Rate ${resolvedRate.toFixed(4)}%`);
     }
 
-    if (Number.isFinite(Number(meta.basisAmount))) {
-        bits.push(`Basis ${formatIdr(Number(meta.basisAmount))}`);
+    if (resolvedBasis !== null) {
+        bits.push(`Basis ${formatIdr(resolvedBasis)}`);
     }
 
     if (meta.capApplied && Number.isFinite(Number(meta.salaryCap))) {
@@ -185,6 +195,19 @@ function formatLineAuditMeta(line: PayrollLine): string {
 
     if (Number.isFinite(Number(meta.riskCategory))) {
         bits.push(`Risk Cat ${Number(meta.riskCategory)}`);
+    }
+
+    if (typeof meta.pph21TerCategory === "string" && meta.pph21TerCategory.trim() !== "") {
+        bits.push(`TER ${meta.pph21TerCategory.trim().toUpperCase()}`);
+    }
+
+    if (typeof meta.taxStatusUsed === "string" && meta.taxStatusUsed.trim() !== "") {
+        bits.push(`Tax Status ${meta.taxStatusUsed.trim().toUpperCase()}`);
+    }
+
+    if (resolvedRate !== null && resolvedBasis !== null && line.kind === "deduction") {
+        const estimatedAmount = Math.round((resolvedBasis * (resolvedRate / 100)) * 100) / 100;
+        bits.push(`~ ${formatIdr(estimatedAmount)} (${resolvedRate.toFixed(4)}% × ${formatIdr(resolvedBasis)})`);
     }
 
     const auditLine = bits.length > 0
@@ -614,9 +637,7 @@ function renderPayrollWorkflow(): void {
     toneButton(disburseBtn, "btn-success", "btn-outline-success", evidenceDownloaded && !reviewOnly && !hasMissingTaxProfile);
 }
 
-function canVoidCurrentRun(): boolean {
-    return !!_state.currentRunId && currentRunStatus() === "finalized" && _state.currentRows.some((row) => row.paymentStatus !== "paid");
-}
+
 
 function hasDownloadedReconciliationForCurrentRun(): boolean {
     return (
@@ -1507,19 +1528,6 @@ function showErr(msg: string): void {
     }
 }
 
-function setPayrollVoidHint(message: string): void {
-    const root = _getRoot();
-    if (!root) return;
-    const hintEl = root.querySelector<HTMLElement>("[data-payroll-run-void-hint]");
-    if (!hintEl) return;
-    if (!message) {
-        hintEl.classList.add("d-none");
-        hintEl.textContent = "";
-        return;
-    }
-    hintEl.textContent = message;
-    hintEl.classList.remove("d-none");
-}
 
 function getApiErrorCode(res: unknown): string | null {
     const r = res as { error?: { code?: string } };
@@ -1929,37 +1937,7 @@ function refreshSelectionSummary(): void {
     renderPayrollWorkflow();
 }
 
-function syncVoidButton(): void {
-    const root = _getRoot();
-    if (!root) return;
-    const voidBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-void]");
-    if (!voidBtn) return;
 
-    const status = currentRunStatus();
-    const hasPaidRows = _state.currentRows.some((row) => row.paymentStatus === "paid");
-    const hasUnpaidRows = _state.currentRows.some((row) => row.paymentStatus !== "paid");
-    const canVoid = canVoidCurrentRun();
-
-    voidBtn.disabled = !canVoid;
-
-    if (status === "void") {
-        setPayrollVoidHint("Run ini sudah di-void. Anda bisa hitung draft ulang untuk periode aktif yang sama.");
-        return;
-    }
-
-    if (status === "finalized" && hasPaidRows) {
-        setPayrollVoidHint("Run sudah memiliki pembayaran berstatus paid, jadi tidak bisa di-void agar rekonsiliasi transfer tidak rancu.");
-        return;
-    }
-
-    if (status === "finalized" && hasUnpaidRows) {
-        setPayrollVoidHint("Run finalized ini belum dibayar, jadi masih bisa di-void bila perlu koreksi setup atau hitung ulang draft.");
-        return;
-    }
-
-    setPayrollVoidHint("");
-    renderPayrollWorkflow();
-}
 
 function syncExportReconciliationButton(): void {
     const root = _getRoot();
@@ -2067,7 +2045,6 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
 
     syncCalculateDraftButton();
     syncExportReconciliationButton();
-    syncVoidButton();
     renderRunContextSummary();
 
     if (emptyEl && (!runData || _state.currentRows.length === 0)) {
@@ -2380,50 +2357,7 @@ async function calculateDraft(silent = false): Promise<void> {
     }
 }
 
-async function voidCurrentRun(): Promise<void> {
-    const root = _getRoot();
-    if (!root || !_state.currentRunId || !canVoidCurrentRun()) {
-        return;
-    }
 
-    const confirmed = (window as any).ArcavUi?.confirm
-        ? await (window as any).ArcavUi.confirm(
-            "Void run finalized ini? Hanya boleh jika payroll belum ditransfer/dibayar.",
-            "Void Finalized Run"
-        )
-        : false;
-
-    if (!confirmed) {
-        return;
-    }
-
-    const voidBtn = root.querySelector<HTMLButtonElement>("[data-payroll-run-void]");
-    if (voidBtn) {
-        voidBtn.disabled = true;
-        voidBtn.textContent = "Voiding...";
-    }
-
-    try {
-        const resp = await apiRequest("post", `/v1/hcm/payroll-runs/${_state.currentRunId}/void`) as ApiResponse<any>;
-        if (!resp.success) {
-            toast(formatApiError(resp, 400), true);
-            return;
-        }
-
-        clearReconciliationDownloaded();
-        updateRunUI((resp.data || null) as PayrollRun | null, null);
-        toast("Run finalized berhasil di-void. Anda bisa hitung draft ulang untuk periode aktif ini.", false);
-    } catch (e: any) {
-        toast(formatApiError(e.response?.data || {}, 500), true);
-    } finally {
-        if (voidBtn) {
-            voidBtn.textContent = "Void Finalized Run";
-            syncVoidButton();
-            syncCalculateDraftButton();
-            refreshSelectionSummary();
-        }
-    }
-}
 
 function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     const modal = document.getElementById("payroll_gateway_modal");
@@ -2796,13 +2730,6 @@ function bindEvents(): void {
             return;
         }
 
-        const voidBtn = (event.target as HTMLElement).closest("[data-payroll-run-void]");
-        if (voidBtn) {
-            event.preventDefault();
-            void voidCurrentRun();
-            return;
-        }
-
         const resetBtn = (event.target as HTMLElement).closest("[data-payroll-run-reset-payments]");
         if (resetBtn) {
             event.preventDefault();
@@ -2864,6 +2791,18 @@ function bindEvents(): void {
     const settingsRoot = getPayrollSettingsRoot();
     settingsRoot?.querySelector<HTMLFormElement>("[data-payroll-settings-form]")?.addEventListener("submit", (event) => {
         event.preventDefault();
+    });
+    settingsRoot?.querySelector<HTMLButtonElement>("[data-payroll-settings-confirm]")?.addEventListener("click", () => {
+        const modal = document.getElementById("payroll_settings_confirm_modal");
+        if (modal && (window as any).bootstrap?.Modal) {
+            new (window as any).bootstrap.Modal(modal).show();
+        }
+    });
+    document.getElementById("payroll_settings_confirm_modal")?.querySelector<HTMLButtonElement>("[data-payroll-settings-save]")?.addEventListener("click", () => {
+        const modal = document.getElementById("payroll_settings_confirm_modal");
+        if (modal && (window as any).bootstrap?.Modal) {
+            (window as any).bootstrap.Modal.getInstance(modal)?.hide();
+        }
         void savePayrollSettings();
     });
     settingsRoot?.addEventListener("input", () => {
@@ -2907,7 +2846,6 @@ function bindEvents(): void {
 
 (window as any).payrollRunLoadPeriod = () => loadPeriod(false);
 (window as any).payrollRunCalculateDraft = () => calculateDraft(false);
-(window as any).payrollRunVoid = () => voidCurrentRun();
 (window as any).payrollRunDisburse = () => openDisburseModal();
 
 if (document.readyState === "loading") {

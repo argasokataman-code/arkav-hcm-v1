@@ -177,9 +177,9 @@
 
   function statusBadge(status) {
     const map = {
-      active: ['badge badge-success d-inline-flex align-items-center badge-xs', 'Active'],
-      inactive: ['badge badge-danger d-inline-flex align-items-center badge-xs', 'Inactive'],
-      completed: ['badge badge-soft-success d-inline-flex align-items-center badge-xs', 'Completed'],
+      active: ['badge badge-success d-inline-flex align-items-center badge-xs', 'Aktif'],
+      inactive: ['badge badge-danger d-inline-flex align-items-center badge-xs', 'Nonaktif'],
+      completed: ['badge badge-soft-success d-inline-flex align-items-center badge-xs', 'Selesai'],
     };
     const [cls, label] = map[status] || ['badge badge-soft-secondary', status];
     return `<span class="${cls}"><i class="ti ti-point-filled me-1"></i>${esc(label)}</span>`;
@@ -194,7 +194,7 @@
     }
     const chips = ids.slice(0, 12).map((id) => {
       const info = employeeCache.get(Number(id));
-      const name = info?.fullName ? esc(info.fullName) : `User #${esc(id)}`;
+        const name = info?.fullName ? esc(info.fullName) : 'Karyawan';
       const email = info?.email ? String(info.email) : '';
       const title = email ? `${name} — ${esc(email)}` : name;
       return `
@@ -212,14 +212,14 @@
           ${chips}
           ${extraCount}
         </div>
-        <div class="text-muted fs-12">Selected: ${esc(ids.length)}</div>
+        <div class="text-muted fs-12">Terpilih: ${esc(ids.length)}</div>
       </div>
     `;
   }
 
   function updateSelectedCount() {
     if (!participantsSelectedCount) return;
-    participantsSelectedCount.textContent = `Selected: ${selectedParticipantIds.size}`;
+    participantsSelectedCount.textContent = `Terpilih: ${selectedParticipantIds.size}`;
   }
 
   function renderPickerTable() {
@@ -272,7 +272,7 @@
       const total = Number(res?.meta?.total || 0);
       const perPage = Number(res?.meta?.perPage || 20);
       pickerLastPage = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
-      if (participantsPage) participantsPage.textContent = `Page ${pickerPage} / ${pickerLastPage}`;
+      if (participantsPage) participantsPage.textContent = `Halaman ${pickerPage} / ${pickerLastPage}`;
       if (participantsPrev) participantsPrev.disabled = pickerPage <= 1;
       if (participantsNext) participantsNext.disabled = pickerPage >= pickerLastPage;
       if (participantsSelectAll) participantsSelectAll.checked = pickerEmployees.length > 0 && pickerEmployees.every((e) => selectedParticipantIds.has(Number(e.id)));
@@ -287,7 +287,6 @@
 
   function moneyIdr(cents) {
     const v = Number(cents ?? 0);
-    // Phase 1: use integer; display as IDR without decimals.
     const idr = Math.max(0, Math.round(v));
     return `Rp ${idr.toLocaleString('id-ID')}`;
   }
@@ -312,7 +311,7 @@
         .join('');
     }
     if (trainingTypeFilter) {
-      trainingTypeFilter.innerHTML = ['<option value="">Training Type (All)</option>']
+      trainingTypeFilter.innerHTML = ['<option value="">Semua Jenis Training</option>']
         .concat(trainingTypes.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`))
         .join('');
     }
@@ -323,7 +322,7 @@
     const active = trainers.filter((t) => t.isActive);
     const opts = ['<option value="">—</option>']
       .concat(active.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`))
-      .concat(['<option value="__other__">Other...</option>']);
+      .concat(['<option value="__other__">Lainnya...</option>']);
     trainingTrainerSelect.innerHTML = opts.join('');
   }
 
@@ -353,7 +352,7 @@
     });
 
     if (!rows.length) {
-      trainingTypesTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Belum ada training type.</td></tr>';
+      trainingTypesTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Belum ada jenis training.</td></tr>';
       return;
     }
 
@@ -363,17 +362,16 @@
       <tr>
         <td>
           <div class="fw-medium">${esc(t.name)}</div>
-          <div class="text-muted fs-12">ID: ${esc(t.id)}</div>
         </td>
         <td class="text-break">${esc(t.description || '—')}</td>
-        <td>${t.isActive ? '<span class="badge badge-success">active</span>' : '<span class="badge badge-danger">inactive</span>'}</td>
+        <td>${t.isActive ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Nonaktif</span>'}</td>
         <td class="text-end">
           ${meAdmin ? `
             <div class="d-inline-flex gap-2">
-              <button type="button" class="btn btn-sm btn-white" data-training-type-action="edit" data-id="${esc(t.id)}">Edit</button>
-              <button type="button" class="btn btn-sm btn-danger" data-training-type-action="delete" data-id="${esc(t.id)}">Delete</button>
+              <button type="button" class="btn btn-sm btn-white" data-training-type-action="edit" data-id="${esc(t.id)}">Ubah</button>
+              <button type="button" class="btn btn-sm btn-danger" data-training-type-action="delete" data-id="${esc(t.id)}">Hapus</button>
             </div>
-          ` : '<span class="text-muted fs-12">Admin only</span>'}
+          ` : '<span class="text-muted fs-12">Tidak tersedia</span>'}
         </td>
       </tr>
     `
@@ -386,7 +384,7 @@
     if (!needs) return;
 
     if (trainingTypesTbody) {
-      trainingTypesTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Memuat training types...</td></tr>';
+      trainingTypesTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Memuat jenis training...</td></tr>';
     }
 
     try {
@@ -397,10 +395,10 @@
     } catch (e) {
       const msg = apiErrorMessage(e);
       if (trainingTypesTbody) {
-        trainingTypesTbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Gagal memuat training types.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
+        trainingTypesTbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Gagal memuat jenis training.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
       }
-      if (trainingTypeSelect) trainingTypeSelect.innerHTML = '<option value="">(Gagal memuat training types)</option>';
-      if (trainingTypeFilter) trainingTypeFilter.innerHTML = '<option value="">Training Type (Gagal load)</option>';
+      if (trainingTypeSelect) trainingTypeSelect.innerHTML = '<option value="">(Gagal memuat jenis training)</option>';
+      if (trainingTypeFilter) trainingTypeFilter.innerHTML = '<option value="">Semua Jenis Training</option>';
       notify('error', msg);
     }
   }
@@ -412,13 +410,13 @@
     const desc = trainingTypeForm.querySelector('[name="description"]');
     const active = trainingTypeForm.querySelector('[name="isActive"]');
     if (mode === 'edit' && row) {
-      trainingTypeModalTitle.textContent = 'Edit Training Type';
+      trainingTypeModalTitle.textContent = 'Ubah Jenis Training';
       trainingTypeIdEl.value = row.id;
       name.value = row.name || '';
       desc.value = row.description || '';
       active.checked = !!row.isActive;
     } else {
-      trainingTypeModalTitle.textContent = 'Add Training Type';
+      trainingTypeModalTitle.textContent = 'Tambah Jenis Training';
       trainingTypeIdEl.value = '';
       active.checked = true;
     }
@@ -428,7 +426,7 @@
   async function saveTrainingType(e) {
     e.preventDefault();
     if (!meAdmin) {
-      notify('error', 'Hanya HCM Admin yang bisa mengubah training types.');
+      notify('error', 'Hanya admin yang dapat mengubah jenis training.');
       return;
     }
     const fd = new FormData(e.currentTarget);
@@ -442,7 +440,7 @@
       if (id) await apiRequest('PUT', `${BASE}/types/${id}`, payload);
       else await apiRequest('POST', `${BASE}/types`, payload);
       trainingTypeModal?.hide();
-      notify('success', 'Training type tersimpan.');
+      notify('success', 'Jenis training berhasil disimpan.');
       await loadTrainingTypes();
     } catch (e2) {
       notify('error', apiErrorMessage(e2));
@@ -452,14 +450,14 @@
   async function deleteTrainingType(id) {
     if (!meAdmin) return;
     if (!window.ArcavUi || typeof window.ArcavUi.confirmDelete !== 'function') {
-      notify('error', 'Confirm modal tidak tersedia.');
+      notify('error', 'Konfirmasi belum tersedia.');
       return;
     }
-    const ok = await window.ArcavUi.confirmDelete('Hapus training type ini?', 'Hapus');
+    const ok = await window.ArcavUi.confirmDelete('Hapus jenis training ini?', 'Hapus');
     if (!ok) return;
     try {
       await apiRequest('DELETE', `${BASE}/types/${id}`);
-      notify('success', 'Training type terhapus.');
+      notify('success', 'Jenis training berhasil dihapus.');
       await loadTrainingTypes();
     } catch (e) {
       notify('error', apiErrorMessage(e));
@@ -511,14 +509,14 @@
         const actions = meAdmin
           ? `
             <div class="d-inline-flex gap-2">
-              <button type="button" class="btn btn-sm btn-white" data-training-action="view" data-id="${esc(t.id)}" title="View">
+              <button type="button" class="btn btn-sm btn-white" data-training-action="view" data-id="${esc(t.id)}" title="Lihat Detail">
                 <i class="ti ti-eye"></i>
               </button>
-              <button type="button" class="btn btn-sm btn-white" data-training-action="edit" data-id="${esc(t.id)}">Edit</button>
-              <button type="button" class="btn btn-sm btn-danger" data-training-action="delete" data-id="${esc(t.id)}">Delete</button>
+              <button type="button" class="btn btn-sm btn-white" data-training-action="edit" data-id="${esc(t.id)}">Ubah</button>
+              <button type="button" class="btn btn-sm btn-danger" data-training-action="delete" data-id="${esc(t.id)}">Hapus</button>
             </div>
           `
-          : '<span class="text-muted fs-12">Admin only</span>';
+          : '<span class="text-muted fs-12">Tidak tersedia</span>';
 
         return `
         <tr>
@@ -547,14 +545,14 @@
 
   async function loadTrainings() {
     if (!trainingsTbody) return;
-    trainingsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Memuat trainings...</td></tr>';
+    trainingsTbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Memuat data training...</td></tr>';
     try {
       const res = await apiRequest('GET', `${BASE}/trainings?${buildTrainingQuery()}`);
       trainings = Array.isArray(res?.data) ? res.data : [];
       renderTrainings();
     } catch (e) {
       const msg = apiErrorMessage(e);
-      trainingsTbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">Gagal memuat trainings.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
+      trainingsTbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">Gagal memuat data training.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
       notify('error', msg);
     }
   }
@@ -585,7 +583,7 @@
     // participantUserIds now managed via picker (selectedParticipantIds)
 
     if (mode === 'edit' && row) {
-      trainingModalTitle.textContent = 'Edit Training';
+      trainingModalTitle.textContent = 'Ubah Training';
       trainingIdEl.value = row.id;
       status.value = row.status || 'active';
       trainerName.value = row.trainerName || '';
@@ -623,7 +621,7 @@
         }
       }
     } else {
-      trainingModalTitle.textContent = 'Add Training';
+      trainingModalTitle.textContent = 'Tambah Training';
       trainingIdEl.value = '';
       status.value = 'active';
       if (trainingTrainerSelect) {
@@ -639,7 +637,7 @@
   async function saveTraining(e) {
     e.preventDefault();
     if (!meAdmin) {
-      const msg = 'Hanya HCM Admin yang bisa mengubah training.';
+      const msg = 'Hanya admin yang dapat mengubah data training.';
       notify('error', msg);
       flash(trainingFlash, 'error', msg);
       return;
@@ -648,7 +646,7 @@
       if (typeof trainingForm.reportValidity === 'function') {
         trainingForm.reportValidity();
       }
-      flash(trainingFlash, 'error', 'Form belum valid. Mohon periksa input yang bertanda error (mis. Cost tidak boleh negatif).');
+      flash(trainingFlash, 'error', 'Form belum lengkap. Mohon periksa kembali data yang diisi.');
       return;
     }
     const fd = new FormData(e.currentTarget);
@@ -675,8 +673,8 @@
       if (id) await apiRequest('PUT', `${BASE}/trainings/${id}`, payload);
       else await apiRequest('POST', `${BASE}/trainings`, payload);
       trainingModal?.hide();
-      notify('success', 'Training tersimpan.');
-      flash(trainingFlash, 'success', 'Training tersimpan.');
+      notify('success', 'Training berhasil disimpan.');
+      flash(trainingFlash, 'success', 'Training berhasil disimpan.');
       await loadTrainings();
     } catch (e2) {
       const msg = apiErrorMessage(e2);
@@ -688,14 +686,14 @@
   async function deleteTraining(id) {
     if (!meAdmin) return;
     if (!window.ArcavUi || typeof window.ArcavUi.confirmDelete !== 'function') {
-      notify('error', 'Confirm modal tidak tersedia.');
+      notify('error', 'Konfirmasi belum tersedia.');
       return;
     }
     const ok = await window.ArcavUi.confirmDelete('Hapus training ini?', 'Hapus');
     if (!ok) return;
     try {
       await apiRequest('DELETE', `${BASE}/trainings/${id}`);
-      notify('success', 'Training terhapus.');
+      notify('success', 'Training berhasil dihapus.');
       await loadTrainings();
     } catch (e) {
       notify('error', apiErrorMessage(e));
@@ -737,7 +735,7 @@
           if (typeof trainingForm.reportValidity === 'function') {
             trainingForm.reportValidity();
           }
-          flash(trainingFlash, 'error', 'Form belum valid. Mohon periksa input yang bertanda error (mis. Cost tidak boleh negatif).');
+          flash(trainingFlash, 'error', 'Form belum lengkap. Mohon periksa kembali data yang diisi.');
         }
       });
     }
@@ -786,20 +784,19 @@
         const actions = meAdmin
           ? `
             <div class="d-inline-flex gap-2">
-              <button type="button" class="btn btn-sm btn-white" data-trainer-action="edit" data-id="${esc(t.id)}">Edit</button>
-              <button type="button" class="btn btn-sm btn-danger" data-trainer-action="delete" data-id="${esc(t.id)}">Delete</button>
+              <button type="button" class="btn btn-sm btn-white" data-trainer-action="edit" data-id="${esc(t.id)}">Ubah</button>
+              <button type="button" class="btn btn-sm btn-danger" data-trainer-action="delete" data-id="${esc(t.id)}">Hapus</button>
             </div>
           `
-          : '<span class="text-muted fs-12">Admin only</span>';
+          : '<span class="text-muted fs-12">Tidak tersedia</span>';
         const status = t.isActive
-          ? '<span class="badge badge-success d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Active</span>'
-          : '<span class="badge badge-danger d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Inactive</span>';
+          ? '<span class="badge badge-success d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Aktif</span>'
+          : '<span class="badge badge-danger d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>Nonaktif</span>';
 
         return `
           <tr>
             <td>
               <div class="fw-medium">${esc(t.name)}</div>
-              <div class="text-muted fs-12">ID: ${esc(t.id)}</div>
             </td>
             <td class="text-break">${esc(t.phone || '—')}</td>
             <td class="text-break">${esc(t.email || '—')}</td>
@@ -824,7 +821,7 @@
     const needs = !!trainersTbody || !!trainingTrainerSelect;
     if (!needs) return;
     if (trainersTbody) {
-      trainersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat trainers...</td></tr>';
+      trainersTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat data trainer...</td></tr>';
     }
     try {
       const res = await apiRequest('GET', `${BASE}/trainers?${buildTrainerQuery()}`);
@@ -834,10 +831,10 @@
     } catch (e) {
       const msg = apiErrorMessage(e);
       if (trainersTbody) {
-        trainersTbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat trainers.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
+          trainersTbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data trainer.<div class="text-muted fs-12 mt-1">${esc(msg)}</div></td></tr>`;
       }
       if (trainingTrainerSelect) {
-        trainingTrainerSelect.innerHTML = '<option value="">(Gagal memuat trainers)</option>';
+        trainingTrainerSelect.innerHTML = '<option value="">(Gagal memuat data trainer)</option>';
       }
       notify('error', msg);
     }
@@ -853,7 +850,7 @@
     const active = trainerForm.querySelector('[name="isActive"]');
 
     if (mode === 'edit' && row) {
-      trainerModalTitle.textContent = 'Edit Trainer';
+      trainerModalTitle.textContent = 'Ubah Trainer';
       trainerIdEl.value = row.id;
       name.value = row.name || '';
       email.value = row.email || '';
@@ -861,7 +858,7 @@
       desc.value = row.description || '';
       active.checked = !!row.isActive;
     } else {
-      trainerModalTitle.textContent = 'Add Trainer';
+      trainerModalTitle.textContent = 'Tambah Trainer';
       trainerIdEl.value = '';
       active.checked = true;
     }
@@ -871,7 +868,7 @@
   async function saveTrainer(e) {
     e.preventDefault();
     if (!meAdmin) {
-      notify('error', 'Hanya HCM Admin yang bisa mengubah trainers.');
+      notify('error', 'Hanya admin yang dapat mengubah data trainer.');
       return;
     }
     const fd = new FormData(e.currentTarget);
@@ -887,7 +884,7 @@
       if (id) await apiRequest('PUT', `${BASE}/trainers/${id}`, payload);
       else await apiRequest('POST', `${BASE}/trainers`, payload);
       trainerModal?.hide();
-      notify('success', 'Trainer tersimpan.');
+      notify('success', 'Trainer berhasil disimpan.');
       await loadTrainers();
     } catch (e2) {
       notify('error', apiErrorMessage(e2));
@@ -897,14 +894,14 @@
   async function deleteTrainer(id) {
     if (!meAdmin) return;
     if (!window.ArcavUi || typeof window.ArcavUi.confirmDelete !== 'function') {
-      notify('error', 'Confirm modal tidak tersedia.');
+      notify('error', 'Konfirmasi belum tersedia.');
       return;
     }
     const ok = await window.ArcavUi.confirmDelete('Hapus trainer ini?', 'Hapus');
     if (!ok) return;
     try {
       await apiRequest('DELETE', `${BASE}/trainers/${id}`);
-      notify('success', 'Trainer terhapus.');
+      notify('success', 'Trainer berhasil dihapus.');
       await loadTrainers();
     } catch (e) {
       notify('error', apiErrorMessage(e));
@@ -1013,8 +1010,8 @@
       participantsApply.addEventListener('click', () => {
         renderParticipantsSummary();
         // Always show visible feedback inside the picker (toast might be unavailable).
-        flash(participantsFlash, 'success', 'Peserta tersimpan. Klik Save di modal Training untuk menyimpan perubahan.');
-        notify('success', 'Peserta tersimpan (belum disave).');
+        flash(participantsFlash, 'success', 'Peserta sudah dipilih. Klik Simpan pada form Training untuk menyelesaikan perubahan.');
+        notify('success', 'Pilihan peserta berhasil diperbarui.');
         // Auto-close after user sees the wording.
         setTimeout(() => {
           participantsPicker?.hide();

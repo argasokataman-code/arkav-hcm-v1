@@ -275,7 +275,8 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.subscription.employeeSlots.limit', 25)
             ->assertJsonPath('data.subscription.employeeSlots.used', 1)
             ->assertJsonPath('data.subscription.employeeSlots.remaining', 24)
-            ->assertJsonPath('data.subscription.employeeSlots.isConfigured', true);
+            ->assertJsonPath('data.subscription.employeeSlots.isConfigured', true)
+            ->assertJsonPath('data.subscription.employeeSlots.isOverLimit', false);
     }
 
     public function test_company_owner_me_uses_nearest_unpaid_invoice_for_next_payment_summary(): void

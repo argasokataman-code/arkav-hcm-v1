@@ -1703,12 +1703,12 @@ function loadBindOvertimeModule() {
             }
 
             if (!window.ApexCharts) {
-                chartEl.innerHTML = '<div class="text-muted small">Chart library tidak tersedia.</div>';
+                chartEl.innerHTML = '<div class="text-muted small">Grafik belum tersedia.</div>';
                 return;
             }
 
             if (series.reduce(function (a, b) { return a + b; }, 0) <= 0) {
-                chartEl.innerHTML = '<div class="text-center text-muted small py-5">Belum ada data leave untuk ditampilkan.</div>';
+                chartEl.innerHTML = '<div class="text-center text-muted small py-5">Belum ada data cuti untuk ditampilkan.</div>';
                 return;
             }
 
@@ -1732,44 +1732,6 @@ function loadBindOvertimeModule() {
                 },
             });
             leaveChart.render();
-        }
-
-        function setSourceBadge() {
-            var badge = document.querySelector("[data-leave-report-source-badge]");
-            if (!badge) {
-                return;
-            }
-            var mode = getSourceMode();
-            if (mode === "archive") {
-                var id = getSnapshotId();
-                badge.textContent = "Source: Archive" + (id > 0 ? " #" + String(id) : "");
-                return;
-            }
-            badge.textContent = "Source: Live";
-        }
-
-        function getSourceMode() {
-            var sel = document.querySelector("[data-leave-report-source]");
-            var mode = sel ? String(sel.value || "live").toLowerCase() : "live";
-            return mode === "archive" ? "archive" : "live";
-        }
-
-        function getSnapshotId() {
-            var input = document.querySelector("[data-leave-report-snapshot-id]");
-            var parsed = input ? parseInt(String(input.value || "0"), 10) : 0;
-            return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-        }
-
-        function syncSourceControls() {
-            var wrap = document.querySelector("[data-leave-report-snapshot-wrap]");
-            if (wrap) {
-                if (getSourceMode() === "archive") {
-                    wrap.classList.remove("d-none");
-                } else {
-                    wrap.classList.add("d-none");
-                }
-            }
-            setSourceBadge();
         }
 
         function renderSummary(summary, byStatus) {
@@ -1807,7 +1769,7 @@ function loadBindOvertimeModule() {
                 return;
             }
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data leave report.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada data cuti.</td></tr>';
                 return;
             }
             tbody.innerHTML = rows.map(function (r) {
@@ -1851,7 +1813,7 @@ function loadBindOvertimeModule() {
 
         function loadLiveReport() {
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat data live…</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat data cuti...</td></tr>';
             }
             fetchLiveLeaveReportPage(1, [], null)
                 .then(function (result) {
@@ -1888,83 +1850,10 @@ function loadBindOvertimeModule() {
                 });
         }
 
-        function loadArchiveReport(snapshotId) {
-            if (!snapshotId) {
-                renderRows([]);
-                renderSummary({}, {});
-                notify("Snapshot ID wajib diisi untuk mode Archive.", true);
-                return;
-            }
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
-            }
-            apiRequest("get", "/v1/hcm/reports/snapshots/" + encodeURIComponent(String(snapshotId)), null)
-                .then(function (payload) {
-                    if (!payload || payload.success !== true || !payload.data) {
-                        notify("Snapshot tidak ditemukan atau tidak bisa diakses.", true);
-                        renderRows([]);
-                        renderSummary({}, {});
-                        return;
-                    }
-                    var snapshot = payload.data;
-                    if (snapshot.reportType !== "leave") {
-                        notify("Snapshot ini bukan leave report.", true);
-                        renderRows([]);
-                        renderSummary({}, {});
-                        return;
-                    }
-                    if (String(snapshot.status || "").toLowerCase() !== "completed") {
-                        notify("Snapshot leave belum siap digunakan.", true);
-                        renderRows([]);
-                        renderSummary({}, {});
-                        return;
-                    }
-                    var moduleData = snapshot.dataByModule && snapshot.dataByModule.leave ? snapshot.dataByModule.leave : {};
-                    var users = Object.keys(moduleData)
-                        .filter(function (key) { return key.indexOf("user_") === 0; })
-                        .map(function (key) { return moduleData[key]; });
-
-                    renderRows(users.map(function (item) {
-                        return {
-                            employeeName: item.user_name || "Unknown",
-                            leaveType: "Archive Aggregate",
-                            dateFrom: snapshot.periodStart || "-",
-                            dateTo: snapshot.periodEnd || "-",
-                            days: item.total_days || 0,
-                            status: "archived",
-                        };
-                    }));
-
-                    renderSummary(moduleData.summary || {}, moduleData.by_status || {});
-                })
-                .catch(function (err) {
-                    notify(formatApiError(err && err.data, err && err.status), true);
-                    renderRows([]);
-                    renderSummary({}, {});
-                });
-        }
-
         function reload() {
-            setSourceBadge();
-            if (getSourceMode() === "archive") {
-                loadArchiveReport(getSnapshotId());
-                return;
-            }
             loadLiveReport();
         }
 
-        syncSourceControls();
-        document.addEventListener("change", function (event) {
-            var source = event.target && event.target.closest ? event.target.closest("[data-leave-report-source]") : null;
-            if (source) {
-                syncSourceControls();
-                return;
-            }
-            var snapshotInput = event.target && event.target.closest ? event.target.closest("[data-leave-report-snapshot-id]") : null;
-            if (snapshotInput) {
-                setSourceBadge();
-            }
-        });
         document.addEventListener("click", function (event) {
             var trigger = event.target && event.target.closest ? event.target.closest("[data-leave-report-load]") : null;
             if (!trigger) {

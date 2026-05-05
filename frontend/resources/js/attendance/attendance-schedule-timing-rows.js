@@ -13,7 +13,7 @@ export function renderScheduleTimingRowsModule(deps, rows) {
         });
     }
     if (!sourceRows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No schedule timings found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No schedule timings found.</td></tr>';
         tbody.setAttribute("data-hydrated", "1");
         return;
     }
@@ -42,9 +42,12 @@ export function renderScheduleTimingRowsModule(deps, rows) {
             }
             return (
                 "<tr>" +
-                '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td>' +
+                '<td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox" data-schedule-timing-row-check data-user-id="' + esc(String((r && r.userId) || '')) + '"></div></td>' +
                 "<td>" +
                 esc(r.name) +
+                "</td>" +
+                "<td>" +
+                esc(r.department || '—') +
                 "</td>" +
                 "<td>" +
                 esc(r.jobTitle) +

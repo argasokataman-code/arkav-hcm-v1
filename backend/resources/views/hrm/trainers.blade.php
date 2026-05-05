@@ -42,7 +42,6 @@
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                     <div>
                         <h5 class="mb-1">Trainers List</h5>
-                        <div class="text-muted fs-12">Phase 1: dikelola oleh HCM Admin.</div>
                     </div>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-2">
                         <select class="form-select me-2" style="min-width: 160px" data-arcav-trainer-status>
@@ -50,8 +49,13 @@
                             <option value="active">active</option>
                             <option value="inactive">inactive</option>
                         </select>
-                        <div class="input-icon-start me-2">
-                            <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                        <div class="input-icon-start position-relative me-2" style="min-width: 260px;">
+                            <span class="input-icon-addon" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.3-4.3"></path>
+                                </svg>
+                            </span>
                             <input type="text" class="form-control" placeholder="Search name/email/phone..." data-arcav-trainer-q>
                         </div>
                         <button type="button" class="btn btn-white" data-arcav-trainer-reload>

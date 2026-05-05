@@ -115,6 +115,10 @@
                 photoPlaceholderNode.classList.remove('d-none');
                 if (photoRemoveBtn) { photoRemoveBtn.classList.add('d-none'); }
             }
+            // Update navbar avatars
+            document.querySelectorAll('[data-nav-profile-photo], [data-nav-profile-photo-lg]').forEach(function (img) {
+                if (url) { img.src = url; }
+            });
         }
 
         function showPhotoError(msg) {
@@ -220,9 +224,14 @@
             subscriptionEmployeeSlotsNode.textContent = slots.isUnlimited ? 'Unlimited employees' : ('Max ' + String(slots.limit) + ' employees');
         }
         if (subscriptionEmployeeUsageNode) {
-            subscriptionEmployeeUsageNode.textContent = slots.isUnlimited
-                ? (String(slots.used || 0) + ' employee terdaftar')
-                : (String(slots.used || 0) + ' dipakai • ' + String(slots.remaining || 0) + ' slot tersisa');
+            if (slots.isUnlimited) {
+                subscriptionEmployeeUsageNode.textContent = String(slots.used || 0) + ' employee terdaftar';
+            } else if (slots.isOverLimit) {
+                var excess = (slots.used || 0) - (slots.limit || 0);
+                subscriptionEmployeeUsageNode.textContent = String(slots.used || 0) + ' dipakai • Melebihi batas (' + String(excess) + ' kelebihan)';
+            } else {
+                subscriptionEmployeeUsageNode.textContent = String(slots.used || 0) + ' dipakai • ' + String(slots.remaining || 0) + ' slot tersisa';
+            }
         }
     }
 

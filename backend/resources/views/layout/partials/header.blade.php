@@ -438,7 +438,6 @@
                                                     <ul>
                                                         <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
-                                                        <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                                     </ul>
                                                 </li>
@@ -479,8 +478,6 @@
                                                 <span class="menu-arrow"></span>
                                             </a>
                                             <ul>
-                                                <li><a href="{{url('expenses-report')}}" class="{{ Request::is('expenses-report') ? 'active' : '' }}">Expense Report</a></li>
-                                <li><a href="{{url('invoice-report')}}" class="{{ Request::is('invoice-report') ? 'active' : '' }}">Invoice Report</a></li>
                                 <li><a href="{{url('project-report')}}" class="{{ Request::is('project-report') ? 'active' : '' }}">Project Report</a></li>
                                 <li><a href="{{url('user-report')}}" class="{{ Request::is('user-report') ? 'active' : '' }}">User Report</a></li>
                                 <li><a href="{{url('employee-report')}}" class="{{ Request::is('employee-report') ? 'active' : '' }}">Employee Report</a></li>
@@ -497,7 +494,7 @@
                                             </a>
                                             <ul>
                                                 <li class="submenu">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*','spt-masa-pph21*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
                                                     <ul>
                                                         <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
                                                         @if ($isGlobalHcmAdmin)
@@ -507,6 +504,7 @@
                                                         @if (!$isGlobalHcmAdmin)
                                                         <li><a href="{{url('tax-employees')}}" class="{{ Request::is('tax-employees*','taxes') ? 'active' : '' }}">PPh 21 Governance</a></li>
                                                         <li><a href="{{ route('bpjs-governance.index') }}" class="{{ Request::is('bpjs-governance*') ? 'active' : '' }}">BPJS Governance</a></li>
+                                                        <li><a href="{{ route('spt-masa-pph21.index') }}" class="{{ Request::is('spt-masa-pph21*') ? 'active' : '' }}">SPT Masa PPh 21</a></li>
                                                         @endif
                                                     </ul>
                                                 </li>
@@ -1228,7 +1226,11 @@
                         <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <span class="avatar avatar-sm online" aria-hidden="true">
-                                <span class="avatar-placeholder rounded-circle"></span>
+                                @if ($headerProfilePhotoPath !== '')
+                                    <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle w-100 h-100" style="object-fit:cover;" data-nav-profile-photo>
+                                @else
+                                    <span class="avatar-placeholder rounded-circle" data-nav-profile-photo-placeholder></span>
+                                @endif
                             </span>
                         </a>
                         <div class="dropdown-menu shadow-none">
@@ -1236,7 +1238,11 @@
                                 <div class="card-header">
                                     <div class="d-flex align-items-center">
                                         <span class="avatar avatar-lg me-2 avatar-rounded" aria-hidden="true">
-                                            <span class="avatar-placeholder-lg rounded-circle"></span>
+                                            @if ($headerProfilePhotoPath !== '')
+                                                <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle w-100 h-100" style="object-fit:cover;" data-nav-profile-photo-lg>
+                                            @else
+                                                <span class="avatar-placeholder-lg rounded-circle" data-nav-profile-photo-lg-placeholder></span>
+                                            @endif
                                         </span>
                                         <div>
                                             <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>

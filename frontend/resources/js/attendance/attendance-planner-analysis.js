@@ -452,23 +452,72 @@ export function createPlannerAnalysisModule(deps) {
       critical: summary.criticalCount,
     });
 
-    list.innerHTML = [
-      "Hard violations dari planner: " + String(summary.violationCount),
-      "Unmet coverage: " + String(summary.unmetCoverageCount),
-      "Holiday overlap (butuh review kebijakan): " + String(summary.holidayConflictCount),
-      "Rest gap < rule minimum: " + String(summary.restConflictCount),
-      "Illegal transition (matrix rules): " + String(summary.transitionConflictCount),
-    ]
-      .map(function (line) {
-        return "<li>" + esc(line) + "</li>";
-      })
-      .join("");
+    var conflictRows = [
+      {
+        count: summary.violationCount,
+        critical: true,
+        label: "Pelanggaran aturan jadwal (hard violation)",
+        okMsg: "Tidak ada pelanggaran aturan — jadwal sesuai rule.",
+        failMsg: function (n) {
+          return n + " pelanggaran aturan terdeteksi (mis. max shift malam, min hari libur, urutan shift). " +
+            "Publish dalam kondisi ini berisiko — kembali ke panel Violations untuk lihat detail dan perbaiki sebelum publish.";
+        },
+      },
+      {
+        count: summary.unmetCoverageCount,
+        critical: true,
+        label: "Slot shift tidak terpenuhi (unmet coverage)",
+        okMsg: "Semua slot shift berhasil diisi oleh karyawan.",
+        failMsg: function (n) {
+          return n + " slot shift tidak bisa diisi karena karyawan dalam scope tidak cukup. " +
+            "Tambah karyawan ke scope generate atau naikkan Max Work Days, lalu generate ulang.";
+        },
+      },
+      {
+        count: summary.holidayConflictCount,
+        critical: false,
+        label: "Shift dijadwalkan di hari libur nasional",
+        okMsg: "Tidak ada shift yang bertabrakan dengan hari libur nasional.",
+        failMsg: function (n) {
+          return n + " karyawan dijadwalkan masuk di hari libur nasional. " +
+            "Review kebijakan perusahaan (apakah lembur hari libur diizinkan?) sebelum publish. " +
+            "Jika tidak diizinkan, hapus atau ubah assignment tersebut secara manual.";
+        },
+      },
+      {
+        count: summary.restConflictCount,
+        critical: true,
+        label: "Jeda istirahat antar shift kurang dari minimum",
+        okMsg: "Semua pergantian shift sudah memenuhi minimum jeda istirahat.",
+        failMsg: function (n) {
+          return n + " pergantian shift memiliki jeda kurang dari batas minimum yang diatur (mis. shift malam selesai jam 06.00, langsung masuk pagi jam 07.00). " +
+            "Ini berisiko kelelahan — naikkan nilai Min Rest Hours atau kurangi giliran shift berat berturut-turut.";
+        },
+      },
+      {
+        count: summary.transitionConflictCount,
+        critical: true,
+        label: "Urutan shift dilarang (illegal transition)",
+        okMsg: "Semua urutan pergantian shift valid sesuai aturan transisi.",
+        failMsg: function (n) {
+          return n + " pergantian shift melanggar aturan transisi yang diset (mis. shift malam langsung ke shift pagi keesokan harinya). " +
+            "Periksa setting Illegal Transition Rules dan sesuaikan jadwal agar transisi tidak berisiko.";
+        },
+      },
+    ];
+
+    list.innerHTML = conflictRows.map(function (row) {
+      var isOk = row.count === 0;
+      var icon = isOk ? "✅" : (row.critical ? "🔴" : "🟡");
+      var text = isOk ? row.okMsg : row.failMsg(row.count);
+      return "<li>" + esc(icon + " " + row.label + ": " + text) + "</li>";
+    }).join("");
 
     if (meta) {
       meta.textContent =
         summary.criticalCount > 0
-          ? "Terdeteksi " + String(summary.criticalCount) + " conflict kritikal. Force apply wajib dicentang jika tetap publish."
-          : "Tidak ada conflict kritikal. Publish dominant shift aman dilanjutkan.";
+          ? "Terdeteksi " + String(summary.criticalCount) + " conflict kritikal. Centang Force apply jika tetap ingin publish setelah review manual."
+          : "Tidak ada conflict kritikal. Jadwal aman untuk dipublish.";
     }
 
     return getSmartPlannerConflictSummary();

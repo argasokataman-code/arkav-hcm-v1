@@ -26,6 +26,7 @@ require __DIR__ . '/web/employee-lifecycle.php';
 require __DIR__ . '/web/ticket.php';
 require __DIR__ . '/web/asset.php';
 require __DIR__ . '/web/reports.php';
+require __DIR__ . '/web/spt-masa.php';
 require __DIR__ . '/web/user-management.php';
 require __DIR__ . '/web/knowledgebase.php';
 require __DIR__ . '/web/locations.php';

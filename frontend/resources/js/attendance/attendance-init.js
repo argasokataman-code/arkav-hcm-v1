@@ -49,6 +49,7 @@ import { bindPlannerApplyButtons } from "./attendance-planner-apply.js";
 import { bindPlannerSubmitHandler } from "./attendance-planner-submit.js";
 import { bindSmartPlannerModule } from "./attendance-planner-bind.js";
 import { createPlannerAnalysisModule } from "./attendance-planner-analysis.js";
+import { createSwapReplacementModule } from "./attendance-swap-replacement.js";
 import { createAdminAttendanceModule } from "./attendance-admin-attendance.js";
 import { createEmployeeAttendanceModule } from "./attendance-employee-attendance.js";
 import {
@@ -733,9 +734,61 @@ import {
         });
     }
 
+    function setupScheduleTimingBulkToolbar() {
+        var body = document.querySelector('[data-schedule-timing-body]');
+        var toolbar = document.querySelector('[data-schedule-timing-bulk-toolbar]');
+        var countEl = document.querySelector('[data-schedule-timing-bulk-count]');
+        var selectAllEl = document.querySelector('[data-schedule-timing-select-all]');
+        var clearBtn = document.querySelector('[data-schedule-timing-bulk-clear]');
+        if (!toolbar) return;
+
+        function updateToolbar() {
+            var checked = document.querySelectorAll('[data-schedule-timing-row-check]:checked');
+            var n = checked.length;
+            if (countEl) countEl.textContent = String(n);
+            toolbar.classList.toggle('d-none', n === 0);
+            toolbar.classList.toggle('d-flex', n > 0);
+        }
+
+        if (body) {
+            body.addEventListener('change', function (e) {
+                if (e.target && e.target.getAttribute('data-schedule-timing-row-check') !== null) {
+                    updateToolbar();
+                }
+            });
+        }
+
+        if (selectAllEl) {
+            selectAllEl.addEventListener('change', function () {
+                var boxes = document.querySelectorAll('[data-schedule-timing-row-check]');
+                boxes.forEach(function (cb) { cb.checked = selectAllEl.checked; });
+                updateToolbar();
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                if (selectAllEl) selectAllEl.checked = false;
+                document.querySelectorAll('[data-schedule-timing-row-check]').forEach(function (cb) { cb.checked = false; });
+                updateToolbar();
+            });
+        }
+    }
+
     var plannerHelpers = createPlannerHelpers({
         getScheduleShiftsCache: function () {
             return scheduleShiftsCache;
+        },
+    });
+
+    var swapReplacementModule = createSwapReplacementModule({
+        apiPost: apiPost,
+        esc: esc,
+        getScheduleShiftsCache: function () {
+            return scheduleShiftsCache;
+        },
+        getSmartPlannerAssignmentByUserId: function () {
+            return smartPlannerAssignmentByUserId;
         },
     });
 
@@ -828,6 +881,11 @@ import {
         }, result);
     }
 
+    function refreshSwapReplacementSelectors() {
+        swapReplacementModule.populateEmployeeSelectors();
+        swapReplacementModule.populateShiftSelector();
+    }
+
     function renderSmartPlannerResult(result) {
         renderSmartPlannerResultModule({
             renderSmartPlannerAssignmentPreview: renderSmartPlannerAssignmentPreview,
@@ -843,6 +901,7 @@ import {
             renderScheduleCalendar: renderScheduleCalendar,
             updatePlannerApplyState: updatePlannerApplyState,
         }, result);
+        refreshSwapReplacementSelectors();
     }
 
     function bindSmartPlanner() {
@@ -930,9 +989,11 @@ import {
         timesheetModule.setupTimesheetPaginationControls();
         setupScheduleViewMode();
         setupScheduleTimingFilters();
+        setupScheduleTimingBulkToolbar();
         setupScheduleTimingPaginationControls();
         setupScheduleTimingEditModal();
         bindSmartPlanner();
+        swapReplacementModule.init();
         setupAttendanceAdminEdit();
         loadAdminAttendance();
         loadReportAttendance();

@@ -43,23 +43,23 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Schedule Timing</h2>
+                    <h2 class="mb-1">Smart Attendance Planner</h2>
                     <nav>
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item">
                                 <a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
                             </li>
                             <li class="breadcrumb-item">
-                                Administration
+                                Attendance
                             </li>
-                            <li class="breadcrumb-item active" aria-current="page">Schedule Timing</li>
+                            <li class="breadcrumb-item active" aria-current="page">Smart Attendance Planner</li>
                         </ol>
                     </nav>
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
                     <div class="mb-2">
-                        <a href="javascript:void(0);" class="btn btn-white d-inline-flex align-items-center" data-schedule-timing-export="csv">
-                            <i class="ti ti-file-export me-1"></i>Export CSV
+                        <a href="javascript:void(0);" class="btn btn-white d-inline-flex align-items-center" data-schedule-timing-export="csv" title="Export seluruh daftar Schedule Timing List ke CSV">
+                            <i class="ti ti-file-export me-1"></i>Export Schedule List CSV
                         </a>
                     </div>
                     <div class="head-icons ms-2">
@@ -129,25 +129,29 @@
                             <input type="date" class="form-control" data-smart-planner-end-date readonly>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Max Work Days</label>
+                            <label class="form-label">Max Work Days <span class="badge bg-light text-secondary border fw-normal" style="font-size:0.68rem;">Override generate</span></label>
                             <input type="number" class="form-control" min="1" max="7" value="5" data-smart-planner-max-work-days>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Min Days Off</label>
+                            <label class="form-label">Min Days Off <span class="badge bg-light text-secondary border fw-normal" style="font-size:0.68rem;">Override generate</span></label>
                             <input type="number" class="form-control" min="0" max="7" value="2" data-smart-planner-min-days-off>
                         </div>
                         <div class="col-md-2" data-smart-planner-field="rest-rule">
-                            <label class="form-label">Min Rest (hours)</label>
+                            <label class="form-label">Min Rest (hours) <span class="badge bg-light text-secondary border fw-normal" style="font-size:0.68rem;">Override generate</span></label>
                             <input type="number" class="form-control" min="1" max="24" value="12" data-smart-planner-min-rest>
                         </div>
                         <div class="col-md-2" data-smart-planner-field="night-rule">
-                            <label class="form-label">Max Night Streak</label>
+                            <label class="form-label">Max Night Streak <span class="badge bg-light text-secondary border fw-normal" style="font-size:0.68rem;">Override generate</span></label>
                             <input type="number" class="form-control" min="1" max="7" value="3" data-smart-planner-max-night>
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100" data-smart-planner-submit>Generate</button>
+                            <button type="submit" class="btn btn-primary w-100" data-smart-planner-submit>
+                                <span data-smart-planner-submit-label>Generate</span>
+                                <span class="spinner-border spinner-border-sm d-none ms-1" data-smart-planner-spinner aria-hidden="true"></span>
+                            </button>
                         </div>
                         <div class="col-12">
+                            <div class="alert alert-warning py-2 small d-none" data-smart-planner-feedback-inline role="alert"></div>
                             <small class="text-muted" data-smart-planner-scope-meta>Rekomendasi flow: pilih pola kerja, pilih sasaran draft, generate, review conflict, lalu publish.</small>
                         </div>
                         <div class="col-12">
@@ -255,7 +259,8 @@
 
                         <div class="col-lg-6">
                             <div class="border rounded p-3 h-100">
-                                <h6 class="mb-2">Violations</h6>
+                                <h6 class="mb-1">⚠️ Pelanggaran Aturan Jadwal</h6>
+                                <p class="text-muted small mb-2">Jadwal draft masih memiliki isu yang belum terpenuhi. Tinjau dan selesaikan sebelum publish.</p>
                                 <ul class="mb-0 ps-3" data-smart-planner-violations>
                                     <li class="text-muted">Belum ada data.</li>
                                 </ul>
@@ -263,7 +268,8 @@
                         </div>
                         <div class="col-lg-6">
                             <div class="border rounded p-3 h-100">
-                                <h6 class="mb-2">Improvement Suggestions</h6>
+                                <h6 class="mb-1">💡 Saran Perbaikan</h6>
+                                <p class="text-muted small mb-2">Langkah yang disarankan sistem untuk memperbaiki jadwal dan mengurangi risiko.</p>
                                 <ul class="mb-0 ps-3" data-smart-planner-suggestions>
                                     <li class="text-muted">Belum ada data.</li>
                                 </ul>
@@ -338,6 +344,74 @@
                                         Force apply walau ada conflict (gunakan hanya jika sudah review manual)
                                     </label>
                                 </div>
+                            </div>
+                        </div>
+
+                        {{-- Shift Swap Simulator --}}
+                        <div class="col-12">
+                            <div class="border rounded p-3">
+                                <h6 class="mb-1">🔄 Simulasi Tukar Jadwal (Shift Swap)</h6>
+                                <p class="text-muted small mb-3">Simulasikan tukar jadwal antara dua karyawan dan lihat dampak risiko kelelahan, jeda istirahat, dan transisi shift sebelum memutuskan untuk swap.</p>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Karyawan A</label>
+                                        <select class="form-select form-select-sm" data-swap-user-a>
+                                            <option value="">Pilih karyawan A...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Tanggal jadwal A</label>
+                                        <input type="date" class="form-control form-control-sm" data-swap-date-a>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Karyawan B (tukar dengan)</label>
+                                        <select class="form-select form-select-sm" data-swap-user-b>
+                                            <option value="">Pilih karyawan B...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Tanggal jadwal B</label>
+                                        <input type="date" class="form-control form-control-sm" data-swap-date-b>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary w-100" data-swap-simulate-btn disabled>
+                                            Simulasi Swap
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-3 d-none" data-swap-result></div>
+                            </div>
+                        </div>
+
+                        {{-- Replacement Finder --}}
+                        <div class="col-12">
+                            <div class="border rounded p-3">
+                                <h6 class="mb-1">🔍 Cari Pengganti Karyawan Absen / Cuti</h6>
+                                <p class="text-muted small mb-3">Pilih karyawan yang tidak hadir / cuti, tentukan tanggal dan shift yang perlu diisi, sistem akan mencari siapa yang paling cocok menggantikan berdasarkan beban kerja dan aturan jadwal.</p>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Karyawan yang absen / cuti</label>
+                                        <select class="form-select form-select-sm" data-replacement-absent-user>
+                                            <option value="">Pilih karyawan...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Tanggal absen</label>
+                                        <input type="date" class="form-control form-control-sm" data-replacement-date>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small mb-1">Shift yang perlu diisi</label>
+                                        <select class="form-select form-select-sm" data-replacement-shift>
+                                            <option value="">Pilih shift...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-sm btn-outline-warning w-100" data-replacement-find-btn disabled>
+                                            Cari Pengganti
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-3 d-none" data-replacement-result></div>
                             </div>
                         </div>
 
@@ -448,6 +522,11 @@
                         <div class="me-2">
                             <input type="text" class="form-control" placeholder="Search name / job title" data-schedule-timing-search>
                         </div>
+                        <div class="me-2">
+                            <select class="form-select" data-schedule-timing-dept-filter>
+                                <option value="">Semua Departemen</option>
+                            </select>
+                        </div>
                         <div>
                             <select class="form-select" data-schedule-timing-sort>
                                 <option value="name_asc">Sort: Name A-Z</option>
@@ -464,16 +543,24 @@
                 </div>
                 <div class="card-body p-0">
                     <div data-schedule-view-panel="list">
+                        <!-- Bulk action toolbar (visible when rows selected) -->
+                        <div class="d-none border-bottom px-3 py-2 bg-light d-flex align-items-center gap-2 flex-wrap" data-schedule-timing-bulk-toolbar>
+                            <span class="text-muted small me-2"><span data-schedule-timing-bulk-count>0</span> baris dipilih</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-schedule-timing-bulk-apply-shift>Terapkan Shift Master</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-schedule-timing-bulk-reset>Reset ke Otomatis</button>
+                            <button type="button" class="btn btn-sm btn-link text-muted ms-auto" data-schedule-timing-bulk-clear>Batal pilih</button>
+                        </div>
                         <div class="custom-datatable-filter table-responsive">
                             <table class="table">
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="no-sort">
                                             <div class="form-check form-check-md">
-                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                                <input class="form-check-input" type="checkbox" id="select-all" data-schedule-timing-select-all>
                                             </div>
                                         </th>
                                         <th>Name</th>
+                                        <th>Departemen</th>
                                         <th>Job Title</th>
                                         <th>User Available Timings</th>
                                         <th></th>
@@ -508,10 +595,10 @@
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2" data-schedule-timing-pagination style="display: none;">
-                    <span class="text-muted small" data-schedule-timing-page-info></span>
+                    <span class="text-muted small" data-schedule-timing-page-info>Menampilkan data...</span>
                     <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-light border" data-schedule-timing-prev>Sebelumnya</button>
-                        <button type="button" class="btn btn-sm btn-light border" data-schedule-timing-next>Berikutnya</button>
+                        <button type="button" class="btn btn-sm btn-light border" data-schedule-timing-prev>&#8592; Sebelumnya</button>
+                        <button type="button" class="btn btn-sm btn-light border" data-schedule-timing-next>Berikutnya &#8594;</button>
                     </div>
                 </div>
             </div>

@@ -18,6 +18,13 @@
             .replace(/'/g, "&#039;");
     }
 
+    function withCacheBust(url) {
+        var raw = String(url || "").trim();
+        if (!raw) return "";
+        var separator = raw.indexOf("?") >= 0 ? "&" : "?";
+        return raw + separator + "v=" + String(Date.now());
+    }
+
     function notify(message, tone) {
         var text = String(message || "");
         if (!text) return;
@@ -703,7 +710,7 @@
 
         var html = list.slice(0, 6).map(function (m, index) {
             var mb = index === list.slice(0, 6).length - 1 ? "" : " mb-4";
-            var photo = m.photoUrl || "/build/img/users/user-27.jpg";
+            var photo = m.photoUrl ? withCacheBust(m.photoUrl) : "/build/img/users/user-27.jpg";
             var name = m.name || "-";
             var role = m.designation || "Employee";
             var phoneHref = m.phone ? "tel:" + m.phone : "javascript:void(0);";
@@ -746,7 +753,7 @@
         setText("[data-employee-legacy-join-date]", formatDate(profile.joinDate));
         var avatar = document.querySelector("[data-employee-legacy-avatar]");
         if (avatar && profile.profilePhotoUrl) {
-            avatar.setAttribute("src", profile.profilePhotoUrl);
+            avatar.setAttribute("src", withCacheBust(profile.profilePhotoUrl));
         }
 
         setText("[data-employee-legacy-now-label]", attendanceToday.nowLabel);
@@ -862,7 +869,7 @@
         setText("[data-team-birthday-role]", (teamBirthday.designation || "-") + " • " + (teamBirthday.birthdayLabel || "-"));
 
         var birthdayImg = document.querySelector("[data-team-birthday-photo]");
-        if (birthdayImg && teamBirthday.photoUrl) birthdayImg.setAttribute("src", teamBirthday.photoUrl);
+        if (birthdayImg && teamBirthday.photoUrl) birthdayImg.setAttribute("src", withCacheBust(teamBirthday.photoUrl));
 
         var wishBtn = document.querySelector("[data-team-birthday-wish]");
         if (wishBtn) {

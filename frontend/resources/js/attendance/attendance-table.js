@@ -50,6 +50,6 @@ export function renderScheduleTimingMessage(msg) {
   if (!tbody) {
     return;
   }
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' + esc(msg) + "</td></tr>";
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' + esc(msg) + "</td></tr>";
   tbody.setAttribute("data-hydrated", "1");
 }

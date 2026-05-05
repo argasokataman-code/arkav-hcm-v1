@@ -4488,6 +4488,93 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/smart-attendance-shifting/simulate-swap:
+    post:
+      tags: [Attendance]
+      summary: Simulate shift swap between two employees (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userAId, userBId, swapDateA, swapDateB]
+              properties:
+                userAId: { type: integer }
+                userBId: { type: integer }
+                swapDateA: { type: string, format: date }
+                swapDateB: { type: string, format: date }
+      responses:
+        '200':
+          description: Swap simulation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      swappable: { type: boolean }
+                      swap_summary: { type: string }
+                      overall_risk_level: { type: integer }
+                      employee_a: { type: object }
+                      employee_b: { type: object }
+                      warnings: { type: array, items: { type: string } }
+                      advice: { type: string }
+                      reason: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/smart-attendance-shifting/find-replacement:
+    post:
+      tags: [Attendance]
+      summary: Find replacement candidates for absent employee (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [absentUserId, absentDates, shiftId]
+              properties:
+                absentUserId: { type: integer }
+                absentDates:
+                  type: array
+                  items: { type: string, format: date }
+                shiftId: { type: string }
+      responses:
+        '200':
+          description: Replacement candidates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      message: { type: string }
+                      candidates:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id: { type: integer }
+                            employee_name: { type: string }
+                            job_title: { type: string, nullable: true }
+                            reason: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/hcm/schedule-rosters:
     get:
       tags: [Attendance]

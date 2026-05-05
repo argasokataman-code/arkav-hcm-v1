@@ -64,6 +64,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 41 | Global HRMS Search | ✅ Complete | [→](global-search/) | [ID Details](global-search/) | Shortcut `Ctrl+/`, quick search, full-result panel, RBAC-aware catalog |
 | 42 | AI Assistant | 🚧 Planning | [→](ai-assistant/) | [📋 RBAC Policy](ai-assistant/RBAC-POLICY.md), [📖 Intent Catalog](ai-assistant/INTENT-CATALOG.md) | RBAC-aware chatbot, deny-by-default, self-service employee (cuti/absensi/payslip), intent-to-endpoint mapping |
 | 43 | Employee Allowance Governance | 🚧 In Progress | [→](employee-allowance-governance/) | [📘 Implementation](employee-allowance-governance/IMPLEMENTATION.md) | [🧭 Tracker](employee-allowance-governance/tracker.md), policy + assignment + compliance runtime baseline active |
+| 44 | SPT Masa PPh 21 (Bulanan) | 🚧 Planning | [→](spt-masa-pph21/) | [📘 Implementation](spt-masa-pph21/IMPLEMENTATION.md) | [🧭 Tracker](spt-masa-pph21/tracker.md), FE->BE(UUID)->integrasi roadmap |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---
@@ -147,6 +148,9 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `tax-governance/README.md` - **Tax Governance & Taxonomy:** pemetaan source of truth pajak runtime, dampak audit, anomaly, dan negative scenario seputar `/tax-rates`.
 - `tax-governance/IMPLEMENTATION.md` - Catatan implementasi teknis mengenai web shell `/tax-rates`, employee tax profile, salary component tax flags, dan payroll tax engine.
 - `tax-governance/tracker.md` - Snapshot status, evidence, dan rencana implementasi governance pajak bertahap.
+- `spt-masa-pph21/README.md` - **SPT Masa PPh 21 (Bulanan):** blueprint modul rekap pajak bulanan dari payroll locked dengan lifecycle draft-ready-submitted.
+- `spt-masa-pph21/IMPLEMENTATION.md` - Rencana implementasi 3 fase: FE shell, BE UUID-only snapshot engine, dan integrasi end-to-end + build gate.
+- `spt-masa-pph21/tracker.md` - Tracker fase implementasi beserta gap, DoD MVP, dan evidence checklist.
 
 ---
 

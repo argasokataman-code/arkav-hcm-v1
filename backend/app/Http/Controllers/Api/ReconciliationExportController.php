@@ -268,6 +268,22 @@ class ReconciliationExportController extends Controller
         $payrollLines = $query->get();
         [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
 
+        // Pre-compute per-employee totals
+        $employeeTotals = [];
+        foreach ($payrollLines as $line) {
+            $uid = (int) $line->user_id;
+            if (! isset($employeeTotals[$uid])) {
+                $employeeTotals[$uid] = ['name' => (string) ($line->user_name ?? ''), 'gross' => 0.0, 'deductions' => 0.0];
+            }
+            if ($line->affects_net_pay) {
+                if ($line->kind === 'addition') {
+                    $employeeTotals[$uid]['gross'] += (float) $line->amount;
+                } elseif ($line->kind === 'deduction') {
+                    $employeeTotals[$uid]['deductions'] += (float) $line->amount;
+                }
+            }
+        }
+
         $stream = fopen('php://temp', 'w+');
         if (! $stream) {
             return '';
@@ -283,6 +299,9 @@ class ReconciliationExportController extends Controller
             'component_name',
             'amount',
             'affects_net_pay',
+            'gross_total',
+            'deductions_total',
+            'net_total',
             'service_fee_rate_percent',
             'service_fee_base_amount',
             'service_fee_amount',
@@ -297,6 +316,9 @@ class ReconciliationExportController extends Controller
             '',
             '',
             'METADATA',
+            '',
+            '',
+            '',
             '',
             '',
             (string) round($serviceFeeRate, 2),
@@ -318,6 +340,9 @@ class ReconciliationExportController extends Controller
                 (string) ($line->component_name ?? ''),
                 (string) $line->amount,
                 $line->affects_net_pay ? 'yes' : 'no',
+                '',
+                '',
+                '',
                 (string) round($serviceFeeRate, 2),
                 (string) round($serviceFeeBase, 2),
                 (string) round($serviceFeeAmount, 2),
@@ -325,6 +350,55 @@ class ReconciliationExportController extends Controller
                 '',
             ]);
         }
+
+        // Per-employee subtotal rows
+        fputcsv($stream, []);
+        $grandGross = 0.0;
+        $grandDeductions = 0.0;
+        foreach ($employeeTotals as $uid => $totals) {
+            $net = $totals['gross'] - $totals['deductions'];
+            $grandGross += $totals['gross'];
+            $grandDeductions += $totals['deductions'];
+            fputcsv($stream, [
+                (string) $runId,
+                (string) $uid,
+                $totals['name'],
+                'SUBTOTAL',
+                '',
+                'Subtotal Karyawan',
+                '',
+                '',
+                (string) round($totals['gross'], 2),
+                (string) round($totals['deductions'], 2),
+                (string) round($net, 2),
+                (string) round($serviceFeeRate, 2),
+                (string) round($serviceFeeBase, 2),
+                (string) round($serviceFeeAmount, 2),
+                $serviceFeeBillingMonth,
+                '',
+            ]);
+        }
+
+        // Grand total row
+        fputcsv($stream, []);
+        fputcsv($stream, [
+            (string) $runId,
+            '',
+            '',
+            'GRAND_TOTAL',
+            '',
+            'Total Semua Karyawan',
+            '',
+            '',
+            (string) round($grandGross, 2),
+            (string) round($grandDeductions, 2),
+            (string) round($grandGross - $grandDeductions, 2),
+            (string) round($serviceFeeRate, 2),
+            (string) round($serviceFeeBase, 2),
+            (string) round($serviceFeeAmount, 2),
+            $serviceFeeBillingMonth,
+            $datasetChecksum,
+        ]);
 
         rewind($stream);
         $content = (string) stream_get_contents($stream);

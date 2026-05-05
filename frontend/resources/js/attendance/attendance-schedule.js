@@ -149,14 +149,16 @@ export function loadScheduleTiming(deps) {
 
   var tbody = document.querySelector("[data-schedule-timing-body]");
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Loading schedule timings...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Loading schedule timings...</td></tr>';
     tbody.removeAttribute("data-hydrated");
   }
 
   var searchEl = document.querySelector("[data-schedule-timing-search]");
   var sortEl = document.querySelector("[data-schedule-timing-sort]");
+  var deptFilterEl = document.querySelector("[data-schedule-timing-dept-filter]");
   var search = searchEl ? String(searchEl.value || "").trim() : "";
   var sort = sortEl ? String(sortEl.value || "name_asc") : "name_asc";
+  var dept = deptFilterEl ? String(deptFilterEl.value || "").trim() : "";
   var url =
     "/v1/hcm/schedule-timing?sort=" +
     encodeURIComponent(sort) +
@@ -166,6 +168,9 @@ export function loadScheduleTiming(deps) {
 
   if (search) {
     url += "&search=" + encodeURIComponent(search);
+  }
+  if (dept) {
+    url += "&department=" + encodeURIComponent(dept);
   }
 
   apiGet(url)
@@ -186,6 +191,11 @@ export function loadScheduleTiming(deps) {
       setScheduleTimingRowsCache(rows);
       renderScheduleTimingRows(rows);
       renderScheduleTimingPagination(pag);
+      // Populate dept dropdown from loaded rows
+      var deptDd = document.querySelector('[data-schedule-timing-dept-filter]');
+      if (deptDd && typeof deptDd._populateDeptOptions === 'function') {
+        deptDd._populateDeptOptions(rows);
+      }
     })
     .catch(function (err) {
       var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
@@ -230,6 +240,36 @@ export function setupScheduleTimingFilters(deps) {
     aiOnlyEl.addEventListener("change", function () {
       setScheduleTimingAiOnly(!!aiOnlyEl.checked);
       renderScheduleTimingRows(getScheduleTimingRowsCache());
+    });
+  }
+
+  var deptDropdownEl = document.querySelector("[data-schedule-timing-dept-filter]");
+  if (deptDropdownEl && !deptDropdownEl.getAttribute("data-bound")) {
+    deptDropdownEl.setAttribute("data-bound", "1");
+    // Populate dept options from loaded rows
+    function populateDeptOptions(rows) {
+      var depts = [];
+      (Array.isArray(rows) ? rows : []).forEach(function (r) {
+        var d = String(r.department || '').trim();
+        if (d && depts.indexOf(d) === -1) depts.push(d);
+      });
+      depts.sort();
+      var current = deptDropdownEl.value;
+      while (deptDropdownEl.options.length > 1) deptDropdownEl.remove(1);
+      depts.forEach(function (d) {
+        var opt = document.createElement('option');
+        opt.value = d; opt.textContent = d;
+        deptDropdownEl.appendChild(opt);
+      });
+      if (current) deptDropdownEl.value = current;
+    }
+    // Patch loadScheduleTiming to update dropdown after load
+    var origLoad = loadScheduleTiming;
+    // Expose populator for use after rows are loaded
+    deptDropdownEl._populateDeptOptions = populateDeptOptions;
+    deptDropdownEl.addEventListener("change", function () {
+      setScheduleTimingPage(1);
+      loadScheduleTiming();
     });
   }
 }

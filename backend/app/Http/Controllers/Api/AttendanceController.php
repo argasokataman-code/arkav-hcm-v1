@@ -40,7 +40,36 @@ class AttendanceController extends Controller
 
     private function tz(): string
     {
-        return config('app.timezone');
+        $fallback = (string) config('app.timezone', 'UTC');
+
+        $request = request();
+        if ($request instanceof Request) {
+            $activeCompany = $request->attributes->get('activeCompany');
+            $companyTimezone = is_object($activeCompany)
+                ? trim((string) ($activeCompany->timezone ?? ''))
+                : '';
+
+            if ($this->isValidTimezone($companyTimezone)) {
+                return $companyTimezone;
+            }
+        }
+
+        return $this->isValidTimezone($fallback) ? $fallback : 'UTC';
+    }
+
+    private function isValidTimezone(?string $timezone): bool
+    {
+        if (! is_string($timezone) || trim($timezone) === '') {
+            return false;
+        }
+
+        try {
+            new \DateTimeZone($timezone);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function activeCompanyId(Request $request): ?int
@@ -1217,17 +1246,19 @@ class AttendanceController extends Controller
             'sort' => ['nullable', 'string', 'in:name_asc,name_desc,start_asc,start_desc'],
             'page' => ['nullable', 'integer', 'min:1'],
             'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'department' => ['nullable', 'string', 'max:100'],
         ]);
 
         $searchRaw = trim((string) ($validated['search'] ?? ''));
         $sort = $validated['sort'] ?? 'name_asc';
         $page = max(1, (int) ($validated['page'] ?? 1));
         $perPage = min(100, (int) ($validated['perPage'] ?? 50));
+        $departmentFilter = trim((string) ($validated['department'] ?? ''));
         $tz = $this->tz();
         $since = Carbon::now($tz)->subDays(30)->toDateString();
         $activeCompanyId = $this->activeCompanyId($request);
 
-        $usersQuery = User::query()->with(['employeeProfile:id,user_id,designation']);
+        $usersQuery = User::query()->with(['employeeProfile:id,user_id,designation,department_id', 'employeeProfile.department:id,name']);
         if ($activeCompanyId) {
             $usersQuery->whereHas('employeeProfile', function ($query) use ($activeCompanyId): void {
                 $query->where(function ($inner) use ($activeCompanyId): void {
@@ -1239,6 +1270,12 @@ class AttendanceController extends Controller
             $usersQuery->where(function ($q) use ($searchRaw) {
                 $q->where('name', 'like', '%'.$searchRaw.'%')
                     ->orWhereHas('employeeProfile', fn ($p) => $p->where('designation', 'like', '%'.$searchRaw.'%'));
+            });
+        }
+
+        if ($departmentFilter !== '') {
+            $usersQuery->whereHas('employeeProfile.department', function ($q) use ($departmentFilter): void {
+                $q->where('name', $departmentFilter);
             });
         }
 
@@ -1300,12 +1337,14 @@ class AttendanceController extends Controller
             $slot = sprintf('%02d:%02d - %02d:%02d', intdiv($avgStart, 60), $avgStart % 60, intdiv($avgEnd, 60), $avgEnd % 60);
             $designation = (string) ($u->employeeProfile?->designation ?: 'Employee');
             $name = (string) $u->name;
+            $department = (string) ($u->employeeProfile?->department?->name ?: '');
 
             $ov = $overrides->get($u->id);
 
             return [
                 'userId' => $u->id,
                 'name' => $name,
+                'department' => $department,
                 'jobTitle' => $designation,
                 'availableTimings' => $slot,
                 'startMinutes' => $avgStart,

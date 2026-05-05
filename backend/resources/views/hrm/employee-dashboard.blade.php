@@ -1,6 +1,14 @@
 <?php $page = 'employee-dashboard'; ?>
 @extends('layout.mainlayout')
 @section('content')
+    @php
+        $dashboardUser = request()->user() ?: auth()->user();
+        $dashboardUser?->loadMissing('employeeProfile:id,user_id,profile_photo_path');
+        $dashboardProfilePhotoPath = trim((string) ($dashboardUser?->employeeProfile?->profile_photo_path ?? ''));
+        $dashboardProfilePhotoUrl = $dashboardProfilePhotoPath !== ''
+            ? asset('storage/' . ltrim($dashboardProfilePhotoPath, '/'))
+            : URL::asset('build/img/users/user-01.jpg');
+    @endphp
 
     <!-- Page Wrapper -->
     <div class="page-wrapper">
@@ -80,7 +88,7 @@
                         <div class="card-header bg-dark">
                             <div class="d-flex align-items-center">
                                 <span class="avatar avatar-lg avatar-rounded border border-white border-2 flex-shrink-0 me-2">
-                                    <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" alt="Img" data-employee-legacy-avatar>
+                                    <img src="{{ $dashboardProfilePhotoUrl }}" alt="Img" data-employee-legacy-avatar>
                                 </span>
                                 <div>
                                     <h5 class="text-white mb-1" data-employee-legacy-name>User</h5>

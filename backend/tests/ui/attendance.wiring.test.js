@@ -345,7 +345,11 @@ describe('Attendance UI wiring', () => {
               fairness_score: 91.5,
               fatigue_risk_score: 32.0,
               improvement_suggestions: [
-                { title: 'Rebalance night shift distribution', reason: 'Night shifts are unevenly distributed.' },
+                {
+                  title: 'Rebalance night shift distribution',
+                  reason: 'Night shifts are unevenly distributed.',
+                  data: { fairness_score: 91.5, employee_count: 5 },
+                },
               ],
             },
             explanation: 'Schedule generated successfully.',
@@ -380,7 +384,7 @@ describe('Attendance UI wiring', () => {
     expect(document.querySelector('[data-smart-planner-validation]')?.textContent).toContain('VALID');
     expect(document.querySelector('[data-smart-planner-fairness]')?.textContent).toContain('91.5');
     expect(document.querySelector('[data-smart-planner-explanation]')?.textContent).toContain('Schedule generated successfully');
-    expect(document.querySelector('[data-smart-planner-suggestions]')?.textContent).toContain('Rebalance night shift distribution');
+    expect(document.querySelector('[data-smart-planner-suggestions]')?.textContent).toContain('Distribusi shift malam tidak merata');
   });
 
   it('loads all employee pages when planner scope is all employees', async () => {

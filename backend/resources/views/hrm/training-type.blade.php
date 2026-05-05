@@ -45,8 +45,13 @@
                         <div class="text-muted fs-12">Master training types untuk dipakai di Training.</div>
                     </div>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-2">
-                        <div class="input-icon-start me-2">
-                            <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+                        <div class="input-icon-start position-relative me-2" style="min-width: 260px;">
+                            <span class="input-icon-addon" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.3-4.3"></path>
+                                </svg>
+                            </span>
                             <input type="text" class="form-control" placeholder="Cari training type..." data-arcav-training-type-search>
                         </div>
                         <button type="button" class="btn btn-white" data-arcav-training-type-reload>

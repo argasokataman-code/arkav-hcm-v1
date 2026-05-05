@@ -23,6 +23,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/smart-attendance-shifting/settings', [HcmSmartAttendanceController::class, 'settings']);
     Route::put('/smart-attendance-shifting/settings', [HcmSmartAttendanceController::class, 'updateSettings']);
     Route::post('/smart-attendance-shifting/publish-roster', [HcmSmartAttendanceController::class, 'publishRoster']);
+    Route::post('/smart-attendance-shifting/simulate-swap', [HcmSmartAttendanceController::class, 'simulateSwap']);
+    Route::post('/smart-attendance-shifting/find-replacement', [HcmSmartAttendanceController::class, 'findReplacement']);
     Route::get('/schedule-rosters', [HcmSmartAttendanceController::class, 'rosterIndex']);
 
     // Shifts

@@ -351,6 +351,11 @@ class ReconciliationExportApiTest extends TestCase
         $this->assertStringContainsString('service_fee_rate_percent', $csvContent);
         $this->assertStringContainsString('service_fee_amount', $csvContent);
         $this->assertStringContainsString('service_fee_billing_month', $csvContent);
+        $this->assertStringContainsString('gross_total', $csvContent);
+        $this->assertStringContainsString('deductions_total', $csvContent);
+        $this->assertStringContainsString('net_total', $csvContent);
+        $this->assertStringContainsString('GRAND_TOTAL', $csvContent);
+        // SUBTOTAL only present when there are actual payroll lines for the filtered users
 
         // Verify it's not just metadata
         $this->assertStringNotContainsString('feature_key,action_key', $csvContent);

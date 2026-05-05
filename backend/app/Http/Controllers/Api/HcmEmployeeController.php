@@ -82,6 +82,17 @@ class HcmEmployeeController extends Controller
             $summaryQuery->where('employee_profiles.company_id', $scopeCompanyId);
         }
 
+        // Exclude owners — they are not employees.
+        $summaryQuery->whereNotExists(function ($sub) use ($scopeCompanyId): void {
+            $sub->from('company_users')
+                ->whereColumn('company_users.user_id', 'employee_profiles.user_id')
+                ->where('company_users.status', 'active')
+                ->where('company_users.role', 'owner');
+            if ($scopeCompanyId) {
+                $sub->where('company_users.company_id', $scopeCompanyId);
+            }
+        });
+
         $row = $summaryQuery->first();
 
         return [
@@ -296,6 +307,12 @@ class HcmEmployeeController extends Controller
             ->when(! $scopeCompanyId, function ($q): void {
                 // Global admin still requires an employee profile record.
                 $q->whereHas('employeeProfile');
+            })
+            ->whereDoesntHave('companyMemberships', function ($q) use ($scopeCompanyId): void {
+                $q->where('status', 'active')->where('role', 'owner');
+                if ($scopeCompanyId !== null) {
+                    $q->where('company_id', $scopeCompanyId);
+                }
             })
             ->select(['id', 'uuid', 'name', 'email', 'created_at']);
 
@@ -1170,7 +1187,22 @@ class HcmEmployeeController extends Controller
             'photo' => ['required', 'file'],
         ]);
 
-        $profile = EmployeeProfile::query()->firstOrCreate(['user_id' => $user->id]);
+        $activeCompanyId = $this->activeCompanyId($request);
+        $profileQuery = EmployeeProfile::query()->where('user_id', $user->id);
+        if ($activeCompanyId) {
+            $profileQuery->where('company_id', $activeCompanyId);
+        }
+        $profile = $profileQuery->first();
+        if (! $profile) {
+            // Fallback: first profile for this user across any company
+            $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
+        }
+        if (! $profile) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'EMPLOYEE_NOT_FOUND', 'message' => 'Employee profile not found.'],
+            ], 404);
+        }
 
         try {
             $stored = $this->avatarStorage->replace(

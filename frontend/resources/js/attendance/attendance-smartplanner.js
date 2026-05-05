@@ -136,16 +136,88 @@ export function renderSmartPlannerResult(deps, result) {
     explanationEl.textContent = String(result.explanation || "-");
   }
 
+  var violationCodeLabels = {
+    'COVERAGE_UNMET': 'Kebutuhan jumlah karyawan di slot ini tidak terpenuhi',
+    'MIN_REST_VIOLATED': 'Jeda istirahat antar shift terlalu pendek',
+    'MAX_NIGHT_STREAK': 'Terlalu banyak shift malam berturut-turut untuk satu karyawan',
+    'MAX_WORK_DAYS': 'Jumlah hari kerja melebihi batas maksimum per minggu',
+    'MIN_DAYS_OFF': 'Hari libur karyawan kurang dari minimum yang disyaratkan',
+    'ILLEGAL_TRANSITION': 'Urutan shift tidak diizinkan (misal: malam langsung pagi)',
+    'RULE': 'Pelanggaran aturan jadwal terdeteksi',
+  };
+
+  var suggestionTitleLabels = {
+    'Resolve schedule rule violations first': 'Selesaikan pelanggaran aturan jadwal terlebih dahulu',
+    'Trigger attendance recovery workflow': 'Tinjau kehadiran karyawan yang absen di hari kerja terjadwal',
+    'Increase headcount': 'Tambah jumlah karyawan dalam scope generate',
+    'Relax constraints': 'Kurangi ketketatatan aturan (Min Rest / Max Work Days)',
+    'Review coverage requirements': 'Tinjau kembali kebutuhan coverage minimum per shift',
+  };
+
   renderSimpleList(violationsEl, violations, function (row) {
     var code = row && row.code ? String(row.code) : "RULE";
-    var message = row && row.message ? String(row.message) : "Violation detected";
-    return code + ": " + message;
+    var rawMessage = row && row.message ? String(row.message) : "Violation detected";
+    var friendlyCode = violationCodeLabels[code] || rawMessage;
+    return friendlyCode;
   });
 
   renderSimpleList(suggestionsEl, suggestions, function (row) {
-    var title = row && row.title ? String(row.title) : "Suggestion";
-    var reason = row && row.reason ? String(row.reason) : "";
-    return reason ? title + " - " + reason : title;
+    var title = row && row.title ? String(row.title).trim() : "";
+    var d = (row && row.data) ? row.data : {};
+    var empCount = typeof d.employee_count === 'number' ? d.employee_count : 0;
+
+    if (title === 'Resolve schedule rule violations first') {
+      var parts = [];
+      if (d.coverage_violation_count > 0) {
+        parts.push(d.coverage_violation_count + ' slot shift tidak dapat terpenuhi karena karyawan tidak cukup');
+      }
+      if (d.other_violation_count > 0) {
+        parts.push(d.other_violation_count + ' pelanggaran aturan lainnya (min rest / max hari kerja / urutan shift)');
+      }
+      var msg = 'Jadwal belum valid — ' + (parts.length ? parts.join(' dan ') + '. ' : 'terdapat ' + (d.violation_count || 0) + ' violations. ');
+      if (d.min_employees_needed && empCount > 0) {
+        var gap = d.min_employees_needed - empCount;
+        msg += 'Dengan ' + empCount + ' karyawan saat ini, dibutuhkan minimal ' + d.min_employees_needed + ' karyawan untuk menutup semua slot — tambah ' + gap + ' karyawan lagi ke scope generate.';
+      } else {
+        msg += 'Selesaikan violations di atas sebelum publish.';
+      }
+      return msg;
+    }
+
+    if (title === 'Trigger attendance recovery workflow') {
+      var absentCount = typeof d.absent_count === 'number' ? d.absent_count : 0;
+      return 'Terdeteksi ' + absentCount + ' karyawan yang tidak hadir di hari kerja terjadwal' +
+        (empCount > 0 ? ' (dari ' + empCount + ' karyawan dalam scope)' : '') +
+        '. Cek kehadiran mereka dan lakukan penyesuaian jadwal atau proses izin/cuti sebelum publish.';
+    }
+
+    if (title === 'Rebalance night shift distribution') {
+      var fScore = d.fairness_score != null ? d.fairness_score : null;
+      return 'Distribusi shift malam tidak merata' +
+        (fScore != null ? ' (fairness score: ' + fScore + '/100 — target minimal 80)' : '') +
+        '. Pertimbangkan menambah karyawan ke scope atau mengatur ulang Max Night Streak agar beban shift malam lebih seimbang antar karyawan.';
+    }
+
+    if (title === 'Reduce consecutive heavy patterns') {
+      var rScore = d.fatigue_risk_score != null ? d.fatigue_risk_score : null;
+      return 'Risiko kelelahan tinggi' +
+        (rScore != null ? ' (fatigue risk score: ' + rScore + '/100 — ambang kritis 70)' : '') +
+        '. Kurangi Max Night Streak atau tambah Min Days Off agar pola kerja berat tidak berturut-turut.';
+    }
+
+    if (title === 'Maintain current schedule pattern with weekly monitoring') {
+      var okFairness = d.fairness_score != null ? d.fairness_score : null;
+      var okFatigue = d.fatigue_risk_score != null ? d.fatigue_risk_score : null;
+      var scoreInfo = [];
+      if (okFairness != null) { scoreInfo.push('fairness score: ' + okFairness + '/100'); }
+      if (okFatigue != null) { scoreInfo.push('fatigue risk: ' + okFatigue + '/100'); }
+      return 'Tidak ada masalah kritis yang terdeteksi' +
+        (scoreInfo.length ? ' (' + scoreInfo.join(', ') + ')' : '') +
+        '. Jadwal sudah aman untuk dipublish. Lanjutkan dengan pemantauan kehadiran mingguan.';
+    }
+
+    // Fallback: translate title only if known, else show as-is
+    return suggestionTitleLabels[title] || title;
   });
 
   renderSmartPlannerAssignmentPreview(result);

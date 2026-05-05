@@ -406,7 +406,7 @@
     <script src="{{ URL::asset('build/js/tax-tenant-compliance.js') }}?v={{ file_exists(public_path('build/js/tax-tenant-compliance.js')) ? filemtime(public_path('build/js/tax-tenant-compliance.js')) : time() }}"></script>
 @endif
 
-@if (Route::is(['invoice-report', 'payment-report', 'expenses-report', 'user-report', 'daily-report']))
+@if (Route::is(['invoice-report', 'payment-report', 'user-report', 'daily-report']))
     <script src="{{ URL::asset('build/js/reports-api-sync.js') }}?v={{ file_exists(public_path('build/js/reports-api-sync.js')) ? filemtime(public_path('build/js/reports-api-sync.js')) : time() }}"></script>
 @endif
 
@@ -426,6 +426,9 @@
 @endif
 @if (request()->is('employee-allowance-governance*'))
     <script src="{{ URL::asset('build/js/employee-allowance-governance-data.js') }}?v={{ file_exists(public_path('build/js/employee-allowance-governance-data.js')) ? filemtime(public_path('build/js/employee-allowance-governance-data.js')) : time() }}"></script>
+@endif
+@if (request()->is('spt-masa-pph21*'))
+    <script src="{{ URL::asset('build/js/spt-masa-data.js') }}?v={{ file_exists(public_path('build/js/spt-masa-data.js')) ? filemtime(public_path('build/js/spt-masa-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['payroll-run']))
     <script src="{{ URL::asset('build/js/payroll-run.js') }}?v={{ file_exists(public_path('build/js/payroll-run.js')) ? filemtime(public_path('build/js/payroll-run.js')) : time() }}"></script>

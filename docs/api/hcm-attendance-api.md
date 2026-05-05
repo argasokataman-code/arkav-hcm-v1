@@ -356,6 +356,57 @@ Success `200`:
 - `data.offDays` int
 - `data.total` int
 
+### POST `/smart-attendance-shifting/simulate-swap`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Simulasi tukar jadwal (swap) antara dua karyawan pada tanggal berbeda.
+- Menghitung risiko fatigue, illegal transition, dan night streak setelah swap.
+
+Body:
+- `userAId` integer (required) — ID karyawan A
+- `userBId` integer (required) — ID karyawan B
+- `swapDateA` date (required) — tanggal jadwal karyawan A yang ditukar
+- `swapDateB` date (required) — tanggal jadwal karyawan B yang ditukar
+
+Success `200`:
+- `data.swappable` boolean
+- `data.swap_summary` string — deskripsi singkat swap
+- `data.overall_risk_level` int (0=aman, 1=perlu perhatian, 2=berisiko tinggi)
+- `data.employee_a` `{ name, original_shift, new_shift, risk_level, warnings[] }`
+- `data.employee_b` `{ name, original_shift, new_shift, risk_level, warnings[] }`
+- `data.warnings[]` string — peringatan gabungan
+- `data.advice` string — rekomendasi tindak lanjut
+- `data.reason` string — alasan jika `swappable=false`
+
+---
+
+### POST `/smart-attendance-shifting/find-replacement`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Mencari kandidat pengganti karyawan yang tidak hadir/mendadak absen pada shift tertentu.
+- Kandidat diurutkan berdasarkan skor kesesuaian (fatigue rendah, tidak ada konflik jadwal, bukan karyawan resigned/cuti).
+
+Body:
+- `absentUserId` integer (required) — ID karyawan yang absen
+- `absentDates` date[] (required) — tanggal-tanggal absen
+- `shiftId` string (required) — ID shift yang perlu diisi
+
+Success `200`:
+- `data.message` string — ringkasan hasil pencarian
+- `data.candidates[]`
+  - `employee_id` int
+  - `employee_name` string
+  - `job_title` string nullable
+  - `reason` string — alasan kesesuaian kandidat
+
+---
+
 ### GET `/schedule-rosters`
 
 RBAC:

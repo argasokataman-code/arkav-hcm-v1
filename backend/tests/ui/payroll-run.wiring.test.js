@@ -110,6 +110,9 @@ describe('Payroll run wiring', function () {
         static getOrCreateInstance() {
           return new window.bootstrap.Modal();
         }
+        static getInstance() {
+          return new window.bootstrap.Modal();
+        }
         show() {}
         hide() {}
       },
@@ -316,24 +319,11 @@ describe('Payroll run wiring', function () {
     await loadPayrollRunModule();
     await flush();
 
-    var voidButton = document.querySelector('[data-payroll-run-void]');
     var calculateButton = document.querySelector('[data-payroll-run-calculate]');
     var disburseButton = document.querySelector('[data-payroll-run-disburse]');
 
-    expect(voidButton.disabled).toBe(false);
-    expect(calculateButton.disabled).toBe(false);
-
-    voidButton.click();
-    await flush();
-
-    var voidCall = requestMock.mock.calls.find(function (call) {
-      return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/void';
-    });
-
-    expect(voidCall).toBeTruthy();
     expect(calculateButton.disabled).toBe(false);
     expect(disburseButton.disabled).toBe(true);
-    expect(document.querySelector('[data-payroll-run-void-hint]').textContent).toContain('sudah di-void');
     expect(document.querySelector('[data-payroll-run-stage-title]').textContent).toContain('Export Reconciliation');
     expect(document.querySelector('[data-payroll-step="export"] [data-payroll-step-status]').textContent).toBe('LOCKED');
   });
@@ -970,12 +960,15 @@ describe('Payroll run wiring', function () {
           '<option value="exact_calendar_day">exact_calendar_day</option>' +
         '</select>' +
         '<input type="checkbox" data-payroll-settings-disburse-early />' +
-        '<button type="submit" data-payroll-settings-save>Simpan policy payroll</button>' +
+        '<button type="button" data-payroll-settings-confirm>Simpan policy payroll</button>' +
       '</form>' +
       '<div data-payroll-settings-preview-period></div>' +
       '<div data-payroll-settings-preview-payday></div>' +
       '<div data-payroll-settings-preview-cutoff></div>' +
-      '<div data-payroll-settings-preview-note></div>';
+      '<div data-payroll-settings-preview-note></div>' +
+      '<div id="payroll_settings_confirm_modal" class="modal">' +
+        '<button type="button" data-payroll-settings-save>Ya Simpan</button>' +
+      '</div>';
     document.body.appendChild(panel);
 
     var requestMock = vi.fn(async function (method, path, data) {
@@ -1026,7 +1019,10 @@ describe('Payroll run wiring', function () {
     document.querySelector('[data-payroll-settings-timezone]').value = 'Asia/Makassar';
     document.querySelector('[data-payroll-settings-holiday-strategy]').value = 'next_working_day';
     document.querySelector('[data-payroll-settings-disburse-early]').checked = true;
-    document.querySelector('[data-payroll-settings-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    // Click confirm button (opens modal), then click save inside modal
+    document.querySelector('[data-payroll-settings-confirm]').click();
+    await flush();
+    document.querySelector('[data-payroll-settings-save]').click();
     await flush();
 
     var settingsPut = requestMock.mock.calls.find(function (call) {

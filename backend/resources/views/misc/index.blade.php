@@ -1,6 +1,14 @@
 <?php $page = 'index'; ?>
 @extends('layout.mainlayout')
 @section('content')
+    @php
+        $dashboardUser = request()->user() ?: auth()->user();
+        $dashboardUser?->loadMissing('employeeProfile:id,user_id,profile_photo_path');
+        $dashboardProfilePhotoPath = trim((string) ($dashboardUser?->employeeProfile?->profile_photo_path ?? ''));
+        $dashboardProfilePhotoUrl = $dashboardProfilePhotoPath !== ''
+            ? asset('storage/' . ltrim($dashboardProfilePhotoPath, '/'))
+            : URL::asset('build/img/profiles/avatar-31.jpg');
+    @endphp
 
     <!-- Page Wrapper -->
     <div id="auth-guard-root" class="page-wrapper d-none">
@@ -60,7 +68,7 @@
                 <div class="card-body d-flex align-items-center justify-content-between flex-wrap pb-1">
                     <div class="d-flex align-items-center mb-3">
                         <span class="avatar avatar-xl flex-shrink-0">
-                            <img src="{{ URL::asset('build/img/profiles/avatar-31.jpg') }}" class="rounded-circle" alt="img">
+                            <img src="{{ $dashboardProfilePhotoUrl }}" class="rounded-circle" alt="img" data-index-welcome-avatar>
                         </span>
                         <div class="ms-3">
                             <h3 class="mb-2">Welcome Back, <span id="welcome-user-name">User</span> <a href="javascript:void(0);" class="edit-icon"><i class="ti ti-edit fs-14"></i></a></h3>
@@ -588,88 +596,6 @@
                                         </tr>
                                     </thead>
                                     <tbody data-legacy-employees-body>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <a href="javascript:void(0);" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-32.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="javascript:void(0);">Anthony Lewis</a></h6>
-                                                        <span class="fs-12">Finance</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-secondary-transparent badge-xs">
-                                                    Finance
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <a href="#" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-09.jpg' )}}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="#">Brian Villalobos</a></h6>
-                                                        <span class="fs-12">PHP Developer</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-danger-transparent badge-xs">Development</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <a href="#" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="#">Stephan Peralt</a></h6>
-                                                        <span class="fs-12">Executive</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-info-transparent badge-xs">Marketing</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <a href="javascript:void(0);" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-34.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="javascript:void(0);">Doglas Martini</a></h6>
-                                                        <span class="fs-12">Project Manager</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-purple-transparent badge-xs">Manager</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="border-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="javascript:void(0);" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-37.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="javascript:void(0);">Anthony Lewis</a></h6>
-                                                        <span class="fs-12">UI/UX Designer</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="border-0">
-                                                <span class="badge badge-pink-transparent badge-xs">UI/UX Design</span>
-                                            </td>
-                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -766,106 +692,6 @@
                             <div class="table-responsive pt-1">	
                                 <table class="table table-nowrap table-borderless mb-0">
                                     <tbody data-legacy-invoices-body>
-                                        <tr>
-                                            <td class="px-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="{{url('invoice-details')}}" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-39.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="{{url('invoice-details')}}">Redesign Website</a></h6>
-                                                        <span class="fs-13 d-inline-flex align-items-center">#INVOO2<i class="ti ti-circle-filled fs-4 mx-1 text-primary"></i>Logistics</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="fs-13 mb-1">Payment</p>
-                                                <h6 class="fw-medium">$3560</h6>
-                                            </td>
-                                            <td class="px-0 text-end">
-                                                <span class="badge badge-danger-transparent badge-xs d-inline-flex align-items-center"><i class="ti ti-circle-filled fs-5 me-1"></i>Unpaid</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="px-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="{{url('invoice-details')}}" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-40.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="{{url('invoice-details')}}">Module Completion</a></h6>
-                                                        <span class="fs-13 d-inline-flex align-items-center">#INVOO5<i class="ti ti-circle-filled fs-4 mx-1 text-primary"></i>Yip Corp</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="fs-13 mb-1">Payment</p>
-                                                <h6 class="fw-medium">$4175</h6>
-                                            </td>
-                                            <td class="px-0 text-end">
-                                                <span class="badge badge-danger-transparent badge-xs d-inline-flex align-items-center"><i class="ti ti-circle-filled fs-5 me-1"></i>Unpaid</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="px-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="{{url('invoice-details')}}" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-55.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="{{url('invoice-details')}}">Change on Emp Module</a></h6>
-                                                        <span class="fs-13 d-inline-flex align-items-center">#INVOO3<i class="ti ti-circle-filled fs-4 mx-1 text-primary"></i>Ignis LLP</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="fs-13 mb-1">Payment</p>
-                                                <h6 class="fw-medium">$6985</h6>
-                                            </td>
-                                            <td class="px-0 text-end">
-                                                <span class="badge badge-danger-transparent badge-xs d-inline-flex align-items-center"><i class="ti ti-circle-filled fs-5 me-1"></i>Unpaid</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="px-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="{{url('invoice-details')}}" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-42.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="{{url('invoice-details')}}">Changes on the Board</a></h6>
-                                                        <span class="fs-13 d-inline-flex align-items-center">#INVOO2<i class="ti ti-circle-filled fs-4 mx-1 text-primary"></i>Ignis LLP</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="fs-13 mb-1">Payment</p>
-                                                <h6 class="fw-medium">$1457</h6>
-                                            </td>
-                                            <td class="px-0 text-end">
-                                                <span class="badge badge-danger-transparent badge-xs d-inline-flex align-items-center"><i class="ti ti-circle-filled fs-5 me-1"></i>Unpaid</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="px-0">
-                                                <div class="d-flex align-items-center">
-                                                    <a href="{{url('invoice-details')}}" class="avatar">
-                                                        <img src="{{ URL::asset('build/img/users/user-44.jpg') }}" class="img-fluid rounded-circle" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-medium"><a href="{{url('invoice-details')}}">Hospital Management</a></h6>
-                                                        <span class="fs-13 d-inline-flex align-items-center">#INVOO6<i class="ti ti-circle-filled fs-4 mx-1 text-primary"></i>HCL Corp</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <p class="fs-13 mb-1">Payment</p>
-                                                <h6 class="fw-medium">$6458</h6>
-                                            </td>
-                                            <td class="px-0 text-end">
-                                                <span class="badge badge-success-transparent badge-xs d-inline-flex align-items-center"><i class="ti ti-circle-filled fs-5 me-1"></i>Paid</span>
-                                            </td>
-                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -966,102 +792,6 @@
                             <a href="javascript:void(0);" class="btn btn-light btn-md mb-2">View All</a>
                         </div>
                         <div class="card-body" data-legacy-activities-body>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-38.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">Matt Morgan</a></h6>
-                                                <p class="fs-13">05:30 PM</p>
-                                            </div>
-                                            <p class="fs-13">Added New Project <span class="text-primary">HRMS Dashboard</span></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-01.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">Jay Ze</a></h6>
-                                                <p class="fs-13">05:00 PM</p>
-                                            </div>
-                                            <p class="fs-13">Commented on Uploaded Document</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-19.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">Mary Donald</a></h6>
-                                                <p class="fs-13">05:30 PM</p>
-                                            </div>
-                                            <p class="fs-13">Approved Task Projects</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-11.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">George David</a></h6>
-                                                <p class="fs-13">06:00 PM</p>
-                                            </div>
-                                            <p class="fs-13">Requesting Access to Module Tickets</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-20.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">Aaron Zeen</a></h6>
-                                                <p class="fs-13">06:30 PM</p>
-                                            </div>
-                                            <p class="fs-13">Downloaded App Reportss</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="recent-item">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex align-items-center w-100">
-                                        <a href="javscript:void(0);" class="avatar  flex-shrink-0">
-                                            <img src="{{ URL::asset('build/img/users/user-08.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 flex-fill">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <h6 class="fs-medium text-truncate"><a href="javscript:void(0);">Hendry Daniel</a></h6>
-                                                <p class="fs-13">05:30 PM</p>
-                                            </div>
-                                            <p class="fs-13">Completed New Project <span>HMS</span></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1077,62 +807,9 @@
                         <div class="card-body pb-1" data-legacy-birthdays-body>
                             <h6 class="mb-2">Today</h6>
                             <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-today>
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="avatar">
-                                            <img src="{{ URL::asset('build/img/users/user-38.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 overflow-hidden">
-                                            <h6 class="fs-medium ">Andrew Jermia</h6>
-                                            <p class="fs-13">IOS Developer</p>
-                                        </div>
-                                    </div>
-                                    <a href="javascript:void(0);" class="btn btn-secondary btn-xs"><i class="ti ti-cake me-1"></i>Send</a>
-                                </div>
                             </div>
                             <h6 class="mb-2">Tomorow</h6>
                             <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-tomorrow>
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="avatar">
-                                            <img src="{{ URL::asset('build/img/users/user-10.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 overflow-hidden">
-                                            <h6 class="fs-medium"><a href="javascript:void(0);">Mary Zeen</a></h6>
-                                            <p class="fs-13">UI/UX Designer</p>
-                                        </div>
-                                    </div>
-                                    <a href="javascript:void(0);" class="btn btn-secondary btn-xs"><i class="ti ti-cake me-1"></i>Send</a>
-                                </div>
-                            </div>
-                            <div class="bg-light p-2 border border-dashed rounded-top mb-3" data-legacy-birthdays-tomorrow-extra>
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <a href="javascript:void(0);" class="avatar">
-                                            <img src="{{ URL::asset('build/img/users/user-09.jpg') }}" class="rounded-circle" alt="img">
-                                        </a>
-                                        <div class="ms-2 overflow-hidden">
-                                            <h6 class="fs-medium "><a href="javascript:void(0);">Antony Lewis</a></h6>
-                                            <p class="fs-13">Android Developer</p>
-                                        </div>
-                                    </div>
-                                    <a href="javascript:void(0);" class="btn btn-secondary btn-xs"><i class="ti ti-cake me-1"></i>Send</a>
-                                </div>
-                            </div>
-                            <h6 class="mb-2">25 Jan 2025</h6>
-                            <div class="bg-light p-2 border border-dashed rounded-top mb-3">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center">
-                                        <span class="avatar">
-                                            <img src="{{ URL::asset('build/img/users/user-12.jpg') }}" class="rounded-circle" alt="img">
-                                        </span>
-                                        <div class="ms-2 overflow-hidden">
-                                            <h6 class="fs-medium ">Doglas Martini</h6>
-                                            <p class="fs-13">.Net Developer</p>
-                                        </div>
-                                    </div>
-                                    <a href="javascript:void(0);" class="btn btn-secondary btn-xs"><i class="ti ti-cake me-1"></i>Send</a>
-                                </div>
                             </div>
                         </div>
                     </div>

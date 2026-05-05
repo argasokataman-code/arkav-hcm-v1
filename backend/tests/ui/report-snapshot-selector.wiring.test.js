@@ -98,16 +98,9 @@ describe('Manual snapshot selector reporting', () => {
     expect(document.querySelector('[data-employee-report-total]').textContent).toBe('0');
   });
 
-  it('rejects leave archive snapshots that are not completed', async () => {
+  it('loads leave report from live data only', async () => {
     document.body.innerHTML = `
-      <select data-leave-report-source>
-        <option value="live">Live</option>
-        <option value="archive" selected>Archive</option>
-      </select>
-      <div data-leave-report-snapshot-wrap></div>
-      <input data-leave-report-snapshot-id value="61">
       <button data-leave-report-load></button>
-      <span data-leave-report-source-badge></span>
       <div data-leave-report-total-requests></div>
       <div data-leave-report-total-days></div>
       <div data-leave-report-approved></div>
@@ -128,14 +121,23 @@ describe('Manual snapshot selector reporting', () => {
           },
         });
       }
-      if (url === '/v1/hcm/reports/snapshots/61') {
+      if (url === '/v1/hcm/leave-requests?perPage=100&page=1') {
         return jsonResponse({
           success: true,
-          data: {
-            id: 61,
-            reportType: 'leave',
-            status: 'pending',
-            dataByModule: {},
+          data: [
+            {
+              employeeName: 'Sinta',
+              leaveType: 'annual_leave',
+              leaveTypeLabel: 'Annual Leave',
+              dateFrom: '2026-04-01',
+              dateTo: '2026-04-01',
+              days: 1,
+              status: 'approved',
+            },
+          ],
+          meta: {
+            summary: { totalRequests: 1 },
+            pagination: { page: 1, perPage: 100, total: 1, totalPages: 1 },
           },
         });
       }
@@ -145,20 +147,19 @@ describe('Manual snapshot selector reporting', () => {
 
     await loadModule('leave', '/leave-report');
 
-    expect(document.querySelector('[data-leave-report-body]').textContent).toContain('Tidak ada data leave report');
-    expect(document.querySelector('[data-hcm-toast-container]').textContent).toContain('belum siap digunakan');
+    expect(document.querySelector('[data-leave-report-total-requests]').textContent).toBe('1');
+    expect(document.querySelector('[data-leave-report-approved]').textContent).toBe('1');
+    expect(document.querySelector('[data-leave-report-body]').textContent).toContain('Sinta');
+
+    var hasSnapshotCall = fetchMock.mock.calls.some(function (args) {
+      return String(args[0]).indexOf('/v1/hcm/reports/snapshots/') === 0;
+    });
+    expect(hasSnapshotCall).toBe(false);
   });
 
   it('aggregates live leave report across paginated API pages', async () => {
     document.body.innerHTML = `
-      <select data-leave-report-source>
-        <option value="live" selected>Live</option>
-        <option value="archive">Archive</option>
-      </select>
-      <div data-leave-report-snapshot-wrap class="d-none"></div>
-      <input data-leave-report-snapshot-id value="0">
       <button data-leave-report-load></button>
-      <span data-leave-report-source-badge></span>
       <div data-leave-report-total-requests></div>
       <div data-leave-report-total-days></div>
       <div data-leave-report-approved></div>

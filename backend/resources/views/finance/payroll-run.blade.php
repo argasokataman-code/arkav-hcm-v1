@@ -40,6 +40,10 @@
                 <strong>Payroll Run Bulanan:</strong> Halaman ini terkunci ke periode payroll aktif. Untuk melihat periode historis gunakan <a href="{{ url('payroll-run-history') }}" class="alert-link fw-semibold">History Monthly Payroll</a>.
             </div>
 
+
+
+            <div class="mb-4">
+
             <div class="card mb-4" data-payroll-settings-panel>
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div>
@@ -50,225 +54,92 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-settings-feedback></div>
-                    <form class="row g-3" data-payroll-settings-form>
-                        <div class="col-md-3">
-                            <label class="form-label">Tanggal gajian</label>
-                            <input type="number" class="form-control" min="1" max="31" step="1" data-payroll-settings-payday-day>
-                            <span class="text-muted small">Jika hari tidak ada, sistem pakai hari terakhir bulan.</span>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Cutoff variabel payroll</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" min="0" max="15" step="1" data-payroll-settings-cutoff-offset>
-                                <span class="input-group-text">hari sebelum payday</span>
+                    <form data-payroll-settings-form>
+                        <ul class="nav nav-tabs border-bottom mb-3" id="payroll-settings-tab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="payroll-settings-editor-tab" data-bs-toggle="tab" data-bs-target="#payroll-settings-editor" type="button" role="tab" aria-controls="payroll-settings-editor" aria-selected="true">
+                                    Form Setup
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="payroll-settings-preview-tab" data-bs-toggle="tab" data-bs-target="#payroll-settings-preview" type="button" role="tab" aria-controls="payroll-settings-preview" aria-selected="false">
+                                    Preview Operasional
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="payroll-settings-tab-content">
+                            <div class="tab-pane fade show active" id="payroll-settings-editor" role="tabpanel" aria-labelledby="payroll-settings-editor-tab" tabindex="0">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Tanggal gajian</label>
+                                        <input type="number" class="form-control" min="1" max="31" step="1" data-payroll-settings-payday-day>
+                                        <span class="text-muted small">Jika hari tidak ada, sistem pakai hari terakhir bulan.</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Cutoff variabel payroll</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" min="0" max="15" step="1" data-payroll-settings-cutoff-offset>
+                                            <span class="input-group-text">hari sebelum payday</span>
+                                        </div>
+                                        <span class="text-muted small">Contoh umum: payday 28, cutoff 3 hari sebelumnya menjadi tanggal 25.</span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Timezone payroll</label>
+                                        <select class="form-select" data-payroll-settings-timezone>
+                                            <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                                            <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                                            <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Strategi payday saat libur</label>
+                                        <select class="form-select" data-payroll-settings-holiday-strategy>
+                                            <option value="previous_working_day">Majukan ke hari kerja sebelumnya</option>
+                                            <option value="next_working_day">Geser ke hari kerja berikutnya</option>
+                                            <option value="exact_calendar_day">Tetap tanggal kalender</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="payroll_disburse_before_payday_allowed" data-payroll-settings-disburse-early>
+                                            <label class="form-check-label" for="payroll_disburse_before_payday_allowed">Izinkan bayar sebelum payday</label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <span class="text-muted small">Contoh umum: payday 28, cutoff 3 hari sebelumnya menjadi tanggal 25.</span>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Timezone payroll</label>
-                            <select class="form-select" data-payroll-settings-timezone>
-                                <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                                <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
-                                <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Strategi payday saat libur</label>
-                            <select class="form-select" data-payroll-settings-holiday-strategy>
-                                <option value="previous_working_day">Majukan ke hari kerja sebelumnya</option>
-                                <option value="next_working_day">Geser ke hari kerja berikutnya</option>
-                                <option value="exact_calendar_day">Tetap tanggal kalender</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="payroll_disburse_before_payday_allowed" data-payroll-settings-disburse-early>
-                                <label class="form-check-label" for="payroll_disburse_before_payday_allowed">Izinkan bayar sebelum payday</label>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="border rounded bg-light px-3 py-3">
-                                <div class="row g-3 align-items-start">
-                                    <div class="col-md-4">
-                                        <div class="text-muted small">Periode aktif</div>
-                                        <div class="fw-semibold" data-payroll-settings-preview-period>Menunggu periode aktif…</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="text-muted small">Resolved payday</div>
-                                        <div class="fw-semibold" data-payroll-settings-preview-payday>—</div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="text-muted small">Resolved cutoff</div>
-                                        <div class="fw-semibold" data-payroll-settings-preview-cutoff>—</div>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <div class="text-muted small">Panduan operasional</div>
-                                        <div class="small mb-0" data-payroll-settings-preview-note>Perubahan variabel payroll setelah cutoff akan diperlakukan sebagai input periode berikutnya.</div>
+
+                            <div class="tab-pane fade" id="payroll-settings-preview" role="tabpanel" aria-labelledby="payroll-settings-preview-tab" tabindex="0">
+                                <div class="border rounded bg-light px-3 py-3">
+                                    <div class="row g-3 align-items-start">
+                                        <div class="col-md-4">
+                                            <div class="text-muted small">Periode aktif</div>
+                                            <div class="fw-semibold" data-payroll-settings-preview-period>Menunggu periode aktif…</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-muted small">Resolved payday</div>
+                                            <div class="fw-semibold" data-payroll-settings-preview-payday>—</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="text-muted small">Resolved cutoff</div>
+                                            <div class="fw-semibold" data-payroll-settings-preview-cutoff>—</div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="text-muted small">Panduan operasional</div>
+                                            <div class="small mb-0" data-payroll-settings-preview-note>Perubahan variabel payroll setelah cutoff akan diperlakukan sebagai input periode berikutnya.</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 d-flex justify-content-end">
-                            <button type="submit" class="btn btn-primary" data-payroll-settings-save>Simpan policy payroll</button>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" class="btn btn-primary" data-payroll-settings-confirm>Simpan policy payroll</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            @include('hcm.partials.payroll-lifecycle-alert', ['variant' => 'warning', 'title' => 'Aturan void & perubahan setup'])
-
-            <div class="card mb-4 d-none" data-payroll-work-config-panel>
-                <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div>
-                        <h5 class="mb-1">Konfigurasi Pola Kerja Payroll</h5>
-                        <p class="text-muted small mb-0">Atur rule office hour vs shift worker untuk fallback kalkulasi lembur payroll.</p>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-primary" data-payroll-work-auto-generate>Auto Generate dari Run Aktif</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-payroll-work-refresh>Refresh</button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-danger d-none py-2 small mb-3" role="alert" data-payroll-work-error></div>
-                    <div class="row g-3">
-                        <div class="col-lg-5">
-                            <div class="border rounded p-3 h-100">
-                                <h6 class="mb-2">Tambah Work Profile</h6>
-                                <form data-payroll-work-profile-form>
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Kode profile</label>
-                                            <input type="text" class="form-control" data-payroll-work-profile-code placeholder="contoh: shift_6d_ops" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Nama profile</label>
-                                            <input type="text" class="form-control" data-payroll-work-profile-name placeholder="Shift 6 Hari Ops" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Mode</label>
-                                            <select class="form-select" data-payroll-work-profile-mode>
-                                                <option value="office_hour">Office Hour</option>
-                                                <option value="shift_worker">Shift Worker</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Default day type</label>
-                                            <select class="form-select" data-payroll-work-profile-day-type>
-                                                <option value="workday">Workday</option>
-                                                <option value="public_holiday">Public Holiday</option>
-                                                <option value="weekly_rest_day">Weekly Rest Day</option>
-                                                <option value="weekly_rest_day_short">Weekly Rest Day Short</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Weekly work days</label>
-                                            <select class="form-select" data-payroll-work-profile-weekly-days>
-                                                <option value="5">5 Hari</option>
-                                                <option value="6">6 Hari</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-12 form-check form-switch mt-2 ms-1">
-                                            <input class="form-check-input" type="checkbox" id="payroll_work_profile_default" data-payroll-work-profile-default>
-                                            <label class="form-check-label" for="payroll_work_profile_default">Set sebagai default profile tenant</label>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 text-end">
-                                        <button type="submit" class="btn btn-primary" data-payroll-work-profile-submit>Simpan Profile</button>
-                                    </div>
-                                </form>
-                                <div class="table-responsive mt-3">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th>Profile</th>
-                                                <th>Rule</th>
-                                                <th class="text-center">Default</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody data-payroll-work-profiles-body>
-                                            <tr>
-                                                <td colspan="3" class="text-center text-muted py-3">Memuat profile...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-7">
-                            <div class="border rounded p-3 h-100">
-                                <h6 class="mb-2">Assignment Karyawan</h6>
-                                <form data-payroll-work-arrangement-form>
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Karyawan</label>
-                                            <select class="form-select" data-payroll-work-arrangement-user required>
-                                                <option value="">Pilih karyawan</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Profile (opsional)</label>
-                                            <select class="form-select" data-payroll-work-arrangement-profile>
-                                                <option value="">Custom tanpa profile</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Mode</label>
-                                            <select class="form-select" data-payroll-work-arrangement-mode>
-                                                <option value="office_hour">Office Hour</option>
-                                                <option value="shift_worker">Shift Worker</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Default day type</label>
-                                            <select class="form-select" data-payroll-work-arrangement-day-type>
-                                                <option value="">Ikuti profile/auto</option>
-                                                <option value="workday">Workday</option>
-                                                <option value="public_holiday">Public Holiday</option>
-                                                <option value="weekly_rest_day">Weekly Rest Day</option>
-                                                <option value="weekly_rest_day_short">Weekly Rest Day Short</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Weekly work days</label>
-                                            <select class="form-select" data-payroll-work-arrangement-weekly-days>
-                                                <option value="">Auto</option>
-                                                <option value="5">5 Hari</option>
-                                                <option value="6">6 Hari</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Effective from</label>
-                                            <input type="date" class="form-control" data-payroll-work-arrangement-effective-from required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Effective to (opsional)</label>
-                                            <input type="date" class="form-control" data-payroll-work-arrangement-effective-to>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 text-end">
-                                        <button type="submit" class="btn btn-primary" data-payroll-work-arrangement-submit>Simpan Assignment</button>
-                                    </div>
-                                </form>
-                                <div class="table-responsive mt-3">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th>Karyawan</th>
-                                                <th>Profile / Rule</th>
-                                                <th>Periode Aktif</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody data-payroll-work-arrangements-body>
-                                            <tr>
-                                                <td colspan="3" class="text-center text-muted py-3">Memuat assignment...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div class="card mb-4" data-payroll-run-panel>
@@ -408,8 +279,7 @@
                                     <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-reconciliation-hint></div>
                                     <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-tenant-hint></div>
                                     <div class="alert alert-warning d-none py-2 small mb-2" role="alert" data-payroll-run-tax-anomaly-hint></div>
-                                    <div class="alert alert-info d-none py-2 small mb-2" role="alert" data-payroll-run-tax-policy-hint></div>
-                                    <div class="alert alert-info d-none py-2 small mb-0" role="alert" data-payroll-run-void-hint></div>
+                                    <div class="alert alert-info d-none py-2 small mb-0" role="alert" data-payroll-run-tax-policy-hint></div>
 
                                     <div class="d-none mt-3" role="status" data-payroll-run-evidence-indicator>
                                         <small class="text-muted">Evidence status: <span class="badge bg-success" data-evidence-status>Loading...</span></small>
@@ -421,8 +291,8 @@
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-lg-8">
-                            <div class="border rounded p-3 h-100">
+                        <div class="col-12">
+                            <div class="border rounded p-3">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                                     <div>
                                         <div class="text-muted text-uppercase small fw-semibold">Aksi Saat Ini</div>
@@ -442,19 +312,17 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-4">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted text-uppercase small fw-semibold mb-1">Aksi Lanjutan</div>
-                                <h6 class="mb-3">Koreksi payroll run</h6>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button type="button" class="btn btn-outline-warning" data-payroll-run-void disabled title="Aktif jika run masih finalized dan belum ada pembayaran/transaksi gateway.">Void Run Finalized</button>
-                                    @if (app()->environment(['local', 'development', 'testing']) && $isPrimarySuperAdminCodeOne)
+                        @if (app()->environment(['local', 'development', 'testing']) && $isPrimarySuperAdminCodeOne)
+                            <div class="col-lg-4">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="text-muted text-uppercase small fw-semibold mb-1">Aksi DEV</div>
+                                    <h6 class="mb-3">Debug tools</h6>
+                                    <div class="d-flex flex-wrap gap-2">
                                         <button type="button" class="btn btn-outline-danger" data-payroll-run-reset-payments>Reset Pembayaran (DEV)</button>
-                                    @endif
+                                    </div>
                                 </div>
-                                <div class="small text-muted mt-2">Dipakai operator payroll company saat perlu koreksi data/cutoff sebelum payroll dibayar. Setelah di-void, run bisa dihitung ulang.</div>
                             </div>
-                        </div>
+                        @endif
                     </div>
 
                     <div class="border rounded px-3 py-2 mb-0 bg-light small d-flex flex-wrap gap-4">
@@ -498,6 +366,25 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="payroll_settings_confirm_modal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Konfirmasi Simpan Policy Payroll</h5>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close"><i class="ti ti-x"></i></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-1">Anda yakin ingin menyimpan perubahan policy payroll?</p>
+                            <p class="text-muted small mb-0">Perubahan hanya berlaku untuk draft berikutnya atau draft yang dihitung ulang.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" data-payroll-settings-save>Ya, Simpan</button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -8,6 +8,7 @@
         }
 
         var welcomeNode = document.getElementById("welcome-user-name");
+        var welcomeAvatarNode = document.querySelector("[data-index-welcome-avatar]");
 
         async function bootstrap() {
             try {
@@ -15,6 +16,10 @@
                 var user = response?.data?.data;
                 if (welcomeNode && user?.name) {
                     welcomeNode.textContent = user.name;
+                }
+                var profilePhotoUrl = user?.profile?.profilePhotoUrl;
+                if (welcomeAvatarNode && profilePhotoUrl) {
+                    welcomeAvatarNode.setAttribute("src", String(profilePhotoUrl));
                 }
                 root.classList.remove("d-none");
             } catch (error) {

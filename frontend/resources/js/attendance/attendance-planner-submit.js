@@ -71,7 +71,13 @@ export function bindPlannerSubmitHandler(deps) {
     e.preventDefault();
     if (submitBtn) {
       submitBtn.disabled = true;
+      var lbl = submitBtn.querySelector('[data-smart-planner-submit-label]');
+      var spin = submitBtn.querySelector('[data-smart-planner-spinner]');
+      if (lbl) lbl.textContent = 'Generating...';
+      if (spin) spin.classList.remove('d-none');
     }
+    var inlineFeedback = document.querySelector('[data-smart-planner-feedback-inline]');
+    if (inlineFeedback) { inlineFeedback.classList.add('d-none'); inlineFeedback.textContent = ''; }
     setSmartPlannerFeedback("Mempersiapkan scope karyawan...", false);
 
     var mode = currentCategory();
@@ -190,13 +196,28 @@ export function bindPlannerSubmitHandler(deps) {
             false
           );
         } else {
-          setSmartPlannerFeedback("Smart planner berhasil digenerate.", false);
+          var empCount = Array.isArray(payload.employeeIds) ? payload.employeeIds.length : 0;
+          var deptEl = document.querySelector('[data-smart-planner-field="department"] select, [data-smart-planner-scope="department"]');
+          if (!deptEl) deptEl = document.querySelector('[data-bs-smart-planner-department]');
+          var deptLabel = deptEl && deptEl.selectedOptions && deptEl.selectedOptions[0]
+            ? String(deptEl.selectedOptions[0].textContent || '').trim()
+            : '';
+          var successMsg = "Smart planner berhasil digenerate";
+          if (empCount > 0) successMsg += " untuk " + String(empCount) + " karyawan";
+          if (deptLabel && deptLabel !== 'Pilih departemen') successMsg += ", departemen " + deptLabel;
+          successMsg += ", periode minggu " + String((weekStartEl && weekStartEl.value) || payload.weekStart || '-') + ".";
+          setSmartPlannerFeedback(successMsg, false);
         }
         notify("Smart planner siap direview.", false);
       })
       .catch(function (err) {
         if (err && err.plannerMessage) {
           setSmartPlannerFeedback(String(err.plannerMessage), true);
+          var inlineFb = document.querySelector('[data-smart-planner-feedback-inline]');
+          if (inlineFb) {
+            inlineFb.textContent = String(err.plannerMessage);
+            inlineFb.classList.remove('d-none');
+          }
           return;
         }
         var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
@@ -206,6 +227,10 @@ export function bindPlannerSubmitHandler(deps) {
       .finally(function () {
         if (submitBtn) {
           submitBtn.disabled = false;
+          var lbl = submitBtn.querySelector('[data-smart-planner-submit-label]');
+          var spin = submitBtn.querySelector('[data-smart-planner-spinner]');
+          if (lbl) lbl.textContent = 'Generate';
+          if (spin) spin.classList.add('d-none');
         }
       });
   });

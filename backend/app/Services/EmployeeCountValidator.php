@@ -126,9 +126,14 @@ class EmployeeCountValidator
      */
     public function getActiveEmployeeCount(int $companyId): int
     {
+        $ownerUserId = Company::query()
+            ->where('id', $companyId)
+            ->value('owner_user_id');
+
         return EmployeeProfile::query()
             ->where('company_id', $companyId)
             ->where('employment_status', '!=', 'terminated')
+            ->when($ownerUserId, fn ($q) => $q->where('user_id', '!=', $ownerUserId))
             ->count();
     }
 

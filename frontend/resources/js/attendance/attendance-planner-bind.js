@@ -113,6 +113,7 @@ export function bindSmartPlannerModule(deps) {
         applyPlannerSettingsToForm(form, payload.data);
         renderPlannerTransitionMatrix(getSmartPlannerTransitionCatalog(), getSmartPlannerForbiddenTransitionKeys());
         setPlannerSettingsFeedback('Default tenant berhasil dimuat.', false);
+        window.setTimeout(function () { setPlannerSettingsFeedback('', false); }, 3000);
       })
       .catch(function () {
         renderPlannerTransitionMatrix(getSmartPlannerTransitionCatalog(), getSmartPlannerForbiddenTransitionKeys());
@@ -337,7 +338,7 @@ export function bindSmartPlannerModule(deps) {
       nightRuleWrap.classList.toggle('d-none', isOffice);
     }
     if (restRuleWrap) {
-      restRuleWrap.classList.toggle('d-none', false);
+      restRuleWrap.classList.toggle('d-none', isOffice);
     }
     if (departmentWrap) {
       departmentWrap.classList.toggle('d-none', scope !== 'department');

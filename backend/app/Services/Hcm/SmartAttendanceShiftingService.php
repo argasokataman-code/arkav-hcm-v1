@@ -184,7 +184,7 @@ class SmartAttendanceShiftingService
 
         $fairnessScore = $this->calculateFairnessScore(collect($state));
         $fatigueRiskScore = $this->calculateFatigueRiskScore(collect($state), $attendance['employee_summaries']);
-        $recommendations = $this->buildRecommendations($fairnessScore, $fatigueRiskScore, $violations, $attendance['flags']);
+        $recommendations = $this->buildRecommendations($fairnessScore, $fatigueRiskScore, $violations, $attendance['flags'], $employees->count(), $unmetCoverage);
 
         return [
             'schedule_generation' => [
@@ -863,7 +863,7 @@ class SmartAttendanceShiftingService
      * @param array<int,array<string,mixed>> $flags
      * @return array<int,array<string,mixed>>
      */
-    private function buildRecommendations(float $fairnessScore, float $fatigueRiskScore, array $violations, array $flags): array
+    private function buildRecommendations(float $fairnessScore, float $fatigueRiskScore, array $violations, array $flags, int $employeeCount = 0, array $unmetCoverage = []): array
     {
         $suggestions = [];
 
@@ -873,6 +873,10 @@ class SmartAttendanceShiftingService
                 'reason' => 'Night shifts are unevenly distributed across employees.',
                 'expected_impact' => 'Improve fairness score and reduce long-term burnout probability.',
                 'priority' => 'high',
+                'data' => [
+                    'fairness_score' => round($fairnessScore, 1),
+                    'employee_count' => $employeeCount,
+                ],
             ];
         }
 
@@ -882,15 +886,35 @@ class SmartAttendanceShiftingService
                 'reason' => 'Fatigue risk is elevated from overtime and/or night streak concentration.',
                 'expected_impact' => 'Reduce fatigue risk and attendance violations in the next cycle.',
                 'priority' => 'high',
+                'data' => [
+                    'fatigue_risk_score' => round($fatigueRiskScore, 1),
+                    'employee_count' => $employeeCount,
+                ],
             ];
         }
 
         if (! empty($violations)) {
+            // Hitung kebutuhan karyawan minimum dari unmet_coverage
+            $unmetByDate = collect($unmetCoverage)->groupBy('date');
+            $maxUnmetPerDay = (int) ($unmetByDate->map(
+                fn ($entries) => $entries->sum(fn ($e) => max(0, (int) $e['required'] - (int) $e['assigned']))
+            )->max() ?? 0);
+            $minEmployeesNeeded = $maxUnmetPerDay > 0 ? $employeeCount + $maxUnmetPerDay : null;
+            $coverageViolationCount = collect($violations)->where('code', 'COVERAGE_UNMET')->count();
+
             $suggestions[] = [
                 'title' => 'Resolve schedule rule violations first',
                 'reason' => 'Current plan still has rule/coverage violations.',
                 'expected_impact' => 'Move schedule status from invalid to valid and avoid operational risk.',
                 'priority' => 'high',
+                'data' => [
+                    'violation_count' => count($violations),
+                    'coverage_violation_count' => $coverageViolationCount,
+                    'other_violation_count' => count($violations) - $coverageViolationCount,
+                    'employee_count' => $employeeCount,
+                    'min_employees_needed' => $minEmployeesNeeded,
+                    'unmet_slots' => count($unmetCoverage),
+                ],
             ];
         }
 
@@ -901,6 +925,10 @@ class SmartAttendanceShiftingService
                 'reason' => 'Absence flags were detected on assigned work days.',
                 'expected_impact' => 'Improve compliance and shift continuity.',
                 'priority' => 'medium',
+                'data' => [
+                    'absent_count' => $absentCount,
+                    'employee_count' => $employeeCount,
+                ],
             ];
         }
 
@@ -910,6 +938,11 @@ class SmartAttendanceShiftingService
                 'reason' => 'No critical fairness/fatigue/rule issue detected.',
                 'expected_impact' => 'Preserve schedule stability while keeping alertness through monitoring.',
                 'priority' => 'low',
+                'data' => [
+                    'fairness_score' => round($fairnessScore, 1),
+                    'fatigue_risk_score' => round($fatigueRiskScore, 1),
+                    'employee_count' => $employeeCount,
+                ],
             ];
         }
 
@@ -933,5 +966,397 @@ class SmartAttendanceShiftingService
             $fairnessScore,
             $fatigueRiskScore
         );
+    }
+
+    /**
+     * Simulate swapping shifts between two employees on given dates.
+     * Returns risk assessment (fatigue, rest gap, illegal transition) for both before and after swap.
+     *
+     * @param array<string,mixed> $employeeA
+     * @param array<string,mixed> $employeeB
+     * @param Collection<int,array<string,mixed>> $assignmentsA  Current weekly assignments for employee A
+     * @param Collection<int,array<string,mixed>> $assignmentsB  Current weekly assignments for employee B
+     * @return array<string,mixed>
+     */
+    public function simulateSwap(
+        array $employeeA,
+        array $employeeB,
+        string $swapDateA,
+        string $swapDateB,
+        Collection $assignmentsA,
+        Collection $assignmentsB,
+        array $rules,
+        string $timezone
+    ): array {
+        $minRest = max(1, (int) ($rules['min_rest_hours_between_shifts'] ?? 12));
+        $maxNightStreak = max(1, (int) ($rules['max_consecutive_night_shifts'] ?? 3));
+        $illegalRules = is_array($rules['illegal_transition_rules'] ?? null)
+            ? $rules['illegal_transition_rules']
+            : ['night_to_morning'];
+
+        // Snapshot the shift on the swap date for each employee
+        $shiftA = $assignmentsA->firstWhere('date', $swapDateA);
+        $shiftB = $assignmentsB->firstWhere('date', $swapDateB);
+
+        if (! $shiftA || ! $shiftB) {
+            return [
+                'swappable' => false,
+                'reason' => 'Tidak ada jadwal shift yang terdaftar untuk salah satu atau kedua karyawan pada tanggal yang diminta.',
+            ];
+        }
+
+        // Build modified assignment lists (swap the two target dates)
+        $modifiedA = $assignmentsA->map(function (array $a) use ($swapDateA, $shiftB): array {
+            if ($a['date'] === $swapDateA) {
+                return array_merge($a, [
+                    'shift_id' => $shiftB['shift_id'],
+                    'start_time' => $shiftB['start_time'],
+                    'end_time' => $shiftB['end_time'],
+                    'cross_day' => $shiftB['cross_day'] ?? false,
+                ]);
+            }
+            return $a;
+        })->sortBy('date')->values();
+
+        $modifiedB = $assignmentsB->map(function (array $b) use ($swapDateB, $shiftA): array {
+            if ($b['date'] === $swapDateB) {
+                return array_merge($b, [
+                    'shift_id' => $shiftA['shift_id'],
+                    'start_time' => $shiftA['start_time'],
+                    'end_time' => $shiftA['end_time'],
+                    'cross_day' => $shiftA['cross_day'] ?? false,
+                ]);
+            }
+            return $b;
+        })->sortBy('date')->values();
+
+        $riskA = $this->assessSwapRisk($modifiedA, $minRest, $maxNightStreak, $illegalRules, $timezone);
+        $riskB = $this->assessSwapRisk($modifiedB, $minRest, $maxNightStreak, $illegalRules, $timezone);
+
+        $overallRisk = max($riskA['risk_level'], $riskB['risk_level']);
+        $swappable = $overallRisk < 2; // 0=safe, 1=warning, 2=danger
+
+        $employeeAName = (string) ($employeeA['name'] ?? 'Karyawan A');
+        $employeeBName = (string) ($employeeB['name'] ?? 'Karyawan B');
+
+        $shiftALabel = $shiftA['shift_id'] === 'OFF' ? 'Libur' : (string) ($shiftA['shift_id']);
+        $shiftBLabel = $shiftB['shift_id'] === 'OFF' ? 'Libur' : (string) ($shiftB['shift_id']);
+
+        $warnings = array_merge(
+            array_map(fn (string $w): string => $employeeAName . ': ' . $w, $riskA['warnings']),
+            array_map(fn (string $w): string => $employeeBName . ': ' . $w, $riskB['warnings'])
+        );
+
+        return [
+            'swappable' => $swappable,
+            'overall_risk_level' => $overallRisk,
+            'swap_summary' => sprintf(
+                '%s (%s, %s) ↔ %s (%s, %s)',
+                $employeeAName, $swapDateA, $shiftALabel,
+                $employeeBName, $swapDateB, $shiftBLabel
+            ),
+            'employee_a' => [
+                'id' => $employeeA['id'],
+                'name' => $employeeAName,
+                'original_shift' => $shiftALabel,
+                'new_shift' => $shiftBLabel,
+                'risk_level' => $riskA['risk_level'],
+                'warnings' => $riskA['warnings'],
+            ],
+            'employee_b' => [
+                'id' => $employeeB['id'],
+                'name' => $employeeBName,
+                'original_shift' => $shiftBLabel,
+                'new_shift' => $shiftALabel,
+                'risk_level' => $riskB['risk_level'],
+                'warnings' => $riskB['warnings'],
+            ],
+            'warnings' => $warnings,
+            'advice' => $this->buildSwapAdvice($swappable, $overallRisk, $employeeAName, $employeeBName, $warnings),
+        ];
+    }
+
+    /**
+     * @param Collection<int,array<string,mixed>> $assignments  Sorted by date
+     * @param array<string> $illegalRules
+     * @return array{risk_level:int,warnings:array<string>}
+     */
+    private function assessSwapRisk(
+        Collection $assignments,
+        int $minRest,
+        int $maxNightStreak,
+        array $illegalRules,
+        string $timezone
+    ): array {
+        $warnings = [];
+        $riskLevel = 0;
+        $nightStreak = 0;
+
+        $sorted = $assignments->filter(fn (array $a): bool => ($a['shift_id'] ?? 'OFF') !== 'OFF')
+            ->sortBy('date')
+            ->values();
+
+        foreach ($sorted as $i => $cur) {
+            $isNight = $this->isNightShift($cur);
+            $nightStreak = $isNight ? $nightStreak + 1 : 0;
+
+            if ($nightStreak > $maxNightStreak) {
+                $warnings[] = sprintf(
+                    'Shift malam berturut-turut %d hari (maks. %d) mulai %s — risiko kelelahan tinggi.',
+                    $nightStreak, $maxNightStreak, $cur['date']
+                );
+                $riskLevel = max($riskLevel, 2);
+            }
+
+            if ($i === 0) {
+                continue;
+            }
+
+            $prev = $sorted[$i - 1];
+            $prevEnd = $this->shiftEndDateTime((string) $prev['date'], (string) ($prev['end_time'] ?? ''), (bool) ($prev['cross_day'] ?? false), $timezone);
+            $curStart = CarbonImmutable::parse((string) $cur['date'] . ' ' . (string) ($cur['start_time'] ?? '00:00'), $timezone);
+
+            if ($prevEnd && $curStart) {
+                $restHours = $prevEnd->diffInMinutes($curStart, false) / 60;
+                if ($restHours >= 0 && $restHours < $minRest) {
+                    $warnings[] = sprintf(
+                        'Jeda istirahat hanya %.1f jam antara %s dan %s (minimum %d jam) — berisiko kelelahan.',
+                        $restHours, $prev['date'], $cur['date'], $minRest
+                    );
+                    $riskLevel = max($riskLevel, 2);
+                }
+            }
+
+            // Check illegal transitions
+            $prevType = $this->shiftTypeLabel($prev);
+            $curType = $this->shiftTypeLabel($cur);
+            if ($prevType && $curType) {
+                $key = $prevType . '_to_' . $curType;
+                if (in_array($key, $illegalRules, true)) {
+                    $warnings[] = sprintf(
+                        'Urutan shift dilarang: %s → %s pada %s → %s.',
+                        strtoupper($prevType), strtoupper($curType), $prev['date'], $cur['date']
+                    );
+                    $riskLevel = max($riskLevel, 2);
+                }
+            }
+        }
+
+        // Count night shifts overall for fatigue warning
+        $totalNight = $sorted->filter(fn (array $a): bool => $this->isNightShift($a))->count();
+        if ($totalNight >= 4 && $riskLevel < 1) {
+            $warnings[] = sprintf(
+                '%d shift malam dalam seminggu — pertimbangkan rotasi agar tidak melebihi ambang kelelahan.',
+                $totalNight
+            );
+            $riskLevel = max($riskLevel, 1);
+        }
+
+        return ['risk_level' => $riskLevel, 'warnings' => $warnings];
+    }
+
+    /** @param array<string,mixed> $assignment */
+    private function isNightShift(array $assignment): bool
+    {
+        $startTime = (string) ($assignment['start_time'] ?? '');
+        if ($startTime === '') {
+            return false;
+        }
+        $h = (int) substr($startTime, 0, 2);
+        return $h >= 20 || $h < 5;
+    }
+
+    /** @param array<string,mixed> $assignment */
+    private function shiftTypeLabel(array $assignment): string
+    {
+        $startTime = (string) ($assignment['start_time'] ?? '');
+        if ($startTime === '') {
+            return '';
+        }
+        $h = (int) substr($startTime, 0, 2);
+        if ($h >= 20 || $h < 5) {
+            return 'night';
+        }
+        if ($h >= 14) {
+            return 'afternoon';
+        }
+        return 'morning';
+    }
+
+    private function shiftEndDateTime(string $date, string $endTime, bool $crossDay, string $timezone): ?CarbonImmutable
+    {
+        if ($endTime === '') {
+            return null;
+        }
+        $end = CarbonImmutable::parse($date . ' ' . $endTime, $timezone);
+        if ($crossDay) {
+            $end = $end->addDay();
+        }
+        return $end;
+    }
+
+    /**
+     * @param array<string> $warnings
+     */
+    private function buildSwapAdvice(bool $swappable, int $riskLevel, string $nameA, string $nameB, array $warnings): string
+    {
+        if ($swappable && $riskLevel === 0) {
+            return sprintf(
+                'Tukar jadwal antara %s dan %s aman dilakukan. Tidak ada pelanggaran aturan istirahat, transisi shift, atau risiko kelelahan yang terdeteksi.',
+                $nameA, $nameB
+            );
+        }
+        if ($swappable && $riskLevel === 1) {
+            return sprintf(
+                'Tukar jadwal antara %s dan %s bisa dilakukan dengan catatan: %s. Pantau kehadiran pada hari setelah swap.',
+                $nameA, $nameB, implode(' ', $warnings)
+            );
+        }
+        return sprintf(
+            'Tukar jadwal antara %s dan %s TIDAK DISARANKAN karena: %s. Pertimbangkan pengganti lain atau ubah tanggal swap.',
+            $nameA, $nameB, implode(' ', $warnings)
+        );
+    }
+
+    /**
+     * Find the best replacement candidates for an absent employee on given dates.
+     *
+     * @param Collection<int,array<string,mixed>> $employees  All employees in scope
+     * @param array<string,array<string,mixed>> $rosterByUser  userId => array of assignments for the week
+     * @param array<string> $absentDates
+     * @param array<string,mixed> $shiftTemplate  The shift that needs to be covered
+     * @return array<string,mixed>
+     */
+    public function findReplacement(
+        int $absentUserId,
+        Collection $employees,
+        array $rosterByUser,
+        array $absentDates,
+        array $shiftTemplate,
+        array $rules,
+        string $timezone
+    ): array {
+        $minRest = max(1, (int) ($rules['min_rest_hours_between_shifts'] ?? 12));
+        $maxWorkDays = max(1, (int) ($rules['max_work_days_per_week'] ?? 5));
+        $maxNightStreak = max(1, (int) ($rules['max_consecutive_night_shifts'] ?? 3));
+        $illegalRules = is_array($rules['illegal_transition_rules'] ?? null)
+            ? $rules['illegal_transition_rules']
+            : ['night_to_morning'];
+
+        $candidates = [];
+
+        foreach ($employees as $employee) {
+            $empId = (int) $employee['id'];
+            if ($empId === $absentUserId) {
+                continue;
+            }
+
+            $myAssignments = collect($rosterByUser[(string) $empId] ?? [])
+                ->filter(fn (array $a): bool => ($a['shift_id'] ?? 'OFF') !== 'OFF')
+                ->sortBy('date')
+                ->values();
+
+            $currentWorkDays = $myAssignments->count();
+            if ($currentWorkDays >= $maxWorkDays) {
+                // Already at max work days — skip
+                continue;
+            }
+
+            // Simulate adding the absent dates
+            $issues = [];
+            $canCover = true;
+
+            foreach ($absentDates as $date) {
+                // Check rest gap with previous assignment
+                $prevAssignment = $myAssignments->filter(fn (array $a): bool => $a['date'] < $date)->last();
+                if ($prevAssignment) {
+                    $prevEnd = $this->shiftEndDateTime(
+                        (string) $prevAssignment['date'],
+                        (string) ($prevAssignment['end_time'] ?? ''),
+                        (bool) ($prevAssignment['cross_day'] ?? false),
+                        $timezone
+                    );
+                    $newStart = CarbonImmutable::parse($date . ' ' . (string) ($shiftTemplate['start_time'] ?? '00:00'), $timezone);
+                    if ($prevEnd && $newStart) {
+                        $restHours = $prevEnd->diffInMinutes($newStart, false) / 60;
+                        if ($restHours >= 0 && $restHours < $minRest) {
+                            $issues[] = sprintf(
+                                'Jeda istirahat hanya %.1f jam sebelum %s (minimum %d jam)',
+                                $restHours, $date, $minRest
+                            );
+                            $canCover = false;
+                        }
+                    }
+
+                    // Illegal transition
+                    $prevType = $this->shiftTypeLabel($prevAssignment);
+                    $newType = $this->shiftTypeLabel($shiftTemplate);
+                    if ($prevType && $newType) {
+                        $key = $prevType . '_to_' . $newType;
+                        if (in_array($key, $illegalRules, true)) {
+                            $issues[] = sprintf('Transisi shift %s → %s dilarang', strtoupper($prevType), strtoupper($newType));
+                            $canCover = false;
+                        }
+                    }
+                }
+
+                // Check night streak
+                if ($this->isNightShift($shiftTemplate)) {
+                    $recentNights = $myAssignments->filter(fn (array $a): bool => $a['date'] < $date && $this->isNightShift($a))->count();
+                    if ($recentNights >= $maxNightStreak) {
+                        $issues[] = sprintf('Sudah %d shift malam berturut-turut (maks. %d)', $recentNights, $maxNightStreak);
+                        $canCover = false;
+                    }
+                }
+            }
+
+            if (! $canCover) {
+                continue;
+            }
+
+            // Score: lower is better candidate
+            $nightCount = $myAssignments->filter(fn (array $a): bool => $this->isNightShift($a))->count();
+            $score = $currentWorkDays * 10 + $nightCount * 3;
+
+            $candidates[] = [
+                'employee_id' => (string) $empId,
+                'employee_name' => (string) ($employee['name'] ?? ''),
+                'job_title' => (string) ($employee['jobTitle'] ?? 'Employee'),
+                'current_work_days' => $currentWorkDays,
+                'current_night_shifts' => $nightCount,
+                'available_capacity' => $maxWorkDays - $currentWorkDays,
+                'issues' => $issues,
+                'score' => $score,
+            ];
+        }
+
+        usort($candidates, fn (array $a, array $b): int => $a['score'] <=> $b['score']);
+        $top = array_slice($candidates, 0, 5);
+
+        return [
+            'absent_dates' => $absentDates,
+            'shift_to_cover' => $shiftTemplate['shift_id'] ?? 'unknown',
+            'candidates_found' => count($top),
+            'candidates' => array_map(function (array $c): array {
+                $reason = sprintf(
+                    'Beban kerja minggu ini: %d hari kerja, %d shift malam. Kapasitas tersisa: %d hari. %s',
+                    $c['current_work_days'],
+                    $c['current_night_shifts'],
+                    $c['available_capacity'],
+                    empty($c['issues']) ? 'Tidak ada konflik aturan yang terdeteksi.' : implode('; ', $c['issues'])
+                );
+                return [
+                    'employee_id' => $c['employee_id'],
+                    'employee_name' => $c['employee_name'],
+                    'job_title' => $c['job_title'],
+                    'current_work_days' => $c['current_work_days'],
+                    'available_capacity' => $c['available_capacity'],
+                    'reason' => $reason,
+                ];
+            }, $top),
+            'message' => empty($top)
+                ? 'Tidak ada karyawan yang tersedia dan memenuhi syarat aturan untuk menggantikan di tanggal tersebut. Pertimbangkan menambah karyawan ke scope atau melonggarkan aturan Max Work Days.'
+                : sprintf('%d karyawan dapat menggantikan berdasarkan analisis beban kerja dan aturan jadwal minggu ini.', count($top)),
+        ];
     }
 }

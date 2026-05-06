@@ -323,6 +323,8 @@ Untuk request dengan `featureKey=payroll_run` dan `actionKey=disburse`, CSV yang
 
 Kolom ini melengkapi kolom line payroll existing (`run_id`, `user_id`, `component_code`, `amount`, dll.) agar tim finance dapat rekonsiliasi payroll lines dan fee platform dalam satu export evidence.
 
+Baris ringkasan `SUBTOTAL` per karyawan dan `GRAND_TOTAL` menghitung nilai `gross_total`/`deductions_total`/`net_total` hanya dari line yang berdampak ke take-home pay (`affects_net_pay=true` pada master `hcm_salary_components`; fallback `true` jika line belum tertaut komponen).
+
 ### `POST /payroll/thr-calculate`
 
 Estimasi **THR bruto** untuk QA / payroll (bukan posting slip, tanpa pajak).

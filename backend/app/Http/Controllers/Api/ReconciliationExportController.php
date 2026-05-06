@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
+use App\Models\HcmSalaryComponent;
 use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -266,6 +267,20 @@ class ReconciliationExportController extends Controller
         }
 
         $payrollLines = $query->get();
+
+        $componentAffectsNetPay = [];
+        $componentIds = $payrollLines->pluck('hcm_salary_component_id')
+            ->filter(fn ($id) => $id !== null)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        if ($componentIds->isNotEmpty()) {
+            $componentAffectsNetPay = HcmSalaryComponent::query()
+                ->whereIn('id', $componentIds->all())
+                ->pluck('affects_net_pay', 'id')
+                ->map(fn ($value) => (bool) $value)
+                ->all();
+        }
         [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
 
         // Pre-compute per-employee totals
@@ -275,7 +290,11 @@ class ReconciliationExportController extends Controller
             if (! isset($employeeTotals[$uid])) {
                 $employeeTotals[$uid] = ['name' => (string) ($line->user_name ?? ''), 'gross' => 0.0, 'deductions' => 0.0];
             }
-            if ($line->affects_net_pay) {
+            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
+            $affectsNetPay = $componentId !== null
+                ? ($componentAffectsNetPay[$componentId] ?? true)
+                : true;
+            if ($affectsNetPay) {
                 if ($line->kind === 'addition') {
                     $employeeTotals[$uid]['gross'] += (float) $line->amount;
                 } elseif ($line->kind === 'deduction') {
@@ -339,7 +358,7 @@ class ReconciliationExportController extends Controller
                 (string) ($line->component_code ?? ''),
                 (string) ($line->component_name ?? ''),
                 (string) $line->amount,
-                $line->affects_net_pay ? 'yes' : 'no',
+                $affectsNetPay ? 'yes' : 'no',
                 '',
                 '',
                 '',

@@ -7454,6 +7454,9 @@ paths:
         Untuk `featureKey=payroll_run` + `actionKey=disburse`, CSV otomatis membawa snapshot biaya layanan payroll pada kolom:
         `service_fee_rate_percent`, `service_fee_base_amount`, `service_fee_amount`, `service_fee_billing_month`.
 
+        Baris ringkasan `SUBTOTAL`/`GRAND_TOTAL` pada CSV payroll menghitung total hanya dari line yang berdampak ke take-home pay
+        (`affects_net_pay=true` pada master `hcm_salary_components`; fallback `true` untuk line tanpa relasi komponen).
+
         Untuk `xlsx` / `pdf`, `filePath` tetap **wajib** (server tidak auto-generate).
       security:
         - bearerAuth: []

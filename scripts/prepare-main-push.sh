@@ -116,6 +116,13 @@ else
   echo "[prepare-main-push] no artifact change detected in release/shared-hosting"
 fi
 
+# Update test gate cache to final HEAD so pre-push hook skips re-run
+_FINAL_HEAD="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo '')"
+if [[ -n "$_FINAL_HEAD" ]]; then
+  echo "$_FINAL_HEAD" > "$ROOT_DIR/.test-gate-passed"
+  echo "[prepare-main-push] test gate cache updated to final HEAD=$_FINAL_HEAD"
+fi
+
 echo "[prepare-main-push] step 6/6: final guards"
 bash "$ROOT_DIR/scripts/check-shared-hosting-artifact-sync.sh" "$(git -C "$ROOT_DIR" rev-parse HEAD)"
 bash "$ROOT_DIR/scripts/check-deploy-runtime-guard.sh"

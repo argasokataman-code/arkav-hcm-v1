@@ -85,19 +85,12 @@
                 <li class="menu-title"><span>MAIN MENU</span></li>
                 <li>
                     <ul>
-                        <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('index','employee-dashboard') ? 'active subdrop' : '' }}">
+                        <li>
+                            <a href="{{ $isHcmAdmin ? url('index') : url('employee-dashboard') }}" class="{{ Request::is('index','employee-dashboard') ? 'active' : '' }}">
                                 <i class="ti ti-smart-home"></i>
                                 <span>Dashboard</span>
                                 <span class="badge badge-danger fs-10 fw-medium text-white p-1">Hot</span>
-                                <span class="menu-arrow"></span>
                             </a>
-                            <ul>
-@if ($isHcmAdmin)
-                                <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
-@endif
-                                <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
-                            </ul>
                         </li>
                         <!-- <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',

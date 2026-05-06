@@ -85,20 +85,23 @@
                 <li class="menu-title"><span>MAIN MENU</span></li>
                 <li>
                     <ul>
-                        <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('index','employee-dashboard') ? 'active subdrop' : '' }}">
+@if ($isHcmAdmin)
+                        <li class="{{ Request::is('index') ? 'active' : '' }}">
+                            <a href="{{url('index')}}">
                                 <i class="ti ti-smart-home"></i>
                                 <span>Dashboard</span>
                                 <span class="badge badge-danger fs-10 fw-medium text-white p-1">Hot</span>
-                                <span class="menu-arrow"></span>
                             </a>
-                            <ul>
-@if ($isHcmAdmin)
-                                <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
-@endif
-                                <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
-                            </ul>
                         </li>
+@else
+                        <li class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">
+                            <a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}">
+                                <i class="ti ti-smart-home"></i>
+                                <span>{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Dashboard' }}</span>
+                                <span class="badge badge-danger fs-10 fw-medium text-white p-1">Hot</span>
+                            </a>
+                        </li>
+@endif
                         <!-- <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
                             'calendar','email','notes','social-feed','invoices','invoice-details') ? 'active subdrop' : '' }}">
@@ -308,8 +311,9 @@
                                 </li>
 @if ($isHcmAdmin)
                                 <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active subdrop' : '' }}">Attendance (Admin)</a></li>
-@endif
+@else
                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
@@ -321,8 +325,9 @@
 @if ($isHcmAdmin)
                                         <li><a href="{{url('overtime-master')}}" class="{{ Request::is('overtime-master') ? 'active' : '' }}">Master Overtime</a></li>
                                         <li><a href="{{url('overtime')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Overtime (Admin)</a></li>
-@endif
+@else
                                         <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
+@endif
                                     </ul>
                                 </li>
                             </ul>

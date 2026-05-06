@@ -533,6 +533,46 @@
                 </div>
             </div>
 
+            {{-- PTKP Reference Table (static, no DB records required) --}}
+            <div class="card mb-3">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="ti ti-table-alias text-primary" aria-hidden="true"></i>
+                    <h6 class="mb-0">Referensi PTKP (Penghasilan Tidak Kena Pajak) — PMK-101/PMK.010/2016</h6>
+                    <span class="badge bg-secondary-subtle text-secondary ms-auto">Regulasi Nasional</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0 fs-13">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th scope="col">Status PTKP</th>
+                                    <th scope="col">Keterangan</th>
+                                    <th scope="col" class="text-end">Nominal PTKP / Tahun</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge bg-info-subtle text-info">TK/0</span></td><td>Tidak Kawin, 0 tanggungan</td><td class="text-end">Rp 54.000.000</td></tr>
+                                <tr><td><span class="badge bg-info-subtle text-info">TK/1</span></td><td>Tidak Kawin, 1 tanggungan</td><td class="text-end">Rp 58.500.000</td></tr>
+                                <tr><td><span class="badge bg-info-subtle text-info">TK/2</span></td><td>Tidak Kawin, 2 tanggungan</td><td class="text-end">Rp 63.000.000</td></tr>
+                                <tr><td><span class="badge bg-info-subtle text-info">TK/3</span></td><td>Tidak Kawin, 3 tanggungan</td><td class="text-end">Rp 67.500.000</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success">K/0</span></td><td>Kawin, 0 tanggungan</td><td class="text-end">Rp 58.500.000</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success">K/1</span></td><td>Kawin, 1 tanggungan</td><td class="text-end">Rp 63.000.000</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success">K/2</span></td><td>Kawin, 2 tanggungan</td><td class="text-end">Rp 67.500.000</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success">K/3</span></td><td>Kawin, 3 tanggungan</td><td class="text-end">Rp 72.000.000</td></tr>
+                                <tr><td><span class="badge bg-warning-subtle text-warning">K/I/0</span></td><td>Kawin, penghasilan istri digabung, 0 tanggungan</td><td class="text-end">Rp 108.000.000</td></tr>
+                                <tr><td><span class="badge bg-warning-subtle text-warning">K/I/1</span></td><td>Kawin, penghasilan istri digabung, 1 tanggungan</td><td class="text-end">Rp 112.500.000</td></tr>
+                                <tr><td><span class="badge bg-warning-subtle text-warning">K/I/2</span></td><td>Kawin, penghasilan istri digabung, 2 tanggungan</td><td class="text-end">Rp 117.000.000</td></tr>
+                                <tr><td><span class="badge bg-warning-subtle text-warning">K/I/3</span></td><td>Kawin, penghasilan istri digabung, 3 tanggungan</td><td class="text-end">Rp 121.500.000</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-muted fs-12">
+                    PTKP diri WP: Rp 54 jt · Tambahan kawin: Rp 4,5 jt · Tambahan per tanggungan: Rp 4,5 jt (maks. 3).
+                    Nominal berlaku sejak 2016 (PMK-101/PMK.010/2016). Gunakan tabel ini sebagai acuan saat mengisi status PTKP tiap karyawan.
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0">Data Profil Pajak Per Karyawan</h5>

@@ -395,7 +395,13 @@ class HcmSalaryComponent extends Model
             ? $companyId
             : null;
 
-        $existing = static::query()->where('code', $code)->first();
+        $existingQuery = static::query()->where('code', $code);
+        if ($targetCompanyId !== null) {
+            $existingQuery->where('company_id', $targetCompanyId);
+        } else {
+            $existingQuery->whereNull('company_id');
+        }
+        $existing = $existingQuery->first();
 
         if ($existing !== null) {
             // Update governance metadata only; never overwrite tenant customizations to name/flags

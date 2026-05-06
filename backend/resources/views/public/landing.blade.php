@@ -963,9 +963,6 @@
 					<button type="submit" class="btn btn-primary" data-onboarding-submit>Proses</button>
 				</div>
 			</form>
-			@if (config('turnstile.enabled') && config('turnstile.site_key'))
-				<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
-			@endif
 		</div>
 	</div>
 </div>

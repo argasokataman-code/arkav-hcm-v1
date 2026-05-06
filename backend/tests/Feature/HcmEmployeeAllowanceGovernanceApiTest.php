@@ -280,4 +280,49 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
                 'errors' => ['effectiveStartDate'],
             ]);
     }
+
+    public function test_policies_endpoint_auto_provisions_starter_drafts_for_new_company(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-seed@example.com']);
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $admin['token'],
+        ], $admin['company_id']);
+
+        // Company baru — belum ada policies sama sekali
+        $this->assertDatabaseMissing('hcm_employee_allowance_policies', [
+            'company_id' => (int) $admin['company_id'],
+        ]);
+
+        $response = $this->withHeaders($headers)
+            ->getJson('/v1/hcm/allowance-governance/policies?active_only=0')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $items = collect($response->json('data.items'));
+
+        // Harus auto-provision minimal 5 starter drafts
+        $this->assertGreaterThanOrEqual(5, $items->count());
+
+        // Semua starter harus status draft dan is_active = false
+        foreach ($items as $item) {
+            $this->assertSame('draft', $item['status']);
+            $this->assertFalse((bool) $item['isActive']);
+        }
+
+        // Idempoten: hit sekali lagi tidak menambah records
+        $countBefore = HcmEmployeeAllowancePolicy::query()
+            ->where('company_id', (int) $admin['company_id'])
+            ->count();
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/allowance-governance/policies?active_only=0')
+            ->assertStatus(200);
+
+        $countAfter = HcmEmployeeAllowancePolicy::query()
+            ->where('company_id', (int) $admin['company_id'])
+            ->count();
+
+        $this->assertSame($countBefore, $countAfter);
+    }
 }

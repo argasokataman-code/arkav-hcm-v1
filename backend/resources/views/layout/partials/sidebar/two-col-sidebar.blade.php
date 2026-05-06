@@ -146,8 +146,11 @@
                             <li class="menu-title"><span>MAIN MENU</span></li>
 @if ($isHcmAdmin)
                             <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@elseif ($isGlobalHcmAdmin)
+                            <li><a href="{{ route('super-admin.employees-monitor') }}" class="{{ Request::is('super-admin/employees-monitor') ? 'active' : '' }}">Employee Monitor</a></li>
+@else
+                            <li><a href="{{ url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
 @endif
-                            <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
                         </ul>
                     </div>
                         <div class="tab-pane fade {{ Request::is('voice-call','video-call','outgoing-call','incoming-call','call-history',
@@ -294,8 +297,9 @@
                                     </li>
 @if ($isHcmAdmin)
                                     <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
-@endif
+@else
                                     <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                     <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                     <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
@@ -308,8 +312,9 @@
 @if ($isHcmAdmin)
                                             <li><a href="{{url('overtime-master')}}" class="{{ Request::is('overtime-master') ? 'active' : '' }}">Master Overtime</a></li>
                                             <li><a href="{{url('overtime')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Overtime (Admin)</a></li>
-@endif
+@else
                                             <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
+@endif
                                         </ul>
                                     </li>
                                 </ul>

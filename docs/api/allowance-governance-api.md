@@ -56,7 +56,8 @@ Response `200`:
 3. `data.meta.as_of`
 
 Catatan:
-1. Endpoint ini murni membaca policy tenant yang sudah ada; tidak lagi membuat seed baseline runtime.
+1. Jika company belum memiliki policy sama sekali, endpoint ini secara otomatis men-provision **5 starter draft policies** (transport, meal, communication, position, attendance) dengan `status=draft` dan `is_active=false`. Operasi ini idempoten — tidak menambah record jika sudah ada minimal 1 policy.
+2. Policy starter harus diaktifkan secara eksplisit oleh admin via endpoint `POST .../activate`.
 
 ### `GET /v1/hcm/allowance-governance/policies/history`
 

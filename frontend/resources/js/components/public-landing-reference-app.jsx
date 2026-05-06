@@ -24,6 +24,33 @@ function sanitizePostalCode(value) {
     return String(value ?? '').replace(/\D+/g, '').slice(0, 12);
 }
 
+function sanitizePhone(value) {
+    // Allow only: digits, +, -, space, (, ), dot — max 20 (E.164 + formatting)
+    return String(value ?? '').replace(/[^0-9+\-\s().]/g, '').slice(0, 20);
+}
+
+function sanitizePersonName(value) {
+    // Letters, spaces, apostrophe, dot, dash only
+    return String(value ?? '').replace(/[^A-Za-z\s'.\-]/g, '').slice(0, 120);
+}
+
+function sanitizePersonRole(value) {
+    // Letters, digits, spaces, common punctuation for job titles
+    return String(value ?? '').replace(/[^A-Za-z0-9\s'.\-\/&,]/g, '').slice(0, 120);
+}
+
+const PHONE_FIELDS = ['companyContactPhone', 'ownerPhone'];
+const PERSON_NAME_FIELDS = ['companyContactPersonName', 'ownerName'];
+const PERSON_ROLE_FIELDS = ['companyContactPersonRole'];
+const MAX_LENGTHS = {
+    companyName: 255, companyLegalName: 255,
+    companyContactPersonName: 120, companyContactPersonRole: 120,
+    companyContactPhone: 20, companyCity: 120, companyAddress: 500,
+    companyPostalCode: 12, companyCountryCode: 10, companyTimezone: 100,
+    companyCurrency: 10, ownerName: 150, ownerEmail: 255, ownerPhone: 20,
+    ownerPassword: 64, ownerConfirmPassword: 64, billingEmail: 255,
+};
+
 function getE2ETurnstileToken() {
     if (typeof window === 'undefined') {
         return '';
@@ -182,6 +209,8 @@ function getInitialFormState(defaultPackage) {
         billingEmail: '',
         website: '',
         turnstileToken: '',
+        consentAccepted: false,
+        _confirmMismatch: false,
     };
 }
 
@@ -552,12 +581,36 @@ function DemoOverlay({ onClose, onOpenOnboarding, packageUuid }) {
     );
 }
 
-export function OnboardingModal({ error, formState, onChange, onClose, onSubmit, packages, submitting, turnstileEnabled, turnstileSiteKey, onTurnstileTokenChange }) {
+export function OnboardingModal({ error, formState, onChange, onChangeConsent, onClose, onSubmit, packages, submitting, turnstileEnabled, turnstileSiteKey, onTurnstileTokenChange }) {
     const selectedPackage = packages.find((packageItem) => packageItem.uuid === formState.packageUuid) || null;
     const isTrialSelected = isTrialPackage(selectedPackage);
     const lockBillingCycle = isTrialSelected;
     const fieldErrors = useMemo(() => buildFieldErrors(error?.details), [error]);
     const fe = (name) => fieldErrors[name] || null;
+    const [showPdpModal, setShowPdpModal] = useState(false);
+    const [activeConsentTab, setActiveConsentTab] = useState('pdp');
+    const [pdpScrolledToEnd, setPdpScrolledToEnd] = useState(false);
+    const [tocScrolledToEnd, setTocScrolledToEnd] = useState(false);
+    const [pdpRead, setPdpRead] = useState(false);
+    const canAgree = pdpScrolledToEnd && tocScrolledToEnd;
+
+    const handlePdpBodyScroll = (e) => {
+        const el = e.currentTarget;
+        if (!pdpScrolledToEnd && el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
+            setPdpScrolledToEnd(true);
+        }
+    };
+    const handleTocBodyScroll = (e) => {
+        const el = e.currentTarget;
+        if (!tocScrolledToEnd && el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
+            setTocScrolledToEnd(true);
+        }
+    };
+    const handleAgreeAndClose = () => {
+        setPdpRead(true);
+        onChangeConsent({ target: { checked: true } });
+        setShowPdpModal(false);
+    };
     const turnstileContainerRef = useRef(null);
     const turnstileWidgetIdRef = useRef(null);
     const e2eTurnstileToken = getE2ETurnstileToken();
@@ -654,7 +707,7 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                 </div>
                             ) : null}
 
-                            <form onSubmit={onSubmit}>
+                            <form id="onboardingReactForm" onSubmit={onSubmit}>
                                 <div className="row g-3">
                                     <div className="col-12">
                                         <div className="rounded-4 p-3 p-lg-4 border bg-light-subtle">
@@ -701,58 +754,59 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                             <div className="row g-3">
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nama company</label>
-                                                    <input className={`form-control${fe('companyName') ? ' is-invalid' : ''}`} name="companyName" value={formState.companyName} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyName') ? ' is-invalid' : ''}`} name="companyName" value={formState.companyName} onChange={onChange} maxLength={255} required />
                                                     {fe('companyName') ? <div className="invalid-feedback">{fe('companyName')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nama legal</label>
-                                                    <input className={`form-control${fe('companyLegalName') ? ' is-invalid' : ''}`} name="companyLegalName" value={formState.companyLegalName} onChange={onChange} />
+                                                    <input className={`form-control${fe('companyLegalName') ? ' is-invalid' : ''}`} name="companyLegalName" value={formState.companyLegalName} onChange={onChange} maxLength={255} />
                                                     {fe('companyLegalName') ? <div className="invalid-feedback">{fe('companyLegalName')}</div> : null}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Contact person</label>
-                                                    <input className={`form-control${fe('companyContactPersonName') ? ' is-invalid' : ''}`} name="companyContactPersonName" value={formState.companyContactPersonName} onChange={onChange} />
-                                                    {fe('companyContactPersonName') ? <div className="invalid-feedback">{fe('companyContactPersonName')}</div> : null}
+                                                    <input className={`form-control${fe('companyContactPersonName') ? ' is-invalid' : ''}`} name="companyContactPersonName" value={formState.companyContactPersonName} onChange={onChange} maxLength={120} placeholder="Cth: Budi Santoso" pattern="[A-Za-z\s'.\-]+" title="Hanya huruf, spasi, titik, atau tanda hubung." />
+                                                    {fe('companyContactPersonName')
+                                                        ? <div className="invalid-feedback">{fe('companyContactPersonName')}</div>
+                                                        : <div className="form-text d-flex justify-content-between"><span>Nama lengkap contact person.</span><span className={formState.companyContactPersonName.length > 100 ? 'text-warning' : 'text-muted'}>{formState.companyContactPersonName.length}/120</span></div>}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Peran contact person</label>
-                                                    <input className={`form-control${fe('companyContactPersonRole') ? ' is-invalid' : ''}`} name="companyContactPersonRole" value={formState.companyContactPersonRole} onChange={onChange} />
-                                                    {fe('companyContactPersonRole') ? <div className="invalid-feedback">{fe('companyContactPersonRole')}</div> : null}
+                                                    <input className={`form-control${fe('companyContactPersonRole') ? ' is-invalid' : ''}`} name="companyContactPersonRole" value={formState.companyContactPersonRole} onChange={onChange} maxLength={120} placeholder="Cth: HR Manager" pattern="[A-Za-z0-9\s'.\-\/&,]+" title="Jabatan/peran. Hanya huruf, angka, spasi, atau tanda baca umum." />
+                                                    {fe('companyContactPersonRole')
+                                                        ? <div className="invalid-feedback">{fe('companyContactPersonRole')}</div>
+                                                        : <div className="form-text d-flex justify-content-between"><span>Jabatan di perusahaan.</span><span className={formState.companyContactPersonRole.length > 100 ? 'text-warning' : 'text-muted'}>{formState.companyContactPersonRole.length}/120</span></div>}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Nomor kontak company</label>
-                                                    <input className={`form-control${fe('companyContactPhone') ? ' is-invalid' : ''}`} name="companyContactPhone" value={formState.companyContactPhone} onChange={onChange} />
-                                                    {fe('companyContactPhone') ? <div className="invalid-feedback">{fe('companyContactPhone')}</div> : null}
+                                                    <input className={`form-control${fe('companyContactPhone') ? ' is-invalid' : ''}`} name="companyContactPhone" value={formState.companyContactPhone} onChange={onChange} type="tel" inputMode="tel" placeholder="Contoh: +62811234567" maxLength={20} pattern="[0-9+\-\s().]{6,20}" title="Gunakan angka, +, -, spasi, titik, atau kurung. Min. 6 karakter." />
+                                                    {fe('companyContactPhone') ? <div className="invalid-feedback">{fe('companyContactPhone')}</div> : <div className="form-text">Gunakan format angka, +, atau tanda hubung.</div>}
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label">Kota</label>
-                                                    <input className={`form-control${fe('companyCity') ? ' is-invalid' : ''}`} name="companyCity" value={formState.companyCity} onChange={onChange} required />
+                                                    <input className={`form-control${fe('companyCity') ? ' is-invalid' : ''}`} name="companyCity" value={formState.companyCity} onChange={onChange} maxLength={120} required />
                                                     {fe('companyCity') ? <div className="invalid-feedback">{fe('companyCity')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Alamat</label>
-                                                    <textarea className={`form-control${fe('companyAddress') ? ' is-invalid' : ''}`} name="companyAddress" rows="3" value={formState.companyAddress} onChange={onChange} required />
+                                                    <textarea className={`form-control${fe('companyAddress') ? ' is-invalid' : ''}`} name="companyAddress" rows="3" value={formState.companyAddress} onChange={onChange} maxLength={500} required />
                                                     {fe('companyAddress') ? <div className="invalid-feedback">{fe('companyAddress')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Kode pos</label>
-                                                    <input className={`form-control${fe('companyPostalCode') ? ' is-invalid' : ''}`} name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} inputMode="numeric" maxLength="12" />
+                                                    <input className={`form-control${fe('companyPostalCode') ? ' is-invalid' : ''}`} name="companyPostalCode" value={formState.companyPostalCode} onChange={onChange} inputMode="numeric" maxLength={12} pattern="[0-9]{3,12}" title="Kode pos hanya berisi angka, 3–12 digit." />
                                                     {fe('companyPostalCode') ? <div className="invalid-feedback">{fe('companyPostalCode')}</div> : null}
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Country code</label>
-                                                    <input className={`form-control${fe('companyCountryCode') ? ' is-invalid' : ''}`} name="companyCountryCode" value={formState.companyCountryCode} onChange={onChange} required />
-                                                    {fe('companyCountryCode') ? <div className="invalid-feedback">{fe('companyCountryCode')}</div> : null}
+                                                    <input className="form-control-plaintext border rounded px-2 bg-light" name="companyCountryCode" value={formState.companyCountryCode} readOnly disabled />
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Timezone</label>
-                                                    <input className={`form-control${fe('companyTimezone') ? ' is-invalid' : ''}`} name="companyTimezone" value={formState.companyTimezone} onChange={onChange} required />
-                                                    {fe('companyTimezone') ? <div className="invalid-feedback">{fe('companyTimezone')}</div> : null}
+                                                    <input className="form-control-plaintext border rounded px-2 bg-light" name="companyTimezone" value={formState.companyTimezone} readOnly disabled />
                                                 </div>
                                                 <div className="col-md-4">
                                                     <label className="form-label">Currency</label>
-                                                    <input className={`form-control${fe('companyCurrency') ? ' is-invalid' : ''}`} name="companyCurrency" value={formState.companyCurrency} onChange={onChange} required />
-                                                    {fe('companyCurrency') ? <div className="invalid-feedback">{fe('companyCurrency')}</div> : null}
+                                                    <input className="form-control-plaintext border rounded px-2 bg-light" name="companyCurrency" value={formState.companyCurrency} readOnly disabled />
                                                 </div>
                                             </div>
                                         </div>
@@ -764,32 +818,34 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                             <div className="row g-3">
                                                 <div className="col-12">
                                                     <label className="form-label">Nama owner</label>
-                                                    <input className={`form-control${fe('ownerName') ? ' is-invalid' : ''}`} name="ownerName" value={formState.ownerName} onChange={onChange} required />
-                                                    {fe('ownerName') ? <div className="invalid-feedback">{fe('ownerName')}</div> : null}
+                                                    <input className={`form-control${fe('ownerName') ? ' is-invalid' : ''}`} name="ownerName" value={formState.ownerName} onChange={onChange} minLength={2} maxLength={150} placeholder="Cth: Budi Santoso" pattern="[A-Za-z][A-Za-z .'\-]{1,149}" title="Diawali huruf. Hanya huruf, spasi, titik, tanda petik, atau tanda hubung." required />
+                                                    {fe('ownerName')
+                                                        ? <div className="invalid-feedback">{fe('ownerName')}</div>
+                                                        : <div className="form-text">Nama lengkap sesuai identitas.</div>}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Email owner</label>
-                                                    <input className={`form-control${fe('ownerEmail') ? ' is-invalid' : ''}`} name="ownerEmail" type="email" value={formState.ownerEmail} onChange={onChange} required />
+                                                    <input className={`form-control${fe('ownerEmail') ? ' is-invalid' : ''}`} name="ownerEmail" type="email" value={formState.ownerEmail} onChange={onChange} maxLength={255} required />
                                                     {fe('ownerEmail') ? <div className="invalid-feedback">{fe('ownerEmail')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Nomor owner</label>
-                                                    <input className={`form-control${fe('ownerPhone') ? ' is-invalid' : ''}`} name="ownerPhone" value={formState.ownerPhone} onChange={onChange} />
+                                                    <input className={`form-control${fe('ownerPhone') ? ' is-invalid' : ''}`} name="ownerPhone" value={formState.ownerPhone} onChange={onChange} type="tel" inputMode="tel" placeholder="Contoh: +62811234567" maxLength={20} pattern="[0-9+\-\s().]{6,20}" title="Gunakan angka, +, -, spasi, titik, atau kurung. Min. 6 karakter." />
                                                     {fe('ownerPhone') ? <div className="invalid-feedback">{fe('ownerPhone')}</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Password</label>
-                                                    <input className={`form-control${fe('ownerPassword') ? ' is-invalid' : ''}`} name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} required />
-                                                    {fe('ownerPassword') ? <div className="invalid-feedback">{fe('ownerPassword')}</div> : null}
+                                                    <input className={`form-control${fe('ownerPassword') ? ' is-invalid' : ''}`} name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} minLength={8} maxLength={64} required />
+                                                    {fe('ownerPassword') ? <div className="invalid-feedback">{fe('ownerPassword')}</div> : <div className="form-text">Min. 8 karakter, mengandung huruf besar, huruf kecil, dan angka.</div>}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Konfirmasi password</label>
-                                                    <input className={`form-control${fe('ownerConfirmPassword') ? ' is-invalid' : ''}`} name="ownerConfirmPassword" type="password" value={formState.ownerConfirmPassword} onChange={onChange} required />
-                                                    {fe('ownerConfirmPassword') ? <div className="invalid-feedback">{fe('ownerConfirmPassword')}</div> : null}
+                                                    <input className={`form-control${fe('ownerConfirmPassword') || formState._confirmMismatch ? ' is-invalid' : ''}`} name="ownerConfirmPassword" type="password" value={formState.ownerConfirmPassword} onChange={onChange} minLength={8} maxLength={64} required />
+                                                    {fe('ownerConfirmPassword') ? <div className="invalid-feedback">{fe('ownerConfirmPassword')}</div> : formState._confirmMismatch ? <div className="invalid-feedback">Password tidak cocok.</div> : null}
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Billing email</label>
-                                                    <input className={`form-control${fe('billingEmail') ? ' is-invalid' : ''}`} name="billingEmail" type="email" value={formState.billingEmail} onChange={onChange} />
+                                                    <input className={`form-control${fe('billingEmail') ? ' is-invalid' : ''}`} name="billingEmail" type="email" value={formState.billingEmail} onChange={onChange} maxLength={255} />
                                                     {fe('billingEmail') ? <div className="invalid-feedback">{fe('billingEmail')}</div> : null}
                                                 </div>
                                                 <div className="col-12 d-none">
@@ -808,19 +864,355 @@ export function OnboardingModal({ error, formState, onChange, onClose, onSubmit,
                                         </div>
                                     </div>
                                 </div>
-
-                                <div className="d-flex flex-wrap justify-content-end gap-2 mt-4">
-                                    <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Tutup</button>
-                                    <button type="submit" className="btn btn-primary" disabled={submitting}>
-                                        {submitting ? 'Memproses...' : 'Proses onboarding'}
-                                    </button>
-                                </div>
                             </form>
+                        </div>
+                        <div className="modal-footer flex-column align-items-stretch gap-2 border-top">
+                            <div className="form-check">
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id="consentAcceptedReact"
+                                    name="consentAccepted"
+                                    checked={Boolean(formState.consentAccepted)}
+                                    onChange={onChangeConsent}
+                                    disabled={!pdpRead}
+                                    required
+                                />
+                                <label className="form-check-label small" htmlFor="consentAcceptedReact">
+                                    {pdpRead
+                                        ? <>Saya telah membaca dan menyetujui <strong>Kebijakan Privasi &amp; Syarat Ketentuan</strong> ARCAV HCM.</>
+                                        : <><button type="button" className="btn btn-link btn-sm p-0 align-baseline fw-semibold" onClick={() => setShowPdpModal(true)}>Baca Kebijakan Privasi &amp; Syarat Ketentuan</button> terlebih dahulu sebelum melanjutkan.</>
+                                    }
+                                </label>
+                            </div>
+                            <div className="d-flex flex-wrap justify-content-end gap-2">
+                                <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Tutup</button>
+                                <button
+                                    type="submit"
+                                    form="onboardingReactForm"
+                                    className="btn btn-primary"
+                                    disabled={submitting || !formState.consentAccepted || formState._confirmMismatch}
+                                >
+                                    {submitting ? 'Memproses...' : 'Proses onboarding'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div className="modal-backdrop fade show"></div>
+
+            {showPdpModal ? (
+                <>
+                    <div
+                        className="modal fade show d-block"
+                        tabIndex="-1"
+                        role="dialog"
+                        style={{ zIndex: 1060 }}
+                        onClick={(e) => { if (e.target === e.currentTarget) setShowPdpModal(false); }}
+                    >
+                        <div className="modal-dialog modal-dialog-centered modal-lg">
+                            <div className="modal-content border-0 shadow-lg">
+                                <div className="modal-header pb-0 border-0">
+                                    <div>
+                                        <h5 className="modal-title">Kebijakan Privasi &amp; Syarat Ketentuan</h5>
+                                        <div className="d-flex align-items-center gap-2 mt-1">
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                fontSize: '0.75rem', color: pdpScrolledToEnd ? '#198754' : '#6c757d',
+                                                transition: 'color 0.4s'
+                                            }}>
+                                                <span style={{
+                                                    width: 16, height: 16, borderRadius: '50%',
+                                                    background: pdpScrolledToEnd ? '#198754' : '#dee2e6',
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                    transition: 'background 0.4s',
+                                                    fontSize: '0.65rem', color: '#fff', fontWeight: 700
+                                                }}>✓</span>
+                                                Kebijakan Privasi
+                                            </span>
+                                            <span style={{ color: '#dee2e6', fontSize: '0.75rem' }}>·</span>
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                fontSize: '0.75rem', color: tocScrolledToEnd ? '#198754' : '#6c757d',
+                                                transition: 'color 0.4s'
+                                            }}>
+                                                <span style={{
+                                                    width: 16, height: 16, borderRadius: '50%',
+                                                    background: tocScrolledToEnd ? '#198754' : '#dee2e6',
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                    transition: 'background 0.4s',
+                                                    fontSize: '0.65rem', color: '#fff', fontWeight: 700
+                                                }}>✓</span>
+                                                Syarat &amp; Ketentuan
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setShowPdpModal(false)}></button>
+                                </div>
+                                <div className="modal-body p-0">
+                                    <ul className="nav nav-tabs px-3 pt-2">
+                                        <li className="nav-item">
+                                            <button
+                                                type="button"
+                                                className={`nav-link d-flex align-items-center gap-2${activeConsentTab === 'pdp' ? ' active' : ''}`}
+                                                onClick={() => setActiveConsentTab('pdp')}
+                                            >
+                                                Kebijakan Privasi
+                                                <span style={{
+                                                    width: 18, height: 18, borderRadius: '50%',
+                                                    background: pdpScrolledToEnd ? '#198754' : '#dee2e6',
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                    fontSize: '0.6rem', color: '#fff', fontWeight: 700,
+                                                    transition: 'background 0.35s, transform 0.35s',
+                                                    transform: pdpScrolledToEnd ? 'scale(1.15)' : 'scale(1)'
+                                                }}>✓</span>
+                                            </button>
+                                        </li>
+                                        <li className="nav-item">
+                                            <button
+                                                type="button"
+                                                className={`nav-link d-flex align-items-center gap-2${activeConsentTab === 'toc' ? ' active' : ''}`}
+                                                onClick={() => setActiveConsentTab('toc')}
+                                            >
+                                                Syarat &amp; Ketentuan
+                                                <span style={{
+                                                    width: 18, height: 18, borderRadius: '50%',
+                                                    background: tocScrolledToEnd ? '#198754' : '#dee2e6',
+                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                    fontSize: '0.6rem', color: '#fff', fontWeight: 700,
+                                                    transition: 'background 0.35s, transform 0.35s',
+                                                    transform: tocScrolledToEnd ? 'scale(1.15)' : 'scale(1)'
+                                                }}>✓</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+
+                                    <style>{`@keyframes arcavBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}`}</style>
+                                    {activeConsentTab === 'pdp' ? (
+                                        <div style={{ position: 'relative' }}>
+                                            <div
+                                                className="px-4 py-3"
+                                                style={{ overflowY: 'auto', height: '55vh' }}
+                                                onScroll={handlePdpBodyScroll}
+                                            >
+                                            <p className="text-muted small">Berlaku efektif: 1 Mei 2026 &mdash; Terakhir diperbarui: 1 Mei 2026</p>
+                                            <p className="small">ARCAV HCM ("kami") berkomitmen melindungi data pribadi Anda sesuai <strong>UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP)</strong> Republik Indonesia.</p>
+
+                                            <h6 className="mt-3 mb-1">1. Identitas Pengendali Data Pribadi</h6>
+                                            <ul className="small ps-3">
+                                                <li><strong>Nama Pengendali:</strong> ARCAV HCM</li>
+                                                <li><strong>DPO:</strong> Tim Data Protection ARCAV HCM</li>
+                                                <li><strong>Kontak DPO:</strong> <a href="mailto:dpo@arcav.id">dpo@arcav.id</a></li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">2. Data Pribadi yang Kami Kumpulkan</h6>
+                                            <p className="small fw-semibold mb-1">a. Data Umum</p>
+                                            <ul className="small ps-3">
+                                                <li>Nama lengkap, email, nomor telepon, alamat domisili</li>
+                                                <li>Data ketenagakerjaan: jabatan, departemen, tanggal bergabung, status kontrak</li>
+                                                <li>Log akses: IP, user-agent, waktu akses</li>
+                                                <li>Absensi: waktu masuk/keluar, lokasi GPS (dengan persetujuan)</li>
+                                            </ul>
+                                            <p className="small fw-semibold mb-1">b. Data Spesifik (Pasal 4 ayat 2 UU PDP)</p>
+                                            <ul className="small ps-3">
+                                                <li><strong>NIK/KTP</strong> — verifikasi identitas karyawan</li>
+                                                <li><strong>NPWP, status pajak (PTKP)</strong> — pemotongan PPh 21</li>
+                                                <li><strong>Data rekening bank</strong> — transfer gaji</li>
+                                                <li><strong>Nomor BPJS Kesehatan &amp; Ketenagakerjaan</strong> — administrasi jaminan sosial</li>
+                                                <li><strong>Data biometrik (foto selfie)</strong> — opsional, dengan persetujuan eksplisit</li>
+                                                <li><strong>Lokasi GPS</strong> — opsional, dengan persetujuan eksplisit</li>
+                                                <li><strong>Agama, status perkawinan, kewarganegaraan</strong> — penghitungan tunjangan/pajak</li>
+                                                <li><strong>Data gaji dan kompensasi</strong> — pemrosesan payroll</li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">3. Dasar dan Tujuan Pemrosesan (Pasal 20–21 UU PDP)</h6>
+                                            <div className="table-responsive">
+                                                <table className="table table-bordered table-sm small">
+                                                    <thead className="table-light"><tr><th>Tujuan</th><th>Dasar Hukum</th></tr></thead>
+                                                    <tbody>
+                                                        <tr><td>Manajemen data karyawan</td><td>Pelaksanaan kontrak kerja (Pasal 20 b)</td></tr>
+                                                        <tr><td>Penggajian &amp; pemotongan PPh 21</td><td>Kewajiban hukum (Pasal 20 c)</td></tr>
+                                                        <tr><td>Administrasi BPJS</td><td>Kewajiban hukum (Pasal 20 c)</td></tr>
+                                                        <tr><td>Absensi foto selfie &amp; GPS</td><td>Persetujuan eksplisit (Pasal 20 a)</td></tr>
+                                                        <tr><td>Keamanan platform</td><td>Kepentingan sah (Pasal 20 f)</td></tr>
+                                                        <tr><td>Onboarding akun perusahaan</td><td>Persetujuan (Pasal 20 a)</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <h6 className="mt-3 mb-1">4. Pihak Ketiga</h6>
+                                            <div className="table-responsive">
+                                                <table className="table table-bordered table-sm small">
+                                                    <thead className="table-light"><tr><th>Pihak</th><th>Data</th><th>Tujuan</th></tr></thead>
+                                                    <tbody>
+                                                        <tr><td>Xendit / Stripe</td><td>Nama, email, tagihan</td><td>Pembayaran langganan</td></tr>
+                                                        <tr><td>Penyedia AI</td><td>Teks intent (tanpa PII)</td><td>Asisten AI HCM</td></tr>
+                                                        <tr><td>Cloudflare Turnstile</td><td>Token captcha</td><td>Pencegahan bot</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <h6 className="mt-3 mb-1">5. Retensi Data</h6>
+                                            <ul className="small ps-3">
+                                                <li>Karyawan aktif: selama hubungan kerja</li>
+                                                <li>Karyawan berhenti: maks. <strong>5 tahun</strong></li>
+                                                <li>Payroll &amp; perpajakan: <strong>10 tahun</strong></li>
+                                                <li>Log akses keamanan: maks. <strong>1 tahun</strong></li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">6. Hak Subjek Data (Pasal 5–13 UU PDP)</h6>
+                                            <ul className="small ps-3">
+                                                <li><strong>Hak Akses</strong> — 14 hari kerja</li>
+                                                <li><strong>Hak Perbaikan</strong> — 14 hari kerja</li>
+                                                <li><strong>Hak Penghapusan</strong> — 30 hari kerja</li>
+                                                <li><strong>Hak Portabilitas Data</strong> — 14 hari kerja</li>
+                                                <li><strong>Hak Mencabut Persetujuan</strong> — Segera</li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">7. Keamanan Data</h6>
+                                            <ul className="small ps-3">
+                                                <li>Enkripsi HTTPS/TLS</li>
+                                                <li>Hashing kata sandi (Bcrypt)</li>
+                                                <li>RBAC per tenant</li>
+                                                <li>Audit log ekspor data massal</li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">8. Notifikasi Insiden (Pasal 46 UU PDP)</h6>
+                                            <p className="small">Notifikasi kepada pihak berwenang dan subjek data dalam <strong>3 × 24 jam</strong> setelah insiden terdeteksi.</p>
+
+                                            <h6 className="mt-3 mb-1">9. Hubungi DPO</h6>
+                                            <ul className="small ps-3">
+                                                <li><strong>Email:</strong> <a href="mailto:dpo@arcav.id">dpo@arcav.id</a></li>
+                                                <li>Respons dalam 3 hari kerja</li>
+                                            </ul>
+                                        </div>
+                                        {!pdpScrolledToEnd && (
+                                            <div style={{
+                                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                                height: 56, pointerEvents: 'none',
+                                                background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.95))',
+                                                display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                                                paddingBottom: 6
+                                            }}>
+                                                <svg style={{ animation: 'arcavBounce 1s ease-in-out infinite' }}
+                                                    width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#6c757d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                    ) : (
+                                        <div style={{ position: 'relative' }}>
+                                        <div
+                                            className="px-4 py-3"
+                                            style={{ overflowY: 'auto', height: '55vh' }}
+                                            onScroll={handleTocBodyScroll}
+                                        >
+                                            <p className="small">Selamat datang di platform ARCAV HCM. Dengan mengakses atau menggunakan platform ini, Anda menyetujui syarat dan ketentuan berikut.</p>
+
+                                            <h6 className="mt-3 mb-1">Penerimaan Syarat</h6>
+                                            <p className="small">Dengan menggunakan platform ini, Anda terikat oleh Syarat &amp; Ketentuan ini beserta panduan tambahan yang berlaku. Jika tidak setuju, jangan gunakan platform ini.</p>
+
+                                            <h6 className="mt-3 mb-1">Tanggung Jawab Pengguna</h6>
+                                            <p className="small">Sebagai pengguna resmi, Anda setuju untuk:</p>
+                                            <ul className="small ps-3">
+                                                <li>Menjaga kerahasiaan kredensial login Anda</li>
+                                                <li>Menggunakan platform hanya untuk keperluan HR yang sah</li>
+                                                <li>Tidak membagikan informasi karyawan sensitif tanpa otorisasi</li>
+                                                <li>Melaporkan insiden keamanan atau aktivitas mencurigakan segera</li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">Penggunaan Platform</h6>
+                                            <p className="small">Platform memungkinkan Anda mengelola data karyawan, laporan, payroll, dan fungsi HR lainnya. Anda bertanggung jawab atas keakuratan dan legalitas informasi yang dimasukkan.</p>
+
+                                            <h6 className="mt-3 mb-1">Larangan</h6>
+                                            <p className="small">Anda dilarang:</p>
+                                            <ul className="small ps-3">
+                                                <li>Mengakses platform untuk tujuan melanggar hukum</li>
+                                                <li>Menggunakan platform untuk merugikan individu atau perusahaan</li>
+                                                <li>Melakukan reverse engineering atau ekstraksi kode sumber</li>
+                                                <li>Mengganggu fungsionalitas atau memasukkan perangkat lunak berbahaya</li>
+                                            </ul>
+
+                                            <h6 className="mt-3 mb-1">Kekayaan Intelektual</h6>
+                                            <p className="small">Semua konten, perangkat lunak, dan kekayaan intelektual platform dimiliki oleh ARCAV HCM. Reproduksi atau distribusi tanpa izin tertulis dilarang.</p>
+
+                                            <h6 className="mt-3 mb-1">Penghentian Akses</h6>
+                                            <p className="small">Kami berhak menangguhkan atau mengakhiri akses Anda kapan saja tanpa pemberitahuan jika Anda melanggar syarat ini.</p>
+
+                                            <h6 className="mt-3 mb-1">Pernyataan Penyangkalan</h6>
+                                            <p className="small">Platform disediakan "apa adanya". Kami tidak menjamin platform bebas dari kesalahan atau gangguan. Semua jaminan tersirat dikecualikan sejauh diizinkan hukum.</p>
+
+                                            <h6 className="mt-3 mb-1">Batasan Tanggung Jawab</h6>
+                                            <p className="small">ARCAV HCM tidak bertanggung jawab atas kerugian langsung maupun tidak langsung akibat penggunaan atau ketidakmampuan menggunakan platform.</p>
+
+                                            <h6 className="mt-3 mb-1">Perubahan Syarat</h6>
+                                            <p className="small">Syarat &amp; Ketentuan dapat diubah sewaktu-waktu. Penggunaan berkelanjutan setelah perubahan berarti penerimaan syarat yang diperbarui.</p>
+                                        </div>
+                                        {!tocScrolledToEnd && (
+                                            <div style={{
+                                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                                height: 56, pointerEvents: 'none',
+                                                background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.95))',
+                                                display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                                                paddingBottom: 6
+                                            }}>
+                                                <svg style={{ animation: 'arcavBounce 1s ease-in-out infinite' }}
+                                                    width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                                    stroke="#6c757d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-footer flex-column align-items-stretch gap-1">
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                                        {[{ label: 'Kebijakan Privasi', done: pdpScrolledToEnd }, { label: 'Syarat & Ketentuan', done: tocScrolledToEnd }].map(({ label, done }) => (
+                                            <div key={label} style={{
+                                                display: 'flex', alignItems: 'center', gap: 5,
+                                                fontSize: '0.78rem',
+                                                color: done ? '#198754' : '#adb5bd',
+                                                fontWeight: done ? 600 : 400,
+                                                transition: 'color 0.35s'
+                                            }}>
+                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                                    <circle cx="8" cy="8" r="7.5" stroke={done ? '#198754' : '#dee2e6'}
+                                                        strokeWidth="1.5"
+                                                        style={{ transition: 'stroke 0.35s' }} />
+                                                    <path d="M4.5 8.3l2.2 2.2 4.5-4.5" stroke={done ? '#198754' : '#dee2e6'}
+                                                        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+                                                        style={{
+                                                            transition: 'stroke 0.35s, stroke-dashoffset 0.4s',
+                                                            strokeDasharray: 9,
+                                                            strokeDashoffset: done ? 0 : 9
+                                                        }} />
+                                                </svg>
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="d-flex justify-content-end gap-2 w-100">
+                                        <button type="button" className="btn btn-outline-secondary" onClick={() => setShowPdpModal(false)}>Tutup</button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            disabled={!canAgree}
+                                            onClick={handleAgreeAndClose}
+                                        >
+                                            Saya Mengerti &amp; Setuju
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-backdrop fade show" style={{ zIndex: 1055 }}></div>
+                </>
+            ) : null}
         </>
     );
 }
@@ -948,9 +1340,36 @@ export function PublicLandingReferenceApp({ bootstrap }) {
     const handleChange = (event) => {
         const { name, value } = event.target;
         setSubmitError(null);
+
+        let sanitized = value;
+        if (name === 'companyPostalCode') {
+            sanitized = sanitizePostalCode(value);
+        } else if (PHONE_FIELDS.includes(name)) {
+            sanitized = sanitizePhone(value);
+        } else if (PERSON_NAME_FIELDS.includes(name)) {
+            sanitized = sanitizePersonName(value);
+        } else if (PERSON_ROLE_FIELDS.includes(name)) {
+            sanitized = sanitizePersonRole(value);
+        } else if (name in MAX_LENGTHS) {
+            sanitized = String(value ?? '').slice(0, MAX_LENGTHS[name]);
+        }
+
+        setFormState((current) => {
+            const next = { ...current, [name]: sanitized };
+            // Real-time confirm password mismatch
+            if (name === 'ownerPassword' || name === 'ownerConfirmPassword') {
+                const pwd = name === 'ownerPassword' ? sanitized : current.ownerPassword;
+                const cpwd = name === 'ownerConfirmPassword' ? sanitized : current.ownerConfirmPassword;
+                next._confirmMismatch = cpwd.length > 0 && pwd !== cpwd;
+            }
+            return next;
+        });
+    };
+
+    const handleChangeConsent = (event) => {
         setFormState((current) => ({
             ...current,
-            [name]: name === 'companyPostalCode' ? sanitizePostalCode(value) : value,
+            consentAccepted: event.target.checked,
         }));
     };
 
@@ -1333,6 +1752,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     error={submitError}
                     formState={formState}
                     onChange={handleChange}
+                    onChangeConsent={handleChangeConsent}
                     onClose={() => setOnboardingOpen(false)}
                     onSubmit={handleSubmit}
                     onTurnstileTokenChange={handleTurnstileTokenChange}

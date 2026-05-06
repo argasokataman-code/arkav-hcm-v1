@@ -44,10 +44,12 @@ describe('public landing react wiring', () => {
       billingEmail: 'billing@example.com',
       website: '',
       turnstileToken: '',
+      consentAccepted: true,
     })).toEqual({
       package_uuid: 'pkg-1',
       billing_cycle: 'monthly',
       start_mode: 'trial',
+      consent_accepted: true,
       company: {
         name: 'PT Arcav',
         legal_name: 'PT Arcav Teknologi',
@@ -85,6 +87,7 @@ describe('public landing react wiring', () => {
       ownerEmail: 'ayu@example.com',
       ownerPassword: 'StrongPass1',
       ownerConfirmPassword: 'StrongPass1',
+      consentAccepted: true,
     })).toMatchObject({
       start_mode: 'pending_payment',
       company: {

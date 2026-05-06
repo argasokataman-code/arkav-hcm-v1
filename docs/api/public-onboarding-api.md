@@ -45,7 +45,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
     "currency": "IDR",
     "country_code": "ID",
     "contact_phone": "+62 812-3456-7890",
-    "contact_person_name": "Siti (HR Admin)",
+    "contact_person_name": "Siti HR Admin",
     "contact_person_role": "HR Admin",
     "address": "Jl. Sudirman Kav. 52-53",
     "city": "Jakarta Selatan",
@@ -70,14 +70,14 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 - `turnstile_token`: optional, **required jika Turnstile enabled**
 - `website`: optional (honeypot), harus kosong
 - `company.code`: **optional**. Jika dikirim, harus unik dan regex `^[A-Za-z0-9_-]+$`. Jika tidak dikirim, server auto-generate code unik.
-- `company.contact_phone`: optional, regex `^[0-9+\-\s().]{6,30}$`
-- `company.contact_person_name`: optional (max 120)
-- `company.contact_person_role`: optional (max 120)
+- `company.contact_phone`: optional, max 20 karakter, regex `^[0-9+\-\s().]{6,20}$`
+- `company.contact_person_name`: optional, max 120, regex `^[A-Za-z\s'.\-]+$` (hanya huruf/spasi/punctuation umum)
+- `company.contact_person_role`: optional, max 120, regex `^[A-Za-z0-9\s'.\-\/&,]+$`
 - `company.address`: wajib (max 500)
 - `company.city`: wajib (max 120)
 - `company.postal_code`: optional, regex `^[0-9]{3,12}$`
 - `owner.name`: regex `^[A-Za-z][A-Za-z\s'.-]{1,149}$`
-- `owner.phone`: optional, regex `^[0-9+\-\s().]{6,30}$`
+- `owner.phone`: optional, max 20 karakter, regex `^[0-9+\-\s().]{6,20}$`
 - `owner.password`: regex `^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$`
 - `billingEmail`: optional, email
 

@@ -267,19 +267,21 @@ paths:
                     country_code: { type: string, maxLength: 10 }
                     contact_phone:
                       type: string
-                      maxLength: 30
+                      maxLength: 20
                       nullable: true
-                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      pattern: '^[0-9+\-\s().]{6,20}$'
                       description: Optional. Company contact phone for billing/support.
                     contact_person_name:
                       type: string
                       maxLength: 120
                       nullable: true
+                      pattern: "^[A-Za-z\\s'.\\-]+$"
                       description: Optional. Sales follow-up contact person name.
                     contact_person_role:
                       type: string
                       maxLength: 120
                       nullable: true
+                      pattern: "^[A-Za-z0-9\\s'.\\-\/&,]+$"
                       description: Optional. Sales follow-up contact person role/title.
                     address:
                       type: string
@@ -302,9 +304,9 @@ paths:
                     email: { type: string, format: email, maxLength: 255 }
                     phone:
                       type: string
-                      maxLength: 30
+                      maxLength: 20
                       nullable: true
-                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      pattern: '^[0-9+\-\s().]{6,20}$'
                       description: Optional. Owner phone.
                     password: { type: string, minLength: 8, maxLength: 64, pattern: '^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)[A-Za-z\\d@$!%*?&._-]{8,64}$' }
                     confirmPassword: { type: string }
@@ -11739,6 +11741,10 @@ paths:
     get:
       tags: [Allowance Governance]
       summary: List allowance governance policies
+      description: >-
+        Returns all policies for the tenant. If no policies exist yet, auto-provisions
+        5 starter draft policies (transport, meal, communication, position, attendance)
+        with status=draft and is_active=false. This operation is idempotent.
       security:
         - bearerAuth: []
       parameters:

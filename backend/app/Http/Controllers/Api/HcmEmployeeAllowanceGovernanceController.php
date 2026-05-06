@@ -16,6 +16,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class HcmEmployeeAllowanceGovernanceController extends Controller
@@ -49,6 +50,8 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
         if (! $companyId) {
             return $this->error('TENANT_REQUIRED', 'Active company context is required.', 400);
         }
+
+        $this->ensureDefaultAllowancePolicies($companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $validated = $request->validate([
             'active_only' => ['nullable', 'boolean'],
@@ -993,5 +996,85 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
             'sort_order' => (int) $component->sort_order,
             'is_active' => $shouldActive,
         ]);
+    }
+
+    /**
+     * Auto-provision starter draft allowance policies untuk company baru.
+     * Hanya berjalan sekali saat company pertama kali mengakses halaman policies.
+     */
+    private function ensureDefaultAllowancePolicies(int $companyId, ?int $actorUserId): void
+    {
+        $hasAny = HcmEmployeeAllowancePolicy::query()
+            ->where('company_id', $companyId)
+            ->exists();
+
+        if ($hasAny) {
+            return;
+        }
+
+        $defaults = [
+            [
+                'code' => 'allowance_transport',
+                'name' => 'Tunjangan Transport',
+                'allowance_type' => 'fixed',
+                'is_taxable' => true,
+                'is_mandatory' => false,
+                'default_amount' => 0,
+            ],
+            [
+                'code' => 'allowance_meal',
+                'name' => 'Tunjangan Makan',
+                'allowance_type' => 'fixed',
+                'is_taxable' => true,
+                'is_mandatory' => false,
+                'default_amount' => 0,
+            ],
+            [
+                'code' => 'allowance_communication',
+                'name' => 'Tunjangan Komunikasi (Pulsa/Internet)',
+                'allowance_type' => 'fixed',
+                'is_taxable' => true,
+                'is_mandatory' => false,
+                'default_amount' => 0,
+            ],
+            [
+                'code' => 'allowance_position',
+                'name' => 'Tunjangan Jabatan',
+                'allowance_type' => 'fixed',
+                'is_taxable' => true,
+                'is_mandatory' => false,
+                'default_amount' => 0,
+            ],
+            [
+                'code' => 'allowance_attendance',
+                'name' => 'Tunjangan Kehadiran',
+                'allowance_type' => 'fixed',
+                'is_taxable' => true,
+                'is_mandatory' => false,
+                'default_amount' => 0,
+            ],
+        ];
+
+        DB::transaction(function () use ($companyId, $actorUserId, $defaults): void {
+            $startDate = now()->startOfMonth()->toDateString();
+            foreach ($defaults as $def) {
+                HcmEmployeeAllowancePolicy::query()->create([
+                    'company_id' => $companyId,
+                    'code' => $def['code'],
+                    'name' => $def['name'],
+                    'allowance_type' => $def['allowance_type'],
+                    'is_taxable' => $def['is_taxable'],
+                    'is_mandatory' => $def['is_mandatory'],
+                    'default_amount' => $def['default_amount'],
+                    'frequency' => 'monthly',
+                    'effective_start_date' => $startDate,
+                    'effective_end_date' => null,
+                    'status' => 'draft',
+                    'is_active' => false,
+                    'notes' => 'Starter policy — diisi nominal dan aktifkan sesuai kebijakan perusahaan.',
+                    'created_by_user_id' => $actorUserId,
+                ]);
+            }
+        });
     }
 }

@@ -45,6 +45,7 @@ export function buildLandingOnboardingPayload(formState) {
         package_uuid: String(formState.packageUuid || '').trim(),
         billing_cycle: String(formState.billingCycle || 'monthly'),
         start_mode: normalizeStartMode(formState.startMode || 'trial'),
+        consent_accepted: Boolean(formState.consentAccepted),
         company: compactObject({
             name: String(formState.companyName || '').trim(),
             legal_name: String(formState.companyLegalName || '').trim(),

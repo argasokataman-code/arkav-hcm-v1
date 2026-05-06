@@ -10,6 +10,9 @@ repomix-*.xml
 call_*.txt
 *.bak
 
+# Local test gate cache (commit-specific, never commit this)
+.test-gate-passed
+
 # Node / frontend
 node_modules/
 frontend/node_modules/

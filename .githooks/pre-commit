@@ -2,6 +2,6 @@
 
 set -euo pipefail
 
-bash scripts/check-tests-on-change.sh
+# Fast checks only — does not run tests (tests run at pre-push)
 bash scripts/check-api-docs-sync.sh --staged
 bash scripts/lint-next-step-format.sh

@@ -7,24 +7,26 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/prepare-main-push.sh --message "<commit message code/docs>" [--skip-tests]
+  bash scripts/prepare-main-push.sh --message "<commit message code/docs>" [--skip-tests] [--push]
 
 What this script does (strict order):
-  1) Optional local gate (default: run)
+  1) Optional local gate (default: run); caches result so pre-push hook skips re-run
   2) Commit code/docs changes first (excluding release/shared-hosting)
   3) Build shared-hosting artifact from latest code commit
   4) Verify artifact sync guard
   5) Commit release/shared-hosting artifact refresh
-  6) Print "ready to push" (this script never pushes)
+  6) Push to origin/main if --push flag is set, otherwise print "ready to push"
 
 Notes:
-  - No auto-push to main.
+  - --push: enables auto-push after all guards pass (operator-confirmed one-command deploy)
+  - Test gate result is cached in .test-gate-passed; pre-push hook skips re-run for same HEAD.
   - Prevents stale artifact metadata by design.
 EOF
 }
 
 CODE_COMMIT_MSG=""
 SKIP_TESTS="false"
+AUTO_PUSH="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-tests)
       SKIP_TESTS="true"
+      shift
+      ;;
+    --push)
+      AUTO_PUSH="true"
       shift
       ;;
     -h|--help)
@@ -68,6 +74,8 @@ fi
 echo "[prepare-main-push] step 1/6: local test gate"
 if [[ "$SKIP_TESTS" == "false" ]]; then
   bash "$ROOT_DIR/scripts/local-test-gate.sh"
+  # Cache result so pre-push hook can skip re-running for same commit
+  echo "$(git -C "$ROOT_DIR" rev-parse HEAD)" > "$ROOT_DIR/.test-gate-passed"
 else
   echo "[prepare-main-push] --skip-tests enabled: local test gate skipped"
 fi
@@ -101,7 +109,14 @@ bash "$ROOT_DIR/scripts/check-shared-hosting-artifact-sync.sh" "$(git -C "$ROOT_
 bash "$ROOT_DIR/scripts/check-deploy-runtime-guard.sh"
 
 echo ""
-echo "[prepare-main-push] READY TO PUSH"
-echo "[prepare-main-push] this script intentionally does not push."
-echo "[prepare-main-push] run manually after explicit confirmation:"
-echo "  git push origin main"
+if [[ "$AUTO_PUSH" == "true" ]]; then
+  echo "[prepare-main-push] --push flag set: pushing to origin/main..."
+  git -C "$ROOT_DIR" push origin main
+else
+  echo "[prepare-main-push] READY TO PUSH"
+  echo "[prepare-main-push] this script intentionally does not push."
+  echo "[prepare-main-push] run manually after explicit confirmation:"
+  echo "  git push origin main"
+  echo "  OR add --push flag to run this script with auto-push:"
+  echo "  bash scripts/prepare-main-push.sh --message \"...\" --push"
+fi

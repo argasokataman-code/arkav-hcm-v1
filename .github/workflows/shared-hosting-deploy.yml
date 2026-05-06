@@ -61,7 +61,7 @@ jobs:
           echo "📦 Uploading: $ARTIFACT"
           scp -P ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key "$ARTIFACT" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com/
           
-          echo "🚀 Extracting and deploying..."
+          echo "🚀 Extracting, deploying, and cleaning up old artifacts..."
           ssh -p ${{ secrets.SSH_PORT }} -i ~/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
           set -euo pipefail
           cd /home/${{ secrets.SSH_USER }}/public_html/hr.jogjatourdrive.com
@@ -71,6 +71,9 @@ jobs:
           echo "✅ Deploy complete!"
            bash scripts/shared-hosting-fix-docroot.sh
            echo "✅ Docroot bridge applied!"
+          # Cleanup: keep only the latest artifact, delete the rest
+          ls -t shared-hosting-artifact-*.tar.gz 2>/dev/null | tail -n +2 | xargs -r rm -f
+          echo "✅ Old artifacts cleaned up (kept: $ARTIFACT)"
           EOF
 
       - name: Cleanup SSH key

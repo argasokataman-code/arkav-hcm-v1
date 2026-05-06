@@ -73,9 +73,21 @@ fi
 
 echo "[prepare-main-push] step 1/6: local test gate"
 if [[ "$SKIP_TESTS" == "false" ]]; then
-  bash "$ROOT_DIR/scripts/local-test-gate.sh"
-  # Cache result so pre-push hook can skip re-running for same commit
-  echo "$(git -C "$ROOT_DIR" rev-parse HEAD)" > "$ROOT_DIR/.test-gate-passed"
+  CURRENT_HEAD="${CURRENT_HEAD:-$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo '')}"
+  CACHED_HEAD=""
+  if [[ -f "$ROOT_DIR/.test-gate-passed" ]]; then
+    CACHED_HEAD="$(cat "$ROOT_DIR/.test-gate-passed")"
+  fi
+  if [[ -n "$CURRENT_HEAD" && "$CURRENT_HEAD" == "$CACHED_HEAD" ]]; then
+    echo "[prepare-main-push] test gate cache hit (HEAD=$CURRENT_HEAD) — skipping re-run"
+  else
+    bash "$ROOT_DIR/scripts/local-test-gate.sh"
+    # Cache result so subsequent calls and pre-push hook skip re-running for same commit
+    NEW_HEAD="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || echo '')"
+    if [[ -n "$NEW_HEAD" ]]; then
+      echo "$NEW_HEAD" > "$ROOT_DIR/.test-gate-passed"
+    fi
+  fi
 else
   echo "[prepare-main-push] --skip-tests enabled: local test gate skipped"
 fi

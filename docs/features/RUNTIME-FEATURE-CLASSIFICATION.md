@@ -87,6 +87,7 @@ Di luar MVP pada domain attendance (masuk add-on):
 
 Feature code MVP:
 - leave_management
+- holiday_calendar
 
 Ruang lingkup bisnis:
 - Pengajuan leave inti.
@@ -98,7 +99,6 @@ Surface operasional yang terkait:
 
 Di luar MVP pada domain leave (masuk add-on):
 - leave_approval_flow
-- holiday_calendar
 
 ### 2.4 Payroll MVP
 
@@ -173,7 +173,6 @@ Berasal dari package feature catalog non-MVP:
 - employee_lifecycle
 - attendance_shift_scheduling
 - leave_approval_flow
-- holiday_calendar
 - performance
 - goal_tracking
 - performance_goal_tracking

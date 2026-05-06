@@ -6,6 +6,7 @@ return [
         'employee_management',
         'attendance',
         'leave_management',
+        'holiday_calendar',
         'payroll',
         'payroll_components',
         'payroll_thr',

@@ -84,14 +84,6 @@ class SaasUiFlowSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'code' => 'holiday_calendar',
-                'name' => 'Holiday Calendar',
-                'description' => 'Kalender hari libur nasional dan custom per perusahaan.',
-                'price_per_unit' => 29000,
-                'unit_name' => 'tenant / month',
-                'status' => 'active',
-            ],
-            [
                 'code' => 'performance',
                 'name' => 'Performance Review',
                 'description' => 'Review performa periodik per karyawan berbasis siklus.',
@@ -217,6 +209,7 @@ class SaasUiFlowSeeder extends Seeder
             'attendance' => 'Attendance',
             'payroll' => 'Payroll',
             'leave_management' => 'Leave Management',
+            'holiday_calendar' => 'Holiday Calendar',
             'performance' => 'Performance',
             'asset_management' => 'Asset Management',
             'asset_logs' => 'Asset Logs',
@@ -231,11 +224,11 @@ class SaasUiFlowSeeder extends Seeder
         ];
 
         $featureLimitsByPackage = [
-            'starter' => [50, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            'growth' => [150, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-            'business' => [500, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
-            'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            'ultimate' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'starter' => [50, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            'growth' => [150, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+            'business' => [500, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
+            'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            'ultimate' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ];
 
         $result = [];

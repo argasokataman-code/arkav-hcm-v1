@@ -52,8 +52,8 @@ Success `200` (ringkas):
     }
   ],
   "meta": {
-    "mvp_feature_codes": ["max_employees", "employee_management", "attendance", "leave_management", "payroll", "payroll_components", "payroll_thr", "notifications", "trial_billing_dashboard", "tax_governance"],
-    "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "holiday_calendar", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets"],
+    "mvp_feature_codes": ["max_employees", "employee_management", "attendance", "leave_management", "holiday_calendar", "payroll", "payroll_components", "payroll_thr", "notifications", "trial_billing_dashboard", "tax_governance"],
+    "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets"],
     "total_feature_codes": 21
   }
 }

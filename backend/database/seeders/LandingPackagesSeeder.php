@@ -95,9 +95,9 @@ class LandingPackagesSeeder extends Seeder
             // Index order matches $featureTemplate keys above (14 entries now)
             $limitsByPackage = [
                 // Trial limits intentionally smaller than Starter (sales follow-up friendly)
-                'trial'      => [20,   1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                'starter'    => [50,   1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                'growth'     => [150,  1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0],
+                'trial'      => [20,   1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                'starter'    => [50,   1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                'growth'     => [150,  1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0],
                 'business'   => [500,  1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1],
                 'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             ];

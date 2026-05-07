@@ -221,3 +221,50 @@ export function apiDelete(url) {
       });
   });
 }
+
+/**
+ * Authenticated binary (blob) GET — returns an object URL string that the caller must revoke.
+ * Used for private file downloads that require api.token + tenant context headers.
+ */
+export function apiBlobGet(url) {
+  var tenantHeaders = getTenantHeaders();
+  if (window.axios) {
+    return window
+      .axios({
+        method: "get",
+        url: url,
+        responseType: "blob",
+        headers: Object.assign({ Accept: "*/*" }, tenantHeaders),
+        withCredentials: true,
+      })
+      .then(function (res) {
+        return URL.createObjectURL(res.data);
+      })
+      .catch(function (err) {
+        var status = err && err.response ? err.response.status : 0;
+        var data = err && err.response ? err.response.data : null;
+        if (onAuthFailure(status, data)) {
+          return null;
+        }
+        throw err;
+      });
+  }
+  return fetch(url, {
+    headers: Object.assign({ Accept: "*/*" }, tenantHeaders),
+    credentials: "same-origin",
+  }).then(function (res) {
+    if (!res.ok) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (onAuthFailure(res.status, data)) {
+          return null;
+        }
+        var err = new Error("Request failed: " + url);
+        err.response = { data: data, status: res.status };
+        throw err;
+      });
+    }
+    return res.blob().then(function (blob) {
+      return URL.createObjectURL(blob);
+    });
+  });
+}

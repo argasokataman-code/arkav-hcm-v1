@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property \Carbon\Carbon|null $holiday_date
+ */
 class Holiday extends Model
 {
     use AssignsUuid;

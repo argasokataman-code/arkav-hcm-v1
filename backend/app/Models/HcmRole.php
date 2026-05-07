@@ -48,6 +48,11 @@ class HcmRole extends Model
     /**
      * @param  iterable<int, int|string>|Collection<int, mixed>  $permissionIds
      */
+    public function scopePlatform(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereNull('company_id');
+    }
+
     public function syncPermissionsForCompany(iterable $permissionIds): void
     {
         $normalizedPermissionIds = collect($permissionIds)

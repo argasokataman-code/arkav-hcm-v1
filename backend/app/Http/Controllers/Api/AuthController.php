@@ -413,7 +413,6 @@ class AuthController extends Controller
             'sms.template' => true,
             'sms.admin' => true,
             'otp.manage' => true,
-            'salary.admin' => true,
             'approval.view' => true,
             'approval.admin' => true,
             'language.view' => true,
@@ -1130,7 +1129,7 @@ class AuthController extends Controller
                 'legal_name' => 'Default Company',
                 'status' => 'active',
                 'owner_user_id' => null,
-                'timezone' => (string) config('app.timezone', 'UTC'),
+                'timezone' => 'Asia/Jakarta',
                 'currency' => 'IDR',
                 'country_code' => 'ID',
             ]

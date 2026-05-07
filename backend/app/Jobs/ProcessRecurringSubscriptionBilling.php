@@ -276,7 +276,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
 
                 // Send payment receipt
                 $notificationService = new NotificationService();
-                $notificationService->notifyPaymentReceived($invoice->payment);
+                $notificationService->notifyPaymentReceived($invoice->payment, $invoice);
             } else {
                 // Update attempt count and schedule retry
                 $nextAttempt = now()->addHours(24);

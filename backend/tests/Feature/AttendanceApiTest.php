@@ -232,13 +232,13 @@ class AttendanceApiTest extends TestCase
     {
         $token = $this->bearerToken();
         $user = User::query()->where('email', 'att@example.com')->firstOrFail();
-        $today = now(config('app.timezone'))->toDateString();
+        $today = now('UTC')->toDateString();
 
         \App\Models\AttendanceRecord::query()->updateOrCreate(
             ['user_id' => $user->id, 'work_date' => $today],
             [
                 'status' => 'present',
-                'check_in_at' => now(config('app.timezone'))->subHour(),
+                'check_in_at' => now('UTC')->subHour(),
                 'check_out_at' => null,
                 'break_minutes' => 0,
                 'late_minutes' => 0,

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Arcav HCM Phase 1 API
-  version: 1.0.0
+  version: 1.0.1
   description: |
     Microservice-style contract for Identity, Core HCM, and Leave domains.
     Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\AttendanceRecord;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
@@ -51,6 +52,20 @@ class AttendanceController extends Controller
 
             if ($this->isValidTimezone($companyTimezone)) {
                 return $companyTimezone;
+            }
+
+            // Some requests only carry activeCompanyId attribute without a hydrated
+            // activeCompany object. Resolve timezone from DB to avoid falling back
+            // to UTC and causing punch in/out time drift.
+            $activeCompanyId = $request->attributes->get('activeCompanyId');
+            if (is_numeric($activeCompanyId) && (int) $activeCompanyId > 0) {
+                $resolvedTimezone = Company::query()
+                    ->where('id', (int) $activeCompanyId)
+                    ->value('timezone');
+
+                if ($this->isValidTimezone(is_string($resolvedTimezone) ? trim($resolvedTimezone) : null)) {
+                    return trim((string) $resolvedTimezone);
+                }
             }
         }
 
@@ -286,20 +301,28 @@ class AttendanceController extends Controller
         $paginator = $listQuery->with(['employeeProfile:id,user_id,team,designation'])->paginate($perPage);
 
         $userIds = collect($paginator->items())->pluck('id');
-        // Do NOT apply tenant scope here — user_ids are already scoped by adminAttendanceFilteredQuery.
-        // The attendance record's company_id may differ from the admin's active company
-        // (e.g. employee punched in under a different session company context).
         $records = AttendanceRecord::query()
             ->whereIn('user_id', $userIds)
             ->whereDate('work_date', $dateYmd)
             ->get()
             ->keyBy('user_id');
 
+        $selfieRecords = AttendanceRecord::query()
+            ->whereIn('user_id', $userIds)
+            ->whereDate('work_date', $dateYmd)
+            ->whereNotNull('selfie_path')
+            ->where('selfie_path', '!=', '')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('user_id');
+
         $rows = [];
         foreach ($paginator->items() as $user) {
             /** @var User $user */
             /** @var AttendanceRecord|null $rec */
             $rec = $records->get($user->id);
+            $selfieRec = ($selfieRecords->get($user->id) ?? collect())->first();
+            $selfieRecordId = $selfieRec?->id ?? $rec?->id;
             $profile = $user->employeeProfile;
             $team = $profile?->team ?: ($profile?->designation ?: '—');
 
@@ -343,8 +366,9 @@ class AttendanceController extends Controller
 
             $rows[] = [
                 'userId' => $user->id,
-                'recordId' => $rec?->id,
+                'recordId' => $selfieRecordId,
                 'employeeName' => $user->name,
+                'employeeEmail' => (string) ($user->email ?? ''),
                 'team' => $team,
                 'initial' => $initial,
                 'statusKey' => $statusKey,
@@ -368,6 +392,7 @@ class AttendanceController extends Controller
                 'correctionRequestedAt' => $rec?->correction_requested_at
                     ? $rec->correction_requested_at->copy()->timezone($this->tz())->format('Y-m-d H:i:s')
                     : null,
+                'hasSelfie' => (bool) $selfieRec,
             ];
         }
 
@@ -882,7 +907,7 @@ class AttendanceController extends Controller
 
         $user = $request->user();
         $todayYmd = Carbon::now($this->tz())->toDateString();
-        $now = Carbon::now($this->tz());
+        $now = Carbon::now('UTC');
         $activeCompanyId = $this->activeCompanyId($request);
 
         // Use whereDate + create instead of firstOrCreate: date column matching is unreliable

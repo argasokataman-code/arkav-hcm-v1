@@ -1,0 +1,76 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 5
+
+    excludePaths:
+        - app/Console/Kernel.php
+
+    ignoreErrors:
+        # Notifiable trait — notify() and notification scopes (Larastan inference gap)
+        - message: '#Call to an undefined method .+::notify\(\)#'
+          identifier: method.notFound
+        - message: '#Call to an undefined method .+::markAsRead\(\)#'
+          identifier: method.notFound
+
+        # Eloquent relationship return types — property access on generic Model
+        - message: '#Access to an undefined property Illuminate\\Database\\Eloquent\\Model::#'
+          identifier: property.notFound
+
+        # Console artisan commands — collection generic type inference on Eloquent queries
+        - message: '#Parameter .+ expects .+Collection<int, App\\Models\\.+>, .+Collection<int, Illuminate\\Database\\Eloquent\\Model> given\.#'
+          identifier: argument.type
+
+        # Console commands — redundant always-true / always-false checks are acceptable in maintenance scripts
+        - message: '#(always evaluate to|always true|always false)#'
+          paths:
+            - app/Console/Commands
+
+        # Unnecessary nullsafe operators (?->) on non-nullable types — code style, not crash risk
+        - message: '#Using nullsafe property access.+on left side of \?\?|Using nullsafe property access on non-nullable#'
+          identifier: nullsafe.neverNull
+
+        # Collection<int, lowercase-string> vs Collection<int, string> — acceptable covariance
+        - message: '#should return .+Collection<int, string> but returns .+Collection<int, lowercase-string>#'
+          identifier: return.type
+
+        # Eloquent relationship inference — HasOne/HasMany returns generic Model, not specific type
+        # (fix requires HasOne<Model, User> generics; suppress for now as no runtime impact)
+        - message: '#Parameter .+ expects App\\Models\\.+\|null, Illuminate\\Database\\Eloquent\\Model(\|null)? given\.#'
+          identifier: argument.type
+
+        # Eloquent date-cast string assignment — Eloquent handles string→Carbon mutation at runtime
+        - message: '#Property App\\Models\\.+::\$.+ \(Carbon\\\\Carbon\|null\) does not accept string\|null\.#'
+          identifier: assign.propertyType
+
+        # Paginator setCollection type mismatch — PHPStan over-strict on paginator generic
+        - message: '#Parameter .+ of method .+AbstractPaginator.+setCollection\(\) expects .+Collection<int, App\\Models\\.+>, .+Collection<int, array{.+}> given\.#'
+          identifier: argument.type
+
+        # isUnused method warnings — intentional helpers
+        - message: '#is unused\.#'
+          identifier: deadCode.unusedMethod
+
+        # Defensive ?? on known array keys — acceptable over-defensiveness
+        - message: '#Offset .+ on .+ on left side of \?\? always exists and is not nullable\.#'
+          identifier: nullCoalesce.offset
+
+        # Expression on left side of ?? is not nullable — same defensive pattern
+        - message: '#Expression on left side of \?\? is not nullable\.#'
+          identifier: nullCoalesce.notNullable
+
+        # Eloquent relationship map() with specific closure type — model generic inference gap
+        - message: '#Parameter .+map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\).+, Closure\(App\\Models\\.+\).+ given\.#'
+          identifier: argument.type
+
+        # PHPDoc @var not subtype of native Eloquent Collection — acceptable docblock shorthand
+        - message: '#PHPDoc tag @var with type .+Collection.+ is not subtype of native type .+Collection.#'
+          identifier: varTag.nativeType
+
+        # return type never null but declared nullable — low risk, keep null safety
+        - message: '#never returns null so it can be removed from the return type#'
+          identifier: return.unusedType

@@ -71,4 +71,51 @@ class TabularExportResponse
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
+
+    /**
+     * Build an XLSX file and return its binary content, or null on failure.
+     *
+     * @param  list<string>  $headers
+     * @param  list<list<scalar|null>>  $rows
+     */
+    public static function buildXlsxBinary(string $sheetTitle, array $headers, array $rows): ?string
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle(substr($sheetTitle ?: 'Export', 0, 31));
+
+            foreach ($headers as $column => $label) {
+                $cell = Coordinate::stringFromColumnIndex($column + 1).'1';
+                $sheet->setCellValue($cell, (string) $label);
+            }
+
+            $rowIndex = 2;
+            foreach ($rows as $row) {
+                foreach ($row as $column => $value) {
+                    $cell = Coordinate::stringFromColumnIndex($column + 1).(string) $rowIndex;
+                    $sheet->setCellValue($cell, (string) ($value ?? ''));
+                }
+                $rowIndex++;
+            }
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'xlsx_');
+            if (! $tmpFile) {
+                return null;
+            }
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tmpFile);
+
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            $binary = file_get_contents($tmpFile);
+            @unlink($tmpFile);
+
+            return $binary !== false ? $binary : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 }

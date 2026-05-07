@@ -7,6 +7,7 @@ export function createAdminAttendanceModule(deps) {
     var getAdminFilters = deps.getAdminFilters;
     var fillAdminDepartmentFilter = deps.fillAdminDepartmentFilter;
     var apiGet = deps.apiGet;
+    var apiBlobGet = deps.apiBlobGet;
     var renderAdminMessage = deps.renderAdminMessage;
     var formatApiError = deps.formatApiError;
     var getAdminAttendancePage = deps.getAdminAttendancePage;
@@ -184,10 +185,14 @@ export function createAdminAttendanceModule(deps) {
                     : "";
                 var checkInLoc = row.checkInLocation || "-";
                 var checkOutLoc = row.checkOutLocation || "-";
+                                var teamLabel = row.team || "—";
+                                var emailLabel = row.employeeEmail || "";
                 var selfieCell = row.hasSelfie
-                    ? '<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="/v1/hcm/attendance/admin/records/' +
-                      encodeURIComponent(String(row.recordId || "")) +
-                      '/selfie/download">View</a>'
+                    ? '<button type="button" class="btn btn-sm btn-outline-primary" data-selfie-view="' +
+                      esc(String(row.recordId || "")) +
+                      '" data-employee="' +
+                      esc(row.employeeName || "") +
+                      '">Lihat</button>'
                     : '<span class="text-muted fs-12">—</span>';
                 return (
                     "<tr data-attendance-user-id=\"" +
@@ -202,7 +207,7 @@ export function createAdminAttendanceModule(deps) {
                     esc(row.employeeName) +
                     "</h6>" +
                     '<span class="fs-12 fw-normal">' +
-                    esc(row.team) +
+                    esc(teamLabel + (emailLabel ? " • " + emailLabel : "")) +
                     "</span></div></div></td>" +
                     '<td><span class="badge badge-' +
                     esc(row.statusBadgeClass) +
@@ -260,6 +265,54 @@ export function createAdminAttendanceModule(deps) {
 
     function rerenderAdminRowsFromCache() {
         renderAdminRows(Array.isArray(getAdminRowsCache()) ? getAdminRowsCache() : []);
+    }
+
+    function bindSelfieViewDelegation() {
+        var tbody = document.querySelector("[data-attendance-admin-body]");
+        if (!tbody || tbody.getAttribute("data-selfie-delegation") === "1") {
+            return;
+        }
+        tbody.setAttribute("data-selfie-delegation", "1");
+        tbody.addEventListener("click", function (e) {
+            var btn = e.target.closest("[data-selfie-view]");
+            if (!btn) {
+                return;
+            }
+            var recordId = btn.getAttribute("data-selfie-view");
+            if (!recordId) {
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = "Memuat…";
+            var url = "/v1/hcm/attendance/admin/records/" + encodeURIComponent(recordId) + "/selfie/download";
+            apiBlobGet(url)
+                .then(function (objectUrl) {
+                    btn.disabled = false;
+                    btn.textContent = "Lihat";
+                    if (!objectUrl) {
+                        return;
+                    }
+                    var opened = window.open(objectUrl, "_blank", "noopener");
+                    if (!opened) {
+                        // Fallback when popup is blocked by browser.
+                        var a = document.createElement("a");
+                        a.href = objectUrl;
+                        a.target = "_blank";
+                        a.rel = "noopener";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    window.setTimeout(function () {
+                        URL.revokeObjectURL(objectUrl);
+                    }, 60000);
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    btn.textContent = "Lihat";
+                    alert("Gagal memuat foto selfie. Pastikan Anda memiliki akses admin.");
+                });
+        });
     }
 
     function setupAdminFilters(loadAdminAttendance) {
@@ -379,6 +432,7 @@ export function createAdminAttendanceModule(deps) {
         renderAdminSummary: renderAdminSummary,
         renderAdminRows: renderAdminRows,
         rerenderAdminRowsFromCache: rerenderAdminRowsFromCache,
+        bindSelfieViewDelegation: bindSelfieViewDelegation,
         setupAdminFilters: setupAdminFilters,
         exportAdminCsv: exportAdminCsv,
         loadAdminAttendance: loadAdminAttendance,

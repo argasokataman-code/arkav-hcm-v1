@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * @property array<string, mixed>|null $meta
+ */
 class HcmPayrollLine extends Model
 {
     use AssignsUuid;

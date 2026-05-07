@@ -1434,4 +1434,17 @@ class HcmSalaryComponentController extends Controller
 
         return null;
     }
+
+    private function resolveTaxTreatmentCodeFromValidated(array $validated): string
+    {
+        if (! empty($validated['taxTreatmentCode'])) {
+            return (string) $validated['taxTreatmentCode'];
+        }
+
+        return HcmSalaryComponent::inferTaxTreatmentCode(
+            (bool) ($validated['includePph21TerGross'] ?? false),
+            (bool) ($validated['includePph21AnnualReconciliation'] ?? false),
+            (bool) ($validated['employerCostLine'] ?? false),
+        );
+    }
 }

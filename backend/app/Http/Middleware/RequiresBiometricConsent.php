@@ -22,6 +22,9 @@ class RequiresBiometricConsent
 
         $companyId = (int) $request->header('X-Company-Id');
         if (! $companyId) {
+            $companyId = (int) $request->attributes->get('activeCompanyId', 0);
+        }
+        if (! $companyId) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Company context required.'],

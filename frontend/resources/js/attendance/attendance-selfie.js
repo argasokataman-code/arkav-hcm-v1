@@ -7,6 +7,9 @@ export function initSelfieCapture(deps) {
   var selfieBtn = document.querySelector("[data-attendance-me-selfie-btn]");
   var selfieModalEl = document.getElementById("arcav_attendance_selfie_modal");
   var prereqModalEl = document.getElementById("arcav_attendance_selfie_prereq_modal");
+  var consentModalEl = document.getElementById("arcav_biometric_consent_modal");
+  var consentAgreeBtn = document.getElementById("arcav_biometric_consent_agree_btn");
+  var consentDeclineBtn = document.getElementById("arcav_biometric_consent_decline_btn");
   var videoEl = document.querySelector("[data-selfie-camera-video]");
   var canvasEl = document.querySelector("[data-selfie-preview]");
   var captureBtn = document.querySelector("[data-selfie-capture-btn]");
@@ -15,6 +18,57 @@ export function initSelfieCapture(deps) {
 
   if (!selfieBtn || !selfieModalEl || !videoEl || !canvasEl || !captureBtn || !retakeBtn || !submitBtn) {
     return;
+  }
+
+  function showConsentModal(onAgreed) {
+    if (!consentModalEl || !(window.bootstrap && window.bootstrap.Modal)) {
+      notify("Persetujuan biometrik diperlukan. Hubungi HR untuk mengaktifkan fitur selfie.", true);
+      return;
+    }
+    var modal = window.bootstrap.Modal.getOrCreateInstance(consentModalEl);
+
+    function handleAgree() {
+      var btn = consentAgreeBtn;
+      if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+      apiPost("/v1/hcm/data-privacy/me/biometric-consent", {
+        selfie_consent: true,
+        gps_consent: true,
+      })
+        .then(function (res) {
+          modal.hide();
+          if (res && res.success) {
+            if (typeof onAgreed === "function") onAgreed();
+          } else {
+            var msg = formatApiError(res, 0) || "Gagal menyimpan persetujuan.";
+            notify(msg, true);
+          }
+        })
+        .catch(function (err) {
+          var data = err && err.response ? err.response.data : null;
+          var status = err && err.response ? err.response.status : 0;
+          notify(formatApiError(data, status) || "Gagal menyimpan persetujuan.", true);
+        })
+        .finally(function () {
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check me-1"></i>Saya Setuju'; }
+          cleanup();
+        });
+    }
+
+    function handleDecline() {
+      modal.hide();
+      notify("Selfie tidak dapat digunakan tanpa persetujuan biometrik.", true);
+      cleanup();
+    }
+
+    function cleanup() {
+      if (consentAgreeBtn) consentAgreeBtn.removeEventListener("click", handleAgree);
+      if (consentDeclineBtn) consentDeclineBtn.removeEventListener("click", handleDecline);
+    }
+
+    if (consentAgreeBtn) consentAgreeBtn.addEventListener("click", handleAgree, { once: true });
+    if (consentDeclineBtn) consentDeclineBtn.addEventListener("click", handleDecline, { once: true });
+
+    modal.show();
   }
 
   if (selfieBtn.getAttribute("data-selfie-bound") === "1") {
@@ -180,6 +234,19 @@ export function initSelfieCapture(deps) {
             window.bootstrap.Modal.getOrCreateInstance(selfieModalEl).hide();
           }
           showSelfiePrereqModal(msg);
+          return;
+        }
+        if (code === "BIOMETRIC_CONSENT_REQUIRED") {
+          if (window.bootstrap && window.bootstrap.Modal) {
+            window.bootstrap.Modal.getOrCreateInstance(selfieModalEl).hide();
+          }
+          showConsentModal(function () {
+            // After consent, re-open the selfie modal so user can retry immediately
+            resetCaptureState();
+            if (window.bootstrap && window.bootstrap.Modal) {
+              window.bootstrap.Modal.getOrCreateInstance(selfieModalEl).show();
+            }
+          });
           return;
         }
         notify(msg, true);

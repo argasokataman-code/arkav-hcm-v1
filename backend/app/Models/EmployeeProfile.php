@@ -12,6 +12,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
 
+/**
+ * @property int|null $company_id
+ * @property int|null $department_id
+ * @property string|null $designation
+ */
 class EmployeeProfile extends Model
 {
     use AssignsUuid, SoftDeletes;

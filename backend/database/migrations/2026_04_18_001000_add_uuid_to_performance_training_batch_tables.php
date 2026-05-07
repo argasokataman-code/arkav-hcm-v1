@@ -190,7 +190,12 @@ return new class extends Migration
                 }
             });
         } catch (\Throwable $e) {
-            if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'duplicate') === false
+                && stripos($msg, 'exists') === false
+                && stripos($msg, 'not found') === false
+                && stripos($msg, "doesn't exist") === false
+                && stripos($msg, '42S02') === false) {
                 throw $e;
             }
         }

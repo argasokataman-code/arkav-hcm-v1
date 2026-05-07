@@ -32,8 +32,8 @@ class AttendanceAdminTenantScopeTest extends TestCase
 
     public function test_attendance_admin_index_joins_records_for_scoped_users_even_when_record_company_differs(): void
     {
-        $companyA = Company::factory()->create();
-        $companyB = Company::factory()->create();
+        $companyA = Company::factory()->create(['timezone' => 'UTC']);
+        $companyB = Company::factory()->create(['timezone' => 'UTC']);
 
         $token = $this->login('qa.login@example.com', 'Admin');
         $admin = User::query()->where('email', 'qa.login@example.com')->firstOrFail();

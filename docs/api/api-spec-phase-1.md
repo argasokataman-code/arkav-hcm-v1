@@ -127,3 +127,16 @@ Catatan:
   - numeric-only (legacy), atau
   - UUID + numeric fallback.
 
+
+## Changelog
+
+### 2026-05-07 — Internal bug fixes (no contract change)
+
+- `TransactionController`: fixed closure not capturing `$request` variable (runtime bug, no contract change)
+- `AuthController`: removed duplicate `salary.admin` key in permissions response (no semantic change)
+- `HcmLeaveTypeController`: added missing private `apiError()` helper method
+- `HcmSalaryComponentController`: added missing `resolveTaxTreatmentCodeFromValidated()` method
+- `HcmTicketController`: added missing `use Illuminate\Validation\Rule` import
+- `HcmRoleManagementController`, `HcmPermissionController`: added missing `Controller` base class import
+- `ReconciliationExportController`: fixed undefined variable in second payroll loop
+- All changes are internal implementation fixes; API request/response contracts unchanged.

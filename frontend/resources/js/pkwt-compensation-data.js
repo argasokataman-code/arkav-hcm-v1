@@ -55,7 +55,7 @@
                 return last;
             }
         }
-        return "reconciliation-pkwt-" + evidenceId + ".csv";
+        return "reconciliation-pkwt-" + evidenceId + ".xlsx";
     }
 
     function downloadReconciliationEvidenceFile(evidenceId, filePath) {
@@ -236,7 +236,7 @@
             actionKey: "post_payroll",
             scopeRef: String(yearMonth),
             filterPayload: filterPayload,
-            fileFormat: "csv",
+            fileFormat: "xlsx",
         })
             .then(function (res) {
                 if (res && res.data && res.data.id) {

@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property \Carbon\Carbon|null $due_date
+ */
 class HcmManualActivity extends Model
 {
     use AssignsUuid;

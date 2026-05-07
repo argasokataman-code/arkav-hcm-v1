@@ -64,7 +64,7 @@ class TransactionController extends Controller
 
         // Search by company name (join via subscription->company)
         if ($request->has('company_search') && $request->get('company_search')) {
-            $query->whereHas('subscription.company', function ($q) {
+            $query->whereHas('subscription.company', function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->get('company_search') . '%');
             });
         }

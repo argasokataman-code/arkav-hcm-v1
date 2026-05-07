@@ -292,7 +292,7 @@ function reconciliationExportFileName(filePath: string | undefined | null, evide
             return last;
         }
     }
-    return `reconciliation-export-${evidenceId}.csv`;
+    return `reconciliation-export-${evidenceId}.xlsx`;
 }
 
 async function downloadReconciliationEvidenceFile(evidenceId: number, filePath?: string | null): Promise<void> {
@@ -525,7 +525,7 @@ function renderPayrollWorkflow(): void {
         primaryActionTitle = "Buat dan unduh evidence reconciliation";
         primaryActionNote = "Evidence harus diunduh dengan sukses. Tanpa unduhan sukses, Pay via Gateway tetap terkunci.";
         primaryActionState = { label: "WAJIB EXPORT", badgeClass: "bg-secondary" };
-        guidance = "Urutan operasional: review payroll → export reconciliation → unduh CSV → payment.";
+        guidance = "Urutan operasional: review payroll → export reconciliation → unduh XLSX → payment.";
         readinessBadge = { label: "SIAP EXPORT", badgeClass: "bg-info text-dark" };
     } else if (!hasPaidRows) {
         stageTitle = "Langkah berikutnya: Pay via Gateway";
@@ -609,7 +609,7 @@ function renderPayrollWorkflow(): void {
             : hasMissingTaxProfile
                 ? "Evidence belum bisa dibuat karena masih ada profil PPh21 yang missing pada run ini."
             : canExport
-                ? "Evidence belum terunduh. Operator wajib export lalu menyelesaikan unduhan CSV sebelum payment."
+                ? "Evidence belum terunduh. Operator wajib export lalu menyelesaikan unduhan XLSX sebelum payment."
                 : "Evidence belum siap karena draft belum lengkap atau window payment belum terbuka.";
     }
     if (disburseNote) {
@@ -1813,7 +1813,7 @@ async function triggerExportReconciliation(): Promise<void> {
             actionKey: "disburse",
             scopeRef: String(_state.currentRunId),
             filterPayload: filterPayload,
-            fileFormat: "csv",
+            fileFormat: "xlsx",
         })) as any;
 
         if (res && res.data && res.data.id) {
@@ -2052,7 +2052,7 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
             ? (currentRunStatus() === "void"
                 ? "Run sebelumnya sudah di-void. Gunakan Calculate Draft untuk membuat draft baru dari setup payroll terbaru."
                 : "Belum ada karyawan payroll untuk periode ini. Gunakan Calculate Draft untuk refresh data aktif.")
-            : "Klik Calculate Draft untuk membuat draft payroll. Setelah itu lakukan Export Reconciliation dan unduh file CSV; Pay via Gateway aktif hanya setelah unduhan selesai.";
+            : "Klik Calculate Draft untuk membuat draft payroll. Setelah itu lakukan Export Reconciliation dan unduh file XLSX; Pay via Gateway aktif hanya setelah unduhan selesai.";
         emptyEl.classList.remove("d-none");
         if (gridEl) gridEl.classList.add("d-none");
         refreshSelectionSummary();
@@ -2478,9 +2478,9 @@ function openDisburseModal(userIds?: number[]): void {
     }
     if (!hasDownloadedReconciliationForCurrentRun()) {
         setPayrollReconciliationHint(
-            "Urutan wajib: Calculate Draft → Export Reconciliation → unduh file CSV → Pay via Gateway.",
+            "Urutan wajib: Calculate Draft → Export Reconciliation → unduh file XLSX → Pay via Gateway.",
         );
-        toast("Selesaikan Export Reconciliation dan unduh file CSV terlebih dahulu.", true);
+        toast("Selesaikan Export Reconciliation dan unduh file XLSX terlebih dahulu.", true);
         return;
     }
     const modal = document.getElementById("payroll_gateway_modal");

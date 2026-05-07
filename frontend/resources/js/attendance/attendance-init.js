@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from "./attendance-api.js";
+import { apiDelete, apiGet, apiBlobGet, apiPost, apiPut } from "./attendance-api.js";
 import {
     fillAdminDepartmentFilter,
     fillReportDepartmentFilter,
@@ -275,6 +275,7 @@ import {
         getAdminFilters: getAdminFilters,
         fillAdminDepartmentFilter: fillAdminDepartmentFilter,
         apiGet: apiGet,
+        apiBlobGet: apiBlobGet,
         renderAdminMessage: renderAdminMessage,
         formatApiError: formatApiError,
         getAdminAttendancePage: function () {
@@ -995,6 +996,7 @@ import {
         bindSmartPlanner();
         swapReplacementModule.init();
         setupAttendanceAdminEdit();
+        adminAttendanceModule.bindSelfieViewDelegation();
         loadAdminAttendance();
         loadReportAttendance();
         loadEmployeeAttendance();

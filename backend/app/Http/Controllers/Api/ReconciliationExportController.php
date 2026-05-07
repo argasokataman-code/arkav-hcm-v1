@@ -12,6 +12,7 @@ use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use App\Support\Exports\TabularExportResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -56,10 +57,10 @@ class ReconciliationExportController extends Controller
 
         $filePath = isset($validated['filePath']) ? ltrim((string) $validated['filePath'], '/') : '';
         if ($filePath === '') {
-            if ($fileFormat !== 'csv') {
+            if ($fileFormat !== 'csv' && $fileFormat !== 'xlsx') {
                 return $this->errorResponse(
                     'VALIDATION_ERROR',
-                    'filePath is required unless fileFormat is csv (server can auto-generate csv evidence).',
+                    'filePath is required unless fileFormat is csv or xlsx (server can auto-generate these formats).',
                     422,
                 );
             }
@@ -73,24 +74,54 @@ class ReconciliationExportController extends Controller
                 'filterPayload' => $filterPayload,
             ]);
 
-            $filePath = $this->buildGeneratedReconciliationCsvPath(
-                $companyId,
-                (string) $validated['featureKey'],
-                (string) $validated['actionKey'],
-                (string) $validated['scopeRef'],
-            );
+            if ($fileFormat === 'xlsx') {
+                $filePath = $this->buildGeneratedReconciliationFilePath(
+                    $companyId,
+                    (string) $validated['featureKey'],
+                    (string) $validated['actionKey'],
+                    (string) $validated['scopeRef'],
+                    'xlsx',
+                );
 
-            $csv = $this->buildGeneratedReconciliationCsv(
-                $companyId,
-                (string) $validated['featureKey'],
-                (string) $validated['actionKey'],
-                (string) $validated['scopeRef'],
-                $filterPayload,
-                $datasetChecksum,
-            );
+                $rows = $this->buildGeneratedReconciliationRows(
+                    $companyId,
+                    (string) $validated['featureKey'],
+                    (string) $validated['actionKey'],
+                    (string) $validated['scopeRef'],
+                    $filterPayload,
+                    $datasetChecksum,
+                );
 
-            if (! Storage::disk('local')->put($filePath, $csv)) {
-                return $this->errorResponse('EXPORT_RECON_FILE_WRITE_FAILED', 'Failed to persist reconciliation export file.', 500);
+                $xlsxBinary = TabularExportResponse::buildXlsxBinary(
+                    basename($filePath, '.xlsx'),
+                    $rows['headers'],
+                    $rows['data'],
+                );
+
+                if ($xlsxBinary === null || ! Storage::disk('local')->put($filePath, $xlsxBinary)) {
+                    return $this->errorResponse('EXPORT_RECON_FILE_WRITE_FAILED', 'Failed to persist reconciliation xlsx file.', 500);
+                }
+            } else {
+                $filePath = $this->buildGeneratedReconciliationFilePath(
+                    $companyId,
+                    (string) $validated['featureKey'],
+                    (string) $validated['actionKey'],
+                    (string) $validated['scopeRef'],
+                    'csv',
+                );
+
+                $csv = $this->buildGeneratedReconciliationCsv(
+                    $companyId,
+                    (string) $validated['featureKey'],
+                    (string) $validated['actionKey'],
+                    (string) $validated['scopeRef'],
+                    $filterPayload,
+                    $datasetChecksum,
+                );
+
+                if (! Storage::disk('local')->put($filePath, $csv)) {
+                    return $this->errorResponse('EXPORT_RECON_FILE_WRITE_FAILED', 'Failed to persist reconciliation export file.', 500);
+                }
             }
 
             $validated['filePath'] = $filePath;
@@ -177,6 +208,29 @@ class ReconciliationExportController extends Controller
         return 0;
     }
 
+    private function buildGeneratedReconciliationFilePath(
+        int $companyId,
+        string $featureKey,
+        string $actionKey,
+        string $scopeRef,
+        string $extension = 'csv',
+    ): string {
+        $safeFeature = preg_replace('/[^a-z0-9_-]+/i', '-', $featureKey) ?: 'feature';
+        $safeAction = preg_replace('/[^a-z0-9_-]+/i', '-', $actionKey) ?: 'action';
+        $safeScope = preg_replace('/[^a-z0-9_-]+/i', '-', $scopeRef) ?: 'scope';
+        $ext = in_array($extension, ['csv', 'xlsx', 'pdf'], true) ? $extension : 'csv';
+
+        return sprintf(
+            'reconciliation/generated/company_%d/%s__%s__%s__%s.%s',
+            $companyId,
+            $safeFeature,
+            $safeAction,
+            $safeScope,
+            (string) now()->format('YmdHisv'),
+            $ext,
+        );
+    }
+
     private function buildGeneratedReconciliationCsvPath(
         int $companyId,
         string $featureKey,
@@ -242,6 +296,193 @@ class ReconciliationExportController extends Controller
         fclose($stream);
 
         return $content;
+    }
+
+    /**
+     * Build rows (headers + data) for xlsx/tabular export, equivalent to buildGeneratedReconciliationCsv.
+     *
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildGeneratedReconciliationRows(
+        ?int $companyId,
+        string $featureKey,
+        string $actionKey,
+        string $scopeRef,
+        array $filterPayload,
+        string $datasetChecksum,
+    ): array {
+        if ($featureKey === 'payroll_run' && $actionKey === 'disburse') {
+            return $this->buildPayrollRunReconciliationRows($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
+        }
+
+        $headers = ['Field', 'Value'];
+        $data = [
+            ['feature_key', $featureKey],
+            ['action_key', $actionKey],
+            ['scope_ref', $scopeRef],
+            ['dataset_checksum', $datasetChecksum],
+            ['generated_at', now()->toIso8601String()],
+            [],
+            ['filter_key', 'filter_value'],
+        ];
+
+        foreach ($filterPayload as $key => $value) {
+            $formattedValue = is_scalar($value)
+                ? (string) $value
+                : (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            $data[] = [(string) $key, $formattedValue];
+        }
+
+        return ['headers' => $headers, 'data' => $data];
+    }
+
+    /**
+     * Build rows for payroll_run reconciliation (xlsx equivalent of buildPayrollRunReconciliationCsv).
+     *
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildPayrollRunReconciliationRows(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): array
+    {
+        $userIds = [];
+        if (is_array($filterPayload) && isset($filterPayload['periods']) && is_array($filterPayload['periods'])) {
+            foreach ($filterPayload['periods'] as $period) {
+                if (is_array($period) && isset($period['userId'])) {
+                    $userIds[] = (int) $period['userId'];
+                }
+            }
+        }
+
+        $query = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $runId)
+            ->orderBy('user_id')
+            ->orderBy('sort_order');
+
+        if (! empty($userIds)) {
+            $query->whereIn('user_id', $userIds);
+        }
+
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+
+        $payrollLines = $query->get();
+
+        $componentAffectsNetPay = [];
+        $componentIds = $payrollLines->pluck('hcm_salary_component_id')
+            ->filter(fn ($id) => $id !== null)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        if ($componentIds->isNotEmpty()) {
+            $componentAffectsNetPay = HcmSalaryComponent::query()
+                ->whereIn('id', $componentIds->all())
+                ->pluck('affects_net_pay', 'id')
+                ->map(fn ($value) => (bool) $value)
+                ->all();
+        }
+        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
+
+        $employeeTotals = [];
+        foreach ($payrollLines as $line) {
+            $uid = (int) $line->user_id;
+            if (! isset($employeeTotals[$uid])) {
+                $employeeTotals[$uid] = ['name' => (string) ($line->user_name ?? ''), 'gross' => 0.0, 'deductions' => 0.0];
+            }
+            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
+            $affectsNetPay = $componentId !== null
+                ? ($componentAffectsNetPay[$componentId] ?? true)
+                : true;
+            if ($affectsNetPay) {
+                if ($line->kind === 'addition') {
+                    $employeeTotals[$uid]['gross'] += (float) $line->amount;
+                } elseif ($line->kind === 'deduction') {
+                    $employeeTotals[$uid]['deductions'] += (float) $line->amount;
+                }
+            }
+        }
+
+        $headers = [
+            'run_id', 'user_id', 'user_name', 'kind', 'component_code', 'component_name',
+            'amount', 'affects_net_pay', 'gross_total', 'deductions_total', 'net_total',
+            'service_fee_rate_percent', 'service_fee_base_amount', 'service_fee_amount',
+            'service_fee_billing_month', 'dataset_checksum',
+        ];
+
+        $data = [];
+
+        // Metadata row
+        $data[] = [
+            (string) $runId, '', '', '', '', 'METADATA', '', '',
+            '', '', '',
+            (string) round($serviceFeeRate, 2),
+            (string) round($serviceFeeBase, 2),
+            (string) round($serviceFeeAmount, 2),
+            $serviceFeeBillingMonth,
+            $datasetChecksum,
+        ];
+
+        $data[] = [];
+
+        foreach ($payrollLines as $line) {
+            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
+            $affectsNetPay = $componentId !== null ? ($componentAffectsNetPay[$componentId] ?? true) : true;
+            $data[] = [
+                (string) $runId,
+                (string) $line->user_id,
+                (string) ($line->user_name ?? ''),
+                (string) ($line->kind ?? ''),
+                (string) ($line->component_code ?? ''),
+                (string) ($line->component_name ?? ''),
+                (string) $line->amount,
+                $affectsNetPay ? 'yes' : 'no',
+                '', '', '',
+                (string) round($serviceFeeRate, 2),
+                (string) round($serviceFeeBase, 2),
+                (string) round($serviceFeeAmount, 2),
+                $serviceFeeBillingMonth,
+                '',
+            ];
+        }
+
+        $data[] = [];
+        $grandGross = 0.0;
+        $grandDeductions = 0.0;
+        foreach ($employeeTotals as $uid => $totals) {
+            $net = $totals['gross'] - $totals['deductions'];
+            $grandGross += $totals['gross'];
+            $grandDeductions += $totals['deductions'];
+            $data[] = [
+                (string) $runId, (string) $uid, $totals['name'], 'SUBTOTAL', '', 'Subtotal Karyawan',
+                '', '',
+                (string) round($totals['gross'], 2),
+                (string) round($totals['deductions'], 2),
+                (string) round($net, 2),
+                (string) round($serviceFeeRate, 2),
+                (string) round($serviceFeeBase, 2),
+                (string) round($serviceFeeAmount, 2),
+                $serviceFeeBillingMonth,
+                '',
+            ];
+        }
+
+        $data[] = [];
+        $data[] = [
+            (string) $runId, '', '', 'GRAND_TOTAL', '', 'Total Semua Karyawan',
+            '', '',
+            (string) round($grandGross, 2),
+            (string) round($grandDeductions, 2),
+            (string) round($grandGross - $grandDeductions, 2),
+            (string) round($serviceFeeRate, 2),
+            (string) round($serviceFeeBase, 2),
+            (string) round($serviceFeeAmount, 2),
+            $serviceFeeBillingMonth,
+            $datasetChecksum,
+        ];
+
+        return ['headers' => $headers, 'data' => $data];
     }
 
     /**
@@ -367,7 +608,7 @@ class ReconciliationExportController extends Controller
                 (string) ($line->component_code ?? ''),
                 (string) ($line->component_name ?? ''),
                 (string) $line->amount,
-                $affectsNetPay ? 'yes' : 'no',
+                (($line->hcm_salary_component_id !== null ? ($componentAffectsNetPay[(int) $line->hcm_salary_component_id] ?? true) : true)) ? 'yes' : 'no',
                 '',
                 '',
                 '',

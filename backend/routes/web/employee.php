@@ -11,10 +11,13 @@ Route::middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->gro
         return view(view: 'employees-grid');
     })->name('employees-grid');
 
-    Route::get('/employee-details', function () {
-        return view(view: 'employee-details');
-    })->name('employee-details');
 });
+
+// Employee-details dapat diakses oleh semua user yang sudah login (termasuk employee
+// untuk lihat profil sendiri). Akses per-record diatur di API layer (employee.show controller).
+Route::get('/employee-details', function () {
+    return view(view: 'employee-details');
+})->name('employee-details');
 
 Route::get('/departments', function () {
     return view(view: 'departments');

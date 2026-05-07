@@ -150,4 +150,12 @@ class HcmLeaveTypeController extends Controller
             'message' => 'Leave type disabled successfully.',
         ]);
     }
+
+    private function apiError(string $code, string $message, int $status): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => ['code' => $code, 'message' => $message],
+        ], $status);
+    }
 }

@@ -134,3 +134,6 @@ Migrasi `2026_04_11_120000_add_percent_fields_to_hcm_salary_components_table` me
 ## OpenAPI (Swagger UI)
 
 `docs/api/openapi.yaml` — tag **Payroll**: path `/v1/hcm/salary-components`, `/v1/hcm/salary-components/{id}`, `/v1/hcm/salary-component-categories`, dan `/v1/hcm/salary-component-categories/{id}` beserta skema request/response terkait.
+
+---
+> **2026-05-07**: Internal bug fix — added missing `resolveTaxTreatmentCodeFromValidated()` private method. No API contract change.

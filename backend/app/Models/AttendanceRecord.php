@@ -5,8 +5,17 @@ use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * @property \Carbon\Carbon|null $check_in_at
+ * @property \Carbon\Carbon|null $check_out_at
+ * @property \Carbon\Carbon|null $work_date
+ * @property \Carbon\Carbon|null $break_started_at
+ * @property \Carbon\Carbon|null $correction_requested_at
+ * @property \Carbon\Carbon|null $corrected_at
+ */
 class AttendanceRecord extends Model
 {
     use AssignsUuid, SoftDeletes;

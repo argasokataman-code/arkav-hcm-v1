@@ -495,6 +495,66 @@ class AuthApiTest extends TestCase
         $this->assertSame('Jakarta', $profile->address_detail);
     }
 
+    public function test_profile_update_rejects_invalid_phone_and_address_detail_format(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Regex Guard User',
+            'email' => 'regex.guard.user@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'regex.guard.user@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Regex Guard User',
+                'email' => 'regex.guard.user@example.com',
+                'phone' => 'ABC@@@123',
+                'addressDetail' => 'Jakarta#1',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonFragment(['field' => 'phone'])
+            ->assertJsonFragment(['field' => 'addressDetail']);
+    }
+
+    public function test_profile_update_rejects_phone_with_too_many_digits(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Phone Length Guard',
+            'email' => 'phone.length.guard@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'phone.length.guard@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Phone Length Guard',
+                'email' => 'phone.length.guard@example.com',
+                'phone' => '15827358176253817562',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonFragment(['field' => 'phone']);
+    }
+
     public function test_owner_profile_update_uses_company_settings_without_creating_employee_profile(): void
     {
         $user = User::query()->create([
@@ -546,6 +606,7 @@ class AuthApiTest extends TestCase
                 'companyState' => 'DKI Jakarta',
                 'companyCountry' => 'Indonesia',
                 'companyPostalCode' => '10270',
+                'companyNpwp' => '12.345.678.9-012.345',
             ])
             ->assertOk()
             ->assertJsonPath('data.name', 'Owner Profile Updated')
@@ -560,7 +621,8 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.companyProfile.city', 'Jakarta')
             ->assertJsonPath('data.companyProfile.state', 'DKI Jakarta')
             ->assertJsonPath('data.companyProfile.country', 'Indonesia')
-            ->assertJsonPath('data.companyProfile.postalCode', '10270');
+            ->assertJsonPath('data.companyProfile.postalCode', '10270')
+            ->assertJsonPath('data.companyProfile.npwp', '123456789012345');
 
         $updatedUser = User::query()->where('email', 'owner.profile.updated@example.com')->first();
         $this->assertNotNull($updatedUser);
@@ -610,6 +672,11 @@ class AuthApiTest extends TestCase
             'key' => 'company_profile_postal_code',
             'value' => '10270',
         ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_npwp',
+            'value' => '123456789012345',
+        ]);
 
         $this->withHeader('Cookie', $cookieHeader)
             ->getJson('/v1/identity/auth/me')
@@ -621,6 +688,7 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.companyProfile.state', 'DKI Jakarta')
             ->assertJsonPath('data.companyProfile.country', 'Indonesia')
             ->assertJsonPath('data.companyProfile.postalCode', '10270')
+            ->assertJsonPath('data.companyProfile.npwp', '123456789012345')
             ->assertJsonPath('data.activeCompany.legalName', 'Owner Profile Company Holdings LLC');
     }
 
@@ -686,6 +754,7 @@ class AuthApiTest extends TestCase
                 'companyState' => 'DKI Jakarta',
                 'companyCountry' => 'Indonesia',
                 'companyPostalCode' => '12950',
+                'companyNpwp' => '123456789012345',
             ])
             ->assertOk()
             ->assertJsonPath('data.currentUserRole', 'owner')
@@ -694,7 +763,8 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.companyProfile.name', 'Owner Employee Profile Company Updated')
             ->assertJsonPath('data.companyProfile.legalName', 'Owner Employee Profile Company Holdings LLC')
             ->assertJsonPath('data.companyProfile.address', 'Jl. Billing Existing 88')
-            ->assertJsonPath('data.companyProfile.postalCode', '12950');
+            ->assertJsonPath('data.companyProfile.postalCode', '12950')
+            ->assertJsonPath('data.companyProfile.npwp', '123456789012345');
 
         $updatedUser = User::query()->where('email', 'owner.employee.profile.updated@example.com')->first();
         $this->assertNotNull($updatedUser);
@@ -713,6 +783,11 @@ class AuthApiTest extends TestCase
             'key' => 'company_profile_postal_code',
             'value' => '12950',
         ]);
+        $this->assertDatabaseHas('company_settings', [
+            'company_id' => $company->id,
+            'key' => 'company_profile_npwp',
+            'value' => '123456789012345',
+        ]);
 
         $this->withHeader('Cookie', $cookieHeader)
             ->getJson('/v1/identity/auth/me')
@@ -722,7 +797,57 @@ class AuthApiTest extends TestCase
             ->assertJsonPath('data.companyProfile.legalName', 'Owner Employee Profile Company Holdings LLC')
             ->assertJsonPath('data.companyProfile.address', 'Jl. Billing Existing 88')
             ->assertJsonPath('data.companyProfile.postalCode', '12950')
+            ->assertJsonPath('data.companyProfile.npwp', '123456789012345')
             ->assertJsonPath('data.activeCompany.legalName', 'Owner Employee Profile Company Holdings LLC');
+    }
+
+    public function test_owner_profile_update_rejects_invalid_company_npwp(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Invalid NPWP',
+            'email' => 'owner.invalid.npwp@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'owner_invalid_npwp_company',
+            'name' => 'Owner Invalid NPWP Company',
+            'legal_name' => 'Owner Invalid NPWP Company LLC',
+            'status' => 'active',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'owner.invalid.npwp@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => 'owner_invalid_npwp_company',
+        ])->assertOk();
+
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $cookieHeader = $this->cookieName().'='.$token;
+
+        $this->withHeader('Cookie', $cookieHeader)
+            ->putJson('/v1/identity/auth/profile', [
+                'name' => 'Owner Invalid NPWP Updated',
+                'email' => 'owner.invalid.npwp.updated@example.com',
+                'companyName' => 'Owner Invalid NPWP Company Updated',
+                'companyNpwp' => '12.34',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
 
     public function test_profile_password_update_requires_valid_current_password(): void

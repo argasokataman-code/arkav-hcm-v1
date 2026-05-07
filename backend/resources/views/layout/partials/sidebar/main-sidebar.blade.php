@@ -1,4 +1,9 @@
 <div class="sidebar" id="sidebar">
+    @php
+        $mainSidebarActiveCompanyRole = strtolower(trim((string) request()->attributes->get('activeCompanyRole', '')));
+        $mainSidebarProfileUrl = $mainSidebarActiveCompanyRole === 'owner' ? url('company-profile') : url('profile-settings');
+        $mainSidebarProfileLabel = $mainSidebarActiveCompanyRole === 'owner' ? 'Company Profile' : 'Profile';
+    @endphp
     <!-- Logo -->
     <div class="sidebar-logo">
         <a href="{{url('index')}}" class="logo logo-normal">
@@ -247,6 +252,13 @@
                 <li class="menu-title"><span>HRM</span></li>
                 <li>
                     <ul>
+    @if ($activeCompanyRole === 'owner')
+                            <li>
+                                <a href="{{ url('company-overview') }}" class="{{ Request::is('company-overview') ? 'active' : '' }}">
+                                    <i class="ti ti-building-community"></i><span>Company Profile</span>
+                                </a>
+                            </li>
+    @endif
 @if ($canSeeEmployeesMenu)
                         <li class="submenu">
                             <a href="javascript:void(0);" class="{{ Request::is('employees','employee-details','departments','designations','teams','teams/*','policy') ? 'active subdrop' : '' }}">
@@ -278,7 +290,9 @@
                                 <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                 <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
 @endif
+@if (in_array(strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))), ['employee', 'member'], true))
                                 <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
                             </ul>
                         </li>
 @endif
@@ -303,7 +317,9 @@
 @if ($isHcmAdmin)
                                         <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}">Leaves (Admin)</a></li>
 @endif
+@if (in_array(strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))), ['employee', 'member'], true))
                                         <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                         <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>
 @endif
@@ -537,8 +553,10 @@
                                 <li class="submenu submenu-two">
                                     <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*','employee-allowance-governance*','spt-masa-pph21*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
-                                        <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                        <li><a href="{{ $mainSidebarProfileUrl }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ $mainSidebarProfileLabel }}</a></li>
+                                        @if ($mainSidebarActiveCompanyRole !== 'owner')
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
+                                        @endif
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
                                         @if (!$isGlobalHcmAdmin)

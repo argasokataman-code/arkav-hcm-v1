@@ -139,7 +139,7 @@
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
                                     <ul>
-                                        <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                        <li><a href="{{ strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner' ? url('company-profile') : url('profile-settings') }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner' ? 'Company Profile' : 'Profile' }}</a></li>
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>

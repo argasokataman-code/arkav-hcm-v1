@@ -874,9 +874,11 @@ function loadBindSalaryBulkUploadModule() {
             });
 
         if (sourceTeamKeys.length > 1) {
+            // Mixed source teams — allowed; backend will reassign all selected employee_ids
+            // without filtering by source_team_id.
             return {
-                ok: false,
-                message: "Bulk reassign aman hanya untuk employee dari source team yang sama. Silakan filter dan pilih ulang.",
+                ok: true,
+                sourceTeamId: null,
             };
         }
 
@@ -1442,9 +1444,9 @@ function loadBindSalaryBulkUploadModule() {
                     "</td><td>" +
                     escapeHtml(row.email || "") +
                     "</td><td>" +
-                    escapeHtml(row.teamName || row.team || "—") +
-                    "</td><td>" +
                     escapeHtml(row.departmentName || "—") +
+                    "</td><td>" +
+                    escapeHtml(row.phone || "—") +
                     "</td><td>" +
                     escapeHtml(row.joinDate || "—") +
                     '</td><td><span class="badge badge-' +
@@ -1456,6 +1458,33 @@ function loadBindSalaryBulkUploadModule() {
             })
             .join("");
         tbody.setAttribute("data-hydrated", "1");
+    }
+
+    function renderEmployeeReportChart(rows) {
+        var chart = window.__employeeReportChart;
+        if (!chart) {
+            return;
+        }
+        var year = window.__employeeReportChartYear || new Date().getFullYear();
+        var activeByMonth = [0,0,0,0,0,0,0,0,0,0,0,0];
+        var inactiveByMonth = [0,0,0,0,0,0,0,0,0,0,0,0];
+        (rows || []).forEach(function (row) {
+            var d = row.joinDate ? new Date(row.joinDate) : null;
+            if (!d || isNaN(d.getTime()) || d.getFullYear() !== year) {
+                return;
+            }
+            var m = d.getMonth();
+            var st = String(row.employmentStatus || "active").toLowerCase();
+            if (st === "active" || st === "probation") {
+                activeByMonth[m]++;
+            } else {
+                inactiveByMonth[m]++;
+            }
+        });
+        chart.updateSeries([
+            { name: "Active Employees", data: activeByMonth },
+            { name: "Inactive Employees", data: inactiveByMonth }
+        ]);
     }
 
     function updateReportSummary(meta) {
@@ -1689,6 +1718,7 @@ function loadBindSalaryBulkUploadModule() {
                 }
                 var rows = Array.isArray(payload.data) ? payload.data : [];
                 renderReportTable(rows);
+                renderEmployeeReportChart(rows);
                 updateReportSummary(payload.meta || {});
             })
             .catch(function (error) {

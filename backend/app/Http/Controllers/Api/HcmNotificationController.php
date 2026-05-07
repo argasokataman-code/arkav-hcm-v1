@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\NotificationDelivery;
 use App\Models\DatabaseNotification;
+use App\Support\Exports\TabularExportResponse;
 use App\Support\Hcm\NotificationEventCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -421,6 +422,7 @@ class HcmNotificationController extends Controller
             'hours' => ['nullable', 'integer', 'min:1', 'max:720'],
             'channel' => ['nullable', 'string', 'in:database,mail,sms,webhook'],
             'eventKey' => ['nullable', 'string', 'max:191'],
+            'format' => ['nullable', 'string', 'in:xlsx,csv'],
         ]);
 
         $status = isset($validated['status']) ? (string) $validated['status'] : null;
@@ -448,33 +450,27 @@ class HcmNotificationController extends Controller
 
         $items = $baseQuery->get();
 
-        $filename = 'notification-deliveries-' . now()->format('YmdHis') . '.csv';
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $headers = ['Timestamp', 'Event Key', 'Channel', 'Status', 'Recipient', 'Attempts', 'Last Error'];
+        $rows = $items->map(static function (NotificationDelivery $delivery): array {
+            return [
+                $delivery->created_at?->format('Y-m-d H:i:s') ?? '',
+                (string) $delivery->event_key,
+                (string) $delivery->channel,
+                (string) $delivery->status,
+                (string) $delivery->recipient,
+                (int) $delivery->attempt_count,
+                (string) ($delivery->last_error ?? ''),
+            ];
+        })->values()->all();
 
-        return response()->streamDownload(function () use ($items): void {
-            $stream = fopen('php://output', 'wb');
-            if (! $stream) {
-                return;
-            }
-
-            fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, ['Timestamp', 'Event Key', 'Channel', 'Status', 'Recipient', 'Attempts', 'Last Error']);
-
-            foreach ($items as $delivery) {
-                fputcsv($stream, [
-                    $delivery->created_at?->format('Y-m-d H:i:s') ?? '',
-                    (string) $delivery->event_key,
-                    (string) $delivery->channel,
-                    (string) $delivery->status,
-                    (string) $delivery->recipient,
-                    (int) $delivery->attempt_count,
-                    (string) ($delivery->last_error ?? ''),
-                ]);
-            }
-
-            fclose($stream);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return TabularExportResponse::download(
+            headers: $headers,
+            rows: $rows,
+            filenameBase: 'notification-deliveries-' . now()->format('YmdHis'),
+            format: $format,
+            sheetTitle: 'Delivery Log'
+        );
     }
 
     public function retryDelivery(Request $request, int $deliveryId): JsonResponse

@@ -17,6 +17,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/employees/{id}', [HcmEmployeeController::class, 'show'])->whereNumber('id');
     Route::put('/employees/{id}', [HcmEmployeeController::class, 'update'])->whereNumber('id');
     Route::post('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'uploadProfilePhoto'])->whereNumber('id');
+    Route::delete('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'deleteProfilePhoto'])->whereNumber('id');
 });
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

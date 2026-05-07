@@ -11,6 +11,7 @@ use App\Http\Middleware\EnsureAssetManagementWebAccess;
 use App\Http\Middleware\EnsureCompanyFeatureForApi;
 use App\Http\Middleware\EnsureGlobalHcmApiAdmin;
 use App\Http\Middleware\EnsureCompanyFeatureForWebPage;
+use App\Http\Middleware\EnsureEmployeeScopedWebPage;
 use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
@@ -46,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hcm.web.primary-super-admin' => EnsurePrimarySuperAdminCodeOnePage::class,
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
             'hcm.web.feature' => EnsureCompanyFeatureForWebPage::class,
+            'hcm.web.employee' => EnsureEmployeeScopedWebPage::class,
             'biometric.consent' => \App\Http\Middleware\RequiresBiometricConsent::class,
         ]);
     })

@@ -51,7 +51,7 @@ Untuk tenant owner, modul ini juga menjadi jalur resmi update profil company (na
 - Endpoint utama: `POST /v1/identity/auth/register`, `POST /v1/identity/auth/login`, `POST /v1/identity/auth/logout`, `GET /v1/identity/auth/me`, `PUT /v1/identity/auth/profile`.
 - Format error standar: `{ success:false, error:{ code, message, ... } }`.
 - Kontrak penting pada `GET /auth/me`: `hcmAdmin`, `hcmGlobalAdmin`, `permissionCodes`, dan `activeCompany`.
-- Untuk role owner tenant, `GET /auth/me` dan `PUT /auth/profile` juga memuat `companyProfile` agar halaman Profile Settings bisa mengelola data company tenant secara self-serve.
+- Untuk role owner tenant, `GET /auth/me` dan `PUT /auth/profile` juga memuat `companyProfile` agar halaman Company Profile menjadi satu pintu owner untuk mengelola akun owner dan data company tenant secara self-serve.
 
 ## Existing Vs Target
 

@@ -1402,6 +1402,61 @@ class HcmEmployeeApiTest extends TestCase
             ]);
     }
 
+    public function test_employee_profile_photo_upload_rejects_oversized_image_file(): void
+    {
+        $token = $this->adminBearerToken();
+        $admin = User::query()->where('email', 'hcm-admin@example.com')->firstOrFail();
+        $file = UploadedFile::fake()->image('too-big.jpg', 1200, 1200)->size(2300);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])
+            ->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
+                'photo' => $file,
+            ])
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_MEDIA',
+                ],
+            ]);
+    }
+
+    public function test_hcm_admin_can_delete_employee_profile_photo(): void
+    {
+        Storage::fake('public');
+        $token = $this->adminBearerToken();
+        $admin = User::query()->where('email', 'hcm-admin@example.com')->firstOrFail();
+
+        $file = UploadedFile::fake()->image('avatar.png', 300, 300)->size(256);
+
+        $upload = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
+            'photo' => $file,
+        ]);
+
+        $upload->assertOk();
+
+        $profile = EmployeeProfile::query()->where('user_id', $admin->id)->firstOrFail();
+        $this->assertNotNull($profile->profile_photo_path);
+        Storage::disk('public')->assertExists($profile->profile_photo_path);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->delete('/v1/hcm/employees/'.$admin->id.'/profile-photo')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.profilePhotoUrl', null);
+
+        $profile->refresh();
+        $this->assertNull($profile->profile_photo_path);
+    }
+
     public function test_employee_show_returns_404_when_not_found(): void
     {
         $admin = $this->adminBearerToken();

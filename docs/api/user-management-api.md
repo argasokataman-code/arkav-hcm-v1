@@ -28,8 +28,8 @@ Last updated: 2026-04-26
   - Query: `page`, `perPage`, `search`, `status(active|inactive|all)`, `roleCode`
 
 - `GET /users/export`
-  - Query: `search`, `status`, `roleCode`, `format=csv`
-  - Response: CSV stream (`text/csv`)
+  - Query: `search`, `status`, `roleCode`, `format=xlsx|csv` (default `xlsx`)
+  - Response: tabular stream (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` or `text/csv`)
 
 - `GET /users/{id}`
   - `{id}`: numeric user id

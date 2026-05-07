@@ -8,7 +8,7 @@ Route::get('/overtime', function () {
 
 Route::get('/overtime-employee', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => true]);
-})->name('overtime-employee');
+})->middleware('hcm.web.employee:overtime')->name('overtime-employee');
 
 Route::get('/overtime-request', function () {
     $user = request()->user();

@@ -1,4 +1,9 @@
 <!-- Stacked Sidebar -->
+@php
+    $stackedActiveCompanyRole = strtolower(trim((string) request()->attributes->get('activeCompanyRole', '')));
+    $stackedSettingsProfileUrl = $stackedActiveCompanyRole === 'owner' ? url('company-profile') : url('profile-settings');
+    $stackedSettingsProfileLabel = $stackedActiveCompanyRole === 'owner' ? 'Company Profile' : 'Profile';
+@endphp
 <div class="stacked-sidebar" id="stacked-sidebar">
     <div class="sidebar sidebar-stacked">
         <div class="stacked-mini">
@@ -201,7 +206,9 @@
                         <div class="tab-pane fade {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}"  id="menu-dashboard">
                             <ul class="stack-submenu">
                                 <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@if ($isEmployeeScopedUser || $isGlobalHcmAdmin)
                         <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
+@endif
                             </ul>
                         </div>
 @if ($isGlobalHcmAdmin)
@@ -373,7 +380,9 @@
                                         <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                         <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                         <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
                                     </ul>
                                 </li>
 @endif
@@ -393,7 +402,9 @@
 @if ($isHcmAdmin)
                                                 <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}" >Leaves (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                                 <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                                 <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>											
 @endif
@@ -402,7 +413,9 @@
 @if ($isHcmAdmin)
                                         <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
@@ -415,7 +428,9 @@
                                                 <li><a href="{{url('overtime-master')}}" class="{{ Request::is('overtime-master') ? 'active' : '' }}">Master Overtime</a></li>
                                                 <li><a href="{{url('overtime')}}" class="{{ Request::is('overtime') ? 'active' : '' }}">Overtime (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                                 <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
+@endif
                                             </ul>
                                         </li>
                                 </ul>
@@ -566,7 +581,7 @@
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
-                                        <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                        <li><a href="{{ $stackedSettingsProfileUrl }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ $stackedSettingsProfileLabel }}</a></li>
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>

@@ -344,11 +344,71 @@
         });
     }
 
+    function downloadDashboardExport(format) {
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function") ? window.AuthApi.getToken() : null;
+        var tenant = (window.AuthApi && typeof window.AuthApi.getTenantContext === "function")
+            ? (window.AuthApi.getTenantContext() || {})
+            : {};
+
+        var headers = {
+            Accept: format === "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        };
+
+        if (token) {
+            headers.Authorization = "Bearer " + token;
+        }
+        if (tenant.companyCode) {
+            headers["X-Company-Code"] = tenant.companyCode;
+        }
+        if (tenant.companyId) {
+            headers["X-Company-Id"] = String(tenant.companyId);
+        }
+
+        return fetch("/v1/hcm/dashboard-summary/export?format=" + encodeURIComponent(format), {
+            method: "GET",
+            headers: headers,
+            credentials: "same-origin"
+        }).then(function (response) {
+            if (!response.ok) {
+                return response.text().then(function (text) {
+                    throw new Error(text || ("Export gagal dengan status " + response.status));
+                });
+            }
+
+            return response.blob().then(function (blob) {
+                var blobUrl = window.URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = blobUrl;
+                a.download = "dashboard-summary." + (format === "csv" ? "csv" : "xlsx");
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(blobUrl);
+            });
+        });
+    }
+
+    function bindDashboardExportActions() {
+        document.addEventListener("click", function (event) {
+            var trigger = event.target.closest("[data-index-dashboard-export]");
+            if (!trigger) return;
+
+            event.preventDefault();
+            var rawFormat = String(trigger.getAttribute("data-index-dashboard-export") || "xlsx").toLowerCase();
+            var format = rawFormat === "csv" ? "csv" : "xlsx";
+            downloadDashboardExport(format).catch(function (_error) {
+                // Fallback to plain navigation if fetch/blob flow is blocked by browser policy.
+                window.location.assign("/v1/hcm/dashboard-summary/export?format=" + encodeURIComponent(format));
+            });
+        });
+    }
+
     function init() {
         var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
         if (path !== "/index") {
             return;
         }
+        bindDashboardExportActions();
         loadDashboardSummary();
     }
 

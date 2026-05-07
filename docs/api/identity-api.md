@@ -76,7 +76,8 @@ Success `200`:
       "city": "Jakarta",
       "state": "DKI Jakarta",
       "country": "Indonesia",
-      "postalCode": "10270"
+      "postalCode": "10270",
+      "npwp": "123456789012345"
     }
   }
 }
@@ -217,7 +218,8 @@ Body:
 - `companyCity` optional nullable string max 120 (owner tenant only)
 - `companyState` optional nullable string max 120 (owner tenant only)
 - `companyCountry` optional nullable string max 120 (owner tenant only)
-- `companyPostalCode` optional nullable string max 12 (owner tenant only)
+- `companyPostalCode` optional nullable string max 10 regex `^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$` (owner tenant only)
+- `companyNpwp` optional nullable string max 32; karakter yang diterima angka/titik/strip/spasi, disimpan ternormalisasi angka 15-16 digit (owner tenant only)
 - `currentPassword` optional string max 64 (wajib jika ubah password)
 - `newPassword` optional string regex `password_strong`
 - `confirmPassword` required_with:newPassword same:newPassword
@@ -250,7 +252,8 @@ Success `200`:
       "city": "Jakarta",
       "state": "DKI Jakarta",
       "country": "Indonesia",
-      "postalCode": "10270"
+      "postalCode": "10270",
+      "npwp": "123456789012345"
     },
     "subscription": {
       "status": "active",
@@ -277,7 +280,7 @@ Success `200`:
 Catatan owner tenant:
 - Jika user login sebagai `owner` company dan belum punya `EmployeeProfile`, update profile tidak lagi membuat baris employee baru secara implisit.
 - Data kontak owner disimpan di `company_settings` owner profile keys dan tetap tampil lewat `/auth/me`.
-- Profil company owner (`companyName`, `companyLegalName`, alamat company) disimpan di `companies` + `company_settings` dan dikembalikan sebagai `companyProfile` pada respons `/auth/me` maupun `/auth/profile`.
+- Profil company owner (`companyName`, `companyLegalName`, alamat company, `companyNpwp`) disimpan di `companies` + `company_settings` dan dikembalikan sebagai `companyProfile` pada respons `/auth/me` maupun `/auth/profile`.
 
 Errors:
 - `401 AUTH_UNAUTHORIZED`

@@ -92,7 +92,7 @@ class PublicOnboardingController
 
             // company.code is auto-generated if not provided (must still match the same regex when provided).
             'company.code' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9_-]+$/', 'unique:companies,code'],
-            'company.name' => ['required', 'string', 'max:255'],
+            'company.name' => ['required', 'string', 'min:2', 'max:255'],
             'company.legal_name' => ['nullable', 'string', 'max:255'],
             'company.timezone' => ['required', 'string', 'max:100'],
             'company.currency' => ['required', 'string', 'max:10'],

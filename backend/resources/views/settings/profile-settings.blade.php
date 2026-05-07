@@ -181,7 +181,7 @@
                                                     <div class="profile-uploader d-flex align-items-center gap-2">
                                                         <label class="btn btn-sm btn-primary mb-0" style="cursor:pointer;">
                                                             <i class="ti ti-upload me-1"></i>Upload Foto
-                                                            <input type="file" accept="image/*" class="d-none" data-profile-photo-input>
+                                                            <input type="file" accept="image/jpeg,image/png,image/gif" class="d-none" data-profile-photo-input>
                                                         </label>
                                                         <button type="button" class="btn btn-sm btn-outline-danger d-none" data-profile-photo-remove>Hapus</button>
                                                     </div>
@@ -197,7 +197,7 @@
                                                 <label class="form-label mb-md-0">First Name</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="first_name" required>
+                                                <input type="text" class="form-control" data-general-setting="first_name" maxlength="75" pattern="^[A-Za-z][A-Za-z\s'.-]{1,74}$" required>
                                             </div>
                                         </div>
                                     </div>
@@ -207,7 +207,7 @@
                                                 <label class="form-label mb-md-0">Last Name</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="last_name">
+                                                <input type="text" class="form-control" data-general-setting="last_name" maxlength="75" pattern="^[A-Za-z][A-Za-z\s'.-]{1,74}$">
                                             </div>
                                         </div>
                                     </div>
@@ -217,7 +217,7 @@
                                                 <label class="form-label mb-md-0">Email</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="email" class="form-control" data-general-setting="email" required>
+                                                <input type="email" class="form-control" data-general-setting="email" maxlength="255" required>
                                             </div>
                                         </div>
                                     </div>
@@ -227,7 +227,7 @@
                                                 <label class="form-label mb-md-0">Phone</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="phone">
+                                                <input type="text" class="form-control" data-general-setting="phone" maxlength="20" pattern="^\+?[0-9][0-9\s\-()]{7,19}$">
                                             </div>
                                         </div>
                                     </div>
@@ -242,7 +242,7 @@
                                                 <label class="form-label mb-md-0">Address</label>
                                             </div>
                                             <div class="col-md-10">
-                                                <input type="text" class="form-control" data-general-setting="address">
+                                                <input type="text" class="form-control" data-general-setting="address" maxlength="500" pattern="^[A-Za-z0-9\s.,'\/-]{3,500}$">
                                             </div>	
                                         </div>
                                     </div>
@@ -252,7 +252,7 @@
                                                 <label class="form-label mb-md-0">City</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="city">
+                                                <input type="text" class="form-control" data-general-setting="city" maxlength="120" pattern="^[A-Za-z][A-Za-z\s'.-]{1,119}$">
                                             </div>	
                                         </div>
                                     </div>
@@ -262,7 +262,7 @@
                                                 <label class="form-label mb-md-0">State</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="state">
+                                                <input type="text" class="form-control" data-general-setting="state" maxlength="120" pattern="^[A-Za-z][A-Za-z\s'.-]{1,119}$">
                                             </div>	
                                         </div>
                                     </div>
@@ -272,7 +272,7 @@
                                                 <label class="form-label mb-md-0">Country</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="country">
+                                                <input type="text" class="form-control" data-general-setting="country" maxlength="120" pattern="^[A-Za-z][A-Za-z\s'.-]{1,119}$">
                                             </div>	
                                         </div>
                                     </div>
@@ -282,7 +282,7 @@
                                                 <label class="form-label mb-md-0">Postal Code</label>
                                             </div>
                                             <div class="col-md-8">
-                                                <input type="text" class="form-control" data-general-setting="postal_code">
+                                                <input type="text" class="form-control" data-general-setting="postal_code" maxlength="12" pattern="^[A-Za-z0-9][A-Za-z0-9\s-]{2,11}$">
                                             </div>	
                                         </div>
                                     </div>

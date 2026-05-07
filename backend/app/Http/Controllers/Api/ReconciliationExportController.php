@@ -107,6 +107,15 @@ class ReconciliationExportController extends Controller
             return $this->errorResponse('VALIDATION_ERROR', 'filePath must be under reconciliation/ and must not contain traversal.', 422);
         }
 
+        $companyPathToken = '/company_'.(int) $companyId.'/';
+        if (! str_contains($filePath, $companyPathToken)) {
+            return $this->errorResponse(
+                'VALIDATION_ERROR',
+                'filePath must include active company namespace (company_<id>).',
+                422,
+            );
+        }
+
         $rowCount = (int) ($validated['rowCount'] ?? $this->inferRowCountFromFilterPayload($filterPayload, null));
 
         $ttlMinutes = (int) ($validated['expiresInMinutes'] ?? config('hcm.export_reconciliation.ttl_minutes', 30));
@@ -533,6 +542,11 @@ class ReconciliationExportController extends Controller
         }
 
         $relativePath = ltrim((string) $evidence->file_path, '/');
+        $companyPathToken = '/company_'.(int) $companyId.'/';
+        if (! str_contains($relativePath, $companyPathToken)) {
+            return $this->errorResponse('EXPORT_RECON_FORBIDDEN', 'Export file does not belong to active company namespace.', 403);
+        }
+
         if ($relativePath === '' || ! Storage::disk('local')->exists($relativePath)) {
             return $this->errorResponse('EXPORT_RECON_FILE_NOT_FOUND', 'Reconciliation export file not found.', 404);
         }

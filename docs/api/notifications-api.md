@@ -154,6 +154,28 @@ Response 403:
 Response 422:
 - tenant context aktif tidak tersedia (`TENANT_CONTEXT_REQUIRED`).
 
+### GET /v1/hcm/notifications/delivery-export
+
+Endpoint observability internal untuk export delivery records tenant aktif.
+
+Auth & role:
+- Wajib login.
+- Hanya global HCM admin (`isGlobalHcmAdmin`) yang boleh akses.
+- Data tenant-scoped ke `activeCompanyUuid` dari middleware `tenant.context`.
+
+Query opsional:
+- `status` enum: `sent|failed|dropped`
+- `hours` integer min 1 max 720 (default 24)
+- `channel` enum: `database|mail|sms|webhook`
+- `eventKey` string
+- `format` enum: `xlsx|csv` (default `xlsx`)
+
+Response 200:
+- `Content-Type`:
+  - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (default)
+  - `text/csv; charset=UTF-8` jika `format=csv`
+- `Content-Disposition: attachment; filename="notification-deliveries-*.<xlsx|csv>"`
+
 ### GET /v1/hcm/notifications/templates
 
 Endpoint stub katalog template notifikasi untuk admin global.

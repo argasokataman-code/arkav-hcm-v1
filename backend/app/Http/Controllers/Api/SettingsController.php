@@ -9,6 +9,7 @@ use App\Support\WebsiteSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -99,6 +100,10 @@ class SettingsController extends Controller
 
         if ($group === 'localization') {
             $this->validateLocalizationPayload($settings);
+        }
+
+        if ($group === 'general') {
+            $this->validateGeneralPayload($settings);
         }
 
         if ($group === self::AI_GROUP) {
@@ -327,6 +332,28 @@ class SettingsController extends Controller
             throw ValidationException::withMessages([
                 'settings.timezone' => ['Invalid timezone identifier.'],
             ]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function validateGeneralPayload(array $settings): void
+    {
+        $validator = Validator::make($settings, [
+            'first_name' => ['sometimes', 'required', 'string', 'min:2', 'max:50', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,49}$/'],
+            'last_name' => ['sometimes', 'nullable', 'string', 'max:50', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,49}$/'],
+            'email' => ['sometimes', 'required', 'string', 'email:rfc', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'regex:/^\+?(?=(?:\D*\d){8,15}\D*$)[0-9\s\-()]+$/'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:180', 'regex:/^[A-Za-z0-9\s.,\'\/-]{3,180}$/'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'country' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'postal_code' => ['sometimes', 'nullable', 'string', 'max:10', 'regex:/^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
         }
     }
 }

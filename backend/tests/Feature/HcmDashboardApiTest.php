@@ -75,4 +75,26 @@ class HcmDashboardApiTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_admin_dashboard_summary_export_defaults_to_xlsx_with_csv_fallback(): void
+    {
+        $token = $this->bearerToken('admin-dashboard-export@example.com', 'HR Admin');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->get('/v1/hcm/dashboard-summary/export')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $csvResponse = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->get('/v1/hcm/dashboard-summary/export?format=csv');
+
+        $csvResponse->assertOk();
+        $csvResponse->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $content = $csvResponse->streamedContent();
+        $this->assertStringContainsString('Section,Metric,Value', $content);
+        $this->assertStringContainsString('Executive,"Total Employees",', $content);
+    }
 }

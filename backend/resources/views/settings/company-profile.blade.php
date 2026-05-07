@@ -1,6 +1,8 @@
 <?php $page = 'company-profile'; ?>
 @php
     $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+    $activeCompanyRole = strtolower(trim((string) request()->attributes->get('activeCompanyRole', '')));
+    $isOwnerTenantContext = $activeCompanyRole === 'owner';
 @endphp
 
 @php($isOwner = false) {{-- JS will handle visibility based on /me role --}}
@@ -38,7 +40,9 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
+                            @if (! $isOwnerTenantContext)
                             <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Profile Settings</a>
+                            @endif
                             <a href="{{ url('company-profile') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Company Profile</a>
                             @if ($isGlobalHcmAdmin)
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
@@ -54,7 +58,11 @@
                         <div class="border-bottom mb-3 pb-3">
                             <h4 class="mb-1">Company Profile</h4>
                             <div class="text-muted fs-12">
+                                @if ($isOwnerTenantContext)
+                                Sebagai owner, halaman ini menjadi satu pintu untuk mengelola identitas akun owner dan identitas perusahaan.
+                                @else
                                 Data identitas perusahaan yang dipakai pada dokumen billing, invoice, dan kontrak.
+                                @endif
                             </div>
                         </div>
 
@@ -70,6 +78,77 @@
                         <div data-company-profile-owner-only>
                             <form action="javascript:void(0);" data-company-profile-form>
                                 <div class="border-bottom mb-3 pb-3">
+                                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+                                        <div>
+                                            <h6 class="mb-1">Owner Account</h6>
+                                            <div class="text-muted fs-12">Profil owner dan foto akun dikelola dari halaman ini agar tidak terpecah dengan company profile.</div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
+                                        <div class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames overflow-hidden" style="width:80px;height:80px;">
+                                            <img src="" alt="Owner Photo" class="img-fluid rounded-circle w-100 h-100 d-none" data-owner-photo-preview style="object-fit:cover;">
+                                            <i class="ti ti-photo text-gray-3 fs-16" data-owner-photo-placeholder></i>
+                                        </div>
+                                        <div class="profile-upload">
+                                            <div class="mb-2">
+                                                <h6 class="mb-1">Owner Photo</h6>
+                                                <p class="fs-12 mb-0">JPG, PNG, atau GIF. Maks 2MB.</p>
+                                                <p class="fs-12 text-danger d-none" data-owner-photo-error></p>
+                                            </div>
+                                            <div class="profile-uploader d-flex align-items-center gap-2">
+                                                <label class="btn btn-sm btn-primary mb-0" style="cursor:pointer;">
+                                                    <i class="ti ti-upload me-1"></i>Upload Foto
+                                                    <input type="file" accept="image/jpeg,image/png,image/gif" class="d-none" data-owner-photo-input>
+                                                </label>
+                                                <button type="button" class="btn btn-sm btn-outline-danger d-none" data-owner-photo-remove>Hapus</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-md-0">First Name <span class="text-danger">*</span></label>
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <input type="text" class="form-control" data-owner-field="first_name" maxlength="50" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-md-0">Last Name</label>
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <input type="text" class="form-control" data-owner-field="last_name" maxlength="50">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-md-0">Email <span class="text-danger">*</span></label>
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <input type="email" class="form-control" data-owner-field="email" maxlength="255" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-md-0">Phone</label>
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <input type="text" class="form-control" data-owner-field="phone" maxlength="20">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="border-bottom mb-3 pb-3">
                                     <h6 class="mb-3">Identitas Perusahaan</h6>
                                     <div class="row g-3">
                                         <div class="col-md-6">
@@ -78,7 +157,7 @@
                                                     <label class="form-label mb-md-0">Company Name <span class="text-danger">*</span></label>
                                                 </div>
                                                 <div class="col-md-8">
-                                                    <input type="text" class="form-control" data-company-field="name" placeholder="Nama perusahaan" required>
+                                                    <input type="text" class="form-control" data-company-field="name" placeholder="Nama perusahaan" minlength="2" maxlength="255" required>
                                                 </div>
                                             </div>
                                         </div>
@@ -89,6 +168,17 @@
                                                 </div>
                                                 <div class="col-md-8">
                                                     <input type="text" class="form-control" data-company-field="legal_name" placeholder="Nama legal / PT / CV">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-4">
+                                                    <label class="form-label mb-md-0">NPWP</label>
+                                                </div>
+                                                <div class="col-md-8">
+                                                    <input type="text" class="form-control" data-company-field="npwp" inputmode="numeric" maxlength="32" placeholder="Contoh: 12.345.678.9-012.345">
+                                                    <div class="form-text">Gunakan 15-16 digit (boleh dengan titik/strip, sistem akan normalisasi).</div>
                                                 </div>
                                             </div>
                                         </div>

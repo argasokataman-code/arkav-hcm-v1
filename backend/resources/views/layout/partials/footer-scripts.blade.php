@@ -349,6 +349,10 @@
     <script src="{{ URL::asset('build/js/company-profile-data.js') }}"></script>
 @endif
 
+@if (Route::is(['company-overview']))
+    <script src="{{ URL::asset('build/js/company-overview-data.js') }}"></script>
+@endif
+
 @if (Route::is(['invoice-settings']))
     <script src="{{ URL::asset('build/js/invoice-settings-data.js') }}"></script>
 @endif

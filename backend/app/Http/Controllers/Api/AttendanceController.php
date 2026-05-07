@@ -169,6 +169,8 @@ class AttendanceController extends Controller
             });
 
         if ($companyId) {
+            // Include users who are active members of the company OR have an employee profile here.
+            // Exclude owners — owners are not employees and must not appear in attendance admin.
             $q->where(function ($inner) use ($companyId): void {
                 $inner->whereExists(function ($membershipQuery) use ($companyId): void {
                     $membershipQuery->selectRaw('1')
@@ -177,6 +179,14 @@ class AttendanceController extends Controller
                         ->where('company_users.company_id', $companyId)
                         ->where('company_users.status', 'active');
                 })->orWhere('ep.company_id', $companyId);
+            })
+            ->whereNotExists(function ($ownerSub) use ($companyId): void {
+                $ownerSub->selectRaw('1')
+                    ->from('company_users')
+                    ->whereColumn('company_users.user_id', 'users.id')
+                    ->where('company_users.company_id', $companyId)
+                    ->where('company_users.status', 'active')
+                    ->where('company_users.role', 'owner');
             });
         }
 

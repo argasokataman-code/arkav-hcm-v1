@@ -70,6 +70,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 - `turnstile_token`: optional, **required jika Turnstile enabled**
 - `website`: optional (honeypot), harus kosong
 - `company.code`: **optional**. Jika dikirim, harus unik dan regex `^[A-Za-z0-9_-]+$`. Jika tidak dikirim, server auto-generate code unik.
+- `company.name`: wajib, minimal 2 karakter, maksimal 255 karakter.
 - `company.contact_phone`: optional, max 20 karakter, regex `^[0-9+\-\s().]{6,20}$`
 - `company.contact_person_name`: optional, max 120, regex `^[A-Za-z\s'.\-]+$` (hanya huruf/spasi/punctuation umum)
 - `company.contact_person_role`: optional, max 120, regex `^[A-Za-z0-9\s'.\-\/&,]+$`

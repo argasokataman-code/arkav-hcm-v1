@@ -116,7 +116,11 @@ Update legacy transaction status/metode bayar.
 
 ### GET /transactions/export
 
-Export CSV seluruh ledger legacy. Dipakai langsung oleh tombol `Download All` pada halaman aktif.
+Export ledger legacy dengan default Excel (`xlsx`) dan fallback `csv` via query `format`.
+
+Query opsional:
+
+- `format` — `xlsx` (default) | `csv`
 
 ## Surface B: Purchase Transaction Bearer Contract
 

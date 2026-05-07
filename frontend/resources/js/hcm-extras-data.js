@@ -802,13 +802,14 @@ function loadBindOvertimeModule() {
                 if (parts.length) {
                     url += "?" + parts.join("&");
                 }
+                url += (url.indexOf("?") >= 0 ? "&" : "?") + "format=xlsx";
 
-                downloadFileFromUrl(url, "leave-requests.csv")
+                downloadFileFromUrl(url, "leave-requests.xlsx")
                     .then(function (ok) {
                         if (!ok) {
                             return;
                         }
-                        notify("Export leave CSV berhasil.", false);
+                        notify("Export leave Excel berhasil.", false);
                     })
                     .catch(function (err) {
                         notify(formatApiError(err && err.data, err && err.status), true);

@@ -580,7 +580,7 @@
             var exportBtn = e.target.closest("[data-payroll-items-export]");
             if (exportBtn) {
                 e.preventDefault();
-                var format = exportBtn.getAttribute("data-payroll-items-export") || "csv";
+                var format = exportBtn.getAttribute("data-payroll-items-export") || "xlsx";
                 var pk = pageKindFilter();
                 var url = "/v1/hcm/payroll-items/export?format=" + encodeURIComponent(format);
                 if (pk) {

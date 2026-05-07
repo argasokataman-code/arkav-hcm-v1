@@ -25,6 +25,9 @@
             ->value('role') ?? ''));
     }
     $isEmployeeScopedUser = in_array($activeCompanyRole, ['employee', 'member'], true);
+    $settingsProfileUrl = $activeCompanyRole === 'owner' ? url('company-profile') : url('profile-settings');
+    $settingsProfileLabel = $activeCompanyRole === 'owner' ? 'Company Profile' : 'Profile';
+    $settingsLandingUrl = $isGlobalHcmAdmin ? url('business-settings') : $settingsProfileUrl;
     $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
         ? $activeCompany->activeSubscription()
         : null;
@@ -79,6 +82,13 @@
     $headerProfileName = trim((string) ($authUser->name ?? 'User')) ?: 'User';
     $headerProfileEmail = trim((string) ($authUser->email ?? '')) ?: 'user@example.com';
     $headerProfilePhotoPath = trim((string) ($authUser->employeeProfile->profile_photo_path ?? ''));
+    // For owners without an employee profile photo, fall back to company_settings owner_profile_photo_path
+    if ($headerProfilePhotoPath === '' && $activeCompanyRole === 'owner' && $activeCompany instanceof \App\Models\Company) {
+        $headerProfilePhotoPath = trim((string) (\App\Models\CompanySetting::query()
+            ->where('company_id', $activeCompany->id)
+            ->where('key', 'owner_profile_photo_path')
+            ->value('value') ?? ''));
+    }
     $headerProfilePhotoUrl = $headerProfilePhotoPath !== ''
         ? asset('storage/'.ltrim($headerProfilePhotoPath, '/'))
         : URL::asset('build/img/profiles/avatar-12.jpg');
@@ -128,7 +138,7 @@
                         </span>
                     </div>
                     <!-- /Search -->
-                    <a href="{{url('profile-settings')}}" class="btn btn-menubar">
+                    <a href="{{ $settingsProfileUrl }}" class="btn btn-menubar">
                         <i class="ti ti-settings-cog"></i>
                     </a>	
                 </div>
@@ -148,7 +158,11 @@
                                     </a>
                                     <ul>
                                         <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@if ($isGlobalHcmAdmin)
+                                        <li><a href="{{ route('super-admin.employees-monitor') }}" class="{{ Request::is('super-admin/employees-monitor') ? 'active' : '' }}">Employee Monitor</a></li>
+@elseif ($isEmployeeScopedUser)
                                         <li><a href="{{url('employee-dashboard')}}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
+@endif
                                     </ul>
                                 </li>
 @if ($isGlobalHcmAdmin)
@@ -324,7 +338,9 @@
                                             <ul>
                                                 <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                                 <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                                 <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
 
                                             </ul>
                                         </li>
@@ -343,12 +359,16 @@
                                                     <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings') ? 'active subdrop' : '' }}">Leaves<span class="menu-arrow"></span></a>
                                                     <ul>
                                                         <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}" >Leaves (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                         <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
                                         <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>												
                                                     </ul>												
                                                 </li>
                                                 <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@endif
                                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                                 <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
@@ -510,7 +530,7 @@
                                                 <li class="submenu">
                                                     <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*','spt-masa-pph21*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
                                                     <ul>
-                                                        <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                                        <li><a href="{{ $settingsProfileUrl }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ $settingsProfileLabel }}</a></li>
                                                         @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                                         @endif
@@ -1247,54 +1267,72 @@
                                 @endif
                             </span>
                         </a>
-                        <div class="dropdown-menu shadow-none">
+                        <div class="dropdown-menu shadow-none" style="min-width:265px;">
                             <div class="card mb-0">
-                                <div class="card-header">
-                                    <div class="d-flex align-items-center">
-                                        <span class="avatar avatar-lg me-2 avatar-rounded" aria-hidden="true" style="flex-shrink:0;width:2.813rem;height:2.813rem;">
-                                            @if ($headerProfilePhotoPath !== '')
-                                                <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle" style="width:2.813rem;height:2.813rem;object-fit:cover;aspect-ratio:1/1;display:block;" data-nav-profile-photo-lg>
-                                            @else
-                                                <span class="avatar-placeholder-lg rounded-circle" data-nav-profile-photo-lg-placeholder></span>
-                                            @endif
-                                        </span>
-                                        <div>
-                                            <h5 class="mb-0" data-profile-display-name="1">{{ $headerProfileName }}</h5>
-                                            <p class="fs-12 fw-medium mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
-                                            @if ($headerActiveCompanyCode !== '' || $headerActiveCompanyName !== '')
-                                                <div class="mt-1">
-                                                    <span class="badge badge-soft-dark me-1">
-                                                        <i class="ti ti-building me-1"></i>{{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
-                                                    </span>
-                                                    <span class="badge badge-soft-primary me-1">{{ $headerRoleBadge }}</span>
-                                                    @if ($headerPackageCode !== '')
-                                                        <span class="badge {{ $headerPackageBadgeClass }}">{{ $headerPackageCode }}</span>
-                                                    @endif
-                                                </div>
+                                <div class="card-header text-center py-3">
+                                    <span class="avatar avatar-xl avatar-rounded d-inline-flex mx-auto mb-2" aria-hidden="true" style="width:3.5rem;height:3.5rem;">
+                                        @if ($headerProfilePhotoPath !== '')
+                                            <img src="{{ $headerProfilePhotoUrl }}" alt="Profile" class="rounded-circle w-100 h-100" style="object-fit:cover;" data-nav-profile-photo-lg>
+                                        @else
+                                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center w-100 h-100 bg-primary text-white fw-semibold" style="font-size:1.25rem;line-height:1;" data-nav-profile-photo-lg-placeholder>{{ strtoupper(mb_substr($headerProfileName, 0, 1)) }}</span>
+                                        @endif
+                                    </span>
+                                    <h6 class="mb-0 fw-semibold" data-profile-display-name="1">{{ $headerProfileName }}</h6>
+                                    <p class="fs-12 text-muted mb-0" data-profile-display-email="1">{{ $headerProfileEmail }}</p>
+                                    @if ($headerActiveCompanyCode !== '' || $headerActiveCompanyName !== '')
+                                        <div class="d-flex justify-content-center flex-wrap align-items-center gap-1 mt-2" style="font-size:11px;">
+                                            <span class="badge badge-soft-dark badge-sm">
+                                                <i class="ti ti-building me-1"></i>{{ $headerActiveCompanyCode !== '' ? $headerActiveCompanyCode : $headerActiveCompanyName }}
+                                            </span>
+                                            <span class="badge badge-soft-primary badge-sm">{{ $headerRoleBadge }}</span>
+                                            @if ($headerPackageCode !== '')
+                                                <span class="badge {{ $headerPackageBadgeClass }} badge-sm">{{ $headerPackageCode }}</span>
                                             @endif
                                         </div>
+                                    @endif
+                                </div>
+                                <div class="card-body p-0">
+                                    <!-- Profile & account links -->
+                                    <div class="px-2 pt-2 pb-1">
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ $settingsProfileUrl }}">
+                                            <i class="ti ti-user-circle fs-16 text-muted flex-shrink-0"></i>
+                                            <span>{{ $activeCompanyRole === 'owner' ? 'Company Profile' : 'My Profile' }}</span>
+                                        </a>
+                                        @if ($activeCompanyRole === 'owner')
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ url('company-overview') }}">
+                                            <i class="ti ti-layout-dashboard fs-16 text-muted flex-shrink-0"></i>
+                                            <span>Company Overview</span>
+                                        </a>
+                                        @else
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ $settingsProfileUrl }}">
+                                            <i class="ti ti-circle-arrow-up fs-16 text-muted flex-shrink-0"></i>
+                                            <span>My Account</span>
+                                        </a>
+                                        @endif
+                                    </div>
+                                    <!-- Settings & security links -->
+                                    <div class="border-top px-2 py-1">
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ $settingsLandingUrl }}">
+                                            <i class="ti ti-settings fs-16 text-muted flex-shrink-0"></i>
+                                            <span>Settings</span>
+                                        </a>
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ url('security-settings') }}">
+                                            <i class="ti ti-shield-lock fs-16 text-muted flex-shrink-0"></i>
+                                            <span>Security</span>
+                                        </a>
+                                    </div>
+                                    <!-- Help -->
+                                    <div class="border-top px-2 pt-1 pb-2">
+                                        <a class="dropdown-item d-flex align-items-center gap-2 px-2 py-2 rounded" href="{{ url('knowledgebase') }}">
+                                            <i class="ti ti-help-circle fs-16 text-muted flex-shrink-0"></i>
+                                            <span>Knowledge Base</span>
+                                        </a>
                                     </div>
                                 </div>
-                                <div class="card-body">
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile-settings')}}">
-                                        <i class="ti ti-user-circle me-1"></i>My Profile
-                                    </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{ $isGlobalHcmAdmin ? url('business-settings') : url('profile-settings') }}">
-                                        <i class="ti ti-settings me-1"></i>Settings
-                                    </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('security-settings')}}">
-                                        <i class="ti ti-status-change me-1"></i>Security
-                                    </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('profile-settings')}}">
-                                        <i class="ti ti-circle-arrow-up me-1"></i>My Account
-                                    </a>
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="{{url('knowledgebase')}}">
-                                        <i class="ti ti-question-mark me-1"></i>Knowledge Base
-                                    </a>
-                                </div>
                                 <div class="card-footer">
-                                    <a class="dropdown-item d-inline-flex align-items-center p-0 py-2" href="javascript:void(0);" data-auth-logout>
-                                        <i class="ti ti-login me-2"></i>Logout
+                                    <a class="dropdown-item d-flex align-items-center gap-2 p-0 py-1 text-danger" href="javascript:void(0);" data-auth-logout>
+                                        <i class="ti ti-logout fs-16 flex-shrink-0"></i>
+                                        <span>Logout</span>
                                     </a>
                                 </div>
                             </div>

@@ -1,4 +1,9 @@
 <!-- Two Col Sidebar -->
+@php
+    $twoColActiveCompanyRole = strtolower(trim((string) request()->attributes->get('activeCompanyRole', '')));
+    $twoColSettingsProfileUrl = $twoColActiveCompanyRole === 'owner' ? url('company-profile') : url('profile-settings');
+    $twoColSettingsProfileLabel = $twoColActiveCompanyRole === 'owner' ? 'Company Profile' : 'Profile';
+@endphp
 <div class="two-col-sidebar" id="two-col-sidebar">
     <div class="sidebar sidebar-twocol">
         <div class="twocol-mini">
@@ -268,7 +273,9 @@
                                     <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                     <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                     <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
                                 </ul>
                             </li>
 @endif
@@ -289,7 +296,9 @@
 @if ($isHcmAdmin)
                                             <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}">Leaves (Admin)</a></li>
 @endif
+@if ($isEmployeeScopedUser)
                                             <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                             <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>												
 @endif
@@ -478,7 +487,7 @@
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
-                                    <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                    <li><a href="{{ $twoColSettingsProfileUrl }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ $twoColSettingsProfileLabel }}</a></li>
                                     <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                     <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                     <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>

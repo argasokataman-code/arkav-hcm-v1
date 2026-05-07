@@ -852,7 +852,7 @@
 					<div class="row g-3">
 						<div class="col-md-12">
 							<label class="form-label">Company name <span class="text-danger">*</span></label>
-							<input class="form-control" name="company_name" placeholder="Nama perusahaan" required maxlength="255">
+							<input class="form-control" name="company_name" placeholder="Nama perusahaan" required minlength="2" maxlength="255">
 							<div class="form-text">Company code akan dibuat otomatis (unik) setelah submit.</div>
 						</div>
 						<div class="col-md-6">

@@ -8,7 +8,7 @@ Route::get('/index', function () {
 
 Route::get('/employee-dashboard', function () {
     return view('hrm.employee-dashboard');
-})->name('employee-dashboard');
+})->middleware('hcm.web.employee:index')->name('employee-dashboard');
 
 Route::get('/super-admin/employees-monitor', function () {
     return view('super-admin.employees-monitor');

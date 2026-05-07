@@ -150,6 +150,24 @@ class SettingsApiTest extends TestCase
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
     }
 
+    public function test_general_settings_reject_invalid_profile_field_formats(): void
+    {
+        $token = $this->bearerToken();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+        ])->postJson('/v1/hcm/settings', [
+            'group' => 'general',
+            'settings' => [
+                'first_name' => 'A',
+                'phone' => 'PHONE###',
+                'postal_code' => '@@@',
+            ],
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR');
+    }
+
     public function test_ai_settings_masks_secret_on_load(): void
     {
         $token = $this->bearerToken();

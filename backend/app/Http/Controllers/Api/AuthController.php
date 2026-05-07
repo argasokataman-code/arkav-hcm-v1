@@ -679,16 +679,22 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'min:2', 'max:150', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,149}$/'],
             // nosemgrep: php.laravel.security.laravel-unsafe-validator.laravel-unsafe-validator
             'email' => ['required', 'string', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'addressDetail' => ['nullable', 'string', 'max:500'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?(?=(?:\D*\d){8,15}\D*$)[0-9\s\-()]+$/'],
+            'address' => ['nullable', 'string', 'max:180', 'regex:/^[A-Za-z0-9\s.,\'\/-]{3,180}$/'],
+            'addressDetail' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
             'companyName' => ['sometimes', 'nullable', 'string', 'min:2', 'max:255'],
             'companyLegalName' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'companyAddress' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'companyCity' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'companyState' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'companyCountry' => ['sometimes', 'nullable', 'string', 'max:120'],
-            'companyPostalCode' => ['sometimes', 'nullable', 'string', 'max:12'],
+            'companyAddress' => ['sometimes', 'nullable', 'string', 'max:180', 'regex:/^[A-Za-z0-9\s.,\'\/-]{3,180}$/'],
+            'companyCity' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'companyState' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'companyCountry' => ['sometimes', 'nullable', 'string', 'max:60', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,59}$/'],
+            'companyPostalCode' => ['sometimes', 'nullable', 'string', 'max:10', 'regex:/^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$/'],
+            'companyNpwp' => ['sometimes', 'nullable', 'string', 'max:32', function ($attribute, $value, $fail) {
+                $normalized = $this->normalizeNpwpInput((string) $value);
+                if ($normalized !== '' && ! $this->isValidNpwpFormat($normalized)) {
+                    $fail('Format NPWP tidak valid. Gunakan 15-16 digit angka.');
+                }
+            }],
             'currentPassword' => ['nullable', 'string', 'max:64'],
             'newPassword' => ['nullable', 'string', 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
             'confirmPassword' => ['required_with:newPassword', 'same:newPassword'],
@@ -722,6 +728,7 @@ class AuthController extends Controller
             'companyState',
             'companyCountry',
             'companyPostalCode',
+            'companyNpwp',
         ]);
         $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
 
@@ -738,14 +745,18 @@ class AuthController extends Controller
                 trim((string) $request->input('addressDetail', '')) ?: null,
             );
         } else {
-            $profile = EmployeeProfile::query()->firstOrNew(['user_id' => $user->id]);
-            if (! $profile->exists && $activeCompany instanceof Company) {
-                $profile->company_id = $activeCompany->id;
+            // Guard: jangan buat EP zombie untuk user yang sebenarnya adalah owner tenant.
+            $isActualOwner = Company::query()->where('owner_user_id', $user->id)->exists();
+            if (! $isActualOwner) {
+                $profile = EmployeeProfile::query()->firstOrNew(['user_id' => $user->id]);
+                if (! $profile->exists && $activeCompany instanceof Company) {
+                    $profile->company_id = $activeCompany->id;
+                }
+                $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
+                $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
+                $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
+                $profile->save();
             }
-            $profile->phone = trim((string) $request->input('phone', $profile->phone ?? '')) ?: null;
-            $profile->address = trim((string) $request->input('address', $profile->address ?? '')) ?: null;
-            $profile->address_detail = trim((string) $request->input('addressDetail', $profile->address_detail ?? '')) ?: null;
-            $profile->save();
         }
 
         if ($isOwnerContext && $hasCompanyProfileInput) {
@@ -790,7 +801,7 @@ class AuthController extends Controller
             'addressDetail' => $profile?->address_detail ?? ($ownerProfile['addressDetail'] ?? null),
             'designation' => $profile?->designation,
             'team' => $profile?->team,
-            'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path),
+            'profilePhotoUrl' => $this->profilePhotoUrl($profile?->profile_photo_path ?? ($ownerProfile['profilePhotoPath'] ?? null)),
             'source' => $profile ? 'employee_profile' : (! empty($ownerProfile) ? 'company_owner_profile' : 'account'),
         ];
     }
@@ -802,6 +813,8 @@ class AuthController extends Controller
             return $normalizedRole;
         }
 
+        // Owner yang belum punya employee_profile tetap harus return 'owner', bukan 'user'.
+        // Tapi jika activeCompanyRole kosong, kita tidak bisa membedakan — return berdasar EP.
         return $profile ? 'employee' : 'user';
     }
 
@@ -816,23 +829,29 @@ class AuthController extends Controller
 
         $settings = CompanySetting::query()
             ->where('company_id', $activeCompany->id)
-            ->whereIn('key', ['owner_phone', 'owner_address', 'owner_address_detail'])
+            ->whereIn('key', ['owner_phone', 'owner_address', 'owner_address_detail', 'owner_profile_photo_path'])
             ->pluck('value', 'key');
 
         return [
             'phone' => $settings->get('owner_phone'),
             'address' => $settings->get('owner_address'),
             'addressDetail' => $settings->get('owner_address_detail'),
+            'profilePhotoPath' => $settings->get('owner_profile_photo_path'),
         ];
     }
 
-    private function storeOwnerProfileSettings(Company $company, ?string $phone, ?string $address, ?string $addressDetail): void
+    private function storeOwnerProfileSettings(Company $company, ?string $phone, ?string $address, ?string $addressDetail, ?string $profilePhotoPath = null): void
     {
         $settings = [
             'owner_phone' => $phone,
             'owner_address' => $address,
             'owner_address_detail' => $addressDetail,
         ];
+
+        // Photo path hanya diupdate jika secara eksplisit diberikan (null = hapus, tidak diberikan = skip).
+        if (func_num_args() >= 5) {
+            $settings['owner_profile_photo_path'] = $profilePhotoPath;
+        }
 
         foreach ($settings as $key => $value) {
             CompanySetting::query()->updateOrCreate(
@@ -859,6 +878,7 @@ class AuthController extends Controller
                 'company_profile_state',
                 'company_profile_country',
                 'company_profile_postal_code',
+                'company_profile_npwp',
             ])
             ->pluck('value', 'key');
 
@@ -870,6 +890,7 @@ class AuthController extends Controller
             'state' => $settings->get('company_profile_state'),
             'country' => $settings->get('company_profile_country'),
             'postalCode' => $settings->get('company_profile_postal_code'),
+            'npwp' => $settings->get('company_profile_npwp'),
         ];
     }
 
@@ -889,12 +910,15 @@ class AuthController extends Controller
             $company->save();
         }
 
+        $normalizedNpwp = $this->normalizeNpwpInput((string) $request->input('companyNpwp', ''));
+
         $profileSettings = [
             'company_profile_address' => trim((string) $request->input('companyAddress', '')) ?: null,
             'company_profile_city' => trim((string) $request->input('companyCity', '')) ?: null,
             'company_profile_state' => trim((string) $request->input('companyState', '')) ?: null,
             'company_profile_country' => trim((string) $request->input('companyCountry', '')) ?: null,
             'company_profile_postal_code' => trim((string) $request->input('companyPostalCode', '')) ?: null,
+            'company_profile_npwp' => $normalizedNpwp !== '' ? $normalizedNpwp : null,
         ];
 
         foreach ($profileSettings as $key => $value) {
@@ -903,6 +927,16 @@ class AuthController extends Controller
                 ['value' => $value, 'type' => 'string']
             );
         }
+    }
+
+    private function normalizeNpwpInput(string $value): string
+    {
+        return preg_replace('/\D+/', '', trim($value)) ?? '';
+    }
+
+    private function isValidNpwpFormat(string $normalizedNpwp): bool
+    {
+        return preg_match('/^[0-9]{15,16}$/', $normalizedNpwp) === 1;
     }
 
     /**

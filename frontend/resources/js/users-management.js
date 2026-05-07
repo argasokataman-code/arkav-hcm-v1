@@ -670,14 +670,14 @@
       if (this.state.roleCode) {
         params.set("roleCode", this.state.roleCode);
       }
-      params.set("format", "csv");
+      params.set("format", "xlsx");
 
       var token = (window.AuthApi && typeof window.AuthApi.getToken === "function") ? window.AuthApi.getToken() : null;
       var tenant = (window.AuthApi && typeof window.AuthApi.getTenantContext === "function")
         ? (window.AuthApi.getTenantContext() || {})
         : {};
 
-      var headers = { Accept: "text/csv" };
+      var headers = { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/csv" };
       if (token) {
         headers.Authorization = "Bearer " + token;
       }
@@ -710,7 +710,7 @@
           var url = window.URL.createObjectURL(blob);
           var a = document.createElement("a");
           a.href = url;
-          a.download = "user-management-export.csv";
+          a.download = "user-management-export.xlsx";
           document.body.appendChild(a);
           a.click();
           a.remove();

@@ -107,6 +107,10 @@ class AttendanceAdminTenantScopeTest extends TestCase
         $rowOutsideA = collect($respA->json('data'))->firstWhere('userId', $outsideUser->id);
         $this->assertNull($rowOutsideA, 'Expected company A response to exclude users without active membership in company A.');
 
+        // Owner (admin) must never appear in the attendance list regardless of membership.
+        $rowOwnerA = collect($respA->json('data'))->firstWhere('userId', $admin->id);
+        $this->assertNull($rowOwnerA, 'Expected company A response to exclude the owner from attendance admin listing.');
+
         $respB = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $companyB->id,

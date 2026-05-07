@@ -190,6 +190,44 @@ class PublicOnboardingApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_company_name_too_short_is_rejected(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'starter',
+            'name' => 'Starter',
+            'monthly_price' => 100000,
+            'yearly_price' => 1000000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $payload = [
+            'package_uuid' => $package->uuid,
+            'billing_cycle' => 'monthly',
+            'consent_accepted' => true,
+            'company' => [
+                'name' => 'A',
+                'timezone' => 'Asia/Jakarta',
+                'currency' => 'IDR',
+                'country_code' => 'ID',
+                'address' => 'Jl. Sudirman Kav. 52-53',
+                'city' => 'Jakarta Selatan',
+            ],
+            'owner' => [
+                'name' => 'Budi Santoso',
+                'email' => 'short.company.name@example.com',
+                'password' => 'StrongPass1',
+                'confirmPassword' => 'StrongPass1',
+            ],
+        ];
+
+        $this->postJson('/v1/public/onboarding', $payload)
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+            ->assertJsonFragment(['field' => 'company.name']);
+    }
+
     public function test_guest_can_onboard_company_owner_and_trial_subscription(): void
     {
         $package = Package::query()->create([

@@ -144,7 +144,9 @@
                                         <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                         <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
 @endif
+@if (in_array(strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))), ['employee', 'member'], true))
                                         <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
                                     </ul>
                                 </li>
 @endif
@@ -163,7 +165,9 @@
 @if ($isHcmAdmin)
                                                 <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}" >Leaves (Admin)</a></li>
 @endif
+@if (in_array(strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))), ['employee', 'member'], true))
                                                 <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
 @if ($isHcmAdmin)
                                                 <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>											
 @endif

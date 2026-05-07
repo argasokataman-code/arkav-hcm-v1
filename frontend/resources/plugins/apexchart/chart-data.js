@@ -779,7 +779,8 @@ $(document).ready(function () {
         enabled: false
       },
 
-      series: [15, 10, 5, 10, 60],
+      series: [],
+      labels: [],
       colors: ['#F26522', '#FFC107', '#E70D0D', '#03C95A', '#0C4B5E'],
       responsive: [{
         breakpoint: 480,
@@ -794,6 +795,11 @@ $(document).ready(function () {
       }],
       legend: {
         show: false
+      },
+      noData: {
+        text: 'Memuat data...',
+        align: 'center',
+        verticalAlign: 'middle'
       }
     }
 
@@ -2012,13 +2018,15 @@ if($('#project-report').length > 0 ){
 }
 
 if ($('#employee-reports').length > 0) {
+  var _empReportYear = new Date().getFullYear();
+  var _empReportMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var options = {
     series: [{
       name: 'Active Employees',
-      data: [50, 55, 57, 56, 61, 58, 63, 60, 66]
+      data: [0,0,0,0,0,0,0,0,0,0,0,0]
     }, {
       name: 'Inactive Employees',
-      data: [76, 85, 101, 98, 87, 105, 91, 114, 94]
+      data: [0,0,0,0,0,0,0,0,0,0,0,0]
     }],
     chart: {
       type: 'bar',
@@ -2031,9 +2039,9 @@ if ($('#employee-reports').length > 0) {
         endingShape: 'rounded'
       }
     },
-    colors: ['#03C95A', '#E8E9EA'], // Active Employees - Green, Inactive Employees - Gray
+    colors: ['#03C95A', '#E8E9EA'],
     dataLabels: {
-      enabled: false, // Disable data labels
+      enabled: false,
     },
     stroke: {
       show: true,
@@ -2041,8 +2049,9 @@ if ($('#employee-reports').length > 0) {
       colors: ['transparent']
     },
     xaxis: {
-      categories: ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
-    },yaxis: {
+      categories: _empReportMonths
+    },
+    yaxis: {
       labels: {
         offsetX: -15,
       }
@@ -2056,7 +2065,7 @@ if ($('#employee-reports').length > 0) {
     tooltip: {
       y: {
         formatter: function (val) {
-          return "$ " + val + " thousands";
+          return val + " employees";
         }
       }
     }
@@ -2064,6 +2073,8 @@ if ($('#employee-reports').length > 0) {
 
   var chart = new ApexCharts(document.querySelector("#employee-reports"), options);
   chart.render();
+  window.__employeeReportChart = chart;
+  window.__employeeReportChartYear = _empReportYear;
 }
 
 if ($('#attendance-report').length > 0) {
@@ -2262,9 +2273,6 @@ if ($('#revenue-chart').length > 0) {
 // Employee Department
 
 if ($('#emp-department').length > 0) {
-  var initialDepartmentCategories = ['UI/UX', 'Development', 'Management', 'HR', 'Testing', 'Marketing'];
-  var initialDepartmentSeries = [80, 110, 80, 20, 60, 100];
-
   function normalizeDepartmentCount(item) {
     if (!item || typeof item !== 'object') return 0;
 
@@ -2280,10 +2288,7 @@ if ($('#emp-department').length > 0) {
 
   function normalizeDepartmentBreakdown(items) {
     if (!Array.isArray(items) || items.length === 0) {
-      return {
-        categories: initialDepartmentCategories,
-        series: initialDepartmentSeries
-      };
+      return { categories: [], series: [] };
     }
 
     var buckets = {};
@@ -2305,16 +2310,10 @@ if ($('#emp-department').length > 0) {
     }
 
     if (categories.length === 0) {
-      return {
-        categories: initialDepartmentCategories,
-        series: initialDepartmentSeries
-      };
+      return { categories: [], series: [] };
     }
 
-    return {
-      categories: categories,
-      series: series
-    };
+    return { categories: categories, series: series };
   }
 
   var initialDepartmentPayload = normalizeDepartmentBreakdown(window.__arcavPendingDepartmentBreakdown);

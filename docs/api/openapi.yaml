@@ -260,7 +260,7 @@ paths:
                       pattern: '^[A-Za-z0-9_-]+$'
                       nullable: true
                       description: Optional. If omitted, server auto-generates a unique code.
-                    name: { type: string, maxLength: 255 }
+                    name: { type: string, minLength: 2, maxLength: 255 }
                     legal_name: { type: string, maxLength: 255, nullable: true }
                     timezone: { type: string, maxLength: 100 }
                     currency: { type: string, maxLength: 10 }
@@ -1143,7 +1143,7 @@ paths:
   /v1/hcm/notifications/delivery-export:
     get:
       tags: [HCM]
-      summary: Export tenant-scoped delivery records as CSV (global HCM admin only)
+      summary: Export tenant-scoped delivery records as XLSX/CSV (global HCM admin only)
       security:
         - bearerAuth: []
       parameters:
@@ -1172,13 +1172,25 @@ paths:
           required: false
           schema:
             type: string
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [xlsx, csv]
+            default: xlsx
       responses:
         '200':
-          description: CSV file exported
+          description: Exported file (xlsx/csv)
           content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
             text/csv:
               schema:
                 type: string
+                format: binary
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
@@ -2275,6 +2287,80 @@ paths:
                       code: TEAM_MASTER_SELECTION_REQUIRED
                       message: Team assignment must use teamId from team master. Leave team empty to keep unassigned.
 
+  /v1/hcm/employees/{id}/profile-photo:
+    parameters:
+      - $ref: '#/components/parameters/EmployeeIdentifierPath'
+    post:
+      tags: [HCM]
+      summary: Upload employee profile photo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Profile photo updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      profilePhotoUrl:
+                        type: string
+                        nullable: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Invalid media file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [HCM]
+      summary: Delete employee profile photo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile photo deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      profilePhotoUrl:
+                        type: string
+                        nullable: true
+                        example: null
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /v1/hcm/employees/bulk-template:
     get:
       tags: [HCM]
@@ -3020,13 +3106,22 @@ paths:
   /v1/hcm/user-management/users/export:
     get:
       tags: [User Management]
-      summary: Export user list as CSV (admin only)
+      summary: Export user list as XLSX/CSV (admin only)
       security:
         - bearerAuth: []
+      parameters:
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [active, inactive, all] } }
+        - { name: roleCode, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [xlsx, csv], default: xlsx } }
       responses:
         '200':
-          description: CSV file
+          description: Exported file (xlsx/csv)
           content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
             text/csv:
               schema:
                 type: string
@@ -4684,7 +4779,7 @@ paths:
   /v1/hcm/leave-requests/export:
     get:
       tags: [Leave]
-      summary: Export leave requests CSV (server-side)
+      summary: Export leave requests XLSX/CSV (server-side)
       security:
         - bearerAuth: []
       parameters:
@@ -4693,6 +4788,7 @@ paths:
         - { name: status, in: query, required: false, schema: { type: string, enum: [pending, approved, declined] } }
         - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
         - { name: dateTo, in: query, required: false, schema: { type: string, format: date } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [xlsx, csv], default: xlsx } }
         -
           name: userId
           in: query
@@ -4704,8 +4800,12 @@ paths:
               - { type: string, format: uuid }
       responses:
         '200':
-          description: CSV export
+          description: Exported file (xlsx/csv)
           content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
             text/csv:
               schema:
                 type: string
@@ -7594,7 +7694,7 @@ paths:
         - bearerAuth: []
       parameters:
         - { name: kind, in: query, required: false, schema: { type: string, enum: [addition, deduction] } }
-        - { name: format, in: query, required: false, schema: { type: string, enum: [csv, xlsx], default: csv } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [xlsx, csv], default: xlsx } }
       responses:
         '200': { description: File stream (csv/xlsx) }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
@@ -10280,17 +10380,24 @@ paths:
   /v1/saas/transactions/export:
     get:
       tags: [SaaS]
-      summary: Export transaction ledger CSV (HCM admin)
+      summary: Export transaction ledger XLSX/CSV (HCM admin)
       description: Used by the active SaaS admin transaction page download action.
       security:
         - bearerAuth: []
+      parameters:
+        - { name: format, in: query, required: false, schema: { type: string, enum: [xlsx, csv], default: xlsx } }
       responses:
         '200':
-          description: CSV export
+          description: Exported file (xlsx/csv)
           content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
             text/csv:
               schema:
                 type: string
+                format: binary
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
@@ -10553,6 +10660,48 @@ paths:
                 $ref: '#/components/schemas/HcmDashboardSummaryResponse'
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/dashboard-summary/export:
+    get:
+      tags: [HCM]
+      summary: Export HCM admin dashboard summary (tenant scoped)
+      description: |
+        Exports high-level dashboard summary metrics for the active tenant.
+        Default format is XLSX, with CSV fallback.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+            enum: [xlsx, csv]
+            default: xlsx
+          description: Export file format.
+      responses:
+        '200':
+          description: Dashboard summary export file stream
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string }
 
   /v1/hcm/employee-dashboard-summary:
     get:
@@ -14135,6 +14284,10 @@ components:
                 postalCode:
                   type: string
                   nullable: true
+                npwp:
+                  type: string
+                  nullable: true
+                  description: Normalized company NPWP (15-16 digits) for owner tenant context.
     MeResponse:
       type: object
       properties:
@@ -14293,15 +14446,18 @@ components:
         phone:
           type: string
           nullable: true
-          maxLength: 50
+          maxLength: 20
+          pattern: '^\\+?(?=(?:\\D*\\d){8,15}\\D*$)[0-9\\s\\-()]+$'
         address:
           type: string
           nullable: true
-          maxLength: 500
+          maxLength: 180
+          pattern: "^[A-Za-z0-9\\s.,'\\/-]{3,180}$"
         addressDetail:
           type: string
           nullable: true
-          maxLength: 500
+          maxLength: 60
+          pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,59}$"
         companyName:
           type: string
           nullable: true
@@ -14314,23 +14470,34 @@ components:
         companyAddress:
           type: string
           nullable: true
-          maxLength: 500
+          maxLength: 180
+          pattern: "^[A-Za-z0-9\\s.,'\\/-]{3,180}$"
         companyCity:
           type: string
           nullable: true
-          maxLength: 120
+          maxLength: 60
+          pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,59}$"
         companyState:
           type: string
           nullable: true
-          maxLength: 120
+          maxLength: 60
+          pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,59}$"
         companyCountry:
           type: string
           nullable: true
-          maxLength: 120
+          maxLength: 60
+          pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,59}$"
         companyPostalCode:
           type: string
           nullable: true
-          maxLength: 12
+          maxLength: 10
+          pattern: '^[A-Za-z0-9][A-Za-z0-9\\s-]{2,9}$'
+        companyNpwp:
+          type: string
+          nullable: true
+          maxLength: 32
+          pattern: '^[0-9.\\-\\s]{15,32}$'
+          description: Company NPWP input. Backend normalizes to digits-only and requires 15-16 digits.
         currentPassword:
           type: string
           nullable: true
@@ -14414,6 +14581,10 @@ components:
                 postalCode:
                   type: string
                   nullable: true
+                npwp:
+                  type: string
+                  nullable: true
+                  description: Normalized company NPWP (15-16 digits) for owner tenant context.
             subscription:
               type: object
               nullable: true

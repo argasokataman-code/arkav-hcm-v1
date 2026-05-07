@@ -1582,21 +1582,22 @@ class HcmTaxGovernanceController extends Controller
             return $response;
         }
 
-        $companyId = $request->input('company_id');
+        $companyIdInput = $request->input('company_id');
+        $companyId = is_numeric($companyIdInput) ? (int) $companyIdInput : null;
         $userCompanyId = $this->activeCompanyId($request);
         $format = $request->input('format', 'json'); // json or pdf
 
         // Authorization: tenant user can only export own tenant; global admin can export any
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $companyId && $companyId !== $userCompanyId) {
+        if (! $isGlobalAdmin && $companyId !== null && $companyId !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot export other tenant audit report.', 403);
         }
 
-        if (!$companyId && $userCompanyId) {
+        if ($companyId === null && $userCompanyId) {
             $companyId = $userCompanyId;
         }
 
-        if (!$companyId) {
+        if ($companyId === null) {
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 

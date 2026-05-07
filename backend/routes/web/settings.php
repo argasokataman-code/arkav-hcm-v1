@@ -1,15 +1,32 @@
 <?php
 
+use App\Models\Company;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Profile / account settings (any authenticated user)
-Route::get('/profile-settings', function () {
+Route::get('/profile-settings', function (Request $request) {
+    $activeCompany = $request->attributes->get('activeCompany');
+    $activeCompanyRole = strtolower(trim((string) $request->attributes->get('activeCompanyRole', '')));
+
+    if ($activeCompany instanceof Company && $activeCompanyRole === 'owner') {
+        return to_route('company-profile');
+    }
+
     return view('settings.profile-settings');
 })->name('profile-settings');
 
 Route::get('/company-profile', function () {
     return view('settings.company-profile');
 })->middleware('hcm.web.admin')->name('company-profile');
+
+Route::get('/company-overview', function (Request $request) {
+    $role = strtolower(trim((string) $request->attributes->get('activeCompanyRole', '')));
+    if ($role !== 'owner') {
+        return redirect()->route('company-profile');
+    }
+    return view('settings.company-overview');
+})->middleware('hcm.web.admin')->name('company-overview');
 
 Route::redirect('/profile-settingsrout', '/profile-settings', 301)->name('profile-settings.alias');
 

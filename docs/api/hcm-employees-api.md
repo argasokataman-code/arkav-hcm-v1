@@ -190,6 +190,48 @@ Error `422`:
 - `TEAM_INACTIVE_NOT_ASSIGNABLE` — assignment ke team inactive ditolak.
 - `TEAM_MASTER_SELECTION_REQUIRED` — assignment wajib memakai `teamId` dari master teams.
 
+### POST `/employees/{id}/profile-photo`
+
+RBAC:
+- HCM Admin: boleh upload foto untuk employee dalam tenant aktif
+- Non-admin: hanya boleh upload foto milik sendiri (`id == auth.id`)
+
+Identifier:
+- Path `{id}` saat ini **numeric legacy** (`users.id`)
+
+Multipart body:
+- `photo` required file image
+- format: `jpg|jpeg|png|gif`
+- max size: `2048 KB`
+
+Success `200`:
+- `data.profilePhotoUrl` URL publik foto terbaru
+
+Error:
+- `403 AUTH_FORBIDDEN`
+- `404 EMPLOYEE_NOT_FOUND`
+- `422 INVALID_MEDIA`
+
+### DELETE `/employees/{id}/profile-photo`
+
+RBAC:
+- HCM Admin: boleh hapus foto untuk employee dalam tenant aktif
+- Non-admin: hanya boleh hapus foto milik sendiri (`id == auth.id`)
+
+Identifier:
+- Path `{id}` saat ini **numeric legacy** (`users.id`)
+
+Behavior:
+- File lama di storage akan dihapus (jika ada)
+- `employee_profiles.profile_photo_path` di-reset ke `null`
+
+Success `200`:
+- `data.profilePhotoUrl = null`
+
+Error:
+- `403 AUTH_FORBIDDEN`
+- `404 EMPLOYEE_NOT_FOUND`
+
 ## Bulk
 
 ### GET `/employees/bulk-template`

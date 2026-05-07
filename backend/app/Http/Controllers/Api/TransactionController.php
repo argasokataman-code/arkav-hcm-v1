@@ -8,6 +8,7 @@ use App\Models\PackageAddon;
 use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Models\Transaction;
+use App\Support\Exports\TabularExportResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -405,44 +406,40 @@ class TransactionController extends Controller
             ], 403);
         }
 
+        $validated = $request->validate([
+            'format' => ['nullable', 'string', Rule::in(['xlsx', 'csv'])],
+        ]);
+
         $transactions = Transaction::with(['subscription' => function ($q) {
             $q->with(['company', 'package']);
         }])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $filename = 'transactions-export-' . now()->format('Y-m-d') . '.csv';
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $headers = ['Invoice Number', 'Company', 'Subscription', 'Amount', 'Status', 'Payment Method', 'Date'];
+        $rows = $transactions->map(static function (Transaction $txn): array {
+            $companyName = $txn->subscription?->company?->name ?? 'N/A';
+            $packageName = $txn->subscription?->package?->name ?? 'N/A';
 
-        return response()->streamDownload(function () use ($transactions): void {
-            $stream = fopen('php://output', 'wb');
-            if (! $stream) {
-                return;
-            }
+            return [
+                (string) $txn->invoice_number,
+                (string) $companyName,
+                (string) $packageName,
+                (string) $txn->amount,
+                (string) $txn->status,
+                (string) $txn->payment_method,
+                $txn->created_at?->format('Y-m-d H:i:s') ?? '',
+            ];
+        })->values()->all();
 
-            // UTF-8 BOM to improve Excel compatibility for non-ASCII text.
-            fwrite($stream, "\xEF\xBB\xBF");
-
-            fputcsv($stream, ['Invoice Number', 'Company', 'Subscription', 'Amount', 'Status', 'Payment Method', 'Date']);
-
-            foreach ($transactions as $txn) {
-                $companyName = $txn->subscription?->company?->name ?? 'N/A';
-                $packageName = $txn->subscription?->package?->name ?? 'N/A';
-
-                fputcsv($stream, [
-                    (string) $txn->invoice_number,
-                    (string) $companyName,
-                    (string) $packageName,
-                    (string) $txn->amount,
-                    (string) $txn->status,
-                    (string) $txn->payment_method,
-                    $txn->created_at?->format('Y-m-d H:i:s') ?? '',
-                ]);
-            }
-
-            fclose($stream);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return TabularExportResponse::download(
+            headers: $headers,
+            rows: $rows,
+            filenameBase: 'transactions-export-' . now()->format('Y-m-d'),
+            format: $format,
+            sheetTitle: 'Transactions'
+        );
     }
 
     /**

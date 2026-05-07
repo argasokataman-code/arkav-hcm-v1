@@ -19,7 +19,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <a href="{{ url('notification-settings') }}" class="btn btn-light">Back to Settings</a>
-                <button type="button" class="btn btn-secondary" data-notification-observability-export>Export CSV</button>
+                <button type="button" class="btn btn-secondary" data-notification-observability-export>Export Excel</button>
                 <button type="button" class="btn btn-primary" data-notification-observability-refresh>Refresh</button>
             </div>
         </div>

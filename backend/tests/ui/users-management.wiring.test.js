@@ -113,7 +113,7 @@ describe('Users management wiring', () => {
     expect(exportCall).toBeTruthy();
     expect(String(exportCall[0])).toContain('/v1/hcm/user-management/users/export?');
     expect(String(exportCall[0])).toContain('status=active');
-    expect(String(exportCall[0])).toContain('format=csv');
+    expect(String(exportCall[0])).toContain('format=xlsx');
     expect(exportCall[1].headers.Authorization).toBe('Bearer token-abc');
     expect(exportCall[1].headers['X-Company-Code']).toBe('ACME');
     expect(exportCall[1].headers['X-Company-Id']).toBe('99');

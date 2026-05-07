@@ -57,6 +57,26 @@ Response envelope:
   - `birthdays.today[]`
   - `birthdays.tomorrow[]`
 
+### 1b. Admin dashboard summary export
+
+`GET /v1/hcm/dashboard-summary/export?format=xlsx|csv`
+
+Catatan kontrak:
+
+- Default format: `xlsx`.
+- Fallback: `csv`.
+- Scope data mengikuti tenant context aktif.
+- Authorization sama dengan endpoint summary (`dashboard.view`).
+
+Response:
+
+- `200` file stream dengan:
+  - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` saat `format=xlsx` atau default.
+  - `text/csv; charset=UTF-8` saat `format=csv`.
+- `401` jika token tidak valid.
+- `403` jika permission tidak memenuhi.
+- `422` jika format tidak valid.
+
 ### 2. Employee dashboard summary
 
 `GET /v1/hcm/employee-dashboard-summary`
@@ -196,3 +216,8 @@ Validasi query:
 
 - Payload `GET /v1/hcm/employee-dashboard-summary` kini mendokumentasikan `profile.profilePhotoUrl` (nullable) untuk sinkron avatar card employee dashboard.
 - Tidak ada perubahan path atau authorization flow.
+
+## Contract Notes (2026-05-07)
+
+- Path additive baru: `GET /v1/hcm/dashboard-summary/export`.
+- Tujuan: mengaktifkan tombol export di halaman `/index` dengan format standar `xlsx` (default) dan `csv` fallback.

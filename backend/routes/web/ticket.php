@@ -28,7 +28,7 @@ Route::get('/tickets-employee', function () {
         'ticketMode' => 'employee',
         'ticketTitle' => 'Tickets (Employee)',
     ]);
-})->middleware('hcm.web.feature:tickets')->name('tickets-employee');
+})->middleware(['hcm.web.feature:tickets', 'hcm.web.employee:tickets-admin'])->name('tickets-employee');
 
 Route::get('/ticket-master', function () {
     return view(view: 'ticket-master');

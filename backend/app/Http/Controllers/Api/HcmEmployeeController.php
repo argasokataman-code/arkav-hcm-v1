@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Services\Media\AvatarStorageService;
@@ -37,6 +38,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -295,6 +297,42 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
         $teamId = $validated['teamId'] ?? null;
+
+        if ($departmentId && ! Department::query()->whereKey((int) $departmentId)->where('company_id', $activeCompanyId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'DEPARTMENT_NOT_FOUND',
+                    'message' => 'Department not found in active company context.',
+                ],
+            ], 422);
+        }
+
+        if ($designationId) {
+            $designationInCompany = Designation::query()
+                ->whereKey((int) $designationId)
+                ->whereHas('department', fn ($q) => $q->where('company_id', $activeCompanyId))
+                ->exists();
+            if (! $designationInCompany) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'DESIGNATION_NOT_FOUND',
+                        'message' => 'Designation not found in active company context.',
+                    ],
+                ], 422);
+            }
+        }
+
+        if ($teamId && ! DB::table('teams')->where('id', (int) $teamId)->where('company_id', $activeCompanyId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TEAM_NOT_FOUND',
+                    'message' => 'Team not found in active company context.',
+                ],
+            ], 422);
+        }
         $taxFilter = $validated['taxFilter'] ?? null;
 
         // Security hard-guard: employee directory is always tenant-scoped.
@@ -702,6 +740,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to export employees.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in($this->directoryStatusOptions())],
@@ -716,6 +765,42 @@ class HcmEmployeeController extends Controller
         $departmentId = $validated['departmentId'] ?? null;
         $designationId = $validated['designationId'] ?? null;
         $teamId = $validated['teamId'] ?? null;
+
+        if ($departmentId && ! Department::query()->whereKey((int) $departmentId)->where('company_id', $activeCompanyId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'DEPARTMENT_NOT_FOUND',
+                    'message' => 'Department not found in active company context.',
+                ],
+            ], 422);
+        }
+
+        if ($designationId) {
+            $designationInCompany = Designation::query()
+                ->whereKey((int) $designationId)
+                ->whereHas('department', fn ($q) => $q->where('company_id', $activeCompanyId))
+                ->exists();
+            if (! $designationInCompany) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'DESIGNATION_NOT_FOUND',
+                        'message' => 'Designation not found in active company context.',
+                    ],
+                ], 422);
+            }
+        }
+
+        if ($teamId && ! DB::table('teams')->where('id', (int) $teamId)->where('company_id', $activeCompanyId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TEAM_NOT_FOUND',
+                    'message' => 'Team not found in active company context.',
+                ],
+            ], 422);
+        }
 
         $query = User::query()
             ->with([
@@ -738,7 +823,8 @@ class HcmEmployeeController extends Controller
                     ]);
                 },
             ])
-            ->select(['id', 'uuid', 'name', 'email', 'created_at']);
+            ->select(['id', 'uuid', 'name', 'email', 'created_at'])
+            ->whereHas('employeeProfile', fn ($p) => $p->where('company_id', $activeCompanyId));
 
         if ($search) {
             $term = trim($search);
@@ -816,6 +902,25 @@ class HcmEmployeeController extends Controller
                     'message' => 'Employee not found.',
                 ],
             ], 404);
+        }
+
+        // Owners are not employees — block update regardless of who is requesting.
+        $activeCompanyId = $this->activeCompanyId($request);
+        if ($activeCompanyId) {
+            $isOwner = CompanyUser::query()
+                ->where('company_id', $activeCompanyId)
+                ->where('user_id', $user->id)
+                ->where('role', 'owner')
+                ->exists();
+            if ($isOwner) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'EMPLOYEE_NOT_FOUND',
+                        'message' => 'Employee not found.',
+                    ],
+                ], 404);
+            }
         }
 
         $auth = $request->user();
@@ -1071,6 +1176,25 @@ class HcmEmployeeController extends Controller
             ], 404);
         }
 
+        // Owners are not employees — block access regardless of who is requesting.
+        $activeCompanyId = $this->activeCompanyId($request);
+        if ($activeCompanyId) {
+            $isOwner = CompanyUser::query()
+                ->where('company_id', $activeCompanyId)
+                ->where('user_id', $user->id)
+                ->where('role', 'owner')
+                ->exists();
+            if ($isOwner) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'EMPLOYEE_NOT_FOUND',
+                        'message' => 'Employee not found.',
+                    ],
+                ], 404);
+            }
+        }
+
         if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
             return response()->json([
                 'success' => false,
@@ -1222,6 +1346,25 @@ class HcmEmployeeController extends Controller
             ], 404);
         }
 
+        // Owners are not employees — block photo upload via employee endpoint.
+        $activeCompanyIdForPhoto = $this->activeCompanyId($request);
+        if ($activeCompanyIdForPhoto) {
+            $isOwnerForPhoto = CompanyUser::query()
+                ->where('company_id', $activeCompanyIdForPhoto)
+                ->where('user_id', $user->id)
+                ->where('role', 'owner')
+                ->exists();
+            if ($isOwnerForPhoto) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'EMPLOYEE_NOT_FOUND',
+                        'message' => 'Employee not found.',
+                    ],
+                ], 404);
+            }
+        }
+
         if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
             return response()->json([
                 'success' => false,
@@ -1232,9 +1375,20 @@ class HcmEmployeeController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'photo' => ['required', 'file'],
+        $validator = Validator::make($request->all(), [
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
         ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'INVALID_MEDIA',
+                    'message' => (string) ($validator->errors()->first('photo') ?: 'Invalid profile photo file.'),
+                ],
+            ], 422);
+        }
+
+        $validated = $validator->validated();
 
         $activeCompanyId = $this->activeCompanyId($request);
         $profileQuery = EmployeeProfile::query()->where('user_id', $user->id);
@@ -1247,6 +1401,32 @@ class HcmEmployeeController extends Controller
             $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
         }
         if (! $profile) {
+            // Fallback kedua: user adalah owner tenant tanpa employee_profile
+            $activeCompany = $activeCompanyId ? Company::query()->find($activeCompanyId) : null;
+            if ($activeCompany && (int) $activeCompany->owner_user_id === (int) $user->id) {
+                $previousPath = CompanySetting::query()
+                    ->where('company_id', $activeCompany->id)
+                    ->where('key', 'owner_profile_photo_path')
+                    ->value('value');
+                try {
+                    $stored = $this->avatarStorage->replace((string) ($previousPath ?? ''), $validated['photo'], $user->id);
+                } catch (InvalidMediaException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => ['code' => 'INVALID_MEDIA', 'message' => $e->getMessage()],
+                    ], 422);
+                }
+                CompanySetting::query()->updateOrCreate(
+                    ['company_id' => $activeCompany->id, 'key' => 'owner_profile_photo_path'],
+                    ['value' => $stored->path, 'type' => 'string']
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'data' => ['profilePhotoUrl' => $this->profilePhotoUrl($stored->path)],
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'EMPLOYEE_NOT_FOUND', 'message' => 'Employee profile not found.'],
@@ -1279,10 +1459,101 @@ class HcmEmployeeController extends Controller
         ]);
     }
 
+    public function deleteProfilePhoto(Request $request, int $id): JsonResponse
+    {
+        $auth = $request->user();
+        $canManage = $this->canManageEmployee($request);
+        if (! $canManage && $auth->id !== $id) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'AUTH_FORBIDDEN',
+                    'message' => 'You are not allowed to update this employee photo.',
+                ],
+            ], 403);
+        }
+
+        $user = User::query()->find($id);
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'EMPLOYEE_NOT_FOUND',
+                    'message' => 'Employee not found.',
+                ],
+            ], 404);
+        }
+
+        if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'EMPLOYEE_NOT_FOUND',
+                    'message' => 'Employee not found.',
+                ],
+            ], 404);
+        }
+
+        $activeCompanyId = $this->activeCompanyId($request);
+        $profileQuery = EmployeeProfile::query()->where('user_id', $user->id);
+        if ($activeCompanyId) {
+            $profileQuery->where('company_id', $activeCompanyId);
+        }
+        $profile = $profileQuery->first();
+        if (! $profile) {
+            $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
+        }
+        if (! $profile) {
+            // Fallback: user adalah owner tenant tanpa employee_profile
+            $activeCompany = $activeCompanyId ? Company::query()->find($activeCompanyId) : null;
+            if ($activeCompany && (int) $activeCompany->owner_user_id === (int) $user->id) {
+                $setting = CompanySetting::query()
+                    ->where('company_id', $activeCompany->id)
+                    ->where('key', 'owner_profile_photo_path')
+                    ->first();
+                if ($setting) {
+                    $this->mediaFileDeleter->delete($setting->value);
+                    $setting->update(['value' => null]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => ['profilePhotoUrl' => null],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'EMPLOYEE_NOT_FOUND', 'message' => 'Employee profile not found.'],
+            ], 404);
+        }
+
+        $this->mediaFileDeleter->delete($profile->profile_photo_path);
+        $profile->update(['profile_photo_path' => null]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'profilePhotoUrl' => null,
+            ],
+        ]);
+    }
+
     public function bulkTemplate(Request $request)
     {
         if ($forbidden = $this->ensurePermission($request, 'employee.manage')) {
             return $forbidden;
+        }
+
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to download bulk template.',
+                ],
+            ], 422);
         }
 
         $headers = [
@@ -1297,8 +1568,8 @@ class HcmEmployeeController extends Controller
 
         $rows = [
             [
-                '', 'Budi Santoso', 'budi@company.com', '', '',
-                '', 'HR Shared Services', 1, 1, 'HR Officer', 'active', 'permanent', '2024-01-15', '',
+                '', 'Budi Santoso', 'budi@company.com', 'StrongPass1!', 'StrongPass1!',
+                '', 'HR Shared Services', '', '', 'HR Officer', 'active', 'permanent', '2024-01-15', '',
                 5000000,
                 'permanent', 'active', '2024-01-15', '', '',
                 '3175010101900001', '08123456789', 'Jakarta', 'Jakarta', '1990-01-01', 'male', 'married', 'Islam', 'Indonesia', 'HR Admin',
@@ -1306,8 +1577,8 @@ class HcmEmployeeController extends Controller
                 '', 'TK0', 'TK0', 'BPKES001', 'BPTK001',
             ],
             [
-                '', 'Siti Aminah', 'siti@company.com', 'StrongPass1', 'StrongPass1',
-                '', 'Finance Operations', 2, 3, 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
+                '', 'Siti Aminah', 'siti@company.com', 'StrongPass1!', 'StrongPass1!',
+                '', 'Finance Operations', '', '', 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
                 6200000,
                 'contract', 'active', '2025-02-01', '2026-01-31', '',
                 '3174010101900001', '08129876543', 'Bandung', 'Bandung', '1990-01-01', 'female', 'single', 'Islam', 'Indonesia', '',
@@ -1339,14 +1610,18 @@ class HcmEmployeeController extends Controller
         }
 
         $departments = Department::query()
+            ->where('company_id', $activeCompanyId)
             ->orderBy('name')
             ->get(['id', 'name', 'code'])
             ->map(fn (Department $department) => [$department->id, $department->name, $department->code])
             ->values()
             ->all();
 
+        $departmentIds = array_column($departments, 0);
+
         $designations = Designation::query()
             ->with('department:id,name')
+            ->when($departmentIds !== [], fn ($q) => $q->whereIn('department_id', $departmentIds))
             ->orderBy('name')
             ->get(['id', 'department_id', 'name', 'code'])
             ->map(fn (Designation $designation) => [
@@ -1362,6 +1637,7 @@ class HcmEmployeeController extends Controller
         $teams = DB::table('teams')
             ->leftJoin('departments', 'departments.id', '=', 'teams.department_id')
             ->select('teams.id', 'teams.department_id', 'teams.name', 'departments.name as department_name')
+            ->where('teams.company_id', $activeCompanyId)
             ->orderBy('departments.name')
             ->orderBy('teams.name')
             ->get()
@@ -1398,18 +1674,18 @@ class HcmEmployeeController extends Controller
         $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_enums', ['employment_status', 'contract_type', 'contract_status', 'gender', 'marital_status', 'religion', 'tax_status'], $enumRows);
 
         $validationEndRow = 250;
-        $this->applyDropdownValidation($sheet, 'E2:E'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
-        $this->applyDropdownValidation($sheet, 'G2:G'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
-        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
-        $this->applyDropdownValidation($sheet, 'J2:J'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
-        $this->applyDropdownValidation($sheet, 'O2:O'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
-        $this->applyDropdownValidation($sheet, 'P2:P'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
-        $this->applyDropdownValidation($sheet, 'Y2:Y'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
-        $this->applyDropdownValidation($sheet, 'Z2:Z'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
-        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
-        $this->applyDropdownValidation($sheet, 'AD2:AD'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
-        $this->applyDropdownValidation($sheet, 'AJ2:AJ'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
-        $this->applyDropdownValidation($sheet, 'AK2:AK'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
+        $this->applyDropdownValidation($sheet, 'F2:F'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
+        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
+        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
+        $this->applyDropdownValidation($sheet, 'K2:K'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
+        $this->applyDropdownValidation($sheet, 'P2:P'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
+        $this->applyDropdownValidation($sheet, 'Q2:Q'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
+        $this->applyDropdownValidation($sheet, 'Z2:Z'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
+        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
+        $this->applyDropdownValidation($sheet, 'AB2:AB'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
+        $this->applyDropdownValidation($sheet, 'AE2:AE'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
+        $this->applyDropdownValidation($sheet, 'AK2:AK'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
+        $this->applyDropdownValidation($sheet, 'AL2:AL'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
 
         $tmp = tempnam(sys_get_temp_dir(), 'employee-bulk-template-');
         if ($tmp === false) {
@@ -1681,13 +1957,19 @@ class HcmEmployeeController extends Controller
 
             $profile->team = $teamNameInput;
             $profile->team_id = $teamId;
-            if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->exists()) {
-                $errors[] = "Row {$lineNo}: department_id tidak ditemukan.";
+            if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where('company_id', $activeCompanyId)->exists()) {
+                $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
                 continue;
             }
-            if ($bulkDesigId && ! Designation::query()->whereKey($bulkDesigId)->exists()) {
-                $errors[] = "Row {$lineNo}: designation_id tidak ditemukan.";
-                continue;
+            if ($bulkDesigId) {
+                $desigBelongsToCompanyDept = Designation::query()
+                    ->whereKey($bulkDesigId)
+                    ->whereHas('department', fn ($q) => $q->where('company_id', $activeCompanyId))
+                    ->exists();
+                if (! $desigBelongsToCompanyDept) {
+                    $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
+                    continue;
+                }
             }
             $orgBulk = $this->resolveOrganizationForWrite(
                 $bulkDeptId,
@@ -2035,6 +2317,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to export departments.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
@@ -2043,10 +2336,8 @@ class HcmEmployeeController extends Controller
 
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
-        $activeCompanyId = $this->activeCompanyId($request);
 
-        $query = Department::query();
-        $this->applyTenantScope($query, $activeCompanyId);
+        $query = Department::query()->where('company_id', $activeCompanyId);
 
         $rows = $query
             ->withCount('designations')
@@ -2224,6 +2515,17 @@ class HcmEmployeeController extends Controller
             return $forbidden;
         }
 
+        $activeCompanyId = $this->activeCompanyId($request);
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to export designations.',
+                ],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
@@ -2234,10 +2536,18 @@ class HcmEmployeeController extends Controller
         $search = $validated['search'] ?? null;
         $status = $validated['status'] ?? null;
         $departmentId = $validated['departmentId'] ?? null;
-        $activeCompanyId = $this->activeCompanyId($request);
 
-        $query = Designation::query();
-        $this->applyTenantScope($query, $activeCompanyId);
+        if ($departmentId && ! Department::query()->whereKey((int) $departmentId)->where('company_id', $activeCompanyId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'DEPARTMENT_NOT_FOUND',
+                    'message' => 'Department not found in active company context.',
+                ],
+            ], 422);
+        }
+
+        $query = Designation::query()->where('company_id', $activeCompanyId);
 
         $rows = $query
             ->with('department:id,name')

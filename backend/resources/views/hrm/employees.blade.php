@@ -109,10 +109,10 @@
 
             <div class="row">
 
-                <!-- Total Plans -->
+                <!-- Total Employee -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-dark rounded-circle"><i class="ti ti-users"></i></span>
@@ -122,21 +122,15 @@
                                     <h4 data-employees-total>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-purple badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Total Plans -->
+                <!-- /Total Employee -->
 
-                <!-- Total Plans -->
+                <!-- Active -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-success rounded-circle"><i class="ti ti-user-share"></i></span>
@@ -146,45 +140,33 @@
                                     <h4 data-employees-active>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-primary badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Total Plans -->
+                <!-- /Active -->
 
-                <!-- Inactive Plans -->
+                <!-- Inactive -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-danger rounded-circle"><i class="ti ti-user-pause"></i></span>
                                 </div>
                                 <div class="ms-2 overflow-hidden">
-                                    <p class="fs-12 fw-medium mb-1 text-truncate">InActive</p>
+                                    <p class="fs-12 fw-medium mb-1 text-truncate">Inactive</p>
                                     <h4 data-employees-inactive>0</h4>
                                 </div>
-                            </div>
-                            <div>                                    
-                                <span class="badge badge-soft-dark badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Inactive Companies -->
+                <!-- /Inactive -->
 
-                <!-- No of Plans  -->
+                <!-- New Joiners -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-info rounded-circle"><i class="ti ti-user-plus"></i></span>
@@ -194,16 +176,10 @@
                                     <h4 data-employees-new-joiners>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-secondary badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /No of Plans -->
+                <!-- /New Joiners -->
 
             </div>
 
@@ -331,6 +307,39 @@
         </div>
     </div>
 
+    <div class="modal fade" id="employee_bulk_team_reassign" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-md">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Bulk Reassign Team</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form data-employees-bulk-reassign-form>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">
+                            Aksi ini akan memindahkan semua employee terpilih ke team tujuan yang sama.
+                        </p>
+                        <div class="alert alert-light border mb-3 py-2 px-3">
+                            Selected employee: <strong data-employees-bulk-selected-count>0</strong>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Target Team</label>
+                            <select class="form-select" data-employees-bulk-target-team required>
+                                <option value="">Select target team</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">Pilih "Unassign Team" jika ingin mengosongkan assignment team.</small>
+                        </div>
+                        <div class="alert d-none mb-0" data-employees-bulk-reassign-result></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning" data-employees-bulk-submit>Apply Reassign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="employee_bulk_upload" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
@@ -338,39 +347,6 @@
                     <h5 class="modal-title">Bulk Upload Employee</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-
-                    <div class="modal fade" id="employee_bulk_team_reassign" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered modal-md">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Bulk Reassign Team</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <form data-employees-bulk-reassign-form>
-                                    <div class="modal-body">
-                                        <p class="text-muted mb-3">
-                                            Aksi ini akan memindahkan semua employee terpilih ke team tujuan yang sama.
-                                        </p>
-                                        <div class="alert alert-light border mb-3 py-2 px-3">
-                                            Selected employee: <strong data-employees-bulk-selected-count>0</strong>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Target Team</label>
-                                            <select class="form-select" data-employees-bulk-target-team required>
-                                                <option value="">Select target team</option>
-                                            </select>
-                                            <small class="text-muted d-block mt-1">Pilih "Unassign Team" jika ingin mengosongkan assignment team.</small>
-                                        </div>
-                                        <div class="alert d-none mb-0" data-employees-bulk-reassign-result></div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-warning" data-employees-bulk-submit>Apply Reassign</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
                 <form data-employee-bulk-upload-form>
                     <div class="modal-body">
                         <p class="text-muted mb-3">

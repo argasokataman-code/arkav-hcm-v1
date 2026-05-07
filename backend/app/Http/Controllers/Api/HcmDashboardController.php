@@ -24,10 +24,13 @@ use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
 use App\Models\User;
+use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class HcmDashboardController extends Controller
 {
@@ -557,6 +560,74 @@ class HcmDashboardController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function exportSummary(Request $request): JsonResponse|StreamedResponse
+    {
+        $validated = $request->validate([
+            'format' => ['nullable', 'string', Rule::in(['xlsx', 'csv'])],
+        ]);
+
+        $summaryResponse = $this->summary($request);
+        if ($summaryResponse->getStatusCode() !== 200) {
+            return $summaryResponse;
+        }
+
+        $payload = $summaryResponse->getData(true);
+        $data = is_array($payload) ? ($payload['data'] ?? []) : [];
+
+        $executive = is_array($data['executive'] ?? null) ? $data['executive'] : [];
+        $attendanceToday = is_array($executive['attendanceToday'] ?? null) ? $executive['attendanceToday'] : [];
+        $payrollMonth = is_array($executive['payrollActiveMonth'] ?? null) ? $executive['payrollActiveMonth'] : [];
+
+        $payrollCenter = is_array($data['payrollCommandCenter'] ?? null) ? $data['payrollCommandCenter'] : [];
+        $approval = is_array($data['approvalInbox'] ?? null) ? $data['approvalInbox'] : [];
+
+        $signals = is_array($data['workforceAndAlerts'] ?? null) ? $data['workforceAndAlerts'] : [];
+        $anomaly = is_array($signals['attendanceAnomaly'] ?? null) ? $signals['attendanceAnomaly'] : [];
+
+        $rows = [
+            ['Executive', 'Total Employees', (string) ($executive['totalEmployees'] ?? 0)],
+            ['Executive', 'Active Employees', (string) ($executive['activeEmployees'] ?? 0)],
+            ['Executive', 'Probation Employees', (string) ($executive['probationEmployees'] ?? 0)],
+            ['Executive', 'Inactive Employees', (string) ($executive['inactiveEmployees'] ?? 0)],
+            ['Executive', 'PKWT Due In 30 Days', (string) ($executive['pkwtDueIn30Days'] ?? 0)],
+
+            ['Attendance Today', 'Present', (string) ($attendanceToday['present'] ?? 0)],
+            ['Attendance Today', 'Late', (string) ($attendanceToday['late'] ?? 0)],
+            ['Attendance Today', 'No Check In', (string) ($attendanceToday['noCheckIn'] ?? 0)],
+
+            ['Payroll Active Month', 'Draft', (string) ($payrollMonth['draft'] ?? 0)],
+            ['Payroll Active Month', 'Paid', (string) ($payrollMonth['paid'] ?? 0)],
+            ['Payroll Active Month', 'Unpaid', (string) ($payrollMonth['unpaid'] ?? 0)],
+
+            ['Payroll Command Center', 'Period Status', (string) ($payrollCenter['periodStatus'] ?? '—')],
+            ['Payroll Command Center', 'Latest Run Status', (string) ($payrollCenter['latestRunStatus'] ?? '—')],
+            ['Payroll Command Center', 'Latest Run Payment Status', (string) ($payrollCenter['latestRunPaymentStatus'] ?? 'unpaid')],
+            ['Payroll Command Center', 'Employee Line Count', (string) ($payrollCenter['employeeLineCount'] ?? 0)],
+
+            ['Approval Inbox', 'Pending Leave Request', (string) ($approval['pendingLeaveRequest'] ?? 0)],
+            ['Approval Inbox', 'Pending Overtime Request', (string) ($approval['pendingOvertimeRequest'] ?? 0)],
+            ['Approval Inbox', 'Pending Resignation Or Termination', (string) ($approval['pendingResignationOrTermination'] ?? 0)],
+            ['Approval Inbox', 'Pending Promotion Review', (string) ($approval['pendingPromotionReview'] ?? 0)],
+
+            ['Workforce & Alerts', 'Joiner This Month', (string) ($signals['joinerThisMonth'] ?? 0)],
+            ['Workforce & Alerts', 'Resignation This Month', (string) ($signals['resignationThisMonth'] ?? 0)],
+            ['Workforce & Alerts', 'Promotion This Month', (string) ($signals['promotionThisMonth'] ?? 0)],
+            ['Workforce & Alerts', 'Overtime Total Minutes This Month', (string) ($signals['overtimeTotalMinutesThisMonth'] ?? 0)],
+            ['Workforce & Alerts', 'Attendance Anomaly - Clock In Missing', (string) ($anomaly['clockInMissing'] ?? 0)],
+            ['Workforce & Alerts', 'Attendance Anomaly - Double Shift', (string) ($anomaly['doubleShift'] ?? 0)],
+        ];
+
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+
+        return TabularExportResponse::download(
+            headers: ['Section', 'Metric', 'Value'],
+            rows: $rows,
+            filenameBase: 'dashboard-summary-'.now()->format('Ymd_His'),
+            format: $format,
+            sheetTitle: 'Dashboard Summary'
+        );
     }
 
     public function employeeSummary(Request $request): JsonResponse

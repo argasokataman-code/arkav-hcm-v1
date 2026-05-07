@@ -42,7 +42,7 @@ Export katalog payroll items.
 Query opsional:
 
 - `kind` — `addition` | `deduction`
-- `format` — `csv` (default) | `xlsx`
+- `format` — `xlsx` (default) | `csv`
 
 Response stream file dengan kolom audit katalog (ID, master link, code, name, kind, category, notes, sort, active, default percent).
 

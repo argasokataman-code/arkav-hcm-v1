@@ -64,10 +64,10 @@
 
             <div class="row">
 
-                <!-- Total Plans -->
+                <!-- Total Employee -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-dark rounded-circle"><i class="ti ti-users"></i></span>
@@ -77,21 +77,15 @@
                                     <h4 data-employees-total>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-purple badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Total Plans -->
+                <!-- /Total Employee -->
 
-                <!-- Total Plans -->
+                <!-- Active -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-success rounded-circle"><i class="ti ti-user-share"></i></span>
@@ -101,45 +95,33 @@
                                     <h4 data-employees-active>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-primary badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Total Plans -->
+                <!-- /Active -->
 
-                <!-- Inactive Plans -->
+                <!-- Inactive -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-danger rounded-circle"><i class="ti ti-user-pause"></i></span>
                                 </div>
                                 <div class="ms-2 overflow-hidden">
-                                    <p class="fs-12 fw-medium mb-1 text-truncate">InActive</p>
+                                    <p class="fs-12 fw-medium mb-1 text-truncate">Inactive</p>
                                     <h4 data-employees-inactive>0</h4>
                                 </div>
-                            </div>
-                            <div>                                    
-                                <span class="badge badge-soft-dark badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- /Inactive Companies -->
+                <!-- /Inactive -->
 
-                <!-- No of Plans  -->
+                <!-- New Joiners -->
                 <div class="col-lg-3 col-md-6 d-flex">
                     <div class="card flex-fill">
-                        <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="card-body d-flex align-items-center">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <div>
                                     <span class="avatar avatar-lg bg-info rounded-circle"><i class="ti ti-user-plus"></i></span>
@@ -149,16 +131,10 @@
                                     <h4 data-employees-new-joiners>0</h4>
                                 </div>
                             </div>
-                            <div>                                    
-                                <span class="badge badge-soft-secondary badge-sm fw-normal">
-                                    <i class="ti ti-arrow-wave-right-down"></i>
-                                    +19.01%
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- /No of Plans -->
+                <!-- /New Joiners -->
 
             </div>
             <div class="card">

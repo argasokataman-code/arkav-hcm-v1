@@ -29,14 +29,94 @@
     var subscriptionNextPaymentAmountNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-next-payment-amount]') : null;
     var subscriptionEmployeeSlotsNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-slots]') : null;
     var subscriptionEmployeeUsageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-usage]') : null;
-    var subscriptionEmployeeUsageNode = subscriptionCardNode ? subscriptionCardNode.querySelector('[data-subscription-employee-usage]') : null;
     var photoPreviewNode = document.querySelector('[data-profile-photo-preview]');
     var photoPlaceholderNode = document.querySelector('[data-profile-photo-placeholder]');
     var photoInputNode = document.querySelector('[data-profile-photo-input]');
     var photoRemoveBtn = document.querySelector('[data-profile-photo-remove]');
     var photoErrorNode = document.querySelector('[data-profile-photo-error]');
     var currentUserId = null;
+    var currentPhotoUrl = null;
+    var isPhotoUploading = false;
+    var isPhotoRemoving = false;
     var snapshot = {};
+
+    var PROFILE_PHOTO_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+    var PROFILE_PHOTO_MAX_SIZE_BYTES = 2 * 1024 * 1024;
+    var GENERAL_FIELD_RULES = {
+        first_name: {
+            label: 'First Name',
+            maxLength: 50,
+            regex: /^[A-Za-z][A-Za-z\s'.-]{1,49}$/,
+            message: 'First Name hanya boleh berisi huruf, spasi, apostrof, titik, atau strip (2-50 karakter).'
+        },
+        last_name: {
+            label: 'Last Name',
+            maxLength: 50,
+            regex: /^[A-Za-z][A-Za-z\s'.-]{1,49}$/,
+            message: 'Last Name hanya boleh berisi huruf, spasi, apostrof, titik, atau strip (2-50 karakter).'
+        },
+        email: {
+            label: 'Email',
+            maxLength: 255,
+            regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+            message: 'Format Email tidak valid.'
+        },
+        phone: {
+            label: 'Phone',
+            maxLength: 20,
+            regex: /^\+?(?=(?:\D*\d){8,15}\D*$)[0-9\s\-()]+$/,
+            message: 'Format Phone tidak valid. Gunakan 8-15 digit angka (boleh +, spasi, -, atau ()).'
+        },
+        city: {
+            label: 'City',
+            maxLength: 60,
+            regex: /^[A-Za-z][A-Za-z\s'.-]{1,59}$/,
+            message: 'Format City tidak valid.'
+        },
+        state: {
+            label: 'State',
+            maxLength: 60,
+            regex: /^[A-Za-z][A-Za-z\s'.-]{1,59}$/,
+            message: 'Format State tidak valid.'
+        },
+        country: {
+            label: 'Country',
+            maxLength: 60,
+            regex: /^[A-Za-z][A-Za-z\s'.-]{1,59}$/,
+            message: 'Format Country tidak valid.'
+        },
+        postal_code: {
+            label: 'Postal Code',
+            maxLength: 10,
+            regex: /^[A-Za-z0-9][A-Za-z0-9\s-]{2,9}$/,
+            message: 'Format Postal Code tidak valid.'
+        },
+        address: {
+            label: 'Address',
+            maxLength: 180,
+            regex: /^[A-Za-z0-9\s.,'\/-]{3,180}$/,
+            message: 'Format Address tidak valid.'
+        }
+    };
+
+    function applyFieldInputConstraints() {
+        fields.forEach(function (fieldNode) {
+            if (!fieldNode) {
+                return;
+            }
+            var fieldKey = fieldNode.getAttribute('data-general-setting');
+            var rule = GENERAL_FIELD_RULES[fieldKey];
+            if (!rule) {
+                return;
+            }
+            if (rule.maxLength) {
+                fieldNode.setAttribute('maxlength', String(rule.maxLength));
+            }
+            if (fieldKey === 'phone') {
+                fieldNode.setAttribute('inputmode', 'tel');
+            }
+        });
+    }
 
     function normalize(value) {
         return (value || '').toString().trim();
@@ -121,6 +201,27 @@
             });
         }
 
+        function normalizeFileExtension(fileName) {
+            var raw = normalize(fileName);
+            if (!raw || raw.indexOf('.') < 0) {
+                return '';
+            }
+            return raw.split('.').pop().toLowerCase();
+        }
+
+        function isAllowedPhotoType(file) {
+            if (!file) {
+                return false;
+            }
+
+            if (PROFILE_PHOTO_ALLOWED_MIME_TYPES.indexOf(normalize(file.type).toLowerCase()) >= 0) {
+                return true;
+            }
+
+            var ext = normalizeFileExtension(file.name);
+            return ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'gif';
+        }
+
         function showPhotoError(msg) {
             if (!photoErrorNode) { return; }
             if (msg) {
@@ -134,8 +235,14 @@
 
         async function uploadPhoto(file) {
             if (!currentUserId) { showPhotoError('User ID belum dimuat, coba refresh halaman.'); return; }
-            if (file.size > 2 * 1024 * 1024) { showPhotoError('Ukuran foto maks 2MB.'); return; }
+            if (isPhotoUploading) { return; }
+            if (!isAllowedPhotoType(file)) { showPhotoError('Format foto harus JPG, PNG, atau GIF.'); return; }
+            if (file.size > PROFILE_PHOTO_MAX_SIZE_BYTES) { showPhotoError('Ukuran foto maks 2MB.'); return; }
             showPhotoError('');
+            isPhotoUploading = true;
+            if (photoInputNode) {
+                photoInputNode.disabled = true;
+            }
 
             var reader = new FileReader();
             reader.onload = function (e) { setPhotoPreview(e.target.result); };
@@ -156,19 +263,93 @@
                 });
                 var body = await response.json().catch(function () { return null; });
                 if (!response.ok || !body || body.success !== true) {
-                    setPhotoPreview(null);
+                    setPhotoPreview(currentPhotoUrl);
                     showPhotoError((body && body.error && body.error.message) ? body.error.message : 'Gagal mengupload foto.');
                     return;
                 }
                 if (body.data && body.data.profilePhotoUrl) {
-                    setPhotoPreview(body.data.profilePhotoUrl);
+                    currentPhotoUrl = body.data.profilePhotoUrl;
+                    setPhotoPreview(currentPhotoUrl);
                 }
                 showFeedback('success', 'Foto profil berhasil diperbarui.');
             } catch (_e) {
-                setPhotoPreview(null);
+                setPhotoPreview(currentPhotoUrl);
                 showPhotoError('Gagal mengupload foto.');
+            } finally {
+                isPhotoUploading = false;
+                if (photoInputNode) {
+                    photoInputNode.disabled = false;
+                }
             }
         }
+
+        async function removePhoto() {
+            if (!currentUserId) { showPhotoError('User ID belum dimuat, coba refresh halaman.'); return; }
+            if (isPhotoRemoving || isPhotoUploading) { return; }
+
+            var previousPhoto = currentPhotoUrl;
+            isPhotoRemoving = true;
+            showPhotoError('');
+            setPhotoPreview(null);
+
+            if (photoRemoveBtn) {
+                photoRemoveBtn.disabled = true;
+            }
+
+            try {
+                var response = await fetch('/v1/hcm/employees/' + encodeURIComponent(currentUserId) + '/profile-photo', {
+                    method: 'DELETE',
+                    headers: buildHeaders(),
+                    credentials: 'same-origin'
+                });
+                var body = await response.json().catch(function () { return null; });
+                if (!response.ok || !body || body.success !== true) {
+                    currentPhotoUrl = previousPhoto;
+                    setPhotoPreview(previousPhoto);
+                    showPhotoError((body && body.error && body.error.message) ? body.error.message : 'Gagal menghapus foto.');
+                    return;
+                }
+
+                currentPhotoUrl = null;
+                setPhotoPreview(null);
+                showFeedback('success', 'Foto profil berhasil dihapus.');
+            } catch (_e) {
+                currentPhotoUrl = previousPhoto;
+                setPhotoPreview(previousPhoto);
+                showPhotoError('Gagal menghapus foto.');
+            } finally {
+                isPhotoRemoving = false;
+                if (photoRemoveBtn) {
+                    photoRemoveBtn.disabled = false;
+                }
+            }
+        }
+
+    function validateGeneralPayload(payload) {
+        var keys = Object.keys(GENERAL_FIELD_RULES);
+
+        for (var i = 0; i < keys.length; i += 1) {
+            var key = keys[i];
+            var rule = GENERAL_FIELD_RULES[key];
+            var value = normalize(payload[key]);
+            var isRequired = key === 'first_name' || key === 'email';
+
+            if (isRequired && !value) {
+                return rule.label + ' wajib diisi.';
+            }
+            if (!value) {
+                continue;
+            }
+            if (rule.maxLength && value.length > rule.maxLength) {
+                return rule.label + ' maksimal ' + String(rule.maxLength) + ' karakter.';
+            }
+            if (rule.regex && !rule.regex.test(value)) {
+                return rule.message;
+            }
+        }
+
+        return null;
+    }
 
     function formatDate(value) {
         var raw = normalize(value);
@@ -558,7 +739,11 @@
             renderCompanyContext(mePayload);
             renderSubscriptionSummary(mePayload);
             if (mePayload.data.profile && mePayload.data.profile.profilePhotoUrl) {
-                setPhotoPreview(mePayload.data.profile.profilePhotoUrl);
+                currentPhotoUrl = mePayload.data.profile.profilePhotoUrl;
+                setPhotoPreview(currentPhotoUrl);
+            } else {
+                currentPhotoUrl = null;
+                setPhotoPreview(null);
             }
             merged.identityEmail = normalize(mePayload.data.email || '');
             merged.companyProfile = mePayload.data.companyProfile || {};
@@ -592,12 +777,9 @@
         clearFeedback();
 
         var payload = collectPayload();
-        if (!payload.first_name) {
-            showFeedback('warning', 'First Name wajib diisi.');
-            return;
-        }
-        if (!payload.email) {
-            showFeedback('warning', 'Email wajib diisi.');
+        var payloadError = validateGeneralPayload(payload);
+        if (payloadError) {
+            showFeedback('warning', payloadError);
             return;
         }
 
@@ -673,10 +855,11 @@
     }
     if (photoRemoveBtn) {
         photoRemoveBtn.addEventListener('click', function () {
-            setPhotoPreview(null);
-            showPhotoError('');
+            removePhoto();
         });
     }
+
+    applyFieldInputConstraints();
 
     loadSettings().catch(function (error) {
         showFeedback('danger', error && error.message ? error.message : 'Gagal memuat data profile settings.');

@@ -28,6 +28,11 @@ describe('profile settings wiring', () => {
         <span data-subscription-employee-usage></span>
       </div>
       <div class="alert d-none" data-profile-settings-feedback></div>
+      <img data-profile-photo-preview class="d-none" />
+      <i data-profile-photo-placeholder></i>
+      <input type="file" data-profile-photo-input />
+      <button type="button" data-profile-photo-remove class="d-none"></button>
+      <p data-profile-photo-error class="d-none"></p>
       <form data-profile-settings-form>
         <input data-general-setting="first_name" />
         <input data-general-setting="last_name" />
@@ -66,6 +71,7 @@ describe('profile settings wiring', () => {
           json: () => Promise.resolve({
             success: true,
             data: {
+              id: 10,
               name: 'Owner Profile',
               email: 'owner.profile@example.com',
               activeCompany: {
@@ -108,6 +114,7 @@ describe('profile settings wiring', () => {
                 phone: '081234567890',
                 address: 'Jl. Owner 1',
                 addressDetail: 'Bandung',
+                profilePhotoUrl: '/storage/avatars/10/avatar.jpg',
               },
             },
           }),
@@ -132,6 +139,18 @@ describe('profile settings wiring', () => {
                 addressDetail: 'Jakarta',
                 source: 'company_owner_profile',
               },
+            },
+          }),
+        });
+      }
+
+      if (url === '/v1/hcm/employees/10/profile-photo' && options.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: {
+              profilePhotoUrl: null,
             },
           }),
         });
@@ -177,5 +196,49 @@ describe('profile settings wiring', () => {
       name: 'Owner Profile Updated',
       email: 'owner.profile.updated@example.com',
     });
+  });
+
+  it('blocks submit when phone format is invalid', async () => {
+    await import('../../../frontend/resources/js/profile-settings-data.js');
+    await flush();
+
+    document.querySelector('[data-general-setting="first_name"]').value = 'Owner';
+    document.querySelector('[data-general-setting="email"]').value = 'owner.profile.updated@example.com';
+    document.querySelector('[data-general-setting="phone"]').value = 'ABC###';
+
+    const callCountBeforeSubmit = global.fetch.mock.calls.length;
+    document.querySelector('[data-profile-settings-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(global.fetch.mock.calls.length).toBe(callCountBeforeSubmit);
+    expect(document.querySelector('[data-profile-settings-feedback]')?.textContent).toContain('Format Phone tidak valid');
+  });
+
+  it('blocks submit when phone has too many digits', async () => {
+    await import('../../../frontend/resources/js/profile-settings-data.js');
+    await flush();
+
+    document.querySelector('[data-general-setting="first_name"]').value = 'Owner';
+    document.querySelector('[data-general-setting="email"]').value = 'owner.profile.updated@example.com';
+    document.querySelector('[data-general-setting="phone"]').value = '15827358176253817562';
+
+    const callCountBeforeSubmit = global.fetch.mock.calls.length;
+    document.querySelector('[data-profile-settings-form]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flush();
+
+    expect(global.fetch.mock.calls.length).toBe(callCountBeforeSubmit);
+    expect(document.querySelector('[data-profile-settings-feedback]')?.textContent).toContain('Format Phone tidak valid');
+  });
+
+  it('removes profile photo via API when remove button is clicked', async () => {
+    await import('../../../frontend/resources/js/profile-settings-data.js');
+    await flush();
+
+    document.querySelector('[data-profile-photo-remove]')?.dispatchEvent(new Event('click', { bubbles: true }));
+    await flush();
+
+    const deleteCall = global.fetch.mock.calls.find(([target, options]) => target === '/v1/hcm/employees/10/profile-photo' && options?.method === 'DELETE');
+    expect(deleteCall).toBeTruthy();
+    expect(document.querySelector('[data-profile-settings-feedback]')?.textContent).toContain('Foto profil berhasil dihapus');
   });
 });

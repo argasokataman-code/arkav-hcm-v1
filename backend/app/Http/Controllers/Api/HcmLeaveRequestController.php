@@ -17,6 +17,7 @@ use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Models\AttendanceRecord;
+use App\Support\Exports\TabularExportResponse;
 use App\Services\Hcm\LeaveLedgerService;
 use App\Services\Hcm\LeaveWorkingDayCalculator;
 use App\Notifications\LeaveRequestedNotification;
@@ -188,6 +189,7 @@ class HcmLeaveRequestController extends Controller
             'dateFrom' => ['nullable', 'date'],
             'dateTo' => ['nullable', 'date'],
             'userId' => ['nullable'],
+            'format' => ['nullable', 'string', Rule::in(['xlsx', 'csv'])],
         ]);
 
         $validated['userId'] = $this->normalizeUserIdentifierOrFail($request, $validated['userId'] ?? null);
@@ -201,41 +203,35 @@ class HcmLeaveRequestController extends Controller
             ? ['Employee', 'Email', 'Leave Type', 'Date From', 'Date To', 'Days', 'Status', 'Notes']
             : ['Leave Type', 'Date From', 'Date To', 'Days', 'Status', 'Notes'];
 
-        $filename = 'leave-requests-'.now()->format('Ymd_His').'.csv';
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $rows = [];
 
-        return response()->streamDownload(function () use ($query, $headers, $isAdminScope): void {
-            $handle = fopen('php://output', 'wb');
-            if (! $handle) {
-                return;
+        foreach ($query->cursor() as $row) {
+            /** @var LeaveRequest $row */
+            $line = [
+                $row->leave_type,
+                $row->date_from?->toDateString() ?? '',
+                $row->date_to?->toDateString() ?? '',
+                (float) $row->days,
+                $row->status,
+                $row->notes ?? '',
+            ];
+
+            if ($isAdminScope) {
+                array_unshift($line, $row->user?->email ?? '—');
+                array_unshift($line, $row->user?->name ?? '—');
             }
 
-            fwrite($handle, "\xEF\xBB\xBF");
+            $rows[] = $line;
+        }
 
-            fputcsv($handle, $headers);
-
-            foreach ($query->cursor() as $row) {
-                /** @var LeaveRequest $row */
-                $line = [
-                    $row->leave_type,
-                    $row->date_from?->toDateString() ?? '',
-                    $row->date_to?->toDateString() ?? '',
-                    (string) ((float) $row->days),
-                    $row->status,
-                    $row->notes ?? '',
-                ];
-
-                if ($isAdminScope) {
-                    array_unshift($line, $row->user?->email ?? '—');
-                    array_unshift($line, $row->user?->name ?? '—');
-                }
-
-                fputcsv($handle, $line);
-            }
-
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return TabularExportResponse::download(
+            headers: $headers,
+            rows: $rows,
+            filenameBase: 'leave-requests-'.now()->format('Ymd_His'),
+            format: $format,
+            sheetTitle: 'Leave Requests'
+        );
     }
 
     private function applyIndexFilters($query, Request $request, array $validated, ?string $scope): void

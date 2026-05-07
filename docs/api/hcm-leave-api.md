@@ -182,18 +182,21 @@ Success `200`:
 
 ### GET `/leave-requests/export`
 
-Export CSV server-side (tanpa paging di frontend) dengan filter yang sama seperti list.
+Export tabular server-side (tanpa paging di frontend) dengan filter yang sama seperti list.
 
 Query:
 - `scope`, `leaveType`, `status`, `dateFrom`, `dateTo`, `userId`
+- `format` — `xlsx` (default) | `csv`
 
 RBAC:
 - Admin bisa export semua atau per user (`userId`)
 - Non-admin otomatis hanya data sendiri
 
 Success `200`:
-- `Content-Type: text/csv; charset=UTF-8`
-- `Content-Disposition: attachment; filename="leave-requests-*.csv"`
+- `Content-Type`: 
+  - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (default)
+  - `text/csv; charset=UTF-8` jika `format=csv`
+- `Content-Disposition: attachment; filename="leave-requests-*.<xlsx|csv>"`
 
 ### GET `/employee-leave-balance`
 

@@ -556,6 +556,12 @@ function loadPricingPlansScreenModuleLoader() {
         var status = compliance && compliance.compliance_status ? compliance.compliance_status : {};
         var employee = status.employee_pph21_compliance || {};
         var rows = Array.isArray(employee.non_compliant_employees) ? employee.non_compliant_employees : [];
+        var activeEmployees = Number(employee.active_employees || 0);
+
+        if (activeEmployees <= 0) {
+            tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Belum ada karyawan aktif di tenant ini.</td></tr>';
+            return;
+        }
 
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="2" class="text-center text-success py-3">Semua profil karyawan sudah patuh.</td></tr>';

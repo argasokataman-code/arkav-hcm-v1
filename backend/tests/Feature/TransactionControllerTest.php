@@ -142,10 +142,19 @@ class TransactionControllerTest extends TestCase
             ->count(2)
             ->create();
 
-        $response = $this->withHeader('Cookie', $this->adminCookieHeader())
+        $xlsxResponse = $this->withHeader('Cookie', $this->adminCookieHeader())
             ->getJson('/v1/saas/transactions/export');
 
-        $response->assertOk();
-        $this->assertStringContainsString('text/csv', (string) $response->headers->get('Content-Type'));
+        $xlsxResponse->assertOk();
+        $this->assertStringContainsString(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            (string) $xlsxResponse->headers->get('Content-Type')
+        );
+
+        $csvResponse = $this->withHeader('Cookie', $this->adminCookieHeader())
+            ->getJson('/v1/saas/transactions/export?format=csv');
+
+        $csvResponse->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $csvResponse->headers->get('Content-Type'));
     }
 }

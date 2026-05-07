@@ -104,7 +104,7 @@ class HcmPayrollItemController extends Controller
 
         $allowanceAmountByCode = $this->activeAllowanceAmountByCode($companyId);
         $rows = $query->get()->map(fn (HcmPayrollItem $item) => $this->serializePayrollItem($item, $allowanceAmountByCode))->values();
-        $format = strtolower((string) ($validated['format'] ?? 'csv'));
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
         $kindPart = $validated['kind'] ?? 'all';
         $fileBase = 'payroll-items-'.$kindPart.'-'.now()->format('YmdHis');
 

@@ -22,7 +22,7 @@
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
                     <button type="button" class="btn btn-outline-secondary d-inline-flex align-items-center" data-hcm-leaves-export>
-                        <i class="ti ti-file-export me-1"></i>Export CSV
+                        <i class="ti ti-file-export me-1"></i>Export Excel
                     </button>
                     <a href="javascript:void(0);" class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#arcav_add_leave">
                         <i class="ti ti-circle-plus me-2"></i>Add Leave

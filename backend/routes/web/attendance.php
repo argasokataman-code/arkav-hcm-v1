@@ -22,7 +22,7 @@ Route::middleware(['hcm.web.admin', 'hcm.web.feature:attendance'])->group(functi
 
 Route::get('/attendance-employee', function () {
     return view(view: 'attendance-employee');
-})->name('attendance-employee');
+})->middleware(['hcm.web.feature:attendance', 'hcm.web.employee:attendance-admin'])->name('attendance-employee');
 
 Route::get('/schedules', function () {
     $user = request()->user();

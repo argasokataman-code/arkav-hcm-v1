@@ -351,6 +351,16 @@
     }
 
     function validateClientState(form, errorBox) {
+        var companyNameInput = form.querySelector("[name='company_name']");
+        if (companyNameInput) {
+            var companyName = String(companyNameInput.value || "").trim();
+            if (companyName.length > 0 && companyName.length < 2) {
+                companyNameInput.setCustomValidity("Company name minimal 2 karakter.");
+            } else {
+                companyNameInput.setCustomValidity("");
+            }
+        }
+
         var postalInput = form.querySelector("[name='company_postal_code']");
         if (postalInput) {
             var cleanedPostalCode = sanitizePostalCode(postalInput.value);

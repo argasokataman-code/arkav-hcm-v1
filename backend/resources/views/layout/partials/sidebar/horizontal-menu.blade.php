@@ -14,7 +14,9 @@
                     </a>
                     <ul>
                         <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@if ($isEmployeeScopedUser || $isGlobalHcmAdmin)
                         <li><a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
+@endif
                     </ul>
                 </li>
 @if ($isGlobalHcmAdmin)
@@ -193,7 +195,9 @@
                             <ul>
                                 <li><a href="{{url('ticket-master')}}" class="{{ Request::is('ticket-master') ? 'active' : '' }}">Master Ticket</a></li>
                                 <li><a href="{{url('tickets-admin')}}" class="{{ Request::is('tickets-admin','tickets-grid') ? 'active' : '' }}">Ticket (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                 <li><a href="{{url('tickets-employee')}}" class="{{ Request::is('tickets-employee') ? 'active' : '' }}">Ticket (Employee)</a></li>
+@endif
                             </ul>
                         </li>
 @endif
@@ -211,12 +215,16 @@
                                     <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings') ? 'active subdrop' : '' }}">Leaves<span class="menu-arrow"></span></a>
                                     <ul>
                                         <li><a href="{{url('leaves')}}" class="{{ Request::is('leaves') ? 'active' : '' }}" >Leaves (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                         <li><a href="{{url('leaves-employee')}}" class="{{ Request::is('leaves-employee') ? 'active' : '' }}">Leave (Employee)</a></li>
+@endif
                                         <li><a href="{{url('leave-settings')}}" class="{{ Request::is('leave-settings') ? 'active' : '' }}">Leave Settings</a></li>												
                                     </ul>												
                                 </li>
                                 <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
+@if ($isEmployeeScopedUser)
                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
+@endif
                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                 <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
@@ -378,7 +386,7 @@
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow"></span></a>
                                     <ul>
-                                        <li><a href="{{url('profile-settings')}}" class="{{ Request::is('profile-settings') ? 'active' : '' }}">Profile</a></li>
+                                        <li><a href="{{ strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner' ? url('company-profile') : url('profile-settings') }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner' ? 'Company Profile' : 'Profile' }}</a></li>
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>

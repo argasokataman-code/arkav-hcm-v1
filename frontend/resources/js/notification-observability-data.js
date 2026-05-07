@@ -230,6 +230,7 @@
             var channel = String((observabilityChannel && observabilityChannel.value) || '');
             var params = new URLSearchParams();
             params.set('hours', String(hours));
+            params.set('format', 'xlsx');
             if (channel) {
                 params.set('channel', channel);
             }
@@ -237,7 +238,7 @@
             var url = '/v1/hcm/notifications/delivery-export?' + params.toString();
             var link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'delivery-export.csv');
+            link.setAttribute('download', 'delivery-export.xlsx');
             link.style.display = 'none';
             document.body.appendChild(link);
             link.click();

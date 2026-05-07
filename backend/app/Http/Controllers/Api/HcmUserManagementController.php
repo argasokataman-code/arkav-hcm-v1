@@ -9,6 +9,7 @@ use App\Models\HcmPermission;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
+use App\Support\Exports\TabularExportResponse;
 use App\Models\User;
 use App\Support\Hcm\HcmFeatureEntitlementResolver;
 use Database\Seeders\HcmUserManagementSeeder;
@@ -166,7 +167,7 @@ class HcmUserManagementController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(['active', 'inactive', 'all'])],
             'roleCode' => ['nullable', 'string', 'max:80'],
-            'format' => ['nullable', Rule::in(['csv'])],
+            'format' => ['nullable', Rule::in(['csv', 'xlsx'])],
         ]);
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -207,36 +208,31 @@ class HcmUserManagementController extends Controller
         $rows = $query->get();
         $roleMap = $this->activeRoleMapForUsers($companyId, $rows->pluck('id')->map(static fn ($id) => (int) $id)->all());
 
-        $filename = 'user_management_'.$companyId.'_'.now()->format('Ymd_His').'.csv';
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $headers = ['User ID', 'Name', 'Email', 'Status', 'Company Role', 'Active Role Codes'];
+        $exportRows = [];
 
-        return response()->streamDownload(function () use ($rows, $roleMap): void {
-            $stream = fopen('php://output', 'wb');
-            if (! $stream) {
-                return;
-            }
+        foreach ($rows as $row) {
+            $roles = $roleMap[(int) $row->id] ?? [];
+            $roleCodes = implode('|', array_values(array_map(static fn (array $item): string => $item['code'], $roles)));
 
-            fwrite($stream, "\xEF\xBB\xBF");
+            $exportRows[] = [
+                (int) $row->id,
+                (string) $row->name,
+                (string) $row->email,
+                (string) $row->membership_status,
+                (string) $row->membership_role,
+                $roleCodes,
+            ];
+        }
 
-            fputcsv($stream, ['User ID', 'Name', 'Email', 'Status', 'Company Role', 'Active Role Codes']);
-
-            foreach ($rows as $row) {
-                $roles = $roleMap[(int) $row->id] ?? [];
-                $roleCodes = implode('|', array_values(array_map(static fn (array $item): string => $item['code'], $roles)));
-
-                fputcsv($stream, [
-                    (int) $row->id,
-                    (string) $row->name,
-                    (string) $row->email,
-                    (string) $row->membership_status,
-                    (string) $row->membership_role,
-                    $roleCodes,
-                ]);
-            }
-
-            fclose($stream);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return TabularExportResponse::download(
+            headers: $headers,
+            rows: $exportRows,
+            filenameBase: 'user_management_'.$companyId.'_'.now()->format('Ymd_His'),
+            format: $format,
+            sheetTitle: 'Users'
+        );
     }
 
     public function userDetail(Request $request, int $id): JsonResponse

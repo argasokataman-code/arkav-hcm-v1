@@ -287,7 +287,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
 
         $response->assertSee('href="'.url('employees').'"', false);
         $response->assertSee('href="'.url('payroll-run').'"', false);
-        $response->assertSee('href="'.url('tickets-employee').'"', false);
+        $response->assertDontSee('href="'.url('tickets-employee').'"', false);
     }
 
     private function createCompanyWithActiveSubscriptionWithoutAssetFeature(): Company

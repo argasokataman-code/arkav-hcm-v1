@@ -924,7 +924,7 @@ class LeaveRequestsApiTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
-        ])->get('/v1/hcm/leave-requests/export?scope=me&status=approved&dateFrom=2026-04-01&dateTo=2026-04-30');
+        ])->get('/v1/hcm/leave-requests/export?scope=me&status=approved&dateFrom=2026-04-01&dateTo=2026-04-30&format=csv');
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');

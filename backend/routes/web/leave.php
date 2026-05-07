@@ -7,11 +7,11 @@ Route::middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->group(
     Route::get('/leaves', function () {
         return view(view: 'leaves');
     })->name('leaves');
-
-    Route::get('/leaves-employee', function () {
-        return view(view: 'leaves-employee');
-    })->name('leaves-employee');
 });
+
+Route::get('/leaves-employee', function () {
+    return view(view: 'leaves-employee');
+})->middleware(['hcm.web.feature:leave_management', 'hcm.web.employee:leaves'])->name('leaves-employee');
 
 Route::get('/leave-request', function () {
     $user = request()->user();

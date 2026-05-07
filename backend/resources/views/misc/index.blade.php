@@ -38,10 +38,10 @@
                             </a>
                             <ul class="dropdown-menu  dropdown-menu-end p-3">
                                 <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1" data-index-dashboard-export="csv"><i class="ti ti-file-type-csv me-1"></i>Export as CSV</a>
                                 </li>
                                 <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1" data-index-dashboard-export="xlsx"><i class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                                 </li>
                             </ul>
                         </div>
@@ -259,16 +259,16 @@
                                 <h3 class="mb-3" data-exec-total-employees>-</h3>
                             </div>
                             <div class="progress-stacked emp-stack mb-3">
-                                <div class="progress" role="progressbar" aria-label="Active" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-active style="width: 60%">
+                                <div class="progress" role="progressbar" aria-label="Active" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-active style="width: 0%">
                                     <div class="progress-bar bg-primary"></div>
                                 </div>
-                                <div class="progress" role="progressbar" aria-label="Probation" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-probation style="width: 15%">
+                                <div class="progress" role="progressbar" aria-label="Probation" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-probation style="width: 0%">
                                     <div class="progress-bar bg-warning"></div>
                                 </div>
-                                <div class="progress" role="progressbar" aria-label="Inactive" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-inactive style="width: 10%">
+                                <div class="progress" role="progressbar" aria-label="Inactive" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-inactive style="width: 0%">
                                     <div class="progress-bar bg-danger"></div>
                                 </div>
-                                <div class="progress" role="progressbar" aria-label="PKWT Due" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-pkwt style="width: 15%">
+                                <div class="progress" role="progressbar" aria-label="PKWT Due" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-progress-pkwt style="width: 0%">
                                     <div class="progress-bar bg-pink"></div>
                                 </div>
                             </div>

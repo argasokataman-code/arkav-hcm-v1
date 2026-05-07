@@ -1,6 +1,12 @@
 <?php $page = 'notification-settings'; ?>
 @php
     $isGlobalHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isGlobalHcmAdmin());
+    $profileSettingsUrl = strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner'
+        ? url('company-profile')
+        : url('profile-settings');
+    $profileSettingsLabel = strtolower(trim((string) request()->attributes->get('activeCompanyRole', ''))) === 'owner'
+        ? 'Company Profile'
+        : 'Profile Settings';
 @endphp
 
 @extends('layout.mainlayout')
@@ -68,7 +74,7 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
-                            <a href="{{ url('profile-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Profile Settings</a>
+                            <a href="{{ $profileSettingsUrl }}" class="d-inline-flex align-items-center rounded py-2 px-3">{{ $profileSettingsLabel }}</a>
                             @if ($isGlobalHcmAdmin)
                             <a href="{{ url('security-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Security Settings</a>
                             @endif

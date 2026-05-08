@@ -96,7 +96,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" minlength="2" maxlength="150" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Email <span class="text-danger">*</span></label>
@@ -106,30 +106,30 @@
                             @unless ($isEdit)
                                 <div class="col-md-6">
                                     <label class="form-label">Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter" required>
+                                    <input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter" minlength="8" maxlength="64" required>
                                     <small class="text-muted d-block mt-1">Harus 8-64 karakter dan mengandung huruf besar, huruf kecil, serta angka.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password" required>
+                                    <input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password" minlength="8" maxlength="64" required>
                                 </div>
                             @endunless
 
                             <div class="col-md-6">
                                 <label class="form-label">Phone <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" maxlength="13" pattern="[0-9]{10,13}" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" minlength="10" maxlength="13" pattern="[0-9]{10,13}" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">NIK / No. KTP <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="nik" placeholder="16 digit NIK" inputmode="numeric" maxlength="16" pattern="[0-9]{16}" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="nik" placeholder="16 digit NIK" inputmode="numeric" minlength="16" maxlength="16" pattern="[0-9]{16}" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Place of Birth <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" maxlength="150" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" {{ $fieldAttr }}="dateOfBirth" required>
+                                <input type="date" class="form-control" {{ $fieldAttr }}="dateOfBirth" max="{{ date('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Gender <span class="text-danger">*</span></label>
@@ -165,7 +165,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bio / Notes</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bio" placeholder="Ringkasan singkat atau catatan internal">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bio" placeholder="Ringkasan singkat atau catatan internal" maxlength="5000">
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Address <span class="text-danger">*</span></label>
@@ -197,7 +197,7 @@
                                     <div class="col-12">
                                         <label class="form-label small text-muted">Address Detail (manual)</label>
                                         <input type="hidden" {{ $fieldAttr }}="address" data-employee-address-autofill>
-                                        <textarea class="form-control" rows="2" {{ $fieldAttr }}="addressDetail" placeholder="Street, building, RT/RW, landmark"></textarea>
+                                        <textarea class="form-control" rows="2" {{ $fieldAttr }}="addressDetail" placeholder="Street, building, RT/RW, landmark" maxlength="2000"></textarea>
                                     </div>
                                 </div>
                                 <small class="text-muted d-block mt-2">Wilayah tetap dipilih dari dropdown. Isi detail alamat manual jika diperlukan.</small>
@@ -298,11 +298,11 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank / SWIFT / IFSC Code</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankIfscCode" placeholder="Kode bank atau branch code">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankIfscCode" placeholder="Kode bank atau branch code" maxlength="100">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank Branch</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankBranch" placeholder="Cabang bank">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankBranch" placeholder="Cabang bank" maxlength="150">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">NPWP</label>
@@ -328,11 +328,11 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">BPJS Kesehatan No</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKesehatanNo" placeholder="Nomor BPJS Kesehatan">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKesehatanNo" placeholder="Nomor BPJS Kesehatan" maxlength="100">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">BPJS Ketenagakerjaan No</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKetenagakerjaanNo" placeholder="Nomor BPJS Ketenagakerjaan">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKetenagakerjaanNo" placeholder="Nomor BPJS Ketenagakerjaan" maxlength="100">
                             </div>
                         </div>
                     </div>

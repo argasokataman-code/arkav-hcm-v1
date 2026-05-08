@@ -1324,13 +1324,14 @@ class HcmEmployeeController extends Controller
     public function uploadProfilePhoto(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        $canManage = $this->canManageEmployee($request);
-        if (! $canManage && $auth->id !== $id) {
+        $authId = (int) ($auth?->id ?? 0);
+
+        if ($authId !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'AUTH_FORBIDDEN',
-                    'message' => 'You are not allowed to update this employee photo.',
+                    'message' => 'You can only update your own profile photo.',
                 ],
             ], 403);
         }
@@ -1363,16 +1364,6 @@ class HcmEmployeeController extends Controller
                     ],
                 ], 404);
             }
-        }
-
-        if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'EMPLOYEE_NOT_FOUND',
-                    'message' => 'Employee not found.',
-                ],
-            ], 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -1462,29 +1453,20 @@ class HcmEmployeeController extends Controller
     public function deleteProfilePhoto(Request $request, int $id): JsonResponse
     {
         $auth = $request->user();
-        $canManage = $this->canManageEmployee($request);
-        if (! $canManage && $auth->id !== $id) {
+        $authId = (int) ($auth?->id ?? 0);
+
+        if ($authId !== $id) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'AUTH_FORBIDDEN',
-                    'message' => 'You are not allowed to update this employee photo.',
+                    'message' => 'You can only delete your own profile photo.',
                 ],
             ], 403);
         }
 
         $user = User::query()->find($id);
         if (! $user) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'EMPLOYEE_NOT_FOUND',
-                    'message' => 'Employee not found.',
-                ],
-            ], 404);
-        }
-
-        if ($canManage && (int) $auth->id !== (int) $user->id && ! $this->canManageEmployeeTarget($request, $user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -3022,6 +3004,13 @@ class HcmEmployeeController extends Controller
             $request->merge(['phone' => $phone !== '' ? $phone : null]);
         }
 
+        foreach (['bpjsKesehatanNo', 'bpjsKetenagakerjaanNo'] as $bpjsKey) {
+            if ($request->has($bpjsKey)) {
+                $bpjsValue = preg_replace('/\D+/', '', (string) $request->input($bpjsKey)) ?? '';
+                $request->merge([$bpjsKey => $bpjsValue !== '' ? $bpjsValue : null]);
+            }
+        }
+
         if ($request->has('contractType')) {
             $request->merge(['contractType' => $this->normalizeContractType($request->input('contractType'))]);
         }
@@ -3071,7 +3060,9 @@ class HcmEmployeeController extends Controller
         $contractType = $rawContractType !== null
             ? $this->normalizeContractType($rawContractType)
             : $existingContractType;
-        $nameRules = $isCreate ? ['required', 'string', 'min:2', 'max:150'] : ['sometimes', 'string', 'min:2', 'max:150'];
+        $nameRules = $isCreate
+            ? ['required', 'string', 'min:2', 'max:150', 'regex:/^[\p{L}\p{M} .,\'-]{2,150}$/u']
+            : ['sometimes', 'string', 'min:2', 'max:150', 'regex:/^[\p{L}\p{M} .,\'-]{2,150}$/u'];
         $emailRules = [
             $isCreate ? 'required' : 'sometimes',
             'string',
@@ -3178,12 +3169,18 @@ class HcmEmployeeController extends Controller
                 $isCreate && ! $selfService ? 'required' : 'sometimes',
                 'nullable',
                 'integer',
-                'required_with:provinceId,regencyId,districtId',
                 Rule::exists('wilayah_villages', 'id')->where(fn ($query) => $query->where('district_id', $this->nullableInteger($request->input('districtId')))),
             ],
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
             'addressDetail' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'placeOfBirth' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:150'],
+            'placeOfBirth' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'string',
+                'min:2',
+                'max:150',
+                'regex:/^[\p{L}\p{M} .,\'-]{2,150}$/u',
+            ],
             'dateOfBirth' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'date'],
             'gender' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'in:male,female,other'],
             'maritalStatus' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', Rule::in($this->maritalStatusOptions())],
@@ -3203,7 +3200,7 @@ class HcmEmployeeController extends Controller
                 'string',
                 'min:2',
                 'max:100',
-                "regex:/^[A-Za-z .,'-]{2,100}$/",
+                'regex:/^[\p{L}\p{M} .,\'-]{2,100}$/u',
             ],
             'bankIfscCode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'bankBranch' => ['sometimes', 'nullable', 'string', 'max:150'],
@@ -3226,8 +3223,8 @@ class HcmEmployeeController extends Controller
             ],
             'taxStatus' => ['sometimes', 'nullable', Rule::in($this->acceptedTaxStatusInputs())],
             'ptkpStatus' => ['sometimes', 'nullable', Rule::in($this->acceptedTaxStatusInputs())],
-            'bpjsKesehatanNo' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'bpjsKetenagakerjaanNo' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'bpjsKesehatanNo' => ['sometimes', 'nullable', 'string', 'regex:/^[0-9]{13}$/'],
+            'bpjsKetenagakerjaanNo' => ['sometimes', 'nullable', 'string', 'regex:/^[0-9]{11}$/'],
             'emergencyContacts' => [($isCreate && ! $selfService) ? 'required' : 'sometimes', 'array', 'min:1', $emergencyContactRule],
             'emergencyContacts.*.name' => ['required', 'string', 'min:2', 'max:100', 'regex:/^[\p{L}\p{M}\' .,-]{2,100}$/u'],
             'emergencyContacts.*.relationship' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\p{L}\p{M}\' .-]{2,50}$/u'],

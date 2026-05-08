@@ -649,6 +649,31 @@ class HcmEmployeeApiTest extends TestCase
                 'bankAccountHolderName',
             ]);
     }
+
+    public function test_employee_create_rejects_invalid_name_place_of_birth_and_bpjs_number_format(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Valid123###',
+            'email' => 'invalid.personal.regex@example.com',
+            'placeOfBirth' => 'J4kart@',
+            'bpjsKesehatanNo' => 'ABC123',
+            'bpjsKetenagakerjaanNo' => '12-AB-45',
+        ]));
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'name',
+                'placeOfBirth',
+                'bpjsKesehatanNo',
+                'bpjsKetenagakerjaanNo',
+            ]);
+    }
+
     public function test_employee_create_can_compose_address_from_wilayah_hierarchy(): void
     {
         $token = $this->adminBearerToken();
@@ -953,8 +978,8 @@ class HcmEmployeeApiTest extends TestCase
                 'npwp' => '12.345.678.9-000.000',
                 'taxStatus' => 'TK',
                 'ptkpStatus' => 'TK0',
-                'bpjsKesehatanNo' => 'BPKES001',
-                'bpjsKetenagakerjaanNo' => 'BPTK001',
+                'bpjsKesehatanNo' => '0001234500013',
+                'bpjsKetenagakerjaanNo' => '00098765001',
                 'emergencyContacts' => [
                     ['name' => 'Ibu Employee', 'phone' => '0811111111', 'relationship' => 'Mother'],
                 ],
@@ -1005,7 +1030,7 @@ class HcmEmployeeApiTest extends TestCase
         ]);
         $this->assertDatabaseHas('employee_benefits', [
             'employee_id' => $profileId,
-            'bpjs_kesehatan_no' => 'BPKES001',
+            'bpjs_kesehatan_no' => '0001234500013',
         ]);
         $this->assertSame(1, DB::table('employee_emergency_contacts')->where('employee_id', $profileId)->count());
         $this->assertSame(1, DB::table('employee_educations')->where('employee_id', $profileId)->count());
@@ -1490,6 +1515,103 @@ class HcmEmployeeApiTest extends TestCase
         Storage::disk('public')->assertExists($profile->profile_photo_path);
     }
 
+    public function test_hcm_admin_cannot_upload_profile_photo_for_other_employee(): void
+    {
+        Storage::fake('public');
+        $token = $this->adminBearerToken();
+
+        $employee = User::factory()->create([
+            'name' => 'Employee Upload Target',
+            'email' => 'employee-upload-target@example.com',
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $employee->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ],
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id, 'company_id' => $this->company->id],
+            ['employment_status' => 'active'],
+        );
+
+        $file = UploadedFile::fake()->image('admin-target.png', 200, 200)->size(128);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+            'X-Company-Id' => (string) $this->company->id,
+        ])->post('/v1/hcm/employees/'.$employee->id.'/profile-photo', [
+            'photo' => $file,
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_company_owner_cannot_upload_profile_photo_for_other_employee(): void
+    {
+        Storage::fake('public');
+        $this->adminBearerToken();
+
+        $owner = User::factory()->create([
+            'name' => 'Tenant Owner',
+            'email' => 'tenant-owner@example.com',
+            'password' => bcrypt('OwnerPass1'),
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $owner->id,
+            ],
+            [
+                'role' => 'owner',
+                'status' => 'active',
+            ],
+        );
+
+        $employee = User::factory()->create([
+            'name' => 'Tenant Employee',
+            'email' => 'tenant-employee@example.com',
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $employee->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ],
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id, 'company_id' => $this->company->id],
+            ['employment_status' => 'active'],
+        );
+
+        $ownerLogin = $this->postJson('/v1/identity/auth/login', [
+            'email' => $owner->email,
+            'password' => 'OwnerPass1',
+            'companyCode' => $this->company->code,
+        ])->assertOk();
+        $ownerToken = (string) $ownerLogin->json('data.accessToken');
+
+        $file = UploadedFile::fake()->image('owner-try.png', 200, 200)->size(128);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$ownerToken,
+            'Accept' => 'application/json',
+            'X-Company-Id' => (string) $this->company->id,
+        ])->post('/v1/hcm/employees/'.$employee->id.'/profile-photo', [
+            'photo' => $file,
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
     public function test_employee_profile_photo_upload_rejects_non_image_file(): void
     {
         $token = $this->adminBearerToken();
@@ -1565,6 +1687,111 @@ class HcmEmployeeApiTest extends TestCase
 
         $profile->refresh();
         $this->assertNull($profile->profile_photo_path);
+    }
+
+    public function test_hcm_admin_cannot_delete_profile_photo_for_other_employee(): void
+    {
+        Storage::fake('public');
+        $token = $this->adminBearerToken();
+
+        $employee = User::factory()->create([
+            'name' => 'Employee Delete Target',
+            'email' => 'employee-delete-target@example.com',
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $employee->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ],
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id, 'company_id' => $this->company->id],
+            ['employment_status' => 'active'],
+        );
+
+        $file = UploadedFile::fake()->image('seed-delete.png', 300, 300)->size(256);
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+            'X-Company-Id' => (string) $this->company->id,
+        ])->post('/v1/hcm/employees/'.$employee->id.'/profile-photo', [
+            'photo' => $file,
+        ])->assertStatus(403);
+
+        EmployeeProfile::query()->where('user_id', $employee->id)->update([
+            'profile_photo_path' => 'avatars/seed-existing.png',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+            'X-Company-Id' => (string) $this->company->id,
+        ])->delete('/v1/hcm/employees/'.$employee->id.'/profile-photo')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_company_owner_cannot_delete_profile_photo_for_other_employee(): void
+    {
+        Storage::fake('public');
+        $this->adminBearerToken();
+
+        $owner = User::factory()->create([
+            'name' => 'Tenant Owner Delete',
+            'email' => 'tenant-owner-delete@example.com',
+            'password' => bcrypt('OwnerPass1'),
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $owner->id,
+            ],
+            [
+                'role' => 'owner',
+                'status' => 'active',
+            ],
+        );
+
+        $employee = User::factory()->create([
+            'name' => 'Tenant Employee Delete',
+            'email' => 'tenant-employee-delete@example.com',
+        ]);
+        CompanyUser::query()->updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $employee->id,
+            ],
+            [
+                'role' => 'employee',
+                'status' => 'active',
+            ],
+        );
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id, 'company_id' => $this->company->id],
+            [
+                'employment_status' => 'active',
+                'profile_photo_path' => 'avatars/seed-owner-delete.png',
+            ],
+        );
+
+        $ownerLogin = $this->postJson('/v1/identity/auth/login', [
+            'email' => $owner->email,
+            'password' => 'OwnerPass1',
+            'companyCode' => $this->company->code,
+        ])->assertOk();
+        $ownerToken = (string) $ownerLogin->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$ownerToken,
+            'Accept' => 'application/json',
+            'X-Company-Id' => (string) $this->company->id,
+        ])->delete('/v1/hcm/employees/'.$employee->id.'/profile-photo')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 
     public function test_employee_show_returns_404_when_not_found(): void

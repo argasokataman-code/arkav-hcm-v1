@@ -997,6 +997,23 @@
 
             var id = new URL(window.location.href).searchParams.get("id");
             var photoInput = document.querySelector("[data-employee-photo-input]");
+            var isSelf = false;
+
+            function applyPhotoButtonSelfVisibility() {
+                var _uploadBtn = document.querySelector("[data-employee-photo-upload-btn]");
+                var _editBtn = document.querySelector("[data-employee-photo-edit-btn]");
+                if (_uploadBtn) _uploadBtn.classList.toggle("d-none", !isSelf);
+                if (_editBtn && !isSelf) _editBtn.classList.add("d-none");
+            }
+
+            apiGet("/v1/identity/auth/me").then(function (me) {
+                if (me && me.success && me.data) {
+                    isSelf = (parseInt(id, 10) === me.data.id);
+                }
+                applyPhotoButtonSelfVisibility();
+            }).catch(function () {
+                applyPhotoButtonSelfVisibility();
+            });
 
             function showUploadNotice(message, tone) {
                 if (window.ArcavUi && typeof window.ArcavUi.showToast === "function") {
@@ -1044,7 +1061,7 @@
                     initialEl.classList.add("d-none");
                 }
                 var editBtn = document.querySelector("[data-employee-photo-edit-btn]");
-                if (editBtn) {
+                if (editBtn && isSelf) {
                     editBtn.classList.remove("d-none");
                 }
                 var uploadBtn = document.querySelector("[data-employee-photo-upload-btn]");
@@ -1064,6 +1081,7 @@
                 return apiGet("/v1/hcm/employees/" + encodeURIComponent(id)).then(function (payload) {
                     if (payload && payload.success === true) {
                         renderEmployeeDetail(payload.data || {});
+                        applyPhotoButtonSelfVisibility();
                     }
                 }).catch(function () {
                     return;
@@ -1266,8 +1284,10 @@
                     item.resignationItems = resignationPayload && resignationPayload.success === true ? (resignationPayload.data || []) : [];
                     item.terminationItems = terminationPayload && terminationPayload.success === true ? (terminationPayload.data || []) : [];
                     renderEmployeeDetail(item);
+                    applyPhotoButtonSelfVisibility();
                 }).catch(function () {
                     renderEmployeeDetail(payload.data || {});
+                    applyPhotoButtonSelfVisibility();
                 });
             }).catch(function (error) {
                 var message = formatApiError(error && error.data, error && error.status) || "Tidak dapat memuat data karyawan.";

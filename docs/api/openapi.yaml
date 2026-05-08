@@ -2293,6 +2293,9 @@ paths:
     post:
       tags: [HCM]
       summary: Upload employee profile photo
+      description: |
+        RBAC:
+        - Semua role (termasuk HCM Admin/Owner) hanya boleh upload foto miliknya sendiri (`id == auth.id`).
       security:
         - bearerAuth: []
       requestBody:
@@ -2336,6 +2339,9 @@ paths:
     delete:
       tags: [HCM]
       summary: Delete employee profile photo
+      description: |
+        RBAC:
+        - Semua role (termasuk HCM Admin/Owner) hanya boleh hapus foto miliknya sendiri (`id == auth.id`).
       security:
         - bearerAuth: []
       responses:
@@ -13297,6 +13303,8 @@ components:
           type: string
           minLength: 2
           maxLength: 150
+          pattern: "^[A-Za-z .,'-]{2,150}$"
+          description: Full name accepts letters, spaces, and common punctuation only.
           pattern: "^[A-Za-z][A-Za-z\\s'.-]{1,149}$"
         email:
           type: string
@@ -13710,7 +13718,10 @@ components:
           description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:
           type: string
+          minLength: 2
           maxLength: 150
+          pattern: "^[A-Za-z .,'-]{2,150}$"
+          description: Place of birth accepts letters, spaces, and common punctuation only.
           nullable: true
         dateOfBirth:
           type: string
@@ -13761,8 +13772,20 @@ components:
           type: string
           enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
           nullable: true
-        bpjsKesehatanNo: { type: string, nullable: true }
-        bpjsKetenagakerjaanNo: { type: string, nullable: true }
+        bpjsKesehatanNo:
+          type: string
+          nullable: true
+          minLength: 13
+          maxLength: 13
+          pattern: '^[0-9]{13}$'
+          description: Digits only, exactly 13 characters. Non-digit characters are stripped before validation.
+        bpjsKetenagakerjaanNo:
+          type: string
+          nullable: true
+          minLength: 11
+          maxLength: 11
+          pattern: '^[0-9]{11}$'
+          description: Digits only, exactly 11 characters. Non-digit characters are stripped before validation.
         emergencyContacts:
           type: array
           minItems: 1
@@ -13770,8 +13793,8 @@ components:
             type: object
             required: [name, relationship, phone]
             properties:
-              name: { type: string, minLength: 2, maxLength: 100, description: 'Letters, spaces, and common punctuation only' }
-              relationship: { type: string, minLength: 2, maxLength: 50, description: 'Letters and spaces only' }
+              name: { type: string, minLength: 2, maxLength: 100, pattern: "^[A-Za-z .,'-]{2,100}$", description: 'Letters, spaces, and common punctuation only' }
+              relationship: { type: string, minLength: 2, maxLength: 50, pattern: "^[A-Za-z .'-]{2,50}$", description: 'Letters, spaces, and common punctuation only' }
               phone: { type: string, pattern: '^[0-9]{10,13}$', description: 'Digits only, 10–13 chars' }
         educationItems:
           type: array
@@ -13802,6 +13825,8 @@ components:
           type: string
           minLength: 2
           maxLength: 150
+          pattern: "^[A-Za-z .,'-]{2,150}$"
+          description: Full name accepts letters, spaces, and common punctuation only.
         email:
           type: string
           format: email
@@ -13934,7 +13959,10 @@ components:
           description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:
           type: string
+          minLength: 2
           maxLength: 150
+          pattern: "^[A-Za-z .,'-]{2,150}$"
+          description: Place of birth accepts letters, spaces, and common punctuation only.
           nullable: true
         dateOfBirth:
           type: string
@@ -13984,8 +14012,20 @@ components:
           type: string
           enum: [TK, TK0, TK1, TK2, TK3, K, K0, K1, K2, K3]
           nullable: true
-        bpjsKesehatanNo: { type: string, nullable: true }
-        bpjsKetenagakerjaanNo: { type: string, nullable: true }
+        bpjsKesehatanNo:
+          type: string
+          nullable: true
+          minLength: 13
+          maxLength: 13
+          pattern: '^[0-9]{13}$'
+          description: Digits only, exactly 13 characters. Non-digit characters are stripped before validation.
+        bpjsKetenagakerjaanNo:
+          type: string
+          nullable: true
+          minLength: 11
+          maxLength: 11
+          pattern: '^[0-9]{11}$'
+          description: Digits only, exactly 11 characters. Non-digit characters are stripped before validation.
         emergencyContacts:
           type: array
           minItems: 1
@@ -13993,8 +14033,8 @@ components:
             type: object
             required: [name, relationship, phone]
             properties:
-              name: { type: string, minLength: 2, maxLength: 100, description: 'Letters, spaces, and common punctuation only' }
-              relationship: { type: string, minLength: 2, maxLength: 50, description: 'Letters and spaces only' }
+              name: { type: string, minLength: 2, maxLength: 100, pattern: "^[A-Za-z .,'-]{2,100}$", description: 'Letters, spaces, and common punctuation only' }
+              relationship: { type: string, minLength: 2, maxLength: 50, pattern: "^[A-Za-z .'-]{2,50}$", description: 'Letters, spaces, and common punctuation only' }
               phone: { type: string, pattern: '^[0-9]{10,13}$', description: 'Digits only, 10–13 chars' }
         educationItems:
           type: array

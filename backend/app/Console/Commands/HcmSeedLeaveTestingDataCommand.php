@@ -40,6 +40,16 @@ class HcmSeedLeaveTestingDataCommand extends Command
 
         $companyIdOption = $this->option('company-id');
         $companyId = ($companyIdOption === null || $companyIdOption === '') ? null : (int) $companyIdOption;
+
+        // leave_requests.company_id is NOT NULL — auto-provision a seed company when none is provided.
+        if ($companyId === null) {
+            $company = \App\Models\Company::query()->firstOrCreate(
+                ['code' => 'LEAVE_SEED_COMPANY'],
+                ['name' => 'Leave Seed Company', 'domain' => 'leave-seed.local']
+            );
+            $companyId = $company->id;
+        }
+
         $password = (string) $this->option('password');
         $fresh = (bool) $this->option('fresh');
 
@@ -434,6 +444,7 @@ class HcmSeedLeaveTestingDataCommand extends Command
                     'date_to' => $row['to']->toDateString(),
                 ],
                 [
+                    'company_id' => $companyId,
                     'days' => $row['days'],
                     'status' => $row['status'],
                     'notes' => $row['notes'],

@@ -56,7 +56,7 @@ RBAC:
 - HCM Admin only
 
 Body:
-- `name` required string min 2 max 150
+- `name` required string min 2 max 150, regex huruf/spasi/tanda baca umum `^[\p{L}\p{M} .,\'-]{2,150}$`
 - `email` required email:rfc max 255 unique
 - `password` required regex `password_strong`
 - `confirmPassword` required same:password
@@ -80,6 +80,7 @@ Body:
 - `nik` / alias `ktpNo` **required** regex `^[0-9]{16}$` — satu sumber data untuk **NIK / nomor KTP**
 - `phone` **required** regex `^[0-9]{10,13}$`
 - `placeOfBirth`, `dateOfBirth`, `gender` (`male|female|other`), `maritalStatus` (`single|married|divorced|widowed`), `religion`, dan `address` **required**
+  - `placeOfBirth` regex huruf/spasi/tanda baca umum `^[\p{L}\p{M} .,\'-]{2,150}$`
   - `address` max 500 chars
   - `addressDetail` max 500 chars
   - `bio` max 500 chars
@@ -91,8 +92,10 @@ Body:
 - `nationality` otomatis dinormalisasi ke **`Indonesia`** dan input selain Indonesia ditolak
 - `bankName`, `bankAccountNo`, `bankAccountHolderName` **required**; `bankIfscCode`, `bankBranch` optional
   - `bankAccountNo` wajib angka saja (`^[0-9]{8,30}$`)
-  - `bankAccountHolderName` hanya huruf/spasi/tanda baca umum (`^[A-Za-z .,'-]{2,100}$`)
+  - `bankAccountHolderName` hanya huruf/spasi/tanda baca umum (`^[\p{L}\p{M} .,\'-]{2,100}$`)
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo` optional
+- `bpjsKesehatanNo` bila diisi wajib 13 digit angka (`^[0-9]{13}$`); non-digit otomatis di-strip sebelum validasi
+- `bpjsKetenagakerjaanNo` bila diisi wajib 11 digit angka (`^[0-9]{11}$`); non-digit otomatis di-strip sebelum validasi
 - `taxStatus` / `ptkpStatus` mengikuti enum Indonesia `TK0..TK3` / `K0..K3` (alias `TK` → `TK0`, `K` → `K0` masih diterima)
 - `emergencyContacts` **required** array `min:1`, dan minimal satu item harus memiliki `name`, `relationship`, dan `phone` valid
   - `name`: required, huruf/spasi/tanda baca umum, 2–100 chars
@@ -162,6 +165,7 @@ RBAC:
 
 Admin body (semua `sometimes`):
 - `name` string min 2 max 150
+  - regex huruf/spasi/tanda baca umum `^[\p{L}\p{M} .,\'-]{2,150}$`
 - `email` email:rfc unique ignore current id
 - `team` string max 100 (legacy compatibility; jika dipakai tanpa `teamId` akan ditolak)
 - `teamId` nullable int exists `teams.id` pada tenant aktif
@@ -183,6 +187,7 @@ Admin body (semua `sometimes`):
 - `address` string max 500
 - `addressDetail` string max 500
 - `placeOfBirth` string max 150
+  - regex huruf/spasi/tanda baca umum `^[\p{L}\p{M} .,\'-]{2,150}$`
 - `dateOfBirth` `date`
 - `gender` enum `male|female|other`
 - `maritalStatus` enum `single|married|divorced|widowed`
@@ -191,9 +196,11 @@ Admin body (semua `sometimes`):
 - `bio` string max 500
 - `bankName` max 150
 - `bankAccountNo` regex `^[0-9]{8,30}$` (angka saja, 8-30 digit)
-- `bankAccountHolderName` regex `^[A-Za-z .,'-]{2,100}$` (2-100 karakter)
+- `bankAccountHolderName` regex `^[\p{L}\p{M} .,\'-]{2,100}$` (2-100 karakter)
 - `bankIfscCode` max 100, `bankBranch` max 150
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo`
+  - `bpjsKesehatanNo`: bila diisi harus 13 digit angka (`^[0-9]{13}$`); non-digit di-strip otomatis
+  - `bpjsKetenagakerjaanNo`: bila diisi harus 11 digit angka (`^[0-9]{11}$`); non-digit di-strip otomatis
 - `emergencyContacts` array (sub-field rules sama seperti POST)
 - `educationItems` array (sub-field rules sama seperti POST)
 - `experienceItems` array (sub-field rules sama seperti POST)
@@ -214,8 +221,7 @@ Error `422`:
 ### POST `/employees/{id}/profile-photo`
 
 RBAC:
-- HCM Admin: boleh upload foto untuk employee dalam tenant aktif
-- Non-admin: hanya boleh upload foto milik sendiri (`id == auth.id`)
+- Semua role (termasuk HCM Admin/Owner): hanya boleh upload foto milik sendiri (`id == auth.id`)
 
 Identifier:
 - Path `{id}` saat ini **numeric legacy** (`users.id`)
@@ -236,8 +242,7 @@ Error:
 ### DELETE `/employees/{id}/profile-photo`
 
 RBAC:
-- HCM Admin: boleh hapus foto untuk employee dalam tenant aktif
-- Non-admin: hanya boleh hapus foto milik sendiri (`id == auth.id`)
+- Semua role (termasuk HCM Admin/Owner): hanya boleh hapus foto milik sendiri (`id == auth.id`)
 
 Identifier:
 - Path `{id}` saat ini **numeric legacy** (`users.id`)

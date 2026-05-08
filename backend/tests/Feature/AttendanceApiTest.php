@@ -237,6 +237,7 @@ class AttendanceApiTest extends TestCase
         \App\Models\AttendanceRecord::query()->updateOrCreate(
             ['user_id' => $user->id, 'work_date' => $today],
             [
+                'company_id' => $this->company->id,
                 'status' => 'present',
                 'check_in_at' => now('UTC')->subHour(),
                 'check_out_at' => null,
@@ -271,6 +272,7 @@ class AttendanceApiTest extends TestCase
         \App\Models\AttendanceRecord::query()->updateOrCreate(
             ['user_id' => $user->id, 'work_date' => $today],
             [
+                'company_id' => $this->company->id,
                 'status' => 'present',
                 'check_in_at' => $sameTime,
                 'check_out_at' => $sameTime,
@@ -313,6 +315,7 @@ class AttendanceApiTest extends TestCase
         \App\Models\AttendanceRecord::query()->updateOrCreate(
             ['user_id' => $user->id, 'work_date' => $today],
             [
+                'company_id' => $this->company->id,
                 'status' => 'present',
                 'check_in_at' => now(config('app.timezone'))->startOfDay()->setTime(9, 0),
                 'check_out_at' => now(config('app.timezone'))->startOfDay()->setTime(17, 0),
@@ -362,6 +365,7 @@ class AttendanceApiTest extends TestCase
         \App\Models\AttendanceRecord::query()->updateOrCreate(
             ['user_id' => $user->id, 'work_date' => $today],
             [
+                'company_id' => $this->company->id,
                 'status' => 'needs_review',
                 'check_in_at' => now(config('app.timezone'))->subHour(),
                 'check_out_at' => now(config('app.timezone')),

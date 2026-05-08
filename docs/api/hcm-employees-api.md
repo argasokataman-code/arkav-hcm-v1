@@ -87,6 +87,8 @@ Body:
 - Validasi lookup wilayah menggunakan kolom numeric `id` (bukan `uuid`) agar konsisten dengan payload UI/API yang mengirim ID integer.
 - `nationality` otomatis dinormalisasi ke **`Indonesia`** dan input selain Indonesia ditolak
 - `bankName`, `bankAccountNo`, `bankAccountHolderName` **required**; `bankIfscCode`, `bankBranch` optional
+  - `bankAccountNo` wajib angka saja (`^[0-9]{8,30}$`)
+  - `bankAccountHolderName` hanya huruf/spasi/tanda baca umum (`^[A-Za-z .,'-]{2,100}$`)
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo` optional
 - `taxStatus` / `ptkpStatus` mengikuti enum Indonesia `TK0..TK3` / `K0..K3` (alias `TK` → `TK0`, `K` → `K0` masih diterima)
 - `emergencyContacts` **required** array `min:1`, dan minimal satu item harus memiliki `name`, `relationship`, dan `phone` valid
@@ -171,7 +173,10 @@ Admin body (semua `sometimes`):
 - `religion` string max 50
 - `nationality` string max 100
 - `bio` string max 5000
-- `bankName` max 150, `bankAccountNo` max 100, `bankAccountHolderName` max 150, `bankIfscCode` max 100, `bankBranch` max 150
+- `bankName` max 150
+- `bankAccountNo` regex `^[0-9]{8,30}$` (angka saja, 8-30 digit)
+- `bankAccountHolderName` regex `^[A-Za-z .,'-]{2,100}$` (2-100 karakter)
+- `bankIfscCode` max 100, `bankBranch` max 150
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo`
 - `emergencyContacts` array
 - `educationItems` array

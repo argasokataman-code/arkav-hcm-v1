@@ -13736,8 +13736,20 @@ components:
           type: string
           nullable: true
           example: BCA
-        bankAccountNo: { type: string, nullable: true }
-        bankAccountHolderName: { type: string, nullable: true }
+        bankAccountNo:
+          type: string
+          nullable: true
+          minLength: 8
+          maxLength: 30
+          pattern: '^[0-9]{8,30}$'
+          description: Nomor rekening harus angka saja dengan panjang 8-30 digit.
+        bankAccountHolderName:
+          type: string
+          nullable: true
+          minLength: 2
+          maxLength: 100
+          pattern: "^[A-Za-z .,'-]{2,100}$"
+          description: Nama pemilik rekening hanya huruf, spasi, titik, koma, apostrof, dan tanda minus.
         bankIfscCode: { type: string, nullable: true }
         bankBranch: { type: string, nullable: true }
         npwp: { type: string, nullable: true }
@@ -13930,8 +13942,20 @@ components:
         bankName:
           type: string
           nullable: true
-        bankAccountNo: { type: string, nullable: true }
-        bankAccountHolderName: { type: string, nullable: true }
+        bankAccountNo:
+          type: string
+          nullable: true
+          minLength: 8
+          maxLength: 30
+          pattern: '^[0-9]{8,30}$'
+          description: Nomor rekening harus angka saja dengan panjang 8-30 digit.
+        bankAccountHolderName:
+          type: string
+          nullable: true
+          minLength: 2
+          maxLength: 100
+          pattern: "^[A-Za-z .,'-]{2,100}$"
+          description: Nama pemilik rekening hanya huruf, spasi, titik, koma, apostrof, dan tanda minus.
         bankIfscCode: { type: string, nullable: true }
         bankBranch: { type: string, nullable: true }
         npwp: { type: string, nullable: true }

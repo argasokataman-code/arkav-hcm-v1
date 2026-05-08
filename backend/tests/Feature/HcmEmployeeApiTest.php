@@ -539,6 +539,27 @@ class HcmEmployeeApiTest extends TestCase
         $unexpectedEndDate->assertStatus(422)
             ->assertJsonValidationErrors(['contractEndDate']);
     }
+
+    public function test_employee_create_rejects_invalid_bank_account_number_and_holder_name_format(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Invalid Bank Fields',
+            'email' => 'invalid.bank.fields@example.com',
+            'bankAccountNo' => '12345678901234567890123456789012345',
+            'bankAccountHolderName' => 'Holder1234',
+        ]));
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'bankAccountNo',
+                'bankAccountHolderName',
+            ]);
+    }
     public function test_employee_create_can_compose_address_from_wilayah_hierarchy(): void
     {
         $token = $this->adminBearerToken();

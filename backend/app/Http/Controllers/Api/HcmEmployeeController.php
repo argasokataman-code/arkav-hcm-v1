@@ -3191,8 +3191,20 @@ class HcmEmployeeController extends Controller
             'nationality' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:100', $nationalityRule],
             'bio' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'bankName' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', Rule::in($this->acceptedBankNames())],
-            'bankAccountNo' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:100'],
-            'bankAccountHolderName' => [$isCreate && ! $selfService ? 'required' : 'sometimes', 'nullable', 'string', 'max:150'],
+            'bankAccountNo' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'string',
+                'regex:/^[0-9]{8,30}$/',
+            ],
+            'bankAccountHolderName' => [
+                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'nullable',
+                'string',
+                'min:2',
+                'max:100',
+                "regex:/^[A-Za-z .,'-]{2,100}$/",
+            ],
             'bankIfscCode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'bankBranch' => ['sometimes', 'nullable', 'string', 'max:150'],
             'npwp' => [

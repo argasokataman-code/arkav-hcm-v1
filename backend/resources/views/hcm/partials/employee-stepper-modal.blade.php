@@ -268,8 +268,10 @@
                                 <label class="form-label">Contract Status <span class="text-danger">*</span></label>
                                 <select class="form-select" {{ $fieldAttr }}="contractStatus" required>
                                     <option value="active" selected>Active</option>
-                                    <option value="ended">Ended</option>
-                                    <option value="terminated">Terminated</option>
+                                    @if ($isEdit)
+                                        <option value="ended">Ended</option>
+                                        <option value="terminated">Terminated</option>
+                                    @endif
                                 </select>
                             </div>
                         </div>
@@ -288,11 +290,11 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Bank Account No <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountNo" placeholder="Nomor rekening" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountNo" placeholder="Nomor rekening" inputmode="numeric" maxlength="30" minlength="8" pattern="[0-9]{8,30}" title="Nomor rekening harus 8-30 digit angka" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" pattern="[A-Za-z .,\-']{2,100}" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank / SWIFT / IFSC Code</label>

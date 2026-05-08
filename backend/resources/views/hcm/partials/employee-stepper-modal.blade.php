@@ -106,11 +106,12 @@
                             @unless ($isEdit)
                                 <div class="col-md-6">
                                     <label class="form-label">Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter">
+                                    <input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter" required>
+                                    <small class="text-muted d-block mt-1">Harus 8-64 karakter dan mengandung huruf besar, huruf kecil, serta angka.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password">
+                                    <input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password" required>
                                 </div>
                             @endunless
 
@@ -226,6 +227,7 @@
                                     <option value="contract">Contract</option>
                                     <option value="intern">Intern</option>
                                 </select>
+                                <small class="text-muted d-block mt-1">Contract type akan diselaraskan otomatis sesuai employee type untuk mencegah data bentrok.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Effective Start Date</label>
@@ -441,6 +443,18 @@
                                 </div>
                             </template>
                         </div>
+
+                        @unless ($isEdit)
+                            <div class="mt-4 pt-3 border-top">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" {{ $fieldAttr }}="dataDisclosureAcknowledged" id="{{ $mode }}_data_disclosure_acknowledged" required>
+                                    <label class="form-check-label" for="{{ $mode }}_data_disclosure_acknowledged">
+                                        Saya mengakui pemrosesan dan disclosure data employee sesuai kebijakan perusahaan. <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-1">Persetujuan ini wajib sebelum data employee baru disimpan.</small>
+                            </div>
+                        @endunless
                     </div>
                 </div>
 

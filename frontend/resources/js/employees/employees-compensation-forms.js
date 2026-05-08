@@ -1,4 +1,5 @@
 export function bindEmployeeCompensationFormsModule(deps) {
+    var PASSWORD_RULE_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/;
     var requestJson = deps.requestJson;
     var requestEmployeeDetail = deps.requestEmployeeDetail;
     var fillDesignationSelectForDepartment = deps.fillDesignationSelectForDepartment;
@@ -290,6 +291,11 @@ export function bindEmployeeCompensationFormsModule(deps) {
         return value === "" ? null : value;
     }
 
+    function readChecked(form, key) {
+        var el = form ? form.querySelector('[data-employee-add-field="' + key + '"], [data-employee-edit-field="' + key + '"]') : null;
+        return !!(el && el.checked === true);
+    }
+
     function readNumberOrNull(value) {
         var raw = String(value == null ? "" : value).trim();
         if (raw === "") {
@@ -379,6 +385,64 @@ export function bindEmployeeCompensationFormsModule(deps) {
         return raw === "contract" ? "contract" : "permanent";
     }
 
+    function normalizeEmployeeTypeValue(value) {
+        var raw = String(value || "").trim().toLowerCase();
+        if (!raw) {
+            return "";
+        }
+        if (raw === "pkwtt") {
+            return "permanent";
+        }
+        if (raw === "pkwt") {
+            return "contract";
+        }
+        return raw;
+    }
+
+    function expectedContractTypeByEmployeeType(employeeType) {
+        if (employeeType === "permanent") {
+            return "permanent";
+        }
+        if (employeeType === "contract" || employeeType === "intern") {
+            return "contract";
+        }
+        return null;
+    }
+
+    function ensureEmployeeContractTypeConsistency(form, options) {
+        if (!form) {
+            return true;
+        }
+        var opts = options || {};
+        var employeeType = normalizeEmployeeTypeValue(readText(form, "employeeType"));
+        var contractTypeInput = form.querySelector('[data-employee-add-field="contractType"], [data-employee-edit-field="contractType"]');
+        if (!employeeType || !contractTypeInput) {
+            return true;
+        }
+
+        var expected = expectedContractTypeByEmployeeType(employeeType);
+        if (!expected) {
+            return true;
+        }
+
+        var current = normalizeContractTypeValue(contractTypeInput.value);
+        if (current === expected) {
+            return true;
+        }
+
+        if (opts.autoCorrect) {
+            contractTypeInput.value = expected;
+            toggleContractEndDateVisibility(form);
+            if (opts.notify !== false) {
+                showValidationToast("Contract type otomatis disesuaikan dengan employee type untuk mencegah data bentrok.");
+            }
+            return true;
+        }
+
+        showValidationToast("Employee type dan contract type tidak boleh bertentangan. Permanent harus permanent, contract/intern harus contract.");
+        return false;
+    }
+
     function showValidationToast(message) {
         if (window.ArcavUi && window.ArcavUi.showToast) {
             window.ArcavUi.showToast(message, "warning");
@@ -395,6 +459,161 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (window.ArcavUi && typeof window.ArcavUi.showInfo === "function") {
             window.ArcavUi.showInfo("Kapasitas Karyawan Penuh", message);
         }
+        return true;
+    }
+
+    function snakeToCamel(value) {
+        return String(value || "")
+            .replace(/\[(\d+)\]/g, ".$1")
+            .replace(/[_-]([a-zA-Z0-9])/g, function (_, ch) {
+                return String(ch || "").toUpperCase();
+            });
+    }
+
+    function clearBackendValidationState(form) {
+        if (!form) {
+            return;
+        }
+        var fields = form.querySelectorAll("input, select, textarea");
+        Array.prototype.forEach.call(fields, function (field) {
+            if (field && typeof field.setCustomValidity === "function" && field.getAttribute("data-employee-backend-error") === "1") {
+                field.setCustomValidity("");
+                field.removeAttribute("data-employee-backend-error");
+            }
+        });
+    }
+
+    function findFieldByValidationKey(form, rawFieldKey) {
+        if (!form) {
+            return null;
+        }
+
+        var key = String(rawFieldKey || "").trim();
+        if (!key) {
+            return null;
+        }
+
+        var base = key.split(".")[0] || key;
+        var aliases = {
+            ktpNo: "nik",
+            ktp_no: "nik",
+            confirm_password: "confirmPassword",
+        };
+
+        var candidates = [
+            key,
+            base,
+            snakeToCamel(key),
+            snakeToCamel(base),
+            aliases[key],
+            aliases[base],
+        ].filter(function (item, index, array) {
+            return !!item && array.indexOf(item) === index;
+        });
+
+        for (var i = 0; i < candidates.length; i += 1) {
+            var candidate = String(candidates[i]);
+            var field = form.querySelector('[data-employee-add-field="' + candidate + '"]')
+                || form.querySelector('[data-employee-edit-field="' + candidate + '"]');
+            if (field) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
+    function extractValidationErrors(payload) {
+        var output = [];
+        if (!payload || typeof payload !== "object") {
+            return output;
+        }
+
+        var errorsObj = payload.errors;
+        if (errorsObj && typeof errorsObj === "object") {
+            Object.keys(errorsObj).forEach(function (field) {
+                var value = errorsObj[field];
+                var message = Array.isArray(value) ? String(value[0] || "").trim() : String(value || "").trim();
+                if (field && message) {
+                    output.push({ field: field, message: message });
+                }
+            });
+        }
+
+        var detailList = payload.error && Array.isArray(payload.error.details) ? payload.error.details : [];
+        detailList.forEach(function (detail) {
+            var field = String((detail && detail.field) || "").trim();
+            var message = String((detail && detail.message) || "").trim();
+            if (!field || !message) {
+                return;
+            }
+            var exists = output.some(function (item) {
+                return item.field === field;
+            });
+            if (!exists) {
+                output.push({ field: field, message: message });
+            }
+        });
+
+        return output;
+    }
+
+    function applyBackendValidationErrors(form, payload) {
+        var code = String(payload && payload.error && payload.error.code ? payload.error.code : "").trim();
+        if (code !== "VALIDATION_ERROR") {
+            return false;
+        }
+
+        var details = extractValidationErrors(payload);
+        if (!details.length) {
+            return false;
+        }
+
+        clearBackendValidationState(form);
+
+        var firstField = null;
+        var fallbackMessages = [];
+
+        details.forEach(function (item) {
+            var fieldEl = findFieldByValidationKey(form, item.field);
+            if (!fieldEl) {
+                fallbackMessages.push(item.message);
+                return;
+            }
+
+            if (typeof fieldEl.setCustomValidity === "function") {
+                fieldEl.setCustomValidity(item.message);
+                fieldEl.setAttribute("data-employee-backend-error", "1");
+            }
+
+            if (!firstField) {
+                firstField = fieldEl;
+            }
+        });
+
+        if (firstField) {
+            var pane = firstField.closest("[data-employee-step-pane]");
+            if (pane) {
+                var paneIndex = parseInt(String(pane.getAttribute("data-employee-step-pane") || "0"), 10);
+                if (!isNaN(paneIndex)) {
+                    setStep(form, paneIndex);
+                }
+            }
+            if (typeof firstField.reportValidity === "function") {
+                firstField.reportValidity();
+            }
+            if (typeof firstField.focus === "function") {
+                firstField.focus();
+            }
+        }
+
+        if (fallbackMessages.length && window.ArcavUi && window.ArcavUi.showToast) {
+            var fallbackSummary = fallbackMessages.length === 1
+                ? fallbackMessages[0]
+                : fallbackMessages.length + " error dari server: " + fallbackMessages.join("; ");
+            window.ArcavUi.showToast(fallbackSummary, "warning");
+        }
+
         return true;
     }
 
@@ -417,15 +636,44 @@ export function bindEmployeeCompensationFormsModule(deps) {
         }
     }
 
+    function maybeAutoSyncContractStartDate(form) {
+        if (!form) {
+            return;
+        }
+        var startDateInput = form.querySelector('[data-employee-add-field="startDate"], [data-employee-edit-field="startDate"]');
+        var contractStartInput = form.querySelector('[data-employee-add-field="contractStartDate"], [data-employee-edit-field="contractStartDate"]');
+        if (!startDateInput || !contractStartInput) {
+            return;
+        }
+
+        var startDateValue = String(startDateInput.value || "").trim();
+        var contractStartValue = String(contractStartInput.value || "").trim();
+        var previousAutoValue = String(form.getAttribute("data-employee-contract-start-auto") || "").trim();
+
+        var canAutofill = contractStartValue === "" || contractStartValue === previousAutoValue;
+        if (canAutofill) {
+            contractStartInput.value = startDateValue;
+            form.setAttribute("data-employee-contract-start-auto", startDateValue);
+            return;
+        }
+
+        form.setAttribute("data-employee-contract-start-auto", previousAutoValue || startDateValue);
+    }
+
     function validateCurrentStep(form) {
         if (!form) {
             return true;
         }
         toggleContractEndDateVisibility(form);
+        ensureEmployeeContractTypeConsistency(form, { autoCorrect: true, notify: false });
         var stepIndex = Number(form.getAttribute("data-employee-step-index") || 0);
 
         var passwordInput = form.querySelector('[data-employee-add-field="password"], [data-employee-edit-field="password"]');
         var confirmPasswordInput = form.querySelector('[data-employee-add-field="confirmPassword"], [data-employee-edit-field="confirmPassword"]');
+        // Clear password custom validity upfront so stale errors don't pollute the reportValidity loop below.
+        if (passwordInput && typeof passwordInput.setCustomValidity === "function") {
+            passwordInput.setCustomValidity("");
+        }
         if (confirmPasswordInput && typeof confirmPasswordInput.setCustomValidity === "function") {
             confirmPasswordInput.setCustomValidity("");
         }
@@ -435,6 +683,11 @@ export function bindEmployeeCompensationFormsModule(deps) {
             var fields = pane.querySelectorAll("input, select, textarea");
             for (var i = 0; i < fields.length; i += 1) {
                 if (fields[i].disabled) {
+                    // Required-but-disabled fields mean async options are not ready yet.
+                    if (fields[i].required) {
+                        showValidationToast("Masih ada field wajib yang belum siap. Tunggu loading selesai lalu lengkapi field tersebut.");
+                        return false;
+                    }
                     continue;
                 }
                 if (typeof fields[i].reportValidity === "function" && !fields[i].reportValidity()) {
@@ -443,9 +696,24 @@ export function bindEmployeeCompensationFormsModule(deps) {
             }
         }
 
+        // Password strength + match check — only on step 0 (Personal) add form.
+        // Trim values to match what buildPayload sends so validation is consistent.
         if (stepIndex === 0 && passwordInput && confirmPasswordInput) {
-            var passwordValue = String(passwordInput.value || "");
-            var confirmPasswordValue = String(confirmPasswordInput.value || "");
+            var passwordValue = String(passwordInput.value || "").trim();
+            var confirmPasswordValue = String(confirmPasswordInput.value || "").trim();
+            if (passwordValue !== "" && !PASSWORD_RULE_REGEX.test(passwordValue)) {
+                if (typeof passwordInput.setCustomValidity === "function") {
+                    passwordInput.setCustomValidity("Password harus 8-64 karakter, mengandung huruf besar, huruf kecil, dan angka.");
+                }
+                if (typeof passwordInput.reportValidity === "function") {
+                    passwordInput.reportValidity();
+                }
+                showValidationToast("Format password belum valid. Gunakan minimal 8 karakter dengan huruf besar, huruf kecil, dan angka.");
+                return false;
+            }
+            if (typeof passwordInput.setCustomValidity === "function") {
+                passwordInput.setCustomValidity("");
+            }
             if (passwordValue !== confirmPasswordValue) {
                 if (typeof confirmPasswordInput.setCustomValidity === "function") {
                     confirmPasswordInput.setCustomValidity("Konfirmasi password harus sama dengan password.");
@@ -458,52 +726,59 @@ export function bindEmployeeCompensationFormsModule(deps) {
             }
         }
 
-        var nik = readField(form, "nik");
-        if (nik && !/^[0-9]{16}$/.test(nik)) {
-            showValidationToast("NIK wajib tepat 16 digit angka.");
-            return false;
-        }
-
-        var phone = readField(form, "phone");
-        if (phone && !/^[0-9]{10,13}$/.test(phone)) {
-            showValidationToast("Nomor telepon wajib 10-13 digit angka.");
-            return false;
-        }
-
+        // Force nationality to Indonesia (always OK to run on any step).
         var nationalityInput = form.querySelector('[data-employee-add-field="nationality"], [data-employee-edit-field="nationality"]');
         if (nationalityInput) {
             nationalityInput.value = "Indonesia";
         }
 
-        var startDate = readField(form, "startDate");
-        var probationEndDate = readField(form, "probationEndDate");
-        if (startDate && probationEndDate && probationEndDate < startDate) {
-            showValidationToast("Probation end date tidak boleh lebih awal dari effective start date.");
-            return false;
+        // Date cross-check — only relevant once step 1 (Employment) fields exist.
+        if (stepIndex >= 1) {
+            var startDate = readField(form, "startDate");
+            var probationEndDate = readField(form, "probationEndDate");
+            if (startDate && probationEndDate && probationEndDate < startDate) {
+                showValidationToast("Probation end date tidak boleh lebih awal dari effective start date.");
+                return false;
+            }
         }
 
-        var contractType = normalizeContractTypeValue(readText(form, "contractType"));
-        var contractStartDate = readField(form, "contractStartDate");
-        var contractEndDate = readField(form, "contractEndDate");
-        if (contractStartDate && contractEndDate && contractEndDate < contractStartDate) {
-            showValidationToast("Contract end date tidak boleh lebih awal dari contract start date.");
-            return false;
-        }
-        if (contractType === "contract" && !contractEndDate) {
-            showValidationToast("Contract end date wajib diisi untuk contract.");
-            return false;
-        }
-        if (contractType === "permanent" && contractEndDate) {
-            showValidationToast("Contract end date tidak boleh diisi untuk permanent.");
-            return false;
+        // Contract cross-checks — only relevant from step 2 (Compensation) onward.
+        // Running on step 0/1 would produce confusing toasts about fields the user hasn't seen yet.
+        if (stepIndex >= 2) {
+            var contractType = normalizeContractTypeValue(readText(form, "contractType"));
+            var employeeType = normalizeEmployeeTypeValue(readText(form, "employeeType"));
+            var expectedContractType = expectedContractTypeByEmployeeType(employeeType);
+            if (expectedContractType && contractType !== expectedContractType) {
+                showValidationToast("Employee type dan contract type tidak sinkron. Mohon cek ulang tipe employee.");
+                return false;
+            }
+            var contractStartDate = readField(form, "contractStartDate");
+            var contractEndDate = readField(form, "contractEndDate");
+            if (contractStartDate && contractEndDate && contractEndDate < contractStartDate) {
+                showValidationToast("Contract end date tidak boleh lebih awal dari contract start date.");
+                return false;
+            }
+            if (contractType === "contract" && !contractEndDate) {
+                showValidationToast("Contract end date wajib diisi untuk tipe contract.");
+                return false;
+            }
+            if (contractType === "permanent" && contractEndDate) {
+                showValidationToast("Contract end date tidak boleh diisi untuk tipe permanent.");
+                return false;
+            }
         }
 
-        var baseSalary = readField(form, "baseSalary");
-        if (stepIndex === 2 && (!/^[0-9]+$/.test(baseSalary) || Number(baseSalary) < 0)) {
-            showValidationToast("Base salary wajib angka 0 atau lebih besar.");
-            return false;
+        // Base salary — step 2 only.
+        if (stepIndex === 2) {
+            var baseSalary = readField(form, "baseSalary");
+            // baseSalary is required in HTML, so reportValidity catches empty; only check non-empty invalid values here.
+            if (baseSalary !== "" && (!/^[0-9]+$/.test(baseSalary) || Number(baseSalary) < 0)) {
+                showValidationToast("Base salary wajib angka 0 atau lebih besar.");
+                return false;
+            }
         }
 
+        // Emergency contacts — step 4 (Background/final step) only.
         if (stepIndex === 4) {
             var contacts = collectRepeatable(form, "emergencyContacts");
             var hasValidEmergencyContact = contacts.some(function (item) {
@@ -578,6 +853,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (!form) {
             return;
         }
+        clearBackendValidationState(form);
         form.reset();
         form.removeAttribute("data-employee-id");
         form.removeAttribute("data-employee-edit-org-snapshot-dept");
@@ -593,6 +869,9 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (teamEl) {
             loadTeamsDropdown(teamEl, "");
         }
+        form.setAttribute("data-employee-contract-start-auto", "");
+        ensureEmployeeContractTypeConsistency(form, { autoCorrect: true, notify: false });
+        maybeAutoSyncContractStartDate(form);
         setStep(form, 0);
     }
 
@@ -659,6 +938,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (!isEdit) {
             payload.password = readField(form, "password");
             payload.confirmPassword = readField(form, "confirmPassword");
+            payload.data_disclosure_acknowledged = readChecked(form, "dataDisclosureAcknowledged");
         }
 
         return payload;
@@ -668,6 +948,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (!editForm || !item) {
             return;
         }
+        clearBackendValidationState(editForm);
 
         writeField(editForm, "name", item.fullName || "");
         writeField(editForm, "email", item.email || "");
@@ -729,6 +1010,9 @@ export function bindEmployeeCompensationFormsModule(deps) {
         resetRepeatable(editForm, "experienceItems", Array.isArray(item.experienceItems) ? item.experienceItems : []);
         setWilayahCascade(editForm, item.addressRegion || null, item.address && item.address !== "-" ? item.address : "");
         updateModalEmployeeUuid(editForm, item);
+        editForm.setAttribute("data-employee-contract-start-auto", String(readField(editForm, "contractStartDate") || ""));
+        ensureEmployeeContractTypeConsistency(editForm, { autoCorrect: true, notify: false });
+        maybeAutoSyncContractStartDate(editForm);
         setStep(editForm, 0);
     }
 
@@ -741,12 +1025,40 @@ export function bindEmployeeCompensationFormsModule(deps) {
         resetRepeatable(form, "educationItems", []);
         resetRepeatable(form, "experienceItems", []);
         bindWilayahChangeHandlers(form);
+        form.setAttribute("data-employee-contract-start-auto", "");
+        ensureEmployeeContractTypeConsistency(form, { autoCorrect: true, notify: false });
+        maybeAutoSyncContractStartDate(form);
         setStep(form, 0);
 
+        // Clear backend error state on both input (per-keystroke) and change (on blur/select).
+        // Using input for text fields clears the red indicator immediately as user types;
+        // change is kept for select/date fields that don't fire input.
+        function handleFieldInteraction(event) {
+            var changedField = event.target && event.target.closest ? event.target.closest("input, select, textarea") : null;
+            if (changedField && changedField.getAttribute("data-employee-backend-error") === "1" && typeof changedField.setCustomValidity === "function") {
+                changedField.setCustomValidity("");
+                changedField.removeAttribute("data-employee-backend-error");
+            }
+        }
+        form.addEventListener("input", handleFieldInteraction);
+
         form.addEventListener("change", function (event) {
+            handleFieldInteraction(event);
+
+            var employeeTypeInput = event.target && event.target.closest ? event.target.closest('[data-employee-add-field="employeeType"], [data-employee-edit-field="employeeType"]') : null;
+            if (employeeTypeInput) {
+                ensureEmployeeContractTypeConsistency(form, { autoCorrect: true, notify: false });
+            }
+
+            var startDateInput = event.target && event.target.closest ? event.target.closest('[data-employee-add-field="startDate"], [data-employee-edit-field="startDate"]') : null;
+            if (startDateInput) {
+                maybeAutoSyncContractStartDate(form);
+            }
+
             var contractTypeInput = event.target && event.target.closest ? event.target.closest('[data-employee-add-field="contractType"], [data-employee-edit-field="contractType"]') : null;
             if (contractTypeInput) {
                 toggleContractEndDateVisibility(form);
+                ensureEmployeeContractTypeConsistency(form, { autoCorrect: true, notify: true });
             }
         });
 
@@ -754,6 +1066,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
             var nextBtn = event.target.closest("[data-employee-step-next]");
             if (nextBtn) {
                 event.preventDefault();
+                clearBackendValidationState(form);
                 if (!validateCurrentStep(form)) {
                     return;
                 }
@@ -773,8 +1086,11 @@ export function bindEmployeeCompensationFormsModule(deps) {
                 event.preventDefault();
                 var targetIndex = parseInt(trigger.getAttribute("data-employee-step-trigger"), 10) || 0;
                 var currentIndex = Number(form.getAttribute("data-employee-step-index") || 0);
-                if (targetIndex > currentIndex && !validateCurrentStep(form)) {
-                    return;
+                if (targetIndex > currentIndex) {
+                    clearBackendValidationState(form);
+                    if (!validateCurrentStep(form)) {
+                        return;
+                    }
                 }
                 setStep(form, targetIndex);
                 return;
@@ -821,13 +1137,25 @@ export function bindEmployeeCompensationFormsModule(deps) {
     if (addForm) {
         addForm.addEventListener("submit", function (event) {
             event.preventDefault();
+            clearBackendValidationState(addForm);
             if (!validateCurrentStep(addForm)) {
                 return;
+            }
+            var submitBtn = addForm.querySelector("[data-employee-step-submit]");
+            var originalLabel = submitBtn ? (submitBtn.getAttribute("data-original-label") || submitBtn.textContent) : "";
+            if (submitBtn) {
+                submitBtn.setAttribute("data-original-label", originalLabel);
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Menyimpan...";
             }
             var payload = buildPayload(addForm, false);
             requestJson("post", "/v1/hcm/employees", payload)
                 .then(function (resp) {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
                     if (!resp || resp.success !== true) {
+                        if (applyBackendValidationErrors(addForm, resp)) {
+                            return;
+                        }
                         maybeShowEmployeeLimitPopup(resp, formatApiError(resp, 0));
                         window.ArcavUi && window.ArcavUi.showToast && window.ArcavUi.showToast(formatApiError(resp, 0), "danger");
                         return;
@@ -842,7 +1170,11 @@ export function bindEmployeeCompensationFormsModule(deps) {
                     loadEmployeesData();
                 })
                 .catch(function (error) {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
                     if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
+                        return;
+                    }
+                    if (applyBackendValidationErrors(addForm, error && error.data)) {
                         return;
                     }
                     maybeShowEmployeeLimitPopup(error && error.data, formatApiError(error && error.data, error && error.status));
@@ -888,6 +1220,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
     if (editForm) {
         editForm.addEventListener("submit", function (event) {
             event.preventDefault();
+            clearBackendValidationState(editForm);
             if (!validateCurrentStep(editForm)) {
                 return;
             }
@@ -898,10 +1231,21 @@ export function bindEmployeeCompensationFormsModule(deps) {
                 }
                 return;
             }
+            var editSubmitBtn = editForm.querySelector("[data-employee-step-submit]");
+            var editOriginalLabel = editSubmitBtn ? (editSubmitBtn.getAttribute("data-original-label") || editSubmitBtn.textContent) : "";
+            if (editSubmitBtn) {
+                editSubmitBtn.setAttribute("data-original-label", editOriginalLabel);
+                editSubmitBtn.disabled = true;
+                editSubmitBtn.textContent = "Menyimpan...";
+            }
             var payload = buildPayload(editForm, true);
             requestJson("put", "/v1/hcm/employees/" + encodeURIComponent(employeeId), payload)
                 .then(function (resp) {
+                    if (editSubmitBtn) { editSubmitBtn.disabled = false; editSubmitBtn.textContent = editOriginalLabel; }
                     if (!resp || resp.success !== true) {
+                        if (applyBackendValidationErrors(editForm, resp)) {
+                            return;
+                        }
                         window.ArcavUi && window.ArcavUi.showToast && window.ArcavUi.showToast(formatApiError(resp, 0), "danger");
                         return;
                     }
@@ -917,7 +1261,11 @@ export function bindEmployeeCompensationFormsModule(deps) {
                     loadEmployeesData();
                 })
                 .catch(function (error) {
+                    if (editSubmitBtn) { editSubmitBtn.disabled = false; editSubmitBtn.textContent = editOriginalLabel; }
                     if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
+                        return;
+                    }
+                    if (applyBackendValidationErrors(editForm, error && error.data)) {
                         return;
                     }
                     if (window.ArcavUi && window.ArcavUi.showToast) {

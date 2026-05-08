@@ -13700,12 +13700,12 @@ components:
           description: Required for create; selected village numeric id (wilayah_villages.id) and must belong to selected district.
         address:
           type: string
-          maxLength: 2000
+          maxLength: 500
           nullable: true
           description: Auto-composed from wilayah hierarchy when complete region ids are provided.
         addressDetail:
           type: string
-          maxLength: 2000
+          maxLength: 500
           nullable: true
           description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:
@@ -13924,12 +13924,12 @@ components:
           description: Village numeric id from wilayah_villages.id; must match selected district.
         address:
           type: string
-          maxLength: 2000
+          maxLength: 500
           nullable: true
           description: Auto-composed from wilayah hierarchy when complete region ids are provided.
         addressDetail:
           type: string
-          maxLength: 2000
+          maxLength: 500
           nullable: true
           description: Manual street/building/RT-RW detail stored separately from wilayah-composed address.
         placeOfBirth:

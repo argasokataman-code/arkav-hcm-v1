@@ -606,6 +606,29 @@ class HcmEmployeeApiTest extends TestCase
         $badExpCompany->assertStatus(422)->assertJsonValidationErrors(['experienceItems.0.company']);
     }
 
+    public function test_employee_create_rejects_oversized_personal_text_fields(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Oversized Text Fields',
+            'email' => 'oversized.text.fields@example.com',
+            'address' => str_repeat('A', 501),
+            'addressDetail' => str_repeat('B', 501),
+            'bio' => str_repeat('C', 501),
+        ]));
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'address',
+                'addressDetail',
+                'bio',
+            ]);
+    }
+
     public function test_employee_create_rejects_invalid_bank_account_number_and_holder_name_format(): void
     {
         $token = $this->adminBearerToken();

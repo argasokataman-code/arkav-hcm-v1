@@ -80,6 +80,9 @@ Body:
 - `nik` / alias `ktpNo` **required** regex `^[0-9]{16}$` — satu sumber data untuk **NIK / nomor KTP**
 - `phone` **required** regex `^[0-9]{10,13}$`
 - `placeOfBirth`, `dateOfBirth`, `gender` (`male|female|other`), `maritalStatus` (`single|married|divorced|widowed`), `religion`, dan `address` **required**
+  - `address` max 500 chars
+  - `addressDetail` max 500 chars
+  - `bio` max 500 chars
 - `provinceId`, `regencyId`, `districtId`, `villageId` **required** integer (ID master wilayah) dengan relasi hirarki valid:
   - `regencyId` harus milik `provinceId`
   - `districtId` harus milik `regencyId`
@@ -177,14 +180,15 @@ Admin body (semua `sometimes`):
 - `employmentStatus` enum `active|inactive|probation|resigned|terminated`
 - `nik` / `ktpNo` regex `^[0-9]{16}$`
 - `phone` regex `^[0-9]{10,13}$` (numeric only)
-- `address` string max 2000
+- `address` string max 500
+- `addressDetail` string max 500
 - `placeOfBirth` string max 150
 - `dateOfBirth` `date`
 - `gender` enum `male|female|other`
 - `maritalStatus` enum `single|married|divorced|widowed`
 - `religion` string max 50
 - `nationality` string max 100
-- `bio` string max 5000
+- `bio` string max 500
 - `bankName` max 150
 - `bankAccountNo` regex `^[0-9]{8,30}$` (angka saja, 8-30 digit)
 - `bankAccountHolderName` regex `^[A-Za-z .,'-]{2,100}$` (2-100 karakter)

@@ -165,7 +165,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bio / Notes</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bio" placeholder="Ringkasan singkat atau catatan internal" maxlength="5000">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bio" placeholder="Ringkasan singkat atau catatan internal" maxlength="500">
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Address <span class="text-danger">*</span></label>
@@ -197,7 +197,7 @@
                                     <div class="col-12">
                                         <label class="form-label small text-muted">Address Detail (manual)</label>
                                         <input type="hidden" {{ $fieldAttr }}="address" data-employee-address-autofill>
-                                        <textarea class="form-control" rows="2" {{ $fieldAttr }}="addressDetail" placeholder="Street, building, RT/RW, landmark" maxlength="2000"></textarea>
+                                        <textarea class="form-control" rows="2" {{ $fieldAttr }}="addressDetail" placeholder="Street, building, RT/RW, landmark" maxlength="500"></textarea>
                                     </div>
                                 </div>
                                 <small class="text-muted d-block mt-2">Wilayah tetap dipilih dari dropdown. Isi detail alamat manual jika diperlukan.</small>

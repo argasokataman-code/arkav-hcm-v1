@@ -540,6 +540,72 @@ class HcmEmployeeApiTest extends TestCase
             ->assertJsonValidationErrors(['contractEndDate']);
     }
 
+    public function test_employee_create_rejects_invalid_background_step_data(): void
+    {
+        $token = $this->adminBearerToken();
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id];
+
+        // Emergency contact: garbage name (special chars), garbage relationship, bad phone with dashes
+        $badContactName = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Contact Name Test',
+            'email' => 'bg.contact1@example.com',
+            'emergencyContacts' => [
+                ['name' => 'ajhsbxkj@#$%^&*123', 'relationship' => 'friend', 'phone' => '08123456789'],
+            ],
+        ]));
+        $badContactName->assertStatus(422)->assertJsonValidationErrors(['emergencyContacts.0.name']);
+
+        // Emergency contact: phone with dashes
+        $badPhone = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Contact Phone Test',
+            'email' => 'bg.contact2@example.com',
+            'emergencyContacts' => [
+                ['name' => 'Budi Santoso', 'relationship' => 'Spouse', 'phone' => '----38912732'],
+            ],
+        ]));
+        $badPhone->assertStatus(422)->assertJsonValidationErrors(['emergencyContacts.0.phone']);
+
+        // Education: year out of range (398237492783497)
+        $badEduYear = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Education Year Test',
+            'email' => 'bg.edu1@example.com',
+            'educationItems' => [
+                ['institution' => 'Universitas Indonesia', 'degree' => 'S1', 'startYear' => 398237492783497, 'endYear' => null],
+            ],
+        ]));
+        $badEduYear->assertStatus(422)->assertJsonValidationErrors(['educationItems.0.startYear']);
+
+        // Education: institution with random garbage
+        $badEduInst = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Education Inst Test',
+            'email' => 'bg.edu2@example.com',
+            'educationItems' => [
+                ['institution' => 'wdihcnxefgiuywegxnri2u3y49238764928348wdihcnxefgiuywegxnri2u3y49238764928348wdihcnxefgiuywegxnri2u3y49238764928348', 'degree' => 'S1', 'startYear' => 2010, 'endYear' => 2014],
+            ],
+        ]));
+        $badEduInst->assertStatus(422)->assertJsonValidationErrors(['educationItems.0.institution']);
+
+        // Experience: future start date
+        $badExpDate = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Experience Date Test',
+            'email' => 'bg.exp1@example.com',
+            'experienceItems' => [
+                ['company' => 'PT Contoh', 'position' => 'Engineer', 'startDate' => '2099-01-01', 'endDate' => null],
+            ],
+        ]));
+        $badExpDate->assertStatus(422)->assertJsonValidationErrors(['experienceItems.0.startDate']);
+
+        // Experience: company name too long
+        $badExpCompany = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'Experience Company Test',
+            'email' => 'bg.exp2@example.com',
+            'experienceItems' => [
+                ['company' => str_repeat('x', 101), 'position' => 'Engineer', 'startDate' => '2020-01-01', 'endDate' => null],
+            ],
+        ]));
+        $badExpCompany->assertStatus(422)->assertJsonValidationErrors(['experienceItems.0.company']);
+    }
+
     public function test_employee_create_rejects_invalid_bank_account_number_and_holder_name_format(): void
     {
         $token = $this->adminBearerToken();

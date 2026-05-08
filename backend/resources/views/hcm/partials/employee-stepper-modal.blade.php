@@ -353,15 +353,15 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Name</label>
-                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak">
+                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak" minlength="2" maxlength="100" pattern="[\p{L}\p{M}A-Za-z' .,-]{2,100}" title="Nama hanya boleh huruf, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Relationship</label>
-                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent">
+                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" pattern="[A-Za-z' .-]{2,50}" title="Hubungan hanya boleh huruf dan spasi">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Phone</label>
-                                                <input type="text" class="form-control" data-repeat-key="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" maxlength="13" pattern="[0-9]{10,13}">
+                                                <input type="text" class="form-control" data-repeat-key="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" minlength="10" maxlength="13" pattern="[0-9]{10,13}" title="Nomor telepon 10–13 digit angka">
                                             </div>
                                             <div class="col-md-2 text-md-end">
                                                 <button type="button" class="btn btn-outline-danger btn-sm w-100" data-employee-repeat-remove>Remove</button>
@@ -387,11 +387,11 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Institution</label>
-                                                <input type="text" class="form-control" data-repeat-key="institution" placeholder="Universitas / Sekolah">
+                                                <input type="text" class="form-control" data-repeat-key="institution" placeholder="Universitas / Sekolah" minlength="2" maxlength="100">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Degree</label>
-                                                <input type="text" class="form-control" data-repeat-key="degree" placeholder="S1, SMA, Diploma">
+                                                <input type="text" class="form-control" data-repeat-key="degree" placeholder="S1, SMA, Diploma" minlength="2" maxlength="50">
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">Start Year</label>
@@ -425,19 +425,19 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Company</label>
-                                                <input type="text" class="form-control" data-repeat-key="company" placeholder="Nama perusahaan">
+                                                <input type="text" class="form-control" data-repeat-key="company" placeholder="Nama perusahaan" minlength="2" maxlength="100">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Position</label>
-                                                <input type="text" class="form-control" data-repeat-key="position" placeholder="Jabatan">
+                                                <input type="text" class="form-control" data-repeat-key="position" placeholder="Jabatan" minlength="2" maxlength="100">
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">Start Date</label>
-                                                <input type="date" class="form-control" data-repeat-key="startDate">
+                                                <input type="date" class="form-control" data-repeat-key="startDate" max="{{ date('Y-m-d') }}">
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">End Date</label>
-                                                <input type="date" class="form-control" data-repeat-key="endDate">
+                                                <input type="date" class="form-control" data-repeat-key="endDate" max="{{ date('Y-m-d') }}">
                                             </div>
                                             <div class="col-md-1 text-md-end">
                                                 <button type="button" class="btn btn-outline-danger btn-sm w-100" data-employee-repeat-remove>×</button>

@@ -92,7 +92,19 @@ Body:
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo` optional
 - `taxStatus` / `ptkpStatus` mengikuti enum Indonesia `TK0..TK3` / `K0..K3` (alias `TK` → `TK0`, `K` → `K0` masih diterima)
 - `emergencyContacts` **required** array `min:1`, dan minimal satu item harus memiliki `name`, `relationship`, dan `phone` valid
-- `educationItems`, `experienceItems` optional array
+  - `name`: required, huruf/spasi/tanda baca umum, 2–100 chars
+  - `relationship`: required, huruf/spasi saja, 2–50 chars
+  - `phone`: required, digits only `^[0-9]{10,13}$`
+- `educationItems` optional array — jika ada, setiap item wajib:
+  - `institution`: string 2–100 chars
+  - `degree`: string 2–50 chars
+  - `startYear`: integer 1900–2100
+  - `endYear`: nullable integer 1900–2100
+- `experienceItems` optional array — jika ada, setiap item wajib:
+  - `company`: string 2–100 chars
+  - `position`: string 2–100 chars
+  - `startDate`: date, tidak boleh masa depan (`before_or_equal:today`)
+  - `endDate`: nullable date
 
 Success `201`:
 
@@ -178,9 +190,9 @@ Admin body (semua `sometimes`):
 - `bankAccountHolderName` regex `^[A-Za-z .,'-]{2,100}$` (2-100 karakter)
 - `bankIfscCode` max 100, `bankBranch` max 150
 - `npwp`, `taxStatus`, `ptkpStatus`, `bpjsKesehatanNo`, `bpjsKetenagakerjaanNo`
-- `emergencyContacts` array
-- `educationItems` array
-- `experienceItems` array
+- `emergencyContacts` array (sub-field rules sama seperti POST)
+- `educationItems` array (sub-field rules sama seperti POST)
+- `experienceItems` array (sub-field rules sama seperti POST)
 - `hireDate` / `startDate` sometimes nullable `date` — tanggal mulai bekerja / effective start
 
 Self update body:

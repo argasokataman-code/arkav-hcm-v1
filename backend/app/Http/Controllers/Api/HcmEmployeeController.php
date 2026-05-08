@@ -3229,11 +3229,19 @@ class HcmEmployeeController extends Controller
             'bpjsKesehatanNo' => ['sometimes', 'nullable', 'string', 'max:100'],
             'bpjsKetenagakerjaanNo' => ['sometimes', 'nullable', 'string', 'max:100'],
             'emergencyContacts' => [($isCreate && ! $selfService) ? 'required' : 'sometimes', 'array', 'min:1', $emergencyContactRule],
-            'emergencyContacts.*.name' => ['nullable', 'string', 'max:150'],
-            'emergencyContacts.*.relationship' => ['nullable', 'string', 'max:100'],
-            'emergencyContacts.*.phone' => ['nullable', 'regex:/^[0-9]{10,13}$/'],
+            'emergencyContacts.*.name' => ['required', 'string', 'min:2', 'max:100', 'regex:/^[\p{L}\p{M}\' .,-]{2,100}$/u'],
+            'emergencyContacts.*.relationship' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\p{L}\p{M}\' .-]{2,50}$/u'],
+            'emergencyContacts.*.phone' => ['required', 'string', 'regex:/^[0-9]{10,13}$/'],
             'educationItems' => ['sometimes', 'nullable', 'array'],
+            'educationItems.*.institution' => ['required', 'string', 'min:2', 'max:100'],
+            'educationItems.*.degree' => ['required', 'string', 'min:2', 'max:50'],
+            'educationItems.*.startYear' => ['required', 'integer', 'min:1900', 'max:2100'],
+            'educationItems.*.endYear' => ['nullable', 'integer', 'min:1900', 'max:2100'],
             'experienceItems' => ['sometimes', 'nullable', 'array'],
+            'experienceItems.*.company' => ['required', 'string', 'min:2', 'max:100'],
+            'experienceItems.*.position' => ['required', 'string', 'min:2', 'max:100'],
+            'experienceItems.*.startDate' => ['required', 'date', 'before_or_equal:today'],
+            'experienceItems.*.endDate' => ['nullable', 'date'],
         ];
 
         if ($selfService) {

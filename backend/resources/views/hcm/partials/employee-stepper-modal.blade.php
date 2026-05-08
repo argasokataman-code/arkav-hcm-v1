@@ -294,7 +294,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" pattern="[A-Za-z .,\-']{2,100}" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank / SWIFT / IFSC Code</label>
@@ -353,11 +353,11 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Name</label>
-                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak" minlength="2" maxlength="100" pattern="[\p{L}\p{M}A-Za-z' .,-]{2,100}" title="Nama hanya boleh huruf, spasi, dan tanda baca umum">
+                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak" minlength="2" maxlength="100" title="Nama hanya boleh huruf, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Relationship</label>
-                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" pattern="[A-Za-z' .-]{2,50}" title="Hubungan hanya boleh huruf dan spasi">
+                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" title="Hubungan hanya boleh huruf dan spasi">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Phone</label>

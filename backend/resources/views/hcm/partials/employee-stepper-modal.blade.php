@@ -214,9 +214,11 @@
                                 <select class="form-select" {{ $fieldAttr }}="employmentStatus" required>
                                     <option value="active" selected>Active</option>
                                     <option value="probation">Probation</option>
-                                    <option value="resigned">Resigned</option>
-                                    <option value="terminated">Terminated</option>
-                                    <option value="inactive">Inactive (legacy)</option>
+                                    @if ($isEdit)
+                                        <option value="resigned">Resigned</option>
+                                        <option value="terminated">Terminated</option>
+                                        <option value="inactive">Inactive (legacy)</option>
+                                    @endif
                                 </select>
                             </div>
                             <div class="col-md-6">

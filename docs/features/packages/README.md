@@ -13,6 +13,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 ## UI Aktif
 
 - Entry points: `/saas/packages` dan `/packages`.
+- Monitoring compliance paket lintas tenant tersedia di `/super-admin/package-compliance` (global admin) dengan modal detail employee termasking untuk investigasi tenant warning/violation.
 - Manager script aktif: `frontend/resources/js/packages-management.js`.
 - Dokumen detail teknis dan E2E ada di [IMPLEMENTATION.md](IMPLEMENTATION.md) dan [E2E-TESTING.md](E2E-TESTING.md).
 - Tracker status audit dan evidence terbaru ada di [STATUS-TRACKER.md](STATUS-TRACKER.md).
@@ -64,6 +65,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 - Existing: path package runtime memakai `package` UUID, sedangkan route feature mutation memakai numeric feature id aktif dengan fallback UUID bila ada caller lama.
 - Existing: path add-on menerima numeric id aktif dengan fallback UUID legacy/transisi.
 - Existing: package internal `unlimited` ditandai `is_global_admin_only=true` agar tidak bocor ke katalog publik.
+- Existing: package compliance monitor (`/super-admin/package-compliance`) kini mendukung detail employee per tenant via endpoint `GET /v1/hcm/super-admin/package-compliance/{companyId}/employees` dengan nama termasking (PDP-safe).
 - Target: pricing simulation calculator dan workflow pricing yang lebih kompleks masih out of scope.
 
 ## Ringkasan Fungsi

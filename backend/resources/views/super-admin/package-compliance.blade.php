@@ -175,6 +175,69 @@
 </div>
 </div>{{-- .content --}}
 </div>{{-- .page-wrapper --}}
+<div class="modal fade" id="pcEmployeeDetailModal" tabindex="-1" aria-labelledby="pcEmployeeDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pcEmployeeDetailModalLabel">
+                    Employee Detail: <span id="pc-detail-company-name">-</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted">Package</div>
+                        <div class="fw-semibold"><span id="pc-detail-package-name">-</span></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Limit vs Actual</div>
+                        <div class="fw-semibold"><span id="pc-detail-limit">-</span> / <span id="pc-detail-actual">-</span></div>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted">Owner</div>
+                        <div class="fw-semibold" id="pc-detail-owner">-</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Employee Summary</div>
+                        <div class="fw-semibold">
+                            Total <span id="pc-detail-total">-</span>
+                            <span class="text-muted mx-1">|</span>
+                            Active <span id="pc-detail-active">-</span>
+                            <span class="text-muted mx-1">|</span>
+                            Probation <span id="pc-detail-probation">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive border rounded">
+                    <table class="table table-sm mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center" style="width:50px;">#</th>
+                                <th style="min-width:120px;">Nama (masked)</th>
+                                <th style="min-width:140px;">Jabatan</th>
+                                <th style="min-width:110px;">Status</th>
+                                <th class="text-center" style="width:90px;">Owner</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pc-detail-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Klik tombol View untuk memuat detail.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')

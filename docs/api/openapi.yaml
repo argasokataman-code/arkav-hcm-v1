@@ -2562,6 +2562,84 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/super-admin/package-compliance/{companyId}/employees:
+    get:
+      tags: [HCM]
+      summary: Get masked employee list for package compliance tenant detail (global admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Masked employee detail loaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      company_name:
+                        type: string
+                      package_name:
+                        type: string
+                        nullable: true
+                      limit:
+                        type: integer
+                        nullable: true
+                      actual:
+                        type: integer
+                      owner:
+                        type: object
+                        properties:
+                          user_id:
+                            type: integer
+                            nullable: true
+                          name_masked:
+                            type: string
+                            nullable: true
+                      stats:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          active:
+                            type: integer
+                          probation:
+                            type: integer
+                      employees:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            user_id:
+                              type: integer
+                              nullable: true
+                            name_masked:
+                              type: string
+                            designation:
+                              type: string
+                              nullable: true
+                            employment_status:
+                              type: string
+                            is_owner:
+                              type: boolean
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
   # -------------------------
   # User Management (implemented under /v1/hcm/user-management)
   # -------------------------

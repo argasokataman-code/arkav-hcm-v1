@@ -197,6 +197,60 @@ Validasi query:
 - `q`: required, string, min 1, max 120
 - `limit`: optional, integer, min 1, max 50 (default 8)
 
+### 4. Super admin package compliance employee detail
+
+`GET /v1/hcm/super-admin/package-compliance/{companyId}/employees`
+
+Tujuan:
+
+- Menyediakan daftar employee yang terhitung pada metrik `actual` di halaman `/super-admin/package-compliance`.
+- Payload sengaja termasking untuk patuh PDP: hanya inisial nama (`X***`) yang dikirim.
+
+Role & keamanan:
+
+- Hanya untuk global HCM admin (`isGlobalHcmAdmin`).
+- Caller non-global akan menerima `403 AUTH_FORBIDDEN`.
+
+Response envelope:
+
+```json
+{
+  "success": true,
+  "data": {
+    "company_name": "Default Company",
+    "package_name": "Enterprise",
+    "limit": null,
+    "actual": 2,
+    "owner": {
+      "user_id": 3,
+      "name_masked": "U***"
+    },
+    "stats": {
+      "total": 2,
+      "active": 2,
+      "probation": 0
+    },
+    "employees": [
+      {
+        "id": 3,
+        "user_id": 3,
+        "name_masked": "U***",
+        "designation": "Super Admin",
+        "employment_status": "active",
+        "is_owner": true
+      }
+    ]
+  }
+}
+```
+
+Catatan kontrak runtime:
+
+- `employees` hanya menghitung profile non-terminated (selaras dengan monitor compliance utama).
+- `name_masked` selalu disamarkan; email/phone/NIK tidak dikirim.
+- `limit` bernilai `null` untuk paket unlimited.
+- Jika company tidak ditemukan, endpoint mengembalikan `404 COMPANY_NOT_FOUND`.
+
 ## Negative Scenario
 
 - Token tidak valid: `401`
@@ -221,3 +275,8 @@ Validasi query:
 
 - Path additive baru: `GET /v1/hcm/dashboard-summary/export`.
 - Tujuan: mengaktifkan tombol export di halaman `/index` dengan format standar `xlsx` (default) dan `csv` fallback.
+
+## Contract Notes (2026-05-09)
+
+- Path additive baru: `GET /v1/hcm/super-admin/package-compliance/{companyId}/employees`.
+- Tujuan: mendukung modal detail employee di halaman package compliance tanpa membuka PII langsung.

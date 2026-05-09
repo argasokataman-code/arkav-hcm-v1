@@ -67,6 +67,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     // Payroll Settings
     Route::get('/payroll/settings', [HcmPayrollSettingsController::class, 'show']);
     Route::put('/payroll/settings', [HcmPayrollSettingsController::class, 'update']);
+    Route::get('/payroll/settings/history', [HcmPayrollSettingsController::class, 'history']);
 
     // Payroll Items
     Route::get('/payroll-items', [HcmPayrollItemController::class, 'index']);

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\OvertimePayCalculator;
 use App\Services\Hcm\PayrollLeaveHolidayAdjuster;
+use App\Services\Hcm\PayrollWorkRuleResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -225,6 +226,7 @@ final class PayrollDraftBuilder
             self::applyTenantScope($pph21Query, $companyId);
             $pph21Component = $pph21Query->first();
             $overtimeCalculator = app(OvertimePayCalculator::class);
+            $overtimeRuleResolver = app(PayrollWorkRuleResolver::class);
             $snapshotService = app(EmployeeSnapshotService::class);
             $leaveHolidayAdjuster = app(PayrollLeaveHolidayAdjuster::class);
             $asOf = Carbon::create($period->period_year, $period->period_month, 1)->endOfMonth();
@@ -399,20 +401,33 @@ final class PayrollDraftBuilder
                     }
                 }
 
-                $approvedOvertime = OvertimeRequest::query()
+                $approvedOvertimeQuery = OvertimeRequest::query()
                     ->where('user_id', $user->id)
                     ->where('status', 'approved')
                     ->whereYear('work_date', $period->period_year)
                     ->whereMonth('work_date', $period->period_month)
-                    ->orderBy('work_date')
-                    ->get();
+                    ->orderBy('work_date');
+                self::applyTenantScope($approvedOvertimeQuery, $companyId);
+                $approvedOvertime = $approvedOvertimeQuery->get();
 
                 $overtimeMinutes = (int) $approvedOvertime->sum('minutes');
-                $overtimePay = 0.0;
+                $overtimePayRaw = 0.0;
+                $overtimeRoundedPerRequestTotal = 0.0;
                 foreach ($approvedOvertime as $request) {
-                    $calc = $overtimeCalculator->calculate($base, $fixed, (int) $request->minutes, 'workday', 5);
-                    $overtimePay += (float) ($calc['totalOvertimePay'] ?? 0);
+                    $resolvedRule = $overtimeRuleResolver->resolveForOvertimeRequest($request, $companyId);
+                    $calc = $overtimeCalculator->calculate(
+                        $base,
+                        $fixed,
+                        (int) $request->minutes,
+                        (string) ($resolvedRule['dayType'] ?? 'workday'),
+                        (int) ($resolvedRule['weeklyWorkDays'] ?? 5),
+                        true
+                    );
+                    $overtimePayRaw += (float) ($calc['totalOvertimePayRaw'] ?? $calc['totalOvertimePay'] ?? 0);
+                    $overtimeRoundedPerRequestTotal += (float) ($calc['totalOvertimePay'] ?? 0);
                 }
+
+                $overtimePay = round($overtimePayRaw, 2);
 
                 if ($overtimePay > 0) {
                     HcmPayrollLine::query()->create([
@@ -432,7 +447,10 @@ final class PayrollDraftBuilder
                             'affectsNetPay' => (bool) ($overtimeComponent?->affects_net_pay ?? true),
                             'approvedRequestIds' => $approvedOvertime->pluck('id')->values()->all(),
                             'approvedMinutes' => $overtimeMinutes,
-                            'calculationMode' => 'workday_default',
+                            'calculationMode' => 'resolved_request_rules',
+                            'roundingStrategy' => 'sum_raw_then_round_once',
+                            'rawTotalOvertimePay' => $overtimePayRaw,
+                            'roundedPerRequestTotalOvertimePay' => round($overtimeRoundedPerRequestTotal, 2),
                         ],
                     ]);
 

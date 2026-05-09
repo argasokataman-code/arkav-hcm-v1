@@ -1284,4 +1284,102 @@ class HcmDashboardController extends Controller
             ],
         ]);
     }
+
+    public function packageComplianceEmployees(Request $request, int $companyId): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
+            return response()->json(['success' => false, 'error' => ['code' => 'AUTH_FORBIDDEN', 'message' => 'Forbidden.']], 403);
+        }
+
+        $company = Company::query()
+            ->with(['owner:id,name'])
+            ->find($companyId);
+
+        if (! $company) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'COMPANY_NOT_FOUND',
+                    'message' => 'Company not found.',
+                ],
+            ], 404);
+        }
+
+        $subscription = Subscription::query()
+            ->with('package.features')
+            ->where('company_id', $company->id)
+            ->whereIn('status', ['active', 'trial', 'suspended'])
+            ->latest('starts_at')
+            ->latest('id')
+            ->first();
+
+        $limit = null;
+        $packageName = null;
+        if ($subscription && $subscription->package) {
+            $packageName = $subscription->package->name;
+            $feature = $subscription->package->features->firstWhere('feature_code', 'max_employees');
+            $limit = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
+        }
+
+        $profiles = EmployeeProfile::query()
+            ->with(['user:id,name'])
+            ->where('company_id', $company->id)
+            ->whereNotIn('employment_status', ['terminated'])
+            ->orderBy('id')
+            ->get(['id', 'user_id', 'designation', 'employment_status']);
+
+        $ownerUserId = $company->owner_user_id;
+        $ownerName = $company->owner?->name;
+        $ownerMasked = $ownerName ? $this->maskDisplayName($ownerName) : null;
+
+        $employees = $profiles->map(function (EmployeeProfile $profile) use ($ownerUserId): array {
+            $displayName = $profile->user?->name;
+
+            return [
+                'id' => (int) $profile->id,
+                'user_id' => $profile->user_id !== null ? (int) $profile->user_id : null,
+                'name_masked' => $displayName ? $this->maskDisplayName($displayName) : '***',
+                'designation' => $profile->designation,
+                'employment_status' => (string) ($profile->employment_status ?? '-'),
+                'is_owner' => $ownerUserId !== null && (int) $profile->user_id === (int) $ownerUserId,
+            ];
+        })->values();
+
+        $stats = [
+            'total' => $employees->count(),
+            'active' => $profiles->where('employment_status', 'active')->count(),
+            'probation' => $profiles->where('employment_status', 'probation')->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'company_name' => $company->name,
+                'package_name' => $packageName,
+                'limit' => $limit,
+                'actual' => $employees->count(),
+                'owner' => [
+                    'user_id' => $ownerUserId !== null ? (int) $ownerUserId : null,
+                    'name_masked' => $ownerMasked,
+                ],
+                'stats' => $stats,
+                'employees' => $employees,
+            ],
+        ]);
+    }
+
+    private function maskDisplayName(?string $name): string
+    {
+        $normalized = trim((string) $name);
+        if ($normalized === '') {
+            return '***';
+        }
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($normalized, 0, 1, 'UTF-8') . '***';
+        }
+
+        return substr($normalized, 0, 1) . '***';
+    }
 }

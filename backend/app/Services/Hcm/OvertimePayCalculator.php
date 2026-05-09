@@ -20,7 +20,8 @@ class OvertimePayCalculator
         float $fixedAllowance,
         int $minutes,
         string $dayType,
-        int $weeklyWorkDays = 5
+        int $weeklyWorkDays = 5,
+        bool $includeRaw = false
     ): array {
         $monthlyWage = max(0.0, $baseMonthlySalary + $fixedAllowance);
         $hourly = $monthlyWage / 173;
@@ -103,7 +104,7 @@ class OvertimePayCalculator
 
         $totalPay = $hourly * $totalMultiplierHours;
 
-        return [
+        $payload = [
             'monthlyWage' => round($monthlyWage, 2),
             'hourlyWage' => round($hourly, 2),
             'hours' => round($hours, 2),
@@ -113,6 +114,14 @@ class OvertimePayCalculator
             'totalOvertimePay' => round($totalPay, 2),
             'regulationNote' => 'Perhitungan acuan PP No. 35 Tahun 2021 + Kepmenakertrans KEP.102/MEN/VI/2004.',
         ];
+
+        if ($includeRaw) {
+            $payload['hourlyWageRaw'] = $hourly;
+            $payload['totalMultiplierHoursRaw'] = $totalMultiplierHours;
+            $payload['totalOvertimePayRaw'] = $totalPay;
+        }
+
+        return $payload;
     }
 
     private function normalizeDayType(string $dayType): string

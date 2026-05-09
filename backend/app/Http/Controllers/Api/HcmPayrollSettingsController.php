@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
+use App\Models\PayrollSettingsSnapshot;
+use App\Models\PayrollSettingsAuditLog;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -69,12 +72,22 @@ class HcmPayrollSettingsController extends Controller
             'paydayHolidayStrategy' => 'payroll.monthly.payday_holiday_strategy',
         ];
 
+        // Capture old settings before any changes
+        $oldSettings = $this->currentSettings($companyId);
+        $userId = auth()->id();
+        $ipAddress = $request->ip();
+
         foreach ($map as $requestKey => $settingKey) {
             if (! array_key_exists($requestKey, $validated)) {
                 continue;
             }
 
             $value = $validated[$requestKey];
+            $oldValue = CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->where('key', $settingKey)
+                ->value('value');
+
             if (is_bool($value)) {
                 $value = $value ? '1' : '0';
             }
@@ -86,9 +99,99 @@ class HcmPayrollSettingsController extends Controller
                     'type' => is_int($validated[$requestKey] ?? null) ? 'integer' : (is_bool($validated[$requestKey] ?? null) ? 'boolean' : 'string'),
                 ],
             );
+
+            // Create audit log entry for this change
+            if ((string) $oldValue !== (string) $value) {
+                PayrollSettingsAuditLog::create([
+                    'company_id' => $companyId,
+                    'user_id' => $userId,
+                    'action' => 'update',
+                    'setting_key' => $settingKey,
+                    'old_value' => $oldValue,
+                    'new_value' => $value === null ? '' : (string) $value,
+                    'ip_address' => $ipAddress,
+                ]);
+            }
         }
 
-        return $this->apiSuccess($this->currentSettings($companyId), 'Payroll settings saved.');
+        // Capture new settings after all changes and create snapshot
+        $newSettings = $this->currentSettings($companyId);
+        $this->captureSettingsSnapshot($companyId, $userId, $newSettings);
+
+        return $this->apiSuccess($newSettings, 'Payroll settings saved.');
+    }
+
+    /**
+     * Get settings change history/audit trail
+     */
+    public function history(Request $request): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'settings.manage')) {
+            return $forbidden;
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->apiError('TENANT_REQUIRED', 'Active company context is required.', 400);
+        }
+
+        $limit = (int) $request->query('limit', 50);
+        $offset = (int) $request->query('offset', 0);
+
+        $logs = PayrollSettingsAuditLog::query()
+            ->where('company_id', $companyId)
+            ->orderBy('changed_at', 'desc')
+            ->limit($limit)
+            ->offset($offset)
+            ->get();
+
+        $total = PayrollSettingsAuditLog::query()
+            ->where('company_id', $companyId)
+            ->count();
+
+        $data = $logs->map(function (PayrollSettingsAuditLog $log) {
+            $changedBy = $log->changedBy;
+            return [
+                'id' => $log->id,
+                'uuid' => $log->uuid,
+                'changedAt' => $log->changed_at->toIso8601String(),
+                'changedByUserId' => $log->user_id,
+                'changedByUserName' => $changedBy ? $changedBy->name : 'Unknown',
+                'action' => $log->action,
+                'settingKey' => $log->setting_key,
+                'oldValue' => $log->old_value,
+                'newValue' => $log->new_value,
+                'ipAddress' => $log->ip_address,
+            ];
+        });
+
+        return $this->apiSuccess([
+            'logs' => $data,
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
+        ]);
+    }
+
+    /**
+     * Capture a snapshot of current payroll settings (for governance/audit trail)
+     */
+    private function captureSettingsSnapshot(int $companyId, ?int $userId, array $currentSettings): void
+    {
+        $latestSnapshot = PayrollSettingsSnapshot::query()
+            ->where('company_id', $companyId)
+            ->orderBy('snapshot_version', 'desc')
+            ->first();
+
+        $nextVersion = ($latestSnapshot?->snapshot_version ?? 0) + 1;
+
+        PayrollSettingsSnapshot::create([
+            'company_id' => $companyId,
+            'snapshot_version' => $nextVersion,
+            'user_id' => $userId,
+            'settings_data' => $currentSettings,
+            'changed_at' => now(),
+        ]);
     }
 
     private function currentSettings(int $companyId): array

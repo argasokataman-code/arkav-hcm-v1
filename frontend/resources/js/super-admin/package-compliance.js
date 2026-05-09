@@ -7,6 +7,7 @@
     'use strict';
 
     var apiUrl       = '/v1/hcm/super-admin/package-compliance';
+    var detailApiUrl = '/v1/hcm/super-admin/package-compliance';
     var allTenants   = [];
     var activeFilter = 'all';
     var donutChart   = null;
@@ -202,7 +203,15 @@
                 + '<td>' + progressHtml + '</td>'
                 + '<td class="text-center">' + badge + '</td>'
                 + '<td class="text-center">'
-                    + '<a href="' + escHtml('/companies') + '" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.75rem;" title="Lihat company">View</a>'
+                    + '<button type="button"'
+                        + ' class="btn btn-xs btn-outline-secondary py-0 px-2 pc-view-detail"'
+                        + ' style="font-size:.75rem;"'
+                        + ' data-company-id="' + escAttr(t.company_id) + '"'
+                        + ' data-company-name="' + escAttr(t.company_name || '') + '"'
+                        + ' data-package-name="' + escAttr(t.package_name || '') + '"'
+                        + ' data-limit="' + escAttr(t.limit === null ? 'Unlimited' : t.limit) + '"'
+                        + ' data-actual="' + escAttr(t.actual) + '"'
+                        + ' title="Lihat detail karyawan">View</button>'
                 + '</td>'
                 + '</tr>';
         });
@@ -290,6 +299,114 @@
     }
 
     /* ─────────────────────────────────────────
+     * Employee Detail Modal
+     * ─────────────────────────────────────────*/
+    function initEmployeeDetailModal() {
+        var tbody = document.getElementById('pc-tbody');
+        if (!tbody) return;
+
+        tbody.addEventListener('click', function (e) {
+            var btn = e.target.closest('.pc-view-detail');
+            if (!btn) return;
+
+            var companyId = Number(btn.getAttribute('data-company-id') || 0);
+            if (!companyId) return;
+
+            setText('pc-detail-company-name', btn.getAttribute('data-company-name') || '-');
+            setText('pc-detail-package-name', btn.getAttribute('data-package-name') || '-');
+            setText('pc-detail-limit', btn.getAttribute('data-limit') || '-');
+            setText('pc-detail-actual', btn.getAttribute('data-actual') || '-');
+            setText('pc-detail-owner', '-');
+            setText('pc-detail-total', '-');
+            setText('pc-detail-active', '-');
+            setText('pc-detail-probation', '-');
+            showEmployeeDetailLoading();
+            showEmployeeDetailModal();
+
+            fetch(detailApiUrl + '/' + companyId + '/employees', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (json) {
+                    if (!json.success || !json.data) {
+                        var msg = (json.error && json.error.message) ? json.error.message : 'Unknown error';
+                        showEmployeeDetailError('Gagal memuat detail karyawan: ' + msg);
+                        return;
+                    }
+                    renderEmployeeDetail(json.data);
+                })
+                .catch(function (err) {
+                    showEmployeeDetailError('Gagal menghubungi server. ' + err.message);
+                });
+        });
+    }
+
+    function showEmployeeDetailModal() {
+        var modalEl = document.getElementById('pcEmployeeDetailModal');
+        if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) return;
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function showEmployeeDetailLoading() {
+        var tbody = document.getElementById('pc-detail-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">'
+            + '<div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>'
+            + 'Memuat detail karyawan...</td></tr>';
+    }
+
+    function showEmployeeDetailError(message) {
+        var tbody = document.getElementById('pc-detail-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">'
+            + '<i class="ti ti-alert-circle me-1"></i>' + escHtml(message) + '</td></tr>';
+    }
+
+    function renderEmployeeDetail(data) {
+        setText('pc-detail-company-name', data.company_name || '-');
+        setText('pc-detail-package-name', data.package_name || '-');
+        setText('pc-detail-limit', data.limit === null ? 'Unlimited' : data.limit);
+        setText('pc-detail-actual', Number(data.actual || 0));
+
+        var ownerText = '-';
+        if (data.owner && data.owner.name_masked) {
+            ownerText = data.owner.name_masked;
+            if (data.owner.user_id !== null && data.owner.user_id !== undefined) {
+                ownerText += ' (user_id=' + data.owner.user_id + ')';
+            }
+        }
+        setText('pc-detail-owner', ownerText);
+
+        var stats = data.stats || {};
+        setText('pc-detail-total', Number(stats.total || 0));
+        setText('pc-detail-active', Number(stats.active || 0));
+        setText('pc-detail-probation', Number(stats.probation || 0));
+
+        var tbody = document.getElementById('pc-detail-tbody');
+        if (!tbody) return;
+
+        var employees = Array.isArray(data.employees) ? data.employees : [];
+        if (!employees.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Tidak ada karyawan aktif terhitung.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = employees.map(function (emp, idx) {
+            var ownerBadge = emp.is_owner
+                ? '<span class="badge badge-soft-primary">Owner</span>'
+                : '<span class="text-muted">-</span>';
+            return '<tr>'
+                + '<td class="text-center">' + (idx + 1) + '</td>'
+                + '<td class="fw-semibold">' + escHtml(emp.name_masked || '-') + '</td>'
+                + '<td>' + escHtml(emp.designation || '-') + '</td>'
+                + '<td><span class="badge badge-soft-secondary">' + escHtml(emp.employment_status || '-') + '</span></td>'
+                + '<td class="text-center">' + ownerBadge + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    /* ─────────────────────────────────────────
      * Helpers
      * ─────────────────────────────────────────*/
     function setText(id, val) {
@@ -303,6 +420,10 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function escAttr(str) {
+        return escHtml(str).replace(/'/g, '&#39;');
     }
 
     function showTableLoading() {
@@ -331,5 +452,6 @@
         initSearch();
         initExport();
         initRefresh();
+        initEmployeeDetailModal();
     });
 }());

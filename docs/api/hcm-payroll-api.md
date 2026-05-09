@@ -38,7 +38,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 |----------|--------|
 | `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
 | `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
-| `GET /payroll/settings`, `PUT /payroll/settings` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif |
+| `GET /payroll/settings`, `PUT /payroll/settings`, `GET /payroll/settings/history` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif, plus audit trail governance |
 | `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
 | `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
@@ -137,9 +137,69 @@ Menyimpan konfigurasi payroll bulanan tenant aktif.
 
 **200** `data`: shape yang sama dengan `GET /payroll/settings`.
 
+**Governance & Audit Trail**
+
+Setiap update ke `/payroll/settings` secara otomatis:
+- Menciptakan **snapshot** dari seluruh konfigurasi payroll yang berlaku (disimpan dalam `payroll_settings_snapshots`)
+- Mencatat setiap perubahan dalam **audit log** yang immutable (`payroll_settings_audit_log`), termasuk user yang melakukan perubahan, nilai lama/baru, waktu, dan IP address
+
+Snapshot berguna untuk audit trail governance: menunjukkan state lengkap config pada waktu perubahan terakhir. Audit log memungkinkan traceability "siapa mengubah apa kapan".
+
 **400** `TENANT_REQUIRED` jika active company context tidak tersedia.
 
-### `GET /payroll-runs/history`
+### `GET /payroll/settings/history`
+
+Mengambil **history/audit trail** dari semua perubahan konfigurasi payroll tenant aktif (settings governance).
+
+Query opsional:
+
+- `limit` (default 50, max 200) — jumlah log per query
+- `offset` (default 0) — pagination offset
+
+**200** `data`:
+
+```json
+{
+  "logs": [
+    {
+      "id": 123,
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "changedAt": "2026-05-09T15:30:00Z",
+      "changedByUserId": 5,
+      "changedByUserName": "HR Admin",
+      "action": "update",
+      "settingKey": "payroll.monthly.payday_day",
+      "oldValue": "28",
+      "newValue": "25",
+      "ipAddress": "192.168.1.100"
+    }
+  ],
+  "total": 15,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+**Fields**
+
+- `id` — record ID (immutable)
+- `uuid` — UUID untuk referensi eksternal
+- `changedAt` — ISO 8601 timestamp kapan perubahan terjadi
+- `changedByUserId`, `changedByUserName` — user yang melakukan perubahan (atau null jika user sudah dihapus)
+- `action` — tipe action (`update` default, dapat diperluas ke `restore` di masa depan)
+- `settingKey` — key setting yang berubah (e.g. `payroll.monthly.payday_day`)
+- `oldValue` — nilai sebelumnya (string, atau null untuk new settings)
+- `newValue` — nilai baru (string, atau null untuk deletion)
+- `ipAddress` — IP address dari request (opsional, untuk forensics)
+
+**Permissions**
+
+- HCM Admin saja (`settings.manage`) dapat melihat history tenant aktif
+- Setiap tenant hanya melihat history sendiri (tenant isolation)
+
+**400** `TENANT_REQUIRED` jika active company context tidak tersedia.
+
+### `GET /payroll/settings
 
 Daftar run payroll untuk keperluan **History Monthly Payroll**.
 

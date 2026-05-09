@@ -95,9 +95,10 @@ class PayrollOvertimeRuleIntegrationTest extends TestCase
         $expected = (float) ($calculator->calculate(3_460_000, 0, 120, 'public_holiday', 5)['totalOvertimePay'] ?? 0.0);
         $workdayDefault = (float) ($calculator->calculate(3_460_000, 0, 120, 'workday', 5)['totalOvertimePay'] ?? 0.0);
 
-        $this->assertGreaterThan(0.0, (float) $line->amount);
-        $this->assertNotSame(0.0, round($expected, 2));
-        $this->assertNotSame(0.0, round($workdayDefault, 2));
+        $this->assertNotNull($line->meta);
+        $this->assertEqualsWithDelta(round($expected, 2), (float) $line->amount, 0.0001);
+        $this->assertNotEquals(round($workdayDefault, 2), (float) $line->amount);
+        $this->assertSame('resolved_request_rules', (string) ($line->meta['calculationMode'] ?? ''));
     }
 
     public function test_payroll_overtime_query_is_scoped_by_company_id(): void
@@ -141,8 +142,7 @@ class PayrollOvertimeRuleIntegrationTest extends TestCase
         $calculator = app(OvertimePayCalculator::class);
         $expected = (float) ($calculator->calculate(3_000_000, 0, 60, 'workday', 5)['totalOvertimePay'] ?? 0.0);
 
-        $this->assertGreaterThan(0.0, (float) $line->amount);
-        $this->assertGreaterThan(0.0, round($expected, 2));
+        $this->assertEqualsWithDelta(round($expected, 2), (float) $line->amount, 0.0001);
     }
 
     public function test_payroll_overtime_excludes_entries_after_cutoff_snapshot(): void
@@ -202,5 +202,64 @@ class PayrollOvertimeRuleIntegrationTest extends TestCase
         $this->assertGreaterThan(0.0, (float) $line->amount);
         $this->assertGreaterThan(0.0, round($includedBeforeCutoff, 2));
         $this->assertGreaterThan(0.0, round($fullWithoutCutoff, 2));
+    }
+
+    public function test_payroll_overtime_rounding_sums_raw_values_then_rounds_once(): void
+    {
+        $company = $this->makeCompany('otround');
+        $user = $this->makeEmployee($company->id, 'otround@example.com', 3_000_000, 0);
+
+        OvertimeRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-05-01',
+            'minutes' => 1,
+            'day_type' => 'workday',
+            'weekly_work_days' => 5,
+            'status' => 'approved',
+        ]);
+        OvertimeRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-05-02',
+            'minutes' => 1,
+            'day_type' => 'workday',
+            'weekly_work_days' => 5,
+            'status' => 'approved',
+        ]);
+        OvertimeRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-05-03',
+            'minutes' => 1,
+            'day_type' => 'workday',
+            'weekly_work_days' => 5,
+            'status' => 'approved',
+        ]);
+
+        $period = $this->makePeriod($company->id, 2026, 5);
+        PayrollDraftBuilder::rebuildDraftRun($period, $company->id);
+
+        $line = HcmPayrollLine::query()
+            ->where('user_id', $user->id)
+            ->where('component_code', 'upah_lembur')
+            ->first();
+
+        $this->assertNotNull($line);
+
+        $calculator = app(OvertimePayCalculator::class);
+        $single = $calculator->calculate(3_000_000, 0, 1, 'workday', 5, true);
+        $singleRaw = (float) ($single['totalOvertimePayRaw'] ?? 0.0);
+        $singleRounded = (float) ($single['totalOvertimePay'] ?? 0.0);
+
+        $expectedSinglePass = round($singleRaw * 3, 2);
+        $legacyDoubleRound = round($singleRounded * 3, 2);
+
+        $this->assertEqualsWithDelta($expectedSinglePass, (float) $line->amount, 0.0001);
+        $this->assertNotEquals($legacyDoubleRound, (float) $line->amount);
+        $this->assertSame('sum_raw_then_round_once', (string) ($line->meta['roundingStrategy'] ?? ''));
     }
 }

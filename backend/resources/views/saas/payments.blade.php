@@ -85,6 +85,12 @@
             </div>
             <form id="paymentForm">
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Company *</label>
+                        <select class="form-select" id="input_payment_company_id" required>
+                            <option value="">Loading companies...</option>
+                        </select>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Amount *</label>

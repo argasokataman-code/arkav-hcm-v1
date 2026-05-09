@@ -6,22 +6,32 @@ use App\Http\Controllers\Controller;
 use App\Models\Package;
 use App\Models\PackageAddon;
 use App\Models\PackageFeature;
+use App\Services\PackageFeatureCatalogRuntimeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
 class PackageController extends Controller
 {
+    public function __construct(
+        private readonly PackageFeatureCatalogRuntimeService $featureCatalogRuntimeService
+    ) {}
+
     /**
      * GET /v1/saas/packages/feature-catalog
      * Return backend-driven feature catalog for packages UI.
      */
     public function featureCatalog(): JsonResponse
     {
-        $catalogGroups = collect(config('saas_package_feature_catalog.groups', []));
-        $tierMapping = $this->buildFeatureTierMapping($catalogGroups);
+        $runtimeCatalog = $this->featureCatalogRuntimeService->build();
+        $catalogGroups = collect($runtimeCatalog['groups'] ?? []);
+        $tierMapping = $this->buildFeatureTierMapping(
+            $catalogGroups,
+            $runtimeCatalog['mvp_feature_codes'] ?? []
+        );
 
         $groups = $catalogGroups
             ->filter(fn (mixed $group): bool => is_array($group))
@@ -35,6 +45,30 @@ class PackageController extends Controller
                 'mvp_feature_codes' => $tierMapping['mvp_feature_codes'],
                 'addon_feature_codes' => $tierMapping['addon_feature_codes'],
                 'total_feature_codes' => count($tierMapping['all_feature_codes']),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/packages/feature-catalog/healthcheck
+     * Return diagnostics comparing route/docs/catalog feature discovery.
+     */
+    public function featureCatalogHealthcheck(Request $request): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $health = $this->featureCatalogRuntimeService->healthcheck();
+
+        return response()->json([
+            'success' => true,
+            'data' => $health,
+            'meta' => [
+                'generated_at' => now()->toIso8601String(),
             ],
         ]);
     }
@@ -140,6 +174,10 @@ class PackageController extends Controller
         }
 
         $query = PackageAddon::query();
+        $reservedFeatureCodes = $this->reservedFeatureCodes();
+        if ($reservedFeatureCodes !== []) {
+            $query->whereNotIn('code', $reservedFeatureCodes);
+        }
         if ($status !== '' && $status !== 'all') {
             $query->where('status', $status);
         } elseif ($status === '' || $status === null) {
@@ -526,6 +564,7 @@ class PackageController extends Controller
 
     /**
      * @param  \Illuminate\Support\Collection<int, mixed>  $catalogGroups
+     * @param  array<int, string>  $runtimeMvpFeatureCodes
      * @return array{
      *   all_feature_codes: array<int, string>,
      *   mvp_feature_codes: array<int, string>,
@@ -533,7 +572,7 @@ class PackageController extends Controller
      *   mvp_lookup: array<string, bool>
      * }
      */
-    private function buildFeatureTierMapping($catalogGroups): array
+    private function buildFeatureTierMapping($catalogGroups, array $runtimeMvpFeatureCodes = []): array
     {
         $allFeatureCodes = $catalogGroups
             ->filter(fn (mixed $group): bool => is_array($group))
@@ -548,7 +587,11 @@ class PackageController extends Controller
             ->all();
 
         $allFeatureLookup = array_fill_keys($allFeatureCodes, true);
-        $mvpFeatureCodes = collect(config('saas_package_feature_catalog.mvp_feature_codes', []))
+        $mvpSource = $runtimeMvpFeatureCodes !== []
+            ? $runtimeMvpFeatureCodes
+            : config('saas_package_feature_catalog.mvp_feature_codes', []);
+
+        $mvpFeatureCodes = collect($mvpSource)
             ->map(fn (mixed $code): string => trim((string) $code))
             ->filter(fn (string $code): bool => $code !== '' && isset($allFeatureLookup[$code]))
             ->unique()
@@ -591,6 +634,16 @@ class PackageController extends Controller
             'status' => 'sometimes|in:active,inactive',
         ]);
 
+        if ($this->isReservedFeatureCode((string) $validated['code'])) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code'    => 'FEATURE_CODE_NAMESPACE_CONFLICT',
+                    'message' => 'Add-on code "' . $validated['code'] . '" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
+                ],
+            ], 422);
+        }
+
         $addon = PackageAddon::create($validated);
 
         return response()->json([
@@ -628,6 +681,16 @@ class PackageController extends Controller
             'unit_name' => 'sometimes|string|max:100',
             'status' => 'sometimes|in:active,inactive',
         ]);
+
+        if (isset($validated['code']) && $this->isReservedFeatureCode((string) $validated['code'])) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code'    => 'FEATURE_CODE_NAMESPACE_CONFLICT',
+                    'message' => 'Add-on code "' . $validated['code'] . '" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
+                ],
+            ], 422);
+        }
 
         $addonModel->update($validated);
 
@@ -673,6 +736,43 @@ class PackageController extends Controller
     {
         $user = $request->user();
         return $user ? $user->isGlobalHcmAdmin() : false;
+    }
+
+    /**
+     * Any feature code namespace is reserved for package feature catalog.
+     * Add-on SKU code must not collide with these codes.
+     */
+    private function isReservedFeatureCode(string $code): bool
+    {
+        $normalized = trim($code);
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, $this->reservedFeatureCodes(), true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function reservedFeatureCodes(): array
+    {
+        $runtimeCodes = collect($this->featureCatalogRuntimeService->build()['all_feature_codes'] ?? [])
+            ->map(fn (mixed $code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '');
+
+        $persistedCodes = DB::table('package_features')
+            ->select('feature_code')
+            ->distinct()
+            ->pluck('feature_code')
+            ->map(fn (mixed $code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '');
+
+        return $runtimeCodes
+            ->merge($persistedCodes)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function formatAddon(PackageAddon $addon, bool $includeUpdatedAt = false): array

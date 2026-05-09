@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class CronjobSettings
@@ -213,8 +214,12 @@ class CronjobSettings
             }
 
             Setting::set('cronjob_'.$key, $payload, 'cronjob');
-        } catch (Throwable) {
-            // Ignore persistence failures during bootstrap / migration gaps.
+        } catch (Throwable $exception) {
+            Log::warning('Unable to persist cronjob setting.', [
+                'setting_key' => 'cronjob_'.$key,
+                'group' => 'cronjob',
+                'exception' => $exception->getMessage(),
+            ]);
         }
     }
 

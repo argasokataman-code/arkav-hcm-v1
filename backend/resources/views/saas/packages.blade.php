@@ -22,6 +22,16 @@
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
+                <div class="mb-2 me-2">
+                    <button class="btn btn-outline-primary d-flex align-items-center" data-open-feature-catalog>
+                        <i class="ti ti-list-search me-2"></i>List All Features
+                    </button>
+                </div>
+                <div class="mb-2 me-2">
+                    <button class="btn btn-outline-dark d-flex align-items-center" data-compare-packages-trigger>
+                        <i class="ti ti-table-options me-2"></i>Compare Selected
+                    </button>
+                </div>
                 <div class="mb-2">
                     <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#packageModal" id="btn_add_package">
                         <i class="ti ti-circle-plus me-2"></i>Add Package
@@ -57,12 +67,40 @@
 
         <!-- Packages List Container -->
         <div data-packages-list-container>
-            <div class="card"><div class="card-body text-center text-muted py-4">Loading packages...</div></div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table">
+                        <tbody>
+                            @for ($i = 0; $i < 5; $i++)
+                            <tr>
+                                @for ($j = 0; $j < 6; $j++)
+                                <td><div class="placeholder-glow"><span class="placeholder col-10 rounded"></span></div></td>
+                                @endfor
+                            </tr>
+                            @endfor
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- Package Add-ons List Container -->
         <div class="mt-4" data-package-addons-list-container>
-            <div class="card"><div class="card-body text-center text-muted py-4">Loading add-ons...</div></div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table">
+                        <tbody>
+                            @for ($i = 0; $i < 3; $i++)
+                            <tr>
+                                @for ($j = 0; $j < 5; $j++)
+                                <td><div class="placeholder-glow"><span class="placeholder col-10 rounded"></span></div></td>
+                                @endfor
+                            </tr>
+                            @endfor
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -141,8 +179,10 @@
                                     <div class="d-flex align-items-center gap-2">
                                         <button type="button" class="btn btn-sm btn-outline-secondary" data-feature-select-visible>Centang semua terlihat</button>
                                         <button type="button" class="btn btn-sm btn-outline-dark" data-feature-clear-all>Reset</button>
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-feature-healthcheck-trigger>Healthcheck</button>
                                     </div>
                                 </div>
+                                <div class="small text-muted mb-2" data-feature-healthcheck-status>Healthcheck: belum dijalankan.</div>
                                 <div class="mb-3">
                                     <input type="text" class="form-control" id="input_package_feature_search" placeholder="Cari fitur: payroll, approval, API, laporan, dll">
                                 </div>
@@ -169,6 +209,45 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="features_container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Catalog Modal -->
+<div class="modal fade" id="featureCatalogModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">List All Features</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="feature_catalog_container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Module Preview Modal -->
+<div class="modal fade" id="modulePreviewModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modulePreviewTitle">Module Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="module_preview_container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Feature Matrix Modal -->
+<div class="modal fade" id="featureMatrixModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cross-Package Feature Matrix</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="feature_matrix_container"></div>
         </div>
     </div>
 </div>
@@ -314,6 +393,49 @@
         color: #667085;
     }
 
+    .package-feature-group-head {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .package-feature-group-head .accordion-button {
+        flex: 1 1 auto;
+    }
+
+    .package-feature-module-preview {
+        border: 0;
+        border-left: 1px solid #e4e7ec;
+        min-width: 108px;
+        background: #f8fafc;
+        color: #344054;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .package-feature-module-preview:hover {
+        background: #eef2f7;
+    }
+
+    .feature-catalog-module-card {
+        border: 1px solid #e4e7ec;
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .feature-catalog-module-card + .feature-catalog-module-card {
+        margin-top: 0.75rem;
+    }
+
+    .feature-catalog-list {
+        max-height: 56vh;
+        overflow-y: auto;
+    }
+
+    .feature-matrix-table thead th {
+        white-space: nowrap;
+    }
+
     .package-feature-chip {
         color: #344054 !important;
         background: #f8fafc;
@@ -349,6 +471,13 @@
         .package-feature-catalog {
             min-height: 180px;
             max-height: 42vh;
+        }
+
+        .package-feature-module-preview {
+            min-width: 92px;
+            font-size: 0.7rem;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
         }
     }
 </style>

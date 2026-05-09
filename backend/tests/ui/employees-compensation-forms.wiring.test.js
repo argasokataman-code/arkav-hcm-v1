@@ -58,6 +58,27 @@ function buildBackendValidationDom() {
   `;
 }
 
+function buildStrictPersonalValidationDom() {
+  document.body.innerHTML = `
+    <div id="add_employee"></div>
+    <form data-employee-add-form data-employee-step-index="0">
+      <div data-employee-step-pane="0">
+        <input data-employee-add-field="name" required />
+        <input data-employee-add-field="placeOfBirth" required />
+        <input data-employee-add-field="phone" required />
+        <input data-employee-add-field="nik" required />
+      </div>
+      <div class="d-none" data-employee-step-pane="1"></div>
+      <div class="d-none" data-employee-step-pane="2"></div>
+      <div class="d-none" data-employee-step-pane="3"></div>
+      <div class="d-none" data-employee-step-pane="4"></div>
+      <button type="button" data-employee-step-next>Next</button>
+      <button type="button" class="d-none" data-employee-step-prev>Back</button>
+      <button type="submit" class="d-none" data-employee-step-submit>Submit</button>
+    </form>
+  `;
+}
+
 describe('Employee compensation forms wiring', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -328,5 +349,60 @@ describe('Employee compensation forms wiring', () => {
     const toastCalls = window.ArcavUi.showToast.mock.calls;
     const contractToast = toastCalls.find((args) => String(args[0]).includes('contract end'));
     expect(contractToast).toBeUndefined();
+  });
+
+  it('sanitizes numeric-only and letter-only fields while typing', () => {
+    buildStrictPersonalValidationDom();
+
+    bindEmployeeCompensationFormsModule({
+      requestJson: vi.fn(),
+      requestEmployeeDetail: vi.fn(),
+      fillDesignationSelectForDepartment: vi.fn(),
+      loadTeamsDropdown: vi.fn(),
+      formatApiError: () => 'error',
+      loadEmployeesData: vi.fn(),
+    });
+
+    const form = document.querySelector('[data-employee-add-form]');
+    const nameInput = form.querySelector('[data-employee-add-field="name"]');
+    const phoneInput = form.querySelector('[data-employee-add-field="phone"]');
+
+    nameInput.value = 'J0hn @@@ Doe123';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(nameInput.value).toBe('Jhn  Doe');
+
+    phoneInput.value = '08ab12-xy34';
+    phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(phoneInput.value).toBe('081234');
+  });
+
+  it('blocks next step when personal regex fields are invalid', () => {
+    buildStrictPersonalValidationDom();
+
+    bindEmployeeCompensationFormsModule({
+      requestJson: vi.fn(),
+      requestEmployeeDetail: vi.fn(),
+      fillDesignationSelectForDepartment: vi.fn(),
+      loadTeamsDropdown: vi.fn(),
+      formatApiError: () => 'error',
+      loadEmployeesData: vi.fn(),
+    });
+
+    const form = document.querySelector('[data-employee-add-form]');
+    const nameInput = form.querySelector('[data-employee-add-field="name"]');
+    const placeInput = form.querySelector('[data-employee-add-field="placeOfBirth"]');
+    const phoneInput = form.querySelector('[data-employee-add-field="phone"]');
+    const nikInput = form.querySelector('[data-employee-add-field="nik"]');
+
+    nameInput.value = 'Valid Name';
+    placeInput.value = 'Bandung';
+    phoneInput.value = '081234';
+    nikInput.value = '1234567890123456';
+
+    const nextBtn = form.querySelector('[data-employee-step-next]');
+    nextBtn.click();
+
+    expect(phoneInput.validity.customError).toBe(true);
+    expect(String(form.getAttribute('data-employee-step-index'))).toBe('0');
   });
 });

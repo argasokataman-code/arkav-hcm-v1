@@ -175,10 +175,38 @@ class InvoiceService
             'paidDate' => $invoice->paid_date?->toDateString(),
             'isOverdue' => $invoice->is_paid ? false : ($invoice->due_date && $invoice->due_date->isPast()),
             'isDueSoon' => $invoice->is_paid ? false : ($invoice->due_date && $invoice->due_date->diffInDays(now()) <= 7),
+            'billingTaxRateSnapshot' => $invoice->billing_tax_rate_snapshot !== null ? (float) $invoice->billing_tax_rate_snapshot : null,
+            'pricingBreakdown' => $this->parsePricingBreakdown($invoice->notes),
             'notes' => $invoice->notes,
             'pdfPath' => $invoice->pdf_path,
             'createdAt' => $invoice->created_at?->toIso8601String(),
             'updatedAt' => $invoice->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Parse pricing breakdown from invoice notes JSON for frontend display.
+     */
+    private function parsePricingBreakdown(?string $notes): ?array
+    {
+        if ($notes === null || $notes === '') {
+            return null;
+        }
+        $decoded = json_decode($notes, true);
+        if (! is_array($decoded)) {
+            return null;
+        }
+        $pb = $decoded['pricing_breakdown'] ?? null;
+        if (! is_array($pb)) {
+            return null;
+        }
+
+        return [
+            'baseAmount' => isset($pb['base_amount']) ? (float) $pb['base_amount'] : null,
+            'subscriptionTaxRate' => isset($pb['subscription_tax_rate']) ? (float) $pb['subscription_tax_rate'] : null,
+            'subscriptionTaxAmount' => isset($pb['subscription_tax_amount']) ? (float) $pb['subscription_tax_amount'] : null,
+            'totalAmount' => isset($pb['total_amount']) ? (float) $pb['total_amount'] : null,
+            'components' => is_array($pb['components'] ?? null) ? array_values($pb['components']) : null,
         ];
     }
 

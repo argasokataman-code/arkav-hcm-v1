@@ -85,21 +85,20 @@ class LandingPackagesSeeder extends Seeder
                 'training' => 'Training',
                 'goal_tracking' => 'Goal Tracking',
                 'asset_management' => 'Asset Management',
-                'api_access' => 'API Access',
-                'priority_support' => 'Priority Support',
                 'tickets' => 'Tickets',
                 'employee_document_center' => 'Employee Document Center',
             ];
 
             // null = unlimited, 0 = not included, >0 = limit
-            // Index order matches $featureTemplate keys above (14 entries now)
+            // Index order matches $featureTemplate keys above.
+            // Audit fix 2026-05-12:
+            //   - payroll enabled in trial and starter (MVP feature, was 0)
             $limitsByPackage = [
-                // Trial limits intentionally smaller than Starter (sales follow-up friendly)
-                'trial'      => [20,   1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                'starter'    => [50,   1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                'growth'     => [150,  1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0],
-                'business'   => [500,  1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1],
-                'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                'trial'      => [20,   1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'starter'    => [50,   1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'growth'     => [150,  1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'business'   => [500,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             ];
 
             $i = 0;

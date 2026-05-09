@@ -113,10 +113,10 @@ class PaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|uuid|exists:companies,uuid',
-            'purchase_transaction_id' => 'nullable|uuid|exists:purchase_transactions,uuid',
-            'invoice_id' => 'nullable|uuid|exists:invoices,uuid',
-            'subscription_id' => 'nullable|uuid|exists:subscriptions,uuid',
+            'company_id' => 'required|integer|exists:companies,id',
+            'purchase_transaction_id' => 'nullable|integer|exists:purchase_transactions,id',
+            'invoice_id' => 'nullable|integer|exists:invoices,id',
+            'subscription_id' => 'nullable|integer|exists:subscriptions,id',
             'amount' => 'required|numeric|min:0',
             'currency' => 'required|string|in:IDR,USD',
             'payment_method' => 'required|in:bank_transfer,credit_card,e_wallet,cash,check',

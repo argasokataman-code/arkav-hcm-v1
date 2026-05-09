@@ -26,7 +26,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 3. Jika draft sudah ada dan statusnya masih `draft`, tombol Calculate tetap boleh dipakai untuk refresh atau reuse draft lama.
 4. Setelah draft tersedia, admin meninjau baris run dan hanya bisa melanjutkan export reconciliation ketika status tetap `draft`.
 5. Admin menjalankan Export Reconciliation untuk action `payroll_run` dengan `actionKey=disburse`, lalu wajib mengunduh file sampai sukses.
-6. Sesudah unduhan evidence berhasil, tombol Pay via Gateway akan membuka hosted mock payment terlebih dahulu; setelah user menyelesaikan hosted flow dan kembali ke `/payroll-run`, backend baru mengizinkan disburse batch.
+6. Sesudah unduhan evidence berhasil, baru tombol Pay via Gateway atau Pay now dapat digunakan untuk batch pembayaran.
 7. Jika draft sudah difinalisasi tetapi ternyata masih perlu koreksi setup, admin dapat melakukan `void` selama belum ada line yang berstatus `paid`, lalu menghitung draft ulang pada periode aktif yang sama.
 8. Setelah disburse atau reset pembayaran dev, admin harus export dan unduh lagi sebelum batch bayar berikutnya, supaya evidence tidak dipakai berulang tanpa jejak baru.
 9. Jika run sudah finalized, void, atau posted, histori dan audit trail dipantau dari `/payroll-run-history`.
@@ -34,7 +34,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 ## Lifecycle Dan Keputusan Bisnis
 
 - Active period: layar operasional utama selalu menempel ke periode payroll aktif.
-- Draft: setiap karyawan dengan membership tenant aktif non-owner dan status kerja `active` atau `probation` minimal mendapatkan baris upah pokok, walau nilainya bisa 0; tunjangan tetap hanya dibentuk jika nominalnya lebih dari 0.
+- Draft: setiap karyawan `active` atau `probation` minimal mendapatkan baris upah pokok, walau nilainya bisa 0; tunjangan tetap hanya dibentuk jika nominalnya lebih dari 0.
 - Finalize: ditolak dengan `PAYROLL_RUN_EMPTY` jika run tidak memiliki baris eligible.
 - Posted: setelah finalize berhasil, periode induk berubah menjadi `posted`.
 - Void: hanya boleh untuk run `finalized` yang belum memiliki line `paid`; bila tidak ada finalized run lain di periode yang sama maka periode dibuka kembali agar draft bisa dihitung ulang.
@@ -47,7 +47,6 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 - Export reconciliation: gate disbursement terkait dengan evidence export `payroll_run/disburse`, termasuk file download sebagai bukti operator sudah mengambil hasil export.
 - Salary components dan payroll items: draft payroll bergantung pada data kompensasi dan katalog item yang dibentuk di feature terkait.
 - THR: halaman `/payroll-thr` dapat membuat run purpose `thr`, lalu hasilnya ikut tampil pada self-service slip lines sesuai bulan kalender.
-- Rencana policy cutoff/payday payroll bulanan didokumentasikan di `docs/features/payroll-runs/monthly-payroll-cutoff-and-payday-policy.md` agar implementasi tenant-level, auto-refresh draft, dan integrasi THR/PKWT tetap konsisten.
 
 ## Kontrak API
 
@@ -58,9 +57,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 ## Existing Vs Target
 
 - Existing: implementasi aktif saat ini sudah menutup calculate draft, finalize, void finalized run yang belum dibayar, history, self-service slip lines, slip PDF, dan gate disburse berbasis reconciliation export.
-- Existing: halaman `/payroll-run` kini menampilkan shell workflow bertahap pada surface yang sama: stepper operasional, checklist readiness, primary action kontekstual, dan panel aksi lanjutan agar urutan Calculate Draft → review → export evidence → payment lebih mudah diikuti tanpa pindah halaman.
 - Existing: `/payslip` web sudah memakai runtime aktif `my-slip`, `my-slip-latest-period`, dan `my-slip-pdf` untuk audience employee.
-- Existing: audience `/payslip` tidak lagi memaksa redirect global super admin ke report, sehingga super admin global tetap bisa melakukan self-check slip terbaru di tenant aktif bila diperlukan.
 - Target: penguatan berikutnya lebih bersifat operasional dan governance, seperti audit append-only terpisah, hardening post-payroll controls lintas integrasi eksternal, dan review kebijakan payroll lintas tenant.
 
 ## Kondisi Existing vs Target Bisnis
@@ -79,7 +76,6 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 - model audit append-only yang lebih kaya di luar payload runtime masih backlog bila nantinya dibutuhkan untuk jejak kepatuhan terpisah dari surface operasional;
 - post-payroll controls lanjutan untuk reversal/adjustment lintas integrasi eksternal masih perlu diputuskan bila scope bisnis melewati flow void-before-paid yang sekarang aktif;
 - boundary dokumentasi monthly run vs THR run vs PKWT compensation tetap perlu dijaga sinkron saat modul payroll berkembang, walau runtime aktifnya sudah tersedia.
-- policy cutoff/payday payroll bulanan lintas tenant belum menjadi runtime aktif; desain implementasi, dampak bisnis/teknis, dan guard auto-refresh saat ini dicatat sebagai acuan implementasi di `docs/features/payroll-runs/monthly-payroll-cutoff-and-payday-policy.md`.
 
 ### Integrasi cuti tanpa gaji & kerja hari libur (opt-in)
 
@@ -98,53 +94,11 @@ Komponen auto-provisioned via `resolveOrCreateComponent` di `PayrollDraftBuilder
 - review lanjutan yang tersisa diposisikan sebagai hardening governance/compliance, bukan blocker runtime untuk deploy surface payroll yang aktif;
 - tracker feature dipakai untuk memisahkan evidence deploy-readiness saat ini dari enhancement audit/governance yang mungkin ditambahkan kemudian.
 
-## Rencana Pengembangan Berikutnya
-
-- Fitur policy cutoff/payday payroll bulanan tenant-level disiapkan sebagai enhancement terpisah agar pre-payroll lock, auto-refresh draft, dan penentuan periode variabel payroll bisa lebih formal.
-- Policy target: payday mengikuti kalender bulan aktif; cutoff dihitung sebagai offset hari sebelum payday (contoh umum Indonesia: payday tanggal 28, cutoff 3 hari sebelumnya menjadi tanggal 25 pada bulan yang sama).
-- Transaksi variabel yang effective date-nya lewat dari cutoff target akan diperlakukan sebagai input periode berikutnya, bukan disisipkan ke draft yang sudah melewati batas kerja payroll.
-- Slip gabungan employee tetap dapat menampilkan monthly + THR + PKWT compensation pada bulan kalender yang sama; dokumentasi detail dampak, anomali, dan handling ada di `docs/features/payroll-runs/monthly-payroll-cutoff-and-payday-policy.md`.
-
-## Gap MVP Cutoff/Payday (Production)
-
-Fondasi cutoff/payday payroll bulanan tenant-level kini sudah aktif penuh untuk scope MVP: settings tenant, policy snapshot, scheduler-aware refresh, hard-block before-payday, regression matrix inti, dan kontrak operasional exception sudah sinkron dengan runtime.
-
-Kontrak operasional MVP yang berlaku sekarang:
-
-1. Before-payday untuk payroll monthly memakai **hard-block murni** bila `disburseBeforePaydayAllowed=false`.
-2. Tidak ada override inline pada endpoint disburse atau modal UI.
-3. Jika exception operasional dibutuhkan, policy tenant harus disetujui lalu snapshot run dibangun ulang: `recalculate` untuk draft, atau `void + Calculate Draft` ulang untuk run finalized yang belum paid.
-4. Run yang sudah paid tidak menerima replay policy; correction flow berada di luar scope MVP ini.
-
-Rujukan detail status dan evidence per-gap ada di:
-- `docs/features/payroll-runs/monthly-payroll-cutoff-and-payday-policy.md` (register gap + DoD)
-- `docs/features/payroll-runs/tracker.md` (snapshot status + blocker progress)
-
 ## Status
 
-- Status implementation: **ready for deployment / cutoff-payday MVP complete**
+- Status implementation: **ready for deployment**
 - Tracker: [tracker.md](tracker.md)
 - Snapshot saat ini: actual payroll inti sudah aktif end-to-end untuk surface runtime yang dipublikasikan, termasuk payslip web/PDF, overtime roll-up, deduction engine BPJS/PPh21 TER, void-before-paid, dan history payroll.
-- Catatan penting: blocker MVP cutoff/payday sudah closed. Pekerjaan berikutnya, bila ada, diperlakukan sebagai enhancement governance lanjutan seperti approval trail inline, exception audit append-only, atau workflow adjustment setelah paid.
-
-### Gap Lanjutan Setelah Decision Lock (Non-Blocker MVP)
-
-Keputusan bisnis untuk point 4-7 pada policy cutoff/payday sudah dikunci, tetapi sebagian masih butuh implementasi teknis lanjutan:
-
-1. penampung/history sementara pasca-cutoff + auto-migrasi ke periode berikutnya;
-2. coverage test khusus untuk skenario backlog pasca-cutoff dan auto-migrasi.
-
-Update terbaru:
-
-- guardrail post-cutoff review-only sudah diimplementasikan pada UI payroll-run dan tervalidasi lewat Vitest wiring test dedicated.
-- GAP-OPS-01 kini **sudah complete end-to-end**: baseline backlog `lateArrivalBuffer` tetap disimpan di run monthly, lalu saat disburse monthly menuntaskan semua user eligible, sistem otomatis menyiapkan periode berikutnya, rebuild draft next period, dan membawa overtime post-cutoff sebagai carryover yang dapat diaudit.
-- GAP-OPS-03 kini **sudah complete end-to-end**: strategy payday holiday tenant-level (`previous_working_day` / `next_working_day` / `exact_calendar_day`) aktif di settings API + UI payroll-run, dipersist ke `policySnapshot`, dan tervalidasi lewat regression test weekend/libur.
-- GAP-OPS-04 kini **sudah complete end-to-end**: regression suite dedicated backend + UI sudah memverifikasi kontrak post-cutoff backlog, auto-migrasi ke periode berikutnya, dan visibilitas metadata migrasi untuk operator.
-
-Status GAP-OPS-01 saat ini: **CLOSED**. Runtime sekarang mencakup capture backlog post-cutoff + auto-migration ke periode berikutnya + evidence regression lifecycle.
-Status GAP-OPS-04 saat ini: **CLOSED**. Evidence regression kini terpisah dan tidak bercampur dengan suite payroll umum.
-
-Empat blocker MVP yang sudah ditutup (CP-01 s.d. CP-04) **tidak dibuka ulang**; gap di atas diperlakukan sebagai hardening phase berikutnya.
 
 ## Catatan QA
 

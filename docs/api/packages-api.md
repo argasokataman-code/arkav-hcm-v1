@@ -7,6 +7,11 @@ Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/P
 - `/v1/saas/packages`
 - `/v1/saas/package-addons`
 
+Catatan namespace:
+- `package_addons.code` tidak boleh bentrok dengan `feature_code` pada package feature catalog runtime.
+- Jika bentrok, endpoint create/update add-on akan mengembalikan `422 FEATURE_CODE_NAMESPACE_CONFLICT`.
+- List endpoint add-on (`GET /package-addons`) otomatis menyembunyikan row add-on yang bentrok agar UI Packages tidak menampilkan baseline/add-on ganda.
+
 ## Authentication
 
 Semua endpoint memakai middleware `api.token`.
@@ -21,7 +26,9 @@ Semua endpoint memakai middleware `api.token`.
 
 Behavior:
 - Mengembalikan katalog fitur package yang dipakai runtime UI `/packages` saat compose/edit package.
-- Source of truth ada di backend config catalog dan hanya mengembalikan daftar fitur kanonik yang disetujui runtime.
+- Source of truth dibentuk dinamis dari runtime repository (feature-gated routes + klasifikasi runtime docs), lalu dinormalisasi server-side agar UI selalu mengikuti fitur nyata yang aktif di codebase.
+- Source of truth dibentuk dinamis dari runtime repository (feature-gated middleware + inferensi route URI aktif + klasifikasi runtime docs), lalu dinormalisasi server-side agar UI selalu mengikuti fitur nyata yang aktif di codebase.
+- Modul governance/lifecycle/collaboration non-MVP yang aktif di route (contoh allowance governance, BPJS governance, overtime, promotion/resignation/termination, data privacy, notes/faq) ikut muncul sebagai feature catalog add-on.
 - Mengembalikan mapping tegas dua tier agar composer package tidak drift:
   - `meta.mvp_feature_codes`: fitur inti paket MVP.
   - `meta.addon_feature_codes`: semua fitur katalog yang berada di luar MVP.
@@ -55,6 +62,46 @@ Success `200` (ringkas):
     "mvp_feature_codes": ["max_employees", "employee_management", "attendance", "leave_management", "holiday_calendar", "payroll", "payroll_components", "payroll_thr", "notifications", "trial_billing_dashboard", "tax_governance"],
     "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets"],
     "total_feature_codes": 21
+  }
+}
+```
+
+### GET `/packages/feature-catalog/healthcheck`
+
+RBAC:
+- Global admin only (`ADMIN_REQUIRED` untuk non-admin).
+
+Behavior:
+- Menjalankan healthcheck sinkronisasi source katalog fitur runtime.
+- Membandingkan sumber route (`hcm.api.feature:*` / `hcm.web.feature:*`) vs dokumen klasifikasi runtime.
+- Mengembalikan indikator drift (`route_only_feature_codes`, `docs_only_feature_codes`) dan ringkasan count.
+- `docs_only_feature_codes` mengecualikan kontrol package-only (`max_employees`) karena code ini memang tidak punya route API runtime sendiri.
+
+Success `200` (ringkas):
+```json
+{
+  "success": true,
+  "data": {
+    "route_feature_codes": ["employee_management", "payroll"],
+    "docs_feature_codes": ["employee_management", "payroll", "tickets"],
+    "catalog_feature_codes": ["employee_management", "payroll", "tickets"],
+    "route_only_feature_codes": [],
+    "docs_only_feature_codes": ["tickets"],
+    "custom_module_feature_codes": [],
+    "unknown_feature_meta_codes": ["tickets"],
+    "has_drift": true,
+    "counts": {
+      "route": 2,
+      "docs": 3,
+      "catalog": 3,
+      "route_only": 0,
+      "docs_only": 1,
+      "custom_module": 0,
+      "unknown_meta": 1
+    }
+  },
+  "meta": {
+    "generated_at": "2026-05-09T10:00:00+07:00"
   }
 }
 ```

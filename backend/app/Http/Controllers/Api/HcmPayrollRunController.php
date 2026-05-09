@@ -3,27 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use Closure;
-use App\Events\PayrollFinalized;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Mail\MonthlyPayslipMail;
-use App\Models\Company;
-use App\Models\CompanyUser;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
-use App\Models\NotificationDelivery;
-use App\Notifications\MonthlyPayrollGeneratedNotification;
-use App\Notifications\MonthlyPayrollDisbursedNotification;
-use App\Services\Hcm\PayrollLateArrivalMigrationService;
-use App\Services\Hcm\PayrollMonthlySettingsService;
-use App\Services\NotificationDeliveryRecorder;
 use App\Models\User;
 use App\Services\Hcm\MonthlyPayslipService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,11 +24,9 @@ use Illuminate\Support\Str;
 class HcmPayrollRunController extends Controller
 {
     use ChecksPermissions;
-    use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
 
     public function __construct(
-        private readonly MonthlyPayslipService $monthlyPayslipService,
-        private readonly PayrollLateArrivalMigrationService $payrollLateArrivalMigrationService,
+        private readonly MonthlyPayslipService $monthlyPayslipService
     ) {}
 
     public function show(Request $request, int $id): JsonResponse
@@ -148,13 +136,6 @@ class HcmPayrollRunController extends Controller
             return $error;
         }
 
-        if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
-            return response()->json([
-                'success' => false,
-                'error' => $taxProfileBlocker,
-            ], 422);
-        }
-
         if ($run->status !== HcmPayrollRun::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
@@ -200,33 +181,12 @@ class HcmPayrollRunController extends Controller
             }
         }
 
-        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeCharges($run, $companyId);
-
         $user = $request->user();
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $meta['platform_service_fee_rate'] = $serviceFeeRate;
-        $meta['platform_service_fee_base'] = $serviceFeeBase;
-        $meta['platform_service_fee_amount'] = $serviceFeeAmount;
-        $meta['platform_service_fee_billing_month'] = $serviceFeeBillingMonth;
-
         $run->update([
             'status' => HcmPayrollRun::STATUS_FINALIZED,
             'finalized_at' => now(),
             'finalized_by_user_id' => $user?->id,
-            'meta' => $meta,
         ]);
-        PayrollFinalized::dispatch((int) $run->id, (int) ($user?->id ?? 0));
-
-        $this->logHcmActivity($request, 'payroll_run', (string) ($run->uuid ?? (string) $run->id), 'finalized', [], [
-            'period' => $run->hcm_payroll_period_id,
-            'purpose' => $purpose,
-        ]);
-
-        // Notify company admins that payroll has been finalized/generated
-        $this->notifyCompanyAdminsPayroll(
-            $companyId,
-            new MonthlyPayrollGeneratedNotification($run->fresh()),
-        );
 
         $periodQuery = HcmPayrollPeriod::query()->whereKey($run->hcm_payroll_period_id);
         $this->applyTenantScope($periodQuery, $companyId);
@@ -347,14 +307,12 @@ class HcmPayrollRunController extends Controller
                 }
             }],
             'applyAll' => ['nullable', 'boolean'],
-            'mockApprovalToken' => ['nullable', 'string', 'min:16', 'max:120'],
         ]);
 
         $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
         $applyAll = (bool) ($validated['applyAll'] ?? false);
-        $mockApprovalToken = isset($validated['mockApprovalToken']) ? (string) $validated['mockApprovalToken'] : '';
         $companyId = $this->activeCompanyId($request);
-        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId, $mockApprovalToken): array {
+        $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
@@ -366,13 +324,6 @@ class HcmPayrollRunController extends Controller
                         'message' => 'Export reconciliation evidence is required before this action.',
                     ],
                     'status' => $error->getStatusCode(),
-                ];
-            }
-
-            if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
-                return [
-                    'error' => $taxProfileBlocker,
-                    'status' => 422,
                 ];
             }
 
@@ -389,13 +340,6 @@ class HcmPayrollRunController extends Controller
                 })
                 ->lockForUpdate()
                 ->first();
-
-            if ($paydayBlocker = $this->guardBeforePaydayDisburse($run, $period, $companyId)) {
-                return [
-                    'error' => $paydayBlocker,
-                    'status' => 422,
-                ];
-            }
 
             $lines = HcmPayrollLine::query()
                 ->with('user:id,name')
@@ -481,27 +425,12 @@ class HcmPayrollRunController extends Controller
                 ? $selectedUserIds->intersect($eligibleUserIds)->values()
                 : ($applyAll ? $eligibleUserIds : collect());
 
-            $allEligiblePaidAfterDisburse = $eligibleUserIds->isNotEmpty()
-                && $effectiveSelectedUserIds->count() === $eligibleUserIds->count();
-
             if ($effectiveSelectedUserIds->isEmpty()) {
                 return [
                     'error' => [
                         'code' => 'PAYROLL_DISBURSE_NO_EMPLOYEES',
                         'message' => 'Tidak ada karyawan eligible untuk dibayar. Hanya user dengan net pay positif yang bisa diproses.',
                     ],
-                    'status' => 422,
-                ];
-            }
-
-            $approvalError = $this->guardMockDisburseApproval(
-                $run,
-                $effectiveSelectedUserIds->values()->all(),
-                $mockApprovalToken
-            );
-            if ($approvalError !== null) {
-                return [
-                    'error' => $approvalError,
                     'status' => 422,
                 ];
             }
@@ -584,7 +513,6 @@ class HcmPayrollRunController extends Controller
                 'ineligibleUserIds' => $ineligibleUserIds->all(),
                 'skippedAlreadyPaidUserIds' => array_values(array_unique($alreadyPaidUserIds)),
                 'gatewayReference' => $gatewayReference,
-                'allEligiblePaidAfterDisburse' => $allEligiblePaidAfterDisburse,
             ];
         });
 
@@ -597,22 +525,6 @@ class HcmPayrollRunController extends Controller
 
         /** @var HcmPayrollRun $run */
         $run = $result['run'];
-        $paymentSummary = $this->paymentSummary($run);
-        $lateArrivalMigration = null;
-
-        if ((bool) ($result['allEligiblePaidAfterDisburse'] ?? false)) {
-            $lateArrivalMigration = $this->payrollLateArrivalMigrationService
-                ->migrateToNextPeriodIfEligible((int) $run->id, $companyId);
-        }
-
-        // Notify each employee whose salary was disbursed
-        $paidUserIds = $result['selectedUserIds'] ?? [];
-        if (! empty($paidUserIds)) {
-            $freshRun = $run->fresh() ?? $run;
-            User::query()->whereIn('id', $paidUserIds)->each(function (User $employee) use ($freshRun): void {
-                $employee->notify(new MonthlyPayrollDisbursedNotification($freshRun));
-            });
-        }
 
         return response()->json([
             'success' => true,
@@ -622,247 +534,7 @@ class HcmPayrollRunController extends Controller
                 'ineligibleUserIds' => $result['ineligibleUserIds'] ?? [],
                 'skippedAlreadyPaidUserIds' => $result['skippedAlreadyPaidUserIds'],
                 'gatewayReference' => $result['gatewayReference'],
-                'payment' => $paymentSummary,
-                'lateArrivalMigration' => $lateArrivalMigration,
-            ],
-        ]);
-    }
-
-    public function startMockHostedCheckout(Request $request, int $id): JsonResponse
-    {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
-            return $forbidden;
-        }
-
-        if (! $this->isMockPaymentFlowEnabled()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_MOCK_PAYMENT_DISABLED',
-                    'message' => 'Mock payment flow tidak aktif pada environment ini.',
-                ],
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'userIds' => ['nullable', 'array', 'min:1'],
-            'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
-                if (! $this->userIdentifierExists($value)) {
-                    $fail("The selected {$attribute} is invalid.");
-                }
-            }],
-            'applyAll' => ['nullable', 'boolean'],
-        ]);
-
-        $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
-        $applyAll = (bool) ($validated['applyAll'] ?? false);
-        $companyId = $this->activeCompanyId($request);
-
-        $runQuery = HcmPayrollRun::query()->whereKey($id)->with(['period', 'lines.user:id,name']);
-        $this->applyTenantScope($runQuery, $companyId);
-        $run = $runQuery->firstOrFail();
-
-        if ($error = $this->guardPayrollReconciliation($request, $run, 'disburse')) {
-            return response()->json([
-                'success' => false,
-                'error' => $error->getData(true)['error'] ?? [
-                    'code' => 'EXPORT_RECON_REQUIRED',
-                    'message' => 'Export reconciliation evidence is required before this action.',
-                ],
-            ], $error->getStatusCode());
-        }
-
-        if ($taxProfileBlocker = $this->buildMissingTaxProfileError($run)) {
-            return response()->json([
-                'success' => false,
-                'error' => $taxProfileBlocker,
-            ], 422);
-        }
-
-        $lines = $run->lines;
-        if ($lines->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_RUN_EMPTY',
-                    'message' => 'Tidak ada karyawan eligible di payroll run ini.',
-                ],
-            ], 422);
-        }
-
-        $netByUser = [];
-        foreach ($lines->groupBy('user_id') as $userId => $items) {
-            $net = 0.0;
-            foreach ($items as $line) {
-                $meta = is_array($line->meta) ? $line->meta : [];
-                $affectsNetPay = array_key_exists('affectsNetPay', $meta)
-                    ? (bool) $meta['affectsNetPay']
-                    : ((string) $line->category !== 'employer_cost_display');
-                if (! $affectsNetPay) {
-                    continue;
-                }
-
-                $amount = (float) $line->amount;
-                if ((string) $line->kind === 'addition') {
-                    $net += $amount;
-                } elseif ((string) $line->kind === 'deduction') {
-                    $net -= $amount;
-                }
-            }
-            $netByUser[(int) $userId] = round($net, 2);
-        }
-
-        $eligibleUserIds = collect($netByUser)
-            ->filter(fn ($net) => (float) $net > 0)
-            ->keys()
-            ->map(fn ($userId) => (int) $userId)
-            ->values();
-
-        $effectiveSelectedUserIds = $selectedUserIds->isNotEmpty()
-            ? $selectedUserIds->intersect($eligibleUserIds)->values()
-            : ($applyAll ? $eligibleUserIds : collect());
-
-        if ($effectiveSelectedUserIds->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_DISBURSE_NO_EMPLOYEES',
-                    'message' => 'Tidak ada karyawan eligible untuk dibayar. Hanya user dengan net pay positif yang bisa diproses.',
-                ],
-            ], 422);
-        }
-
-        $callbackToken = Str::random(40);
-        $selectedCsv = $effectiveSelectedUserIds->implode(',');
-        $runId = (int) $run->id;
-
-        $successUrl = url('/payroll-run').'?'.http_build_query([
-            'payroll_mock_payment_status' => 'completed',
-            'payroll_run_id' => $runId,
-            'callback_token' => $callbackToken,
-            'selected_user_ids' => $selectedCsv,
-        ]);
-        $failureUrl = url('/payroll-run').'?'.http_build_query([
-            'payroll_mock_payment_status' => 'failed',
-            'payroll_run_id' => $runId,
-            'callback_token' => $callbackToken,
-            'selected_user_ids' => $selectedCsv,
-        ]);
-
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $meta['mockPayrollDisburse'] = [
-            'status' => 'pending',
-            'callbackToken' => $callbackToken,
-            'selectedUserIds' => $effectiveSelectedUserIds->values()->all(),
-            'createdAt' => now()->toIso8601String(),
-            'expiresAt' => now()->addMinutes(30)->toIso8601String(),
-            'confirmedAt' => null,
-            'consumedAt' => null,
-        ];
-        $run->update(['meta' => $meta]);
-
-        $hostedCheckoutUrl = url('/mock-hosted-payment.html').'?'.http_build_query([
-            'flow' => 'payroll_disburse',
-            'run_id' => $runId,
-            'invoice_uuid' => 'payroll-run-'.$runId,
-            'invoice_number' => 'PAYROLL-RUN-'.$runId,
-            'amount' => (float) $effectiveSelectedUserIds
-                ->sum(fn (int $userId): float => (float) ($netByUser[$userId] ?? 0)),
-            'callback_token' => $callbackToken,
-            'success_url' => $successUrl,
-            'failure_url' => $failureUrl,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'runId' => $runId,
-                'selectedUserIds' => $effectiveSelectedUserIds->values()->all(),
-            ],
-            'flow' => [
-                'mode' => 'hosted',
-                'hostedCheckoutUrl' => $hostedCheckoutUrl,
-                'callbackToken' => $callbackToken,
-                'successRedirectUrl' => $successUrl,
-                'failureRedirectUrl' => $failureUrl,
-            ],
-        ]);
-    }
-
-    public function confirmMockHostedCheckout(Request $request, int $id): JsonResponse
-    {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
-            return $forbidden;
-        }
-
-        $validated = $request->validate([
-            'callbackToken' => ['required', 'string', 'min:16', 'max:120'],
-            'userIds' => ['required', 'array', 'min:1'],
-            'userIds.*' => ['integer', 'min:1'],
-        ]);
-
-        $companyId = $this->activeCompanyId($request);
-        $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
-        $this->applyTenantScope($runQuery, $companyId);
-        $run = $runQuery->firstOrFail();
-
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $approval = is_array($meta['mockPayrollDisburse'] ?? null) ? $meta['mockPayrollDisburse'] : null;
-        if ($approval === null) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_MOCK_PAYMENT_NOT_FOUND',
-                    'message' => 'Hosted mock payment belum dibuat untuk payroll run ini.',
-                ],
-            ], 422);
-        }
-
-        if ((string) ($approval['callbackToken'] ?? '') !== (string) $validated['callbackToken']) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_MOCK_PAYMENT_TOKEN_INVALID',
-                    'message' => 'Token hosted payment tidak valid.',
-                ],
-            ], 422);
-        }
-
-        $expiresAt = (string) ($approval['expiresAt'] ?? '');
-        if ($expiresAt !== '' && now()->greaterThan(Carbon::parse($expiresAt))) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_MOCK_PAYMENT_EXPIRED',
-                    'message' => 'Sesi hosted payment sudah kedaluwarsa, silakan mulai ulang.',
-                ],
-            ], 422);
-        }
-
-        $approvedIds = collect($approval['selectedUserIds'] ?? [])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values();
-        $requestedIds = collect($validated['userIds'])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values();
-
-        if ($approvedIds->all() !== $requestedIds->all()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH',
-                    'message' => 'Daftar karyawan tidak sesuai dengan sesi hosted payment.',
-                ],
-            ], 422);
-        }
-
-        $approval['status'] = 'completed';
-        $approval['confirmedAt'] = now()->toIso8601String();
-        $meta['mockPayrollDisburse'] = $approval;
-        $run->update(['meta' => $meta]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'runId' => (int) $run->id,
-                'selectedUserIds' => $approvedIds->all(),
-                'status' => 'completed',
+                'payment' => $this->paymentSummary($run),
             ],
         ]);
     }
@@ -871,17 +543,6 @@ class HcmPayrollRunController extends Controller
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
             return $forbidden;
-        }
-
-        $companyId = $this->activeCompanyId($request);
-        if ($companyId === null || $companyId <= 0) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'PAYROLL_RESET_ACTIVE_COMPANY_REQUIRED',
-                    'message' => 'Reset pembayaran hanya diizinkan dalam konteks tenant aktif.',
-                ],
-            ], 403);
         }
 
         if (! $this->isPrimarySuperAdminCodeOne($request->user())) {
@@ -904,15 +565,30 @@ class HcmPayrollRunController extends Controller
             ], 403);
         }
 
+        $companyId = $this->activeCompanyId($request);
         $result = DB::transaction(function () use ($id, $companyId, $request): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
 
+            // Get primary super admin user ID for filtering
+            $primaryAdminEmail = strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')));
+            $primaryAdminUser = User::query()
+                ->whereRaw('LOWER(email) = ?', [$primaryAdminEmail])
+                ->first();
+            
+            $primaryAdminUserId = $primaryAdminUser?->id;
+
+            // Build query to get only primary super admin's payroll lines
             $linesQuery = HcmPayrollLine::query()
                 ->where('hcm_payroll_run_id', $run->id)
                 ->lockForUpdate();
-
+            
+            // Filter to only primary super admin if they exist
+            if ($primaryAdminUserId) {
+                $linesQuery->where('user_id', $primaryAdminUserId);
+            }
+            
             $lines = $linesQuery->get();
 
             $resetLineCount = 0;
@@ -933,14 +609,6 @@ class HcmPayrollRunController extends Controller
                     $line->save();
                     $resetLineCount++;
                 }
-            }
-
-            // DEV helper: treat reset as clean restart for current period.
-            if ($run->status !== HcmPayrollRun::STATUS_VOID) {
-                $run->status = HcmPayrollRun::STATUS_VOID;
-                $run->voided_at = now();
-                $run->voided_by_user_id = $request->user()?->id;
-                $run->save();
             }
 
             $freshRunQuery = HcmPayrollRun::query()->with(['period', 'lines.user:id,name'])->whereKey($run->id);
@@ -964,106 +632,6 @@ class HcmPayrollRunController extends Controller
                 'payment' => $this->paymentSummary($run),
             ],
         ]);
-    }
-
-    private function guardBeforePaydayDisburse(HcmPayrollRun $run, ?HcmPayrollPeriod $period, ?int $companyId): ?array
-    {
-        if (($run->purpose ?? HcmPayrollRun::PURPOSE_MONTHLY) !== HcmPayrollRun::PURPOSE_MONTHLY || $period === null) {
-            return null;
-        }
-
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $policySnapshot = is_array($meta['policySnapshot'] ?? null)
-            ? $meta['policySnapshot']
-            : app(PayrollMonthlySettingsService::class)->snapshotForPeriod(
-                (int) $period->period_year,
-                (int) $period->period_month,
-                $companyId,
-            );
-
-        if ((bool) ($policySnapshot['disburseBeforePaydayAllowed'] ?? false)) {
-            return null;
-        }
-
-        $resolvedPaydayDate = (string) ($policySnapshot['resolvedPaydayDate'] ?? '');
-        if ($resolvedPaydayDate === '') {
-            return null;
-        }
-
-        $payrollTimezone = (string) ($policySnapshot['payrollTimezone'] ?? config('app.timezone', 'UTC'));
-        $localToday = Carbon::now($payrollTimezone)->toDateString();
-        if ($localToday >= $resolvedPaydayDate) {
-            return null;
-        }
-
-        return [
-            'code' => 'PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN',
-            'message' => sprintf(
-                'Payroll tidak bisa dibayarkan sebelum payday %s sesuai policy tenant aktif.',
-                $resolvedPaydayDate
-            ),
-        ];
-    }
-
-    /**
-     * @param array<int> $selectedUserIds
-     */
-    private function guardMockDisburseApproval(HcmPayrollRun $run, array $selectedUserIds, string $approvalToken): ?array
-    {
-        if (app()->environment('testing') || ! $this->isMockPaymentFlowEnabled()) {
-            return null;
-        }
-
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $approval = is_array($meta['mockPayrollDisburse'] ?? null) ? $meta['mockPayrollDisburse'] : null;
-        if ($approval === null) {
-            return [
-                'code' => 'PAYROLL_MOCK_PAYMENT_REQUIRED',
-                'message' => 'Payment wajib melalui hosted mock gateway sebelum disburse payroll.',
-            ];
-        }
-
-        if ((string) ($approval['status'] ?? '') !== 'completed') {
-            return [
-                'code' => 'PAYROLL_MOCK_PAYMENT_REQUIRED',
-                'message' => 'Hosted mock payment belum diselesaikan.',
-            ];
-        }
-
-        if ($approvalToken === '' || (string) ($approval['callbackToken'] ?? '') !== $approvalToken) {
-            return [
-                'code' => 'PAYROLL_MOCK_PAYMENT_TOKEN_INVALID',
-                'message' => 'Token hosted payment tidak valid.',
-            ];
-        }
-
-        $approvedIds = collect($approval['selectedUserIds'] ?? [])->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values()->all();
-        $incomingIds = collect($selectedUserIds)->map(fn ($v) => (int) $v)->filter(fn ($v) => $v > 0)->sort()->values()->all();
-        if ($approvedIds !== $incomingIds) {
-            return [
-                'code' => 'PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH',
-                'message' => 'Daftar karyawan berbeda dari sesi hosted mock payment.',
-            ];
-        }
-
-        if (! empty($approval['consumedAt'])) {
-            return [
-                'code' => 'PAYROLL_MOCK_PAYMENT_ALREADY_USED',
-                'message' => 'Sesi hosted payment ini sudah dipakai. Buat sesi baru untuk retry.',
-            ];
-        }
-
-        $approval['consumedAt'] = now()->toIso8601String();
-        $meta['mockPayrollDisburse'] = $approval;
-        $run->meta = $meta;
-        $run->save();
-
-        return null;
-    }
-
-    private function isMockPaymentFlowEnabled(): bool
-    {
-        return app()->isLocal() || (bool) config('app.mock_payments_enabled');
     }
 
     private function isPrimarySuperAdminCodeOne(?User $user): bool
@@ -1248,9 +816,6 @@ class HcmPayrollRunController extends Controller
 
         $sentUserIds = [];
         $skipped = [];
-        $companyUuid = $this->activeCompanyUuid($companyId);
-        $companyProfile = $companyId !== null ? $this->monthlyPayslipService->resolveCompanyProfile($companyId) : ['name' => '', 'address' => ''];
-        $deliveryRecorder = app(NotificationDeliveryRecorder::class);
 
         foreach ($resolvedUserIds as $userId) {
             $user = $users->get((int) $userId);
@@ -1285,34 +850,13 @@ class HcmPayrollRunController extends Controller
             );
 
             try {
-                Mail::to($email)->send(new MonthlyPayslipMail($user, $slip, $pdf, $companyProfile['name']));
+                Mail::to($email)->send(new MonthlyPayslipMail($user, $slip, $pdf));
                 $sentUserIds[] = (int) $userId;
-                $deliveryRecorder->recordSent('payroll.payslip.email_sent', 'mail', [
-                    'recipient' => $email,
-                    'companyUuid' => $companyUuid,
-                    'metadata' => [
-                        'periodYear' => (int) $validated['periodYear'],
-                        'periodMonth' => (int) $validated['periodMonth'],
-                        'userId' => (int) $userId,
-                        'slipNumber' => (string) ($slip['slipNumber'] ?? ''),
-                    ],
-                ]);
             } catch (\Throwable $e) {
                 $skipped[] = [
                     'userId' => (int) $userId,
                     'reason' => 'MAIL_SEND_FAILED',
                 ];
-                $deliveryRecorder->recordFailed('payroll.payslip.email_failed', 'mail', [
-                    'recipient' => $email,
-                    'companyUuid' => $companyUuid,
-                    'lastError' => $e->getMessage(),
-                    'metadata' => [
-                        'periodYear' => (int) $validated['periodYear'],
-                        'periodMonth' => (int) $validated['periodMonth'],
-                        'userId' => (int) $userId,
-                        'slipNumber' => (string) ($slip['slipNumber'] ?? ''),
-                    ],
-                ]);
             }
         }
 
@@ -1510,6 +1054,8 @@ class HcmPayrollRunController extends Controller
 
         $runs = collect([
             $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_MONTHLY, $companyId),
+            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_THR, $companyId),
+            $this->latestFinalizedRunForPurpose($period->id, HcmPayrollRun::PURPOSE_PKWT_COMPENSATION, $companyId),
         ])->filter();
 
         if ($runs->isEmpty()) {
@@ -1519,7 +1065,9 @@ class HcmPayrollRunController extends Controller
             ]);
         }
 
-        $run = $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_MONTHLY);
+        $run = $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
+            ?? $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_THR)
+            ?? $runs->firstWhere('purpose', HcmPayrollRun::PURPOSE_PKWT_COMPENSATION);
 
         $lines = HcmPayrollLine::query()
             ->whereIn('hcm_payroll_run_id', $runs->pluck('id')->all())
@@ -1532,9 +1080,8 @@ class HcmPayrollRunController extends Controller
         $slips = $byUser->map(function ($userLines, $userId) use ($validated) {
             $first    = $userLines->first();
             $user     = $first->user;
-            $netAffecting = $userLines->filter(fn (HcmPayrollLine $line): bool => $this->lineAffectsNetPay($line))->values();
-            $earnings   = $netAffecting->where('kind', 'addition')->values();
-            $deductions = $netAffecting->where('kind', 'deduction')->values();
+            $earnings   = $userLines->where('kind', 'addition')->values();
+            $deductions = $userLines->where('kind', 'deduction')->values();
 
             $earningsTotal   = round((float) $earnings->sum('amount'), 2);
             $deductionsTotal = round((float) $deductions->sum('amount'), 2);
@@ -1561,10 +1108,6 @@ class HcmPayrollRunController extends Controller
                     'netPay'          => $netPay,
                 ],
             ];
-        })->filter(function (array $row): bool {
-            $earnings = (float) ($row['totals']['earningsTotal'] ?? 0);
-            $deductions = (float) ($row['totals']['deductionsTotal'] ?? 0);
-            return $earnings > 0 || $deductions > 0;
         })->values()->all();
 
         return response()->json([
@@ -1599,8 +1142,11 @@ class HcmPayrollRunController extends Controller
                 'lines.user:id,name,email',
                 'lines.user.employeeProfile:user_id,designation,team',
             ])
-            ->where('status', HcmPayrollRun::STATUS_FINALIZED)
-            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
+            ->whereIn('purpose', [
+                HcmPayrollRun::PURPOSE_MONTHLY,
+                HcmPayrollRun::PURPOSE_THR,
+                HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+            ])
             ->when(isset($validated['periodYear']), function ($q) use ($validated): void {
                 $q->whereHas('period', fn ($pq) => $pq->where('period_year', (int) $validated['periodYear']));
             })
@@ -1620,9 +1166,8 @@ class HcmPayrollRunController extends Controller
                 $first = $userLines->first();
                 $user = $first?->user;
                 $profile = $user?->employeeProfile;
-                $netAffecting = $userLines->filter(fn (HcmPayrollLine $line): bool => $this->lineAffectsNetPay($line))->values();
-                $earnings = $netAffecting->where('kind', 'addition')->values();
-                $deductions = $netAffecting->where('kind', 'deduction')->values();
+                $earnings = $userLines->where('kind', 'addition')->values();
+                $deductions = $userLines->where('kind', 'deduction')->values();
 
                 $earningsTotal = round((float) $earnings->sum('amount'), 2);
                 $deductionsTotal = round((float) $deductions->sum('amount'), 2);
@@ -1720,27 +1265,7 @@ class HcmPayrollRunController extends Controller
                 ];
             })
             ->sortByDesc(fn (array $row) => sprintf('%04d%02d%08d', (int) ($row['periodYear'] ?? 0), (int) ($row['periodMonth'] ?? 0), (int) ($row['userId'] ?? 0)))
-            ->filter(function (array $row): bool {
-                $earnings = (float) ($row['totals']['earningsTotal'] ?? 0);
-                $deductions = (float) ($row['totals']['deductionsTotal'] ?? 0);
-                return $earnings > 0 || $deductions > 0;
-            })
             ->values();
-
-        $companyUuid = $this->activeCompanyUuid($companyId);
-        $emailStatusByKey = $this->resolvePayslipEmailStatusMap($rows, $companyUuid);
-        $rows = $rows->map(function (array $row) use ($emailStatusByKey): array {
-            $compositeKey = ($row['periodYear'] ?? 0).'-'.($row['periodMonth'] ?? 0).'-'.($row['userId'] ?? 0);
-            $row['emailDelivery'] = $emailStatusByKey[$compositeKey] ?? [
-                'status' => 'not_sent',
-                'label' => 'Not sent',
-                'canResend' => false,
-                'attemptedAt' => null,
-                'lastError' => null,
-            ];
-
-            return $row;
-        })->values();
 
         return response()->json([
             'success' => true,
@@ -1833,8 +1358,6 @@ class HcmPayrollRunController extends Controller
     private function serializeRunBrief(HcmPayrollRun $r): array
     {
         $payment = $this->paymentSummary($r);
-        $meta = is_array($r->meta) ? $r->meta : [];
-        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
 
         return [
             'id' => $r->id,
@@ -1848,12 +1371,6 @@ class HcmPayrollRunController extends Controller
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
             'employeeCount' => $payment['employeeCount'],
             'gatewayReference' => $payment['gatewayReference'],
-            'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
-            'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
-            'platformServiceFeeRate' => $serviceFee['rate'],
-            'platformServiceFeeBase' => $serviceFee['base'],
-            'platformServiceFeeAmount' => $serviceFee['amount'],
-            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
         ];
     }
 
@@ -1864,8 +1381,6 @@ class HcmPayrollRunController extends Controller
     {
         $payment = $this->paymentSummary($r);
         $totals = $this->runTotals($r);
-        $meta = is_array($r->meta) ? $r->meta : [];
-        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
         $out = [
             'id' => $r->id,
             'payrollPeriodId' => $r->hcm_payroll_period_id,
@@ -1883,12 +1398,6 @@ class HcmPayrollRunController extends Controller
             'paidEmployeeCount' => $payment['paidEmployeeCount'],
             'employeeCount' => $payment['employeeCount'],
             'gatewayReference' => $payment['gatewayReference'],
-            'policySnapshot' => is_array($meta['policySnapshot'] ?? null) ? $meta['policySnapshot'] : null,
-            'lateArrivalBuffer' => is_array($meta['lateArrivalBuffer'] ?? null) ? $meta['lateArrivalBuffer'] : null,
-            'platformServiceFeeRate' => $serviceFee['rate'],
-            'platformServiceFeeBase' => $serviceFee['base'],
-            'platformServiceFeeAmount' => $serviceFee['amount'],
-            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
             'totals' => $totals,
         ];
         if ($r->relationLoaded('period') && $r->period) {
@@ -1981,45 +1490,6 @@ class HcmPayrollRunController extends Controller
     }
 
     /**
-     * @return array<string, mixed>|null
-     */
-    private function buildMissingTaxProfileError(HcmPayrollRun $run): ?array
-    {
-        $missingTaxProfileUserIds = HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $run->id)
-            ->where(function ($query): void {
-                $query->where('category', 'pph21')
-                    ->orWhere('category', 'pph21_ter')
-                    ->orWhere('component_code', 'pph21_ter');
-            })
-            ->get(['user_id', 'meta'])
-            ->filter(function (HcmPayrollLine $line): bool {
-                $meta = is_array($line->meta) ? $line->meta : [];
-
-                return ($meta['missingTaxProfile'] ?? false) === true;
-            })
-            ->pluck('user_id')
-            ->map(fn (mixed $userId): int => (int) $userId)
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-
-        if ($missingTaxProfileUserIds === []) {
-            return null;
-        }
-
-        return [
-            'code' => 'PAYROLL_TAX_PROFILE_INCOMPLETE',
-            'message' => 'Payroll tidak dapat diproses karena masih ada karyawan dengan profil PPh21 belum lengkap. Lengkapi profil pajak lalu hitung ulang draft payroll.',
-            'details' => [
-                'missingTaxProfileUserCount' => count($missingTaxProfileUserIds),
-                'missingTaxProfileUserIds' => $missingTaxProfileUserIds,
-            ],
-        ];
-    }
-
-    /**
      * @return array{thrUserIds: list<int>, compensationUserIds: list<int>}
      */
     private function specialRecipientsForRunPeriod(HcmPayrollRun $run, ?int $companyId): array
@@ -2106,8 +1576,6 @@ class HcmPayrollRunController extends Controller
         $lines = $run->relationLoaded('lines')
             ? $run->lines
             : $run->lines()->get(['kind', 'amount', 'user_id', 'category', 'meta']);
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $serviceFee = $this->serviceFeeSnapshotFromMeta($meta);
 
         $earningsTotal = 0.0;
         $deductionsTotal = 0.0;
@@ -2131,10 +1599,6 @@ class HcmPayrollRunController extends Controller
             'earningsTotal' => $earningsTotal,
             'deductionsTotal' => $deductionsTotal,
             'netPay' => round($earningsTotal - $deductionsTotal, 2),
-            'platformServiceFeeRate' => $serviceFee['rate'],
-            'platformServiceFeeBase' => $serviceFee['base'],
-            'platformServiceFeeAmount' => $serviceFee['amount'],
-            'platformServiceFeeBillingMonth' => $serviceFee['billingMonth'],
         ];
     }
 
@@ -2201,149 +1665,14 @@ class HcmPayrollRunController extends Controller
 
         return [
             'totals' => $totals,
-            'serviceFee' => [
-                'rate' => $totals['platformServiceFeeRate'] ?? 0,
-                'base' => $totals['platformServiceFeeBase'] ?? 0,
-                'amount' => $totals['platformServiceFeeAmount'] ?? 0,
-                'billingMonth' => $totals['platformServiceFeeBillingMonth'] ?? null,
-            ],
             'employeeBreakdown' => $employeeBreakdown,
             'componentBreakdown' => $componentBreakdown,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $meta
-     * @return array{rate: float, base: float, amount: float, billingMonth: ?string}
-     */
-    private function serviceFeeSnapshotFromMeta(array $meta): array
-    {
-        $billingMonth = isset($meta['platform_service_fee_billing_month'])
-            ? (string) $meta['platform_service_fee_billing_month']
-            : null;
-
-        if ($billingMonth === '') {
-            $billingMonth = null;
-        }
-
-        return [
-            'rate' => round((float) ($meta['platform_service_fee_rate'] ?? 0), 2),
-            'base' => round((float) ($meta['platform_service_fee_base'] ?? 0), 2),
-            'amount' => round((float) ($meta['platform_service_fee_amount'] ?? 0), 2),
-            'billingMonth' => $billingMonth,
         ];
     }
 
     private function activeCompanyId(Request $request): ?int
     {
         return $request->attributes->get('activeCompanyId');
-    }
-
-    private function activeCompanyUuid(?int $companyId): ?string
-    {
-        if ($companyId === null || $companyId <= 0) {
-            return null;
-        }
-
-        $uuid = Company::query()->whereKey($companyId)->value('uuid');
-        if (! is_string($uuid) || trim($uuid) === '') {
-            return null;
-        }
-
-        return trim($uuid);
-    }
-
-    /**
-     * @param \Illuminate\Support\Collection<int, array<string, mixed>> $rows
-     * @return array<string, array{status: string, label: string, canResend: bool, attemptedAt: ?string, lastError: ?string}>
-     */
-    private function resolvePayslipEmailStatusMap($rows, ?string $companyUuid): array
-    {
-        $compositeKeys = $rows->map(fn (array $row): string => ($row['periodYear'] ?? 0).'-'.($row['periodMonth'] ?? 0).'-'.($row['userId'] ?? 0))
-            ->filter(fn (string $key): bool => $key !== '0-0-0')
-            ->unique()
-            ->values();
-
-        if ($compositeKeys->isEmpty()) {
-            return [];
-        }
-
-        $query = NotificationDelivery::query()
-            ->where('channel', 'mail')
-            ->whereIn('event_key', [
-                'payroll.payslip.email_sent',
-                'payroll.payslip.email_failed',
-            ])
-            ->orderByDesc('id');
-
-        if ($companyUuid !== null) {
-            $query->where('company_uuid', $companyUuid);
-        }
-
-        $deliveries = $query->limit(3000)->get();
-        $statusMap = [];
-
-        foreach ($deliveries as $delivery) {
-            $meta = is_array($delivery->metadata) ? $delivery->metadata : [];
-            $year = (int) ($meta['periodYear'] ?? 0);
-            $month = (int) ($meta['periodMonth'] ?? 0);
-            $userId = (int) ($meta['userId'] ?? 0);
-            if ($year <= 0 || $month <= 0 || $userId <= 0) {
-                continue;
-            }
-
-            $compositeKey = $year.'-'.$month.'-'.$userId;
-            if (! $compositeKeys->contains($compositeKey) || array_key_exists($compositeKey, $statusMap)) {
-                continue;
-            }
-
-            $status = strtolower((string) ($delivery->status ?? ''));
-            if ($status === 'sent') {
-                $statusMap[$compositeKey] = [
-                    'status' => 'sent',
-                    'label' => 'Sent',
-                    'canResend' => false,
-                    'attemptedAt' => $delivery->sent_at?->toIso8601String() ?? $delivery->created_at?->toIso8601String(),
-                    'lastError' => null,
-                ];
-                continue;
-            }
-
-            $statusMap[$compositeKey] = [
-                'status' => 'failed',
-                'label' => 'Failed',
-                'canResend' => true,
-                'attemptedAt' => $delivery->failed_at?->toIso8601String() ?? $delivery->created_at?->toIso8601String(),
-                'lastError' => is_string($delivery->last_error) ? $delivery->last_error : null,
-            ];
-        }
-
-        foreach ($compositeKeys as $compositeKey) {
-            if (! array_key_exists($compositeKey, $statusMap)) {
-                $statusMap[$compositeKey] = [
-                    'status' => 'not_sent',
-                    'label' => 'Not sent',
-                    'canResend' => false,
-                    'attemptedAt' => null,
-                    'lastError' => null,
-                ];
-            }
-        }
-
-        return $statusMap;
-    }
-
-    /**
-     * @return array{0: float, 1: float, 2: float, 3: string}
-     */
-    private function resolvePayrollServiceFeeCharges(HcmPayrollRun $run, ?int $companyId): array
-    {
-        $period = HcmPayrollPeriod::query()->find($run->hcm_payroll_period_id);
-        $billingMonth = $period
-            ? sprintf('%04d-%02d', (int) $period->period_year, (int) $period->period_month)
-            : now()->format('Y-m');
-
-        return [0.0, 0.0, 0.0, $billingMonth];
     }
 
     /**
@@ -2446,34 +1775,5 @@ class HcmPayrollRunController extends Controller
         }
 
         return null;
-    }
-
-    /**
-     * Dispatch a notification to all active owner/admin users of a company.
-     * Best-effort — individual delivery failures are silently swallowed.
-     */
-    private function notifyCompanyAdminsPayroll(?int $companyId, object $notification): void
-    {
-        if ($companyId === null || $companyId <= 0) {
-            return;
-        }
-
-        $adminIds = CompanyUser::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->whereIn('role', ['owner', 'admin'])
-            ->pluck('user_id');
-
-        if ($adminIds->isEmpty()) {
-            return;
-        }
-
-        User::query()->whereIn('id', $adminIds)->each(function (User $admin) use ($notification): void {
-            try {
-                $admin->notify(clone $notification);
-            } catch (\Throwable) {
-                // best-effort
-            }
-        });
     }
 }

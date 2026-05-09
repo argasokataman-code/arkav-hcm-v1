@@ -20,7 +20,7 @@
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
                     @if ($isGlobalHcmAdmin)
-                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
+                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
                         <i class="ti ti-user-star"></i>
                     </a>
                     @endif
@@ -152,7 +152,7 @@
 @if ($isHcmAdmin)
                             <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
 @elseif ($isGlobalHcmAdmin)
-                            <li><a href="{{ route('super-admin.employees-monitor') }}" class="{{ Request::is('super-admin/employees-monitor') ? 'active' : '' }}">Employee Monitor</a></li>
+                            <li><a href="{{ Route::has('super-admin.employees-monitor') ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('super-admin/employees-monitor') ? 'active' : '' }}">Employee Monitor</a></li>
 @else
                             <li><a href="{{ url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard') ? 'active' : '' }}">Employee Dashboard</a></li>
 @endif
@@ -174,7 +174,7 @@
                         </ul>
                     </div>
 @if ($isGlobalHcmAdmin)
-                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? '  show active' : '' }}" id="super-admin">
+                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? '  show active' : '' }}" id="super-admin">
                         <ul>
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
                             <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
@@ -191,6 +191,7 @@
                             <li><a href="{{url('saas/reminders')}}" class="{{ Request::is('saas/reminders') ? 'active' : '' }}">SaaS Reminders</a></li>
                             <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
                             <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax & Compliance</a></li>
+                            <li><a href="{{ route('saas.platform-tax') }}" class="{{ Request::is('saas/platform-tax*') ? 'active' : '' }}">SPT Pajak Platform</a></li>
                             @include('layout.partials.sidebar.sections.shared.notification-observability-link')
                             <li><a href="{{url('cronjob')}}" class="{{ Request::is('cronjob') ? 'active' : '' }}">Cronjob</a></li>
                             <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>

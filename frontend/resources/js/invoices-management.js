@@ -113,7 +113,7 @@
   // Format currency
   function formatCurrency(amount) {
     if (!amount) return "Rp 0";
-    return "Rp " + parseInt(amount).toLocaleString("id-ID");
+    return "Rp " + parseFloat(amount).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
 
   // Main InvoicesManager object
@@ -128,7 +128,31 @@
      */
     init: function () {
       this.bindEvents();
+      this.loadCompaniesDropdown();
       this.loadInvoices();
+    },
+
+    /**
+     * Load companies into the invoice modal dropdown
+     */
+    loadCompaniesDropdown: function () {
+      const select = document.getElementById("input_invoice_company_id");
+      if (!select) return;
+
+      apiRequest("GET", "/v1/saas/dashboard/companies")
+        .then(function (response) {
+          const companies = response.data || [];
+          select.innerHTML = '<option value="">Select company</option>';
+          companies.forEach(function (c) {
+            const opt = document.createElement("option");
+            opt.value = c.id;
+            opt.textContent = esc(c.name);
+            select.appendChild(opt);
+          });
+        })
+        .catch(function () {
+          select.innerHTML = '<option value="">Failed to load companies</option>';
+        });
     },
 
     /**
@@ -201,19 +225,22 @@
           self.currentPage = self.totalPages;
           self.loadInvoices();
         }
-        if (e.target.matches("[data-edit-invoice]")) {
+        const editBtn = e.target.closest("[data-edit-invoice]");
+        if (editBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-edit-invoice");
+          const id = editBtn.getAttribute("data-edit-invoice");
           self.editInvoice(id);
         }
-        if (e.target.matches("[data-view-invoice]")) {
+        const viewBtn = e.target.closest("[data-view-invoice]");
+        if (viewBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-view-invoice");
+          const id = viewBtn.getAttribute("data-view-invoice");
           self.viewInvoiceDetails(id);
         }
-        if (e.target.matches("[data-delete-invoice]")) {
+        const deleteBtn = e.target.closest("[data-delete-invoice]");
+        if (deleteBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-delete-invoice");
+          const id = deleteBtn.getAttribute("data-delete-invoice");
           self.deleteInvoice(id);
         }
       });
@@ -278,10 +305,10 @@
                 </thead>
                 <tbody>
                   ${this.invoices.map(inv => {
-                    const statusBadgeClass = inv.status === "paid" ? "badge-success" : 
-                                            inv.status === "sent" ? "badge-info" : 
-                                            inv.status === "draft" ? "badge-secondary" : 
-                                            inv.isOverdue ? "badge-danger" : "badge-warning";
+                    const statusBadgeClass = inv.status === "paid" ? "text-bg-success" : 
+                                            inv.status === "sent" ? "text-bg-info" : 
+                                            inv.status === "draft" ? "text-bg-secondary" : 
+                                            inv.isOverdue ? "text-bg-danger" : "text-bg-warning";
                     return `
                       <tr>
                         <td><strong>${esc(inv.invoiceNumber)}</strong></td>
@@ -295,7 +322,7 @@
                           </span>
                         </td>
                         <td>
-                          <span class="badge ${inv.isPaid ? "badge-success" : "badge-warning"} d-inline-flex align-items-center badge-xs">
+                          <span class="badge ${inv.isPaid ? "text-bg-success" : "text-bg-warning"} d-inline-flex align-items-center badge-xs">
                             <i class="ti ti-point-filled me-1"></i>${inv.isPaid ? "Yes" : "No"}
                           </span>
                         </td>
@@ -409,7 +436,7 @@
       const isEdit = this.currentEditId !== null;
 
       const payload = {
-        company_id: 1, // TODO: Get from form
+        company_id: parseInt(document.getElementById("input_invoice_company_id").value, 10),
         amount_due: parseFloat(document.getElementById("input_invoice_amount").value),
         issue_date: document.getElementById("input_invoice_issue_date").value,
         due_date: document.getElementById("input_invoice_due_date").value,

@@ -1,5 +1,36 @@
 # Packages Status Tracker
 
+## Snapshot 2026-05-09
+
+- Status umum: hardening katalog package ditutup dengan sinkronisasi fallback frontend ke katalog kanonik backend, plus arsip fitur non-aktif (`api_access`, `priority_support`) agar tidak lagi muncul sebagai entitlement package aktif.
+
+### Evidence Runtime
+
+- `frontend/resources/js/packages-management.js` sekarang menjadikan API runtime catalog sebagai sumber utama, lalu fallback derivasi dari payload package runtime (recognized feature codes only) saat endpoint catalog belum tersedia.
+	- fallback statis frontend tetap dihapus (tidak ada daftar hardcoded seeder/frontend).
+- Endpoint `GET /v1/saas/packages/feature-catalog` sekarang membangun katalog dari runtime repo (`hcm.api.feature:*` + `hcm.web.feature:*` pada routes) dan klasifikasi docs (`RUNTIME-FEATURE-CLASSIFICATION.md`).
+- Endpoint `GET /v1/saas/packages/feature-catalog/healthcheck` ditambahkan untuk audit drift route-vs-docs (global admin only) dan ditampilkan lewat tombol **Healthcheck** di modal compose/edit package.
+- Endpoint mutasi add-on (`POST/PUT /v1/saas/package-addons`) sekarang menolak `code` yang bentrok dengan namespace `feature_code` katalog runtime (`FEATURE_CODE_NAMESPACE_CONFLICT`) untuk mencegah baseline/add-on ganda.
+- Endpoint list add-on (`GET /v1/saas/package-addons`) sekarang mengecualikan row add-on yang bentrok dengan namespace feature catalog supaya UI Packages tidak menampilkan entri ganda baseline vs add-on.
+- Migrasi baru menambahkan tabel arsip `package_feature_archives`, memindahkan rows `api_access` + `priority_support` dari `package_features`, lalu menghapusnya dari entitlement aktif.
+- Migrasi yang sama menormalkan assignment feature katalog yang sempat bolong di beberapa package (`attendance_shift_scheduling`, `leave_approval_flow`, `payroll_components`, `payroll_thr`, `employee_lifecycle`, `performance_goal_tracking` + trio platform MVP).
+- Migrasi tambahan menyinkronkan assignment governance add-on (`allowance_governance`, `bpjs_governance`, `spt_masa_pph21`) ke `package_features` agar coverage matrix/fallback runtime konsisten.
+- Seeder package runtime (`SaasUiFlowSeeder`, `LandingPackagesSeeder`) tidak lagi menulis `api_access` dan `priority_support` sebagai fitur aktif.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/PackageServiceTest.php` (19 tests, 84 assertions) ✅
+- `npx vitest run tests/ui/packages-management.wiring.test.js` (9 tests) ✅
+- `php artisan migrate --force` (migrasi arsip feature + sinkron assignment) ✅
+
+### Dokumen Yang Disinkronkan
+
+- `docs/features/packages/STATUS-TRACKER.md`
+
+### Gap Yang Masih Tersisa
+
+- Entitlement add-on tenant berbasis transaksi pembelian add-on tetap menjadi fase berikutnya; perubahan ini fokus di katalog dan baseline assignment package.
+
 ## Snapshot 2026-05-02
 
 - Status umum: hardening mapping package composer dipisah tegas menjadi 2 kelompok (`MVP package` vs `add-on`) supaya tidak ada fitur hantu, tidak ada custom leakage, dan semua fitur non-MVP otomatis masuk klasifikasi add-on.

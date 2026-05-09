@@ -75,7 +75,29 @@
                             </div>
                         @endif
 
-                        <form method="POST" action="{{ route('cronjob.update') }}">
+                        @if ($errors->any())
+                            <div class="alert alert-danger mb-3" role="alert">
+                                <strong>Validation failed.</strong> Please correct the highlighted fields and try again.
+                            </div>
+                        @endif
+
+                        <div data-cronjob-loading-state class="mb-3">
+                            <div class="placeholder-glow mb-2">
+                                <span class="placeholder col-3"></span>
+                            </div>
+                            <div class="placeholder-glow mb-2">
+                                <span class="placeholder col-12"></span>
+                            </div>
+                            <div class="placeholder-glow mb-2">
+                                <span class="placeholder col-11"></span>
+                            </div>
+                            <div class="placeholder-glow">
+                                <span class="placeholder col-10"></span>
+                            </div>
+                        </div>
+
+                        <div data-cronjob-form-state class="d-none">
+                        <form method="POST" action="{{ route('cronjob.update') }}" data-cronjob-form>
                             @csrf
 
                             <div class="table-responsive">
@@ -98,13 +120,15 @@
                                             <tr class="{{ is_array($runtimeFlag) && (($runtimeFlag['enabled'] ?? true) !== true) ? 'table-warning' : '' }}">
                                                 <td>
                                                     <div class="form-check form-switch">
+                                                        @php($enabledField = "jobs.$key.enabled")
+                                                        @php($enabledValue = old($enabledField))
                                                         <input
                                                             class="form-check-input"
                                                             type="checkbox"
                                                             id="enabled_{{ $key }}"
                                                             name="jobs[{{ $key }}][enabled]"
                                                             value="1"
-                                                            {{ !empty($config['enabled']) ? 'checked' : '' }}
+                                                            {{ $enabledValue !== null ? ((string) $enabledValue === '1' ? 'checked' : '') : (!empty($config['enabled']) ? 'checked' : '') }}
                                                         >
                                                     </div>
                                                 </td>
@@ -124,35 +148,53 @@
                                                 </td>
                                                 <td class="text-capitalize">{{ $job['scheduleType'] }}</td>
                                                 <td>
+                                                    @php($timeField = "jobs.$key.time")
                                                     <input
                                                         type="time"
-                                                        class="form-control"
+                                                        class="form-control @error($timeField) is-invalid @enderror"
                                                         name="jobs[{{ $key }}][time]"
-                                                        value="{{ $config['time'] ?? '00:00' }}"
+                                                        value="{{ old($timeField, $config['time'] ?? '00:00') }}"
                                                     >
+                                                    @error($timeField)
+                                                        <span class="invalid-feedback d-block" role="alert">
+                                                            <strong>{{ $message }}</strong>
+                                                        </span>
+                                                    @enderror
                                                 </td>
                                                 <td>
                                                     @if (($job['scheduleType'] ?? 'daily') === 'monthly')
+                                                        @php($dayField = "jobs.$key.dayOfMonth")
                                                         <input
                                                             type="number"
                                                             min="1"
                                                             max="28"
-                                                            class="form-control"
+                                                            class="form-control @error($dayField) is-invalid @enderror"
                                                             name="jobs[{{ $key }}][dayOfMonth]"
-                                                            value="{{ $config['dayOfMonth'] ?? 1 }}"
+                                                            value="{{ old($dayField, $config['dayOfMonth'] ?? 1) }}"
                                                         >
+                                                        @error($dayField)
+                                                            <span class="invalid-feedback d-block" role="alert">
+                                                                <strong>{{ $message }}</strong>
+                                                            </span>
+                                                        @enderror
                                                     @else
                                                         <span class="text-muted">-</span>
                                                     @endif
                                                 </td>
                                                 <td>
-                                                    <select class="form-select" name="jobs[{{ $key }}][timezone]">
+                                                    @php($timezoneField = "jobs.$key.timezone")
+                                                    <select class="form-select @error($timezoneField) is-invalid @enderror" name="jobs[{{ $key }}][timezone]">
                                                         @foreach ($availableTimezones as $timezone)
-                                                            <option value="{{ $timezone }}" {{ ($config['timezone'] ?? 'Asia/Jakarta') === $timezone ? 'selected' : '' }}>
+                                                            <option value="{{ $timezone }}" {{ old($timezoneField, $config['timezone'] ?? 'Asia/Jakarta') === $timezone ? 'selected' : '' }}>
                                                                 {{ $timezone }}
                                                             </option>
                                                         @endforeach
                                                     </select>
+                                                    @error($timezoneField)
+                                                        <span class="invalid-feedback d-block" role="alert">
+                                                            <strong>{{ $message }}</strong>
+                                                        </span>
+                                                    @enderror
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -161,13 +203,48 @@
                             </div>
 
                             <div class="d-flex justify-content-end mt-3">
-                                <button type="submit" class="btn btn-primary">Save Configuration</button>
+                                <button type="submit" class="btn btn-primary" data-cronjob-submit>
+                                    <span data-cronjob-submit-label>Save Configuration</span>
+                                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-cronjob-submit-spinner></span>
+                                </button>
                             </div>
                         </form>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+<noscript>
+    <style>
+        [data-cronjob-loading-state] { display: none !important; }
+        [data-cronjob-form-state] { display: block !important; }
+    </style>
+</noscript>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var loadingState = document.querySelector('[data-cronjob-loading-state]');
+        var formState = document.querySelector('[data-cronjob-form-state]');
+        if (loadingState) {
+            loadingState.classList.add('d-none');
+        }
+        if (formState) {
+            formState.classList.remove('d-none');
+        }
+
+        var form = document.querySelector('[data-cronjob-form]');
+        var submitButton = document.querySelector('[data-cronjob-submit]');
+        var submitLabel = document.querySelector('[data-cronjob-submit-label]');
+        var submitSpinner = document.querySelector('[data-cronjob-submit-spinner]');
+
+        if (form && submitButton && submitLabel && submitSpinner) {
+            form.addEventListener('submit', function () {
+                submitButton.setAttribute('disabled', 'disabled');
+                submitLabel.textContent = 'Saving...';
+                submitSpinner.classList.remove('d-none');
+            });
+        }
+    });
+</script>
 @endsection

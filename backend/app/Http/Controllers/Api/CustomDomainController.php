@@ -71,7 +71,7 @@ class CustomDomainController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|uuid|exists:companies,uuid',
+            'company_id' => 'required|integer|exists:companies,id',
             'domain' => 'required|string|unique:custom_domains,domain',
             'verification_method' => 'required|in:dns,file',
             'active_from' => 'nullable|date',

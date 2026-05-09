@@ -100,6 +100,38 @@
     $statusLabel = strtoupper($status !== '' ? $status : 'draft');
     $notes = trim((string) ($invoice->notes ?? ''));
     $lineLabel = $invoice->subscription_id ? 'Subscription billing' : 'Invoice amount';
+
+    // Parse pricing breakdown for tax display
+    $notesDisplay = $notes;
+    $pricingBreakdown = null;
+    if ($notes !== '') {
+        $notesDecoded = json_decode($notes, true);
+        if (is_array($notesDecoded)) {
+            $notesDisplay = trim((string) ($notesDecoded['message'] ?? ''));
+            $pb = $notesDecoded['pricing_breakdown'] ?? null;
+            if (is_array($pb)) {
+                $pricingBreakdown = $pb;
+            }
+        }
+    }
+    $taxRateSnapshot = $invoice->billing_tax_rate_snapshot !== null ? (float) $invoice->billing_tax_rate_snapshot : 0.0;
+    $baseAmountDisplay = null;
+    $taxAmountDisplay = null;
+    $showTaxBreakdown = false;
+    if ($templateShowTax && $taxRateSnapshot > 0) {
+        if ($pricingBreakdown !== null && isset($pricingBreakdown['base_amount']) && isset($pricingBreakdown['subscription_tax_amount'])) {
+            $baseAmountDisplay = 'Rp '.number_format((float) $pricingBreakdown['base_amount'], 0, ',', '.');
+            $taxAmountDisplay = 'Rp '.number_format((float) $pricingBreakdown['subscription_tax_amount'], 0, ',', '.');
+        } else {
+            $factor = 1.0 + $taxRateSnapshot / 100.0;
+            $baseRaw = round((float) $invoice->amount_due / $factor, 2);
+            $taxRaw = round((float) $invoice->amount_due - $baseRaw, 2);
+            $baseAmountDisplay = 'Rp '.number_format((int) round($baseRaw), 0, ',', '.');
+            $taxAmountDisplay = 'Rp '.number_format((int) round($taxRaw), 0, ',', '.');
+        }
+        $showTaxBreakdown = true;
+    }
+
     $subscription = $invoice->subscription;
     $packageName = trim((string) ($subscription?->package?->name ?? ($subscription?->plan_code ? \Illuminate\Support\Str::headline((string) $subscription->plan_code) : '')));
     $billingCycle = $subscription?->billing_cycle;
@@ -217,8 +249,18 @@
                         </div>
                     </td>
                     <td><span class="status-pill {{ $statusClass }}">{{ $statusLabel }}</span></td>
-                    <td>{{ $amountDue }}</td>
+                    <td>{{ $showTaxBreakdown ? $baseAmountDisplay : $amountDue }}</td>
                 </tr>
+                @if ($showTaxBreakdown)
+                <tr>
+                    <td>
+                        <div class="muted">PPN</div>
+                        <div class="muted small">Pajak Pertambahan Nilai {{ number_format($taxRateSnapshot, 0) }}%</div>
+                    </td>
+                    <td></td>
+                    <td class="muted">{{ $taxAmountDisplay }}</td>
+                </tr>
+                @endif
                 <tr class="summary-total">
                     <td colspan="2" class="right">Total Due</td>
                     <td>{{ $amountDue }}</td>
@@ -253,8 +295,8 @@
             <td class="meta-box" style="padding-left:10px;">
                 <div class="section-card">
                     <p class="section-title">Notes</p>
-                    <div class="notes-box small {{ $notes === '' && $templateFooterTerms === '' ? 'muted' : '' }}">
-                        {{ $notes !== '' ? $notes : ($templateFooterTerms !== '' ? $templateFooterTerms : 'Tidak ada catatan tambahan untuk invoice ini.') }}
+                    <div class="notes-box small {{ $notesDisplay === '' && $templateFooterTerms === '' ? 'muted' : '' }}">
+                        {{ $notesDisplay !== '' ? $notesDisplay : ($templateFooterTerms !== '' ? $templateFooterTerms : 'Tidak ada catatan tambahan untuk invoice ini.') }}
                     </div>
                 </div>
             </td>

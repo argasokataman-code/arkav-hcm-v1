@@ -51,8 +51,15 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 ## Existing Vs Target
 
 - Existing: CRUD package, feature assignment, detail viewer, dan add-on catalog sudah aktif.
-- Existing: katalog feature composer di `/packages` sekarang dibaca dari backend endpoint `GET /v1/saas/packages/feature-catalog`, bukan lagi dari daftar statis frontend.
+- Existing: katalog feature composer di `/packages` memakai backend endpoint `GET /v1/saas/packages/feature-catalog` sebagai sumber utama (dirakit dinamis dari route feature gate + dokumen klasifikasi runtime), lalu fallback ke derivasi payload package runtime bila endpoint katalog tidak tersedia. Tidak ada fallback daftar statis seeder/frontend.
+- Existing: modal compose/edit package menyediakan tombol **Healthcheck** untuk memeriksa drift route-vs-docs katalog runtime via `GET /v1/saas/packages/feature-catalog/healthcheck` (global admin only).
+- Existing: halaman `/packages` sekarang menyediakan tombol **List All Features** untuk menampilkan katalog feature code lintas modul (beserta package coverage) tanpa harus membuka form create/edit.
+- Existing: composer feature per modul sekarang memiliki tombol **Preview** di header accordion agar admin bisa melihat detail semua fitur dalam modul tertentu secara read-only.
+- Existing: tabel package sekarang menyediakan mode **Compare Selected** (2-3 package) untuk menampilkan matrix perbandingan fitur side-by-side.
 - Existing: katalog feature sekarang membawa klasifikasi `tier` (`mvp` vs `addon`) dan metadata mapping `mvp_feature_codes` + `addon_feature_codes` agar semua fitur di luar MVP selalu terpetakan sebagai add-on.
+- Existing: feature code legacy `api_access` dan `priority_support` sudah dikeluarkan dari entitlement package aktif dan disimpan sebagai arsip historis untuk referensi reaktivasi di masa depan.
+- Existing: namespace add-on SKU dipagari agar `package_addons.code` tidak boleh bentrok dengan `feature_code` katalog package runtime; jika bentrok mutasi add-on ditolak (`FEATURE_CODE_NAMESPACE_CONFLICT`) dan row bentrok otomatis disembunyikan dari list add-on UI Packages agar baseline/add-on tidak tampil ganda.
+- Existing: assignment governance add-on (`allowance_governance`, `bpjs_governance`, `spt_masa_pph21`) disinkronkan ke `package_features` (trial/starter/growth default off, business/enterprise on, ultimate/unlimited unlimited) agar coverage matrix dan fallback runtime tetap konsisten.
 - Existing: relasi utama package feature dibaca lewat `package_uuid`, dengan `package_id` masih dipertahankan untuk kompatibilitas legacy.
 - Existing: path package runtime memakai `package` UUID, sedangkan route feature mutation memakai numeric feature id aktif dengan fallback UUID bila ada caller lama.
 - Existing: path add-on menerima numeric id aktif dengan fallback UUID legacy/transisi.
@@ -66,6 +73,9 @@ Fitur utama modul Packages saat ini:
 - CRUD package untuk admin.
 - Feature assignment per package via modal composer bertingkat.
 - Detail features viewer per package.
+- List all features lintas modul dengan coverage package (read-only katalog).
+- Preview detail per modul langsung dari accordion header di modal package composer.
+- Cross-package feature matrix untuk membandingkan 2-3 package secara side-by-side.
 - Package add-on catalog CRUD via halaman Packages.
 - Validasi server-side dan normalisasi payload UI.
 
@@ -143,7 +153,7 @@ Halaman menggunakan manager script `frontend/resources/js/packages-management.js
 
 - Module version: `1.1`
 - Status: `Production-ready baseline`
-- Last updated: `2026-04-20`
+- Last updated: `2026-05-09`
 
 Lihat [STATUS-TRACKER.md](STATUS-TRACKER.md) untuk snapshot audit terbaru, evidence test, dan gap yang masih tersisa.
 

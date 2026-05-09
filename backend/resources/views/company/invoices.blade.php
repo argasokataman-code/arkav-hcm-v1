@@ -261,6 +261,13 @@
                                             </td>
                                             <td class="text-end fw-semibold" data-invoice-modal-table-amount>Rp 5,000,000</td>
                                         </tr>
+                                        <tr data-invoice-modal-tax-row style="display:none">
+                                            <td>
+                                                <div class="text-muted" data-invoice-modal-tax-label>Pajak (PPN 11%)</div>
+                                            </td>
+                                            <td></td>
+                                            <td class="text-end text-muted" data-invoice-modal-tax-amount>Rp 0</td>
+                                        </tr>
                                         <tr class="company-invoice-preview__table-total">
                                             <td colspan="2" class="text-end">Total Due</td>
                                             <td class="text-end" data-invoice-modal-table-total>Rp 5,000,000</td>

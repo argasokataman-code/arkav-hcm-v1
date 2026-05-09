@@ -42,6 +42,10 @@ describe('company invoices wiring', () => {
       <div data-invoice-modal-line-caption></div>
       <div data-invoice-modal-charge-status-wrap><span data-invoice-modal-charge-status></span></div>
       <div data-invoice-modal-table-amount></div>
+      <div data-invoice-modal-tax-row style="display:none">
+        <div data-invoice-modal-tax-label></div>
+        <div data-invoice-modal-tax-amount></div>
+      </div>
       <div data-invoice-modal-table-total></div>
       <div data-invoice-modal-guidance></div>
       <div data-invoice-modal-terms-summary></div>
@@ -448,6 +452,10 @@ describe('company invoices wiring', () => {
       <div data-invoice-modal-line-caption></div>
       <div data-invoice-modal-charge-status-wrap><span data-invoice-modal-charge-status></span></div>
       <div data-invoice-modal-table-amount></div>
+      <div data-invoice-modal-tax-row style="display:none">
+        <div data-invoice-modal-tax-label></div>
+        <div data-invoice-modal-tax-amount></div>
+      </div>
       <div data-invoice-modal-table-total></div>
       <div data-invoice-modal-guidance></div>
       <div data-invoice-modal-notes></div>
@@ -540,5 +548,256 @@ describe('company invoices wiring', () => {
 
     expect(modalEl?.classList.contains('show')).toBe(false);
     expect(modalEl?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('shows tax breakdown rows in modal when invoice has billingTaxRateSnapshot and invoice_show_tax is true', async () => {
+    window.AuthApi.request = vi.fn((method, path) => {
+      if (method === 'get' && path === '/hcm/billing/invoices') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 90,
+                invoiceNumber: 'INV-90',
+                company: 'Tax Corp',
+                subscriptionId: 80,
+                packageName: 'Growth',
+                packageCode: 'growth',
+                billingCycle: 'monthly',
+                billingCycleLabel: 'Bulanan',
+                amountDue: 1110000,
+                status: 'sent',
+                isPaid: false,
+              },
+            ],
+            meta: { total: 1 },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/billing/invoices/90') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              id: 90,
+              invoiceNumber: 'INV-90',
+              company: 'Tax Corp',
+              subscriptionId: 80,
+              packageName: 'Growth',
+              packageCode: 'growth',
+              billingCycle: 'monthly',
+              billingCycleLabel: 'Bulanan',
+              amountDue: 1110000,
+              status: 'sent',
+              isPaid: false,
+              billingTaxRateSnapshot: 11,
+              pricingBreakdown: {
+                baseAmount: 1000000,
+                subscriptionTaxRate: 11,
+                subscriptionTaxAmount: 110000,
+                totalAmount: 1110000,
+              },
+            },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/invoice-settings') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              invoice_prefix: 'INV-',
+              invoice_due_days: '30',
+              invoice_show_tax: '1',
+              invoice_round_off_enabled: '0',
+              invoice_round_off: 'none',
+              invoice_header_terms: '',
+              invoice_footer_terms: '',
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected: ${method} ${path}`);
+    });
+
+    await import('../../../frontend/resources/js/company-invoices.js');
+    await flush();
+
+    document.querySelector('[data-invoice-view="90"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    // Subtotal row (base amount shown)
+    expect(document.querySelector('[data-invoice-modal-table-amount]')?.textContent).toContain('1.000.000');
+    // Tax label and amount
+    expect(document.querySelector('[data-invoice-modal-tax-label]')?.textContent).toContain('11%');
+    expect(document.querySelector('[data-invoice-modal-tax-amount]')?.textContent).toContain('110.000');
+    // Tax row should be visible
+    expect(document.querySelector('[data-invoice-modal-tax-row]')?.style.display).not.toBe('none');
+    // Total stays as amountDue
+    expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('1.110.000');
+  });
+
+  it('hides tax breakdown row in modal when invoice_show_tax is false', async () => {
+    window.AuthApi.request = vi.fn((method, path) => {
+      if (method === 'get' && path === '/hcm/billing/invoices') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 91,
+                invoiceNumber: 'INV-91',
+                company: 'NoTax Corp',
+                subscriptionId: 81,
+                packageName: 'Starter',
+                packageCode: 'starter',
+                billingCycle: 'monthly',
+                billingCycleLabel: 'Bulanan',
+                amountDue: 1110000,
+                status: 'sent',
+                isPaid: false,
+              },
+            ],
+            meta: { total: 1 },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/billing/invoices/91') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              id: 91,
+              invoiceNumber: 'INV-91',
+              company: 'NoTax Corp',
+              subscriptionId: 81,
+              packageName: 'Starter',
+              packageCode: 'starter',
+              billingCycle: 'monthly',
+              billingCycleLabel: 'Bulanan',
+              amountDue: 1110000,
+              status: 'sent',
+              isPaid: false,
+              billingTaxRateSnapshot: 11,
+              pricingBreakdown: {
+                baseAmount: 1000000,
+                subscriptionTaxRate: 11,
+                subscriptionTaxAmount: 110000,
+                totalAmount: 1110000,
+              },
+            },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/invoice-settings') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              invoice_prefix: 'INV-',
+              invoice_due_days: '30',
+              invoice_show_tax: '0',
+              invoice_round_off_enabled: '0',
+              invoice_round_off: 'none',
+              invoice_header_terms: '',
+              invoice_footer_terms: '',
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected: ${method} ${path}`);
+    });
+
+    await import('../../../frontend/resources/js/company-invoices.js');
+    await flush();
+
+    document.querySelector('[data-invoice-view="91"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    // When tax hidden: table-amount shows full amountDue
+    expect(document.querySelector('[data-invoice-modal-table-amount]')?.textContent).toContain('1.110.000');
+    // Tax row stays hidden
+    expect(document.querySelector('[data-invoice-modal-tax-row]')?.style.display).toBe('none');
+    // Total also shows amountDue
+    expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('1.110.000');
+  });
+
+  it('hides tax breakdown row when billingTaxRateSnapshot is null or zero', async () => {
+    window.AuthApi.request = vi.fn((method, path) => {
+      if (method === 'get' && path === '/hcm/billing/invoices') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 92,
+                invoiceNumber: 'INV-92',
+                company: 'Legacy Corp',
+                subscriptionId: 82,
+                packageName: 'Starter',
+                packageCode: 'starter',
+                billingCycle: 'monthly',
+                billingCycleLabel: 'Bulanan',
+                amountDue: 500000,
+                status: 'sent',
+                isPaid: false,
+              },
+            ],
+            meta: { total: 1 },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/billing/invoices/92') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              id: 92,
+              invoiceNumber: 'INV-92',
+              company: 'Legacy Corp',
+              subscriptionId: 82,
+              packageName: 'Starter',
+              packageCode: 'starter',
+              billingCycle: 'monthly',
+              billingCycleLabel: 'Bulanan',
+              amountDue: 500000,
+              status: 'sent',
+              isPaid: false,
+              billingTaxRateSnapshot: null,
+              pricingBreakdown: null,
+            },
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/invoice-settings') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              invoice_prefix: 'INV-',
+              invoice_due_days: '30',
+              invoice_show_tax: '1',
+              invoice_round_off_enabled: '0',
+              invoice_round_off: 'none',
+              invoice_header_terms: '',
+              invoice_footer_terms: '',
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected: ${method} ${path}`);
+    });
+
+    await import('../../../frontend/resources/js/company-invoices.js');
+    await flush();
+
+    document.querySelector('[data-invoice-view="92"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    // Single-line display (no tax breakdown)
+    expect(document.querySelector('[data-invoice-modal-table-amount]')?.textContent).toContain('500.000');
+    expect(document.querySelector('[data-invoice-modal-tax-row]')?.style.display).toBe('none');
+    expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('500.000');
   });
 });

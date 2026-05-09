@@ -82,6 +82,14 @@ describe('Employee detail training integration', () => {
     const fetchMock = vi.fn((url, options = {}) => {
       const urlString = String(url);
 
+      if (urlString.startsWith('/v1/identity/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { id: 42, role: 'admin' } }),
+        });
+      }
+
       if (urlString === '/v1/hcm/employees/42') {
         return Promise.resolve({
           ok: true,
@@ -153,6 +161,14 @@ describe('Employee detail training integration', () => {
     const fetchMock = vi.fn((url) => {
       const urlString = String(url);
 
+      if (urlString.startsWith('/v1/identity/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { id: 17, role: 'employee' } }),
+        });
+      }
+
       if (urlString === '/v1/hcm/employees/17') {
         return Promise.resolve({
           ok: true,
@@ -218,6 +234,14 @@ describe('Employee detail training integration', () => {
 
     const fetchMock = vi.fn((url) => {
       const urlString = String(url);
+
+      if (urlString.startsWith('/v1/identity/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { id: 61, role: 'admin' } }),
+        });
+      }
 
       if (urlString === '/v1/hcm/employees/61') {
         return Promise.resolve({

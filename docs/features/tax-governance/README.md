@@ -169,3 +169,57 @@ Semua gap prioritas sesi ini sudah ditutup:
 Catatan sisa (non-blocking):
 - Approval chain multi-party formal belum ada; workflow aktif saat ini masih owner-direct / global-admin controlled.
 - Inferensi PTKP otomatis saat ini hanya sampai level dasar `TK0/K0`; mapping tanggungan `TK1-TK3` / `K1-K3` tetap memerlukan data HR tambahan.
+
+## NPWP Tenant & e‑Faktur (Panduan singkat)
+
+1. NPWP tenant tidak selalu dibutuhkan untuk seluruh alur faktur. Kebutuhan NPWP tergantung pada status PKP tenant dan metode e‑Faktur yang dipakai:
+
+   - Tenant **Badan PKP** (memiliki NPWP & PKP): **NPWP wajib** saat membuat e‑Faktur standar (faktur keluaran kode 01/02).
+   - Tenant **Badan non‑PKP** atau **perorangan non‑bisnis**: dapat menggunakan **Faktur Digunggung** (kode 05) tanpa NPWP.
+
+2. Rekomendasi UI/UX: jangan menampilkan pesan generik yang menyatakan "NPWP wajib" tanpa konteks. Tampilkan teks yang menjelaskan kondisi di atas dan sarankan verifikasi status PKP tenant sebelum membuat e‑Faktur.
+
+3. Contoh teks ringkas untuk UI (Blade):
+
+   "NPWP tenant diperlukan jika menggunakan e‑Faktur standar untuk tenant PKP. Untuk tenant non‑PKP, dapat menggunakan Faktur Digunggung tanpa NPWP. Verifikasi status PKP tenant sebelum membuat e‑Faktur."
+
+4. Catatan implementasi:
+
+   - Jika platform ingin memfasilitasi e‑Faktur otomatis, tambahkan field `tenant_npwp` dan `tenant_pkp_status` pada profil tenant, termasuk validasi format NPWP.
+   - Pastikan alur pembuatan e‑Faktur memilih jenis faktur (standar vs digunggung) berdasarkan `tenant_pkp_status`.
+
+## Panduan SPT Pajak Platform (Ringkasan Operasional)
+
+### Cara Pakai
+1. Pilih Masa Pajak (bulan & tahun) pada halaman `SPT Pajak Platform`.
+2. Klik tombol **Hitung Kewajiban Pajak**.
+3. Tab **Dashboard** menampilkan ringkasan KPI dan total kewajiban pajak untuk masa pajak yang dipilih.
+4. Tab **SPT PPN** menampilkan rincian faktur keluaran per invoice (digunakan untuk formulir SPT Masa PPN — mis. 1111). Gunakan tombol ekspor untuk mengunduh CSV/Excel dengan kolom yang dibutuhkan oleh akuntan/DJP.
+5. Tab **SPT PPh23** menampilkan rincian pemotongan per pembayaran dengan status `completed`. Gunakan ekspor untuk keperluan pelaporan / verifikasi.
+6. Jika ada perubahan regulasi PPN, gunakan kolom **Tarif PPN** untuk melakukan override saat menghitung kewajiban.
+
+### Kolom Ekspor yang Direkomendasikan
+- Untuk SPT PPN (per baris faktur): `invoice_no`, `issue_date`, `invoice_series` (e‑Faktur nomor/seri bila tersedia), `dpp` (Dasar Pengenaan Pajak), `ppn_rate`, `ppn_amount`, `buyer_npwp` (jika ada), `buyer_name`.
+- Untuk SPT PPh23 (per baris pemotongan): `payment_ref`, `paid_at`, `invoice_ref` (jika relevan), `payer_npwp`, `payee_npwp`, `gross_amount`, `withholding_rate`, `tax_withheld`, `withholding_code`, `bank_ref`.
+
+### Informasi Pajak (Ringkasan dan Batas Waktu)
+- PPN: tarif 11% (UU HPP No. 7/2021). PPN Masa umumnya disetor dan dilaporkan mengikuti ketentuan fiskal (sering: setor paling lambat akhir bulan berikutnya; lapor lewat e‑Filing DJP). Pastikan mekanisme penyetoran dan bukti bank tercatat.
+- PPh 23: tarif umum 2% (tergantung objek). Pemotongan dilakukan saat tenant membayar ke platform. Batas penyetoran biasanya tanggal 10 bulan berikutnya; pelaporan/penyampaian SPT Masa mengikuti ketentuan DJP (konfirmasi peraturan terbaru; sering ada tenggat pelaporan hingga tanggal 20 bulan berikutnya).
+- PPh Final 0.5% (PP 23/2018): berlaku untuk wajib pajak tertentu; ambang omzet tahunan yang relevan adalah Rp 4.800.000.000 (empat koma delapan miliar rupiah) — pastikan verifikasi kriteria sebelum menerapkan PPh Final.
+
+Catatan: semua angka di atas adalah estimasi yang disediakan sistem — wajib rekonsiliasi dan konfirmasi dengan akuntan/konsultan pajak sebelum penyetoran atau pelaporan ke DJP.
+
+### Hal Wajib Dicek Sebelum Membuat e‑Faktur
+- `tenant_npwp` harus terisi dan tervalidasi untuk pembuatan e‑Faktur standar (tenant PKP).
+- `tenant_pkp_status` harus diketahui untuk memilih jenis faktur (standar vs digunggung).
+
+### Disclaimer
+- Data yang ditampilkan aplikasi adalah estimasi dan alat bantu; tidak menggantikan perhitungan akhir oleh akuntan.
+- Simpan bukti pembayaran, nomor SSP, dan bukti setoran bank sebagai lampiran audit.
+
+### Rekomendasi Implementasi Teknis
+- Tambahkan field `tenant_npwp` (string) dan `tenant_pkp_status` (enum: `pkp`/`non_pkp`) pada profil tenant.
+- Sediakan endpoint ekspor CSV/Excel untuk SPT PPN dan SPT PPh23 sesuai kolom yang direkomendasikan.
+- Audit trail: catat siapa yang menjalankan perhitungan, timestamp, versi perhitungan, dan apakah ada override tarif.
+- Tambahkan validasi format NPWP (15–16 digit setelah normalisasi) sebelum memungkinkan pembuatan e‑Faktur standar.
+

@@ -51,7 +51,14 @@ class InvoiceController extends Controller
             $query->where('company_id', $filteredCompanyId);
         }
         if ($request->has('is_paid')) {
-            $query->where('is_paid', (bool) $request->get('is_paid'));
+            $query->where('is_paid', filter_var($request->get('is_paid'), FILTER_VALIDATE_BOOLEAN));
+        }
+        if ($request->has('search') && $search = trim($request->get('search'))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', '%' . $search . '%')
+                  ->orWhereHas('company', fn($c) => $c->where('name', 'like', '%' . $search . '%'))
+                  ->orWhere('notes', 'like', '%' . $search . '%');
+            });
         }
         if ($request->has('from_date')) {
             $query->whereDate('issue_date', '>=', $request->get('from_date'));
@@ -124,9 +131,9 @@ class InvoiceController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|uuid|exists:companies,uuid',
-            'purchase_transaction_id' => 'nullable|uuid|exists:purchase_transactions,uuid',
-            'subscription_id' => ['nullable', 'uuid', Rule::exists('subscriptions', 'uuid')],
+            'company_id' => 'required|integer|exists:companies,id',
+            'purchase_transaction_id' => 'nullable|integer|exists:purchase_transactions,id',
+            'subscription_id' => ['nullable', 'integer', Rule::exists('subscriptions', 'id')],
             'issue_date' => 'required|date',
             'due_date' => 'required|date|after:issue_date',
             'amount_due' => 'required|numeric|min:0',
@@ -138,7 +145,7 @@ class InvoiceController extends Controller
                 ->where('uuid', $validated['subscription_id'])
                 ->value('company_id');
 
-            if ((string) $subscriptionCompanyId !== (string) $validated['company_id']) {
+            if ((int) $subscriptionCompanyId !== (int) $validated['company_id']) {
                 return response()->json([
                     'success' => false,
                     'error' => [

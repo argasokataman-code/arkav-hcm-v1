@@ -96,7 +96,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" minlength="2" maxlength="150" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Full name hanya boleh huruf, spasi, dan tanda baca umum" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Email <span class="text-danger">*</span></label>
@@ -125,7 +125,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Place of Birth <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" maxlength="150" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Place of birth hanya boleh huruf, spasi, dan tanda baca umum" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
@@ -189,7 +189,7 @@
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label small text-muted">Village / Ward</label>
+                                        <label class="form-label small text-muted">Village / Ward <span class="text-warning" data-village-unavailable-hint style="display:none" title="District ini tidak memiliki data kelurahan. Isi alamat lengkap di Address Detail.">⚠ Tidak tersedia</span></label>
                                         <select class="form-select" {{ $fieldAttr }}="villageId" data-employee-wilayah-village required disabled>
                                             <option value="">Select village</option>
                                         </select>
@@ -294,7 +294,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" pattern="[A-Za-z .,'\-]{2,100}" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank / SWIFT / IFSC Code</label>
@@ -306,7 +306,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">NPWP</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="npwp" placeholder="12.345.678.9-000.000">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="npwp" placeholder="12.345.678.9-000.000" inputmode="numeric" maxlength="20" pattern="[0-9.\-]{15,20}" title="NPWP 15-16 digit (titik/strip diperbolehkan)">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Tax Status</label>
@@ -328,11 +328,11 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">BPJS Kesehatan No</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKesehatanNo" placeholder="Nomor BPJS Kesehatan" maxlength="100">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKesehatanNo" placeholder="13 digit nomor BPJS Kesehatan" inputmode="numeric" minlength="13" maxlength="13" pattern="[0-9]{13}" title="Nomor BPJS Kesehatan harus tepat 13 digit angka">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">BPJS Ketenagakerjaan No</label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKetenagakerjaanNo" placeholder="Nomor BPJS Ketenagakerjaan" maxlength="100">
+                                <input type="text" class="form-control" {{ $fieldAttr }}="bpjsKetenagakerjaanNo" placeholder="11 digit nomor BPJS Ketenagakerjaan" inputmode="numeric" minlength="11" maxlength="11" pattern="[0-9]{11}" title="Nomor BPJS Ketenagakerjaan harus tepat 11 digit angka">
                             </div>
                         </div>
                     </div>
@@ -353,11 +353,11 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Name</label>
-                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak" minlength="2" maxlength="100" title="Nama hanya boleh huruf, spasi, dan tanda baca umum">
+                                                <input type="text" class="form-control" data-repeat-key="name" placeholder="Nama kontak" minlength="2" maxlength="100" pattern="[A-Za-z .,'\-]{2,100}" title="Nama hanya boleh huruf, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Relationship</label>
-                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" title="Hubungan hanya boleh huruf dan spasi">
+                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" pattern="[A-Za-z .'\-]{2,50}" title="Hubungan hanya boleh huruf, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Phone</label>
@@ -387,19 +387,29 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Institution</label>
-                                                <input type="text" class="form-control" data-repeat-key="institution" placeholder="Universitas / Sekolah" minlength="2" maxlength="100">
+                                                <input type="text" class="form-control" data-repeat-key="institution" placeholder="Universitas / Sekolah" minlength="2" maxlength="100" pattern="[A-Za-z0-9 .,'\-]{2,100}" title="Nama institusi hanya boleh huruf, angka, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Degree</label>
-                                                <input type="text" class="form-control" data-repeat-key="degree" placeholder="S1, SMA, Diploma" minlength="2" maxlength="50">
+                                                <input type="text" class="form-control" data-repeat-key="degree" placeholder="S1, SMA, Diploma" minlength="2" maxlength="50" pattern="[A-Za-z0-9 .,'\-]{2,50}" title="Gelar hanya boleh huruf, angka, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">Start Year</label>
-                                                <input type="number" min="1900" max="2100" class="form-control" data-repeat-key="startYear" placeholder="2018">
+                                                <select class="form-select" data-repeat-key="startYear">
+                                                    <option value="">-- Tahun --</option>
+                                                    @for ($y = date('Y') + 1; $y >= 1900; $y--)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">End Year</label>
-                                                <input type="number" min="1900" max="2100" class="form-control" data-repeat-key="endYear" placeholder="2022">
+                                                <select class="form-select" data-repeat-key="endYear">
+                                                    <option value="">-- Tahun --</option>
+                                                    @for ($y = date('Y') + 1; $y >= 1900; $y--)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
                                             </div>
                                             <div class="col-md-1 text-md-end">
                                                 <button type="button" class="btn btn-outline-danger btn-sm w-100" data-employee-repeat-remove>×</button>
@@ -425,11 +435,11 @@
                                         <div class="row g-2 align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Company</label>
-                                                <input type="text" class="form-control" data-repeat-key="company" placeholder="Nama perusahaan" minlength="2" maxlength="100">
+                                                <input type="text" class="form-control" data-repeat-key="company" placeholder="Nama perusahaan" minlength="2" maxlength="100" pattern="[A-Za-z0-9 .,'\-]{2,100}" title="Nama perusahaan hanya boleh huruf, angka, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Position</label>
-                                                <input type="text" class="form-control" data-repeat-key="position" placeholder="Jabatan" minlength="2" maxlength="100">
+                                                <input type="text" class="form-control" data-repeat-key="position" placeholder="Jabatan" minlength="2" maxlength="100" pattern="[A-Za-z0-9 .,'\-]{2,100}" title="Jabatan hanya boleh huruf, angka, spasi, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-2">
                                                 <label class="form-label">Start Date</label>

@@ -11,12 +11,14 @@ use App\Http\Controllers\Api\BulkPaymentImportController;
 use App\Http\Controllers\Api\SuperAdminDashboardController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SaasCompanyBillingOverviewController;
+use App\Http\Controllers\Api\PlatformTaxSummaryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     // Packages (public listing, admin CRUD)
     Route::get('/packages', [PackageController::class, 'index']);
     Route::get('/packages/feature-catalog', [PackageController::class, 'featureCatalog']);
+    Route::get('/packages/feature-catalog/healthcheck', [PackageController::class, 'featureCatalogHealthcheck']);
     Route::get('/packages/{package}', [PackageController::class, 'show']);
     Route::post('/packages', [PackageController::class, 'store']);
     Route::put('/packages/{package}', [PackageController::class, 'update']);
@@ -92,6 +94,13 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 
         // Billing overview (companies)
         Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);
+
+        // Platform Tax Reporting — SPT PPN / PPh 23 (Global Super Admin only)
+        Route::prefix('/tax')->group(function () {
+            Route::get('/dashboard', [PlatformTaxSummaryController::class, 'dashboard']);
+            Route::get('/spt-ppn', [PlatformTaxSummaryController::class, 'sptPpn']);
+            Route::get('/spt-pph23', [PlatformTaxSummaryController::class, 'sptPph23']);
+        });
 
         // Super Admin Dashboard
         Route::prefix('/dashboard')->group(function () {

@@ -83,11 +83,13 @@
             </div>
             <form id="invoiceForm">
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Company *</label>
+                        <select class="form-select" id="input_invoice_company_id" required>
+                            <option value="">Loading companies...</option>
+                        </select>
+                    </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Company *</label>
-                            <input type="text" class="form-control" id="input_invoice_company" required readonly>
-                        </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Amount Due *</label>
                             <input type="number" class="form-control" id="input_invoice_amount" step="0.01" required>

@@ -179,6 +179,18 @@ Berasal dari package feature catalog non-MVP:
 - training
 - asset_management
 - tickets
+- overtime
+- salary_components
+- allowance_governance
+- bpjs_governance
+- spt_masa_pph21
+- calendar_events
+- promotion
+- resignation
+- termination
+- data_privacy
+- notes
+- faq
 
 Contoh modul add-on aktif yang sudah dipakai runtime saat ini:
 

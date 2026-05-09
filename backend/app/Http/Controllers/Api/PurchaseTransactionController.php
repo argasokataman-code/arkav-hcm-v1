@@ -78,8 +78,8 @@ class PurchaseTransactionController extends Controller
         }
 
         $validated = $request->validate([
-            'company_id' => 'required|uuid|exists:companies,uuid',
-            'subscription_id' => 'nullable|uuid|exists:subscriptions,uuid',
+            'company_id' => 'required|integer|exists:companies,id',
+            'subscription_id' => 'nullable|integer|exists:subscriptions,id',
             'package_addon_id' => 'nullable|uuid|exists:package_addons,uuid',
             'transaction_type' => 'required|in:subscription,addon,refund,credit,manual',
             'description' => 'nullable|string',

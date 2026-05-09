@@ -41,7 +41,7 @@ class PayrollLeaveHolidayAdjuster
      *   holidayWorkMultiplier:float
      * }
      */
-    public function adjust(User $user, HcmPayrollPeriod $period, ?int $companyId, float $base, float $fixed, ?Carbon $asOf = null): array
+    public function adjust(User $user, HcmPayrollPeriod $period, ?int $companyId, float $base, float $fixed): array
     {
         $empty = [
             'enabled' => false,
@@ -62,13 +62,9 @@ class PayrollLeaveHolidayAdjuster
         }
 
         $start = Carbon::create($period->period_year, $period->period_month, 1)->startOfDay();
-        $periodEnd = (clone $start)->endOfMonth();
-        $eventEnd = $periodEnd->copy();
-        if ($asOf instanceof Carbon && $asOf->lt($eventEnd)) {
-            $eventEnd = $asOf->copy()->endOfDay();
-        }
+        $end = (clone $start)->endOfMonth();
 
-        $monthCalc = $this->calculator->calculate($start, $periodEnd, $companyId, false, true, true);
+        $monthCalc = $this->calculator->calculate($start, $end, $companyId, false, true, true);
         $workingDays = (int) $monthCalc['totalDays'];
         if ($workingDays <= 0) {
             return array_merge($empty, ['enabled' => true]);
@@ -83,12 +79,12 @@ class PayrollLeaveHolidayAdjuster
         $leaveRows = LeaveRequest::query()
             ->where('user_id', $user->id)
             ->where('status', 'approved')
-            ->where(function ($q) use ($start, $eventEnd): void {
-                $q->whereBetween('date_from', [$start->toDateString(), $eventEnd->toDateString()])
-                    ->orWhereBetween('date_to', [$start->toDateString(), $eventEnd->toDateString()])
-                    ->orWhere(function ($q2) use ($start, $eventEnd): void {
+            ->where(function ($q) use ($start, $end): void {
+                $q->whereBetween('date_from', [$start->toDateString(), $end->toDateString()])
+                    ->orWhereBetween('date_to', [$start->toDateString(), $end->toDateString()])
+                    ->orWhere(function ($q2) use ($start, $end): void {
                         $q2->where('date_from', '<=', $start->toDateString())
-                            ->where('date_to', '>=', $eventEnd->toDateString());
+                            ->where('date_to', '>=', $end->toDateString());
                     });
             })
             ->when(
@@ -108,8 +104,8 @@ class PayrollLeaveHolidayAdjuster
             if ($from->lt($start)) {
                 $from = $start->copy();
             }
-            if ($to->gt($eventEnd)) {
-                $to = $eventEnd->copy();
+            if ($to->gt($end)) {
+                $to = $end->copy();
             }
             if ($to->lt($from)) {
                 continue;
@@ -132,7 +128,7 @@ class PayrollLeaveHolidayAdjuster
             $rows = AttendanceRecord::query()
                 ->where('user_id', $user->id)
                 ->whereNotNull('check_in_at')
-                ->whereBetween('work_date', [$start->toDateString(), $eventEnd->toDateString()])
+                ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
                 ->when(
                     $companyId !== null,
                     fn ($q) => $q->where(function ($q2) use ($companyId): void {

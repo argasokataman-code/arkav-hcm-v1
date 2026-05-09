@@ -6,6 +6,7 @@ use App\Support\CronjobSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class CronjobController extends Controller
@@ -30,10 +31,21 @@ class CronjobController extends Controller
         }
 
         $definitions = CronjobSettings::definitions();
-        $jobs = $request->input('jobs', []);
-        if (! is_array($jobs)) {
-            $jobs = [];
-        }
+        $validated = Validator::make(
+            $request->all(),
+            $this->validationRules($definitions),
+            [
+                'jobs.*.time.required' => 'Time is required for each cronjob.',
+                'jobs.*.time.date_format' => 'Time must use HH:MM format.',
+                'jobs.*.timezone.required' => 'Timezone is required for each cronjob.',
+                'jobs.*.timezone.timezone' => 'Timezone must be a valid IANA timezone.',
+                'jobs.*.dayOfMonth.required' => 'Day of month is required for monthly cronjobs.',
+                'jobs.*.dayOfMonth.integer' => 'Day of month must be a number between 1 and 28.',
+                'jobs.*.dayOfMonth.between' => 'Day of month must be between 1 and 28.',
+            ]
+        )->validate();
+
+        $jobs = $validated['jobs'] ?? [];
 
         foreach ($definitions as $key => $definition) {
             $input = $jobs[$key] ?? [];
@@ -41,12 +53,9 @@ class CronjobController extends Controller
                 $input = [];
             }
 
-            $enabled = array_key_exists('enabled', $input);
-            $time = $this->normalizeTime((string) ($input['time'] ?? ($definition['defaults']['time'] ?? '00:00')));
+            $enabled = array_key_exists('enabled', $input) && (string) $input['enabled'] === '1';
+            $time = trim((string) ($input['time'] ?? ($definition['defaults']['time'] ?? '00:00')));
             $timezone = trim((string) ($input['timezone'] ?? ($definition['defaults']['timezone'] ?? 'Asia/Jakarta')));
-            if (! in_array($timezone, timezone_identifiers_list(), true)) {
-                $timezone = (string) ($definition['defaults']['timezone'] ?? 'Asia/Jakarta');
-            }
 
             $payload = [
                 'enabled' => $enabled,
@@ -56,7 +65,7 @@ class CronjobController extends Controller
 
             if (($definition['scheduleType'] ?? 'daily') === 'monthly') {
                 $dayOfMonth = (int) ($input['dayOfMonth'] ?? ($definition['defaults']['dayOfMonth'] ?? 1));
-                $payload['dayOfMonth'] = max(1, min(28, $dayOfMonth));
+                $payload['dayOfMonth'] = $dayOfMonth;
             }
 
             CronjobSettings::set($key, $payload);
@@ -68,15 +77,30 @@ class CronjobController extends Controller
         ]);
     }
 
-    private function normalizeTime(string $value): string
+    /**
+     * @param  array<string, array<string, mixed>>  $definitions
+     * @return array<string, array<int, string>>
+     */
+    private function validationRules(array $definitions): array
     {
-        $value = trim($value);
+        $rules = [
+            'jobs' => ['required', 'array'],
+        ];
 
-        if (! preg_match('/^(2[0-3]|[01]?\d):([0-5]\d)$/', $value, $matches)) {
-            return '00:00';
+        foreach ($definitions as $key => $definition) {
+            $rules["jobs.$key"] = ['nullable', 'array'];
+            $rules["jobs.$key.enabled"] = ['nullable', 'in:1'];
+            $rules["jobs.$key.time"] = ['required_with:jobs.'.$key, 'date_format:H:i'];
+            $rules["jobs.$key.timezone"] = ['required_with:jobs.'.$key, 'timezone'];
+
+            if (($definition['scheduleType'] ?? 'daily') === 'monthly') {
+                $rules["jobs.$key.dayOfMonth"] = ['required_with:jobs.'.$key, 'integer', 'between:1,28'];
+            } else {
+                $rules["jobs.$key.dayOfMonth"] = ['nullable'];
+            }
         }
 
-        return sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]);
+        return $rules;
     }
 
     private function authorized(Request $request): bool

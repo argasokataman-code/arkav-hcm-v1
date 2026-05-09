@@ -100,7 +100,7 @@
                         </li>
 @else
                         <li class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">
-                            <a href="{{ $isGlobalHcmAdmin ? route('super-admin.employees-monitor') : url('employee-dashboard') }}">
+                            <a href="{{ $isGlobalHcmAdmin && Route::has('super-admin.employees-monitor') ? route('super-admin.employees-monitor') : url('employee-dashboard') }}">
                                 <i class="ti ti-smart-home"></i>
                                 <span>{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Dashboard' }}</span>
                                 <span class="badge badge-danger fs-10 fw-medium text-white p-1">Hot</span>
@@ -133,7 +133,7 @@
                         </li> -->
 @if ($isGlobalHcmAdmin)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('dashboard','activity','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('dashboard','activity','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Super Admin</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -155,6 +155,7 @@
                                 <li><a href="{{url('saas/reminders')}}"  class="{{ Request::is('saas/reminders') ? 'active' : '' }}">SaaS Reminders</a></li>
                                 <li><a href="{{ route('saas.pricing') }}"  class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
                                 <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax & Compliance</a></li>
+                                <li><a href="{{ route('saas.platform-tax') }}" class="{{ Request::is('saas/platform-tax*') ? 'active' : '' }}">SPT Pajak Platform</a></li>
                                 @include('layout.partials.sidebar.sections.shared.notification-observability-link')
                                 <li><a href="{{url('cronjob')}}"  class="{{ Request::is('cronjob') ? 'active' : '' }}">Cronjob</a></li>
                                 <li><a href="{{url('payment-report')}}"  class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>

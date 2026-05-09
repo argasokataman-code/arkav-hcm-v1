@@ -128,7 +128,31 @@
      */
     init: function () {
       this.bindEvents();
+      this.loadCompaniesDropdown();
       this.loadPayments();
+    },
+
+    /**
+     * Load companies into the payment modal dropdown
+     */
+    loadCompaniesDropdown: function () {
+      const select = document.getElementById("input_payment_company_id");
+      if (!select) return;
+
+      apiRequest("GET", "/v1/saas/dashboard/companies")
+        .then(function (response) {
+          const companies = response.data || [];
+          select.innerHTML = '<option value="">Select company</option>';
+          companies.forEach(function (c) {
+            const opt = document.createElement("option");
+            opt.value = c.id;
+            opt.textContent = esc(c.name);
+            select.appendChild(opt);
+          });
+        })
+        .catch(function () {
+          select.innerHTML = '<option value="">Failed to load companies</option>';
+        });
     },
 
     /**
@@ -191,19 +215,22 @@
           self.currentPage = self.totalPages;
           self.loadPayments();
         }
-        if (e.target.matches("[data-verify-payment]")) {
+        const verifyBtn = e.target.closest("[data-verify-payment]");
+        if (verifyBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-verify-payment");
+          const id = verifyBtn.getAttribute("data-verify-payment");
           self.verifyPayment(id);
         }
-        if (e.target.matches("[data-view-payment]")) {
+        const viewBtn = e.target.closest("[data-view-payment]");
+        if (viewBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-view-payment");
+          const id = viewBtn.getAttribute("data-view-payment");
           self.viewPaymentDetails(id);
         }
-        if (e.target.matches("[data-delete-payment]")) {
+        const deleteBtn = e.target.closest("[data-delete-payment]");
+        if (deleteBtn) {
           e.preventDefault();
-          const id = e.target.getAttribute("data-delete-payment");
+          const id = deleteBtn.getAttribute("data-delete-payment");
           self.deletePayment(id);
         }
       });
@@ -265,9 +292,9 @@
                 </thead>
                 <tbody>
                   ${this.payments.map(pmt => {
-                    const statusBadgeClass = pmt.status === "completed" ? "badge-success" : 
-                                            pmt.status === "pending" ? "badge-warning" : 
-                                            pmt.status === "failed" ? "badge-danger" : "badge-secondary";
+                    const statusBadgeClass = pmt.status === "completed" ? "text-bg-success" : 
+                                            pmt.status === "pending" ? "text-bg-warning" : 
+                                            pmt.status === "failed" ? "text-bg-danger" : "text-bg-secondary";
                     return `
                       <tr>
                         <td>${esc(pmt.companyName)}</td>
@@ -280,7 +307,7 @@
                         </td>
                         <td>${pmt.paidAt ? formatDate(pmt.paidAt) : "-"}</td>
                         <td>
-                          <span class="badge ${pmt.isCompleted ? "badge-success" : "badge-secondary"} d-inline-flex align-items-center badge-xs">
+                          <span class="badge ${pmt.isCompleted ? "text-bg-success" : "text-bg-secondary"} d-inline-flex align-items-center badge-xs">
                             <i class="ti ti-point-filled me-1"></i>${pmt.isCompleted ? "Yes" : "No"}
                           </span>
                         </td>
@@ -406,10 +433,13 @@
       const self = this;
 
       const payload = {
-        company_id: 1, // TODO: Get from form
+        company_id: parseInt(document.getElementById("input_payment_company_id").value, 10),
         amount: parseFloat(document.getElementById("input_payment_amount").value),
         currency: document.getElementById("input_payment_currency").value,
         payment_method: document.getElementById("input_payment_method").value,
+        gateway: document.getElementById("input_payment_gateway").value || undefined,
+        gateway_reference: document.getElementById("input_payment_gateway_ref").value || undefined,
+        notes: document.getElementById("input_payment_notes").value || undefined,
       };
 
       apiRequest("POST", API_BASE, payload)

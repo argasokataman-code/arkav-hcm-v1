@@ -42,6 +42,10 @@ Route::get('/saas/reminders', function () {
     return view('saas.reminders');
 })->middleware('hcm.web.global-admin')->name('saas.reminders');
 
+Route::get('/saas/platform-tax', function () {
+    return view('saas.platform-tax');
+})->middleware('hcm.web.global-admin')->name('saas.platform-tax');
+
 Route::get('/saas/pricing', function () {
     return view('tax-billing-subscribers-settings', [
         'taxGovernanceScreen' => 'platform-billing',
@@ -57,10 +61,6 @@ Route::get('/saas/pricing/reports', function () {
 Route::get('/companies', function () {
     return view('crm.companies');
 })->middleware('hcm.web.global-admin')->name('companies');
-
-Route::get('/packages', function () {
-    return view('saas.packages');
-})->middleware('hcm.web.global-admin')->name('packages');
 
 Route::get('/packages-grid', function () {
     return view('administration.packages.packages-grid');

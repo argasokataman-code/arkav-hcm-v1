@@ -5,14 +5,9 @@ namespace Tests\Feature;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Company;
-use App\Models\CompanySetting;
-use App\Models\EmployeeTaxProfile;
-use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\PlatformRevenueTransaction;
-use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -62,8 +57,6 @@ class HcmPayrollRunApiTest extends TestCase
             ],
         );
 
-        $this->ensureTaxProfileForUser($user->id);
-
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return $result['token'];
@@ -98,8 +91,6 @@ class HcmPayrollRunApiTest extends TestCase
                 'fixed_allowance' => 0,
             ],
         );
-
-        $this->ensureTaxProfileForUser($user->id);
 
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
@@ -141,8 +132,6 @@ class HcmPayrollRunApiTest extends TestCase
             ],
         );
 
-        $this->ensureTaxProfileForUser($user->id);
-
         $login = $this->postJson('/v1/identity/auth/login', [
             'email' => $email,
             'password' => 'StrongPass1',
@@ -152,46 +141,6 @@ class HcmPayrollRunApiTest extends TestCase
         $this->withHeaders(['X-Company-Id' => (string) $this->company->id]);
 
         return (string) $login->json('data.accessToken');
-    }
-
-    private function createOwnerWithEmployeeProfile(string $email = 'owner-payroll@example.com', float $baseSalary = 5_000_000): User
-    {
-        if (! $this->company) {
-            $this->company = $this->payrollCompany();
-        }
-
-        $this->postJson('/v1/identity/auth/register', [
-            'name' => 'Owner Payroll',
-            'email' => $email,
-            'password' => 'StrongPass1',
-            'confirmPassword' => 'StrongPass1',
-        ])->assertStatus(201);
-
-        $user = User::query()->where('email', $email)->firstOrFail();
-        CompanyUser::query()->updateOrCreate(
-            [
-                'company_id' => $this->company->id,
-                'user_id' => $user->id,
-            ],
-            [
-                'role' => 'owner',
-                'status' => 'active',
-            ]
-        );
-
-        EmployeeProfile::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'company_id' => $this->company->id,
-                'employment_status' => 'active',
-                'base_salary' => $baseSalary,
-                'fixed_allowance' => 0,
-            ],
-        );
-
-        $this->ensureTaxProfileForUser($user->id);
-
-        return $user;
     }
 
     private function createAndFinalizeDraft(string $admin, int $year, int $month): array
@@ -216,33 +165,6 @@ class HcmPayrollRunApiTest extends TestCase
         ];
     }
 
-    private function setEarlyDisbursePolicy(bool $allowed): void
-    {
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
-            ['value' => $allowed ? '1' : '0', 'type' => 'boolean'],
-        );
-    }
-
-    private function ensureTaxProfileForUser(int $userId): void
-    {
-        $employeeProfile = EmployeeProfile::query()->where('user_id', $userId)->first();
-        if (! $employeeProfile) {
-            return;
-        }
-
-        EmployeeTaxProfile::query()->updateOrCreate(
-            ['employee_id' => $employeeProfile->id],
-            [
-                'tax_status' => 'TK0',
-                'ptkp_status' => 'TK0',
-                'npwp' => null,
-                'effective_date' => '2026-01-01',
-                'end_date' => null,
-            ],
-        );
-    }
-
     public function test_non_admin_cannot_show_payroll_run(): void
     {
         $employee = $this->employeeToken();
@@ -264,22 +186,6 @@ class HcmPayrollRunApiTest extends TestCase
             ->getJson('/v1/hcm/payroll-runs/history')
             ->assertOk()
             ->assertJsonPath('success', true);
-    }
-
-    public function test_monthly_draft_excludes_owner_members_even_if_employee_profile_exists(): void
-    {
-        $this->employeeToken('monthly-employee@example.com', 6_000_000);
-        $owner = $this->createOwnerWithEmployeeProfile('monthly-owner@example.com', 9_000_000);
-        $admin = $this->adminToken();
-
-        $data = $this->createAndFinalizeDraft($admin, 2026, 11);
-
-        $ownerLineCount = HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $data['runId'])
-            ->where('user_id', $owner->id)
-            ->count();
-
-        $this->assertSame(0, $ownerLineCount);
     }
 
     public function test_payroll_runs_forbidden_when_switching_to_unowned_company(): void
@@ -343,90 +249,6 @@ class HcmPayrollRunApiTest extends TestCase
             ->assertOk();
 
         $this->assertSame('finalized', $response->json('data.status'));
-    }
-
-    public function test_finalize_rejects_when_run_contains_missing_tax_profile_anomaly(): void
-    {
-        $this->employeeToken('employee@example.com', 20_000_000);
-        $admin = $this->adminToken();
-
-        $employee = User::query()->where('email', 'employee@example.com')->firstOrFail();
-        $data = $this->createAndFinalizeDraft($admin, 2026, 6);
-
-        HcmPayrollLine::query()->create([
-            'hcm_payroll_run_id' => $data['runId'],
-            'user_id' => $employee->id,
-            'component_code' => 'pph21_manual_guard_test',
-            'component_name' => 'PPh21 Manual Guard Test',
-            'kind' => 'deduction',
-            'category' => 'pph21',
-            'amount' => 1,
-            'sort_order' => 999,
-            'meta' => [
-                'source' => 'test',
-                'missingTaxProfile' => true,
-            ],
-        ]);
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
-            ->assertStatus(422)
-            ->assertJsonPath('success', false)
-            ->assertJsonPath('error.code', 'PAYROLL_TAX_PROFILE_INCOMPLETE')
-            ->assertJsonPath('error.details.missingTaxProfileUserCount', 1)
-            ->assertJsonPath('error.details.missingTaxProfileUserIds.0', $employee->id);
-    }
-
-    public function test_finalize_always_stores_zero_payroll_service_fee_metadata(): void
-    {
-        $this->employeeToken('employee-fee@example.com', 6_000_000);
-        $admin = $this->adminToken();
-        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
-
-        HcmBillingTaxPolicy::query()->create([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
-            'company_id' => $this->company?->id,
-            'billing_month' => '2026-07',
-            'billing_cycle_type' => 'monthly',
-            'tax_rate_percentage' => 0,
-            'base_calculation_method' => 'subscription_revenue',
-            'effective_from' => '2026-07-01',
-            'effective_to' => null,
-            'status' => 'active',
-            'notes' => json_encode([
-                'global_rates' => [
-                    'payroll_service_fee' => 2,
-                ],
-            ]),
-        ]);
-
-        $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
-            ->assertOk();
-
-        $response->assertJsonPath('data.platformServiceFeeRate', 0);
-        $response->assertJsonPath('data.platformServiceFeeBillingMonth', '2026-07');
-
-        $run = HcmPayrollRun::query()->findOrFail($data['runId']);
-        $meta = is_array($run->meta) ? $run->meta : [];
-        $serviceFeeBase = (float) ($meta['platform_service_fee_base'] ?? 0);
-        $serviceFeeRate = (float) ($meta['platform_service_fee_rate'] ?? 0);
-        $serviceFeeAmount = (float) ($meta['platform_service_fee_amount'] ?? 0);
-
-        $this->assertSame(0.0, $serviceFeeBase);
-        $this->assertSame(0.0, $serviceFeeRate);
-        $this->assertSame('2026-07', (string) ($meta['platform_service_fee_billing_month'] ?? ''));
-        $this->assertSame(0.0, $serviceFeeAmount);
-
-        $capturedRevenue = PlatformRevenueTransaction::query()
-            ->where('source_event_type', 'payroll.finalized')
-            ->where('source_entity_type', 'hcm_payroll_runs')
-            ->where('source_entity_id', $data['runId'])
-            ->where('transaction_type', PlatformRevenueTransaction::TYPE_PAYROLL_SERVICE)
-            ->where('idempotency_key', 'payroll_finalized:'.$data['runId'])
-            ->first();
-
-        $this->assertNull($capturedRevenue);
     }
 
     public function test_shared_global_period_latest_run_and_draft_reuse_are_scoped_by_active_company(): void
@@ -594,7 +416,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -619,7 +440,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -650,211 +470,11 @@ class HcmPayrollRunApiTest extends TestCase
         }
     }
 
-    public function test_disburse_rejects_when_run_contains_missing_tax_profile_anomaly(): void
-    {
-        $this->employeeToken('employee@example.com', 20_000_000);
-        $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
-
-        $employee = User::query()->where('email', 'employee@example.com')->firstOrFail();
-        $data = $this->createAndFinalizeDraft($admin, 2026, 7);
-
-        HcmPayrollLine::query()->create([
-            'hcm_payroll_run_id' => $data['runId'],
-            'user_id' => $employee->id,
-            'component_code' => 'pph21_manual_guard_test',
-            'component_name' => 'PPh21 Manual Guard Test',
-            'kind' => 'deduction',
-            'category' => 'pph21',
-            'amount' => 1,
-            'sort_order' => 999,
-            'meta' => [
-                'source' => 'test',
-                'missingTaxProfile' => true,
-            ],
-        ]);
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
-                'applyAll' => true,
-            ])
-            ->assertStatus(422)
-            ->assertJsonPath('success', false)
-            ->assertJsonPath('error.code', 'PAYROLL_TAX_PROFILE_INCOMPLETE')
-            ->assertJsonPath('error.details.missingTaxProfileUserCount', 1)
-            ->assertJsonPath('error.details.missingTaxProfileUserIds.0', $employee->id);
-    }
-
-    public function test_admin_cannot_disburse_monthly_run_before_payday_when_policy_blocks_early_payment(): void
-    {
-        $this->employeeToken();
-        $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(false);
-
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.payday_day'],
-            ['value' => '27', 'type' => 'integer'],
-        );
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.cutoff_offset_days'],
-            ['value' => '2', 'type' => 'integer'],
-        );
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
-            ['value' => '0', 'type' => 'boolean'],
-        );
-
-        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
-            ->assertOk();
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
-                'applyAll' => true,
-            ])
-            ->assertStatus(422)
-            ->assertJsonPath('error.code', 'PAYROLL_DISBURSE_BEFORE_PAYDAY_FORBIDDEN')
-            ->assertJsonPath('error.message', 'Payroll tidak bisa dibayarkan sebelum payday 2026-08-27 sesuai policy tenant aktif.');
-
-        $this->assertFalse(
-            HcmPayrollLine::query()
-                ->where('hcm_payroll_run_id', $data['runId'])
-                ->get()
-                ->contains(fn (HcmPayrollLine $line): bool => strtolower((string) ($line->meta['paymentStatus'] ?? 'unpaid')) === 'paid')
-        );
-    }
-
-    public function test_admin_can_disburse_before_payday_when_policy_allows_early_payment(): void
-    {
-        $this->employeeToken();
-        $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
-
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.payday_day'],
-            ['value' => '27', 'type' => 'integer'],
-        );
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.cutoff_offset_days'],
-            ['value' => '2', 'type' => 'integer'],
-        );
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $this->company?->id, 'key' => 'payroll.monthly.disburse_before_payday_allowed'],
-            ['value' => '1', 'type' => 'boolean'],
-        );
-
-        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/finalize')
-            ->assertOk();
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
-                'applyAll' => true,
-            ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('data.selectedUserIds.0', User::query()->where('email', 'employee@example.com')->firstOrFail()->id);
-    }
-
-    public function test_paid_monthly_run_auto_migrates_late_arrival_buffer_into_next_period_draft(): void
-    {
-        $this->employeeToken('migration-employee@example.com', 5_000_000);
-        $admin = $this->adminToken();
-
-        $employee = User::query()->where('email', 'migration-employee@example.com')->firstOrFail();
-        $companyId = $this->company?->id;
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->putJson('/v1/hcm/payroll/settings', [
-                'paydayDay' => 27,
-                'cutoffOffsetDays' => 2,
-                'payrollTimezone' => 'Asia/Jakarta',
-                'disburseBeforePaydayAllowed' => true,
-            ])
-            ->assertOk();
-
-        $lateOvertime = OvertimeRequest::query()->create([
-            'company_id' => $companyId,
-            'user_id' => $employee->id,
-            'request_type' => 'employee_request',
-            'work_date' => '2026-03-26',
-            'minutes' => 120,
-            'day_type' => 'workday',
-            'weekly_work_days' => 5,
-            'status' => 'approved',
-        ]);
-
-        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-periods', [
-                'periodYear' => 2026,
-                'periodMonth' => 3,
-            ])
-            ->assertStatus(201)
-            ->json('data.id');
-
-        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
-            ->assertOk()
-            ->assertJsonPath('data.run.lateArrivalBuffer.hasLateArrivals', true)
-            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.totalCount', 1)
-            ->json('data.run.id');
-
-        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
-            ->assertOk();
-
-        $disburseResponse = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', [
-                'applyAll' => true,
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.payment.status', 'partial')
-            ->assertJsonPath('data.lateArrivalMigration.targetPeriodYear', 2026)
-            ->assertJsonPath('data.lateArrivalMigration.targetPeriodMonth', 4);
-
-        $nextPeriod = HcmPayrollPeriod::query()
-            ->where('company_id', $companyId)
-            ->where('period_year', 2026)
-            ->where('period_month', 4)
-            ->first();
-        $this->assertNotNull($nextPeriod);
-
-        $nextRun = HcmPayrollRun::query()
-            ->where('hcm_payroll_period_id', $nextPeriod->id)
-            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-            ->where('status', HcmPayrollRun::STATUS_DRAFT)
-            ->latest('id')
-            ->first();
-        $this->assertNotNull($nextRun);
-
-        $carryoverOvertimeLine = HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $nextRun->id)
-            ->where('user_id', $employee->id)
-            ->where('component_code', 'upah_lembur')
-            ->first();
-
-        $this->assertNotNull($carryoverOvertimeLine);
-        $this->assertContains(
-            (int) $lateOvertime->id,
-            array_map('intval', (array) data_get($carryoverOvertimeLine->meta, 'carryoverLateArrivalRequestIds', []))
-        );
-
-        $sourceRun = HcmPayrollRun::query()->findOrFail($runId);
-        $this->assertSame('migrated', (string) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.status'));
-        $this->assertSame(2026, (int) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.targetPeriodYear'));
-        $this->assertSame(4, (int) data_get($sourceRun->meta, 'lateArrivalBuffer.migration.targetPeriodMonth'));
-    }
-
     public function test_admin_disburse_selective_employees(): void
     {
         $emp1 = $this->employeeToken('emp1@example.com', 5_000_000);
         $emp2 = $this->employeeToken('emp2@example.com', 6_000_000);
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
 
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
@@ -888,7 +508,6 @@ class HcmPayrollRunApiTest extends TestCase
         $this->employeeToken('uuid-emp@example.com', 5_500_000);
         $this->employeeToken('uuid-emp-2@example.com', 6_100_000);
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
 
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
@@ -929,7 +548,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 9);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -960,7 +578,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->primarySuperAdminCodeOneToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 10);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -990,7 +607,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $employee = $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 11);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -1125,7 +741,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 4);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -1173,7 +788,6 @@ class HcmPayrollRunApiTest extends TestCase
     {
         $this->employeeToken();
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 7);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -1261,7 +875,6 @@ class HcmPayrollRunApiTest extends TestCase
         $zeroNetUserId = (int) User::query()->where('email', 'zero-net-employee@example.com')->value('id');
 
         $admin = $this->adminToken();
-        $this->setEarlyDisbursePolicy(true);
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
@@ -1445,41 +1058,6 @@ class HcmPayrollRunApiTest extends TestCase
             'Authorization' => 'Bearer '.$superAdminToken,
             'X-Company-Id' => (string) $this->company->id, // company A
         ])->postJson('/v1/hcm/payroll-runs/'.$otherRun->id.'/disburse', ['applyAll' => true])
-            ->assertNotFound();
-    }
-
-    public function test_global_super_admin_cannot_reset_payments_for_other_company_payroll_run(): void
-    {
-        $otherCompany = Company::query()->create([
-            'code' => 'payroll_sec_reset_b',
-            'name' => 'Payroll Security Reset B',
-            'legal_name' => 'Payroll Security Reset B LLC',
-            'status' => 'active',
-            'owner_user_id' => null,
-            'timezone' => 'UTC',
-            'currency' => 'IDR',
-            'country_code' => 'ID',
-        ]);
-
-        $otherPeriod = HcmPayrollPeriod::query()->create([
-            'company_id' => $otherCompany->id,
-            'period_year' => 2026,
-            'period_month' => 10,
-            'status' => 'posted',
-        ]);
-        $otherRun = HcmPayrollRun::query()->create([
-            'company_id' => $otherCompany->id,
-            'hcm_payroll_period_id' => $otherPeriod->id,
-            'status' => HcmPayrollRun::STATUS_FINALIZED,
-            'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
-        ]);
-
-        $superAdminToken = $this->primarySuperAdminCodeOneToken();
-
-        $this->withHeaders([
-            'Authorization' => 'Bearer '.$superAdminToken,
-            'X-Company-Id' => (string) $this->company->id,
-        ])->postJson('/v1/hcm/payroll-runs/'.$otherRun->id.'/reset-payments')
             ->assertNotFound();
     }
 

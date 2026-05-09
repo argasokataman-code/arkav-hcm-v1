@@ -12,6 +12,31 @@
 - **Tests**: PHPUnit (backend), Vitest (frontend UI wiring)
 - **Deploy**: shared-hosting artifact via `scripts/shared-hosting-package-local.sh`
 
+## Wajib: Continuous Prompt Protocol
+
+Setiap task baru WAJIB melewati 6 fase sebelum coding — lihat `.cursor/rules/continuous-prompt-protocol.mdc`:
+
+1. **Task Receipt** — STOP, baca task, identifikasi domain/jenis/scope
+2. **Source Discovery** — baca `docs/features/<feature>/README.md`, `docs/api/<feature>-api.md`, matriks role, routes aktual
+3. **Impact Analysis** — jawab checklist Data, API, UI, Cross-feature, Docs
+4. **Implementation** — hanya ubah file "In scope", sync JS build jika JS berubah
+5. **Verification** — test suite + manual smoke + closure checklist
+6. **Reporting** — ringkasan files changed, impact confirmation, test results
+
+Hierarki sumber kebenaran (cari dari atas ke bawah):
+| Prioritas | Lokasi |
+|---|---|
+| 1 | `.cursor/rules/*.mdc` |
+| 2 | `docs/features/<feature>/README.md` |
+| 3 | `docs/features/<feature>/IMPLEMENTATION.md` |
+| 4 | `docs/api/<feature>-api.md` |
+| 5 | `docs/api/openapi.yaml` |
+| 6 | `docs/planning/active-hcm-templates-and-permissions.md` |
+| 7 | `docs/features/RUNTIME-FEATURE-CLASSIFICATION.md` |
+| 8 | `docs/features/INTEGRATION-MAP.md` |
+| 9 | `backend/routes/api/` + `backend/routes/web/` |
+| 10 | `backend/database/migrations/` |
+
 ## Non-negotiable rules
 1. **Auth di server** — jangan rely on UI-only guard; wajib `403` di controller
 2. **API prefix** `/v1/hcm/*`; response shape `{ success, data?, error? }`
@@ -40,6 +65,7 @@
 | Role/permission matrix | `docs/planning/active-hcm-templates-and-permissions.md` |
 
 ## Detail per domain → `.github/instructions/`
+- **Continuous prompt protocol**: `.github/instructions/continuous-prompt-protocol.instructions.md`
 - **Laravel/backend**: `.github/instructions/laravel-hcm.instructions.md`
 - **Frontend/Blade**: `.github/instructions/frontend-hcm.instructions.md`
 - **API contract sync**: `.github/instructions/api-contract-sync.instructions.md`

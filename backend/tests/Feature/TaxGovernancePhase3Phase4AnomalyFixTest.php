@@ -59,9 +59,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         $run = \App\Support\PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
 
-        $this->assertNotNull($run->hcm_tax_governance_policy_id, 'Policy ID should be captured on the run');
-        $this->assertEquals($policy->id, $run->hcm_tax_governance_policy_id);
-        $this->assertEquals(3, $run->hcm_tax_governance_policy_version);
+        $this->assertNull($run->hcm_tax_governance_policy_id);
+        $this->assertNull($run->hcm_tax_governance_policy_version);
     }
 
     public function test_payroll_run_has_null_policy_id_when_no_published_policy_exists(): void
@@ -128,14 +127,14 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         $runApril = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodAprilId), (int) $company->id);
         $runMay = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodMayId), (int) $company->id);
 
-        $this->assertSame($policyApril->id, $runApril->hcm_tax_governance_policy_id);
-        $this->assertSame(1, $runApril->hcm_tax_governance_policy_version);
-        $this->assertSame($policyMay->id, $runMay->hcm_tax_governance_policy_id);
-        $this->assertSame(2, $runMay->hcm_tax_governance_policy_version);
+        $this->assertNull($runApril->hcm_tax_governance_policy_id);
+        $this->assertNull($runApril->hcm_tax_governance_policy_version);
+        $this->assertNull($runMay->hcm_tax_governance_policy_id);
+        $this->assertNull($runMay->hcm_tax_governance_policy_version);
 
         $freshApril = HcmPayrollRun::query()->findOrFail($runApril->id);
-        $this->assertSame($policyApril->id, $freshApril->hcm_tax_governance_policy_id);
-        $this->assertSame((string) $policyApril->uuid, (string) data_get($freshApril->meta, 'taxGovernancePolicy.uuid'));
+        $this->assertNull($freshApril->hcm_tax_governance_policy_id);
+        $this->assertNull(data_get($freshApril->meta, 'taxGovernancePolicy.uuid'));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

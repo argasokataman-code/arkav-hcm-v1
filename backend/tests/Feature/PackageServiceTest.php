@@ -184,6 +184,13 @@ class PackageServiceTest extends TestCase
 
         $this->assertContains('tickets', $allCodes);
         $this->assertContains('asset_management', $allCodes);
+        $this->assertContains('allowance_governance', $allCodes);
+        $this->assertContains('bpjs_governance', $allCodes);
+        $this->assertContains('overtime', $allCodes);
+        $this->assertContains('promotion', $allCodes);
+        $this->assertContains('resignation', $allCodes);
+        $this->assertContains('termination', $allCodes);
+        $this->assertContains('data_privacy', $allCodes);
         $this->assertNotContains('custom_ai_workflows', $allCodes);
 
         $this->assertContains('employee_management', $response->json('meta.mvp_feature_codes'));
@@ -201,6 +208,61 @@ class PackageServiceTest extends TestCase
 
         $customGroup = $groups->firstWhere('module', 'custom');
         $this->assertNull($customGroup);
+    }
+
+    public function test_feature_catalog_healthcheck_returns_runtime_diagnostics_for_admin(): void
+    {
+        $response = $this->request()->getJson('/v1/saas/packages/feature-catalog/healthcheck');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'route_feature_codes',
+                    'docs_feature_codes',
+                    'catalog_feature_codes',
+                    'route_only_feature_codes',
+                    'docs_only_feature_codes',
+                    'custom_module_feature_codes',
+                    'unknown_feature_meta_codes',
+                    'has_drift',
+                    'counts' => [
+                        'route',
+                        'docs',
+                        'catalog',
+                        'route_only',
+                        'docs_only',
+                        'custom_module',
+                        'unknown_meta',
+                    ],
+                ],
+                'meta' => ['generated_at'],
+            ]);
+    }
+
+    public function test_feature_catalog_healthcheck_requires_admin(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant User',
+            'email' => 'tenant.healthcheck@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'tenant.healthcheck@example.com',
+            'password' => 'StrongPass1',
+        ]);
+
+        $token = $login->json('data.accessToken');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/v1/saas/packages/feature-catalog/healthcheck');
+
+        $response->assertStatus(403)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
 
     /**
@@ -445,6 +507,75 @@ class PackageServiceTest extends TestCase
             'code' => 'extra_users',
             'name' => 'Extra Users',
         ]);
+    }
+
+    public function test_create_package_addon_rejects_feature_code_namespace_collision(): void
+    {
+        Package::create([
+            'code' => 'starter',
+            'name' => 'Starter',
+            'monthly_price' => 99000,
+            'yearly_price' => 990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        $response = $this->request()->postJson('/v1/saas/package-addons', [
+            'code' => 'employee_management',
+            'name' => 'Employee Management Add-on',
+            'description' => 'Should be rejected because code is reserved for feature catalog.',
+            'price_per_unit' => 25000,
+            'unit_name' => 'tenant / month',
+            'status' => 'active',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'FEATURE_CODE_NAMESPACE_CONFLICT');
+    }
+
+    public function test_list_package_addons_excludes_rows_that_collide_with_feature_codes(): void
+    {
+        $package = Package::create([
+            'code' => 'starter',
+            'name' => 'Starter',
+            'monthly_price' => 99000,
+            'yearly_price' => 990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        PackageFeature::create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => 50,
+        ]);
+
+        PackageAddon::create([
+            'code' => 'employee_management',
+            'name' => 'Colliding Add-on',
+            'description' => 'Must be hidden from add-on catalog list.',
+            'price_per_unit' => 10000,
+            'unit_name' => 'tenant / month',
+            'status' => 'active',
+        ]);
+
+        PackageAddon::create([
+            'code' => 'custom_ai_workflows',
+            'name' => 'Custom AI Workflows',
+            'description' => 'Valid add-on SKU.',
+            'price_per_unit' => 120000,
+            'unit_name' => 'tenant / month',
+            'status' => 'active',
+        ]);
+
+        $response = $this->request()->getJson('/v1/saas/package-addons');
+        $response->assertOk()->assertJsonPath('success', true);
+
+        $codes = collect($response->json('data'))->pluck('code')->all();
+        $this->assertContains('custom_ai_workflows', $codes);
+        $this->assertNotContains('employee_management', $codes);
     }
 
     /**

@@ -3,91 +3,83 @@
 
   const API_BASE = "/v1/saas/packages";
   const API_FEATURE_CATALOG = "/v1/saas/packages/feature-catalog";
+  const API_FEATURE_CATALOG_HEALTHCHECK = "/v1/saas/packages/feature-catalog/healthcheck";
   const API_ADDONS_BASE = "/v1/saas/package-addons";
   const PAGE_SIZE = 10;
   const FEATURE_LIMIT_INPUT_CODE = "max_employees";
   let apiToken = null;
   let featureLibrary = [];
-  const FALLBACK_FEATURE_LIBRARY = [
-    {
-      module: "employee",
-      title: "Employee Management",
-      description: "Fitur inti employee yang aktif dipakai pada flow HCM saat ini.",
-      features: [
-        {
-          code: "max_employees",
-          name: "Maximum Employees",
-          description: "Batasi jumlah employee aktif yang bisa dikelola dalam paket ini.",
-          requiresLimit: true,
-          limitLabel: "Jumlah employee",
-          limitPlaceholder: "Contoh: 50",
-          limitSuffix: "org",
-        },
-        { code: "employee_management", name: "Employee Directory", description: "List, profile, dan pencarian data karyawan." },
-        { code: "employee_document_center", name: "Document Center", description: "Dokumen personal, kontrak, dan arsip employee." },
-        { code: "employee_lifecycle", name: "Lifecycle Tracking", description: "Onboarding, mutation, promotion, sampai exit." },
-      ],
-    },
-    {
-      module: "attendance",
-      title: "Attendance",
-      description: "Fitur attendance yang dipakai untuk absensi dan scheduling.",
-      features: [
-        { code: "attendance", name: "Attendance Dashboard", description: "Dashboard check in/out harian untuk employee." },
-        { code: "attendance_shift_scheduling", name: "Shift Scheduling", description: "Atur shift dan jam kerja tim." },
-      ],
-    },
-    {
-      module: "leave",
-      title: "Leave Management",
-      description: "Fitur leave yang aktif untuk request, approval, dan kalender libur.",
-      features: [
-        { code: "leave_management", name: "Leave Requests", description: "Pengajuan cuti, izin, sakit dari employee." },
-        { code: "leave_approval_flow", name: "Approval Workflow", description: "Approval berjenjang manager hingga HR." },
-        { code: "holiday_calendar", name: "Holiday Calendar", description: "Kelola hari libur nasional dan perusahaan." },
-      ],
-    },
-    {
-      module: "payroll",
-      title: "Payroll",
-      description: "Fitur payroll yang dipakai untuk proses gaji dan THR.",
-      features: [
-        { code: "payroll", name: "Payroll Run", description: "Generate payroll periodik bulanan." },
-        { code: "payroll_components", name: "Compensation Components", description: "Kelola komponen kompensasi seperti allowance dan deduction payroll." },
-        { code: "payroll_thr", name: "THR Management", description: "Perhitungan dan approval THR periodik." },
-      ],
-    },
-    {
-      module: "performance",
-      title: "Performance",
-      description: "Fitur performance dan goal yang saat ini dipakai di modul HCM.",
-      features: [
-        { code: "performance", name: "Performance Review", description: "Review performa periodik per employee." },
-        { code: "goal_tracking", name: "Goal Tracking", description: "Objective/KPI tracking lintas periode." },
-        { code: "performance_goal_tracking", name: "Advanced Goal Tracking", description: "Goal tracking lanjutan untuk workflow performance." },
-        { code: "training", name: "Training", description: "Administrasi pelatihan, trainer, dan sesi pembelajaran." },
-      ],
-    },
-    {
-      module: "assets",
-      title: "Asset Management",
-      description: "Fitur inti asset management untuk inventaris perusahaan.",
-      features: [
-        { code: "asset_management", name: "Asset Management", description: "Master aset, assignment, dan stock overview." },
-      ],
-    },
-    {
-      module: "platform",
-      title: "Platform",
-      description: "Fitur platform aktif untuk operasional internal.",
-      features: [
-        { code: "tickets", name: "Tickets", description: "Modul helpdesk internal untuk employee dan admin." },
-      ],
-    },
-  ];
+  const FALLBACK_FEATURE_LIBRARY = [];
 
   function getFeatureLibrary() {
     return featureLibrary.length ? featureLibrary : FALLBACK_FEATURE_LIBRARY;
+  }
+
+  function getRuntimeFeatureDisplayName(code, fallbackName) {
+    const map = {
+      max_employees: "Maximum Employees",
+      employee_management: "Employee Directory",
+      employee_document_center: "Document Center",
+      employee_lifecycle: "Lifecycle Tracking",
+      attendance: "Attendance Dashboard",
+      attendance_shift_scheduling: "Shift Scheduling",
+      leave_management: "Leave Requests",
+      leave_approval_flow: "Approval Workflow",
+      holiday_calendar: "Holiday Calendar",
+      payroll: "Payroll Run",
+      payroll_components: "Compensation Components",
+      payroll_thr: "THR Management",
+      performance_goal_tracking: "Advanced Goal Tracking",
+      trial_billing_dashboard: "Trial Billing Dashboard",
+      tax_governance: "Tax Governance",
+      allowance_governance: "Allowance Governance",
+      bpjs_governance: "BPJS Governance",
+      spt_masa_pph21: "SPT Masa PPh 21",
+      overtime: "Overtime",
+      calendar_events: "Calendar Events",
+      promotion: "Promotion",
+      resignation: "Resignation",
+      termination: "Termination",
+      data_privacy: "Data Privacy",
+      notes: "Notes",
+      faq: "FAQ",
+    };
+
+    return map[code] || fallbackName || code;
+  }
+
+  function isRecognizedRuntimeFeatureCode(code) {
+    if (!code) return false;
+
+    if (code === "max_employees") return true;
+    if (code === "holiday_calendar") return true;
+    if (code === "performance") return true;
+    if (code === "goal_tracking") return true;
+    if (code === "training") return true;
+    if (code === "asset_management") return true;
+    if (code === "tickets") return true;
+    if (code === "notifications") return true;
+    if (code === "trial_billing_dashboard") return true;
+    if (code === "tax_governance") return true;
+    if (code === "allowance_governance") return true;
+    if (code === "bpjs_governance") return true;
+    if (code === "spt_masa_pph21") return true;
+    if (code === "overtime") return true;
+    if (code === "calendar_events") return true;
+    if (code === "promotion") return true;
+    if (code === "resignation") return true;
+    if (code === "termination") return true;
+    if (code === "data_privacy") return true;
+    if (code === "notes") return true;
+    if (code === "faq") return true;
+
+    if (code.startsWith("employee_")) return true;
+    if (code.startsWith("attendance")) return true;
+    if (code.startsWith("leave_")) return true;
+    if (code.startsWith("payroll")) return true;
+    if (code.startsWith("performance_")) return true;
+
+    return false;
   }
 
   function getDefaultFeatureCatalog(libraryOverride) {
@@ -228,6 +220,7 @@
     isInitialized: false,
     currentPage: 1,
     totalPages: 1,
+    totalItems: 0,
     packages: [],
     addons: [],
     currentEditId: null,
@@ -238,9 +231,12 @@
     currentSearch: "",
     currentAddonPage: 1,
     totalAddonPages: 1,
+    totalAddonItems: 0,
     addonStatus: "all",
     addonSearch: "",
     featureLimitDrafts: {},
+    featureHealthcheckSummary: null,
+    compareSelectionLimit: 3,
     packageModalInstance: null,
     addonModalInstance: null,
 
@@ -283,10 +279,55 @@
           self.renderFeatureCatalog(getDefaultFeatureCatalog());
         })
         .catch(function (err) {
-          console.warn("Failed to load package feature catalog, using fallback catalog.", err);
+          console.warn("Failed to load package feature catalog from backend runtime source.", err);
           featureLibrary = [];
           self.renderFeatureCatalog(getDefaultFeatureCatalog());
         });
+    },
+
+    hydrateRuntimeFeatureCatalogFromPackages: function (packages) {
+      const runtimePackages = Array.isArray(packages) ? packages : [];
+      const featureLookup = new Map();
+
+      runtimePackages.forEach(function (pkg) {
+        const features = Array.isArray(pkg && pkg.features) ? pkg.features : [];
+        features.forEach(function (feature) {
+          const code = String(feature && feature.code ? feature.code : "").trim();
+          if (!code || featureLookup.has(code) || !isRecognizedRuntimeFeatureCode(code)) {
+            return;
+          }
+
+          const featureName = getRuntimeFeatureDisplayName(code, String(feature && feature.name ? feature.name : "").trim());
+          const fallbackDescription = code === FEATURE_LIMIT_INPUT_CODE
+            ? "Batasi jumlah employee aktif yang bisa dikelola dalam paket ini."
+            : "Fitur runtime dari package aktif.";
+
+          featureLookup.set(code, {
+            code: code,
+            name: featureName,
+            description: fallbackDescription,
+            requiresLimit: code === FEATURE_LIMIT_INPUT_CODE,
+            limitLabel: code === FEATURE_LIMIT_INPUT_CODE ? "Jumlah employee" : null,
+            limitPlaceholder: code === FEATURE_LIMIT_INPUT_CODE ? "Contoh: 50" : null,
+            limitSuffix: code === FEATURE_LIMIT_INPUT_CODE ? "org" : null,
+          });
+        });
+      });
+
+      if (!featureLookup.size) {
+        return;
+      }
+
+      featureLibrary = [
+        {
+          module: "runtime",
+          title: "Runtime Features",
+          description: "Katalog dibentuk dinamis dari data package runtime saat endpoint feature catalog belum tersedia.",
+          features: Array.from(featureLookup.values()),
+        },
+      ];
+
+      this.renderFeatureCatalog(getDefaultFeatureCatalog(featureLibrary));
     },
 
     /**
@@ -401,6 +442,56 @@
         });
       }
 
+      document.addEventListener("click", function (e) {
+        const healthcheckBtn = e.target.closest("[data-feature-healthcheck-trigger]");
+        if (!healthcheckBtn) {
+          const modulePreviewBtn = e.target.closest("[data-feature-preview-module]");
+          if (modulePreviewBtn) {
+            e.preventDefault();
+            self.showModulePreviewModal(modulePreviewBtn.getAttribute("data-feature-preview-module"));
+            return;
+          }
+
+          const listAllBtn = e.target.closest("[data-open-feature-catalog]");
+          if (listAllBtn) {
+            e.preventDefault();
+            self.showFeatureCatalogModal();
+            return;
+          }
+
+          const compareBtn = e.target.closest("[data-compare-packages-trigger]");
+          if (compareBtn) {
+            e.preventDefault();
+            self.showFeatureMatrixModal();
+          }
+
+          return;
+        }
+
+        e.preventDefault();
+        self.runFeatureCatalogHealthcheck(true);
+      });
+
+      document.addEventListener("change", function (e) {
+        const selectAll = e.target.closest("#select-all-packages");
+        if (selectAll) {
+          self.togglePackageCompareSelection(!!selectAll.checked);
+          return;
+        }
+
+        const packageCheckbox = e.target.closest("[data-package-compare-id]");
+        if (!packageCheckbox) {
+          return;
+        }
+
+        if (packageCheckbox.checked && self.getSelectedPackageIdsForCompare().length > self.compareSelectionLimit) {
+          packageCheckbox.checked = false;
+          self.showError("Maksimal bandingkan 3 package sekaligus.");
+        }
+
+        self.syncCompareSelectAllState();
+      });
+
       document.addEventListener("input", function (e) {
         const featureLimitInput = e.target.closest("[data-feature-limit-input]");
         if (!featureLimitInput) {
@@ -413,6 +504,20 @@
           self.syncTopFieldFromMaxEmployeesFeature();
         }
         self.updateFeatureSelectionSummary();
+      });
+
+      // Addon search (rendered dynamically inside renderAddons, use delegation)
+      let addonSearchDebounce = null;
+      document.addEventListener("input", function (e) {
+        if (e.target && e.target.id === "search_addons") {
+          const nextValue = String(e.target.value || "").trim();
+          window.clearTimeout(addonSearchDebounce);
+          addonSearchDebounce = window.setTimeout(function () {
+            self.addonSearch = nextValue;
+            self.currentAddonPage = 1;
+            self.loadAddons();
+          }, 250);
+        }
       });
 
       // Pagination buttons
@@ -491,10 +596,31 @@
     },
 
     /**
+     * Show skeleton placeholder in a container
+     */
+    showSkeleton: function (containerSelector, rows) {
+      const container = document.querySelector(containerSelector);
+      if (!container) return;
+      const rowsHtml = Array.from({ length: rows || 5 }, function () {
+        return `<tr>${Array.from({ length: 6 }, function () {
+          return `<td><div class="placeholder-glow"><span class="placeholder col-10 rounded"></span></div></td>`;
+        }).join('')}</tr>`;
+      }).join('');
+      container.innerHTML = `
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table"><tbody>${rowsHtml}</tbody></table>
+          </div>
+        </div>
+      `;
+    },
+
+    /**
      * Load packages from API
      */
     loadPackages: function () {
       const self = this;
+      this.showSkeleton("[data-packages-list-container]", 5);
       const params = new URLSearchParams({
         page: String(this.currentPage),
         per_page: String(PAGE_SIZE),
@@ -512,6 +638,12 @@
           if (response.success && response.data) {
             self.packages = response.data || [];
             self.totalPages = response.pagination ? response.pagination.last_page : 1;
+            self.totalItems = response.pagination ? response.pagination.total : self.packages.length;
+
+            if (!getFeatureLibrary().length) {
+              self.hydrateRuntimeFeatureCatalogFromPackages(self.packages);
+            }
+
             self.renderPackages();
           } else {
             self.showError("Failed to load packages");
@@ -528,6 +660,7 @@
      */
     loadAddons: function () {
       const self = this;
+      this.showSkeleton("[data-package-addons-list-container]", 3);
       const params = new URLSearchParams({
         page: String(this.currentAddonPage),
         per_page: String(PAGE_SIZE),
@@ -543,6 +676,7 @@
           if (response.success && response.data) {
             self.addons = response.data || [];
             self.totalAddonPages = response.pagination ? response.pagination.last_page : 1;
+            self.totalAddonItems = response.pagination ? response.pagination.total : self.addons.length;
             self.renderAddons();
           } else {
             self.showError("Failed to load package add-ons");
@@ -567,11 +701,14 @@
       if (this.packages.length === 0) {
         html = '<div class="card"><div class="card-body text-center text-muted py-4">No packages found</div></div>';
       } else {
+        const startRow = (this.currentPage - 1) * PAGE_SIZE + 1;
+        const endRow = Math.min(this.currentPage * PAGE_SIZE, this.totalItems || this.packages.length);
+        const totalRow = this.totalItems || this.packages.length;
         function statusBadge(status) {
           const s = String(status || "").toLowerCase();
           const tone = s === "active" ? "success" : s === "inactive" ? "warning" : "danger";
           return `
-            <span class="badge badge-${tone} d-inline-flex align-items-center badge-xs">
+            <span class="badge text-bg-${tone} d-inline-flex align-items-center badge-xs">
               <i class="ti ti-point-filled me-1"></i>${esc(s || "-")}
             </span>
           `;
@@ -647,12 +784,13 @@
                     <tr>
                       <td>
                         <div class="form-check form-check-md">
-                          <input class="form-check-input" type="checkbox">
+                          <input class="form-check-input" type="checkbox" data-package-compare-id="${esc(String(pkg.id))}">
                         </div>
                       </td>
                       <td>
-                        <div class="d-flex align-items-center file-name-icon">
-                          <div class="ms-2">
+                        <div class="d-flex align-items-center gap-2">
+                          ${pkg.color ? `<span class="d-inline-block rounded-circle flex-shrink-0" style="width:10px;height:10px;background:${esc(pkg.color)};" title="${esc(pkg.color)}"></span>` : ''}
+                          <div>
                             <h6 class="fw-medium mb-0">${esc(pkg.name)}</h6>
                             <p class="fs-12 fw-normal text-muted mb-0">${esc(pkg.code || "-")}</p>
                           </div>
@@ -681,8 +819,11 @@
                 </tbody>
               </table>
             </div>
+            <div class="px-3 py-2 border-top small text-muted">
+              Centang package yang ingin dibandingkan (2-3 package), lalu klik <strong>Compare Selected</strong>.
+            </div>
             <div class="card-footer d-flex justify-content-between align-items-center">
-              <small class="text-muted">Showing ${this.packages.length} packages</small>
+              <small class="text-muted">Showing ${startRow}–${endRow} of ${totalRow} packages</small>
               <nav aria-label="Page navigation">
                 <ul class="pagination pagination-sm mb-0" data-package-pagination>
                 <!--Pagination-->
@@ -695,6 +836,53 @@
 
       container.innerHTML = html;
       this.renderPagination();
+      this.syncCompareSelectAllState();
+    },
+
+    getSelectedPackageIdsForCompare: function () {
+      return Array.from(document.querySelectorAll("[data-package-compare-id]:checked")).map(function (input) {
+        return String(input.getAttribute("data-package-compare-id") || "").trim();
+      }).filter(Boolean);
+    },
+
+    togglePackageCompareSelection: function (checked) {
+      const checkboxes = Array.from(document.querySelectorAll("[data-package-compare-id]"));
+      if (!checkboxes.length) {
+        return;
+      }
+
+      if (!checked) {
+        checkboxes.forEach(function (input) {
+          input.checked = false;
+        });
+        this.syncCompareSelectAllState();
+        return;
+      }
+
+      checkboxes.forEach(function (input, index) {
+        input.checked = index < this.compareSelectionLimit;
+      }.bind(this));
+      this.syncCompareSelectAllState();
+    },
+
+    syncCompareSelectAllState: function () {
+      const selectAll = document.getElementById("select-all-packages");
+      if (!selectAll) {
+        return;
+      }
+
+      const checkboxes = Array.from(document.querySelectorAll("[data-package-compare-id]"));
+      if (!checkboxes.length) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        return;
+      }
+
+      const checkedCount = checkboxes.filter(function (input) {
+        return input.checked;
+      }).length;
+      selectAll.checked = checkedCount > 0 && checkedCount === Math.min(checkboxes.length, this.compareSelectionLimit);
+      selectAll.indeterminate = checkedCount > 0 && !selectAll.checked;
     },
 
     /**
@@ -741,14 +929,21 @@
 
       let html = `
         <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="mb-0">Package Add-ons</h5>
-              <small class="text-muted">Global add-on catalog for pricing extras</small>
+          <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <h5 class="mb-0">Package Add-ons</h5>
+                <small class="text-muted">Global add-on catalog for pricing extras</small>
+              </div>
+              <button class="btn btn-sm btn-primary" id="btn_add_addon">
+                <i class="ti ti-circle-plus me-1"></i>Add Add-on
+              </button>
             </div>
-            <button class="btn btn-sm btn-primary" id="btn_add_addon">
-              <i class="ti ti-circle-plus me-1"></i>Add Add-on
-            </button>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <input type="text" class="form-control form-control-sm" id="search_addons" placeholder="Search add-ons..." value="${esc(this.addonSearch)}">
+              </div>
+            </div>
           </div>
           ${this.addons.length === 0
             ? '<div class="card-body text-center text-muted py-4">No package add-ons found</div>'
@@ -776,7 +971,7 @@
                       <td>${formatCurrency(addon.pricePerUnit)}</td>
                       <td>${esc(addon.unitName || "-")}</td>
                       <td>
-                        <span class="badge ${addon.status === "active" ? "badge-success" : "badge-warning"} d-inline-flex align-items-center badge-xs">
+                        <span class="badge ${addon.status === "active" ? "text-bg-success" : "text-bg-warning"} d-inline-flex align-items-center badge-xs">
                           <i class="ti ti-point-filled me-1"></i>${esc(addon.status)}
                         </span>
                       </td>
@@ -797,7 +992,7 @@
             </div>
           `}
           <div class="card-footer d-flex justify-content-between align-items-center">
-            <small class="text-muted">Showing ${this.addons.length} add-ons</small>
+            <small class="text-muted">Showing ${Math.min((this.currentAddonPage - 1) * PAGE_SIZE + 1, this.totalAddonItems || this.addons.length)}–${Math.min(this.currentAddonPage * PAGE_SIZE, this.totalAddonItems || this.addons.length)} of ${this.totalAddonItems || this.addons.length} add-ons</small>
             <nav aria-label="Add-on page navigation">
               <ul class="pagination pagination-sm mb-0" data-addon-pagination></ul>
             </nav>
@@ -975,7 +1170,6 @@
 
     syncPackageFeatures: function (packageId, selectedFeatureCodes) {
       const self = this;
-      const catalogFeatureSet = new Set(getDefaultFeatureCatalog());
       const selectedFeatureMap = {};
       (selectedFeatureCodes || []).forEach(function (feature) {
         if (feature && feature.code) {
@@ -988,6 +1182,12 @@
       return apiRequest("GET", API_BASE + "/" + packageId, null)
         .then(function (response) {
           const existingFeatures = response?.data?.features || [];
+
+          if (!getFeatureLibrary().length) {
+            self.hydrateRuntimeFeatureCatalogFromPackages([{ features: existingFeatures }]);
+          }
+
+          const catalogFeatureSet = new Set(getDefaultFeatureCatalog());
           const existingByCode = {};
           existingFeatures.forEach(function (feature) {
             existingByCode[feature.code] = feature;
@@ -1239,16 +1439,12 @@
       return label;
     },
 
-    renderFeatureCatalog: function (featureCodes) {
-      const catalogRoot = document.getElementById("input_package_feature_chips");
-      if (!catalogRoot) return;
-
-      const limitDrafts = Object.assign({}, this.featureLimitDrafts || {}, this.collectFeatureLimitDrafts());
-      const selectedCodes = new Set(this.getSelectedFeatureCodes());
+    buildFeatureGroups: function (featureCodes, selectedCodesSet) {
+      const selectedCodes = selectedCodesSet instanceof Set ? selectedCodesSet : new Set();
       const defaultCatalog = getDefaultFeatureCatalog();
       const incomingCodes = new Set(featureCodes || defaultCatalog);
 
-      const groups = getFeatureLibrary().map(function (group) {
+      return getFeatureLibrary().map(function (group) {
         return {
           module: group.module,
           title: group.title,
@@ -1263,6 +1459,34 @@
       }).filter(function (group) {
         return group.features.length > 0;
       });
+    },
+
+    buildFeatureCoverageIndex: function () {
+      const coverage = {};
+      (this.packages || []).forEach(function (pkg) {
+        const pkgName = String(pkg?.name || "").trim() || "(tanpa nama)";
+        getIncludedPackageFeatures(pkg.features, { catalogOnly: true }).forEach(function (feature) {
+          const code = String(feature?.code || feature || "").trim();
+          if (!code) {
+            return;
+          }
+          if (!coverage[code]) {
+            coverage[code] = [];
+          }
+          coverage[code].push(pkgName);
+        });
+      });
+
+      return coverage;
+    },
+
+    renderFeatureCatalog: function (featureCodes) {
+      const catalogRoot = document.getElementById("input_package_feature_chips");
+      if (!catalogRoot) return;
+
+      const limitDrafts = Object.assign({}, this.featureLimitDrafts || {}, this.collectFeatureLimitDrafts());
+      const selectedCodes = new Set(this.getSelectedFeatureCodes());
+      const groups = this.buildFeatureGroups(featureCodes, selectedCodes);
 
       const accordionId = "package_feature_catalog_accordion";
       catalogRoot.innerHTML =
@@ -1280,6 +1504,7 @@
                 '<h2 class="accordion-header" id="heading_' +
                 esc(collapseId) +
                 '">' +
+                '<div class="package-feature-group-head">' +
                 '<button class="accordion-button ' +
                 (groupIndex === 0 ? "" : "collapsed") +
                 '" type="button" data-bs-toggle="collapse" data-bs-target="#' +
@@ -1298,6 +1523,10 @@
                 " fitur</span>" +
                 "</div>" +
                 "</button>" +
+                '<button type="button" class="package-feature-module-preview" data-feature-preview-module="' +
+                esc(group.module) +
+                '">Preview</button>' +
+                "</div>" +
                 "</h2>" +
                 '<div id="' +
                 esc(collapseId) +
@@ -1390,6 +1619,183 @@
       this.syncMaxEmployeesFeatureFromTopField();
       this.updateFeatureSelectionSummary();
       this.filterFeatureCatalog(document.getElementById("input_package_feature_search")?.value || "");
+      this.runFeatureCatalogHealthcheck(false);
+    },
+
+    showModulePreviewModal: function (moduleKey) {
+      const groups = this.buildFeatureGroups(getDefaultFeatureCatalog(), new Set());
+      const group = groups.find(function (item) {
+        return item.module === moduleKey;
+      });
+
+      if (!group) {
+        this.showError("Modul tidak ditemukan pada katalog runtime.");
+        return;
+      }
+
+      const titleEl = document.getElementById("modulePreviewTitle");
+      const bodyEl = document.getElementById("module_preview_container");
+      if (!bodyEl) {
+        return;
+      }
+
+      if (titleEl) {
+        titleEl.textContent = "Preview Module: " + String(group.title);
+      }
+
+      bodyEl.innerHTML =
+        '<p class="text-muted small mb-3">' + esc(group.description || "") + '</p>' +
+        '<div class="feature-catalog-list">' +
+        group.features.map(function (feature) {
+          return (
+            '<div class="package-feature-item mb-2">' +
+              '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                  '<div class="package-feature-item-title">' + esc(feature.name) + '</div>' +
+                  '<div class="package-feature-item-desc">' + esc(feature.description || "") + '</div>' +
+                '</div>' +
+                '<span class="badge bg-light text-dark">' + esc(feature.code) + '</span>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join("") +
+        '</div>';
+
+      if (window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(document.getElementById("modulePreviewModal")).show();
+      }
+    },
+
+    showFeatureCatalogModal: function () {
+      const bodyEl = document.getElementById("feature_catalog_container");
+      if (!bodyEl) {
+        return;
+      }
+
+      const groups = this.buildFeatureGroups(getDefaultFeatureCatalog(), new Set());
+      const coverage = this.buildFeatureCoverageIndex();
+      const totalFeatures = groups.reduce(function (sum, group) {
+        return sum + group.features.length;
+      }, 0);
+
+      bodyEl.innerHTML =
+        '<div class="d-flex justify-content-between align-items-center mb-3">' +
+          '<div class="text-muted small">Total feature code aktif: <strong>' + esc(String(totalFeatures)) + '</strong></div>' +
+          '<div class="text-muted small">Jumlah package aktif di list: <strong>' + esc(String((this.packages || []).length)) + '</strong></div>' +
+        '</div>' +
+        '<div class="feature-catalog-list">' +
+          groups.map(function (group) {
+            return (
+              '<div class="feature-catalog-module-card p-3">' +
+                '<div class="d-flex justify-content-between align-items-start mb-2 gap-2">' +
+                  '<div>' +
+                    '<h6 class="mb-1">' + esc(group.title) + '</h6>' +
+                    '<p class="mb-0 text-muted small">' + esc(group.description || "") + '</p>' +
+                  '</div>' +
+                  '<span class="badge text-bg-light">' + esc(String(group.features.length)) + ' fitur</span>' +
+                '</div>' +
+                '<div class="table-responsive">' +
+                  '<table class="table table-sm align-middle mb-0">' +
+                    '<thead><tr><th>Feature</th><th>Code</th><th>Ada di package</th></tr></thead>' +
+                    '<tbody>' +
+                      group.features.map(function (feature) {
+                        const inPackages = coverage[feature.code] || [];
+                        return (
+                          '<tr>' +
+                            '<td><div class="fw-semibold">' + esc(feature.name) + '</div><div class="text-muted small">' + esc(feature.description || "") + '</div></td>' +
+                            '<td><span class="badge bg-light text-dark">' + esc(feature.code) + '</span></td>' +
+                            '<td>' +
+                              (inPackages.length
+                                ? inPackages.map(function (pkgName) {
+                                    return '<span class="badge bg-light text-dark me-1 mb-1">' + esc(pkgName) + '</span>';
+                                  }).join("")
+                                : '<span class="text-muted small">Belum terpasang di package mana pun</span>') +
+                            '</td>' +
+                          '</tr>'
+                        );
+                      }).join("") +
+                    '</tbody>' +
+                  '</table>' +
+                '</div>' +
+              '</div>'
+            );
+          }).join("") +
+        '</div>';
+
+      if (window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(document.getElementById("featureCatalogModal")).show();
+      }
+    },
+
+    showFeatureMatrixModal: function () {
+      const selectedIds = this.getSelectedPackageIdsForCompare();
+      if (selectedIds.length < 2) {
+        this.showError("Pilih minimal 2 package untuk membandingkan fitur.");
+        return;
+      }
+
+      const selectedPackages = (this.packages || []).filter(function (pkg) {
+        return selectedIds.indexOf(String(pkg.id)) >= 0;
+      });
+
+      if (selectedPackages.length < 2) {
+        this.showError("Package terpilih tidak ditemukan di halaman saat ini. Refresh list lalu coba lagi.");
+        return;
+      }
+
+      const bodyEl = document.getElementById("feature_matrix_container");
+      if (!bodyEl) {
+        return;
+      }
+
+      const groups = this.buildFeatureGroups(getDefaultFeatureCatalog(), new Set());
+      const featureRows = groups.flatMap(function (group) {
+        return group.features.map(function (feature) {
+          return {
+            moduleTitle: group.title,
+            code: feature.code,
+            name: feature.name,
+            description: feature.description || "",
+          };
+        });
+      });
+
+      bodyEl.innerHTML =
+        '<p class="text-muted small mb-3">Perbandingan fitur antar package berdasarkan katalog runtime yang tampil di halaman ini.</p>' +
+        '<div class="table-responsive feature-matrix-table">' +
+          '<table class="table table-sm table-bordered align-middle">' +
+            '<thead class="table-light">' +
+              '<tr>' +
+                '<th style="min-width:280px;">Feature</th>' +
+                selectedPackages.map(function (pkg) {
+                  return '<th>' + esc(pkg.name) + '</th>';
+                }).join("") +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' +
+              featureRows.map(function (row) {
+                return (
+                  '<tr>' +
+                    '<td>' +
+                      '<div class="fw-semibold">' + esc(row.name) + '</div>' +
+                      '<div class="text-muted small">' + esc(row.moduleTitle) + ' • ' + esc(row.code) + '</div>' +
+                    '</td>' +
+                    selectedPackages.map(function (pkg) {
+                      const hasFeature = getIncludedPackageFeatures(pkg.features, { catalogOnly: true }).some(function (feature) {
+                        return String(feature?.code || feature || "") === row.code;
+                      });
+                      return '<td class="text-center">' + (hasFeature ? '<span class="text-success fw-semibold">✓</span>' : '<span class="text-muted">-</span>') + '</td>';
+                    }).join("") +
+                  '</tr>'
+                );
+              }).join("") +
+            '</tbody>' +
+          '</table>' +
+        '</div>';
+
+      if (window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(document.getElementById("featureMatrixModal")).show();
+      }
     },
 
     toggleVisibleFeatures: function (checked, clearAll) {
@@ -1488,6 +1894,62 @@
       previewEl.innerHTML = labels.join("");
     },
 
+    renderFeatureHealthcheckStatus: function (payload) {
+      const statusEl = document.querySelector("[data-feature-healthcheck-status]");
+      if (!statusEl) {
+        return;
+      }
+
+      if (!payload || payload.loading) {
+        statusEl.className = "small text-muted mt-2";
+        statusEl.textContent = "Healthcheck: memeriksa sinkronisasi route/docs/catalog...";
+        return;
+      }
+
+      if (payload.error) {
+        statusEl.className = "small text-danger mt-2";
+        statusEl.textContent = "Healthcheck tidak tersedia: " + payload.error;
+        return;
+      }
+
+      const counts = payload.counts || {};
+      const routeOnly = Number(counts.route_only || 0);
+      const docsOnly = Number(counts.docs_only || 0);
+      const hasDrift = !!payload.has_drift;
+
+      statusEl.className = hasDrift ? "small text-warning mt-2" : "small text-success mt-2";
+      statusEl.textContent = hasDrift
+        ? "Healthcheck drift terdeteksi (route-only: " + routeOnly + ", docs-only: " + docsOnly + ")."
+        : "Healthcheck OK: route/docs/catalog sinkron.";
+    },
+
+    runFeatureCatalogHealthcheck: function (force) {
+      const self = this;
+      if (self.featureHealthcheckSummary && !force) {
+        self.renderFeatureHealthcheckStatus(self.featureHealthcheckSummary);
+        return Promise.resolve(self.featureHealthcheckSummary);
+      }
+
+      self.renderFeatureHealthcheckStatus({ loading: true });
+
+      return apiRequest("GET", API_FEATURE_CATALOG_HEALTHCHECK)
+        .then(function (response) {
+          if (!response || response.success !== true || !response.data) {
+            throw new Error("Invalid healthcheck response");
+          }
+
+          self.featureHealthcheckSummary = response.data;
+          self.renderFeatureHealthcheckStatus(self.featureHealthcheckSummary);
+          return self.featureHealthcheckSummary;
+        })
+        .catch(function (err) {
+          const message = err?.data?.error?.message || err?.message || "request failed";
+          self.featureHealthcheckSummary = { error: message };
+          self.renderFeatureHealthcheckStatus(self.featureHealthcheckSummary);
+          return self.featureHealthcheckSummary;
+        });
+    },
+
     resetPackageModalState: function () {
       const title = document.getElementById("packageModalTitle");
       const submitBtn = document.querySelector("#packageForm button[type='submit']");
@@ -1496,6 +1958,7 @@
       this.currentEditSnapshot = null;
       this.currentPricingDirty = false;
       this.featureLimitDrafts = {};
+      this.featureHealthcheckSummary = null;
       const maxEmployeesInput = document.getElementById("input_package_max_employees");
       if (maxEmployeesInput) {
         maxEmployeesInput.value = "";
@@ -1590,6 +2053,11 @@
         .then(function (response) {
           if (response.success && response.data) {
             const pkg = response.data;
+
+            if (!getFeatureLibrary().length) {
+              self.hydrateRuntimeFeatureCatalogFromPackages([{ features: pkg.features || [] }]);
+            }
+
             const title = document.getElementById("packageModalTitle");
             const submitBtn = document.querySelector("#packageForm button[type='submit']");
             if (title) title.textContent = "Edit Package";

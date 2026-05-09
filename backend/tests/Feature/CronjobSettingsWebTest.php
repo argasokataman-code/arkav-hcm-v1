@@ -98,4 +98,41 @@ class CronjobSettingsWebTest extends TestCase
 
         $this->assertNull(Setting::get('cronjob_payment_reminder'));
     }
+
+    public function test_hcm_admin_receives_validation_errors_for_invalid_cronjob_payload(): void
+    {
+        $admin = User::factory()->create([
+            'email' => 'qa.login@example.com',
+        ]);
+
+        $csrfToken = 'cronjob-validation-token';
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => $csrfToken])
+            ->from('/cronjob')
+            ->post('/cronjob', [
+                '_token' => $csrfToken,
+                'jobs' => [
+                    'payment_reminder' => [
+                        'enabled' => '1',
+                        'time' => '25:90',
+                        'timezone' => 'Mars/Phobos',
+                    ],
+                    'wilayah_sync' => [
+                        'time' => '02:15',
+                        'timezone' => 'Asia/Jakarta',
+                        'dayOfMonth' => 40,
+                    ],
+                ],
+            ])
+            ->assertRedirect('/cronjob')
+            ->assertSessionHasErrors([
+                'jobs.payment_reminder.time',
+                'jobs.payment_reminder.timezone',
+                'jobs.wilayah_sync.dayOfMonth',
+            ]);
+
+        $this->assertNull(Setting::get('cronjob_payment_reminder'));
+        $this->assertNull(Setting::get('cronjob_wilayah_sync'));
+    }
 }

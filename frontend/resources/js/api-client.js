@@ -881,4 +881,30 @@
             window.bootstrap.Modal.getOrCreateInstance(el).show();
         });
     };
+
+    window.ArcavUi.showToast = function (message, type) {
+        var safeType = type === "success" ? "success"
+            : type === "danger" ? "danger"
+            : type === "warning" ? "warning"
+            : "info";
+        var colorMap = { success: "#198754", danger: "#dc3545", warning: "#856404", info: "#0c63e4" };
+        var bgMap = { success: "#d1e7dd", danger: "#f8d7da", warning: "#fff3cd", info: "#cfe2ff" };
+        var alertDiv = document.createElement("div");
+        alertDiv.className = "alert alert-" + safeType + " alert-dismissible fade show position-fixed d-flex align-items-center gap-2";
+        alertDiv.style.cssText = "top:1rem;right:1rem;z-index:99999;max-width:380px;box-shadow:0 4px 12px rgba(0,0,0,.15);border-left:4px solid " + colorMap[safeType] + ";background:" + bgMap[safeType] + ";";
+        var textNode = document.createElement("span");
+        textNode.textContent = String(message || "");
+        var closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.className = "btn-close ms-auto";
+        closeBtn.setAttribute("data-bs-dismiss", "alert");
+        closeBtn.setAttribute("aria-label", "Close");
+        alertDiv.appendChild(textNode);
+        alertDiv.appendChild(closeBtn);
+        document.body.appendChild(alertDiv);
+        setTimeout(function () {
+            alertDiv.classList.remove("show");
+            setTimeout(function () { alertDiv.remove(); }, 300);
+        }, 5000);
+    };
 })(window);

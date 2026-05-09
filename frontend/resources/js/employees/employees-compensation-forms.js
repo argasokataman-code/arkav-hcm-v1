@@ -1,5 +1,9 @@
 export function bindEmployeeCompensationFormsModule(deps) {
     var PASSWORD_RULE_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/;
+    var LETTER_SPACE_PUNCT_150_REGEX = /^[\p{L}\p{M} .,'-]{2,150}$/u;
+    var LETTER_SPACE_PUNCT_100_REGEX = /^[\p{L}\p{M} .,'-]{2,100}$/u;
+    var EMERGENCY_NAME_REGEX = /^[\p{L}\p{M}' .,-]{2,100}$/u;
+    var EMERGENCY_RELATIONSHIP_REGEX = /^[\p{L}\p{M}' .-]{2,50}$/u;
     var requestJson = deps.requestJson;
     var requestEmployeeDetail = deps.requestEmployeeDetail;
     var fillDesignationSelectForDepartment = deps.fillDesignationSelectForDepartment;
@@ -181,12 +185,23 @@ export function bindEmployeeCompensationFormsModule(deps) {
         });
     }
 
+    function setVillageUnavailableHint(form, unavailable) {
+        var hint = form ? form.querySelector("[data-village-unavailable-hint]") : null;
+        if (hint) {
+            hint.style.display = unavailable ? "" : "none";
+        }
+    }
+
     function loadVillages(form, districtId, selectedVillageId) {
         var wilayah = getWilayahElements(form);
         if (!wilayah) {
             return Promise.resolve();
         }
         resetWilayahSelect(wilayah.village, "Select village");
+        // Restore required in case a previous district had no villages
+        wilayah.village.required = true;
+        wilayah.village.removeAttribute("data-village-unavailable");
+        setVillageUnavailableHint(form, false);
         syncAddressAutofill(form);
         if (!districtId) {
             return Promise.resolve();
@@ -194,8 +209,25 @@ export function bindEmployeeCompensationFormsModule(deps) {
 
         setSelectLoading(wilayah.village, "Loading villages...");
         return fetchWilayah("/v1/hcm/wilayah/villages?districtId=" + encodeURIComponent(String(districtId))).then(function (rows) {
-            setSelectOptions(wilayah.village, rows, "Select village", selectedVillageId || "");
-            wilayah.village.disabled = false;
+            if (!rows || rows.length === 0) {
+                // District has no villages — make field optional and guide user to Address Detail
+                wilayah.village.innerHTML = '<option value="">Tidak ada data kelurahan — isi Address Detail</option>';
+                wilayah.village.value = "";
+                wilayah.village.required = false;
+                wilayah.village.disabled = false;
+                wilayah.village.setAttribute("data-village-unavailable", "1");
+                setVillageUnavailableHint(form, true);
+                // Auto-focus address detail so user knows where to go
+                var addressDetailField = form.querySelector('[data-employee-add-field="addressDetail"], [data-employee-edit-field="addressDetail"]');
+                if (addressDetailField) {
+                    addressDetailField.focus();
+                }
+            } else {
+                setSelectOptions(wilayah.village, rows, "Select village", selectedVillageId || "");
+                wilayah.village.disabled = false;
+                wilayah.village.required = true;
+                setVillageUnavailableHint(form, false);
+            }
             syncAddressAutofill(form);
         });
     }
@@ -209,6 +241,8 @@ export function bindEmployeeCompensationFormsModule(deps) {
         resetWilayahSelect(wilayah.regency, "Select regency");
         resetWilayahSelect(wilayah.district, "Select district");
         resetWilayahSelect(wilayah.village, "Select village");
+        wilayah.village.required = true;
+        setVillageUnavailableHint(form, false);
         wilayah.address.value = "";
         form.setAttribute("data-employee-address-auto", "");
         loadProvinces(form, "").then(function () {
@@ -447,6 +481,238 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (window.ArcavUi && window.ArcavUi.showToast) {
             window.ArcavUi.showToast(message, "warning");
         }
+    }
+
+    function digitsOnly(value) {
+        return String(value || "").replace(/\D+/g, "");
+    }
+
+    function lettersSpacePunctOnly(value) {
+        return String(value || "").replace(/[^\p{L}\p{M} .,'-]/gu, "");
+    }
+
+    function npwpCharsOnly(value) {
+        return String(value || "").replace(/[^0-9.-]/g, "");
+    }
+
+    function trimToMax(value, maxLength) {
+        if (typeof maxLength !== "number" || maxLength <= 0) {
+            return value;
+        }
+        return String(value || "").slice(0, maxLength);
+    }
+
+    function enforceInputRules(field) {
+        if (!field) {
+            return;
+        }
+
+        var fieldKey = field.getAttribute("data-employee-add-field") || field.getAttribute("data-employee-edit-field") || "";
+        var repeatKey = field.getAttribute("data-repeat-key") || "";
+        var raw = String(field.value || "");
+        var next = raw;
+
+        if (
+            fieldKey === "phone"
+            || fieldKey === "nik"
+            || fieldKey === "bankAccountNo"
+            || fieldKey === "bpjsKesehatanNo"
+            || fieldKey === "bpjsKetenagakerjaanNo"
+            || repeatKey === "phone"
+            || fieldKey === "baseSalary"
+        ) {
+            next = digitsOnly(raw);
+        } else if (
+            fieldKey === "name"
+            || fieldKey === "placeOfBirth"
+            || fieldKey === "bankAccountHolderName"
+            || repeatKey === "name"
+            || repeatKey === "relationship"
+        ) {
+            next = lettersSpacePunctOnly(raw);
+        } else if (fieldKey === "npwp") {
+            next = npwpCharsOnly(raw);
+        }
+
+        var attrMaxLength = parseInt(String(field.getAttribute("maxlength") || ""), 10);
+        if (!isNaN(attrMaxLength) && attrMaxLength > 0) {
+            next = trimToMax(next, attrMaxLength);
+        }
+
+        if (next !== raw) {
+            field.value = next;
+        }
+    }
+
+    function failField(field, message) {
+        if (!field) {
+            showValidationToast(message);
+            return false;
+        }
+        if (typeof field.setCustomValidity === "function") {
+            field.setCustomValidity(message);
+        }
+        if (typeof field.reportValidity === "function") {
+            field.reportValidity();
+        }
+        if (typeof field.focus === "function") {
+            field.focus();
+        }
+        // Always toast so hidden-pane fields still surface an error message to the user.
+        showValidationToast(message);
+        return false;
+    }
+
+    function validateRegexField(form, key, regex, message, options) {
+        var opts = options || {};
+        var field = form ? form.querySelector('[data-employee-add-field="' + key + '"], [data-employee-edit-field="' + key + '"]') : null;
+        if (!field) {
+            return true;
+        }
+        var raw = String(field.value || "");
+        var value = opts.preserveSpaces === true ? raw : raw.trim();
+        if (!value) {
+            return true;
+        }
+        if (!regex.test(value)) {
+            return failField(field, message);
+        }
+        return true;
+    }
+
+    var ALPHA_REQUIRED_REGEX = /[A-Za-z\p{L}]/u;
+
+    function validateEducationRows(form) {
+        if (!form) { return true; }
+        var INST_REGEX = /^[\p{L}\p{M}0-9 .,'\-]{2,100}$/u;
+        var DEG_REGEX = /^[\p{L}\p{M}0-9 .,'\-]{2,50}$/u;
+        var rows = form.querySelectorAll('[data-employee-repeatable="educationItems"] [data-repeat-row]');
+        for (var i = 0; i < rows.length; i += 1) {
+            var row = rows[i];
+            var instInput = row.querySelector('[data-repeat-key="institution"]');
+            var degInput  = row.querySelector('[data-repeat-key="degree"]');
+            var syInput   = row.querySelector('[data-repeat-key="startYear"]');
+            var eyInput   = row.querySelector('[data-repeat-key="endYear"]');
+            var inst = String(instInput && instInput.value ? instInput.value : "").trim();
+            var deg  = String(degInput  && degInput.value  ? degInput.value  : "").trim();
+            var sy   = syInput  ? parseInt(syInput.value,  10) : 0;
+            var ey   = eyInput  ? parseInt(eyInput.value,  10) : 0;
+            var empty = inst === "" && deg === "";
+            if (empty) { continue; }
+            if (!inst || !INST_REGEX.test(inst)) {
+                if (instInput) { instInput.focus(); }
+                showValidationToast("Nama institusi pendidikan wajib huruf/angka/spasi/tanda baca (2-100 karakter) dan mengandung setidaknya satu huruf.");
+                return false;
+            }
+            if (!ALPHA_REQUIRED_REGEX.test(inst)) {
+                if (instInput) { instInput.focus(); }
+                showValidationToast("Nama institusi pendidikan harus mengandung setidaknya satu huruf (bukan angka semua).");
+                return false;
+            }
+            if (!deg || !DEG_REGEX.test(deg)) {
+                if (degInput) { degInput.focus(); }
+                showValidationToast("Degree/jenjang pendidikan wajib huruf/angka/spasi/tanda baca (2-50 karakter).");
+                return false;
+            }
+            if (!ALPHA_REQUIRED_REGEX.test(deg)) {
+                if (degInput) { degInput.focus(); }
+                showValidationToast("Degree/jenjang pendidikan harus mengandung setidaknya satu huruf (bukan angka semua).");
+                return false;
+            }
+            if (sy && ey && ey < sy) {
+                showValidationToast("End year pendidikan tidak boleh lebih kecil dari start year.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function validateExperienceRows(form) {
+        if (!form) { return true; }
+        var COMP_REGEX = /^[\p{L}\p{M}0-9 .,'\-]{2,100}$/u;
+        var POS_REGEX  = /^[\p{L}\p{M}0-9 .,'\-]{2,100}$/u;
+        var rows = form.querySelectorAll('[data-employee-repeatable="experienceItems"] [data-repeat-row]');
+        for (var i = 0; i < rows.length; i += 1) {
+            var row = rows[i];
+            var compInput  = row.querySelector('[data-repeat-key="company"]');
+            var posInput   = row.querySelector('[data-repeat-key="position"]');
+            var sdInput    = row.querySelector('[data-repeat-key="startDate"]');
+            var edInput    = row.querySelector('[data-repeat-key="endDate"]');
+            var comp = String(compInput && compInput.value ? compInput.value : "").trim();
+            var pos  = String(posInput  && posInput.value  ? posInput.value  : "").trim();
+            var sd   = sdInput && sdInput.value ? String(sdInput.value).trim() : "";
+            var ed   = edInput && edInput.value ? String(edInput.value).trim() : "";
+            var empty = comp === "" && pos === "";
+            if (empty) { continue; }
+            if (!comp || !COMP_REGEX.test(comp)) {
+                if (compInput) { compInput.focus(); }
+                showValidationToast("Nama perusahaan wajib huruf/angka/spasi/tanda baca (2-100 karakter).");
+                return false;
+            }
+            if (!ALPHA_REQUIRED_REGEX.test(comp)) {
+                if (compInput) { compInput.focus(); }
+                showValidationToast("Nama perusahaan harus mengandung setidaknya satu huruf.");
+                return false;
+            }
+            if (!pos || !POS_REGEX.test(pos)) {
+                if (posInput) { posInput.focus(); }
+                showValidationToast("Posisi/jabatan pengalaman kerja wajib huruf/angka/spasi/tanda baca (2-100 karakter).");
+                return false;
+            }
+            if (!ALPHA_REQUIRED_REGEX.test(pos)) {
+                if (posInput) { posInput.focus(); }
+                showValidationToast("Posisi/jabatan harus mengandung setidaknya satu huruf.");
+                return false;
+            }
+            if (sd && ed && ed < sd) {
+                showValidationToast("End date pengalaman kerja tidak boleh lebih awal dari start date.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function validateEmergencyContactRows(form) {
+        if (!form) {
+            return true;
+        }
+        var rows = form.querySelectorAll('[data-employee-repeatable="emergencyContacts"] [data-repeat-row]');
+        var hasValid = false;
+
+        for (var i = 0; i < rows.length; i += 1) {
+            var row = rows[i];
+            var nameInput = row.querySelector('[data-repeat-key="name"]');
+            var relationshipInput = row.querySelector('[data-repeat-key="relationship"]');
+            var phoneInput = row.querySelector('[data-repeat-key="phone"]');
+
+            var name = String(nameInput && nameInput.value ? nameInput.value : "").trim();
+            var relationship = String(relationshipInput && relationshipInput.value ? relationshipInput.value : "").trim();
+            var phone = String(phoneInput && phoneInput.value ? phoneInput.value : "").trim();
+
+            var isCompletelyEmpty = name === "" && relationship === "" && phone === "";
+            if (isCompletelyEmpty) {
+                continue;
+            }
+
+            if (!name || !EMERGENCY_NAME_REGEX.test(name)) {
+                return failField(nameInput, "Nama emergency contact wajib huruf/spasi/tanda baca umum (2-100 karakter).");
+            }
+            if (!relationship || !EMERGENCY_RELATIONSHIP_REGEX.test(relationship)) {
+                return failField(relationshipInput, "Relationship emergency contact wajib huruf/spasi/tanda baca umum (2-50 karakter).");
+            }
+            if (!/^[0-9]{10,13}$/.test(phone)) {
+                return failField(phoneInput, "Nomor telepon emergency contact wajib angka 10-13 digit.");
+            }
+
+            hasValid = true;
+        }
+
+        if (!hasValid) {
+            showValidationToast("Minimal satu emergency contact dengan nama, hubungan, dan nomor telepon valid wajib diisi.");
+            return false;
+        }
+
+        return true;
     }
 
     function maybeShowEmployeeLimitPopup(payload, fallbackMessage) {
@@ -742,6 +1008,32 @@ export function bindEmployeeCompensationFormsModule(deps) {
             }
         }
 
+        if (stepIndex === 0) {
+            // When district has no villages, addressDetail becomes the required fallback.
+            var villageSelect = form.querySelector("[data-employee-wilayah-village]");
+            if (villageSelect && villageSelect.getAttribute("data-village-unavailable") === "1") {
+                var addressDetailEl = form.querySelector('[data-employee-add-field="addressDetail"], [data-employee-edit-field="addressDetail"]');
+                var addressDetailVal = addressDetailEl ? String(addressDetailEl.value || "").trim() : "";
+                if (!addressDetailVal) {
+                    if (addressDetailEl) { addressDetailEl.focus(); }
+                    showValidationToast("Kecamatan ini tidak memiliki data kelurahan. Wajib isi Address Detail sebagai pengganti.");
+                    return false;
+                }
+            }
+            if (!validateRegexField(form, "name", LETTER_SPACE_PUNCT_150_REGEX, "Full name hanya boleh huruf, spasi, dan tanda baca umum (2-150 karakter).")) {
+                return false;
+            }
+            if (!validateRegexField(form, "placeOfBirth", LETTER_SPACE_PUNCT_150_REGEX, "Place of birth hanya boleh huruf, spasi, dan tanda baca umum (2-150 karakter).")) {
+                return false;
+            }
+            if (!validateRegexField(form, "phone", /^[0-9]{10,13}$/, "Phone wajib angka 10-13 digit.")) {
+                return false;
+            }
+            if (!validateRegexField(form, "nik", /^[0-9]{16}$/, "NIK wajib 16 digit angka.")) {
+                return false;
+            }
+        }
+
         // Contract cross-checks — only relevant from step 2 (Compensation) onward.
         // Running on step 0/1 would produce confusing toasts about fields the user hasn't seen yet.
         if (stepIndex >= 2) {
@@ -778,14 +1070,40 @@ export function bindEmployeeCompensationFormsModule(deps) {
             }
         }
 
+        // Bank & Tax fields — step 3 (Bank & Tax pane) or submit from step 4.
+        // Runs on both so "Next" on step 3 catches bad format AND submit always re-checks.
+        if (stepIndex >= 3) {
+            if (!validateRegexField(form, "bankAccountNo", /^[0-9]{8,30}$/, "Nomor rekening wajib angka 8-30 digit.")) {
+                return false;
+            }
+            if (!validateRegexField(form, "bankAccountHolderName", LETTER_SPACE_PUNCT_100_REGEX, "Nama pemilik rekening hanya boleh huruf, spasi, dan tanda baca umum (2-100 karakter).")) {
+                return false;
+            }
+            var npwpField = form.querySelector('[data-employee-add-field="npwp"], [data-employee-edit-field="npwp"]');
+            var npwpValue = npwpField ? String(npwpField.value || "").trim() : "";
+            if (npwpValue) {
+                var npwpDigits = npwpValue.replace(/\D+/g, "");
+                if (!/^[0-9]{15,16}$/.test(npwpDigits)) {
+                    return failField(npwpField, "NPWP wajib berisi 15-16 digit angka (titik/strip diperbolehkan).");
+                }
+            }
+            if (!validateRegexField(form, "bpjsKesehatanNo", /^[0-9]{13}$/, "BPJS Kesehatan wajib 13 digit angka.", { preserveSpaces: false })) {
+                return false;
+            }
+            if (!validateRegexField(form, "bpjsKetenagakerjaanNo", /^[0-9]{11}$/, "BPJS Ketenagakerjaan wajib 11 digit angka.", { preserveSpaces: false })) {
+                return false;
+            }
+        }
+
         // Emergency contacts — step 4 (Background/final step) only.
         if (stepIndex === 4) {
-            var contacts = collectRepeatable(form, "emergencyContacts");
-            var hasValidEmergencyContact = contacts.some(function (item) {
-                return item && item.name && item.relationship && /^[0-9]{10,13}$/.test(String(item.phone || ""));
-            });
-            if (!hasValidEmergencyContact) {
-                showValidationToast("Minimal satu emergency contact dengan nama, hubungan, dan nomor telepon valid wajib diisi.");
+            if (!validateEducationRows(form)) {
+                return false;
+            }
+            if (!validateExperienceRows(form)) {
+                return false;
+            }
+            if (!validateEmergencyContactRows(form)) {
                 return false;
             }
         }
@@ -1035,9 +1353,14 @@ export function bindEmployeeCompensationFormsModule(deps) {
         // change is kept for select/date fields that don't fire input.
         function handleFieldInteraction(event) {
             var changedField = event.target && event.target.closest ? event.target.closest("input, select, textarea") : null;
-            if (changedField && changedField.getAttribute("data-employee-backend-error") === "1" && typeof changedField.setCustomValidity === "function") {
-                changedField.setCustomValidity("");
-                changedField.removeAttribute("data-employee-backend-error");
+            if (changedField) {
+                enforceInputRules(changedField);
+                if (typeof changedField.setCustomValidity === "function") {
+                    changedField.setCustomValidity("");
+                }
+                if (changedField.getAttribute("data-employee-backend-error") === "1") {
+                    changedField.removeAttribute("data-employee-backend-error");
+                }
             }
         }
         form.addEventListener("input", handleFieldInteraction);

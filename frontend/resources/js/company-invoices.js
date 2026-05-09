@@ -637,8 +637,33 @@
             var chargeStatusNode = chargeStatusWrap.querySelector(".company-invoice-pill");
             if (chargeStatusNode) chargeStatusNode.setAttribute("data-invoice-modal-charge-status", "");
         }
-        set("[data-invoice-modal-table-amount]", fmtMoney(inv.amountDue));
+        // Tax breakdown: show subtotal + tax line when billingTaxRateSnapshot > 0 and tax is shown in settings
+        var taxRow = document.querySelector("[data-invoice-modal-tax-row]");
+        var taxRateSnapshot = (inv && typeof inv.billingTaxRateSnapshot === "number") ? inv.billingTaxRateSnapshot : 0;
+        var pb = (inv && inv.pricingBreakdown && typeof inv.pricingBreakdown === "object") ? inv.pricingBreakdown : null;
+        var baseAmount = null;
+        var taxAmount = null;
+        if (taxShown && taxRateSnapshot > 0) {
+            if (pb && pb.baseAmount != null && pb.subscriptionTaxAmount != null) {
+                baseAmount = pb.baseAmount;
+                taxAmount = pb.subscriptionTaxAmount;
+            } else {
+                var factor = 1 + taxRateSnapshot / 100;
+                baseAmount = Math.round((inv.amountDue / factor) * 100) / 100;
+                taxAmount = Math.round((inv.amountDue - baseAmount) * 100) / 100;
+            }
+        }
+        if (baseAmount !== null && taxAmount !== null) {
+            set("[data-invoice-modal-table-amount]", fmtMoney(baseAmount));
+            set("[data-invoice-modal-tax-label]", "Pajak (PPN " + taxRateSnapshot + "%)");
+            set("[data-invoice-modal-tax-amount]", fmtMoney(taxAmount));
+            if (taxRow) taxRow.style.display = "";
+        } else {
+            set("[data-invoice-modal-table-amount]", fmtMoney(inv.amountDue));
+            if (taxRow) taxRow.style.display = "none";
+        }
         set("[data-invoice-modal-table-total]", fmtMoney(inv.amountDue));
+
         set("[data-invoice-modal-guidance]", invoiceGuidance(inv));
         set("[data-invoice-modal-terms-summary]", termsSummary);
         set("[data-invoice-modal-header-terms]", headerTerms);

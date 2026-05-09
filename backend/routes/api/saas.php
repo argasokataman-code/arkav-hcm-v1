@@ -97,9 +97,12 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 
         // Platform Tax Reporting — SPT PPN / PPh 23 (Global Super Admin only)
         Route::prefix('/tax')->group(function () {
+            Route::get('/active-ppn-rate', [PlatformTaxSummaryController::class, 'activePpnRate']);
             Route::get('/dashboard', [PlatformTaxSummaryController::class, 'dashboard']);
             Route::get('/spt-ppn', [PlatformTaxSummaryController::class, 'sptPpn']);
             Route::get('/spt-pph23', [PlatformTaxSummaryController::class, 'sptPph23']);
+            Route::get('/spt-pph-badan', [PlatformTaxSummaryController::class, 'sptPphBadan']);
+            Route::get('/spt-pph-badan/export', [PlatformTaxSummaryController::class, 'exportSptPphBadan']);
         });
 
         // Super Admin Dashboard

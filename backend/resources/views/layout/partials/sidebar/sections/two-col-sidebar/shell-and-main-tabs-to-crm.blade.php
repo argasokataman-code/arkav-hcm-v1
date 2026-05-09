@@ -185,8 +185,8 @@
                             <li><a href="{{url('saas/reports')}}" class="{{ Request::is('saas/reports') ? 'active' : '' }}">SaaS Reports</a></li>
                             <li><a href="{{url('saas/reminders')}}" class="{{ Request::is('saas/reminders') ? 'active' : '' }}">SaaS Reminders</a></li>
                             <li><a href="{{ route('saas.pricing') }}" class="{{ Request::is('saas/pricing*') ? 'active' : '' }}">Pricing & Plans</a></li>
-                            <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax & Compliance</a></li>
-                            <li><a href="{{ route('saas.platform-tax') }}" class="{{ Request::is('saas/platform-tax*') ? 'active' : '' }}">SPT Pajak Platform</a></li>
+                            <li><a href="{{ route('platform-tax-compliance.policies') }}" class="{{ Request::is('platform-tax-compliance*') ? 'active' : '' }}">Platform Tax Compliance Settings</a></li>
+                            <li><a href="{{ route('saas.platform-tax') }}" class="{{ Request::is('saas/platform-tax*') ? 'active' : '' }}">Tax Reporting (SPT Platform)</a></li>
                             @include('layout.partials.sidebar.sections.shared.notification-observability-link')
                             <li><a href="{{url('cronjob-schedule')}}" class="{{ Request::is('cronjob-schedule') ? 'active' : '' }}">Cronjob Schedule</a></li>
                             <li><a href="{{url('payment-report')}}" class="{{ Request::is('payment-report') ? 'active' : '' }}">Payment Report</a></li>

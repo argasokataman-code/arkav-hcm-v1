@@ -196,7 +196,7 @@ Catatan sisa (non-blocking):
 3. Tab **Dashboard** menampilkan ringkasan KPI dan total kewajiban pajak untuk masa pajak yang dipilih.
 4. Tab **SPT PPN** menampilkan rincian faktur keluaran per invoice (digunakan untuk formulir SPT Masa PPN — mis. 1111). Gunakan tombol ekspor untuk mengunduh CSV/Excel dengan kolom yang dibutuhkan oleh akuntan/DJP.
 5. Tab **SPT PPh23** menampilkan rincian pemotongan per pembayaran dengan status `completed`. Gunakan ekspor untuk keperluan pelaporan / verifikasi.
-6. Jika ada perubahan regulasi PPN, gunakan kolom **Tarif PPN** untuk melakukan override saat menghitung kewajiban.
+6. Tarif PPN pada halaman ini bersifat read-only dan bersumber dari **Tax Compliance Settings** (government policy aktif). Jika ada perubahan regulasi, ubah policy di menu compliance, lalu muat ulang perhitungan SPT.
 
 ### Kolom Ekspor yang Direkomendasikan
 - Untuk SPT PPN (per baris faktur): `invoice_no`, `issue_date`, `invoice_series` (e‑Faktur nomor/seri bila tersedia), `dpp` (Dasar Pengenaan Pajak), `ppn_rate`, `ppn_amount`, `buyer_npwp` (jika ada), `buyer_name`.

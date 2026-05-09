@@ -3,14 +3,18 @@
  *
  * Platform Tax Reporting — SPT PPN & PPh 23 untuk Global Super Admin.
  * Konsumsi endpoint:
+ *   GET /v1/saas/tax/active-ppn-rate
  *   GET /v1/saas/tax/dashboard?month=YYYY-MM&ppn_rate=11
  *   GET /v1/saas/tax/spt-ppn?month=YYYY-MM&ppn_rate=11
  *   GET /v1/saas/tax/spt-pph23?month=YYYY-MM
+ *   GET /v1/saas/tax/spt-pph-badan?year=YYYY
+ *   GET /v1/saas/tax/spt-pph-badan/export?year=YYYY&format=xlsx
  */
 (function (window, document) {
   "use strict";
 
   const API_BASE = "/v1/saas/tax";
+  const API_PPH_BADAN = "/v1/saas/tax/spt-pph-badan";
 
   // ─── Utilities ──────────────────────────────────────────────────────────────
 
@@ -72,8 +76,45 @@
     dashboardData: null,
     sptPpnData: null,
     sptPph23Data: null,
+    sptPphBadanData: null,
     loading: false,
   };
+
+  function setPpnRateDisplay(rate, source) {
+    var display = document.getElementById('display_ppn_rate');
+    if (!display) return;
+
+    var normalized = Number(rate);
+    if (!Number.isFinite(normalized)) normalized = 11;
+
+    var sourceLabel = source === 'compliance_settings'
+      ? 'dari Compliance Settings'
+      : 'default sistem';
+
+    display.textContent = normalized.toLocaleString('id-ID', {
+      minimumFractionDigits: normalized % 1 === 0 ? 0 : 1,
+      maximumFractionDigits: 2
+    }) + '% (' + sourceLabel + ')';
+  }
+
+  function loadActivePpnRate() {
+    return apiRequest('GET', API_BASE + '/active-ppn-rate')
+      .then(function (res) {
+        if (res && res.success && res.data) {
+          var rate = parseFloat(res.data.ppn_rate);
+          if (!Number.isNaN(rate)) {
+            state.ppnRate = Math.max(7, Math.min(15, rate));
+          }
+          setPpnRateDisplay(state.ppnRate, String(res.data.source || 'default'));
+          return;
+        }
+
+        setPpnRateDisplay(state.ppnRate, 'default');
+      })
+      .catch(function () {
+        setPpnRateDisplay(state.ppnRate, 'default');
+      });
+  }
 
   // ─── Load All ────────────────────────────────────────────────────────────────
 
@@ -81,26 +122,31 @@
     if (state.loading) return;
     state.loading = true;
 
-    var month = state.month;
-    var rate = state.ppnRate;
-
-    var dashboardUrl = API_BASE + "/dashboard?month=" + encodeURIComponent(month) + "&ppn_rate=" + encodeURIComponent(rate);
-    var ppnUrl = API_BASE + "/spt-ppn?month=" + encodeURIComponent(month) + "&ppn_rate=" + encodeURIComponent(rate);
-    var pph23Url = API_BASE + "/spt-pph23?month=" + encodeURIComponent(month);
-
     setLoadingState(true);
 
-    Promise.all([
-      apiRequest("GET", dashboardUrl),
-      apiRequest("GET", ppnUrl),
-      apiRequest("GET", pph23Url),
-    ]).then(function (results) {
+    loadActivePpnRate().then(function () {
+      var month = state.month;
+      var rate = state.ppnRate;
+
+      var dashboardUrl = API_BASE + "/dashboard?month=" + encodeURIComponent(month) + "&ppn_rate=" + encodeURIComponent(rate);
+      var ppnUrl = API_BASE + "/spt-ppn?month=" + encodeURIComponent(month) + "&ppn_rate=" + encodeURIComponent(rate);
+      var pph23Url = API_BASE + "/spt-pph23?month=" + encodeURIComponent(month);
+      var pphBadanUrl = API_PPH_BADAN + "?year=" + encodeURIComponent(String(month).slice(0, 4));
+
+      return Promise.all([
+        apiRequest("GET", dashboardUrl),
+        apiRequest("GET", ppnUrl),
+        apiRequest("GET", pph23Url),
+        apiRequest("GET", pphBadanUrl),
+      ]);
+    }).then(function (results) {
       state.loading = false;
       setLoadingState(false);
 
       var dashRes = results[0];
       var ppnRes = results[1];
       var pph23Res = results[2];
+      var pphBadanRes = results[3];
 
       if (dashRes && dashRes.success) {
         state.dashboardData = dashRes.data;
@@ -121,6 +167,13 @@
         renderSptPph23(pph23Res.data);
       } else {
         showError("Gagal memuat data SPT PPh 23.");
+      }
+
+      if (pphBadanRes && pphBadanRes.success) {
+        state.sptPphBadanData = pphBadanRes.data;
+        renderSptPphBadan(pphBadanRes.data, state.month);
+      } else {
+        renderSptPphBadan(null, state.month);
       }
 
       var printBtn = document.getElementById('btn_print_tax');
@@ -320,6 +373,86 @@
     }).join('');
   }
 
+  function renderSptPphBadan(data, month) {
+    var fallbackPeriod = month || state.month || new Date().toISOString().slice(0, 7);
+    var fallbackYear = String(fallbackPeriod).slice(0, 4);
+    var reportYear = data && data.year ? String(data.year) : fallbackYear;
+    setText('pph_badan_period_label', 'Periode acuan: Tahun ' + reportYear);
+
+    var statusBadge = document.getElementById('pph_badan_status_badge');
+    var tbody = document.getElementById('pph_badan_detail_tbody');
+
+    if (!data || typeof data !== 'object') {
+      setText('pph_badan_taxable_revenue', fmtRp(0));
+      setText('pph_badan_tax_payable', fmtRp(0));
+      setText('pph_badan_net_revenue', fmtRp(0));
+      setText('pph_badan_net_profit', fmtRp(0));
+
+      if (statusBadge) {
+        statusBadge.className = 'badge text-bg-secondary';
+        statusBadge.textContent = 'Status: data compliance belum tersedia';
+      }
+
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Data estimasi PPh Badan belum tersedia untuk periode ini.</td></tr>';
+      }
+      return;
+    }
+
+    var summary = data.summary || {};
+    var tenants = Array.isArray(data.monthly_breakdown) ? data.monthly_breakdown : [];
+
+    var taxableRevenue = Number(summary.total_taxable_revenue || 0);
+    var taxLiability = Number(summary.total_transaction_tax_liability || 0);
+    var taxPayable = Number(summary.total_pph_badan_payable || 0);
+    var netProfit = Number(summary.total_net_profit_estimate || 0);
+    var netRevenue = Math.max(0, taxableRevenue - taxLiability);
+
+    setText('pph_badan_taxable_revenue', fmtRp(taxableRevenue));
+    setText('pph_badan_tax_payable', fmtRp(taxPayable));
+    setText('pph_badan_net_revenue', fmtRp(netRevenue));
+    setText('pph_badan_net_profit', fmtRp(netProfit));
+
+    if (statusBadge) {
+      var configured = tenants.some(function (item) { return item && item.policy_configured; });
+      statusBadge.className = configured ? 'badge text-bg-success' : 'badge text-bg-warning';
+      statusBadge.textContent = configured
+        ? 'Status: policy compliance aktif'
+        : 'Status: policy compliance belum dikonfigurasi';
+    }
+
+    if (!tbody) {
+      return;
+    }
+
+    if (!tenants.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data tenant compliance pada periode ini.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tenants.map(function (item) {
+      var tenantName = item.month || '-';
+      var tenantTaxableRevenue = Number(item.taxable_revenue || 0);
+      var tenantTaxLiability = Number(item.collected_tax_liability || 0);
+      if (!tenantTaxLiability) {
+        tenantTaxLiability = Number(item.transaction_tax_liability || 0);
+      }
+      var tenantTaxPayable = Number(item.total_tax_payable || item.tax_amount_due || item.pph_badan_payable || 0);
+      var tenantNetProfit = Math.max(0, Number(item.net_profit || item.net_profit_estimate || 0) || (tenantTaxableRevenue - tenantTaxLiability - tenantTaxPayable));
+      var statusLabel = tenantTaxPayable > 0 ? 'Terhitung' : 'Tidak Ada Pajak';
+      var statusClass = tenantTaxPayable > 0 ? 'badge text-bg-warning' : 'badge text-bg-secondary';
+
+      return '<tr>' +
+        '<td>' + esc(tenantName) + '</td>' +
+        '<td class="text-end">' + fmtRp(tenantTaxableRevenue) + '</td>' +
+        '<td class="text-end">' + fmtRp(tenantTaxLiability) + '</td>' +
+        '<td class="text-end fw-semibold">' + fmtRp(tenantTaxPayable) + '</td>' +
+        '<td class="text-end">' + fmtRp(tenantNetProfit) + '</td>' +
+        '<td><span class="' + statusClass + '">' + esc(statusLabel) + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   function setText(id, text) {
@@ -331,7 +464,6 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     var monthInput = document.getElementById('input_tax_month');
-    var rateInput = document.getElementById('input_ppn_rate');
     var loadBtn = document.getElementById('btn_load_tax_data');
     var printBtn = document.getElementById('btn_print_tax');
 
@@ -341,23 +473,28 @@
       });
     }
 
-    if (rateInput) {
-      rateInput.addEventListener('change', function () {
-        var r = parseFloat(this.value) || 11;
-        state.ppnRate = Math.max(7, Math.min(15, r));
-      });
-    }
-
     if (loadBtn) {
       loadBtn.addEventListener('click', function () {
         if (monthInput) state.month = monthInput.value || new Date().toISOString().slice(0, 7);
-        if (rateInput) state.ppnRate = Math.max(7, Math.min(15, parseFloat(rateInput.value) || 11));
         loadAll();
       });
     }
 
     if (printBtn) {
       printBtn.addEventListener('click', function () {
+        if (state.loading) {
+          return;
+        }
+
+        var activeTabBtn = document.querySelector('#tax-tabs .nav-link.active');
+        var activeTarget = activeTabBtn ? activeTabBtn.getAttribute('data-bs-target') : '';
+        if (activeTarget === '#tab-pph-badan') {
+          var year = String(state.month || new Date().toISOString().slice(0, 7)).slice(0, 4);
+          var exportUrl = API_PPH_BADAN + '/export?year=' + encodeURIComponent(year) + '&format=xlsx';
+          window.open(exportUrl, '_self');
+          return;
+        }
+
         window.print();
       });
     }

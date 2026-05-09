@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\HcmBillingTaxPolicy;
 use App\Services\BillingTaxCalculationService;
+use App\Support\Exports\TabularExportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Platform Tax Summary Controller
@@ -291,6 +295,158 @@ class PlatformTaxSummaryController extends Controller
         ]);
     }
 
+    /**
+     * GET /v1/saas/tax/active-ppn-rate
+     *
+     * Single source of truth tarif PPN untuk halaman SPT platform,
+     * diambil dari government tax compliance policy aktif terbaru.
+     */
+    public function activePpnRate(): JsonResponse
+    {
+        $activePolicy = HcmBillingTaxPolicy::query()
+            ->where('status', 'active')
+            ->where('notes', 'like', '%government_tax_compliance_policy%')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $activePolicy) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ppn_rate' => self::PPN_RATE_DEFAULT,
+                    'source' => 'default',
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ppn_rate' => $this->extractTransactionTaxRateFromPolicy($activePolicy),
+                'source' => 'compliance_settings',
+                'billing_month' => (string) ($activePolicy->billing_month ?? ''),
+                'policy_version' => (string) ($activePolicy->version ?? ''),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/tax/spt-pph-badan?year=YYYY
+     *
+     * Ringkasan estimasi SPT Tahunan PPh Badan berbasis data compliance bulanan
+     * yang sudah active di government tax compliance policy.
+     */
+    public function sptPphBadan(Request $request): JsonResponse
+    {
+        $year = $this->resolveYear($request->query('year'));
+        $months = $this->monthsForYear($year);
+
+        $rows = [];
+        $totalTaxableRevenue = 0.0;
+        $totalTransactionTaxLiability = 0.0;
+        $totalPphBadanPayable = 0.0;
+
+        foreach ($months as $month) {
+            $monthly = $this->buildMonthlyPphBadanSummary($month);
+
+            $totalTaxableRevenue += $monthly['taxable_revenue'];
+            $totalTransactionTaxLiability += $monthly['transaction_tax_liability'];
+            $totalPphBadanPayable += $monthly['pph_badan_payable'];
+
+            $rows[] = [
+                'month' => $month,
+                'taxable_revenue' => round($monthly['taxable_revenue'], 2),
+                'transaction_tax_liability' => round($monthly['transaction_tax_liability'], 2),
+                'pph_badan_payable' => round($monthly['pph_badan_payable'], 2),
+                'net_profit_estimate' => round($monthly['net_profit_estimate'], 2),
+                'effective_pph_badan_rate' => round($monthly['effective_pph_badan_rate'], 2),
+                'policy_configured' => $monthly['policy_configured'],
+            ];
+        }
+
+        $netProfitEstimate = max(0, $totalTaxableRevenue - $totalTransactionTaxLiability - $totalPphBadanPayable);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'year' => $year,
+                'form_type' => 'SPT Tahunan PPh Badan (Estimasi Internal)',
+                'summary' => [
+                    'total_taxable_revenue' => round($totalTaxableRevenue, 2),
+                    'total_transaction_tax_liability' => round($totalTransactionTaxLiability, 2),
+                    'total_pph_badan_payable' => round($totalPphBadanPayable, 2),
+                    'total_net_profit_estimate' => round($netProfitEstimate, 2),
+                ],
+                'monthly_breakdown' => $rows,
+                'catatan' => [
+                    'Data bersifat estimasi internal untuk monitoring; bukan pengganti filing final DJP.',
+                    'Perhitungan memakai policy government tax compliance yang aktif pada bulan terkait.',
+                    'Lakukan rekonsiliasi final dengan tim akuntansi sebelum pelaporan SPT Tahunan 1771.',
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/tax/spt-pph-badan/export?year=YYYY&format=xlsx
+     *
+     * Export estimasi SPT Tahunan PPh Badan ke Excel/XLSX.
+     */
+    public function exportSptPphBadan(Request $request): StreamedResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'year' => ['nullable', 'integer', 'min:2020', 'max:2100'],
+            'format' => ['nullable', 'string', 'in:xlsx'],
+        ]);
+
+        $year = isset($validated['year']) ? (int) $validated['year'] : (int) date('Y');
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+
+        if ($format !== 'xlsx') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNSUPPORTED_EXPORT_FORMAT',
+                    'message' => 'Only XLSX export is currently supported for SPT PPh Badan.',
+                ],
+            ], 422);
+        }
+
+        $months = $this->monthsForYear($year);
+        $rows = [];
+
+        foreach ($months as $month) {
+            $monthly = $this->buildMonthlyPphBadanSummary($month);
+
+            $rows[] = [
+                $month,
+                (string) round($monthly['taxable_revenue'], 2),
+                (string) round($monthly['transaction_tax_liability'], 2),
+                (string) round($monthly['pph_badan_payable'], 2),
+                (string) round($monthly['net_profit_estimate'], 2),
+                (string) round($monthly['effective_pph_badan_rate'], 2),
+                $monthly['policy_configured'] ? 'yes' : 'no',
+            ];
+        }
+
+        return TabularExportResponse::download(
+            [
+                'month',
+                'taxable_revenue',
+                'transaction_tax_liability',
+                'pph_badan_payable',
+                'net_profit_estimate',
+                'effective_pph_badan_rate',
+                'policy_configured',
+            ],
+            $rows,
+            'spt-pph-badan-estimasi-'.$year.'-'.now()->format('Ymd_His'),
+            'xlsx',
+            'SPT PPh Badan'
+        );
+    }
+
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
     private function resolveMonth(mixed $month): string
@@ -369,5 +525,158 @@ class PlatformTaxSummaryController extends Controller
             'pph_final' => $nextMonth . '-15',
             default     => $nextMonth . '-30',
         };
+    }
+
+    private function resolveYear(mixed $year): int
+    {
+        $resolved = is_numeric($year) ? (int) $year : (int) date('Y');
+
+        if ($resolved < 2020 || $resolved > 2100) {
+            return (int) date('Y');
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function monthsForYear(int $year): array
+    {
+        $months = [];
+        for ($month = 1; $month <= 12; $month++) {
+            $months[] = sprintf('%04d-%02d', $year, $month);
+        }
+
+        return $months;
+    }
+
+    /**
+     * @return array{taxable_revenue: float, transaction_tax_liability: float, pph_badan_payable: float, net_profit_estimate: float, effective_pph_badan_rate: float, policy_configured: bool}
+     */
+    private function buildMonthlyPphBadanSummary(string $month): array
+    {
+        $invoiceRows = DB::table('invoices')
+            ->whereBetween('issue_date', [$month . '-01', date('Y-m-t', strtotime($month . '-01'))])
+            ->select('company_id', 'amount_due', 'issue_date')
+            ->get();
+
+        $taxableRevenue = (float) $invoiceRows->sum('amount_due');
+
+        if ($taxableRevenue <= 0.0) {
+            return [
+                'taxable_revenue' => 0.0,
+                'transaction_tax_liability' => 0.0,
+                'pph_badan_payable' => 0.0,
+                'net_profit_estimate' => 0.0,
+                'effective_pph_badan_rate' => 0.0,
+                'policy_configured' => false,
+            ];
+        }
+
+        $activePolicies = HcmBillingTaxPolicy::query()
+            ->where('billing_month', $month)
+            ->where('status', 'active')
+            ->where('notes', 'like', '%government_tax_compliance_policy%')
+            ->orderBy('company_id')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('created_at')
+            ->get();
+
+        if ($activePolicies->isEmpty()) {
+            return [
+                'taxable_revenue' => $taxableRevenue,
+                'transaction_tax_liability' => 0.0,
+                'pph_badan_payable' => 0.0,
+                'net_profit_estimate' => $taxableRevenue,
+                'effective_pph_badan_rate' => 0.0,
+                'policy_configured' => false,
+            ];
+        }
+
+        $policyByCompany = $this->buildLatestPolicyByCompany($activePolicies);
+
+        $transactionTaxLiability = 0.0;
+        $pphBadanPayable = 0.0;
+
+        foreach ($invoiceRows as $invoice) {
+            $companyId = (int) ($invoice->company_id ?? 0);
+            if ($companyId <= 0 || ! isset($policyByCompany[$companyId])) {
+                continue;
+            }
+
+            $amount = (float) ($invoice->amount_due ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $rates = $policyByCompany[$companyId];
+            $transactionTaxLiability += $amount * ($rates['transaction_tax_rate'] / 100);
+            $pphBadanPayable += $amount * ($rates['corporate_tax_rate'] / 100);
+        }
+
+        $transactionTaxLiability = round($transactionTaxLiability, 2);
+        $pphBadanPayable = round($pphBadanPayable, 2);
+        $netProfitEstimate = max(0, round($taxableRevenue - $transactionTaxLiability - $pphBadanPayable, 2));
+        $effectiveRate = $taxableRevenue > 0 ? round(($pphBadanPayable / $taxableRevenue) * 100, 2) : 0.0;
+
+        return [
+            'taxable_revenue' => round($taxableRevenue, 2),
+            'transaction_tax_liability' => $transactionTaxLiability,
+            'pph_badan_payable' => $pphBadanPayable,
+            'net_profit_estimate' => $netProfitEstimate,
+            'effective_pph_badan_rate' => $effectiveRate,
+            'policy_configured' => true,
+        ];
+    }
+
+    /**
+     * @param Collection<int, HcmBillingTaxPolicy> $policies
+     * @return array<int, array{corporate_tax_rate: float, transaction_tax_rate: float}>
+     */
+    private function buildLatestPolicyByCompany(Collection $policies): array
+    {
+        $result = [];
+
+        foreach ($policies as $policy) {
+            $companyId = (int) ($policy->company_id ?? 0);
+            if ($companyId <= 0 || isset($result[$companyId])) {
+                continue;
+            }
+
+            $corporateTaxRate = (float) ($policy->tax_rate_percentage ?? 0);
+            $transactionTaxRate = $this->extractTransactionTaxRateFromPolicy($policy);
+
+            $result[$companyId] = [
+                'corporate_tax_rate' => max(0.0, min(100.0, $corporateTaxRate)),
+                'transaction_tax_rate' => max(0.0, min(100.0, $transactionTaxRate)),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function extractTransactionTaxRateFromPolicy(HcmBillingTaxPolicy $policy): float
+    {
+        $decodedNotes = json_decode((string) ($policy->notes ?? ''), true);
+        if (! is_array($decodedNotes)) {
+            return 0.0;
+        }
+
+        $notesPayload = $decodedNotes;
+        if (! isset($notesPayload['transaction_tax'])) {
+            $rawNotes = $decodedNotes['notes'] ?? null;
+            $notesPayload = is_array($rawNotes)
+                ? $rawNotes
+                : (is_string($rawNotes) ? json_decode($rawNotes, true) : []);
+        }
+
+        if (! is_array($notesPayload)) {
+            return 0.0;
+        }
+
+        $rate = (float) ($notesPayload['transaction_tax']['tax_rate'] ?? 0);
+
+        return max(0.0, min(100.0, $rate));
     }
 }

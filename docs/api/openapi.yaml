@@ -8581,6 +8581,132 @@ paths:
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/saas/tax/spt-pph-badan:
+    get:
+      tags: [SaaS]
+      summary: Annual PPh Badan estimation summary (Global HCM Admin)
+      description: |
+        Returns internal annual estimation data for SPT Tahunan PPh Badan based on
+        active monthly government tax compliance policy snapshots.
+        This endpoint is for monitoring/reporting support and does not replace final DJP filing.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2020
+            maximum: 2100
+          description: Tahun pelaporan (default tahun berjalan).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      year: { type: integer }
+                      form_type: { type: string }
+                      summary:
+                        type: object
+                        properties:
+                          total_taxable_revenue: { type: number }
+                          total_transaction_tax_liability: { type: number }
+                          total_pph_badan_payable: { type: number }
+                          total_net_profit_estimate: { type: number }
+                      monthly_breakdown:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string, example: '2026-01' }
+                            taxable_revenue: { type: number }
+                            transaction_tax_liability: { type: number }
+                            pph_badan_payable: { type: number }
+                            net_profit_estimate: { type: number }
+                            effective_pph_badan_rate: { type: number }
+                            policy_configured: { type: boolean }
+                      catatan:
+                        type: array
+                        items: { type: string }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/tax/active-ppn-rate:
+    get:
+      tags: [SaaS]
+      summary: Active PPN rate for SPT platform (Global HCM Admin)
+      description: Returns the active PPN rate sourced from government tax compliance policy. If no active policy exists, the default runtime rate is returned.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      ppn_rate: { type: number, example: 11 }
+                      source:
+                        type: string
+                        enum: [compliance_settings, default]
+                      billing_month:
+                        type: string
+                        nullable: true
+                        example: '2026-05'
+                      policy_version:
+                        type: string
+                        nullable: true
+                        example: 'v202605-1'
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/saas/tax/spt-pph-badan/export:
+    get:
+      tags: [SaaS]
+      summary: Export annual PPh Badan estimation XLSX (Global HCM Admin)
+      description: Exports annual monthly breakdown as Excel XLSX.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2020
+            maximum: 2100
+          description: Tahun pelaporan (default tahun berjalan).
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [xlsx]
+          description: Saat ini hanya mendukung format XLSX.
+      responses:
+        '200':
+          description: XLSX export
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/saas/invoices/{invoice}:
     get:
       tags: [SaaS]

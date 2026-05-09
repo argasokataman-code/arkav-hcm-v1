@@ -89,6 +89,9 @@
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
+                <a href="{{ route('saas.platform-tax') }}" class="btn btn-outline-primary d-inline-flex align-items-center">
+                    <i class="ti ti-report-money me-1"></i>Buka Tax Reporting (SPT Platform)
+                </a>
                 <button type="button" class="btn btn-outline-info d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#platformTaxComplianceGuideModal">
                     <i class="ti ti-info-circle me-1"></i>Panduan
                 </button>

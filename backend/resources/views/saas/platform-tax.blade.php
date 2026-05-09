@@ -10,16 +10,21 @@
         <!-- Breadcrumb -->
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">SPT Pajak Platform</h2>
+                <h2 class="mb-1">SPT Pajak Platform & Estimasi PPh Badan</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a></li>
                         <li class="breadcrumb-item">SaaS</li>
-                        <li class="breadcrumb-item active" aria-current="page">SPT Pajak Platform</li>
+                        <li class="breadcrumb-item active" aria-current="page">SPT Pajak Platform & Estimasi PPh Badan</li>
                     </ol>
                 </nav>
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap gap-2">
+                <div class="mb-2">
+                    <a href="{{ route('platform-tax-compliance.policies') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="ti ti-adjustments me-1"></i>Buka Tax Compliance Settings
+                    </a>
+                </div>
                 <div class="mb-2">
                     <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="collapse" data-bs-target="#platformTaxGuide" aria-expanded="false" aria-controls="platformTaxGuide">
                         <i class="ti ti-info-circle me-1"></i>Panduan
@@ -27,7 +32,7 @@
                 </div>
                 <div class="mb-2">
                     <button class="btn btn-outline-secondary btn-sm" id="btn_print_tax" disabled>
-                        <i class="ti ti-printer me-1"></i>Print / Export
+                        <i class="ti ti-printer me-1"></i>Print / Export Excel (tab PPh Badan)
                     </button>
                 </div>
             </div>
@@ -46,6 +51,7 @@
                             <li>Tab <strong>Dashboard</strong>: ringkasan KPI dan total kewajiban pajak bulan itu.</li>
                             <li>Tab <strong>SPT PPN</strong>: rincian faktur pajak keluaran per invoice (formulir 1111).</li>
                             <li>Tab <strong>SPT PPh 23</strong>: rincian pemotongan per pembayaran yang completed.</li>
+                            <li>Tab <strong>PPh Badan (Estimasi)</strong>: ringkasan tahunan berbasis policy compliance aktif per bulan.</li>
                             <li>Gunakan <strong>Tarif PPN</strong> untuk override tarif jika ada perubahan regulasi.</li>
                         </ul>
                     </div>
@@ -70,6 +76,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
 
+        <div class="alert alert-info mb-3" role="alert">
+            <i class="ti ti-arrows-exchange me-2"></i>
+            Halaman ini fokus pada <strong>pelaporan</strong> (SPT PPN, SPT PPh 23, dan estimasi PPh Badan).
+            Untuk pengaturan tarif/kebijakan platform, gunakan
+            <a href="{{ route('platform-tax-compliance.policies') }}" class="alert-link">Platform Tax Compliance Settings</a>.
+        </div>
+
         <!-- Period Selector -->
         <div class="card mb-4">
             <div class="card-body">
@@ -80,8 +93,12 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-medium">Tarif PPN (%)</label>
-                        <input type="number" class="form-control" id="input_ppn_rate" value="11" min="7" max="15" step="0.5">
-                        <small class="text-muted">UU HPP: 11% (berlaku April 2022, kenaikan ke 12% masih ditunda)</small>
+                        <div class="form-control-plaintext fw-semibold py-2" id="display_ppn_rate">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>memuat...
+                        </div>
+                        <small class="text-muted">
+                            Bersumber dari <a href="{{ route('platform-tax-compliance.policies') }}">Tax Compliance Settings</a>.
+                        </small>
                     </div>
                     <div class="col-md-3">
                         <button class="btn btn-primary w-100" id="btn_load_tax_data">
@@ -93,6 +110,7 @@
                             <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dashboard">Dashboard</button>
                             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ppn">SPT PPN</button>
                             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-pph23">SPT PPh 23</button>
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-pph-badan">PPh Badan (Estimasi)</button>
                         </div>
                     </div>
                 </div>
@@ -318,6 +336,74 @@
                             PPh 23 dipotong oleh pembayar (tenant) saat melakukan pembayaran ke platform.
                             Kode objek pajak <code>24-100-09</code>: Jasa Manajemen &amp; Konsultasi Lainnya.
                             NPWP pemotong belum tersedia — wajib dilengkapi sebelum lapor.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── TAB: PPh Badan (Estimasi) ─────────────────────────────── -->
+            <div class="tab-pane fade" id="tab-pph-badan">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="mb-0">Estimasi PPh Badan (Basis Laporan Platform)</h5>
+                            <small class="text-muted" id="pph_badan_period_label">—</small>
+                        </div>
+                        <div>
+                            <span class="badge text-bg-info" id="pph_badan_status_badge">Status: menunggu data</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <div class="bg-light rounded p-3 text-center">
+                                    <small class="text-muted d-block">Taxable Revenue (Estimasi)</small>
+                                    <strong class="fs-4 fw-bold" id="pph_badan_taxable_revenue">—</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-warning bg-opacity-10 rounded p-3 text-center">
+                                    <small class="text-muted d-block">PPh Badan Payable (Estimasi)</small>
+                                    <strong class="fs-4 fw-bold text-warning" id="pph_badan_tax_payable">—</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-light rounded p-3 text-center">
+                                    <small class="text-muted d-block">Net Revenue (After Liability)</small>
+                                    <strong class="fs-4 fw-bold" id="pph_badan_net_revenue">—</strong>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="bg-success bg-opacity-10 rounded p-3 text-center">
+                                    <small class="text-muted d-block">Net Profit (Estimasi)</small>
+                                    <strong class="fs-4 fw-bold text-success" id="pph_badan_net_profit">—</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tenant</th>
+                                        <th class="text-end">Taxable Revenue</th>
+                                        <th class="text-end">Tax Liability</th>
+                                        <th class="text-end">PPh Badan Payable</th>
+                                        <th class="text-end">Net Profit</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pph_badan_detail_tbody">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">Klik "Hitung Kewajiban Pajak" untuk memuat data.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="alert alert-info mb-0 py-2 fs-12">
+                            <i class="ti ti-info-circle me-1"></i>
+                            Data tab ini ditarik dari endpoint <strong>SPT Tahunan PPh Badan (estimasi internal)</strong> berbasis policy compliance aktif per bulan.
+                            Ini bukan pengganti SPT Tahunan 1771 final, tetap wajib rekonsiliasi dan validasi akuntan.
                         </div>
                     </div>
                 </div>

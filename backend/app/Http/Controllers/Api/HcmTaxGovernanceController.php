@@ -1784,20 +1784,40 @@ class HcmTaxGovernanceController extends Controller
                             ]);
                     }
 
-                    HcmBillingTaxPolicy::query()->create([
-                        'id' => (string) Str::uuid(),
-                        'company_id' => $companyId,
-                        'billing_month' => $billingMonth,
-                        'billing_cycle_type' => $billingCycleType,
-                        'tax_rate_percentage' => $globalRates['subscription_tax_rate'],
-                        'base_calculation_method' => 'invoice_amount_due',
-                        'effective_from' => $effectiveFrom,
-                        'effective_to' => null,
-                        'status' => $status,
-                        'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
-                        'created_by_user_id' => $actorId,
-                        'updated_by_user_id' => $actorId,
-                    ]);
+                    $existing = HcmBillingTaxPolicy::query()
+                        ->where('company_id', $companyId)
+                        ->where('billing_month', $billingMonth)
+                        ->where('billing_cycle_type', $billingCycleType)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existing) {
+                        $existing->fill([
+                            'tax_rate_percentage' => $globalRates['subscription_tax_rate'],
+                            'base_calculation_method' => 'invoice_amount_due',
+                            'effective_from' => $effectiveFrom,
+                            'effective_to' => null,
+                            'status' => $status,
+                            'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
+                            'updated_by_user_id' => $actorId,
+                        ]);
+                        $existing->save();
+                    } else {
+                        HcmBillingTaxPolicy::query()->create([
+                            'id' => (string) Str::uuid(),
+                            'company_id' => $companyId,
+                            'billing_month' => $billingMonth,
+                            'billing_cycle_type' => $billingCycleType,
+                            'tax_rate_percentage' => $globalRates['subscription_tax_rate'],
+                            'base_calculation_method' => 'invoice_amount_due',
+                            'effective_from' => $effectiveFrom,
+                            'effective_to' => null,
+                            'status' => $status,
+                            'notes' => json_encode($notesPayload, JSON_UNESCAPED_UNICODE),
+                            'created_by_user_id' => $actorId,
+                            'updated_by_user_id' => $actorId,
+                        ]);
+                    }
 
                     if ($status === 'active') {
                         $activeCount = HcmBillingTaxPolicy::query()
@@ -1849,20 +1869,29 @@ class HcmTaxGovernanceController extends Controller
 
         $actorId = (int) ($request->user()?->id ?? 0) ?: null;
 
-        $policy = HcmBillingTaxPolicy::query()->create([
-            'id' => (string) Str::uuid(),
-            'company_id' => (int) $validated['company_id'],
-            'billing_month' => $validated['billing_month'],
-            'billing_cycle_type' => $validated['billing_cycle_type'],
-            'tax_rate_percentage' => $validated['tax_rate_percentage'],
-            'base_calculation_method' => $validated['base_calculation_method'],
-            'effective_from' => $validated['effective_from'],
-            'effective_to' => $validated['effective_to'] ?? null,
-            'status' => $validated['status'] ?? 'active',
-            'notes' => $validated['notes'] ?? null,
-            'created_by_user_id' => $actorId,
-            'updated_by_user_id' => $actorId,
-        ]);
+        $policy = HcmBillingTaxPolicy::query()
+            ->where('company_id', (int) $validated['company_id'])
+            ->where('billing_month', $validated['billing_month'])
+            ->where('billing_cycle_type', $validated['billing_cycle_type'])
+            ->first();
+
+        if (! $policy) {
+            $policy = new HcmBillingTaxPolicy();
+            $policy->id = (string) Str::uuid();
+            $policy->company_id = (int) $validated['company_id'];
+            $policy->billing_month = $validated['billing_month'];
+            $policy->billing_cycle_type = $validated['billing_cycle_type'];
+            $policy->created_by_user_id = $actorId;
+        }
+
+        $policy->tax_rate_percentage = $validated['tax_rate_percentage'];
+        $policy->base_calculation_method = $validated['base_calculation_method'];
+        $policy->effective_from = $validated['effective_from'];
+        $policy->effective_to = $validated['effective_to'] ?? null;
+        $policy->status = $validated['status'] ?? 'active';
+        $policy->notes = $validated['notes'] ?? null;
+        $policy->updated_by_user_id = $actorId;
+        $policy->save();
 
         return response()->json([
             'success' => true,

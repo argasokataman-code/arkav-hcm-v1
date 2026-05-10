@@ -296,6 +296,49 @@ class InvoiceController extends Controller
             ], 403);
         }
 
+        $resolved = $this->resolveInvoicePdfPath($invoice);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
+        }
+
+        [$fullPath, $downloadName] = $resolved;
+
+        return response()->download($fullPath, $downloadName, [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    /**
+     * GET /v1/saas/invoices/{id}/pdf/preview
+     * Preview invoice PDF inline in browser
+     */
+    public function previewPdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
+    {
+        $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
+        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot preview this invoice.'],
+            ], 403);
+        }
+
+        $resolved = $this->resolveInvoicePdfPath($invoice);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
+        }
+
+        [$fullPath, $downloadName] = $resolved;
+
+        return response()->file($fullPath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$downloadName.'"',
+        ]);
+    }
+
+    private function resolveInvoicePdfPath(Invoice $invoice): array|JsonResponse
+    {
         $invoiceService = new InvoiceService();
         $relativePath = $invoice->pdf_path;
 
@@ -318,9 +361,7 @@ class InvoiceController extends Controller
             ], 404);
         }
 
-        return response()->download($fullPath, 'invoice-'.$invoice->invoice_number.'.pdf', [
-            'Content-Type' => 'application/pdf',
-        ]);
+        return [$fullPath, 'invoice-'.$invoice->invoice_number.'.pdf'];
     }
 
     /**
@@ -409,6 +450,9 @@ class InvoiceController extends Controller
      */
     private function formatInvoice(Invoice $invoice): array
     {
+        $subscription = $invoice->subscription;
+        $cancellation = $this->buildCancellationMetadata($subscription, $invoice);
+
         return [
             'id' => $invoice->id,
             'uuid' => $invoice->uuid,
@@ -423,18 +467,21 @@ class InvoiceController extends Controller
             ] : null,
             'purchaseTransactionId' => $invoice->purchase_transaction_id,
             'subscriptionId' => $invoice->subscription_id,
-            'subscription' => $invoice->subscription ? [
-                'id' => $invoice->subscription->id,
-                'uuid' => $invoice->subscription->uuid,
-                'status' => $invoice->subscription->status,
-                'billingCycle' => $invoice->subscription->billing_cycle,
-                'startsAt' => $invoice->subscription->starts_at,
-                'endsAt' => $invoice->subscription->ends_at,
-                'trialEndsAt' => $invoice->subscription->trial_ends_at,
-                'planCode' => $invoice->subscription->plan_code,
-                'packageId' => $invoice->subscription->package?->uuid,
-                'packageName' => $invoice->subscription->package?->name,
-                'amount' => $invoice->subscription->amount,
+            'subscription' => $subscription ? [
+                'id' => $subscription->id,
+                'uuid' => $subscription->uuid,
+                'status' => $subscription->status,
+                'billingCycle' => $subscription->billing_cycle,
+                'startsAt' => $subscription->starts_at,
+                'endsAt' => $subscription->ends_at,
+                'trialEndsAt' => $subscription->trial_ends_at,
+                'planCode' => $subscription->plan_code,
+                'packageId' => $subscription->package?->uuid,
+                'packageName' => $subscription->package?->name,
+                'amount' => $subscription->amount,
+                'cancellationReason' => $cancellation['reason'],
+                'cancellationDescription' => $cancellation['description'],
+                'cancelledAt' => $cancellation['cancelledAt'],
             ] : null,
             'issueDate' => $invoice->issue_date->toDateString(),
             'dueDate' => $invoice->due_date->toDateString(),
@@ -445,6 +492,7 @@ class InvoiceController extends Controller
             'status' => $invoice->status,
             'isOverdue' => $invoice->isOverdue(),
             'isDueSoon' => $invoice->isDueSoon(),
+            'stateBadges' => $this->buildStateBadges($subscription, $invoice, $cancellation['reason']),
             'notes' => $invoice->notes,
             'latestEmail' => $invoice->latestEmailLog ? [
                 'id' => $invoice->latestEmailLog->id,
@@ -479,6 +527,109 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
         return $user && $user->isGlobalHcmAdmin();
+    }
+
+    private function buildStateBadges(?Subscription $subscription, Invoice $invoice, ?string $cancellationReason): array
+    {
+        if (! $subscription) {
+            return [];
+        }
+
+        $badges = [];
+        $status = (string) ($subscription->status ?? '');
+
+        if ($status === 'pending_payment' && (bool) $invoice->is_paid) {
+            $badges[] = [
+                'code' => 'STATE_MISMATCH',
+                'label' => 'State Mismatch',
+                'kind' => 'warning',
+                'message' => 'Invoice sudah paid tetapi subscription masih pending payment.',
+            ];
+        }
+
+        if ($status === 'pending_payment' && ! (bool) $invoice->is_paid && $invoice->due_date && $invoice->due_date->isPast()) {
+            $badges[] = [
+                'code' => 'PAYMENT_OVERDUE',
+                'label' => 'Payment Overdue',
+                'kind' => 'danger',
+                'message' => 'Tagihan sudah melewati jatuh tempo dan belum dibayar.',
+            ];
+        }
+
+        if ($status === 'trial' && $subscription->trial_ends_at) {
+            $hoursLeft = now()->diffInHours($subscription->trial_ends_at, false);
+            if ($hoursLeft >= 0 && $hoursLeft <= 72) {
+                $badges[] = [
+                    'code' => 'TRIAL_EXPIRING_SOON',
+                    'label' => 'Trial Expiring Soon',
+                    'kind' => 'warning',
+                    'message' => 'Trial akan berakhir kurang dari 3 hari.',
+                ];
+            }
+        }
+
+        if ($status === 'cancelled') {
+            if ($cancellationReason === 'trial_expired') {
+                $badges[] = [
+                    'code' => 'CANCELLED_TRIAL_EXPIRED',
+                    'label' => 'Cancelled: Trial Expired',
+                    'kind' => 'secondary',
+                    'message' => 'Langganan dibatalkan karena trial berakhir tanpa pembayaran lanjutan.',
+                ];
+            } elseif ($cancellationReason === 'payment_overdue') {
+                $badges[] = [
+                    'code' => 'CANCELLED_PAYMENT_OVERDUE',
+                    'label' => 'Cancelled: Payment Overdue',
+                    'kind' => 'secondary',
+                    'message' => 'Langganan dibatalkan karena pembayaran tertunggak.',
+                ];
+            }
+        }
+
+        return $badges;
+    }
+
+    private function buildCancellationMetadata(?Subscription $subscription, Invoice $invoice): array
+    {
+        if (! $subscription || (string) ($subscription->status ?? '') !== 'cancelled') {
+            return [
+                'reason' => null,
+                'description' => null,
+                'cancelledAt' => null,
+            ];
+        }
+
+        $terminationReason = strtolower(trim((string) ($subscription->termination_reason ?? '')));
+        $metadata = (array) ($subscription->metadata ?? []);
+        $seedSource = strtolower(trim((string) ($metadata['seed'] ?? '')));
+        $reason = 'unknown';
+        $description = 'Sistem tidak memiliki metadata alasan pembatalan yang spesifik.';
+
+        if ($seedSource === 'saas_ui_flow' && $terminationReason === '') {
+            $reason = 'seeded_demo_state';
+            $description = 'Status cancelled berasal dari data demo seed untuk simulasi UI, bukan aksi pembatalan oleh user.';
+        } elseif ($subscription->trial_ends_at && now()->greaterThan($subscription->trial_ends_at) && ! (bool) $invoice->is_paid) {
+            $reason = 'trial_expired';
+            $description = 'Trial berakhir dan tidak ada pembayaran lanjutan untuk aktivasi subscription.';
+        } elseif (! (bool) $invoice->is_paid && $invoice->due_date && $invoice->due_date->isPast()) {
+            $reason = 'payment_overdue';
+            $description = 'Pembayaran tertunggak melewati due date, sehingga subscription dibatalkan.';
+        } elseif ($terminationReason !== '' && str_contains($terminationReason, 'tenant-initiated cancellation request')) {
+            $reason = 'tenant_request';
+            $description = 'Pembatalan berasal dari permintaan tenant.';
+        } elseif ($terminationReason !== '' && str_contains($terminationReason, 'stripe_subscription_deleted')) {
+            $reason = 'system_webhook';
+            $description = 'Pembatalan tersinkron otomatis dari gateway pembayaran.';
+        } elseif ($terminationReason !== '') {
+            $reason = 'manual_stop';
+            $description = 'Langganan dihentikan dengan catatan internal: '.(string) $subscription->termination_reason;
+        }
+
+        return [
+            'reason' => $reason,
+            'description' => $description,
+            'cancelledAt' => ($subscription->terminated_at ?? $subscription->updated_at)?->toIso8601String(),
+        ];
     }
 
     private function guardInvoiceReconciliation(Request $request, Invoice $invoice): ?JsonResponse

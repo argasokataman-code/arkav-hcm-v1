@@ -156,6 +156,58 @@ class HcmTaxGovernanceApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_platform_tax_compliance_policy_upserts_existing_month_cycle_without_server_error(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-upsert@example.com']);
+        $this->elevateToGlobalAdmin('tax-global-admin-upsert@example.com');
+
+        $payload = [
+            'subscription_tax_rate' => 11,
+            'addon_markup_rate' => 0,
+            'billing_cycle_type' => 'monthly',
+            'billing_month' => '2026-05',
+            'effective_from' => '2026-05-01',
+            'status' => 'active',
+            'notes' => json_encode([
+                'transaction_tax' => [
+                    'tax_rate' => 11,
+                    'tax_name' => 'PPN',
+                    'description' => 'initial-policy',
+                ],
+            ]),
+        ];
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', $payload)
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.subscription_tax_rate', 11);
+
+        $payload['subscription_tax_rate'] = 12;
+        $payload['notes'] = json_encode([
+            'transaction_tax' => [
+                'tax_rate' => 12,
+                'tax_name' => 'PPN',
+                'description' => 'updated-policy',
+            ],
+        ]);
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', $payload)
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.subscription_tax_rate', 12);
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/policies?billing_month=2026-05&per_page=5')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.items_global.0.billing_month', '2026-05')
+            ->assertJsonPath('data.items_global.0.billing_cycle_type', 'monthly')
+            ->assertJsonPath('data.items_global.0.subscription_tax_rate', 12)
+            ->assertJsonPath('data.items_global.0.transaction_tax_rate', 12);
+    }
+
     public function test_platform_tax_compliance_report_returns_zero_tax_due_without_policy(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'tax-global-admin-report-zero@example.com']);

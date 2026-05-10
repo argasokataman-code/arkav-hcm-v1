@@ -67,7 +67,7 @@ class RegisterGateWebTest extends TestCase
 
         $this->get('/landing')
             ->assertOk()
-            ->assertSee('Pilih paket yang cocok')
+            ->assertSee('Pilih paket yang paling pas untuk pertumbuhan tim Anda')
             ->assertSee('Pilih plan')
             // Landing Blade fallback still points at /trial?packageId=... which
             // itself now redirects to the unified /landing?openOnboarding=1 flow.

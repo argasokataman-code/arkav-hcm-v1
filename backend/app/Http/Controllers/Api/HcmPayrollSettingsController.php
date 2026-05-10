@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\PayrollSettingsSnapshot;
 use App\Models\PayrollSettingsAuditLog;
@@ -178,17 +179,30 @@ class HcmPayrollSettingsController extends Controller
      */
     private function captureSettingsSnapshot(int $companyId, ?int $userId, array $currentSettings): void
     {
+        // Get company UUID for the snapshot
+        $company = Company::query()->select('uuid')->find($companyId);
+        if (! $company) {
+            return; // Company not found, skip snapshot
+        }
+
+        // Get user UUID if userId provided
+        $userUuid = null;
+        if ($userId) {
+            $user = User::query()->select('uuid')->find($userId);
+            $userUuid = $user?->uuid;
+        }
+
         $latestSnapshot = PayrollSettingsSnapshot::query()
-            ->where('company_id', $companyId)
+            ->where('company_uuid', $company->uuid)
             ->orderBy('snapshot_version', 'desc')
             ->first();
 
         $nextVersion = ($latestSnapshot?->snapshot_version ?? 0) + 1;
 
         PayrollSettingsSnapshot::create([
-            'company_id' => $companyId,
+            'company_uuid' => $company->uuid,
             'snapshot_version' => $nextVersion,
-            'user_id' => $userId,
+            'user_uuid' => $userUuid,
             'settings_data' => $currentSettings,
             'changed_at' => now(),
         ]);

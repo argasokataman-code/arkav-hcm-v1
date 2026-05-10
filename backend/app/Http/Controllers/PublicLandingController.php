@@ -39,8 +39,19 @@ class PublicLandingController extends Controller
             $packages = collect();
         }
 
+        // Check if any subscription with trial status exists (indicates trial is available)
+        $hasActiveTrialPackages = \App\Models\Subscription::where('status', 'trial')->exists();
+
+        // Get all unique features from first package for display
+        $allFeatures = collect();
+        if ($packages->isNotEmpty()) {
+            $allFeatures = $packages->first()->features ?? collect();
+        }
+
         return view('public.landing', [
             'packages' => $packages,
+            'hasActiveTrialPackages' => $hasActiveTrialPackages,
+            'allFeatures' => $allFeatures,
         ]);
     }
 }

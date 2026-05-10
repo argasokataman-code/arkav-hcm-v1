@@ -26,6 +26,9 @@ info:
 
     ## Recent Security Updates (Non-Contract)
 
+    **2026-05-10:** Payroll settings snapshots UUID migration for multi-tenant FK integrity.
+    No API endpoint contract/response shape changes. Internal schema hardening only.
+
     **2026-04-22 (Cycles 0-4):** Security hardening via unique validation refactoring, secret containment, dependency remediation (npm audit 0), SAST gate enforcement.
     No API contract/response shape changes. See: `docs/features/security-check/` for full scope.
 servers:
@@ -7712,6 +7715,12 @@ paths:
                             packageId: { type: string, format: uuid, nullable: true }
                             packageName: { type: string }
                             amount: { type: number, nullable: true }
+                            cancellationReason:
+                              type: string
+                              nullable: true
+                              enum: [trial_expired, payment_overdue, tenant_request, system_webhook, manual_stop, seeded_demo_state, unknown]
+                            cancellationDescription: { type: string, nullable: true }
+                            cancelledAt: { type: string, format: date-time, nullable: true }
                         latestInvoice:
                           type: object
                           nullable: true
@@ -8639,6 +8648,118 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/saas/tax/dashboard/export:
+    get:
+      tags: [SaaS]
+      summary: Export dashboard pajak platform XLSX (Global HCM Admin)
+      description: Exports dashboard summary data for the selected month as XLSX.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\\d{4}-\\d{2}$'
+          description: Masa pajak (YYYY-MM).
+        - name: ppn_rate
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 7
+            maximum: 15
+          description: Override tarif PPN aktif.
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [xlsx]
+      responses:
+        '200':
+          description: XLSX export
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/tax/spt-ppn/export:
+    get:
+      tags: [SaaS]
+      summary: Export SPT PPN XLSX (Global HCM Admin)
+      description: Exports SPT PPN detail rows for the selected month as XLSX.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\\d{4}-\\d{2}$'
+          description: Masa pajak (YYYY-MM).
+        - name: ppn_rate
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 7
+            maximum: 15
+          description: Override tarif PPN aktif.
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [xlsx]
+      responses:
+        '200':
+          description: XLSX export
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/tax/spt-pph23/export:
+    get:
+      tags: [SaaS]
+      summary: Export SPT PPh 23 XLSX (Global HCM Admin)
+      description: Exports SPT PPh 23 detail rows for the selected month as XLSX.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\\d{4}-\\d{2}$'
+          description: Masa pajak (YYYY-MM).
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [xlsx]
+      responses:
+        '200':
+          description: XLSX export
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/saas/tax/active-ppn-rate:
     get:
       tags: [SaaS]
@@ -8759,6 +8880,12 @@ paths:
                           packageId: { type: string, format: uuid, nullable: true }
                           packageName: { type: string, nullable: true }
                           amount: { type: number, nullable: true }
+                          cancellationReason:
+                            type: string
+                            nullable: true
+                            enum: [trial_expired, payment_overdue, tenant_request, system_webhook, manual_stop, seeded_demo_state, unknown]
+                          cancellationDescription: { type: string, nullable: true }
+                          cancelledAt: { type: string, format: date-time, nullable: true }
                       issueDate: { type: string, format: date }
                       dueDate: { type: string, format: date }
                       amountDue: { type: number }
@@ -8768,6 +8895,15 @@ paths:
                       status: { type: string }
                       isOverdue: { type: boolean }
                       isDueSoon: { type: boolean }
+                      stateBadges:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            code: { type: string }
+                            label: { type: string }
+                            kind: { type: string, enum: [warning, danger, info, success, secondary] }
+                            message: { type: string }
                       notes: { type: string, nullable: true }
                       latestEmail:
                         type: object
@@ -8795,6 +8931,52 @@ paths:
                             updatedAt: { type: string, format: date-time, nullable: true }
                       createdAt: { type: string, format: date-time }
                       updatedAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/invoices/{invoice}/pdf/preview:
+    get:
+      tags: [SaaS]
+      summary: Preview invoice PDF inline in browser (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoice
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Inline PDF preview
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/invoices/{invoice}/pdf:
+    get:
+      tags: [SaaS]
+      summary: Download invoice PDF file (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoice
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: PDF download
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }

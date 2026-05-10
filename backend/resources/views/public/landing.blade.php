@@ -94,31 +94,33 @@
 						<span class="badge landing-pill fw-semibold px-3 py-2">Platform HCM modern untuk operasional HR yang rapi</span>
 					</div>
 					<h1 class="display-5 fw-bold mb-3 landing-title">
-						Kelola tim dengan ritme yang lebih ringan, dari absensi sampai payroll.
+						Kelola absensi, cuti, payroll, dan laporan dalam satu platform.
 					</h1>
 					<p class="text-muted fs-5 mb-4">
-						Kami pertahankan alur onboarding, paket, dan trial yang sudah hidup. Yang berubah adalah rasa antarmuka: lebih bersih, lebih tenang, dan lebih meyakinkan saat pertama kali dibuka calon tenant.
+						Platform HCM lengkap untuk mengelola seluruh siklus karyawan. Dari onboarding, attendance, leave management, payroll processing, hingga reporting—semua terintegrasi dalam satu dashboard yang mudah digunakan dan aman.
 					</p>
 
 					<div class="landing-proof-list d-flex flex-wrap gap-3 mb-4">
-						<span><i class="ti ti-bolt me-2"></i>Setup mandiri tanpa setup rumit</span>
-						<span><i class="ti ti-shield-check me-2"></i>Role-based access tetap aman</span>
-						<span><i class="ti ti-receipt-2 me-2"></i>Billing, invoice, dan trial tetap utuh</span>
+						<span><i class="ti ti-bolt me-2"></i>Setup cepat tanpa perlu technical team</span>
+						<span><i class="ti ti-shield-check me-2"></i>Aman dengan role-based access control</span>
+						<span><i class="ti ti-receipt-2 me-2"></i>Flexible pricing dan free trial tersedia</span>
 					</div>
 
 					<div class="d-flex flex-wrap gap-2">
 						<a href="#pricing" class="btn btn-primary btn-lg">
 							Lihat Paket
 						</a>
-						<a href="{{ url('/trial') }}" class="btn btn-outline-secondary btn-lg">
-							Mulai Trial 30 Hari
-						</a>
+						@if ($hasActiveTrialPackages)
+							<a href="{{ url('/trial') }}" class="btn btn-outline-secondary btn-lg">
+								Mulai Trial Gratis
+							</a>
+						@endif
 					</div>
 
 					<div class="landing-badges d-flex flex-wrap gap-2 mt-4">
-						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Tenant-aware & audit-friendly</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Dashboard, HR core, payroll</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-mail-forward me-1"></i>Trial, invoice, dan onboarding</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Multi-tenant ready</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>HR lengkap + Payroll + Reporting</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-zap me-1"></i>Built untuk Indonesia compliance</span>
 					</div>
 
 					<div class="row g-2 mt-4" data-reveal>
@@ -317,78 +319,42 @@
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">Features</span>
-					<h2 class="h3 fw-bold mb-2 landing-section-title">Semua modul penting tetap utuh, sekarang dibungkus lebih modern</h2>
-					<p class="text-muted mb-0 landing-section-copy">Konsep UI baru dari referensi tetap terasa, tapi struktur konten dan fungsionalitas landing kita tidak diputus.</p>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Modul lengkap untuk mengelola seluruh HR lifecycle</h2>
+					<p class="text-muted mb-0 landing-section-copy">Dari perekrutan hingga payroll, semua fitur yang Anda butuhkan untuk mengelola tim dengan efisien dan compliant.</p>
 				</div>
 			</div>
 
 			<div class="row g-3">
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-primary-subtle text-primary"><i class="ti ti-users"></i></span>
-								<div class="fw-semibold">Employee & Organisasi</div>
+				@forelse ($allFeatures->take(6) as $feature)
+					<div class="col-md-6 col-lg-4" data-reveal>
+						<div class="card h-100 border-0 shadow-sm landing-feature">
+							<div class="card-body p-4">
+								<div class="d-flex align-items-center gap-2 mb-2">
+									<span class="landing-ico bg-primary-subtle text-primary">
+										<i class="ti ti-{{ match($feature->feature_code) {
+											'employee_management', 'employee_document_center' => 'users',
+											'attendance', 'attendance_shift_scheduling' => 'fingerprint',
+											'leave_management', 'holiday_calendar' => 'calendar-time',
+											'payroll', 'payroll_components', 'payroll_thr' => 'receipt-2',
+											'performance', 'goal_tracking', 'training' => 'target',
+											'asset_management', 'asset_logs' => 'package',
+											'tickets', 'notifications' => 'message-circle-2',
+											'overtime' => 'hourglass',
+											'promotion', 'resignation', 'termination' => 'trending-up',
+											default => 'zap'
+										} }}"></i>
+									</span>
+									<div class="fw-semibold">{{ $feature->feature_name ?: $feature->feature_code }}</div>
+								</div>
+								<div class="text-muted small">{{ ucfirst(str_replace('_', ' ', $feature->feature_code)) }}</div>
 							</div>
-							<div class="text-muted">Direktori karyawan, department, designation, policy, dan detail employee yang rapi.</div>
 						</div>
 					</div>
-				</div>
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-success-subtle text-success"><i class="ti ti-fingerprint"></i></span>
-								<div class="fw-semibold">Attendance</div>
-							</div>
-							<div class="text-muted">Punch in/out, timesheets, schedule timing, dan kontrol admin yang jelas.</div>
-						</div>
+				@empty
+					<div class="col-12 text-center text-muted py-5">
+						<p>Features loading...</p>
 					</div>
-				</div>
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-info-subtle text-info"><i class="ti ti-calendar-time"></i></span>
-								<div class="fw-semibold">Leave & Holidays</div>
-							</div>
-							<div class="text-muted">Leave request self vs admin approval, leave settings, dan holidays sync baseline.</div>
-						</div>
-					</div>
-				</div>
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-warning-subtle text-warning"><i class="ti ti-receipt-2"></i></span>
-								<div class="fw-semibold">Payroll Run + THR</div>
-							</div>
-							<div class="text-muted">Draft, finalize, disburse, payslip self, dan modul THR batch sesuai kebutuhan lokal.</div>
-						</div>
-					</div>
-				</div>
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-secondary-subtle text-secondary"><i class="ti ti-chart-bar"></i></span>
-								<div class="fw-semibold">Reports</div>
-							</div>
-							<div class="text-muted">Reporting hub (live vs archive) untuk kebutuhan audit dan rekap.</div>
-						</div>
-					</div>
-				</div>
-				<div class="col-md-6 col-lg-4" data-reveal>
-					<div class="card h-100 border-0 shadow-sm landing-feature">
-						<div class="card-body p-4">
-							<div class="d-flex align-items-center gap-2 mb-2">
-								<span class="landing-ico bg-danger-subtle text-danger"><i class="ti ti-user-star"></i></span>
-								<div class="fw-semibold">SaaS Billing (Admin)</div>
-							</div>
-							<div class="text-muted">Trial vs subscribed overview, invoice, resend email, dan kontrol status yang jelas.</div>
-						</div>
-					</div>
-				</div>
+				@endforelse
 			</div>
 		</div>
 	</section>

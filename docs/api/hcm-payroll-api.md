@@ -142,8 +142,11 @@ Menyimpan konfigurasi payroll bulanan tenant aktif.
 Setiap update ke `/payroll/settings` secara otomatis:
 - Menciptakan **snapshot** dari seluruh konfigurasi payroll yang berlaku (disimpan dalam `payroll_settings_snapshots`)
 - Mencatat setiap perubahan dalam **audit log** yang immutable (`payroll_settings_audit_log`), termasuk user yang melakukan perubahan, nilai lama/baru, waktu, dan IP address
+- Snapshot menyimpan relasi tenant dan aktor perubahan dengan FK integrity constraints (`company_uuid` → `companies.uuid`, `user_uuid` → `users.uuid`).
 
 Snapshot berguna untuk audit trail governance: menunjukkan state lengkap config pada waktu perubahan terakhir. Audit log memungkinkan traceability "siapa mengubah apa kapan".
+
+**Internal Schema Note** (May 2026): `payroll_settings_snapshots` table migrated from numeric IDs to UUID foreign keys for multi-tenant isolation. API contract unchanged; snapshot storage now uses `company_uuid` and `user_uuid` columns with proper FK constraints. Migration is backward-compatible; endpoint behavior identical.
 
 **400** `TENANT_REQUIRED` jika active company context tidak tersedia.
 

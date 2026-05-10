@@ -12,9 +12,9 @@ class PayrollSettingsSnapshot extends Model
 
     protected $fillable = [
         'uuid',
-        'company_id',
+        'company_uuid',
         'snapshot_version',
-        'user_id',
+        'user_uuid',
         'settings_data',
         'change_reason',
         'changed_at',
@@ -23,9 +23,7 @@ class PayrollSettingsSnapshot extends Model
     protected function casts(): array
     {
         return [
-            'company_id' => 'integer',
             'snapshot_version' => 'integer',
-            'user_id' => 'integer',
             'settings_data' => 'array',
             'changed_at' => 'datetime',
             'created_at' => 'datetime',
@@ -38,7 +36,7 @@ class PayrollSettingsSnapshot extends Model
      */
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class, 'company_uuid', 'uuid');
     }
 
     /**
@@ -46,6 +44,6 @@ class PayrollSettingsSnapshot extends Model
      */
     public function changedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_uuid', 'uuid');
     }
 }

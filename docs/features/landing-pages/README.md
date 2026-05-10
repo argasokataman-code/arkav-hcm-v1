@@ -40,8 +40,9 @@ Fitur **Landing Pages** adalah halaman marketing yang bisa diakses publik (guest
 7. Sistem membuat entity onboarding yang diperlukan.
 8. Jika mode `trial`, owner diarahkan ke login untuk masuk ke workspace.
 9. Jika mode `pending_payment`, owner diarahkan ke login company dengan tujuan akhir checkout `/subscription`; halaman checkout harus langsung menampilkan invoice pending yang sudah dibuat saat onboarding dan menyediakan aksi bayar yang membuka hosted payment gateway mock/dev.
-10. Selama status tenant masih `pending_payment`, halaman `/subscription` menjadi billing-only lock screen: sidebar, header aplikasi, dan menu operasional tidak boleh muncul, dan setiap upaya membuka route HCM lain harus dipaksa kembali ke checkout billing.
-11. Jika mode `trial`, owner boleh langsung masuk ke workspace HCM. Header aplikasi harus menampilkan badge trial beserta sisa hari aktif agar status tenant terlihat jelas sejak awal.
+10. Sebelum redirect ke login company pada mode `pending_payment`, modal onboarding menampilkan ringkasan invoice (subtotal + komponen pajak + total) agar user melihat nilai tagihan sejak awal.
+11. Selama status tenant masih `pending_payment`, halaman `/subscription` menjadi billing-only lock screen: sidebar, header aplikasi, dan menu operasional tidak boleh muncul, dan setiap upaya membuka route HCM lain harus dipaksa kembali ke checkout billing.
+12. Jika mode `trial`, owner boleh langsung masuk ke workspace HCM. Header aplikasi harus menampilkan badge trial beserta sisa hari aktif agar status tenant terlihat jelas sejak awal.
 
 ## Lifecycle Dan Keputusan Bisnis
 
@@ -125,6 +126,7 @@ Frontend (form landing) harus memasang constraint yang sama: `pattern`, `minleng
 - Landing public hanya menampilkan data “marketing-safe” (package aktif + fitur/limit). Tidak ada data tenant internal.
 - Endpoint onboarding public harus:
   - rate limit,
+  - verifikasi token Turnstile secara server-side saat captcha diaktifkan,
   - mencegah open redirect,
   - mencegah pembuatan company massal tanpa verifikasi (opsional: email verification),
   - memastikan ownership: user hanya bisa membuat subscription untuk company miliknya.

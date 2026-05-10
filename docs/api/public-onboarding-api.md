@@ -28,6 +28,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 
 - Kirim `turnstile_token` dari form field Turnstile `cf-turnstile-response`
 - Field honeypot `website` harus kosong
+- Saat Turnstile aktif, backend melakukan verifikasi token ke endpoint Cloudflare `siteverify` (server-side). Token invalid/expired akan ditolak `422`.
 
 ### Request Body
 
@@ -69,6 +70,7 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
 - `start_mode`: `trial|pending_payment` (default `trial`)
 - `turnstile_token`: optional, **required jika Turnstile enabled**
 - `website`: optional (honeypot), harus kosong
+- `consent_accepted`: wajib `true`/accepted
 - `company.code`: **optional**. Jika dikirim, harus unik dan regex `^[A-Za-z0-9_-]+$`. Jika tidak dikirim, server auto-generate code unik.
 - `company.name`: wajib, minimal 2 karakter, maksimal 255 karakter.
 - `company.contact_phone`: optional, max 20 karakter, regex `^[0-9+\-\s().]{6,20}$`
@@ -103,6 +105,41 @@ Endpoint ini bisa diproteksi dengan **Cloudflare Turnstile**:
       "packageName": "Pro Plan"
     },
     "invoice": null
+  }
+}
+```
+
+### Response tambahan untuk `start_mode=pending_payment`
+
+Saat mode onboarding langsung berbayar (`pending_payment`), node `invoice` berisi metadata billing dan breakdown pricing:
+
+```json
+{
+  "invoice": {
+    "id": 101,
+    "invoiceNumber": "INV-20260510-0001",
+    "issueDate": "2026-05-10",
+    "dueDate": "2026-05-11",
+    "amountDue": 555000,
+    "isPaid": false,
+    "status": "draft",
+    "billingTaxRateSnapshot": 11,
+    "pricingBreakdown": {
+      "base_amount": 500000,
+      "subscription_tax_rate": 11,
+      "subscription_tax_amount": 55000,
+      "service_fee_rate": 0,
+      "service_fee_amount": 0,
+      "total_amount": 555000,
+      "components": [
+        {
+          "key": "subscription_tax_rate",
+          "label": "Pajak langganan",
+          "rate": 11,
+          "amount": 55000
+        }
+      ]
+    }
   }
 }
 ```

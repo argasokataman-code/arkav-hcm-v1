@@ -221,6 +221,49 @@
         return "Terjadi kesalahan. Coba lagi.";
     }
 
+    function buildInvoiceBreakdownMessage(invoice) {
+        if (!invoice) return "";
+
+        var breakdown = invoice.pricingBreakdown && typeof invoice.pricingBreakdown === "object"
+            ? invoice.pricingBreakdown
+            : null;
+
+        if (!breakdown) {
+            return invoice.amountDue != null ? "Total tagihan: " + formatIdr(invoice.amountDue) : "";
+        }
+
+        var lines = [];
+        var baseAmount = Number(breakdown.base_amount || 0);
+        if (Number.isFinite(baseAmount) && baseAmount > 0) {
+            lines.push("Harga paket: " + formatIdr(baseAmount));
+        }
+
+        var components = Array.isArray(breakdown.components) ? breakdown.components : [];
+        if (components.length > 0) {
+            components.forEach(function (component) {
+                var label = String(component && component.label ? component.label : "Komponen");
+                var rate = Number(component && component.rate ? component.rate : 0);
+                var amount = Number(component && component.amount ? component.amount : 0);
+                if (Number.isFinite(amount)) {
+                    lines.push(label + " " + rate + "%: " + formatIdr(amount));
+                }
+            });
+        } else {
+            var taxRate = Number(breakdown.subscription_tax_rate || 0);
+            var taxAmount = Number(breakdown.subscription_tax_amount || 0);
+            if (Number.isFinite(taxAmount) && (taxAmount > 0 || taxRate > 0)) {
+                lines.push("Pajak " + taxRate + "%: " + formatIdr(taxAmount));
+            }
+        }
+
+        var totalAmount = Number(breakdown.total_amount || invoice.amountDue || 0);
+        if (Number.isFinite(totalAmount)) {
+            lines.push("Total tagihan: " + formatIdr(totalAmount));
+        }
+
+        return lines.join("\n");
+    }
+
     function formatValidationErrors(err) {
         var data = err && err.response && err.response.data ? err.response.data : null;
         if (!data || !data.error) {
@@ -689,11 +732,6 @@
                 var redirectUrl = isPendingPayment ? buildPendingPaymentLoginUrl(companyCode) : "/login";
                 var actionLabel = isPendingPayment ? "Login untuk lanjut bayar" : "Login sekarang";
 
-                if (isPendingPayment) {
-                    window.location.href = redirectUrl;
-                    return;
-                }
-
                 var message = isPendingPayment
                     ? "Registrasi company berhasil, tetapi subscription masih menunggu pembayaran."
                     : "Onboarding berhasil.";
@@ -712,6 +750,11 @@
                     }
                     if (invoice.dueDate) {
                         message += "\nDue date: " + String(invoice.dueDate);
+                    }
+
+                    var breakdownText = buildInvoiceBreakdownMessage(invoice);
+                    if (breakdownText) {
+                        message += "\n\n" + breakdownText;
                     }
                 }
                 message += isPendingPayment

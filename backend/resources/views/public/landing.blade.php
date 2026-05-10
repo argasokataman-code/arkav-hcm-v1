@@ -88,20 +88,95 @@
 
 	<section class="landing-hero py-5">
 		<div class="container">
+			@php
+				$priorityFeatureCodes = [
+					'employee_management',
+					'attendance',
+					'leave_management',
+					'payroll',
+					'payroll_components',
+					'payroll_thr',
+					'holiday_calendar',
+					'overtime',
+					'performance',
+					'training',
+					'tickets',
+					'asset_management',
+				];
+
+				$featureCatalogMap = $packages
+					->flatMap(function ($package) {
+						return $package->features ?? collect();
+					})
+					->filter(fn ($feature) => ! empty($feature->feature_code))
+					->groupBy('feature_code')
+					->map(function ($items, $code) {
+						$first = $items->first();
+						$label = $items
+							->pluck('feature_name')
+							->filter(fn ($name) => is_string($name) && trim($name) !== '')
+							->first();
+
+						return [
+							'code' => (string) $code,
+							'label' => $label ?: ucfirst(str_replace('_', ' ', (string) $code)),
+							'icon' => match ((string) $code) {
+								'employee_management', 'employee_document_center' => 'users',
+								'attendance', 'attendance_shift_scheduling' => 'fingerprint',
+								'leave_management', 'holiday_calendar' => 'calendar-time',
+								'payroll', 'payroll_components', 'payroll_thr' => 'receipt-2',
+								'performance', 'goal_tracking', 'training' => 'target',
+								'asset_management', 'asset_logs' => 'package',
+								'tickets', 'notifications' => 'message-circle-2',
+								'overtime' => 'hourglass',
+								'promotion', 'resignation', 'termination' => 'trending-up',
+								default => 'zap',
+							},
+							'group' => match (true) {
+								str_starts_with((string) $code, 'payroll') || (string) $code === 'overtime' => 'Payroll',
+								in_array((string) $code, ['attendance', 'attendance_shift_scheduling', 'leave_management', 'holiday_calendar'], true) => 'Workforce Operations',
+								in_array((string) $code, ['employee_management', 'employee_document_center', 'promotion', 'resignation', 'termination'], true) => 'People Management',
+								in_array((string) $code, ['performance', 'goal_tracking', 'training'], true) => 'Performance & Growth',
+								in_array((string) $code, ['tickets', 'notifications', 'asset_management', 'asset_logs'], true) => 'Support & Asset',
+								default => 'Platform',
+							},
+							'_first' => $first,
+						];
+					});
+
+				$sortedFeatureCatalog = $featureCatalogMap
+					->sortBy(function ($feature) use ($priorityFeatureCodes) {
+						$priorityIndex = array_search($feature['code'], $priorityFeatureCodes, true);
+						return [
+							$priorityIndex === false ? 999 : $priorityIndex,
+							strtolower((string) $feature['label']),
+						];
+					})
+					->values();
+
+				$featuredLandingFeatures = $sortedFeatureCatalog->take(10);
+				$featureGroups = $sortedFeatureCatalog->groupBy('group');
+
+				$formatLimit = function ($limit) {
+					if ($limit === null) return 'Unlimited';
+					if ((int) $limit === 0) return '—';
+					return (string) $limit;
+				};
+			@endphp
 			<div class="row align-items-center g-4">
 				<div class="col-lg-6" data-reveal data-parallax="0.08">
 					<div class="mb-3">
-						<span class="badge landing-pill fw-semibold px-3 py-2">Platform HCM modern untuk operasional HR yang rapi</span>
+						<span class="badge landing-pill fw-semibold px-3 py-2">Platform HR digital untuk perusahaan Indonesia</span>
 					</div>
 					<h1 class="display-5 fw-bold mb-3 landing-title">
 						Kelola absensi, cuti, payroll, dan laporan dalam satu platform.
 					</h1>
 					<p class="text-muted fs-5 mb-4">
-						Platform HCM lengkap untuk mengelola seluruh siklus karyawan. Dari onboarding, attendance, leave management, payroll processing, hingga reporting—semua terintegrasi dalam satu dashboard yang mudah digunakan dan aman.
+						Dari rekrutmen sampai payroll bulanan, semua proses HR ada dalam satu dashboard. Tim HR lebih cepat bekerja, owner lebih mudah memantau, dan finance lebih tenang saat tutup buku.
 					</p>
 
 					<div class="landing-proof-list d-flex flex-wrap gap-3 mb-4">
-						<span><i class="ti ti-bolt me-2"></i>Setup cepat tanpa perlu technical team</span>
+						<span><i class="ti ti-bolt me-2"></i>Setup cepat tanpa perlu tim IT khusus</span>
 						<span><i class="ti ti-shield-check me-2"></i>Aman dengan role-based access control</span>
 						<span><i class="ti ti-receipt-2 me-2"></i>Flexible pricing dan free trial tersedia</span>
 					</div>
@@ -118,24 +193,25 @@
 					</div>
 
 					<div class="landing-badges d-flex flex-wrap gap-2 mt-4">
-						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Multi-tenant ready</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>HR lengkap + Payroll + Reporting</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-zap me-1"></i>Built untuk Indonesia compliance</span>
+					<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Untuk semua skala bisnis, multi-cabang/perusahaan</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-zap me-1"></i>Siap pakai untuk aturan ketenagakerjaan Indonesia</span>
 					</div>
 
 					<div class="row g-2 mt-4" data-reveal>
 						<div class="col-4">
 							<div class="p-3 rounded-3 bg-white border landing-stat">
 								<div class="text-muted small">Modul inti</div>
-								<div class="h4 fw-bold mb-0" data-countup data-countup-end="6" data-countup-suffix="+">0+</div>
+								<div class="h4 fw-bold mb-0" data-countup data-countup-end="{{ $sortedFeatureCatalog->count() }}" data-countup-suffix="+">0+</div>
 							</div>
 						</div>
-						<div class="col-4">
-							<div class="p-3 rounded-3 bg-white border landing-stat">
-								<div class="text-muted small">Masa trial</div>
-								<div class="h4 fw-bold mb-0" data-countup data-countup-end="30" data-countup-suffix=" hari">0</div>
+						@if ($hasActiveTrialPackages)
+							<div class="col-4">
+								<div class="p-3 rounded-3 bg-white border landing-stat">
+									<div class="text-muted small">Masa trial</div>
+									<div class="h4 fw-bold mb-0" data-countup data-countup-end="{{ config('saas.trial_days', 30) }}" data-countup-suffix=" hari">0</div>
+								</div>
 							</div>
-						</div>
+						@endif
 						<div class="col-4">
 							<div class="p-3 rounded-3 bg-white border landing-stat">
 								<div class="text-muted small">State utama</div>
@@ -154,14 +230,14 @@
 										<div class="landing-dot"></div>
 										<div class="landing-dot"></div>
 										<div class="landing-dot"></div>
-										<div class="ms-2 fw-semibold">Experience Preview</div>
+										<div class="ms-2 fw-semibold">Preview Dashboard</div>
 									</div>
-									<span class="badge bg-success-subtle text-success"><i class="ti ti-bolt me-1"></i>Ready to onboard</span>
+									<span class="badge bg-success-subtle text-success"><i class="ti ti-bolt me-1"></i>Siap digunakan</span>
 								</div>
 								<div class="d-flex flex-wrap gap-2 mt-3">
-									<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Executive Overview</span>
-									<span class="badge bg-light text-dark border"><i class="ti ti-users me-1"></i>People Directory</span>
-									<span class="badge bg-light text-dark border"><i class="ti ti-calendar-time me-1"></i>Approval Flow</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>Ringkasan Kinerja</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-users me-1"></i>Data Karyawan</span>
+									<span class="badge bg-light text-dark border"><i class="ti ti-calendar-time me-1"></i>Persetujuan Cuti</span>
 									<span class="badge bg-light text-dark border"><i class="ti ti-receipt-2 me-1"></i>Billing & Payroll</span>
 								</div>
 							</div>
@@ -170,10 +246,10 @@
 								<div class="col-7">
 									<div class="p-3 rounded-3 bg-light landing-kpi h-100">
 										<div class="d-flex align-items-center justify-content-between">
-											<div class="fw-semibold">Pulse minggu ini</div>
+											<div class="fw-semibold">Ringkasan minggu ini</div>
 											<i class="ti ti-chart-line text-primary"></i>
 										</div>
-										<div class="text-muted small mt-1">Visibility cepat untuk operasional HR dan billing</div>
+										<div class="text-muted small mt-1">Pantau absensi, approval, dan payroll dari satu layar.</div>
 
 										<div class="landing-mini-chart mt-3" aria-hidden="true">
 											<span style="height: 45%"></span>
@@ -187,12 +263,12 @@
 
 										<div class="d-flex gap-2 mt-3">
 											<div class="flex-fill p-2 rounded-3 bg-white border">
-												<div class="text-muted small">People</div>
-												<div class="fw-bold">Live</div>
+												<div class="text-muted small">Produktivitas tim</div>
+												<div class="fw-bold">Naik</div>
 											</div>
 											<div class="flex-fill p-2 rounded-3 bg-white border">
-												<div class="text-muted small">Payroll</div>
-												<div class="fw-bold">Ready</div>
+												<div class="text-muted small">Akurasi payroll</div>
+												<div class="fw-bold">Terjaga</div>
 											</div>
 										</div>
 									</div>
@@ -200,29 +276,29 @@
 								<div class="col-5">
 									<div class="p-3 rounded-3 bg-light landing-kpi h-100">
 										<div class="d-flex align-items-center justify-content-between">
-											<div class="fw-semibold">Queue terbaru</div>
+											<div class="fw-semibold">Aktivitas penting hari ini</div>
 											<i class="ti ti-bell-ringing text-warning"></i>
 										</div>
 										<div class="landing-activity mt-2">
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-primary-subtle text-primary"><i class="ti ti-user-plus"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Struktur tim diperbarui</div>
-													<div class="text-muted">Directory update</div>
+													<div class="fw-semibold">Data karyawan terbaru masuk</div>
+													<div class="text-muted">Profil tim selalu up to date</div>
 												</div>
 											</div>
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-success-subtle text-success"><i class="ti ti-calendar-check"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Approval menunggu review</div>
-													<div class="text-muted">Leave workflow</div>
+													<div class="fw-semibold">Pengajuan cuti siap diproses</div>
+													<div class="text-muted">Proses approval lebih cepat</div>
 												</div>
 											</div>
 											<div class="d-flex align-items-center gap-2 py-2">
 												<span class="landing-ico-sm bg-warning-subtle text-warning"><i class="ti ti-receipt-2"></i></span>
 												<div class="small">
-													<div class="fw-semibold">Invoice siap dikirim</div>
-													<div class="text-muted">Billing automation</div>
+													<div class="fw-semibold">Tagihan siap ditindaklanjuti</div>
+													<div class="text-muted">Alur billing lebih transparan</div>
 												</div>
 											</div>
 										</div>
@@ -236,13 +312,19 @@
 							<div class="mt-3 p-3 rounded-3 border bg-white landing-next">
 								<div class="d-flex align-items-center justify-content-between">
 									<div>
-										<div class="small text-muted">Next move</div>
-										<div class="fw-semibold">Aktifkan workspace perusahaan</div>
-										<div class="text-muted small">Pilih paket, buat company, dan teruskan ke owner login.</div>
+										<div class="small text-muted">Langkah selanjutnya</div>
+										<div class="fw-semibold">Daftar sekarang, langsung bisa dipakai</div>
+										<div class="text-muted small">Pilih paket, buat akun owner, dan mulai operasional HR hari ini.</div>
 									</div>
-									<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
-										<i class="ti ti-rocket me-1"></i> Start
-									</a>
+									@if ($hasActiveTrialPackages)
+										<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
+											<i class="ti ti-rocket me-1"></i> Start
+										</a>
+									@else
+										<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
+											<i class="ti ti-rocket me-1"></i> Daftar
+										</a>
+									@endif
 								</div>
 							</div>
 						</div>
@@ -258,7 +340,7 @@
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">Experience</span>
 					<h2 class="h3 fw-bold mb-2 landing-section-title">Apa yang tim kamu rasakan setelah implementasi</h2>
-					<p class="text-muted mb-0 landing-section-copy">Outcome nyata untuk HR, finance, dan owner yang butuh operasional lebih tenang.</p>
+					<p class="text-muted mb-0 landing-section-copy">Hasil yang langsung terasa: proses HR lebih cepat, payroll lebih akurat, dan keputusan bisnis lebih percaya diri.</p>
 				</div>
 			</div>
 
@@ -320,33 +402,22 @@
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">Features</span>
 					<h2 class="h3 fw-bold mb-2 landing-section-title">Modul lengkap untuk mengelola seluruh HR lifecycle</h2>
-					<p class="text-muted mb-0 landing-section-copy">Dari perekrutan hingga payroll, semua fitur yang Anda butuhkan untuk mengelola tim dengan efisien dan compliant.</p>
+					<p class="text-muted mb-0 landing-section-copy">Mulai dari employee management, attendance, leave, hingga payroll dan pelaporan, semua tersusun untuk membantu tim bekerja lebih cepat dan akurat.</p>
 				</div>
 			</div>
 
 			<div class="row g-3">
-				@forelse ($allFeatures->take(6) as $feature)
+				@forelse ($featuredLandingFeatures as $feature)
 					<div class="col-md-6 col-lg-4" data-reveal>
 						<div class="card h-100 border-0 shadow-sm landing-feature">
 							<div class="card-body p-4">
 								<div class="d-flex align-items-center gap-2 mb-2">
 									<span class="landing-ico bg-primary-subtle text-primary">
-										<i class="ti ti-{{ match($feature->feature_code) {
-											'employee_management', 'employee_document_center' => 'users',
-											'attendance', 'attendance_shift_scheduling' => 'fingerprint',
-											'leave_management', 'holiday_calendar' => 'calendar-time',
-											'payroll', 'payroll_components', 'payroll_thr' => 'receipt-2',
-											'performance', 'goal_tracking', 'training' => 'target',
-											'asset_management', 'asset_logs' => 'package',
-											'tickets', 'notifications' => 'message-circle-2',
-											'overtime' => 'hourglass',
-											'promotion', 'resignation', 'termination' => 'trending-up',
-											default => 'zap'
-										} }}"></i>
+										<i class="ti ti-{{ $feature['icon'] }}"></i>
 									</span>
-									<div class="fw-semibold">{{ $feature->feature_name ?: $feature->feature_code }}</div>
+									<div class="fw-semibold">{{ $feature['label'] }}</div>
 								</div>
-								<div class="text-muted small">{{ ucfirst(str_replace('_', ' ', $feature->feature_code)) }}</div>
+								<div class="text-muted small">{{ $feature['group'] }}</div>
 							</div>
 						</div>
 					</div>
@@ -365,7 +436,7 @@
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">Solutions</span>
 					<h2 class="h3 fw-bold mb-2 landing-section-title">Solusi berbeda untuk role yang berbeda</h2>
-					<p class="text-muted mb-0 landing-section-copy">Admin HR, karyawan, dan finance tetap masuk ke jalur kerja yang relevan tanpa noise yang tidak perlu.</p>
+					<p class="text-muted mb-0 landing-section-copy">Setiap peran mendapatkan tampilan dan alur kerja yang tepat sesuai tanggung jawabnya.</p>
 				</div>
 			</div>
 
@@ -436,7 +507,7 @@
 								<div class="col-md-6">
 									<div class="p-3 rounded-3 border bg-white h-100">
 										<div class="fw-semibold mb-1">Akses aman</div>
-										<div class="text-muted small">RBAC jelas: karyawan hanya bisa akses data miliknya.</div>
+										<div class="text-muted small">Hak akses jelas: karyawan hanya melihat data miliknya.</div>
 									</div>
 								</div>
 								<div class="col-md-6">
@@ -487,8 +558,8 @@
 			<div class="row g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">How it works</span>
-					<h2 class="h3 fw-bold mb-2 landing-section-title">Flow tetap sederhana: pilih, aktifkan, login, jalan</h2>
-					<p class="text-muted mb-0 landing-section-copy">Kami pertahankan alur yang sudah terbukti: tidak ada langkah tambahan yang bikin onboarding berat.</p>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Daftar dalam 5 menit, langsung siap dipakai</h2>
+					<p class="text-muted mb-0 landing-section-copy">Tanpa setup yang rumit. Tim Anda bisa langsung menjalankan proses HR inti di hari yang sama.</p>
 				</div>
 			</div>
 
@@ -515,8 +586,8 @@
 					<div class="card h-100 border-0 shadow-sm">
 						<div class="card-body p-4">
 							<div class="landing-step">03</div>
-							<div class="fw-semibold mb-1">Trial / Pending payment</div>
-							<div class="text-muted small">Mulai trial atau langsung invoice bila pilih subscribe.</div>
+							<div class="fw-semibold mb-1">Aktivasi akun</div>
+							<div class="text-muted small">Mulai trial atau lanjut pembayaran sesuai paket yang dipilih.</div>
 						</div>
 					</div>
 				</div>
@@ -538,8 +609,8 @@
 			<div class="row align-items-end g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">Pricing</span>
-					<h2 class="h3 fw-bold mb-2 landing-section-title">Pilih paket yang cocok, lalu lanjutkan onboarding tanpa putus flow</h2>
-					<p class="text-muted mb-0 landing-section-copy">Paket tetap dinamis dari sistem. Kami hanya memperjelas hierarki visual dan pengambilan keputusan di depan user.</p>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Pilih paket yang paling pas untuk pertumbuhan tim Anda</h2>
+					<p class="text-muted mb-0 landing-section-copy">Bandingkan manfaat setiap paket lalu aktifkan akun sesuai kebutuhan perusahaan Anda.</p>
 				</div>
 				<div class="col-lg-4 text-lg-end" data-reveal>
 					<div class="d-inline-flex align-items-center gap-2 p-2 rounded-3 bg-light border landing-cycle-toggle">
@@ -626,34 +697,8 @@
 
 			<div class="mt-4" data-reveal>
 				<h3 class="h5 fw-bold mb-2">Perbandingan fitur per paket</h3>
-				<p class="text-muted mb-0">Detail berikut mengikuti konfigurasi `package_features` di sistem.</p>
+				<p class="text-muted mb-0">Detail fitur setiap paket, langsung dari data aktif di sistem.</p>
 			</div>
-
-			@php
-				$featureCatalog = [
-					'employee_management' => ['label' => 'Employee Management', 'group' => 'Core HCM'],
-					'attendance' => ['label' => 'Attendance', 'group' => 'Core HCM'],
-					'leave_management' => ['label' => 'Leave Management', 'group' => 'Core HCM'],
-					'payroll' => ['label' => 'Payroll', 'group' => 'Payroll'],
-					'performance' => ['label' => 'Performance', 'group' => 'Performance'],
-					'training' => ['label' => 'Training', 'group' => 'Performance'],
-					'goal_tracking' => ['label' => 'Goal Tracking', 'group' => 'Performance'],
-					'asset_management' => ['label' => 'Asset Management', 'group' => 'Asset'],
-					'api_access' => ['label' => 'API Access', 'group' => 'Platform'],
-					'priority_support' => ['label' => 'Priority Support', 'group' => 'Platform'],
-				];
-
-				$featureGroups = [];
-				foreach ($featureCatalog as $code => $meta) {
-					$featureGroups[$meta['group']][] = ['code' => $code, 'label' => $meta['label']];
-				}
-
-				$formatLimit = function ($limit) {
-					if ($limit === null) return 'Unlimited';
-					if ((int) $limit === 0) return '—';
-					return (string) $limit;
-				};
-			@endphp
 
 			<div class="accordion mt-3" id="packageComparison" data-reveal>
 				@foreach ($featureGroups as $groupName => $features)
@@ -727,7 +772,7 @@
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">FAQ</span>
 					<h2 class="h3 fw-bold mb-2 landing-section-title">Jawaban cepat sebelum user masuk ke flow trial</h2>
-					<p class="text-muted mb-0 landing-section-copy">FAQ tetap langsung ke kebutuhan onboarding dan login, tanpa copy yang berputar-putar.</p>
+					<p class="text-muted mb-0 landing-section-copy">Pertanyaan yang paling sering ditanyakan sebelum mulai menggunakan platform.</p>
 				</div>
 			</div>
 
@@ -744,18 +789,20 @@
 						</div>
 					</div>
 				</div>
-				<div class="accordion-item">
-					<h2 class="accordion-header" id="faqTwo">
-						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqTwoBody">
-							Bisa trial dulu atau harus bayar?
-						</button>
-					</h2>
-					<div id="faqTwoBody" class="accordion-collapse collapse" data-bs-parent="#landingFaq">
-						<div class="accordion-body">
-							Bisa pilih di form onboarding: <strong>Trial</strong> atau <strong>Pending payment</strong>.
+				@if ($hasActiveTrialPackages)
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="faqTwo">
+							<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqTwoBody">
+								Bisa trial dulu atau harus bayar?
+							</button>
+						</h2>
+						<div id="faqTwoBody" class="accordion-collapse collapse" data-bs-parent="#landingFaq">
+							<div class="accordion-body">
+								Bisa pilih di form onboarding: <strong>Trial</strong> atau <strong>Pending payment</strong>.
+							</div>
 						</div>
 					</div>
-				</div>
+				@endif
 				<div class="accordion-item">
 					<h2 class="accordion-header" id="faqThree">
 						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqThreeBody">
@@ -802,12 +849,16 @@
 								<option value="monthly">Monthly</option>
 								<option value="yearly">Yearly</option>
 							</select>
-							<div class="form-text">Trial otomatis <span class="fw-semibold">30 hari</span> untuk paket yang kamu pilih.</div>
+							@if ($hasActiveTrialPackages)
+								<div class="form-text">Trial otomatis <span class="fw-semibold">{{ config('saas.trial_days', 30) }}</span> hari untuk paket yang kamu pilih.</div>
+							@endif
 						</div>
 						<div class="col-md-3">
 							<label class="form-label">Start mode</label>
 							<select class="form-select" name="start_mode">
-								<option value="trial">Trial</option>
+								@if ($hasActiveTrialPackages)
+									<option value="trial">Trial</option>
+								@endif
 								<option value="pending_payment">Pending payment</option>
 							</select>
 						</div>
@@ -889,7 +940,7 @@
 						</div>
 						<div class="col-md-6">
 							<label class="form-label">Password <span class="text-danger">*</span></label>
-							<input type="password" class="form-control" name="owner_password" required minlength="8" maxlength="64" pattern="^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)[A-Za-z\\d@$!%*?&._-]{8,64}$">
+							<input type="password" class="form-control" name="owner_password" required minlength="8" maxlength="64" pattern="^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$">
 							<div class="form-text">Min 8, harus ada huruf besar + kecil + angka.</div>
 						</div>
 						<div class="col-md-6">
@@ -906,9 +957,12 @@
 						<div class="form-check">
 							<input class="form-check-input" type="checkbox" id="consentAccepted" name="consent_accepted" value="1" required>
 							<label class="form-check-label" for="consentAccepted">
-								Saya menyetujui <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
-								dan <a href="/terms-condition" target="_blank" rel="noopener noreferrer">Syarat &amp; Ketentuan</a> ARCAV HCM.
-								Data saya akan digunakan untuk keperluan layanan manajemen SDM (HR).
+								Saya menyetujui pemrosesan data untuk onboarding ARCAV HCM sesuai
+								<a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
+								dan <a href="/terms-condition" target="_blank" rel="noopener noreferrer">Syarat &amp; Ketentuan</a>.
+								Data yang diproses mencakup identitas owner (nama, email, telepon), data perusahaan (profil billing),
+								dan data operasional HR. Data disimpan sesuai kebijakan retensi, termasuk kewajiban perpajakan,
+								dan saya dapat mengajukan akses/perbaikan/penghapusan data melalui kanal DPO yang tersedia.
 							</label>
 						</div>
 					</div>

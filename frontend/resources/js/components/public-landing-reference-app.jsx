@@ -73,12 +73,12 @@ const featureCards = [
     {
         icon: ChartLineUp,
         title: 'Payroll Auto',
-        description: 'Draft payroll, review, invoice, dan status billing tetap terbaca dari flow yang sama.',
+        description: 'Proses payroll lebih tertata dari draft sampai final, lengkap dengan ringkasan biaya yang jelas.',
     },
     {
         icon: UsersFour,
         title: 'Employee Portal',
-        description: 'Self-service karyawan dan owner login tetap terhubung ke konteks tenant yang benar.',
+        description: 'Karyawan dan owner punya akses mandiri untuk kebutuhan harian tanpa alur yang membingungkan.',
     },
 ];
 
@@ -86,17 +86,17 @@ const solutionCards = [
     {
         icon: Lightning,
         title: 'Setup Instan',
-        description: 'Trial, paket, dan company onboarding tetap bisa dimulai dalam hitungan menit.',
+        description: 'Aktivasi akun perusahaan bisa dimulai cepat, tanpa proses setup yang rumit.',
     },
     {
         icon: Users,
         title: 'Role-Based Access',
-        description: 'Landing membantu keputusan awal, sedangkan akses tetap dijaga di backend sesuai role.',
+        description: 'Setiap peran mendapatkan akses yang sesuai, sehingga data tetap aman dan relevan.',
     },
     {
         icon: Target,
         title: 'Audit Trail',
-        description: 'Status onboarding, billing, dan operasional tetap rapi untuk kebutuhan audit dan compliance.',
+        description: 'Riwayat aktivitas dan dokumen penting tersimpan rapi untuk kebutuhan kontrol dan audit.',
     },
 ];
 
@@ -105,14 +105,14 @@ const steps = [
         step: '01',
         title: 'Pilih Paket',
         subtitle: 'Aktifkan sesuai kebutuhan tim',
-        description: 'Mulai dari trial atau langsung pilih paket berbayar. Semua paket tetap datang dari backend aktif.',
+        description: 'Mulai dari trial atau langsung pilih paket berbayar sesuai kebutuhan perusahaan.',
         tag: 'Setup',
     },
     {
         step: '02',
         title: 'Setup Company',
         subtitle: 'Isi data owner dan perusahaan',
-        description: 'Flow onboarding publik tetap dipakai: company profile, owner credentials, dan pilihan trial atau subscribe.',
+        description: 'Lengkapi profil perusahaan, data owner, dan konfirmasi persetujuan untuk mulai operasional.',
         tag: 'Configure',
     },
     {
@@ -132,15 +132,15 @@ const navLinks = [
 ];
 
 const heroProofs = [
-    { icon: CheckCircle, text: 'Setup < 1 jam' },
-    { icon: Users, text: 'Multi-role access' },
-    { icon: FileText, text: 'Auto reports' },
+    { icon: CheckCircle, text: 'Aktivasi cepat' },
+    { icon: Users, text: 'Akses per peran' },
+    { icon: FileText, text: 'Laporan siap pakai' },
 ];
 
 const heroStats = [
     { label: 'Modul inti', value: '6+' },
     { label: 'Masa trial', value: '30 hari' },
-    { label: 'State utama', value: '4 step' },
+    { label: 'Langkah mulai', value: '4 tahap' },
 ];
 
 function parseError(error) {
@@ -154,6 +154,41 @@ function parseError(error) {
         message: String(errorNode.message || 'Terjadi kesalahan. Coba lagi.'),
         details: Array.isArray(errorNode.details) ? errorNode.details : [],
     };
+}
+
+function buildInvoiceBreakdownMessage(invoice) {
+    const amountDue = Number(invoice?.amountDue || 0);
+    const breakdown = invoice?.pricingBreakdown && typeof invoice.pricingBreakdown === 'object'
+        ? invoice.pricingBreakdown
+        : null;
+
+    if (!breakdown) {
+        return amountDue > 0 ? `Total tagihan: ${formatIdr(amountDue)}` : '';
+    }
+
+    const subtotal = Number(breakdown.base_amount || 0);
+    const components = Array.isArray(breakdown.components) ? breakdown.components : [];
+    const total = Number(breakdown.total_amount || amountDue || 0);
+
+    const lines = [`Harga paket: ${formatIdr(subtotal)}`];
+
+    if (components.length > 0) {
+        components.forEach((component) => {
+            const label = String(component?.label || 'Komponen');
+            const rate = Number(component?.rate || 0);
+            const compAmount = Number(component?.amount || 0);
+            lines.push(`${label} ${rate}%: ${formatIdr(compAmount)}`);
+        });
+    } else {
+        const taxRate = Number(breakdown.subscription_tax_rate || 0);
+        const taxAmount = Number(breakdown.subscription_tax_amount || 0);
+        if (taxAmount > 0 || taxRate > 0) {
+            lines.push(`Pajak ${taxRate}%: ${formatIdr(taxAmount)}`);
+        }
+    }
+
+    lines.push(`Total tagihan: ${formatIdr(total)}`);
+    return lines.join('\n');
 }
 
 function apiFieldToFormKey(apiField) {
@@ -555,8 +590,8 @@ function DemoOverlay({ onClose, onOpenOnboarding, packageUuid }) {
                     <div className="mpl-demo-head">
                         <div>
                             <span className="mpl-badge"><Lightning size={14} weight="fill" /> Demo Dashboard</span>
-                            <h2 className="h3 mt-3 mb-2">Preview layout dari repo referensi</h2>
-                            <p className="text-muted mb-0">Ini dipakai sebagai showcase visual, sementara CTA tetap diarahkan ke flow onboarding publik yang sudah hidup.</p>
+                            <h2 className="h3 mt-3 mb-2">Lihat pengalaman dashboard Anda</h2>
+                            <p className="text-muted mb-0">Gunakan demo ini untuk melihat alur kerja utama sebelum memulai onboarding.</p>
                         </div>
                         <button type="button" className="mpl-demo-close" aria-label="Close demo" onClick={onClose}>
                             <X size={20} />
@@ -694,7 +729,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                         <div className="modal-header border-0 pb-0">
                             <div>
                                 <h2 className="h4 mb-1" id="landingOnboardingModalLabel">Aktifkan workspace perusahaan</h2>
-                                <p className="text-muted mb-0">Flow onboarding publik tetap dipakai. Yang berubah hanya visual landing-nya.</p>
+                                <p className="text-muted mb-0">Lengkapi data perusahaan dan owner untuk mulai menggunakan platform.</p>
                             </div>
                             <button type="button" className="btn-close" aria-label="Close" onClick={onClose}></button>
                         </div>
@@ -835,7 +870,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                                 </div>
                                                 <div className="col-12">
                                                     <label className="form-label">Password</label>
-                                                    <input className={`form-control${fe('ownerPassword') ? ' is-invalid' : ''}`} name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} minLength={8} maxLength={64} required />
+                                                    <input className={`form-control${fe('ownerPassword') ? ' is-invalid' : ''}`} name="ownerPassword" type="password" value={formState.ownerPassword} onChange={onChange} minLength={8} maxLength={64} pattern="(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}" title="Password minimal 8 karakter, wajib ada huruf besar, huruf kecil, dan angka." required />
                                                     {fe('ownerPassword') ? <div className="invalid-feedback">{fe('ownerPassword')}</div> : <div className="form-text">Min. 8 karakter, mengandung huruf besar, huruf kecil, dan angka.</div>}
                                                 </div>
                                                 <div className="col-12">
@@ -1403,6 +1438,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
 
             const companyCode = data?.data?.company?.code || null;
             const ownerEmail = data?.data?.owner?.email || null;
+            const invoice = data?.data?.invoice || null;
             const subscriptionStatus = String(data?.data?.subscription?.status || '').trim();
             const isPendingPayment = subscriptionStatus === 'pending_payment';
 
@@ -1413,6 +1449,41 @@ export function PublicLandingReferenceApp({ bootstrap }) {
             setOnboardingOpen(false);
 
             if (isPendingPayment) {
+                let pendingMessage = 'Registrasi company berhasil. Lanjutkan ke checkout untuk menyelesaikan pembayaran.';
+
+                if (companyCode) {
+                    pendingMessage += `\n\nCompany code: ${companyCode}`;
+                }
+
+                if (ownerEmail) {
+                    pendingMessage += `\nLogin email: ${ownerEmail}`;
+                }
+
+                if (invoice?.invoiceNumber) {
+                    pendingMessage += `\nInvoice: ${invoice.invoiceNumber}`;
+                }
+
+                const breakdownText = buildInvoiceBreakdownMessage(invoice);
+                if (breakdownText) {
+                    pendingMessage += `\n\n${breakdownText}`;
+                }
+
+                pendingMessage += '\n\nKlik "Login untuk lanjut bayar" untuk membuka checkout billing.';
+
+                try {
+                    if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
+                        await window.ArcavUi.selectOption({
+                            title: 'Onboarding berhasil',
+                            message: pendingMessage,
+                            options: [{ value: 'proceed', label: 'Login untuk lanjut bayar' }],
+                        });
+                    } else {
+                        window.alert(pendingMessage);
+                    }
+                } catch (_uiError) {
+                    // Continue redirect even if helper modal fails.
+                }
+
                 window.location.href = pendingPaymentUrl;
                 return;
             }
@@ -1540,7 +1611,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.7, delay: 0.34, ease: [0.16, 1, 0.3, 1] }}
                         >
-                            Platform HCM lengkap untuk absensi, cuti, payroll, dan laporan. Structure dan ritme section sekarang mengikuti repo referensi, sementara paket dan flow onboarding tetap diambil dari sistem aktif.
+                            Platform HCM lengkap untuk absensi, cuti, payroll, dan laporan. Dirancang agar tim HR, pimpinan, dan finance bisa bekerja lebih cepat dalam satu alur.
                         </motion.p>
 
                         <motion.div
@@ -1585,7 +1656,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     <FadeInSection className="mpl-section-head">
                         <span className="mpl-badge">Dashboard Preview</span>
                         <h2>Dashboard yang <span className="mpl-gradient-text">Intuitif</span></h2>
-                        <p>Pantau aktivitas tim, kelola absensi, approval cuti, hingga payroll. Section ini mengikuti komposisi repo referensi dan hanya disambungkan ke CTA onboarding kita.</p>
+                        <p>Pantau aktivitas tim, kelola absensi, proses cuti, hingga payroll dalam satu dashboard yang mudah dipahami.</p>
                     </FadeInSection>
                     <DashboardMockup onOpenOnboarding={openOnboarding} packageUuid={primaryPackageUuid} />
                 </div>
@@ -1596,7 +1667,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     <FadeInSection className="mpl-section-head">
                         <span className="mpl-badge">Features</span>
                         <h2>Semua yang Tim Anda Butuhkan</h2>
-                        <p>Tools lengkap untuk mengelola HR dengan lebih efektif dan terstruktur, tanpa memutus kontrak package dan onboarding yang sudah ada.</p>
+                        <p>Fitur inti HR tersedia dalam satu tempat agar operasional harian lebih cepat, konsisten, dan minim kesalahan.</p>
                     </FadeInSection>
 
                     <div className="mpl-grid-four">
@@ -1630,7 +1701,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     <FadeInSection className="mpl-section-head">
                         <span className="mpl-badge">How it Works</span>
                         <h2>Mulai dalam 3 Langkah</h2>
-                        <p>Jalur onboarding tetap pendek, sekarang dibungkus ulang mengikuti ritme visual repo referensi.</p>
+                        <p>Alur pendaftaran singkat, jelas, dan mudah diikuti sampai akun siap digunakan.</p>
                     </FadeInSection>
 
                     <div className="mpl-step-wrap">
@@ -1657,7 +1728,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     <FadeInSection className="mpl-section-head">
                         <span className="mpl-badge">Pricing</span>
                         <h2>Paket yang <span className="mpl-gradient-text">Fleksibel</span></h2>
-                        <p>Pilih paket sesuai ukuran dan kebutuhan tim Anda. Card pricing sekarang mengikuti hirarki visual repo referensi, tetapi datanya tetap berasal dari paket aktif backend.</p>
+                        <p>Pilih paket sesuai ukuran dan kebutuhan tim Anda, lalu mulai onboarding tanpa proses berbelit.</p>
                     </FadeInSection>
 
                     {packages.length ? (
@@ -1676,7 +1747,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     ) : (
                         <div className="mpl-card text-center">
                             <h3 className="mb-2">Paket belum tersedia</h3>
-                            <p className="mb-3">Seed atau aktifkan paket terlebih dulu agar pricing section bisa merender data dinamis.</p>
+                            <p className="mb-3">Belum ada paket aktif. Aktifkan paket terlebih dulu agar pilihan harga tampil di halaman ini.</p>
                             <a className="mpl-btn" href={bootstrap.trialUrl}>Buka halaman trial</a>
                         </div>
                     )}
@@ -1689,7 +1760,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                         <div className="mpl-cta-card">
                             <span className="mpl-badge"><Lightning size={14} weight="fill" /> Ready to launch</span>
                             <h2>Siap Transformasi HR Anda?</h2>
-                            <p>Bergabung dengan perusahaan yang butuh landing lebih dekat ke repo referensi, tapi tetap ingin menjaga flow onboarding, package selection, dan owner login yang sudah hidup di sistem ini.</p>
+                            <p>Bergabung dengan perusahaan yang ingin operasional HR lebih rapi, payroll lebih tenang, dan onboarding lebih cepat.</p>
                             <div className="mpl-cta-actions">
                                 <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
                                     Coba Gratis 30 Hari <ArrowRight size={18} weight="bold" />

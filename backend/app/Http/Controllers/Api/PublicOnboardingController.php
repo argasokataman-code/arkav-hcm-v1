@@ -44,7 +44,68 @@ class PublicOnboardingController
             ]);
         }
 
+        $verifyUrl = (string) config('turnstile.verify_url', 'https://challenges.cloudflare.com/turnstile/v0/siteverify');
+
+        try {
+            $response = Http::asForm()
+                ->timeout(10)
+                ->post($verifyUrl, [
+                    'secret' => $secret,
+                    'response' => $token,
+                    'remoteip' => (string) $request->ip(),
+                ]);
+        } catch (\Throwable $e) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'turnstile_token' => ['Failed to verify Turnstile token. Please retry.'],
+            ]);
+        }
+
+        if (!$response->ok()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'turnstile_token' => ['Turnstile verification failed. Please retry.'],
+            ]);
+        }
+
+        $payload = $response->json();
+        $success = (bool) data_get($payload, 'success', false);
+        if (!$success) {
+            $codes = data_get($payload, 'error-codes', []);
+            $codesText = is_array($codes) ? implode(', ', array_map('strval', $codes)) : '';
+            $suffix = $codesText !== '' ? ' ('.$codesText.')' : '';
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'turnstile_token' => ['Turnstile token is invalid or expired'.$suffix.'.'],
+            ]);
+        }
+
         return;
+    }
+
+    private function parsePricingBreakdownFromNotes(?string $notes): ?array
+    {
+        if ($notes === null || $notes === '') {
+            return null;
+        }
+
+        $decoded = json_decode($notes, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $pricing = $decoded['pricing_breakdown'] ?? null;
+        if (!is_array($pricing)) {
+            return null;
+        }
+
+        return [
+            'base_amount' => isset($pricing['base_amount']) ? (float) $pricing['base_amount'] : null,
+            'subscription_tax_rate' => isset($pricing['subscription_tax_rate']) ? (float) $pricing['subscription_tax_rate'] : null,
+            'subscription_tax_amount' => isset($pricing['subscription_tax_amount']) ? (float) $pricing['subscription_tax_amount'] : null,
+            'service_fee_rate' => isset($pricing['service_fee_rate']) ? (float) $pricing['service_fee_rate'] : null,
+            'service_fee_amount' => isset($pricing['service_fee_amount']) ? (float) $pricing['service_fee_amount'] : null,
+            'total_amount' => isset($pricing['total_amount']) ? (float) $pricing['total_amount'] : null,
+            'components' => is_array($pricing['components'] ?? null) ? array_values($pricing['components']) : [],
+        ];
     }
 
     private function normalizeCompanyCodeBase(string $name): string
@@ -351,6 +412,8 @@ class PublicOnboardingController
                         'amountDue' => (float) $invoice->amount_due,
                         'isPaid' => (bool) $invoice->is_paid,
                         'status' => (string) $invoice->status,
+                        'billingTaxRateSnapshot' => $invoice->billing_tax_rate_snapshot !== null ? (float) $invoice->billing_tax_rate_snapshot : null,
+                        'pricingBreakdown' => $this->parsePricingBreakdownFromNotes($invoice->notes),
                     ] : null,
                 ],
             ], 201);

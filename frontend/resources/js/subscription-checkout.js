@@ -130,7 +130,48 @@
     }
 
     function parsePricingBreakdown(invoice) {
-        if (!invoice || !invoice.notes) return null;
+        if (!invoice) return null;
+
+        var normalized = invoice.pricingBreakdown && typeof invoice.pricingBreakdown === "object"
+            ? invoice.pricingBreakdown
+            : null;
+
+        if (normalized) {
+            var normalizedBaseAmount = Number(normalized.baseAmount || 0);
+            var normalizedTaxRate = Number(normalized.subscriptionTaxRate || 0);
+            var normalizedTaxAmount = Number(normalized.subscriptionTaxAmount || 0);
+            var normalizedTotalAmount = Number(normalized.totalAmount || 0);
+            var normalizedComponents = Array.isArray(normalized.components)
+                ? normalized.components
+                    .map(function (item) {
+                        var rate = Number(item && item.rate);
+                        var amount = Number(item && item.amount);
+                        if (!Number.isFinite(rate) || !Number.isFinite(amount)) return null;
+                        return {
+                            key: item && item.key ? String(item.key) : "",
+                            label: item && item.label ? String(item.label) : "Komponen",
+                            rate: rate,
+                            amount: amount,
+                        };
+                    })
+                    .filter(Boolean)
+                : [];
+
+            if (Number.isFinite(normalizedBaseAmount) && Number.isFinite(normalizedTaxRate) && Number.isFinite(normalizedTaxAmount) && Number.isFinite(normalizedTotalAmount)) {
+                return {
+                    baseAmount: normalizedBaseAmount,
+                    serviceFeeRate: Number(normalized.serviceFeeRate || 0),
+                    serviceFeeAmount: Number(normalized.serviceFeeAmount || 0),
+                    taxRate: normalizedTaxRate,
+                    taxAmount: normalizedTaxAmount,
+                    totalAmount: normalizedTotalAmount,
+                    components: normalizedComponents,
+                };
+            }
+        }
+
+        if (!invoice.notes) return null;
+
         try {
             var payload = typeof invoice.notes === "string" ? JSON.parse(invoice.notes) : invoice.notes;
             var breakdown = payload && payload.pricing_breakdown ? payload.pricing_breakdown : null;

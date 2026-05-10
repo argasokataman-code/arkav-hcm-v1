@@ -180,11 +180,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [package_uuid, billing_cycle, company, owner]
+              required: [package_uuid, billing_cycle, consent_accepted, company, owner]
               properties:
                 package_uuid: { type: string, format: uuid }
                 billing_cycle: { type: string, enum: [monthly, yearly] }
                 start_mode: { type: string, enum: [trial, pending_payment], nullable: true }
+                consent_accepted:
+                  type: boolean
+                  description: Must be accepted (`true`) before onboarding can proceed.
                 billingEmail: { type: string, format: email, nullable: true, maxLength: 255 }
                 turnstile_token:
                   type: string
@@ -213,9 +216,9 @@ paths:
                     country_code: { type: string, maxLength: 10 }
                     contact_phone:
                       type: string
-                      maxLength: 30
+                      maxLength: 20
                       nullable: true
-                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      pattern: '^[0-9+\-\s().]{6,20}$'
                       description: Optional. Company contact phone for billing/support.
                     contact_person_name:
                       type: string
@@ -248,9 +251,9 @@ paths:
                     email: { type: string, format: email, maxLength: 255 }
                     phone:
                       type: string
-                      maxLength: 30
+                      maxLength: 20
                       nullable: true
-                      pattern: '^[0-9+\-\s().]{6,30}$'
+                      pattern: '^[0-9+\-\s().]{6,20}$'
                       description: Optional. Owner phone.
                     password: { type: string, minLength: 8, maxLength: 64, pattern: '^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)[A-Za-z\\d@$!%*?&._-]{8,64}$' }
                     confirmPassword: { type: string }
@@ -298,9 +301,30 @@ paths:
                           id: { type: integer }
                           invoiceNumber: { type: string, nullable: true }
                           issueDate: { type: string, format: date }
+                          dueDate: { type: string, format: date }
                           amountDue: { type: number }
                           isPaid: { type: boolean }
                           status: { type: string }
+                          billingTaxRateSnapshot: { type: number, nullable: true }
+                          pricingBreakdown:
+                            type: object
+                            nullable: true
+                            properties:
+                              base_amount: { type: number, nullable: true }
+                              subscription_tax_rate: { type: number, nullable: true }
+                              subscription_tax_amount: { type: number, nullable: true }
+                              service_fee_rate: { type: number, nullable: true }
+                              service_fee_amount: { type: number, nullable: true }
+                              total_amount: { type: number, nullable: true }
+                              components:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    key: { type: string }
+                                    label: { type: string }
+                                    rate: { type: number }
+                                    amount: { type: number }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/TooManyRequestsError' }
 

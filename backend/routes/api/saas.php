@@ -80,6 +80,7 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
         Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
         Route::put('/invoices/{invoice}/send', [InvoiceController::class, 'markAsSent']);
         Route::put('/invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
+        Route::get('/invoices/{invoice}/pdf/preview', [InvoiceController::class, 'previewPdf']);
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
         Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
         Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail']);
@@ -99,8 +100,11 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
         Route::prefix('/tax')->group(function () {
             Route::get('/active-ppn-rate', [PlatformTaxSummaryController::class, 'activePpnRate']);
             Route::get('/dashboard', [PlatformTaxSummaryController::class, 'dashboard']);
+            Route::get('/dashboard/export', [PlatformTaxSummaryController::class, 'exportDashboard']);
             Route::get('/spt-ppn', [PlatformTaxSummaryController::class, 'sptPpn']);
+            Route::get('/spt-ppn/export', [PlatformTaxSummaryController::class, 'exportSptPpn']);
             Route::get('/spt-pph23', [PlatformTaxSummaryController::class, 'sptPph23']);
+            Route::get('/spt-pph23/export', [PlatformTaxSummaryController::class, 'exportSptPph23']);
             Route::get('/spt-pph-badan', [PlatformTaxSummaryController::class, 'sptPphBadan']);
             Route::get('/spt-pph-badan/export', [PlatformTaxSummaryController::class, 'exportSptPphBadan']);
         });

@@ -13,7 +13,7 @@
 							<a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
 						</li>
 						<li class="breadcrumb-item">SaaS</li>
-						<li class="breadcrumb-item"><a href="{{ route('saas.billing-overview') }}">Billing Overview</a></li>
+						<li class="breadcrumb-item"><a href="{{ route('saas.billing-overview') }}">Trial & Billing Overview</a></li>
 						<li class="breadcrumb-item active" aria-current="page">Detail Invoice</li>
 					</ol>
 				</nav>

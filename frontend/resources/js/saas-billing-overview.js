@@ -120,6 +120,17 @@
         );
     }
 
+    function cancellationReasonLabel(code) {
+        var reason = String(code || "").toLowerCase();
+        if (reason === "trial_expired") return "Trial Expired";
+        if (reason === "payment_overdue") return "Payment Overdue";
+        if (reason === "tenant_request") return "Permintaan Tenant";
+        if (reason === "system_webhook") return "Sinkronisasi Gateway";
+        if (reason === "seeded_demo_state") return "Data Demo Seeded";
+        if (reason === "manual_stop") return "Manual Stop";
+        return "Alasan Tidak Tercatat";
+    }
+
     function buildInvoiceDetailUrl(invoice) {
         if (!invoice) return "#";
         if (invoice.detailUrl) return String(invoice.detailUrl);
@@ -127,9 +138,34 @@
         return "#";
     }
 
-    function buildInvoicePdfUrl(invoice) {
+    function buildInvoicePdfPreviewUrl(invoice) {
+        if (!invoice || !invoice.uuid) return "#";
+        return "/v1/saas/invoices/" + encodeURIComponent(String(invoice.uuid)) + "/pdf/preview";
+    }
+
+    function buildInvoicePdfDownloadUrl(invoice) {
         if (!invoice || !invoice.uuid) return "#";
         return "/v1/saas/invoices/" + encodeURIComponent(String(invoice.uuid)) + "/pdf";
+    }
+
+    function renderCancellationMeta(subscription) {
+        if (!subscription || String(subscription.status || "").toLowerCase() !== "cancelled") {
+            return "";
+        }
+
+        var reasonLabel = cancellationReasonLabel(subscription.cancellationReason);
+        var cancelledAt = subscription.cancelledAt ? formatDateTime(subscription.cancelledAt) : "-";
+        var description = subscription.cancellationDescription || "Tidak ada detail alasan pembatalan.";
+
+        return (
+            '<div class="text-muted small mt-1">Dibatalkan: ' +
+            escapeHtml(cancelledAt) +
+            ' • ' +
+            escapeHtml(reasonLabel) +
+            '</div><div class="text-muted small">' +
+            escapeHtml(description) +
+            "</div>"
+        );
     }
 
     function buildInvoiceListUrl(row) {
@@ -257,8 +293,11 @@
                           '"><i class="ti ti-eye"></i> Detail</a>' +
                                                     followUpAction +
                           '<a class="btn btn-outline-dark btn-sm" href="' +
-                          escapeHtml(buildInvoicePdfUrl(inv)) +
-                          '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-download"></i> PDF</a>' +
+                                                    escapeHtml(buildInvoicePdfPreviewUrl(inv)) +
+                                                    '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-search"></i> View PDF</a>' +
+                                                    '<a class="btn btn-outline-dark btn-sm" href="' +
+                                                    escapeHtml(buildInvoicePdfDownloadUrl(inv)) +
+                                                    '"><i class="ti ti-file-download"></i> Download PDF</a>' +
                           "</div>"
                         : '<a class="btn btn-outline-secondary btn-sm mt-2" href="' +
                           escapeHtml(buildInvoiceListUrl(row)) +
@@ -278,6 +317,7 @@
                         escapeHtml(s.planCode || "-") +
                         (s.billingCycle ? " • " + escapeHtml(normalizeLabel(s.billingCycle)) : "") +
                         "</div>" +
+                        renderCancellationMeta(s) +
                         renderStateBadges(stateBadges) +
                         '<div class="mt-2"><div class="small text-uppercase text-muted">Invoice Terbaru</div>' +
                         (inv
@@ -349,6 +389,7 @@
                         escapeHtml(s.planCode || "") +
                                                 (s.billingCycle ? " • " + escapeHtml(normalizeLabel(s.billingCycle)) : "") +
                         "</div>" +
+                        renderCancellationMeta(s) +
                         renderStateBadges(stateBadges);
 
                     var invHtml = inv
@@ -387,8 +428,11 @@
                                                     '"><i class="ti ti-eye"></i> Detail</a>' +
                                                     followUpAction +
                                                     '<a class="btn btn-outline-dark btn-sm" href="' +
-                                                    escapeHtml(buildInvoicePdfUrl(inv)) +
-                                                    '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-download"></i> PDF</a>' +
+                                                    escapeHtml(buildInvoicePdfPreviewUrl(inv)) +
+                                                    '" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-search"></i> View PDF</a>' +
+                                                    '<a class="btn btn-outline-dark btn-sm" href="' +
+                                                    escapeHtml(buildInvoicePdfDownloadUrl(inv)) +
+                                                    '"><i class="ti ti-file-download"></i> Download PDF</a>' +
                                                     "</div>"
                                                 : '<a class="btn btn-outline-secondary btn-sm" href="' +
                                                     escapeHtml(buildInvoiceListUrl(row)) +
@@ -599,7 +643,7 @@
         var resendButton = qs("[data-billing-detail-resend]", root);
 
         function renderStateSummary(data) {
-            var badges = [];
+            var badges = Array.isArray(data.stateBadges) ? data.stateBadges.slice() : [];
             var subscription = data.subscription || null;
 
             if (subscription && subscription.status === "pending_payment" && data.isPaid) {
@@ -644,7 +688,13 @@
             setText(companyCode, company.code || "-");
             setText(subscriptionStatus, normalizeLabel(subscription.status || "-"));
             setText(subscriptionPlan, (subscription.planCode || "-") + (subscription.packageName ? " • " + String(subscription.packageName) : ""));
-            setText(subscriptionPeriod, "Periode: " + formatDate(subscription.startsAt) + " - " + formatDate(subscription.endsAt));
+            var cancellationSuffix = "";
+            if (String(subscription.status || "").toLowerCase() === "cancelled") {
+                var cancelledAt = subscription.cancelledAt ? formatDateTime(subscription.cancelledAt) : "-";
+                var reason = cancellationReasonLabel(subscription.cancellationReason);
+                cancellationSuffix = " • Dibatalkan: " + cancelledAt + " (" + reason + ")";
+            }
+            setText(subscriptionPeriod, "Periode: " + formatDate(subscription.startsAt) + " - " + formatDate(subscription.endsAt) + cancellationSuffix);
             setText(invoiceStatus, normalizeLabel(data.status || "-") + (data.isPaid ? " • Lunas" : " • Belum Lunas"));
             setText(invoiceNumber, data.invoiceNumber || "-");
             setText(invoiceDueDate, formatDate(data.dueDate));

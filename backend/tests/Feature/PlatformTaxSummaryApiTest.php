@@ -52,6 +52,60 @@ class PlatformTaxSummaryApiTest extends TestCase
             ->assertJsonValidationErrors(['format']);
     }
 
+    public function test_dashboard_export_returns_xlsx_for_global_admin(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'platform-tax-dashboard-export@example.com']);
+        $this->elevateToGlobalAdmin('platform-tax-dashboard-export@example.com');
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']);
+
+        $response = $this->withHeaders($headers)
+            ->get('/v1/saas/tax/dashboard/export?month=2026-05&ppn_rate=11&format=xlsx');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('PK', substr($response->streamedContent(), 0, 2));
+    }
+
+    public function test_spt_ppn_export_returns_xlsx_for_global_admin(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'platform-tax-spt-ppn-export@example.com']);
+        $this->elevateToGlobalAdmin('platform-tax-spt-ppn-export@example.com');
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']);
+
+        $response = $this->withHeaders($headers)
+            ->get('/v1/saas/tax/spt-ppn/export?month=2026-05&ppn_rate=11&format=xlsx');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('PK', substr($response->streamedContent(), 0, 2));
+    }
+
+    public function test_spt_pph23_export_returns_xlsx_for_global_admin(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'platform-tax-spt-pph23-export@example.com']);
+        $this->elevateToGlobalAdmin('platform-tax-spt-pph23-export@example.com');
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']);
+
+        $response = $this->withHeaders($headers)
+            ->get('/v1/saas/tax/spt-pph23/export?month=2026-05&format=xlsx');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('.xlsx', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('PK', substr($response->streamedContent(), 0, 2));
+    }
+
     public function test_active_ppn_rate_returns_default_when_no_active_compliance_policy_exists(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'platform-tax-rate-default@example.com']);

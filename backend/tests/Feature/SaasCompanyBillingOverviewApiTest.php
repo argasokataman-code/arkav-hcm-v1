@@ -530,5 +530,260 @@ class SaasCompanyBillingOverviewApiTest extends TestCase
         $subscribedRows = collect($subscribedResponse->json('data'));
         $this->assertNull($subscribedRows->firstWhere('company.code', 'TRIALINV01'));
     }
+
+    public function test_overview_exposes_cancellation_metadata_and_extended_state_badges(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'growth-plan',
+            'name' => 'Growth Plan',
+            'monthly_price' => 200000,
+            'yearly_price' => 2000000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $cancelledCompany = Company::query()->create([
+            'code' => 'CANCEL01',
+            'name' => 'Cancelled Trial Co',
+            'legal_name' => null,
+            'status' => 'active',
+            'owner_user_id' => 1,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $cancelledSubscription = Subscription::query()->create([
+            'company_id' => $cancelledCompany->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'cancelled',
+            'starts_at' => now()->subDays(35),
+            'ends_at' => now()->subDays(5),
+            'trial_ends_at' => now()->subDays(5),
+            'billing_cycle' => 'monthly',
+            'amount' => 0,
+        ]);
+
+        $cancelledInvoice = Invoice::query()->create([
+            'company_id' => $cancelledCompany->id,
+            'subscription_id' => $cancelledSubscription->id,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->subDays(10)->toDateString(),
+            'due_date' => now()->subDays(7)->toDateString(),
+            'amount_due' => 200000,
+            'status' => 'draft',
+            'is_paid' => false,
+            'notes' => 'Cancelled after trial ended',
+        ]);
+
+        $pendingCompany = Company::query()->create([
+            'code' => 'OVERDUE01',
+            'name' => 'Pending Overdue Co',
+            'legal_name' => null,
+            'status' => 'active',
+            'owner_user_id' => 1,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $pendingSubscription = Subscription::query()->create([
+            'company_id' => $pendingCompany->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'pending_payment',
+            'starts_at' => now()->subDays(10),
+            'ends_at' => now()->addDays(20),
+            'billing_cycle' => 'monthly',
+            'amount' => 200000,
+        ]);
+
+        Invoice::query()->create([
+            'company_id' => $pendingCompany->id,
+            'subscription_id' => $pendingSubscription->id,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->subDays(8)->toDateString(),
+            'due_date' => now()->subDays(2)->toDateString(),
+            'amount_due' => 200000,
+            'status' => 'sent',
+            'is_paid' => false,
+            'notes' => 'Pending overdue payment',
+        ]);
+
+        $response = $this->adminRequest()
+            ->getJson('/v1/saas/companies/billing-overview?tab=subscribed&per_page=50')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $rows = collect($response->json('data'));
+        $cancelledRow = $rows->firstWhere('company.code', 'CANCEL01');
+        $overdueRow = $rows->firstWhere('company.code', 'OVERDUE01');
+
+        $this->assertNotNull($cancelledRow);
+        $this->assertSame('trial_expired', $cancelledRow['subscription']['cancellationReason'] ?? null);
+        $this->assertNotEmpty($cancelledRow['subscription']['cancellationDescription'] ?? null);
+        $this->assertNotEmpty($cancelledRow['subscription']['cancelledAt'] ?? null);
+        $this->assertContains('CANCELLED_TRIAL_EXPIRED', collect($cancelledRow['stateBadges'] ?? [])->pluck('code')->all());
+
+        $this->assertNotNull($overdueRow);
+        $this->assertContains('PAYMENT_OVERDUE', collect($overdueRow['stateBadges'] ?? [])->pluck('code')->all());
+
+        $this->adminRequest()
+            ->getJson('/v1/saas/invoices/'.$cancelledInvoice->uuid)
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.subscription.cancellationReason', 'trial_expired');
+    }
+
+    public function test_admin_can_preview_invoice_pdf_inline(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'preview-plan',
+            'name' => 'Preview Plan',
+            'monthly_price' => 100000,
+            'yearly_price' => 1000000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'PDFPRVW01',
+            'name' => 'Preview Company',
+            'legal_name' => null,
+            'status' => 'active',
+            'owner_user_id' => 1,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDays(5),
+            'ends_at' => now()->addDays(25),
+            'billing_cycle' => 'monthly',
+            'amount' => 100000,
+        ]);
+
+        $invoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'amount_due' => 100000,
+            'status' => 'sent',
+            'is_paid' => false,
+            'notes' => 'Preview PDF endpoint test',
+        ]);
+
+        $response = $this->adminRequest()
+            ->get('/v1/saas/invoices/'.$invoice->uuid.'/pdf/preview')
+            ->assertOk();
+
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString('inline;', (string) $response->headers->get('content-disposition', ''));
+    }
+
+    public function test_cancelled_subscription_without_reason_uses_unknown_reason(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'cancel-unknown-plan',
+            'name' => 'Cancel Unknown Plan',
+            'monthly_price' => 300000,
+            'yearly_price' => 3000000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'CANCELUNK01',
+            'name' => 'Cancel Unknown Co',
+            'legal_name' => null,
+            'status' => 'active',
+            'owner_user_id' => 1,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'cancelled',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->subDays(1),
+            'trial_ends_at' => null,
+            'billing_cycle' => 'yearly',
+            'amount' => 3000000,
+            'termination_reason' => null,
+            'terminated_at' => now()->subDays(1),
+        ]);
+
+        $response = $this->adminRequest()
+            ->getJson('/v1/saas/companies/billing-overview?tab=subscribed&per_page=50')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $rows = collect($response->json('data'));
+        $row = $rows->firstWhere('company.code', 'CANCELUNK01');
+
+        $this->assertNotNull($row);
+        $this->assertSame('unknown', $row['subscription']['cancellationReason'] ?? null);
+        $this->assertNotEmpty($row['subscription']['cancellationDescription'] ?? null);
+    }
+
+    public function test_cancelled_seeded_demo_subscription_uses_seeded_demo_reason(): void
+    {
+        $package = Package::query()->create([
+            'code' => 'seeded-demo-plan',
+            'name' => 'Seeded Demo Plan',
+            'monthly_price' => 150000,
+            'yearly_price' => 1500000,
+            'billing_unit' => 'flat',
+            'status' => 'active',
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'SEEDCANCEL01',
+            'name' => 'Seeded Cancel Demo Co',
+            'legal_name' => null,
+            'status' => 'active',
+            'owner_user_id' => 1,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'cancelled',
+            'starts_at' => now()->subMonths(1),
+            'ends_at' => now()->addMonths(10),
+            'billing_cycle' => 'yearly',
+            'amount' => 1500000,
+            'termination_reason' => null,
+            'metadata' => ['seed' => 'saas_ui_flow', 'company_code' => 'SEEDCANCEL01'],
+        ]);
+
+        $response = $this->adminRequest()
+            ->getJson('/v1/saas/companies/billing-overview?tab=subscribed&per_page=50')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $rows = collect($response->json('data'));
+        $row = $rows->firstWhere('company.code', 'SEEDCANCEL01');
+
+        $this->assertNotNull($row);
+        $this->assertSame('seeded_demo_state', $row['subscription']['cancellationReason'] ?? null);
+        $this->assertStringContainsString('data demo seed', strtolower((string) ($row['subscription']['cancellationDescription'] ?? '')));
+    }
 }
 

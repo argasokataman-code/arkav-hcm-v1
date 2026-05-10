@@ -421,29 +421,218 @@ class PlatformTaxSummaryController extends Controller
 
             $rows[] = [
                 $month,
-                (string) round($monthly['taxable_revenue'], 2),
-                (string) round($monthly['transaction_tax_liability'], 2),
-                (string) round($monthly['pph_badan_payable'], 2),
-                (string) round($monthly['net_profit_estimate'], 2),
-                (string) round($monthly['effective_pph_badan_rate'], 2),
-                $monthly['policy_configured'] ? 'yes' : 'no',
+                $this->formatRupiah((float) $monthly['taxable_revenue']),
+                $this->formatRupiah((float) $monthly['transaction_tax_liability']),
+                $this->formatRupiah((float) $monthly['pph_badan_payable']),
+                $this->formatRupiah((float) $monthly['net_profit_estimate']),
+                $this->formatPercent((float) $monthly['effective_pph_badan_rate']),
+                $monthly['policy_configured'] ? 'Configured' : 'Not configured',
             ];
         }
 
         return TabularExportResponse::download(
             [
-                'month',
-                'taxable_revenue',
-                'transaction_tax_liability',
-                'pph_badan_payable',
-                'net_profit_estimate',
-                'effective_pph_badan_rate',
-                'policy_configured',
+                'Bulan',
+                'Taxable Revenue',
+                'Transaction Tax Liability',
+                'PPh Badan Payable',
+                'Net Profit Estimate',
+                'Effective PPh Badan Rate',
+                'Policy Status',
             ],
             $rows,
             'spt-pph-badan-estimasi-'.$year.'-'.now()->format('Ymd_His'),
             'xlsx',
             'SPT PPh Badan'
+        );
+    }
+
+    /**
+     * GET /v1/saas/tax/dashboard/export?month=YYYY-MM&ppn_rate=11&format=xlsx
+     */
+    public function exportDashboard(Request $request): StreamedResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'ppn_rate' => ['nullable', 'numeric', 'min:7', 'max:15'],
+            'format' => ['nullable', 'string', 'in:xlsx'],
+        ]);
+
+        $month = $this->resolveMonth($validated['month'] ?? null);
+        $ppnRate = $this->resolvePpnRate($validated['ppn_rate'] ?? null);
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+
+        if ($format !== 'xlsx') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNSUPPORTED_EXPORT_FORMAT',
+                    'message' => 'Only XLSX export is currently supported for dashboard export.',
+                ],
+            ], 422);
+        }
+
+        $payload = $this->dashboard($request->duplicate([
+            'month' => $month,
+            'ppn_rate' => $ppnRate,
+        ]))->getData(true);
+
+        $data = (array) ($payload['data'] ?? []);
+        $revenue = (array) ($data['revenue_summary'] ?? []);
+        $taxes = (array) ($data['tax_obligations'] ?? []);
+
+        $rows = [
+            ['Periode', $month],
+            ['Tarif PPN Aktif', $this->formatPercent((float) ($data['ppn_rate'] ?? $ppnRate))],
+            ['Gross Revenue', $this->formatRupiah((float) ($revenue['gross_revenue'] ?? 0))],
+            ['Revenue Dibayar', $this->formatRupiah((float) ($revenue['paid_revenue'] ?? 0))],
+            ['Revenue Belum Dibayar', $this->formatRupiah((float) ($revenue['pending_revenue'] ?? 0))],
+            ['DPP PPN', $this->formatRupiah((float) ($revenue['dpp_ppn'] ?? 0))],
+            ['Jumlah Tenant', (string) ($revenue['tenant_count'] ?? 0)],
+            ['Jumlah Invoice', (string) ($revenue['invoice_count'] ?? 0)],
+            ['', ''],
+            ['Jenis Pajak', 'Pajak Terutang'],
+            ['PPN', $this->formatRupiah((float) (($taxes['ppn']['amount'] ?? 0)))],
+            ['PPh 23', $this->formatRupiah((float) (($taxes['pph23']['amount'] ?? 0)))],
+            ['PPh Final', $this->formatRupiah((float) (($taxes['pph_final']['amount'] ?? 0)))],
+            ['Total Kewajiban Pajak', $this->formatRupiah((float) ($data['total_kewajiban_pajak'] ?? 0))],
+        ];
+
+        return TabularExportResponse::download(
+            ['Metrik', 'Nilai'],
+            $rows,
+            'spt-platform-dashboard-'.$month.'-'.now()->format('Ymd_His'),
+            'xlsx',
+            'Dashboard Pajak'
+        );
+    }
+
+    /**
+     * GET /v1/saas/tax/spt-ppn/export?month=YYYY-MM&ppn_rate=11&format=xlsx
+     */
+    public function exportSptPpn(Request $request): StreamedResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'ppn_rate' => ['nullable', 'numeric', 'min:7', 'max:15'],
+            'format' => ['nullable', 'string', 'in:xlsx'],
+        ]);
+
+        $month = $this->resolveMonth($validated['month'] ?? null);
+        $ppnRate = $this->resolvePpnRate($validated['ppn_rate'] ?? null);
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+
+        if ($format !== 'xlsx') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNSUPPORTED_EXPORT_FORMAT',
+                    'message' => 'Only XLSX export is currently supported for SPT PPN export.',
+                ],
+            ], 422);
+        }
+
+        $payload = $this->sptPpn($request->duplicate([
+            'month' => $month,
+            'ppn_rate' => $ppnRate,
+        ]))->getData(true);
+
+        $data = (array) ($payload['data'] ?? []);
+        $details = collect($data['detail_penyerahan'] ?? []);
+
+        $rows = $details->map(function (array $item): array {
+            return [
+                (string) ($item['no'] ?? ''),
+                (string) ($item['invoice_number'] ?? '-'),
+                (string) ($item['invoice_date'] ?? '-'),
+                (string) ($item['nama_pembeli'] ?? '-'),
+                (string) ($item['npwp_pembeli'] ?? '-'),
+                $this->formatRupiah((float) ($item['dpp'] ?? 0)),
+                $this->formatPercent((float) ($item['ppn_rate'] ?? 0)),
+                $this->formatRupiah((float) ($item['ppn'] ?? 0)),
+                (string) ($item['invoice_status'] ?? '-'),
+            ];
+        })->values()->all();
+
+        return TabularExportResponse::download(
+            [
+                'No',
+                'No. Invoice',
+                'Tanggal Invoice',
+                'Nama Pembeli',
+                'NPWP Pembeli',
+                'DPP',
+                'Tarif PPN',
+                'PPN',
+                'Status Invoice',
+            ],
+            $rows,
+            'spt-ppn-'.$month.'-'.now()->format('Ymd_His'),
+            'xlsx',
+            'SPT PPN'
+        );
+    }
+
+    /**
+     * GET /v1/saas/tax/spt-pph23/export?month=YYYY-MM&format=xlsx
+     */
+    public function exportSptPph23(Request $request): StreamedResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'format' => ['nullable', 'string', 'in:xlsx'],
+        ]);
+
+        $month = $this->resolveMonth($validated['month'] ?? null);
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+
+        if ($format !== 'xlsx') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'UNSUPPORTED_EXPORT_FORMAT',
+                    'message' => 'Only XLSX export is currently supported for SPT PPh 23 export.',
+                ],
+            ], 422);
+        }
+
+        $payload = $this->sptPph23($request->duplicate([
+            'month' => $month,
+        ]))->getData(true);
+
+        $data = (array) ($payload['data'] ?? []);
+        $details = collect($data['detail_pemotongan'] ?? []);
+
+        $rows = $details->map(function (array $item): array {
+            return [
+                (string) ($item['no'] ?? ''),
+                (string) ($item['nama_pemotong'] ?? '-'),
+                (string) ($item['npwp_pemotong'] ?? '-'),
+                (string) ($item['jenis_penghasilan'] ?? '-'),
+                (string) ($item['kode_objek_pajak'] ?? '-'),
+                (string) ($item['tanggal_bayar'] ?? '-'),
+                $this->formatRupiah((float) ($item['jumlah_bruto'] ?? 0)),
+                $this->formatPercent((float) ($item['tarif_pph23'] ?? 0)),
+                $this->formatRupiah((float) ($item['pph23_dipotong'] ?? 0)),
+            ];
+        })->values()->all();
+
+        return TabularExportResponse::download(
+            [
+                'No',
+                'Nama Pemotong',
+                'NPWP Pemotong',
+                'Jenis Penghasilan',
+                'Kode Objek Pajak',
+                'Tanggal Bayar',
+                'Jumlah Bruto',
+                'Tarif PPh 23',
+                'PPh 23 Dipotong',
+            ],
+            $rows,
+            'spt-pph23-'.$month.'-'.now()->format('Ymd_His'),
+            'xlsx',
+            'SPT PPh 23'
         );
     }
 
@@ -497,6 +686,16 @@ class PlatformTaxSummaryController extends Controller
         return (int) DB::table('invoices')
             ->whereBetween('issue_date', [$periodStart, $periodEnd])
             ->count();
+    }
+
+    private function formatRupiah(float $amount): string
+    {
+        return 'Rp '.number_format($amount, 2, ',', '.');
+    }
+
+    private function formatPercent(float $percent): string
+    {
+        return number_format($percent, 2, ',', '.').'%';
     }
 
     private function getMasaPelaporan(string $month): string

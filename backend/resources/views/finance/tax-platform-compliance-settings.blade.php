@@ -67,6 +67,36 @@
     .tax-cycle-card__value--muted {
         color: #475569;
     }
+
+    .tax-overview-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .tax-overview-item {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        background: #f8fafc;
+    }
+
+    .tax-overview-item__label {
+        font-size: 0.76rem;
+        color: #64748b;
+        margin-bottom: 0.18rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+    }
+
+    .tax-overview-item__value {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.35;
+        word-break: break-word;
+    }
 </style>
 <div class="page-wrapper"
     data-tax-governance-page
@@ -157,8 +187,65 @@
 
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0">Overview Konfigurasi Aktif</h5>
+                <span class="badge bg-secondary-subtle text-secondary" data-tax-platform-overview-status-badge>Belum ada aturan aktif</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+                    <i class="ti ti-alert-triangle mt-1"></i>
+                    <div>
+                        Pengaturan ini sensitif. Mode default halaman ini read-only untuk mengurangi risiko salah ubah tarif.
+                    </div>
+                </div>
+
+                <div class="tax-overview-list mb-3">
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Status Rule</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-status>Belum tersedia</div>
+                    </div>
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Transaction Tax (PPN)</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-transaction-rate>-</div>
+                    </div>
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Corporate Tax (PPh Badan)</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-corporate-rate>-</div>
+                    </div>
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Billing Cycle</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-cycle>-</div>
+                    </div>
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Effective Date</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-effective>-</div>
+                    </div>
+                    <div class="tax-overview-item">
+                        <div class="tax-overview-item__label">Notes</div>
+                        <div class="tax-overview-item__value" data-tax-platform-overview-notes>-</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-primary" data-tax-platform-edit-current>
+                        <i class="ti ti-edit me-1"></i>Edit Konfigurasi Aktif
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-tax-platform-new-config>
+                        <i class="ti ti-plus me-1"></i>Buat Konfigurasi Baru
+                    </button>
+                    <button type="button" class="btn btn-light d-none" data-tax-platform-cancel-edit>
+                        <i class="ti ti-arrow-back-up me-1"></i>Kembali ke Overview
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3 d-none" data-tax-platform-form-panel>
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0">Konfigurasi Government Tax & Compliance</h5>
-                <small class="text-muted">Pisahkan layer pajak tidak langsung, pajak langsung, dan histori pembayaran</small>
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-muted">Pisahkan layer pajak tidak langsung, pajak langsung, dan histori pembayaran</small>
+                    <span class="badge bg-warning-subtle text-warning" data-tax-platform-edit-mode-badge>Mode edit</span>
+                </div>
             </div>
             <div class="card-body">
                 <form class="row g-3" data-tax-platform-policy-form>

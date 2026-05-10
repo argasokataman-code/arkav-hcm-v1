@@ -5,8 +5,11 @@
  * Konsumsi endpoint:
  *   GET /v1/saas/tax/active-ppn-rate
  *   GET /v1/saas/tax/dashboard?month=YYYY-MM&ppn_rate=11
+ *   GET /v1/saas/tax/dashboard/export?month=YYYY-MM&ppn_rate=11&format=xlsx
  *   GET /v1/saas/tax/spt-ppn?month=YYYY-MM&ppn_rate=11
+ *   GET /v1/saas/tax/spt-ppn/export?month=YYYY-MM&ppn_rate=11&format=xlsx
  *   GET /v1/saas/tax/spt-pph23?month=YYYY-MM
+ *   GET /v1/saas/tax/spt-pph23/export?month=YYYY-MM&format=xlsx
  *   GET /v1/saas/tax/spt-pph-badan?year=YYYY
  *   GET /v1/saas/tax/spt-pph-badan/export?year=YYYY&format=xlsx
  */
@@ -488,6 +491,34 @@
 
         var activeTabBtn = document.querySelector('#tax-tabs .nav-link.active');
         var activeTarget = activeTabBtn ? activeTabBtn.getAttribute('data-bs-target') : '';
+        var month = String(state.month || new Date().toISOString().slice(0, 7));
+
+        if (activeTarget === '#tab-dashboard') {
+          var dashboardExportUrl = API_BASE
+            + '/dashboard/export?month=' + encodeURIComponent(month)
+            + '&ppn_rate=' + encodeURIComponent(state.ppnRate)
+            + '&format=xlsx';
+          window.open(dashboardExportUrl, '_self');
+          return;
+        }
+
+        if (activeTarget === '#tab-ppn') {
+          var sptPpnExportUrl = API_BASE
+            + '/spt-ppn/export?month=' + encodeURIComponent(month)
+            + '&ppn_rate=' + encodeURIComponent(state.ppnRate)
+            + '&format=xlsx';
+          window.open(sptPpnExportUrl, '_self');
+          return;
+        }
+
+        if (activeTarget === '#tab-pph23') {
+          var sptPph23ExportUrl = API_BASE
+            + '/spt-pph23/export?month=' + encodeURIComponent(month)
+            + '&format=xlsx';
+          window.open(sptPph23ExportUrl, '_self');
+          return;
+        }
+
         if (activeTarget === '#tab-pph-badan') {
           var year = String(state.month || new Date().toISOString().slice(0, 7)).slice(0, 4);
           var exportUrl = API_PPH_BADAN + '/export?year=' + encodeURIComponent(year) + '&format=xlsx';
@@ -495,7 +526,11 @@
           return;
         }
 
-        window.print();
+        var fallbackExportUrl = API_BASE
+          + '/dashboard/export?month=' + encodeURIComponent(month)
+          + '&ppn_rate=' + encodeURIComponent(state.ppnRate)
+          + '&format=xlsx';
+        window.open(fallbackExportUrl, '_self');
       });
     }
 

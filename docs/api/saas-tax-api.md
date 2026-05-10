@@ -43,6 +43,19 @@ Output utama:
 Kegunaan:
 - Ringkasan KPI pajak platform untuk dashboard reporting.
 
+### GET /dashboard/export
+
+Query:
+- month: YYYY-MM, opsional
+- ppn_rate: angka desimal, opsional
+- format: xlsx, opsional, default xlsx
+
+Format export yang didukung:
+- xlsx only
+
+Output:
+- Binary XLSX ringkasan dashboard pajak platform.
+
 ### GET /spt-ppn
 
 Query:
@@ -57,6 +70,19 @@ Output utama:
 Kegunaan:
 - Data SPT Masa PPN 1111 berbasis invoice periode berjalan.
 
+### GET /spt-ppn/export
+
+Query:
+- month: YYYY-MM, opsional
+- ppn_rate: angka desimal, opsional
+- format: xlsx, opsional, default xlsx
+
+Format export yang didukung:
+- xlsx only
+
+Output:
+- Binary XLSX detail SPT PPN.
+
 ### GET /spt-pph23
 
 Query:
@@ -69,6 +95,18 @@ Output utama:
 
 Kegunaan:
 - Data SPT Masa PPh 23 berbasis payment completed.
+
+### GET /spt-pph23/export
+
+Query:
+- month: YYYY-MM, opsional
+- format: xlsx, opsional, default xlsx
+
+Format export yang didukung:
+- xlsx only
+
+Output:
+- Binary XLSX detail SPT PPh 23.
 
 ### GET /spt-pph-badan
 
@@ -125,6 +163,10 @@ Halaman utama:
 
 Frontend runtime:
 - frontend/resources/js/platform-tax.js
+
+Catatan export runtime:
+- Semua tab pada halaman SPT Platform sekarang memakai backend XLSX export.
+- Flow window.print tidak lagi dipakai untuk Dashboard/SPT PPN/SPT PPh 23.
 
 ## Notes
 

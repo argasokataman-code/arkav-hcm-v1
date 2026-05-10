@@ -1,8 +1,8 @@
 /**
  * platform-tax.wiring.test.js
  *
- * Guards the reporting page export behavior so PPh Badan uses XLSX,
- * while non-PPh-Badan tabs continue to use print flow.
+ * Guards the reporting page export behavior so all tabs export XLSX
+ * via their respective backend endpoints.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
@@ -100,8 +100,6 @@ describe('platform tax export wiring', () => {
     });
 
     openSpy = vi.spyOn(dom.window, 'open').mockImplementation(() => null);
-    dom.window.print = vi.fn();
-
     loadScript(dom, 'platform-tax.js');
   });
 
@@ -116,14 +114,40 @@ describe('platform tax export wiring', () => {
     expect(String(openSpy.mock.calls[0][1])).toBe('_self');
   });
 
-  it('falls back to print outside PPh Badan tab', async () => {
+  it('uses dashboard xlsx export when Dashboard tab is active', async () => {
     await flush();
     const activeTab = dom.window.document.querySelector('#tax-tabs .nav-link.active');
     activeTab.setAttribute('data-bs-target', '#tab-dashboard');
 
     dom.window.document.getElementById('btn_print_tax').click();
 
-    expect(dom.window.print).toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalled();
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('/v1/saas/tax/dashboard/export');
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('format=xlsx');
+  });
+
+  it('uses SPT PPN xlsx export when PPN tab is active', async () => {
+    await flush();
+    const activeTab = dom.window.document.querySelector('#tax-tabs .nav-link.active');
+    activeTab.setAttribute('data-bs-target', '#tab-ppn');
+
+    dom.window.document.getElementById('btn_print_tax').click();
+
+    expect(openSpy).toHaveBeenCalled();
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('/v1/saas/tax/spt-ppn/export');
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('format=xlsx');
+  });
+
+  it('uses SPT PPh23 xlsx export when PPh23 tab is active', async () => {
+    await flush();
+    const activeTab = dom.window.document.querySelector('#tax-tabs .nav-link.active');
+    activeTab.setAttribute('data-bs-target', '#tab-pph23');
+
+    dom.window.document.getElementById('btn_print_tax').click();
+
+    expect(openSpy).toHaveBeenCalled();
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('/v1/saas/tax/spt-pph23/export');
+    expect(String(openSpy.mock.calls[openSpy.mock.calls.length - 1][0])).toContain('format=xlsx');
   });
 
   it('renders readonly ppn rate from compliance endpoint', async () => {

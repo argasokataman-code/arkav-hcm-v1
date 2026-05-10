@@ -32,7 +32,7 @@
                 </div>
                 <div class="mb-2">
                     <button class="btn btn-outline-secondary btn-sm" id="btn_print_tax" disabled>
-                        <i class="ti ti-printer me-1"></i>Print / Export Excel (tab PPh Badan)
+                        <i class="ti ti-file-export me-1"></i>Export Excel (per tab)
                     </button>
                 </div>
             </div>

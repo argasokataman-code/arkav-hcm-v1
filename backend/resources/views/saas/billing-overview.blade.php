@@ -6,14 +6,14 @@
 	<div class="content" data-saas-billing-overview-page>
 		<div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
 			<div class="my-auto mb-2">
-				<h2 class="mb-1">Trial & Billing Dashboard</h2>
+				<h2 class="mb-1">Trial & Billing Overview</h2>
 				<nav>
 					<ol class="breadcrumb mb-0">
 						<li class="breadcrumb-item">
 							<a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
 						</li>
 						<li class="breadcrumb-item">SaaS</li>
-						<li class="breadcrumb-item active" aria-current="page">Billing Overview</li>
+						<li class="breadcrumb-item active" aria-current="page">Trial & Billing Overview</li>
 					</ol>
 				</nav>
 			</div>

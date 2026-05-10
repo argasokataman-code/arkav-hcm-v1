@@ -18,6 +18,7 @@
             strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
             || (bool) ($authUser->is_super_admin ?? false)
         );
+    $hideTenantOperationalReports = $isGlobalHcmAdmin || $isQaSuperAdmin || $isSecondarySuperAdmin;
     $activeCompany = request( )->attributes->get('activeCompany');
     $activeCompanyRole = strtolower(trim((string) request( )->attributes->get('activeCompanyRole', '')));
     if ($activeCompanyRole === '' && $activeCompany instanceof \App\Models\Company && $authUser) {

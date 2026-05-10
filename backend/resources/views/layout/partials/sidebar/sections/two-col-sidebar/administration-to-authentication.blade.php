@@ -1,11 +1,13 @@
                                 </a>
                                 <ul>
+                                    @if (!$hideTenantOperationalReports)
                                     <li><a href="{{url('user-report')}}" class="{{ Request::is('user-report') ? 'active' : '' }}">User Report</a></li>
                                     <li><a href="{{url('employee-report')}}" class="{{ Request::is('employee-report') ? 'active' : '' }}">Employee Report</a></li>
                                     <li><a href="{{url('payslip-report')}}" class="{{ Request::is('payslip-report') ? 'active' : '' }}">Payslip Report</a></li>
                                     <li><a href="{{url('attendance-report')}}" class="{{ Request::is('attendance-repor') ? 'active' : '' }}">Attendance Report</a></li>
                                     <li><a href="{{url('leave-report')}}" class="{{ Request::is('leave-report') ? 'active' : '' }}">Leave Report</a></li>
                                     <li><a href="{{url('daily-report')}}" class="{{ Request::is('daily-report') ? 'active' : '' }}">Daily Report</a></li>
+                                    @endif
                                 </ul>
                             </li>
                             <li class="submenu">
@@ -36,10 +38,10 @@
                                     <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
                                     <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
                                     @endif
-                                    @if ($isGlobalHcmAdmin)
-                                    @endif
+                                    @if (!$isGlobalHcmAdmin)
                                     <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
                                     <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
+                                    @endif
                                 </ul>
                             </li>
                             <li class="submenu">

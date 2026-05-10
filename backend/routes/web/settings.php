@@ -177,13 +177,13 @@ Route::get('/notification-observability', function () {
     return view('administration.monitoring.notification-observability');
 })->middleware('hcm.web.global-admin')->name('notification-observability');
 
-Route::get('/bussiness-settings', function () {
-    return view('settings.bussiness-settings');
-})->middleware('hcm.web.global-admin')->name('bussiness-settings');
-
 Route::get('/business-settings', function () {
-    return redirect()->route('bussiness-settings');
+    return view('settings.bussiness-settings');
 })->middleware('hcm.web.global-admin')->name('business-settings');
+
+Route::redirect('/bussiness-settings', '/business-settings', 301)
+    ->middleware('hcm.web.global-admin')
+    ->name('bussiness-settings');
 
 Route::get('/seo-settings', function () {
     return view('settings.seo-settings');

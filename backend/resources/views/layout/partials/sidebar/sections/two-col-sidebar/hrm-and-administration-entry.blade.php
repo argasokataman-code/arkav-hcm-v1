@@ -205,7 +205,7 @@
                                     <li><a href="{{url('knowledgebase')}}" class="{{ Request::is('knowledgebase','knowledgebase/*','knowledgebase-details') ? 'active' : '' }}">Knowledge Base</a></li>
                                 </ul>
                             </li>
-@if ($isHcmAdmin)
+@if ($isHcmAdmin && ! $hideTenantOperationalReports)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('users','roles-permissions') ? 'active subdrop' : '' }}"><span>User Management</span>
                                     <span class="menu-arrow"></span>
@@ -216,7 +216,7 @@
                                 </ul>
                             </li>
 @endif
-@if ($isHcmAdmin)
+@if ($isHcmAdmin && ! $hideTenantOperationalReports)
                             <li class="submenu">
                                 <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                     <span class="menu-arrow"></span>

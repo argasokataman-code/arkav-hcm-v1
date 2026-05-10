@@ -6,6 +6,7 @@
     $secondarySuperAdminEmail = strtolower(trim((string) config('hcm.secondary_admin_email', 'qa.hcm@example.com')));
     $authUserEmail = strtolower(trim((string) ($authUser->email ?? '')));
     $isPrimarySuperAdmin = $authUser && $authUserEmail === $primarySuperAdminEmail;
+    $isSecondarySuperAdmin = $authUser && $authUserEmail === $secondarySuperAdminEmail;
     $showTemplateCatalogMenus = $isPrimarySuperAdmin;
     $isHcmAdmin = (bool) ($authUser?->isHcmAdmin());
     $isGlobalHcmAdmin = (bool) ($authUser?->isGlobalHcmAdmin());
@@ -64,6 +65,7 @@
             strtolower(trim((string) ($authUser->email ?? ''))) === strtolower(trim((string) config('hcm.admin_email', 'qa.login@example.com')))
             || (bool) ($authUser->is_super_admin ?? false)
         );
+    $hideTenantOperationalReports = $isGlobalHcmAdmin || $isQaSuperAdmin || $isSecondarySuperAdmin;
     $canSeeAssetManagementMenu = $featureBypass || ($hasAssetManagement && !$isEmployeeScopedUser && $isHcmAdmin);
 
     // Super admin hanya melihat menu platform/SaaS, bukan HRM operasional tenant
@@ -508,6 +510,7 @@
                                                 <li><a href="{{url('roles-permissions')}}" class="{{ Request::is('roles-permissions') ? 'active' : '' }}">Roles & Permissions</a></li>
                                             </ul>
                                         </li>
+                                        @if (!$hideTenantOperationalReports)
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('expenses-report','invoice-report','project-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}"><span>Reports</span>
                                                 <span class="menu-arrow"></span>
@@ -522,6 +525,7 @@
                                 <li><a href="{{url('daily-report')}}" class="{{ Request::is('daily-report') ? 'active' : '' }}">Daily Report</a></li>
                                             </ul>
                                         </li>
+                                        @endif
                                         <li class="submenu">
                                             <a href="javascript:void(0);" class="{{ Request::is('profile-settings','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                             'approval-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}"><span>Settings</span>
@@ -548,14 +552,16 @@
                                                     <ul>
                                                         @if ($isGlobalHcmAdmin)
                                                         <li><a href="{{url('business-settings')}}" class="{{ Request::is('business-settings') ? 'active' : '' }}">Business Settings</a></li>
-                                        <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
-                                        <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
-                                        <li><a href="{{url('language')}}" class="{{ Request::is('language') ? 'active' : '' }}">Language</a></li>
-                                        <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
-                                        <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
+                                                        <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
+                                                        <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
+                                                        <li><a href="{{url('language')}}" class="{{ Request::is('language') ? 'active' : '' }}">Language</a></li>
+                                                        <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
+                                                        <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
                                         @endif
-                                        <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
-                                        <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
+                                                        @if (!$isGlobalHcmAdmin)
+                                                        <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
+                                                        <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
+                                                        @endif
                                                     </ul>
                                                 </li>
                                                 <li class="submenu">

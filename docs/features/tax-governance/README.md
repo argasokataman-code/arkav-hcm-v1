@@ -68,6 +68,7 @@ API runtime (prefix `/v1/hcm/tax-governance`):
 1. Platform admin memantau compliance lintas tenant via dashboard dan anomaly registry.
 2. Revenue dari payroll finalization di-capture otomatis via event `PayrollFinalized → CapturePayrollServiceRevenue`.
 3. Billing tax reports dan invoices tersedia untuk rekonsiliasi platform.
+4. Halaman `platform-tax-compliance/policies` default ke mode **Overview (read-only)** untuk mengurangi risiko salah edit. Form edit hanya muncul setelah klik **Edit Konfigurasi Aktif** atau **Buat Konfigurasi Baru**, lalu simpan dilindungi dialog konfirmasi ringkasan perubahan.
 
 ## Lifecycle Policy Tenant
 

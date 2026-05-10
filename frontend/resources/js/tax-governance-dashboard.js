@@ -691,6 +691,237 @@ function loadPricingPlansScreenModuleLoader() {
         }).join("");
     }
 
+    function parsePlatformPolicyNotes(item) {
+        var rawNotes = item && item.notes ? item.notes : "";
+        if (!rawNotes) {
+            return {};
+        }
+
+        try {
+            var decoded = typeof rawNotes === "string" ? JSON.parse(rawNotes) : rawNotes;
+            if (!decoded || typeof decoded !== "object") {
+                return {};
+            }
+
+            if (decoded.transaction_tax || decoded.user_note || decoded.corporate_tax) {
+                return decoded;
+            }
+
+            if (decoded.notes && typeof decoded.notes === "string") {
+                var nested = JSON.parse(decoded.notes);
+                if (nested && typeof nested === "object") {
+                    return nested;
+                }
+            }
+        } catch (_error) {
+            return {};
+        }
+
+        return {};
+    }
+
+    function getBillingCycleLabel(value) {
+        var normalized = String(value || "monthly").toLowerCase();
+        if (normalized === "yearly") {
+            return "Tahunan";
+        }
+        if (normalized === "custom") {
+            return "Custom";
+        }
+
+        return "Bulanan";
+    }
+
+    function fillPlatformPolicyForm(root, item, forceNewDraft) {
+        var form = qs("[data-tax-platform-policy-form]", root);
+        if (!form) {
+            return;
+        }
+
+        var notesMeta = parsePlatformPolicyNotes(item);
+        var transactionTaxMeta = notesMeta.transaction_tax && typeof notesMeta.transaction_tax === "object"
+            ? notesMeta.transaction_tax
+            : {};
+
+        var monthInput = qs("[data-tax-platform-report-month]", root);
+        var billingMonth = String(item && item.billing_month || "").trim() || getCurrentMonthValue();
+        if (monthInput) {
+            monthInput.value = billingMonth;
+        }
+
+        var transactionRateNode = qs("[name=\"transaction_tax_rate\"]", form);
+        var corporateRateNode = qs("[name=\"subscription_tax_rate\"]", form);
+        var descriptionNode = qs("[name=\"transaction_tax_description\"]", form);
+        var notesNode = qs("[name=\"notes\"]", form);
+        var statusNode = qs("[name=\"status\"]", form);
+        var cycleNode = qs("[name=\"billing_cycle_type\"]", form);
+        var effectiveNode = qs("[name=\"effective_from\"]", form);
+
+        var transactionRate = Number(transactionTaxMeta.tax_rate);
+        if (!Number.isFinite(transactionRate)) {
+            transactionRate = Number(item && item.transaction_tax_rate || 0);
+        }
+
+        var corporateRate = Number(item && (item.government_tax_rate ?? item.subscription_tax_rate ?? item.tax_rate_percentage));
+        if (!Number.isFinite(corporateRate)) {
+            corporateRate = 0;
+        }
+
+        if (transactionRateNode) {
+            transactionRateNode.value = String(transactionRate || 0);
+        }
+        if (corporateRateNode) {
+            corporateRateNode.value = String(corporateRate || 0);
+        }
+        if (descriptionNode) {
+            descriptionNode.value = String(transactionTaxMeta.description || "");
+        }
+        if (notesNode) {
+            notesNode.value = String(notesMeta.user_note || "");
+        }
+        if (statusNode) {
+            statusNode.value = forceNewDraft ? "draft" : String(item && item.status || "active");
+        }
+        if (cycleNode) {
+            cycleNode.value = String(item && item.billing_cycle_type || "monthly");
+        }
+        if (effectiveNode) {
+            effectiveNode.value = String(item && item.effective_from || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
+        }
+    }
+
+    function setPlatformFormMode(root, mode, activeRule) {
+        var panel = qs("[data-tax-platform-form-panel]", root);
+        var cancelBtn = qs("[data-tax-platform-cancel-edit]", root);
+        var editBtn = qs("[data-tax-platform-edit-current]", root);
+        var createBtn = qs("[data-tax-platform-new-config]", root);
+        var badge = qs("[data-tax-platform-edit-mode-badge]", root);
+        var submitBtn = qs("[data-tax-platform-policy-submit]", root);
+        var form = qs("[data-tax-platform-policy-form]", root);
+
+        root.dataset.taxPlatformMode = mode;
+
+        var isOverview = mode === "overview";
+        if (panel) {
+            panel.classList.toggle("d-none", isOverview);
+        }
+        if (cancelBtn) {
+            cancelBtn.classList.toggle("d-none", isOverview);
+        }
+        if (editBtn) {
+            editBtn.disabled = !activeRule;
+        }
+        if (createBtn) {
+            createBtn.disabled = false;
+        }
+
+        if (badge) {
+            if (mode === "edit-current") {
+                badge.textContent = "Mode edit aturan aktif";
+                badge.className = "badge bg-warning-subtle text-warning";
+            } else if (mode === "new-config") {
+                badge.textContent = "Mode buat konfigurasi baru";
+                badge.className = "badge bg-info-subtle text-info";
+            } else {
+                badge.textContent = "Mode edit";
+                badge.className = "badge bg-warning-subtle text-warning";
+            }
+        }
+
+        if (submitBtn) {
+            submitBtn.innerHTML = mode === "new-config"
+                ? '<i class="ti ti-device-floppy me-1"></i>Simpan Konfigurasi Baru'
+                : '<i class="ti ti-device-floppy me-1"></i>Simpan Revisi Konfigurasi';
+        }
+
+        if (form) {
+            Array.prototype.slice.call(form.querySelectorAll("input, select, textarea, button")).forEach(function (el) {
+                if (el.type === "hidden") {
+                    return;
+                }
+                if (el.hasAttribute("data-tax-platform-policy-submit")) {
+                    el.disabled = isOverview;
+                    return;
+                }
+                el.disabled = isOverview;
+            });
+        }
+    }
+
+    function renderPlatformOverview(root, activeRule) {
+        var statusNode = qs("[data-tax-platform-overview-status]", root);
+        var transactionNode = qs("[data-tax-platform-overview-transaction-rate]", root);
+        var corporateNode = qs("[data-tax-platform-overview-corporate-rate]", root);
+        var cycleNode = qs("[data-tax-platform-overview-cycle]", root);
+        var effectiveNode = qs("[data-tax-platform-overview-effective]", root);
+        var notesNode = qs("[data-tax-platform-overview-notes]", root);
+        var badgeNode = qs("[data-tax-platform-overview-status-badge]", root);
+
+        if (!activeRule) {
+            setText(statusNode, "Belum ada aturan aktif");
+            setText(transactionNode, "-");
+            setText(corporateNode, "-");
+            setText(cycleNode, "-");
+            setText(effectiveNode, "-");
+            setText(notesNode, "-");
+
+            if (badgeNode) {
+                badgeNode.className = "badge bg-secondary-subtle text-secondary";
+                badgeNode.textContent = "Belum ada aturan aktif";
+            }
+
+            setPlatformFormMode(root, "overview", null);
+            return;
+        }
+
+        var notesMeta = parsePlatformPolicyNotes(activeRule);
+        var transactionRate = Number(activeRule.transaction_tax_rate ?? 0);
+        var corporateRate = Number(activeRule.government_tax_rate ?? activeRule.subscription_tax_rate ?? activeRule.tax_rate_percentage ?? 0);
+        var effectiveText = String(activeRule.effective_from || "-");
+        var statusLabel = "Aktif (v" + String(activeRule.version || "-") + ")";
+
+        setText(statusNode, statusLabel);
+        setText(transactionNode, Number.isFinite(transactionRate) ? transactionRate.toFixed(2) + "%" : "-");
+        setText(corporateNode, Number.isFinite(corporateRate) ? corporateRate.toFixed(2) + "%" : "-");
+        setText(cycleNode, getBillingCycleLabel(activeRule.billing_cycle_type));
+        setText(effectiveNode, effectiveText);
+        setText(notesNode, String(notesMeta.user_note || "Tidak ada catatan"));
+
+        if (badgeNode) {
+            badgeNode.className = "badge bg-success-subtle text-success";
+            badgeNode.textContent = statusLabel;
+        }
+
+        root.__taxPlatformActiveRule = activeRule;
+        if (!root.dataset.taxPlatformMode) {
+            setPlatformFormMode(root, "overview", activeRule);
+        } else {
+            setPlatformFormMode(root, root.dataset.taxPlatformMode, activeRule);
+        }
+    }
+
+    function requestPlatformSaveConfirmation(payload) {
+        var corporateRate = Number(payload && payload.subscription_tax_rate || 0);
+        var transactionTaxMeta = payload && payload.notes ? parsePlatformPolicyNotes({ notes: payload.notes }).transaction_tax : {};
+        var transactionRate = Number(transactionTaxMeta && transactionTaxMeta.tax_rate || 0);
+        var month = String(payload && payload.billing_month || "-");
+        var effective = String(payload && payload.effective_from || "-");
+        var status = String(payload && payload.status || "draft");
+
+        var message = "Konfirmasi simpan konfigurasi pajak?\n"
+            + "- PPN: " + (Number.isFinite(transactionRate) ? transactionRate.toFixed(2) : "0.00") + "%\n"
+            + "- PPh Badan: " + (Number.isFinite(corporateRate) ? corporateRate.toFixed(2) : "0.00") + "%\n"
+            + "- Billing Month: " + month + "\n"
+            + "- Effective Date: " + effective + "\n"
+            + "- Status: " + status;
+
+        if (window.ArcavUi && typeof window.ArcavUi.confirm === "function") {
+            return Promise.resolve(window.ArcavUi.confirm(message, "Konfirmasi Simpan Konfigurasi"));
+        }
+
+        return Promise.resolve(window.confirm(message));
+    }
+
     function renderPlatformPolicies(root, response) {
         var tbody = qs("[data-tax-platform-policy-table]", root);
         if (!tbody) {
@@ -743,6 +974,10 @@ function loadPricingPlansScreenModuleLoader() {
                 activeRuleBadge.className = "badge bg-secondary-subtle text-secondary";
                 activeRuleBadge.textContent = "Aturan aktif saat ini: belum tersedia";
             }
+        }
+
+        if (screen === "platform-tax-compliance") {
+            renderPlatformOverview(root, activeRule);
         }
 
         if (!rows.length) {
@@ -1251,34 +1486,84 @@ function loadPricingPlansScreenModuleLoader() {
                         status: String(policyForm.status.value || "active"),
                     };
 
-                apiPost(policyEndpoint, payload).then(function (response) {
-                    if (!response.success) {
-                        throw new Error("Gagal menyimpan kebijakan platform.");
+                requestPlatformSaveConfirmation(payload).then(function (confirmed) {
+                    if (!confirmed) {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                        }
+                        return null;
                     }
-                    if (window.ArcavUi && typeof window.ArcavUi.showSuccess === "function") {
-                        window.ArcavUi.showSuccess(
-                            "Konfigurasi tersimpan",
-                            screen === "platform-tax-compliance"
-                                ? "Konfigurasi Government Tax & Compliance berhasil diperbarui."
-                                : "Konfigurasi Billing & Revenue platform berhasil diperbarui."
-                        );
-                    }
-                    refreshAll();
-                }).catch(function (error) {
-                    var parsed = parseApiError(error, screen === "platform-tax-compliance"
-                        ? "Gagal menyimpan kebijakan government tax compliance platform."
-                        : "Gagal menyimpan kebijakan billing dan revenue platform.");
-                    if (parsed.status === 403) {
-                        showPlatformGate(root, platformAccessMessage(screen, "policy"));
-                        return;
-                    }
-                    showError(root, parsed.message);
-                }).finally(function () {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                    }
+
+                    return apiPost(policyEndpoint, payload).then(function (response) {
+                        if (!response.success) {
+                            throw new Error("Gagal menyimpan kebijakan platform.");
+                        }
+                        if (window.ArcavUi && typeof window.ArcavUi.showSuccess === "function") {
+                            window.ArcavUi.showSuccess(
+                                "Konfigurasi tersimpan",
+                                screen === "platform-tax-compliance"
+                                    ? "Konfigurasi Government Tax & Compliance berhasil diperbarui."
+                                    : "Konfigurasi Billing & Revenue platform berhasil diperbarui."
+                            );
+                        }
+                        if (screen === "platform-tax-compliance") {
+                            setPlatformFormMode(root, "overview", root.__taxPlatformActiveRule || null);
+                        }
+                        refreshAll();
+                    }).catch(function (error) {
+                        var parsed = parseApiError(error, screen === "platform-tax-compliance"
+                            ? "Gagal menyimpan kebijakan government tax compliance platform."
+                            : "Gagal menyimpan kebijakan billing dan revenue platform.");
+                        if (parsed.status === 403) {
+                            showPlatformGate(root, platformAccessMessage(screen, "policy"));
+                            return;
+                        }
+                        showError(root, parsed.message);
+                    }).finally(function () {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                        }
+                    });
                 });
             });
+        }
+
+        if (screen === "platform-tax-compliance") {
+            var editCurrentBtn = qs("[data-tax-platform-edit-current]", root);
+            var newConfigBtn = qs("[data-tax-platform-new-config]", root);
+            var cancelEditBtn = qs("[data-tax-platform-cancel-edit]", root);
+
+            if (editCurrentBtn && !editCurrentBtn.dataset.boundModeToggle) {
+                editCurrentBtn.dataset.boundModeToggle = "1";
+                editCurrentBtn.addEventListener("click", function () {
+                    var activeRule = root.__taxPlatformActiveRule || null;
+                    if (!activeRule) {
+                        showError(root, "Aturan aktif belum tersedia. Gunakan Buat Konfigurasi Baru.");
+                        return;
+                    }
+
+                    clearError(root);
+                    fillPlatformPolicyForm(root, activeRule, false);
+                    setPlatformFormMode(root, "edit-current", activeRule);
+                });
+            }
+
+            if (newConfigBtn && !newConfigBtn.dataset.boundModeToggle) {
+                newConfigBtn.dataset.boundModeToggle = "1";
+                newConfigBtn.addEventListener("click", function () {
+                    clearError(root);
+                    fillPlatformPolicyForm(root, root.__taxPlatformActiveRule || null, true);
+                    setPlatformFormMode(root, "new-config", root.__taxPlatformActiveRule || null);
+                });
+            }
+
+            if (cancelEditBtn && !cancelEditBtn.dataset.boundModeToggle) {
+                cancelEditBtn.dataset.boundModeToggle = "1";
+                cancelEditBtn.addEventListener("click", function () {
+                    clearError(root);
+                    setPlatformFormMode(root, "overview", root.__taxPlatformActiveRule || null);
+                });
+            }
         }
 
         if (reportRefreshBtn) {

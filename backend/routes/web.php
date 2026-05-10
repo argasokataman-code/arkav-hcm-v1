@@ -1355,13 +1355,13 @@ Route::get('/connected-apps', function () {
     return view('connected-apps');
 })->name('connected-apps');
 
-Route::get('/bussiness-settings', function () {
-    return view('bussiness-settings');
-})->middleware('hcm.web.global-admin')->name('bussiness-settings');
-
 Route::get('/business-settings', function () {
-    return redirect()->route('bussiness-settings');
+    return view('bussiness-settings');
 })->middleware('hcm.web.global-admin')->name('business-settings');
+
+Route::redirect('/bussiness-settings', '/business-settings', 301)
+    ->middleware('hcm.web.global-admin')
+    ->name('bussiness-settings');
 
 Route::get('/seo-settings', function () {
     return view('seo-settings');

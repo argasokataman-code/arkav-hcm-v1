@@ -193,8 +193,9 @@
 					</div>
 
 					<div class="landing-badges d-flex flex-wrap gap-2 mt-4">
-					<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Untuk semua skala bisnis, multi-cabang/perusahaan</span>
-						<span class="badge bg-light text-dark border"><i class="ti ti-zap me-1"></i>Siap pakai untuk aturan ketenagakerjaan Indonesia</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-shield-check me-1"></i>Satu platform untuk banyak cabang/perusahaan</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-layout-dashboard me-1"></i>HR, Payroll, & Reporting terintegrasi</span>
+						<span class="badge bg-light text-dark border"><i class="ti ti-zap me-1"></i>Siap digunakan untuk ketenagakerjaan Indonesia</span>
 					</div>
 
 					<div class="row g-2 mt-4" data-reveal>
@@ -318,7 +319,7 @@
 									</div>
 									@if ($hasActiveTrialPackages)
 										<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
-											<i class="ti ti-rocket me-1"></i> Start
+											<i class="ti ti-rocket me-1"></i> Mulai
 										</a>
 									@else
 										<a class="btn btn-sm btn-primary" href="{{ url('/trial') }}">
@@ -558,8 +559,8 @@
 			<div class="row g-3 mb-4" data-reveal>
 				<div class="col-lg-8">
 					<span class="landing-section-kicker">How it works</span>
-					<h2 class="h3 fw-bold mb-2 landing-section-title">Daftar dalam 5 menit, langsung siap dipakai</h2>
-					<p class="text-muted mb-0 landing-section-copy">Tanpa setup yang rumit. Tim Anda bisa langsung menjalankan proses HR inti di hari yang sama.</p>
+					<h2 class="h3 fw-bold mb-2 landing-section-title">Mulai dalam 4 langkah mudah</h2>
+					<p class="text-muted mb-0 landing-section-copy">Daftar, pilih paket, undang tim, dan langsung kelola HR operasional — tanpa perlu install atau setup rumit.</p>
 				</div>
 			</div>
 
@@ -582,15 +583,27 @@
 						</div>
 					</div>
 				</div>
+				@if ($hasActiveTrialPackages)
 				<div class="col-md-6 col-lg-3" data-reveal>
 					<div class="card h-100 border-0 shadow-sm">
 						<div class="card-body p-4">
 							<div class="landing-step">03</div>
-							<div class="fw-semibold mb-1">Aktivasi akun</div>
-							<div class="text-muted small">Mulai trial atau lanjut pembayaran sesuai paket yang dipilih.</div>
+							<div class="fw-semibold mb-1">Trial / Pending payment</div>
+							<div class="text-muted small">Mulai trial gratis atau langsung invoice bila pilih subscribe.</div>
 						</div>
 					</div>
 				</div>
+				@else
+				<div class="col-md-6 col-lg-3" data-reveal>
+					<div class="card h-100 border-0 shadow-sm">
+						<div class="card-body p-4">
+							<div class="landing-step">03</div>
+							<div class="fw-semibold mb-1">Pending payment</div>
+							<div class="text-muted small">Pilih paket, buat invoice, dan lakukan pembayaran.</div>
+						</div>
+					</div>
+				</div>
+				@endif
 				<div class="col-md-6 col-lg-3" data-reveal>
 					<div class="card h-100 border-0 shadow-sm">
 						<div class="card-body p-4">
@@ -697,7 +710,7 @@
 
 			<div class="mt-4" data-reveal>
 				<h3 class="h5 fw-bold mb-2">Perbandingan fitur per paket</h3>
-				<p class="text-muted mb-0">Detail fitur setiap paket, langsung dari data aktif di sistem.</p>
+				<p class="text-muted mb-0">Detail fitur setiap paket berdasarkan modul yang tersedia.</p>
 			</div>
 
 			<div class="accordion mt-3" id="packageComparison" data-reveal>
@@ -957,12 +970,17 @@
 						<div class="form-check">
 							<input class="form-check-input" type="checkbox" id="consentAccepted" name="consent_accepted" value="1" required>
 							<label class="form-check-label" for="consentAccepted">
-								Saya menyetujui pemrosesan data untuk onboarding ARCAV HCM sesuai
-								<a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
-								dan <a href="/terms-condition" target="_blank" rel="noopener noreferrer">Syarat &amp; Ketentuan</a>.
-								Data yang diproses mencakup identitas owner (nama, email, telepon), data perusahaan (profil billing),
-								dan data operasional HR. Data disimpan sesuai kebijakan retensi, termasuk kewajiban perpajakan,
-								dan saya dapat mengajukan akses/perbaikan/penghapusan data melalui kanal DPO yang tersedia.
+								Saya menyetujui pemrosesan data berikut:
+								<ul class="mb-0 mt-1 ps-3 small">
+									<li>Data identitas (nama, email, no. telepon) untuk pembuatan dan pengelolaan akun</li>
+									<li>Data perusahaan (nama, alamat, NPWP) untuk keperluan faktur dan billing</li>
+									<li>Data karyawan untuk operasional HR (absensi, penggajian, cuti, dan penilaian kinerja)</li>
+								</ul>
+								<div class="mt-2">
+									Data disimpan secara aman sesuai <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Kebijakan Privasi</a>
+									dan <a href="/terms-condition" target="_blank" rel="noopener noreferrer">Syarat &amp; Ketentuan</a>.
+									Saya dapat mengajukan penghapusan data kapan saja melalui pengaturan akun.
+								</div>
 							</label>
 						</div>
 					</div>

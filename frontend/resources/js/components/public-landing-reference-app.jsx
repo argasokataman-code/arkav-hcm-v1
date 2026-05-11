@@ -105,7 +105,7 @@ const steps = [
         step: '01',
         title: 'Pilih Paket',
         subtitle: 'Aktifkan sesuai kebutuhan tim',
-        description: 'Mulai dari trial atau langsung pilih paket berbayar sesuai kebutuhan perusahaan.',
+        description: 'Pilih paket yang paling sesuai kebutuhan perusahaan dan kesiapan operasional tim.',
         tag: 'Setup',
     },
     {
@@ -139,7 +139,7 @@ const heroProofs = [
 
 const heroStats = [
     { label: 'Modul inti', value: '6+' },
-    { label: 'Masa trial', value: '30 hari' },
+    { label: 'Siap onboarding', value: '24/7' },
     { label: 'Langkah mulai', value: '4 tahap' },
 ];
 
@@ -1293,6 +1293,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
     const heroRef = useRef(null);
 
     const selectedPackage = packages.find((packageItem) => packageItem.uuid === formState.packageUuid) || defaultPackage;
+    const hasActiveTrialPackages = useMemo(() => packages.some((item) => isTrialPackage(item)), [packages]);
     const primaryPackageUuid = recommendedPackageUuid || defaultPackage?.uuid || '';
 
     const { scrollYProgress } = useScroll({
@@ -1553,7 +1554,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             <div className="mpl-nav-actions">
                                 <a href={bootstrap.loginUrl} className="mpl-btn-ghost">Login</a>
                                 <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                    Mulai Gratis <ArrowRight size={18} weight="bold" />
+                                    {hasActiveTrialPackages ? 'Mulai Gratis' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                                 </button>
                             </div>
                         </div>
@@ -1578,7 +1579,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                         <div className="mpl-nav-actions">
                             <a href={bootstrap.loginUrl} className="mpl-btn-ghost">Login</a>
                             <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                Mulai Gratis <ArrowRight size={18} weight="bold" />
+                                {hasActiveTrialPackages ? 'Mulai Gratis' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                             </button>
                         </div>
                     </div>
@@ -1763,7 +1764,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             <p>Bergabung dengan perusahaan yang ingin operasional HR lebih rapi, payroll lebih tenang, dan onboarding lebih cepat.</p>
                             <div className="mpl-cta-actions">
                                 <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                    Coba Gratis 30 Hari <ArrowRight size={18} weight="bold" />
+                                    {hasActiveTrialPackages ? 'Coba Gratis 30 Hari' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                                 </button>
                                 <button type="button" className="mpl-btn-outline" onClick={() => setShowDemo(true)}>
                                     Lihat Demo
@@ -1787,7 +1788,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                                 <BrandMark bootstrap={bootstrap} />
                                 <div className="mpl-footer-brand">{bootstrap.companyName}</div>
                             </div>
-                            <p className="mpl-footer-copy">Platform HCM modern untuk perusahaan Indonesia. Kelola tim dengan lebih efisien dan terstruktur sambil menjaga trial, package, dan onboarding flow tetap utuh.</p>
+                            <p className="mpl-footer-copy">Platform HCM modern untuk perusahaan Indonesia. Kelola tim dengan lebih efisien dan terstruktur sambil menjaga package dan onboarding flow tetap utuh.</p>
                         </div>
                         <div>
                             <ul className="mpl-footer-links">
@@ -1801,7 +1802,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             <ul className="mpl-footer-links">
                                 <li><strong>Aksi</strong></li>
                                 <li><a href={bootstrap.loginUrl}>Login</a></li>
-                                <li><a href={bootstrap.trialUrl}>Mulai Trial</a></li>
+                                <li><a href={bootstrap.trialUrl}>{hasActiveTrialPackages ? 'Mulai Trial' : 'Mulai Sekarang'}</a></li>
                                 <li><button type="button" className="btn btn-link p-0 text-decoration-none" onClick={() => setShowDemo(true)}>Lihat Demo</button></li>
                             </ul>
                         </div>

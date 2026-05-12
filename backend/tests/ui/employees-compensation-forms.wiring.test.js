@@ -374,6 +374,40 @@ describe('Employee compensation forms wiring', () => {
     phoneInput.value = '08ab12-xy34';
     phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
     expect(phoneInput.value).toBe('081234');
+
+    phoneInput.value = '+62812abc345';
+    phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(phoneInput.value).toBe('+62812345');
+  });
+
+  it('accepts phone number with +62 prefix when moving to next step', () => {
+    buildStrictPersonalValidationDom();
+
+    bindEmployeeCompensationFormsModule({
+      requestJson: vi.fn(),
+      requestEmployeeDetail: vi.fn(),
+      fillDesignationSelectForDepartment: vi.fn(),
+      loadTeamsDropdown: vi.fn(),
+      formatApiError: () => 'error',
+      loadEmployeesData: vi.fn(),
+    });
+
+    const form = document.querySelector('[data-employee-add-form]');
+    const nameInput = form.querySelector('[data-employee-add-field="name"]');
+    const placeInput = form.querySelector('[data-employee-add-field="placeOfBirth"]');
+    const phoneInput = form.querySelector('[data-employee-add-field="phone"]');
+    const nikInput = form.querySelector('[data-employee-add-field="nik"]');
+
+    nameInput.value = 'Valid Name';
+    placeInput.value = 'Bandung';
+    phoneInput.value = '+628123456789';
+    nikInput.value = '1234567890123456';
+
+    const nextBtn = form.querySelector('[data-employee-step-next]');
+    nextBtn.click();
+
+    expect(phoneInput.validity.customError).toBe(false);
+    expect(String(form.getAttribute('data-employee-step-index'))).toBe('1');
   });
 
   it('blocks next step when personal regex fields are invalid', () => {

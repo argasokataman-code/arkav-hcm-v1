@@ -147,7 +147,7 @@ export function bindSmartPlannerModule(deps) {
           ? 'departemen ' + selectedDepartmentLabel
           : 'departemen tertentu'
         : scope === 'custom'
-          ? 'user ID pilihan'
+          ? 'karyawan pilihan'
           : 'semua employee aktif';
     var horizonLabel = horizon === 'end_of_year' ? 'batch sampai 31 Desember' : '1 minggu';
     return 'Mode: ' + modeLabel + '. Scope: ' + scopeLabel + '. Horizon: ' + horizonLabel + '.';
@@ -233,6 +233,46 @@ export function bindSmartPlannerModule(deps) {
       .join('');
   }
 
+  function renderPlannerCustomEmployeeOptions(rows) {
+    if (!customIdsEl) {
+      return;
+    }
+
+    var selected = {};
+    Array.prototype.slice.call(customIdsEl.selectedOptions || []).forEach(function (option) {
+      var value = parseInt(option && option.value ? option.value : '', 10);
+      if (!isNaN(value) && value > 0) {
+        selected[String(value)] = true;
+      }
+    });
+
+    var options = [];
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      var userId = parseInt(row && row.userId != null ? row.userId : row && row.id, 10);
+      if (isNaN(userId) || userId <= 0) {
+        return;
+      }
+      var name = String(row && row.name ? row.name : '').trim();
+      if (!name) {
+        return;
+      }
+      var department = String(row && row.departmentName ? row.departmentName : '').trim();
+      var label = department ? name + ' (' + department + ')' : name;
+      options.push({ value: userId, label: label });
+    });
+
+    options.sort(function (left, right) {
+      return left.label.localeCompare(right.label);
+    });
+
+    customIdsEl.innerHTML = options
+      .map(function (option) {
+        var selectedAttr = selected[String(option.value)] ? ' selected' : '';
+        return '<option value="' + esc(String(option.value)) + '"' + selectedAttr + '>' + esc(option.label) + '</option>';
+      })
+      .join('');
+  }
+
   function ensurePlannerDepartmentOptionsLoaded() {
     if (!departmentEl) {
       return Promise.resolve([]);
@@ -240,6 +280,7 @@ export function bindSmartPlannerModule(deps) {
     return loadPlannerEmployeeDirectory()
       .then(function (rows) {
         renderPlannerDepartmentOptions(rows);
+        renderPlannerCustomEmployeeOptions(rows);
         return rows;
       })
       .catch(function (error) {
@@ -248,11 +289,13 @@ export function bindSmartPlannerModule(deps) {
       });
   }
 
-  function parseCustomIds(raw) {
-    return String(raw || '')
-      .split(/[\s,]+/)
-      .map(function (item) {
-        return parseInt(item, 10);
+  function readCustomEmployeeIds() {
+    if (!customIdsEl) {
+      return [];
+    }
+    return Array.prototype.slice.call(customIdsEl.selectedOptions || [])
+      .map(function (option) {
+        return parseInt(option && option.value ? option.value : '', 10);
       })
       .filter(function (n) {
         return !isNaN(n) && n > 0;
@@ -268,9 +311,9 @@ export function bindSmartPlannerModule(deps) {
       });
     }
     if (scope === 'custom') {
-      var customIds = parseCustomIds((customIdsEl && customIdsEl.value) || '');
+      var customIds = readCustomEmployeeIds();
       if (!customIds.length) {
-        return Promise.reject({ plannerMessage: 'Isi minimal satu user ID untuk custom scope.' });
+        return Promise.reject({ plannerMessage: 'Pilih minimal satu karyawan untuk custom scope.' });
       }
       return Promise.resolve({
         employeeIds: customIds,
@@ -356,6 +399,13 @@ export function bindSmartPlannerModule(deps) {
           }
         });
     }
+    if (scope === 'custom') {
+      ensurePlannerDepartmentOptionsLoaded().catch(function () {
+        if (scopeMetaEl) {
+          scopeMetaEl.textContent = 'Daftar karyawan tidak bisa dimuat. Cek employee directory tenant aktif.';
+        }
+      });
+    }
     if (customIdsWrap) {
       customIdsWrap.classList.toggle('d-none', scope !== 'custom');
     }
@@ -375,7 +425,7 @@ export function bindSmartPlannerModule(deps) {
       if (scope === 'department') {
         scopeHintEl.textContent = 'Sumber data: employee tenant aktif, dikelompokkan menurut departemen.';
       } else if (scope === 'custom') {
-        scopeHintEl.textContent = 'Sumber data: employee tenant aktif, dibatasi ke user ID yang Anda isi.';
+        scopeHintEl.textContent = 'Sumber data: employee tenant aktif, dibatasi ke karyawan yang dipilih manual.';
       } else {
         scopeHintEl.textContent = 'Sumber data: semua employee tenant aktif.';
       }

@@ -10,7 +10,9 @@ use App\Models\AttendanceRecord;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
+use App\Models\ReportSnapshot;
 use App\Models\User;
+use App\Support\Exports\TabularExportResponse;
 use App\Services\LocationService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -427,6 +430,232 @@ class AttendanceController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * Export attendance admin report.
+     * GET /v1/hcm/attendance/admin/export
+     */
+    public function adminExport(Request $request): StreamedResponse|JsonResponse
+    {
+        $forbidden = $this->ensureHcmAdmin($request);
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $validated = $request->validate([
+            'date' => ['nullable', 'date'],
+            'search' => ['nullable', 'string', 'max:100'],
+            'department' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'in:present,absent,needs_review'],
+            'sort' => ['nullable', 'string', 'in:name_asc,name_desc,checkin_asc,checkin_desc,production_desc,production_asc'],
+            'format' => ['nullable', 'string', 'in:xlsx,csv'],
+            'source' => ['nullable', 'string', 'in:live,archive'],
+            'snapshotId' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $dateYmd = $validated['date'] ?? Carbon::now($this->tz())->toDateString();
+        $search = $validated['search'] ?? null;
+        $department = $validated['department'] ?? null;
+        $statusFilter = $validated['status'] ?? null;
+        $sort = $validated['sort'] ?? 'name_asc';
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $source = strtolower((string) ($validated['source'] ?? 'live'));
+        $snapshotId = (int) ($validated['snapshotId'] ?? 0);
+        $activeCompanyId = $this->activeCompanyId($request);
+
+        if (! $activeCompanyId) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
+                    'message' => 'Active company context is required to export attendance report.',
+                ],
+            ], 422);
+        }
+
+        $headers = [
+            'Employee',
+            'Department',
+            'Date',
+            'Check In',
+            'Check In Location',
+            'Status',
+            'Check Out',
+            'Check Out Location',
+            'Break',
+            'Late',
+            'Overtime',
+            'Production Hours',
+        ];
+
+        if ($source === 'archive') {
+            if ($snapshotId <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
+                        'message' => 'snapshotId is required for archive export.',
+                    ],
+                ], 422);
+            }
+
+            $snapshot = ReportSnapshot::query()
+                ->where('company_id', $activeCompanyId)
+                ->where('id', $snapshotId)
+                ->with('dataBlocks')
+                ->first();
+
+            if (! $snapshot) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SNAPSHOT_NOT_FOUND',
+                        'message' => 'Snapshot not found.',
+                    ],
+                ], 404);
+            }
+
+            if (strtolower((string) $snapshot->report_type) !== 'attendance') {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SNAPSHOT_TYPE_MISMATCH',
+                        'message' => 'Snapshot is not an attendance report.',
+                    ],
+                ], 422);
+            }
+
+            if (strtolower((string) $snapshot->status) !== 'completed') {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SNAPSHOT_NOT_READY',
+                        'message' => 'Snapshot attendance is not completed yet.',
+                    ],
+                ], 422);
+            }
+
+            $moduleData = [];
+            foreach ($snapshot->dataBlocks as $block) {
+                if ((string) $block->module !== 'attendance') {
+                    continue;
+                }
+                $moduleData[(string) $block->data_key] = $block->data_value;
+            }
+
+            $rows = [];
+            foreach ($moduleData as $key => $item) {
+                if (! str_starts_with((string) $key, 'user_')) {
+                    continue;
+                }
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $presentCount = (int) ($item['present'] ?? 0);
+                $absentCount = (int) ($item['absent'] ?? 0);
+                $statusLabel = $presentCount >= $absentCount ? 'Present' : 'Absent';
+                $lateLabel = ((int) ($item['total_late_minutes'] ?? 0)) > 0
+                    ? ((int) $item['total_late_minutes']).' Min'
+                    : '-';
+
+                $rows[] = [
+                    (string) ($item['user_name'] ?? 'Unknown'),
+                    'Archive',
+                    (string) ($snapshot->period_end?->toDateString() ?? $dateYmd),
+                    '-',
+                    '-',
+                    $statusLabel,
+                    '-',
+                    '-',
+                    '-',
+                    $lateLabel,
+                    '-',
+                    '-',
+                ];
+            }
+
+            $fileBase = 'attendance-report-archive-'.$snapshot->id.'-'.now()->format('YmdHis');
+
+            return TabularExportResponse::download($headers, $rows, $fileBase, $format, 'Attendance Report');
+        }
+
+        $base = $this->adminAttendanceFilteredQuery($dateYmd, $search, $department, $statusFilter, $activeCompanyId);
+        $listQuery = (clone $base)->select('users.*');
+
+        $prodExpr = $this->attendanceAdminProductionSortExpression();
+        match ($sort) {
+            'name_desc' => $listQuery->orderByDesc('users.name')->orderBy('users.id'),
+            'checkin_asc' => $listQuery->orderByRaw('ar.check_in_at IS NULL, ar.check_in_at ASC')->orderBy('users.name'),
+            'checkin_desc' => $listQuery->orderByRaw('ar.check_in_at IS NULL DESC, ar.check_in_at DESC')->orderBy('users.name'),
+            'production_desc' => $listQuery->orderByRaw($prodExpr.' DESC')->orderBy('users.name'),
+            'production_asc' => $listQuery->orderByRaw($prodExpr.' ASC')->orderBy('users.name'),
+            default => $listQuery->orderBy('users.name')->orderBy('users.id'),
+        };
+
+        $users = $listQuery->with(['employeeProfile:id,user_id,team,designation'])->get();
+        $records = AttendanceRecord::query()
+            ->whereIn('user_id', $users->pluck('id'))
+            ->whereDate('work_date', $dateYmd)
+            ->get()
+            ->keyBy('user_id');
+
+        $rows = [];
+        foreach ($users as $user) {
+            $rec = $records->get($user->id);
+            $profile = $user->employeeProfile;
+            $team = $profile?->team ?: ($profile?->designation ?: '—');
+
+            $checkIn = $rec?->check_in_at;
+            $checkOut = $rec?->check_out_at;
+            $breakMin = (int) ($rec?->break_minutes ?? 0);
+            $lateMin = (int) ($rec?->late_minutes ?? 0);
+            $rawStatus = (string) ($rec?->status ?? '');
+
+            $net = $this->netProductionMinutes($checkIn, $checkOut, $breakMin, $dateYmd === Carbon::now($this->tz())->toDateString());
+            $prod = $this->formatProduction($net);
+            [, $otLabel] = $this->overtimeForDisplay($net);
+            $derivedNeedsReview = $checkIn && $checkOut && $net !== null && $net < self::EARLY_PUNCH_OUT_REVIEW_MINUTES;
+
+            $statusLabel = (bool) $checkIn ? 'Present' : 'Absent';
+            if ($rawStatus === 'needs_review' || $derivedNeedsReview) {
+                $statusLabel = 'Needs Review';
+            }
+
+            $checkInLoc = $rec?->check_in_location_name;
+            if (! $checkInLoc) {
+                $checkInLoc = ($rec?->check_in_latitude && $rec?->check_in_longitude)
+                    ? round((float) $rec->check_in_latitude, 4).', '.round((float) $rec->check_in_longitude, 4)
+                    : '—';
+            }
+
+            $checkOutLoc = $rec?->check_out_location_name;
+            if (! $checkOutLoc) {
+                $checkOutLoc = ($rec?->check_out_latitude && $rec?->check_out_longitude)
+                    ? round((float) $rec->check_out_latitude, 4).', '.round((float) $rec->check_out_longitude, 4)
+                    : '—';
+            }
+
+            $rows[] = [
+                (string) $user->name,
+                (string) $team,
+                $dateYmd,
+                $this->formatTime($checkIn),
+                (string) $checkInLoc,
+                $statusLabel,
+                $this->formatTime($checkOut),
+                (string) $checkOutLoc,
+                $breakMin > 0 ? $breakMin.' Min' : '-',
+                $lateMin > 0 ? $lateMin.' Min' : '-',
+                $otLabel,
+                (string) $prod['label'],
+            ];
+        }
+
+        $fileBase = 'attendance-report-live-'.now()->format('YmdHis');
+
+        return TabularExportResponse::download($headers, $rows, $fileBase, $format, 'Attendance Report');
     }
 
     public function adminUpsertRecord(Request $request): JsonResponse
@@ -1435,6 +1664,141 @@ class AttendanceController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function scheduleTimingExport(Request $request): StreamedResponse|JsonResponse
+    {
+        $forbidden = $this->ensureHcmAdmin($request);
+        if ($forbidden) {
+            return $forbidden;
+        }
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'sort' => ['nullable', 'string', 'in:name_asc,name_desc,start_asc,start_desc'],
+            'department' => ['nullable', 'string', 'max:100'],
+            'format' => ['nullable', 'string', 'in:csv,xlsx'],
+        ]);
+
+        $searchRaw = trim((string) ($validated['search'] ?? ''));
+        $sort = $validated['sort'] ?? 'name_asc';
+        $departmentFilter = trim((string) ($validated['department'] ?? ''));
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $format = in_array($format, ['csv', 'xlsx'], true) ? $format : 'xlsx';
+
+        $tz = $this->tz();
+        $since = Carbon::now($tz)->subDays(30)->toDateString();
+        $activeCompanyId = $this->activeCompanyId($request);
+
+        $usersQuery = User::query()->with(['employeeProfile:id,user_id,designation,department_id', 'employeeProfile.department:id,name']);
+        if ($activeCompanyId) {
+            $usersQuery->whereHas('employeeProfile', function ($query) use ($activeCompanyId): void {
+                $query->where(function ($inner) use ($activeCompanyId): void {
+                    $inner->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                });
+            });
+        }
+        if ($searchRaw !== '') {
+            $usersQuery->where(function ($q) use ($searchRaw) {
+                $q->where('name', 'like', '%'.$searchRaw.'%')
+                    ->orWhereHas('employeeProfile', fn ($p) => $p->where('designation', 'like', '%'.$searchRaw.'%'));
+            });
+        }
+
+        if ($departmentFilter !== '') {
+            $usersQuery->whereHas('employeeProfile.department', function ($q) use ($departmentFilter): void {
+                $q->where('name', $departmentFilter);
+            });
+        }
+
+        if ($sort === 'name_desc') {
+            $usersQuery->orderByDesc('name')->orderBy('id');
+        } else {
+            $usersQuery->orderBy('name')->orderBy('id');
+        }
+
+        $users = $usersQuery->get()->values();
+        $recordsQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recordsQuery, $activeCompanyId);
+        $records = $recordsQuery
+            ->whereDate('work_date', '>=', $since)
+            ->whereIn('user_id', $users->pluck('id'))
+            ->whereNotNull('check_in_at')
+            ->whereNotNull('check_out_at')
+            ->get()
+            ->groupBy('user_id');
+
+        $overridesQuery = HcmScheduleTiming::query();
+        $this->applyTenantScope($overridesQuery, $activeCompanyId);
+        $overrides = $overridesQuery
+            ->with(['shift:id,name'])
+            ->whereIn('user_id', $users->pluck('id'))
+            ->get()
+            ->keyBy('user_id');
+
+        $rows = $users->map(function (User $u) use ($records, $tz, $overrides) {
+            $recs = $records->get($u->id) ?? collect();
+            $startMinutes = [];
+            $endMinutes = [];
+            foreach ($recs as $rec) {
+                $ci = $rec->check_in_at ? $rec->check_in_at->copy()->timezone($tz) : null;
+                $co = $rec->check_out_at ? $rec->check_out_at->copy()->timezone($tz) : null;
+                if ($ci && $co) {
+                    $startMinutes[] = ((int) $ci->format('H')) * 60 + ((int) $ci->format('i'));
+                    $endMinutes[] = ((int) $co->format('H')) * 60 + ((int) $co->format('i'));
+                }
+            }
+
+            $defaultStart = 9 * 60;
+            $defaultEnd = 18 * 60;
+            $avgStart = count($startMinutes) ? (int) round(array_sum($startMinutes) / count($startMinutes)) : $defaultStart;
+            $avgEnd = count($endMinutes) ? (int) round(array_sum($endMinutes) / count($endMinutes)) : $defaultEnd;
+
+            $source = 'auto';
+            if ($overrides->has($u->id)) {
+                $ov = $overrides->get($u->id);
+                $avgStart = ((int) substr((string) $ov->start_time, 0, 2)) * 60 + ((int) substr((string) $ov->start_time, 3, 2));
+                $avgEnd = ((int) substr((string) $ov->end_time, 0, 2)) * 60 + ((int) substr((string) $ov->end_time, 3, 2));
+                $source = (string) ($ov->source ?: 'manual');
+            }
+            $slot = sprintf('%02d:%02d - %02d:%02d', intdiv($avgStart, 60), $avgStart % 60, intdiv($avgEnd, 60), $avgEnd % 60);
+            $designation = (string) ($u->employeeProfile?->designation ?: 'Employee');
+            $department = (string) ($u->employeeProfile?->department?->name ?: '—');
+
+            $ov = $overrides->get($u->id);
+
+            return [
+                'name' => (string) $u->name,
+                'department' => $department,
+                'jobTitle' => $designation,
+                'availableTimings' => $slot,
+                'shiftName' => (string) ($ov?->shift?->name ?: '—'),
+                'sourceLabel' => $source === 'manual' ? 'Manual Override' : 'Auto',
+                'startMinutes' => $avgStart,
+            ];
+        })->values();
+
+        if ($sort === 'start_asc') {
+            $rows = $rows->sortBy('startMinutes')->values();
+        } elseif ($sort === 'start_desc') {
+            $rows = $rows->sortByDesc('startMinutes')->values();
+        }
+
+        $headers = ['Name', 'Department', 'Job Title', 'Available Timings', 'Shift', 'Source'];
+        $exportRows = $rows->map(function (array $row): array {
+            return [
+                $row['name'],
+                $row['department'],
+                $row['jobTitle'],
+                $row['availableTimings'],
+                $row['shiftName'],
+                $row['sourceLabel'],
+            ];
+        })->all();
+
+        $fileBase = 'schedule-timing-'.Carbon::now($tz)->format('Ymd-His');
+
+        return TabularExportResponse::download($headers, $exportRows, $fileBase, $format, 'Schedule Timing');
     }
 
     public function scheduleTimingUpsert(Request $request, int $userId): JsonResponse

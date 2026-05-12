@@ -13,7 +13,7 @@ export function renderScheduleTimingRowsModule(deps, rows) {
         });
     }
     if (!sourceRows.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No schedule timings found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Data shift & schedule tidak ditemukan.</td></tr>';
         tbody.setAttribute("data-hydrated", "1");
         return;
     }

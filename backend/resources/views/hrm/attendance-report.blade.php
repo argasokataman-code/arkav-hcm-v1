@@ -14,7 +14,7 @@
         <!-- Breadcrumb -->
         <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">Attendance Report</h2>
+                <h2 class="mb-1">Attendance Report - Rekap Absensi Karyawan</h2>
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item">
@@ -29,20 +29,20 @@
             </div>
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
                     <div class="mb-2 me-2 d-flex align-items-center gap-2">
-                        <label class="mb-0 small text-muted">Source</label>
+                        <label class="mb-0 small text-muted">Sumber Data</label>
                         <select class="form-select form-select-sm" style="min-width: 170px;" data-attendance-report-source>
-                            <option value="live" selected>Live Data</option>
-                            <option value="archive">Archive Snapshot</option>
+                            <option value="live" selected>Data Hari Ini (Realtime)</option>
+                            <option value="archive">Data Arsip Bulanan</option>
                         </select>
                     </div>
                     <div class="mb-2 me-2 d-none" data-attendance-report-snapshot-wrap>
-                        <input type="number" class="form-control form-control-sm" placeholder="Snapshot ID" min="1" data-attendance-report-snapshot-id>
+                        <input type="number" class="form-control form-control-sm" placeholder="Nomor Arsip (lihat di Laporan)" min="1" data-attendance-report-snapshot-id>
                     </div>
                     <div class="mb-2 me-2">
-                        <span class="badge bg-light text-dark" data-attendance-report-source-badge>Source: Live</span>
+                        <span class="badge bg-light text-dark" data-attendance-report-source-badge>Sumber: Data Terbaru</span>
                     </div>
                     <div class="mb-2 me-2 w-100">
-                        <span class="text-muted small">Live memakai API attendance admin; Archive memakai Snapshot ID dari Reports Hub.</span>
+                        <span class="text-muted small">Data Terbaru menampilkan rekap absensi hari ini. Data Arsip memakai nomor arsip dari halaman Laporan.</span>
                     </div>
                 <div class="mb-2 me-2">
                     <a href="{{ url('attendance-admin') }}" class="btn btn-light d-inline-flex align-items-center">
@@ -56,12 +56,14 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1" data-attendance-report-export="csv">
-                                    <i class="ti ti-file-type-xls me-1"></i>Export CSV
+                                <a href="javascript:void(0);" class="dropdown-item rounded-1" data-attendance-report-export="xlsx">
+                                    <i class="ti ti-file-type-xls me-1"></i>Export Excel (XLSX)
                                 </a>
                             </li>
                             <li>
-                                <span class="dropdown-item rounded-1 text-muted">CSV format only</span>
+                                <a href="javascript:void(0);" class="dropdown-item rounded-1" data-attendance-report-export="csv">
+                                    <i class="ti ti-file-type-csv me-1"></i>Export CSV
+                                </a>
                             </li>
                         </ul>
                     </div>

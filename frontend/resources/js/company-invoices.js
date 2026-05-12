@@ -17,6 +17,11 @@
     var paidThisMonthNode = document.getElementById("paid_this_month");
     var downloadBtn = document.querySelector("[data-company-invoice-download]");
     var printBtn = document.querySelector("[data-company-invoice-print]");
+    var modalLoading = document.querySelector("[data-invoice-modal-loading]");
+    var modalLoadingMessage = document.querySelector("[data-invoice-modal-loading-message]");
+    var modalContent = document.querySelector("[data-invoice-modal-content]");
+    var taxBreakdownWrap = document.querySelector("[data-invoice-modal-tax-breakdown]");
+    var taxBreakdownList = document.querySelector("[data-invoice-modal-tax-breakdown-list]");
     var modal = null;
     var currentInvoice = null;
     var searchTimer = null;
@@ -182,12 +187,12 @@
     function nextBillingSummary(inv) {
         if (isAddonInvoice(inv)) {
             if (inv && inv.subscriptionId && inv.nextBillingDate) {
-                return "Masuk renewal " + fmtDate(inv.nextBillingDate);
+                return "Renewal berikutnya: " + fmtDate(inv.nextBillingDate);
             }
             return "Tagihan add-on terpisah";
         }
         if (inv && inv.nextBillingDate) {
-            return "Next payment " + fmtDate(inv.nextBillingDate);
+            return fmtDate(inv.nextBillingDate);
         }
         return inv && inv.subscriptionId ? "Next payment belum terjadwal" : "One-time invoice";
     }
@@ -273,6 +278,7 @@
         if (!text) return fallback;
 
         var parsed = null;
+        var jsonParseFailed = false;
         var startsLikeJson = (text.charAt(0) === "{" && text.charAt(text.length - 1) === "}") ||
             (text.charAt(0) === "[" && text.charAt(text.length - 1) === "]");
         if (startsLikeJson) {
@@ -280,6 +286,7 @@
                 parsed = JSON.parse(text);
             } catch (_e) {
                 parsed = null;
+                jsonParseFailed = true;
             }
         }
 
@@ -290,6 +297,8 @@
             } else {
                 return "Catatan teknis tersimpan pada metadata invoice.";
             }
+        } else if (jsonParseFailed) {
+            return "Catatan invoice tersimpan, tetapi format JSON-nya tidak dapat dibaca otomatis.";
         }
 
         var looksTechnical = /(select\s+.+from|insert\s+into|update\s+.+set|delete\s+from|\bwhere\b|https?:\/\/|\?.+=.+|\b(v1|api)\/|[{\["].*[:=].*[}\]"])/i.test(text);
@@ -298,6 +307,41 @@
         }
 
         return text.length > 280 ? text.slice(0, 280).trim() + "..." : text;
+    }
+
+    function setModalLoading(isLoading, message) {
+        if (modalLoading) {
+            modalLoading.classList.toggle("d-none", !isLoading);
+        }
+        if (modalContent) {
+            modalContent.classList.toggle("d-none", isLoading);
+        }
+        if (modalLoadingMessage && message) {
+            modalLoadingMessage.textContent = message;
+        }
+    }
+
+    function renderTaxBreakdown(inv) {
+        if (!taxBreakdownWrap || !taxBreakdownList) return;
+
+        var pb = inv && inv.pricingBreakdown && typeof inv.pricingBreakdown === "object" ? inv.pricingBreakdown : null;
+        var components = pb && Array.isArray(pb.components) ? pb.components : [];
+        var items = components.map(function (component) {
+            if (!component || typeof component !== "object") return null;
+            var label = String(component.label || component.key || "Pajak").trim();
+            var rate = component.rate != null && component.rate !== "" ? " (" + String(component.rate) + "%)" : "";
+            var amount = component.amount != null ? fmtMoney(component.amount) : fmtMoney(0);
+            return '<li class="d-flex align-items-start justify-content-between gap-3 py-1 border-bottom border-light-subtle"><span>' + esc(label + rate) + '</span><span class="fw-semibold">' + esc(amount) + '</span></li>';
+        }).filter(Boolean);
+
+        if (!items.length) {
+            taxBreakdownList.innerHTML = "";
+            taxBreakdownWrap.classList.add("d-none");
+            return;
+        }
+
+        taxBreakdownList.innerHTML = items.join("");
+        taxBreakdownWrap.classList.remove("d-none");
     }
 
     function showFeedback(message) {
@@ -479,6 +523,7 @@
     }
 
     function closeModal() {
+        setModalLoading(false);
         if (modal && typeof modal.hide === "function") {
             modal.hide();
             return;
@@ -533,7 +578,8 @@
                   <tr>
                     <th>Invoice</th>
                     <th>Issue</th>
-                    <th>Due</th>
+                                        <th>Due Date</th>
+                                        <th>Next Payment</th>
                     <th>Amount</th>
                     <th>Status</th>
                     <th>Paid</th>
@@ -554,10 +600,8 @@
                             <div class="text-muted small">#${esc(r.id)}</div>
                           </td>
                           <td>${esc(r.issueDate || "-")}</td>
-                                                    <td>
-                                                        <div>${esc(r.dueDate || "-")}</div>
-                                                        <div class="text-muted small">${esc(nextBillingSummary(r))}</div>
-                                                    </td>
+                          <td>${esc(r.dueDate || "-")}</td>
+                          <td>${esc(nextBillingSummary(r))}</td>
                           <td class="fw-semibold">${esc(fmtMoney(r.amountDue))}</td>
                           <td>${badge(r.status)}</td>
                           <td>${paid}</td>
@@ -572,7 +616,7 @@
                           </td>
                         </tr>
                       `;
-                  }).join("") || '<tr><td colspan="7" class="text-center text-muted py-4">No invoices found.</td></tr>'}
+                                    }).join("") || '<tr><td colspan="8" class="text-center text-muted py-4">No invoices found.</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -595,10 +639,10 @@
         var footerTerms = settings.invoice_footer_terms || "-";
 
         var termsSummary = [
-            "Prefix " + prefix,
-            "Due in " + dueDays + " days",
-            "Tax " + (taxShown ? "shown" : "hidden"),
-            "Round-off " + (roundOffEnabled ? roundOffMode : "disabled"),
+            "Nomor diawali " + prefix,
+            "Jatuh tempo " + dueDays + " hari",
+            "Harga " + (taxShown ? "termasuk PPN" : "tanpa PPN"),
+            "" + (roundOffEnabled ? ("Pembulatan " + roundOffMode) : "Tanpa pembulatan"),
         ].join(" | ");
 
         function set(sel, val) {
@@ -663,12 +707,14 @@
             if (taxRow) taxRow.style.display = "none";
         }
         set("[data-invoice-modal-table-total]", fmtMoney(inv.amountDue));
+        renderTaxBreakdown(inv);
 
         set("[data-invoice-modal-guidance]", invoiceGuidance(inv));
         set("[data-invoice-modal-terms-summary]", termsSummary);
         set("[data-invoice-modal-header-terms]", headerTerms);
         set("[data-invoice-modal-footer-terms]", footerTerms);
         set("[data-invoice-modal-notes]", normalizeInvoiceNotes(inv && inv.notes));
+        setModalLoading(false);
         if (downloadBtn) {
             downloadBtn.disabled = !inv || !inv.id;
         }
@@ -742,6 +788,8 @@
             var viewBtn = e.target.closest("[data-invoice-view]");
             if (viewBtn) {
                 var id = viewBtn.getAttribute("data-invoice-view");
+                setModalLoading(true, "Memuat detail invoice...");
+                openModal();
                 Promise.all([
                     api("get", "/hcm/billing/invoices/" + encodeURIComponent(id)),
                     fetchInvoiceSettings(),
@@ -750,8 +798,8 @@
                     var settings = results[1];
                     if (!payload || payload.success !== true) return;
                     fillModal(payload.data, settings);
-                    openModal();
                 }).catch(function (err) {
+                    setModalLoading(true, parseError(err));
                     showFeedback(parseError(err));
                 });
                 return;

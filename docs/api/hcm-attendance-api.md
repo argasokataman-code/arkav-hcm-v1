@@ -36,6 +36,29 @@ Success `200`:
 - `meta.pagination`: `page`, `perPage`, `total`, `totalPages`
 - `data[]`: row per user pada halaman ini (checkIn/checkOut/break/late/overtime/production/correction)
 
+### GET `/attendance/admin/export`
+
+RBAC:
+- HCM Admin only
+
+Query:
+- `format` optional `xlsx|csv` (default `xlsx`)
+- `source` optional `live|archive` (default `live`)
+- `date` optional (date)
+- `search` optional string max 100
+- `department` optional string max 100
+- `status` optional `present|absent|needs_review`
+- `sort` optional `name_asc|name_desc|checkin_asc|checkin_desc|production_desc|production_asc`
+- `snapshotId` required integer when `source=archive`
+
+Behavior:
+- `source=live` mengekspor hasil attendance admin dengan filter/sort yang sama seperti endpoint list.
+- `source=archive` mengekspor snapshot attendance tenant dari Reports Hub.
+- Archive export menolak snapshot yang bukan tipe `attendance` atau belum status `completed`.
+
+Success:
+- `200` stream file sesuai `format` (`.xlsx` atau `.csv`).
+
 ### PUT `/attendance/admin/record`
 
 RBAC:
@@ -201,6 +224,25 @@ Query:
 - `sort` optional enum `name_asc|name_desc|start_asc|start_desc` (urut `start_*` diterapkan per halaman hasil)
 - `page` optional int >=1
 - `perPage` optional int 1..100 (default 50)
+- `department` optional string max 100 (nama departemen)
+
+### GET `/schedule-timing/export`
+
+RBAC:
+- HCM Admin only
+
+Tujuan:
+- Export daftar shift & schedule dalam format `xlsx` atau `csv` dari backend stream response.
+
+Query:
+- `format` optional enum `xlsx|csv` (default `xlsx`)
+- `search` optional string max 100
+- `sort` optional enum `name_asc|name_desc|start_asc|start_desc`
+- `department` optional string max 100
+
+Behavior:
+- Tetap tenant-scoped mengikuti company aktif.
+- Kolom export: `Name`, `Department`, `Job Title`, `Available Timings`, `Shift`, `Source`.
 
 ### PUT `/schedule-timing/{userId}`
 

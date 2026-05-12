@@ -117,7 +117,7 @@
 
                             <div class="col-md-6">
                                 <label class="form-label">Phone <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" minlength="10" maxlength="13" pattern="[0-9]{10,13}" required>
+                                <input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx / +628xxxxxxxxxx" inputmode="tel" minlength="10" maxlength="16" pattern="^\+?[0-9]{10,15}$" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">NIK / No. KTP <span class="text-danger">*</span></label>
@@ -190,7 +190,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small text-muted">Village / Ward <span class="text-warning" data-village-unavailable-hint style="display:none" title="District ini tidak memiliki data kelurahan. Isi alamat lengkap di Address Detail.">⚠ Tidak tersedia</span></label>
-                                        <select class="form-select" {{ $fieldAttr }}="villageId" data-employee-wilayah-village required disabled>
+                                        <select class="form-select" {{ $fieldAttr }}="villageId" data-employee-wilayah-village disabled>
                                             <option value="">Select village</option>
                                         </select>
                                     </div>
@@ -357,11 +357,11 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Relationship</label>
-                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" pattern="[A-Za-z .'\-]{2,50}" title="Hubungan hanya boleh huruf, spasi, dan tanda baca umum">
+                                                <input type="text" class="form-control" data-repeat-key="relationship" placeholder="Spouse / Parent" minlength="2" maxlength="50" pattern="[A-Za-z .'\-/]{2,50}" title="Hubungan hanya boleh huruf, spasi, slash, dan tanda baca umum">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label">Phone</label>
-                                                <input type="text" class="form-control" data-repeat-key="phone" placeholder="08xxxxxxxxxx" inputmode="numeric" minlength="10" maxlength="13" pattern="[0-9]{10,13}" title="Nomor telepon 10–13 digit angka">
+                                                <input type="text" class="form-control" data-repeat-key="phone" placeholder="08xxxxxxxxxx / +628xxxxxxxxxx" inputmode="tel" minlength="10" maxlength="16" pattern="^\+?[0-9]{10,15}$" title="Nomor telepon 10-15 digit, boleh diawali +">
                                             </div>
                                             <div class="col-md-2 text-md-end">
                                                 <button type="button" class="btn btn-outline-danger btn-sm w-100" data-employee-repeat-remove>Remove</button>

@@ -78,13 +78,16 @@ Body:
 - `managerUserId` optional int exists `users.id` — masih didukung API admin, tetapi field ini sudah disembunyikan dari UI employee modal
 - `employmentStatus` optional `active|inactive|probation|resigned|terminated`
 - `nik` / alias `ktpNo` **required** regex `^[0-9]{16}$` — satu sumber data untuk **NIK / nomor KTP**
-- `phone` **required** regex `^[0-9]{10,13}$`
+- `phone` **required** regex `^\+?[0-9]{10,15}$` (boleh awalan `+`, contoh `+628123456789`)
 - `placeOfBirth`, `dateOfBirth`, `gender` (`male|female|other`), `maritalStatus` (`single|married|divorced|widowed`), `religion`, dan `address` **required**
   - `placeOfBirth` regex huruf/spasi/tanda baca umum `^[\p{L}\p{M} .,\'-]{2,150}$`
   - `address` max 500 chars
   - `addressDetail` max 500 chars
   - `bio` max 500 chars
-- `provinceId`, `regencyId`, `districtId`, `villageId` **required** integer (ID master wilayah) dengan relasi hirarki valid:
+- `provinceId`, `regencyId`, `districtId` **required** integer (ID master wilayah), dan `villageId` **required secara kondisional**:
+  - `villageId` wajib jika district memiliki data village
+  - jika district tidak memiliki data village, `villageId` boleh kosong dan `addressDetail` wajib diisi sebagai fallback
+  - relasi hirarki tetap wajib valid:
   - `regencyId` harus milik `provinceId`
   - `districtId` harus milik `regencyId`
   - `villageId` harus milik `districtId`
@@ -99,8 +102,8 @@ Body:
 - `taxStatus` / `ptkpStatus` mengikuti enum Indonesia `TK0..TK3` / `K0..K3` (alias `TK` → `TK0`, `K` → `K0` masih diterima)
 - `emergencyContacts` **required** array `min:1`, dan minimal satu item harus memiliki `name`, `relationship`, dan `phone` valid
   - `name`: required, huruf/spasi/tanda baca umum, 2–100 chars
-  - `relationship`: required, huruf/spasi saja, 2–50 chars
-  - `phone`: required, digits only `^[0-9]{10,13}$`
+  - `relationship`: required, huruf/spasi/tanda baca umum termasuk `/`, 2–50 chars
+  - `phone`: required, regex `^\+?[0-9]{10,15}$`
 - `educationItems` optional array — jika ada, setiap item wajib:
   - `institution`: string 2–100 chars
   - `degree`: string 2–50 chars

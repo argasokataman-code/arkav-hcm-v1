@@ -324,8 +324,11 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 @endif
 @if (Route::is(['schedule-timing']))
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.19/index.global.min.js"></script>
+    <script src="{{ URL::asset('build/vendor/fullcalendar/core/index.global.min.js') }}"></script>
+    <script src="{{ URL::asset('build/vendor/fullcalendar/core/locales-all.global.min.js') }}"></script>
+    <script src="{{ URL::asset('build/vendor/fullcalendar/daygrid/index.global.min.js') }}"></script>
+    <script src="{{ URL::asset('build/vendor/fullcalendar/timegrid/index.global.min.js') }}"></script>
+    <script src="{{ URL::asset('build/vendor/fullcalendar/list/index.global.min.js') }}"></script>
 @endif
 <script type="module" src="{{ URL::asset('build/js/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance-data.js')) ? filemtime(public_path('build/js/attendance-data.js')) : time() }}"></script>
 

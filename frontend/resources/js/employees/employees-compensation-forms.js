@@ -3,7 +3,8 @@ export function bindEmployeeCompensationFormsModule(deps) {
     var LETTER_SPACE_PUNCT_150_REGEX = /^[\p{L}\p{M} .,'-]{2,150}$/u;
     var LETTER_SPACE_PUNCT_100_REGEX = /^[\p{L}\p{M} .,'-]{2,100}$/u;
     var EMERGENCY_NAME_REGEX = /^[\p{L}\p{M}' .,-]{2,100}$/u;
-    var EMERGENCY_RELATIONSHIP_REGEX = /^[\p{L}\p{M}' .-]{2,50}$/u;
+    var EMERGENCY_RELATIONSHIP_REGEX = /^[\p{L}\p{M}' ./-]{2,50}$/u;
+    var PHONE_WITH_COUNTRY_REGEX = /^\+?[0-9]{10,15}$/;
     var requestJson = deps.requestJson;
     var requestEmployeeDetail = deps.requestEmployeeDetail;
     var fillDesignationSelectForDepartment = deps.fillDesignationSelectForDepartment;
@@ -487,8 +488,23 @@ export function bindEmployeeCompensationFormsModule(deps) {
         return String(value || "").replace(/\D+/g, "");
     }
 
+    function phoneCharsOnly(value) {
+        var raw = String(value || "").replace(/[^0-9+]/g, "");
+        if (!raw) {
+            return "";
+        }
+        if (raw.charAt(0) === "+") {
+            return "+" + raw.slice(1).replace(/\+/g, "");
+        }
+        return raw.replace(/\+/g, "");
+    }
+
     function lettersSpacePunctOnly(value) {
         return String(value || "").replace(/[^\p{L}\p{M} .,'-]/gu, "");
+    }
+
+    function relationshipCharsOnly(value) {
+        return String(value || "").replace(/[^\p{L}\p{M} .'\/-]/gu, "");
     }
 
     function npwpCharsOnly(value) {
@@ -513,23 +529,27 @@ export function bindEmployeeCompensationFormsModule(deps) {
         var next = raw;
 
         if (
-            fieldKey === "phone"
-            || fieldKey === "nik"
+            fieldKey === "nik"
             || fieldKey === "bankAccountNo"
             || fieldKey === "bpjsKesehatanNo"
             || fieldKey === "bpjsKetenagakerjaanNo"
-            || repeatKey === "phone"
             || fieldKey === "baseSalary"
         ) {
             next = digitsOnly(raw);
+        } else if (
+            fieldKey === "phone"
+            || repeatKey === "phone"
+        ) {
+            next = phoneCharsOnly(raw);
         } else if (
             fieldKey === "name"
             || fieldKey === "placeOfBirth"
             || fieldKey === "bankAccountHolderName"
             || repeatKey === "name"
-            || repeatKey === "relationship"
         ) {
             next = lettersSpacePunctOnly(raw);
+        } else if (repeatKey === "relationship") {
+            next = relationshipCharsOnly(raw);
         } else if (fieldKey === "npwp") {
             next = npwpCharsOnly(raw);
         }
@@ -700,8 +720,8 @@ export function bindEmployeeCompensationFormsModule(deps) {
             if (!relationship || !EMERGENCY_RELATIONSHIP_REGEX.test(relationship)) {
                 return failField(relationshipInput, "Relationship emergency contact wajib huruf/spasi/tanda baca umum (2-50 karakter).");
             }
-            if (!/^[0-9]{10,13}$/.test(phone)) {
-                return failField(phoneInput, "Nomor telepon emergency contact wajib angka 10-13 digit.");
+            if (!PHONE_WITH_COUNTRY_REGEX.test(phone)) {
+                return failField(phoneInput, "Nomor telepon emergency contact wajib 10-15 digit, boleh diawali +.");
             }
 
             hasValid = true;
@@ -1026,7 +1046,7 @@ export function bindEmployeeCompensationFormsModule(deps) {
             if (!validateRegexField(form, "placeOfBirth", LETTER_SPACE_PUNCT_150_REGEX, "Place of birth hanya boleh huruf, spasi, dan tanda baca umum (2-150 karakter).")) {
                 return false;
             }
-            if (!validateRegexField(form, "phone", /^[0-9]{10,13}$/, "Phone wajib angka 10-13 digit.")) {
+            if (!validateRegexField(form, "phone", PHONE_WITH_COUNTRY_REGEX, "Phone wajib 10-15 digit, boleh diawali +.")) {
                 return false;
             }
             if (!validateRegexField(form, "nik", /^[0-9]{16}$/, "NIK wajib 16 digit angka.")) {

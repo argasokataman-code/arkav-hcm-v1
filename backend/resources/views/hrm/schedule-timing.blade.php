@@ -2,10 +2,6 @@
 @extends('layout.mainlayout')
 @section('content')
     <style>
-        [data-schedule-timing-body]:not([data-hydrated="1"]) {
-            display: none;
-        }
-
         [data-schedule-calendar-wrap]:not([data-hydrated="1"]) {
             display: none;
         }
@@ -43,7 +39,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Smart Attendance Planner</h2>
+                    <h2 class="mb-1">Shift &amp; Schedule</h2>
                     <nav>
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item">
@@ -52,15 +48,19 @@
                             <li class="breadcrumb-item">
                                 Attendance
                             </li>
-                            <li class="breadcrumb-item active" aria-current="page">Smart Attendance Planner</li>
+                            <li class="breadcrumb-item active" aria-current="page">Shift &amp; Schedule</li>
                         </ol>
                     </nav>
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
-                    <div class="mb-2">
-                        <a href="javascript:void(0);" class="btn btn-white d-inline-flex align-items-center" data-schedule-timing-export="csv" title="Export seluruh daftar Schedule Timing List ke CSV">
-                            <i class="ti ti-file-export me-1"></i>Export Schedule List CSV
-                        </a>
+                    <div class="mb-2 dropdown">
+                        <button type="button" class="btn btn-white d-inline-flex align-items-center dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Unduh daftar Shift &amp; Schedule">
+                            <i class="ti ti-file-export me-1"></i>Export Shift &amp; Schedule
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-schedule-timing-export="xlsx">Export XLSX</a></li>
+                            <li><a class="dropdown-item" href="#" data-schedule-timing-export="csv">Export CSV</a></li>
+                        </ul>
                     </div>
                     <div class="head-icons ms-2">
                         <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
@@ -91,16 +91,16 @@
                                 <option value="shifting_24h" selected>Shifting 24 Jam</option>
                                 <option value="hybrid">Hybrid (Office + Shift)</option>
                             </select>
-                            <div class="form-text d-none" data-smart-planner-mode-hint>Pilihan manual rule planner. Bukan auto dari master shift.</div>
+                            <div class="form-text" data-smart-planner-mode-hint>Pilihan manual rule planner. Bukan auto dari master shift.</div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Sasaran Draft</label>
                             <select class="form-select" data-smart-planner-scope>
                                 <option value="all">Semua employee aktif</option>
                                 <option value="department" selected>Per departemen</option>
-                                <option value="custom">Manual user ID (advanced)</option>
+                                <option value="custom">Karyawan pilihan (advanced)</option>
                             </select>
-                            <div class="form-text d-none" data-smart-planner-scope-hint>Sumber data: daftar employee tenant aktif.</div>
+                            <div class="form-text" data-smart-planner-scope-hint>Sumber data: daftar employee tenant aktif.</div>
                         </div>
                         <div class="col-md-3" data-smart-planner-field="department">
                             <label class="form-label">Departemen</label>
@@ -109,20 +109,21 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-none" data-smart-planner-field="custom-ids">
-                            <label class="form-label">Manual user IDs</label>
-                            <input type="text" class="form-control" placeholder="contoh: 101, 102, 150" data-smart-planner-custom-ids>
+                            <label class="form-label">Pilih Karyawan (Advanced)</label>
+                            <select class="form-select" data-smart-planner-custom-ids multiple size="5" aria-label="Pilih karyawan untuk scope custom"></select>
+                            <div class="form-text">Pilih satu atau lebih karyawan dari tenant aktif.</div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Week Start</label>
+                            <label class="form-label">Mulai Minggu</label>
                             <input type="date" class="form-control" data-smart-planner-week-start>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Planning Horizon</label>
+                            <label class="form-label">Rentang Perencanaan</label>
                             <select class="form-select" data-smart-planner-horizon>
                                 <option value="single_week" selected>Minggu terpilih saja</option>
                                 <option value="end_of_year">Generate sampai akhir tahun</option>
                             </select>
-                            <div class="form-text d-none" data-smart-planner-horizon-hint>Pilih 1 minggu atau batch mingguan sampai 31 Desember.</div>
+                            <div class="form-text" data-smart-planner-horizon-hint>Pilih 1 minggu atau batch mingguan sampai 31 Desember.</div>
                         </div>
                         <div class="col-md-3 d-none" data-smart-planner-field="horizon-end-date">
                             <label class="form-label">Horizon End Date</label>
@@ -146,7 +147,7 @@
                         </div>
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100" data-smart-planner-submit>
-                                <span data-smart-planner-submit-label>Generate</span>
+                                <span data-smart-planner-submit-label>Generate Draft</span>
                                 <span class="spinner-border spinner-border-sm d-none ms-1" data-smart-planner-spinner aria-hidden="true"></span>
                             </button>
                         </div>
@@ -217,7 +218,7 @@
 
                     <div class="alert alert-light mt-3 mb-3 d-none" data-smart-planner-feedback role="alert"></div>
 
-                    <div class="row g-3 d-none" data-smart-planner-result>
+                    <div class="row g-3" data-smart-planner-result>
                         <div class="col-12">
                             <div class="alert alert-warning mb-0" role="alert">
                                 <strong>Draft planner:</strong> hasil di bawah adalah rekomendasi AI untuk minggu terpilih.
@@ -227,32 +228,32 @@
 
                         <div class="col-lg-3 col-md-6">
                             <div class="border rounded p-3 h-100">
-                                <div class="text-muted small">Validation</div>
+                                <div class="text-muted small">Status Validasi</div>
                                 <div class="fw-semibold" data-smart-planner-validation>—</div>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6">
                             <div class="border rounded p-3 h-100">
-                                <div class="text-muted small">Fairness Score</div>
+                                <div class="text-muted small">Skor Keadilan</div>
                                 <div class="fw-semibold" data-smart-planner-fairness>—</div>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6">
                             <div class="border rounded p-3 h-100">
-                                <div class="text-muted small">Fatigue Risk</div>
+                                <div class="text-muted small">Risiko Kelelahan</div>
                                 <div class="fw-semibold" data-smart-planner-fatigue>—</div>
                             </div>
                         </div>
                         <div class="col-lg-3 col-md-6">
                             <div class="border rounded p-3 h-100">
-                                <div class="text-muted small">Unmet Coverage</div>
+                                <div class="text-muted small">Coverage Belum Terpenuhi</div>
                                 <div class="fw-semibold" data-smart-planner-unmet>—</div>
                             </div>
                         </div>
 
                         <div class="col-12">
                             <div class="border rounded p-3">
-                                <h6 class="mb-2">Explanation</h6>
+                                <h6 class="mb-2">Penjelasan</h6>
                                 <p class="mb-0 text-muted" data-smart-planner-explanation>—</p>
                             </div>
                         </div>
@@ -332,7 +333,7 @@
                         <div class="col-12">
                             <div class="border rounded p-3">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                    <h6 class="mb-0">Conflict Resolver (Pre-publish)</h6>
+                                    <h6 class="mb-0">Conflict Resolver (Pra-Publish)</h6>
                                     <small class="text-muted" data-smart-planner-conflict-meta>Belum ada analisis conflict.</small>
                                 </div>
                                 <ul class="mb-3 ps-3" data-smart-planner-conflict-list>
@@ -513,14 +514,14 @@
 
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                    <h5>Schedule Timing List</h5>
+                    <h5>Daftar Shift &amp; Schedule</h5>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                         <div class="btn-group me-2" role="group" aria-label="Schedule view mode">
                             <button type="button" class="btn btn-outline-primary active" data-schedule-view-toggle="list">List</button>
                             <button type="button" class="btn btn-outline-primary" data-schedule-view-toggle="calendar">Calendar</button>
                         </div>
                         <div class="me-2">
-                            <input type="text" class="form-control" placeholder="Search name / job title" data-schedule-timing-search>
+                            <input type="text" class="form-control" placeholder="Cari nama / jabatan" data-schedule-timing-search>
                         </div>
                         <div class="me-2">
                             <select class="form-select" data-schedule-timing-dept-filter>
@@ -529,15 +530,15 @@
                         </div>
                         <div>
                             <select class="form-select" data-schedule-timing-sort>
-                                <option value="name_asc">Sort: Name A-Z</option>
-                                <option value="name_desc">Sort: Name Z-A</option>
-                                <option value="start_asc">Sort: Start earliest</option>
-                                <option value="start_desc">Sort: Start latest</option>
+                                <option value="name_asc">Urut: Nama A-Z</option>
+                                <option value="name_desc">Urut: Nama Z-A</option>
+                                <option value="start_asc">Urut: Jam mulai paling awal</option>
+                                <option value="start_desc">Urut: Jam mulai paling akhir</option>
                             </select>
                         </div>
                         <div class="form-check form-check-md ms-2">
                             <input class="form-check-input" type="checkbox" value="1" id="schedule-ai-draft-only" data-schedule-timing-ai-only>
-                            <label class="form-check-label" for="schedule-ai-draft-only">Show AI Draft only</label>
+                            <label class="form-check-label" for="schedule-ai-draft-only">Tampilkan hanya hasil draft planner terakhir</label>
                         </div>
                     </div>
                 </div>
@@ -559,16 +560,16 @@
                                                 <input class="form-check-input" type="checkbox" id="select-all" data-schedule-timing-select-all>
                                             </div>
                                         </th>
-                                        <th>Name</th>
+                                        <th>Nama</th>
                                         <th>Departemen</th>
-                                        <th>Job Title</th>
-                                        <th>User Available Timings</th>
+                                        <th>Jabatan</th>
+                                        <th>Jam Kerja Tersedia</th>
                                         <th></th>
                                     </tr>
                                 </thead>
                                 <tbody data-schedule-timing-body>
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">Loading schedule timings...</td>
+                                        <td colspan="6" class="text-center text-muted py-4">Memuat data shift &amp; schedule...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -588,7 +589,7 @@
                                 <span class="badge text-bg-danger">Holiday</span>
                             </div>
                         </div>
-                        <div class="alert alert-light mb-3" data-schedule-calendar-loading>Loading calendar...</div>
+                        <div class="alert alert-light mb-3" data-schedule-calendar-loading>Memuat kalender...</div>
                         <div data-schedule-calendar-wrap>
                             <div data-schedule-calendar></div>
                         </div>
@@ -616,7 +617,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Set schedule timing</h5>
+                    <h5 class="modal-title">Atur Jadwal Kerja</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form data-schedule-timing-edit-form>
@@ -625,18 +626,18 @@
                         <p class="text-muted small mb-3">Pilih shift master atau isi jam manual (custom).</p>
                         <input type="hidden" data-st-edit-user-id value="">
                         <div class="mb-3">
-                            <label class="form-label">Shift master</label>
+                            <label class="form-label">Shift Master</label>
                             <select class="form-select" data-st-edit-shift>
                                 <option value="">Custom (manual)</option>
                             </select>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
-                                <label class="form-label">Start</label>
+                                <label class="form-label">Jam Mulai</label>
                                 <input type="time" class="form-control" data-st-edit-start required value="09:00">
                             </div>
                             <div class="col-6 mb-3">
-                                <label class="form-label">End</label>
+                                <label class="form-label">Jam Selesai</label>
                                 <input type="time" class="form-control" data-st-edit-end required value="18:00">
                             </div>
                         </div>

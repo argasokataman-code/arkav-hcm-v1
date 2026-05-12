@@ -367,12 +367,12 @@ export function createReportAttendanceModule(deps) {
         barPct(2, present ? (late / present) * 100 : 0);
         barPct(3, total ? 100 : 0);
 
-        setFoot("[data-attendance-report-stat-foot-working]", "API /attendance/admin | " + label);
-        setFoot("[data-attendance-report-stat-foot-leave]", "Tidak ada punch in pada tanggal ini");
-        setFoot("[data-attendance-report-stat-foot-holiday]", "Dari perhitungan terlambat vs jam masuk");
+        setFoot("[data-attendance-report-stat-foot-working]", "Data absensi per " + label);
+        setFoot("[data-attendance-report-stat-foot-leave]", "Karyawan yang belum check in pada tanggal ini");
+        setFoot("[data-attendance-report-stat-foot-holiday]", "Perhitungan keterlambatan dibanding jam masuk");
         setFoot(
             "[data-attendance-report-stat-foot-halfday]",
-            "Permission: " + perm + " | Uninformed: " + uninformed + " (belum dimodelkan di baris)"
+            "Izin: " + perm + " | Tanpa keterangan: " + uninformed + " (belum ditampilkan per baris)"
         );
     }
 
@@ -472,7 +472,7 @@ export function createReportAttendanceModule(deps) {
 
         if (mode === "archive") {
             if (!snapshotId) {
-                renderReportMessage("Snapshot ID wajib diisi untuk mode Archive.");
+                renderReportMessage("Nomor arsip wajib diisi untuk mode Data Arsip.");
                 setReportLoading(false);
                 setReportPaginationLoading(false);
                 return;
@@ -486,7 +486,7 @@ export function createReportAttendanceModule(deps) {
                         applyReportSummary({}, dateParam);
                         renderReportChart([], dateParam);
                         renderReportPagination(null, loadReportAttendance);
-                        renderReportMessage("Snapshot tidak ditemukan atau tidak bisa diakses.");
+                        renderReportMessage("Data arsip tidak ditemukan atau tidak bisa diakses.");
                         return;
                     }
                     var snapshot = payload.data;
@@ -496,7 +496,7 @@ export function createReportAttendanceModule(deps) {
                         applyReportSummary({}, dateParam);
                         renderReportChart([], dateParam);
                         renderReportPagination(null, loadReportAttendance);
-                        renderReportMessage("Snapshot ini bukan report attendance.");
+                        renderReportMessage("Nomor arsip ini bukan untuk laporan absensi.");
                         return;
                     }
                     if (String(snapshot.status || "").toLowerCase() !== "completed") {
@@ -505,7 +505,7 @@ export function createReportAttendanceModule(deps) {
                         applyReportSummary({}, dateParam);
                         renderReportChart([], dateParam);
                         renderReportPagination(null, loadReportAttendance);
-                        renderReportMessage("Snapshot attendance belum siap digunakan.");
+                        renderReportMessage("Data arsip absensi belum siap digunakan.");
                         return;
                     }
                     var effectiveDate = snapshot.periodEnd || dateParam;
@@ -526,7 +526,7 @@ export function createReportAttendanceModule(deps) {
                         return;
                     }
                     renderReportPagination(null, loadReportAttendance);
-                    renderReportMessage(formatApiError(dataA, statusA) || "Gagal memuat snapshot archive.");
+                    renderReportMessage(formatApiError(dataA, statusA) || "Gagal memuat data arsip absensi.");
                 })
                 .finally(function () {
                     setReportLoading(false);

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance'])->group(function () {
     // Attendance Admin
     Route::get('/attendance/admin', [AttendanceController::class, 'adminIndex']);
+    Route::get('/attendance/admin/export', [AttendanceController::class, 'adminExport']);
     Route::put('/attendance/admin/record', [AttendanceController::class, 'adminUpsertRecord']);
 
     // Timesheets
@@ -15,6 +16,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
 
     // Schedule Timing
     Route::get('/schedule-timing', [AttendanceController::class, 'scheduleTimingIndex']);
+    Route::get('/schedule-timing/export', [AttendanceController::class, 'scheduleTimingExport']);
     Route::put('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingUpsert'])->whereNumber('userId');
     Route::delete('/schedule-timing/{userId}', [AttendanceController::class, 'scheduleTimingDestroy'])->whereNumber('userId');
 

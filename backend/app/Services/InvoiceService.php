@@ -205,6 +205,7 @@ class InvoiceService
             'baseAmount' => isset($pb['base_amount']) ? (float) $pb['base_amount'] : null,
             'subscriptionTaxRate' => isset($pb['subscription_tax_rate']) ? (float) $pb['subscription_tax_rate'] : null,
             'subscriptionTaxAmount' => isset($pb['subscription_tax_amount']) ? (float) $pb['subscription_tax_amount'] : null,
+            'addonTaxAmount' => isset($pb['addon_tax_amount']) ? (float) $pb['addon_tax_amount'] : null,
             'totalAmount' => isset($pb['total_amount']) ? (float) $pb['total_amount'] : null,
             'components' => is_array($pb['components'] ?? null) ? array_values($pb['components']) : null,
         ];

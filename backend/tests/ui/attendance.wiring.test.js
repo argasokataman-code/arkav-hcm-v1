@@ -1177,7 +1177,7 @@ describe('Attendance UI wiring', () => {
 
     await loadAttendanceModule('/attendance-report');
 
-    expect(document.querySelector('[data-attendance-report-body]').textContent).toContain('bukan report attendance');
+    expect(document.querySelector('[data-attendance-report-body]').textContent).toContain('bukan untuk laporan absensi');
     expect(document.querySelector('#attendance-report-chart').textContent).toContain('Chart library not available');
   });
 

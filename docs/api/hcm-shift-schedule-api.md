@@ -85,6 +85,7 @@ Not found `404`:
 ## Schedule timing per user
 
 - `GET /schedule-timing` (HCM Admin)
+- `GET /schedule-timing/export` (HCM Admin)
 - `PUT /schedule-timing/{userId}` (HCM Admin)
 - `DELETE /schedule-timing/{userId}` (HCM Admin)
 

@@ -6,6 +6,8 @@ use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
+use App\Models\ReportDataBlock;
+use App\Models\ReportSnapshot;
 use App\Models\User;
 use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -154,6 +156,65 @@ class AttendanceApiTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    public function test_attendance_admin_export_supports_xlsx_and_csv(): void
+    {
+        $token = $this->bearerToken(true, 'attendance-export@example.com');
+
+        $xlsx = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get('/v1/hcm/attendance/admin/export?format=xlsx');
+
+        $xlsx->assertOk();
+        $xlsx->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('.xlsx', (string) $xlsx->headers->get('content-disposition'));
+
+        $csv = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get('/v1/hcm/attendance/admin/export?format=csv');
+
+        $csv->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $csv->headers->get('content-type'));
+        $this->assertStringContainsString('.csv', (string) $csv->headers->get('content-disposition'));
+    }
+
+    public function test_attendance_admin_export_archive_requires_valid_completed_attendance_snapshot(): void
+    {
+        $token = $this->bearerToken(true, 'attendance-archive-export@example.com');
+
+        $snapshot = ReportSnapshot::query()->create([
+            'company_id' => $this->company->id,
+            'report_type' => 'attendance',
+            'period_start' => '2026-04-01',
+            'period_end' => '2026-04-30',
+            'generated_at' => now(),
+            'generated_by_user_id' => User::query()->where('email', 'attendance-archive-export@example.com')->value('id'),
+            'status' => 'completed',
+            'meta' => ['row_count' => 1],
+        ]);
+
+        ReportDataBlock::query()->create([
+            'snapshot_id' => $snapshot->id,
+            'module' => 'attendance',
+            'data_key' => 'user_1',
+            'data_value' => [
+                'user_name' => 'Archive User',
+                'present' => 1,
+                'absent' => 0,
+                'total_late_minutes' => 5,
+            ],
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get('/v1/hcm/attendance/admin/export?source=archive&snapshotId='.$snapshot->id.'&format=xlsx');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
     public function test_attendance_punch_flow(): void
@@ -531,6 +592,29 @@ class AttendanceApiTest extends TestCase
             ->assertJsonStructure([
                 'data',
             ]);
+    }
+
+    public function test_schedule_timing_export_supports_xlsx_and_csv(): void
+    {
+        $token = $this->bearerToken(true, 'scheduletiming-export@example.com');
+
+        $xlsx = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get('/v1/hcm/schedule-timing/export?format=xlsx');
+
+        $xlsx->assertOk();
+        $xlsx->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('.xlsx', (string) $xlsx->headers->get('content-disposition'));
+
+        $csv = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get('/v1/hcm/schedule-timing/export?format=csv');
+
+        $csv->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $csv->headers->get('content-type'));
+        $this->assertStringContainsString('.csv', (string) $csv->headers->get('content-disposition'));
     }
 
     public function test_timesheets_and_schedule_timing_endpoints_are_forbidden_for_non_admin_user(): void

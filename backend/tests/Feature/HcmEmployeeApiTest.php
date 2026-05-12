@@ -352,7 +352,40 @@ class HcmEmployeeApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.employmentStatus', 'active')
-            ->assertJsonPath('data.phone', '081234567800');
+            ->assertJsonPath('data.phone', '6281234567800');
+    }
+
+    public function test_employee_create_accepts_plus62_phone_and_normalizes_to_canonical_value(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
+            ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+                'name' => 'Phone Plus Employee',
+                'email' => 'phone.plus.employee@example.com',
+                'phone' => '+628123456789',
+                'emergencyContacts' => [
+                    ['name' => 'Budi Santoso', 'relationship' => 'Spouse/Parent', 'phone' => '+628123456788'],
+                ],
+            ]));
+
+        $create->assertStatus(201)->assertJsonPath('success', true);
+        $id = (int) $create->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
+            ->getJson('/v1/hcm/employees/'.$id)
+            ->assertOk()
+            ->assertJsonPath('data.phone', '628123456789')
+            ->assertJsonPath('data.emergencyContacts.0.relationship', 'Spouse/Parent')
+            ->assertJsonPath('data.emergencyContacts.0.phone', '+628123456788');
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $id,
+            'phone' => '628123456789',
+        ]);
+
+        $profile = EmployeeProfile::query()->where('user_id', $id)->firstOrFail();
+        $this->assertSame('3174011708980001', $profile->nik);
     }
 
     public function test_tenant_admin_cannot_update_employee_outside_active_company(): void
@@ -495,7 +528,6 @@ class HcmEmployeeApiTest extends TestCase
                 'provinceId',
                 'regencyId',
                 'districtId',
-                'villageId',
                 'placeOfBirth',
                 'dateOfBirth',
                 'gender',
@@ -510,6 +542,28 @@ class HcmEmployeeApiTest extends TestCase
                 'nationality',
                 'baseSalary',
             ]);
+    }
+
+    public function test_employee_create_rejects_duplicate_nik_in_same_company(): void
+    {
+        $token = $this->adminBearerToken();
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id];
+
+        $first = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'NIK Unique First',
+            'email' => 'nik.unique.first@example.com',
+            'nik' => '3174011708980017',
+        ]));
+        $first->assertStatus(201)->assertJsonPath('success', true);
+
+        $second = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
+            'name' => 'NIK Unique Second',
+            'email' => 'nik.unique.second@example.com',
+            'nik' => '3174011708980017',
+        ]));
+
+        $second->assertStatus(422)
+            ->assertJsonValidationErrors(['nik']);
     }
 
     public function test_employee_contract_rules_require_end_date_only_for_pkwt(): void
@@ -1481,7 +1535,7 @@ class HcmEmployeeApiTest extends TestCase
                 'address' => 'Jakarta',
             ])
             ->assertOk()
-            ->assertJsonPath('data.phone', '081234567890');
+            ->assertJsonPath('data.phone', '6281234567890');
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->putJson('/v1/hcm/employees/'.$self->id, [

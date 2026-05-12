@@ -162,6 +162,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body pt-3">
+                <div class="company-invoice-preview__loading d-none" data-invoice-modal-loading>
+                    <div class="text-center py-5 w-100">
+                        <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                        <div class="fw-semibold" data-invoice-modal-loading-message>Memuat detail invoice...</div>
+                        <div class="text-muted small">Mohon tunggu sebentar.</div>
+                    </div>
+                </div>
+                <div data-invoice-modal-content>
                 <div class="company-invoice-preview" data-company-invoice-print-root>
                     <div class="company-invoice-preview__sheet">
                         <div class="company-invoice-preview__hero">
@@ -275,6 +283,10 @@
                                     </tbody>
                                 </table>
                             </div>
+                            <div class="company-invoice-preview__tax-breakdown d-none mt-3" data-invoice-modal-tax-breakdown>
+                                <div class="company-invoice-preview__panel-title mb-2">Tax Breakdown</div>
+                                <ul class="list-unstyled mb-0 small" data-invoice-modal-tax-breakdown-list></ul>
+                            </div>
                         </div>
 
                         <div class="row g-3">
@@ -287,7 +299,7 @@
                             <div class="col-lg-6">
                                 <div class="company-invoice-preview__panel h-100">
                                     <div class="company-invoice-preview__panel-title">Invoice Terms</div>
-                                    <p class="company-invoice-preview__support mb-2" data-invoice-modal-terms-summary>Prefix INV- | Due in 30 days | Tax shown | Round-off disabled</p>
+                                    <p class="company-invoice-preview__support mb-2" data-invoice-modal-terms-summary>Nomor diawali INV- | Jatuh tempo 30 hari | Harga termasuk PPN | Tanpa pembulatan</p>
                                     <p class="company-invoice-preview__support mb-1" data-invoice-modal-header-terms>-</p>
                                     <p class="company-invoice-preview__support mb-0" data-invoice-modal-footer-terms>-</p>
                                 </div>
@@ -304,6 +316,7 @@
                             Dokumen billing ini dibuat otomatis dan dapat diunduh sebagai PDF resmi.
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -338,6 +351,16 @@
         border-radius: 18px;
         box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
         padding: 24px;
+    }
+    .company-invoice-preview__loading {
+        align-items: center;
+        background: #fff;
+        border: 1px dashed #dbe4f0;
+        border-radius: 18px;
+        display: flex;
+        justify-content: center;
+        min-height: 360px;
+        padding: 1rem;
     }
     .company-invoice-preview__hero {
         border-bottom: 1px solid #edf2f7;

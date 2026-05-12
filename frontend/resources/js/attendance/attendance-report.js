@@ -35,10 +35,10 @@ export function setReportSourceBadge(mode, snapshotId) {
   }
   if (mode === "archive") {
     var suffix = snapshotId > 0 ? " #" + String(snapshotId) : "";
-    badge.textContent = "Source: Archive" + suffix;
+    badge.textContent = "Sumber: Data Arsip" + suffix;
     return;
   }
-  badge.textContent = "Source: Live";
+  badge.textContent = "Sumber: Data Terbaru";
 }
 
 export function normalizeArchiveAttendanceRows(snapshotPayload, dateYmd) {

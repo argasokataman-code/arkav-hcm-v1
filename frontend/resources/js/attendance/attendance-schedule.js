@@ -149,7 +149,7 @@ export function loadScheduleTiming(deps) {
 
   var tbody = document.querySelector("[data-schedule-timing-body]");
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Loading schedule timings...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat data shift & schedule...</td></tr>';
     tbody.removeAttribute("data-hydrated");
   }
 
@@ -176,7 +176,7 @@ export function loadScheduleTiming(deps) {
   apiGet(url)
     .then(function (payload) {
       if (!payload || payload.success !== true) {
-        renderScheduleTimingMessage(formatApiError(payload, 0) || "Failed loading schedule timing.");
+        renderScheduleTimingMessage(formatApiError(payload, 0) || "Gagal memuat data shift & schedule.");
         return;
       }
 
@@ -200,7 +200,7 @@ export function loadScheduleTiming(deps) {
     .catch(function (err) {
       var data = err && err.response ? err.response.data : err && err.data ? err.data : null;
       var status = err && err.response ? err.response.status : err && err.status ? err.status : 0;
-      renderScheduleTimingMessage(formatApiError(data, status) || "Failed loading schedule timing.");
+      renderScheduleTimingMessage(formatApiError(data, status) || "Gagal memuat data shift & schedule.");
     });
 }
 

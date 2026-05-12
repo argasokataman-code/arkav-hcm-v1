@@ -25,7 +25,7 @@ Fitur ini juga mencakup endpoint smart planner backend (`POST /v1/hcm/smart-atte
 - `/schedule-timing` — assign shift master atau override manual jam kerja per user, plus panel Smart Attendance Planner untuk generate rekomendasi jadwal mingguan.
 - `/schedule-timing` juga punya view `Calendar` untuk melihat draft planner (M/A/N/OFF) dan hari libur aktif dari menu Holidays dalam format kalender kerja.
 - Smart planner di `/schedule-timing` mendukung horizon `single week` dan `end of year` (rolling per minggu) agar admin bisa menyusun draft jadwal lebih panjang tanpa pindah halaman.
-- Smart planner calendar **tidak otomatis semua user**: event draft hanya mengikuti scope planner terakhir (`all`, `department`, atau `manual user IDs`).
+- Smart planner calendar **tidak otomatis semua user**: event draft hanya mengikuti scope planner terakhir (`all`, `department`, atau `karyawan pilihan`).
 - Surface shift master admin — CRUD `hcm_shifts` dari JS shift master aktif.
 - JS aktif: `frontend/resources/js/attendance-data.js` dan `frontend/resources/js/shift-master-data.js`.
 
@@ -36,7 +36,7 @@ Fitur ini juga mencakup endpoint smart planner backend (`POST /v1/hcm/smart-atte
 3. Employee melakukan attendance harian dengan konteks jadwal aktif tersebut; backend kemudian menghitung keterlambatan dan status kerja berdasarkan data shift/schedule yang berlaku.
 4. Admin membuka `/timesheets` untuk memantau hasil kerja harian/range tanggal, menemukan anomali jam kerja, lalu kembali ke attendance admin atau schedule timing jika perlu koreksi.
 5. Reporting dan modul payroll/lembur membaca data attendance yang sudah dipengaruhi oleh shift/schedule ini.
-6. Admin dapat menjalankan smart planner untuk minggu tertentu dengan flow yang lebih aman untuk HR: pilih pola kerja, pilih sasaran draft (`all`, `department`, atau manual advanced), lalu generate draft jadwal + alert risiko sebelum mutasi jadwal manual dilakukan.
+6. Admin dapat menjalankan smart planner untuk minggu tertentu dengan flow yang lebih aman untuk HR: pilih pola kerja, pilih sasaran draft (`all`, `department`, atau karyawan pilihan), lalu generate draft jadwal + alert risiko sebelum mutasi jadwal manual dilakukan.
 7. Admin dapat beralih ke view kalender untuk melihat distribusi draft per tanggal, mengecek overlap dengan hari libur, dan melakukan review visual sebelum commit perubahan jadwal.
 8. Untuk seasonal planning, admin dapat pilih horizon `Generate sampai akhir tahun`; sistem mengeksekusi planner per minggu sampai 31 Desember, lalu menggabungkan hasilnya menjadi satu draft agregat untuk review kalender.
 9. Sebelum publish, admin meninjau `Preview Diff Dominant Shift (Before/After)` untuk melihat user mana yang benar-benar berubah dari schedule aktif ke dominant shift draft.
@@ -102,7 +102,7 @@ Source of truth kontrak:
   - Scope planner sekarang memakai entitas yang lebih deterministik untuk HR:
     - `All`: semua employee aktif tenant.
     - `Department`: employee aktif yang punya `departmentId/departmentName` pada employee directory tenant.
-    - `Manual user IDs (advanced)`: path khusus bila admin memang sudah tahu user target.
+    - `Karyawan pilihan (advanced)`: path khusus bila admin memang perlu membatasi draft hanya ke employee tertentu lewat multi-select directory.
   - Free-text `team keyword` tidak lagi dipakai di planner karena tidak ada master scope team khusus di flow ini; sebelumnya field itu hanya melakukan pencarian string pada snapshot employee dan terbukti rancu untuk HR.
   - Planner directory sekarang membaca seluruh page employee directory (`/v1/hcm/employees`) sampai `meta.total` terpenuhi, bukan berhenti diam-diam di page pertama.
   - Persistence settings planner sudah dual-write `company_id` + `company_uuid` dan actor `*_user_id` + `*_user_uuid`, sehingga relasi tidak lagi bergantung pada uniqueness `companies.id`/`users.id`.

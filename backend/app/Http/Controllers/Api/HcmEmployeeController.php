@@ -2182,6 +2182,26 @@ class HcmEmployeeController extends Controller
         return is_numeric($text) ? (int) $text : null;
     }
 
+    private function normalizePhoneForStorage(mixed $value): ?string
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+
+        // Canonicalize Indonesian numbers so 08xx, 62xx, and +62xx map to the same value.
+        if (str_starts_with($digits, '0')) {
+            $digits = '62'.ltrim($digits, '0');
+        }
+
+        return $digits !== '' ? $digits : null;
+    }
+
     private function composeWilayahAddress(?int $provinceId, ?int $regencyId, ?int $districtId, ?int $villageId): ?string
     {
         if (! $provinceId && ! $regencyId && ! $districtId && ! $villageId) {
@@ -3000,8 +3020,7 @@ class HcmEmployeeController extends Controller
         }
 
         if ($request->has('phone')) {
-            $phone = preg_replace('/\D+/', '', (string) $request->input('phone')) ?? '';
-            $request->merge(['phone' => $phone !== '' ? $phone : null]);
+            $request->merge(['phone' => $this->normalizePhoneForStorage($request->input('phone'))]);
         }
 
         foreach (['bpjsKesehatanNo', 'bpjsKetenagakerjaanNo'] as $bpjsKey) {
@@ -3055,6 +3074,13 @@ class HcmEmployeeController extends Controller
      */
     private function employeeWriteRules(Request $request, bool $isCreate = false, ?User $user = null, bool $selfService = false): array
     {
+        $activeCompanyId = $this->activeCompanyId($request);
+        $profileId = $user?->employeeProfile?->id;
+        $districtId = $this->nullableInteger($request->input('districtId'));
+        $districtHasVillages = $districtId
+            ? WilayahVillage::query()->where('district_id', $districtId)->exists()
+            : false;
+
         $existingContractType = $this->normalizeContractType(optional($user?->employeeProfile)->contract_type);
         $rawContractType = $this->nullableString($request->input('contractType'));
         $contractType = $rawContractType !== null
@@ -3070,8 +3096,32 @@ class HcmEmployeeController extends Controller
             'max:255',
             Rule::unique('users', 'email')->ignore($user?->id),
         ];
-        $phoneRules = [($isCreate && ! $selfService) ? 'required' : 'nullable', 'regex:/^[0-9]{10,13}$/'];
+        $phoneRules = [($isCreate && ! $selfService) ? 'required' : 'nullable', 'regex:/^\+?[0-9]{10,15}$/'];
         $nikRules = [($isCreate && ! $selfService) ? 'required' : 'nullable', 'regex:/^[0-9]{16}$/'];
+        if ($activeCompanyId) {
+            $nikRules[] = function (string $attribute, mixed $value, \Closure $fail) use ($activeCompanyId, $profileId): void {
+                $normalizedInput = preg_replace('/\D+/', '', (string) ($value ?? '')) ?? '';
+                if ($normalizedInput === '') {
+                    return;
+                }
+
+                $query = EmployeeProfile::query()
+                    ->where('company_id', $activeCompanyId);
+
+                if (is_numeric($profileId)) {
+                    $query->where('id', '!=', (int) $profileId);
+                }
+
+                $alreadyExists = $query->get(['id', 'nik'])->contains(function (EmployeeProfile $profile) use ($normalizedInput): bool {
+                    $existingNik = preg_replace('/\D+/', '', (string) ($profile->nik ?? '')) ?? '';
+                    return $existingNik !== '' && $existingNik === $normalizedInput;
+                });
+
+                if ($alreadyExists) {
+                    $fail('NIK sudah terdaftar untuk employee lain di tenant aktif.');
+                }
+            };
+        }
         $nationalityRule = function (string $attribute, mixed $value, \Closure $fail): void {
             if ($value === null || trim((string) $value) === '') {
                 $fail('Nationality wajib diisi dan harus Indonesia.');
@@ -3089,7 +3139,7 @@ class HcmEmployeeController extends Controller
                 }
                 return filled($contact['name'] ?? null)
                     && filled($contact['relationship'] ?? null)
-                    && preg_match('/^[0-9]{10,13}$/', (string) ($contact['phone'] ?? '')) === 1;
+                    && preg_match('/^\+?[0-9]{10,15}$/', (string) ($contact['phone'] ?? '')) === 1;
             });
 
             if (! $hasValid) {
@@ -3166,13 +3216,27 @@ class HcmEmployeeController extends Controller
                 Rule::exists('wilayah_districts', 'id')->where(fn ($query) => $query->where('regency_id', $this->nullableInteger($request->input('regencyId')))),
             ],
             'villageId' => [
-                $isCreate && ! $selfService ? 'required' : 'sometimes',
+                'sometimes',
                 'nullable',
                 'integer',
+                Rule::requiredIf(fn () =>
+                    (($isCreate && ! $selfService) || $request->filled('districtId'))
+                    && ($districtId === null || $districtHasVillages)
+                ),
                 Rule::exists('wilayah_villages', 'id')->where(fn ($query) => $query->where('district_id', $this->nullableInteger($request->input('districtId')))),
             ],
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
-            'addressDetail' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'addressDetail' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:500',
+                Rule::requiredIf(fn () =>
+                    (($isCreate && ! $selfService) || $request->filled('districtId'))
+                    && $districtId !== null
+                    && ! $districtHasVillages
+                ),
+            ],
             'placeOfBirth' => [
                 $isCreate && ! $selfService ? 'required' : 'sometimes',
                 'nullable',
@@ -3227,8 +3291,8 @@ class HcmEmployeeController extends Controller
             'bpjsKetenagakerjaanNo' => ['sometimes', 'nullable', 'string', 'regex:/^[0-9]{11}$/'],
             'emergencyContacts' => [($isCreate && ! $selfService) ? 'required' : 'sometimes', 'array', 'min:1', $emergencyContactRule],
             'emergencyContacts.*.name' => ['required', 'string', 'min:2', 'max:100', 'regex:/^[\p{L}\p{M}\' .,-]{2,100}$/u'],
-            'emergencyContacts.*.relationship' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\p{L}\p{M}\' .-]{2,50}$/u'],
-            'emergencyContacts.*.phone' => ['required', 'string', 'regex:/^[0-9]{10,13}$/'],
+            'emergencyContacts.*.relationship' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\p{L}\p{M}\' .\/-]{2,50}$/u'],
+            'emergencyContacts.*.phone' => ['required', 'string', 'regex:/^\+?[0-9]{10,15}$/'],
             'educationItems' => ['sometimes', 'nullable', 'array'],
             'educationItems.*.institution' => ['required', 'string', 'min:2', 'max:100'],
             'educationItems.*.degree' => ['required', 'string', 'min:2', 'max:50'],

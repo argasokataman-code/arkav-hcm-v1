@@ -73,7 +73,7 @@ export function bindPlannerSubmitHandler(deps) {
       submitBtn.disabled = true;
       var lbl = submitBtn.querySelector('[data-smart-planner-submit-label]');
       var spin = submitBtn.querySelector('[data-smart-planner-spinner]');
-      if (lbl) lbl.textContent = 'Generating...';
+      if (lbl) lbl.textContent = 'Memproses...';
       if (spin) spin.classList.remove('d-none');
     }
     var inlineFeedback = document.querySelector('[data-smart-planner-feedback-inline]');
@@ -229,7 +229,7 @@ export function bindPlannerSubmitHandler(deps) {
           submitBtn.disabled = false;
           var lbl = submitBtn.querySelector('[data-smart-planner-submit-label]');
           var spin = submitBtn.querySelector('[data-smart-planner-spinner]');
-          if (lbl) lbl.textContent = 'Generate';
+          if (lbl) lbl.textContent = 'Generate Draft';
           if (spin) spin.classList.add('d-none');
         }
       });

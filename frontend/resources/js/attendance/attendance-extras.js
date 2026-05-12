@@ -36,39 +36,38 @@ export function bindAttendanceExtras(deps) {
     var reportExport = e.target.closest("[data-attendance-report-export]");
     if (reportExport) {
       e.preventDefault();
-      var rows = filterAndSortReportRows(getReportRowsCache() || []);
-      var headers = [
-        "Employee",
-        "Department",
-        "Date",
-        "Check In",
-        "Check In Location",
-        "Status",
-        "Check Out",
-        "Check Out Location",
-        "Break",
-        "Late",
-        "Overtime",
-        "Production Hours",
-      ];
-      var dateLabel = formatIsoDate(getSelectedReportDate());
-      var data = rows.map(function (r) {
-        return [
-          r.employeeName || "",
-          r.team || "",
-          dateLabel,
-          r.checkIn || "",
-          r.checkInLocation || r.checkInLocationName || "-",
-          r.statusLabel || "",
-          r.checkOut || "",
-          r.checkOutLocation || r.checkOutLocationName || "-",
-          r.break || "",
-          r.late || "",
-          r.overtime || "",
-          r.productionLabel || "",
-        ];
-      });
-      downloadCsv("attendance-report.csv", headers, data);
+      var rawFormat = String(reportExport.getAttribute("data-attendance-report-export") || "xlsx").toLowerCase();
+      var format = rawFormat === "csv" ? "csv" : "xlsx";
+      var params = new URLSearchParams();
+      params.set("format", format);
+      params.set("date", getSelectedReportDate());
+
+      var depSel = document.querySelector("[data-attendance-report-filter-department]");
+      var statusSel = document.querySelector("[data-attendance-report-filter-status]");
+      var sortSel = document.querySelector("[data-attendance-report-sort]");
+      var sourceSel = document.querySelector("[data-attendance-report-source]");
+      var snapshotInput = document.querySelector("[data-attendance-report-snapshot-id]");
+
+      var department = depSel ? String(depSel.value || "").trim() : "";
+      var status = statusSel ? String(statusSel.value || "").trim() : "";
+      var sort = sortSel ? String(sortSel.value || "").trim() : "name_asc";
+      var source = sourceSel ? String(sourceSel.value || "live").toLowerCase() : "live";
+
+      if (department) params.set("department", department);
+      if (status) params.set("status", status);
+      if (sort) params.set("sort", sort);
+      params.set("source", source === "archive" ? "archive" : "live");
+
+      if (source === "archive") {
+        var snapshotId = parseInt(String(snapshotInput ? snapshotInput.value : "0"), 10);
+        if (!Number.isFinite(snapshotId) || snapshotId <= 0) {
+          notify("Nomor arsip wajib diisi untuk export data arsip.", true);
+          return;
+        }
+        params.set("snapshotId", String(snapshotId));
+      }
+
+      window.location.assign("/v1/hcm/attendance/admin/export?" + params.toString());
       return;
     }
 
@@ -99,11 +98,25 @@ export function bindAttendanceExtras(deps) {
     var stExport = e.target.closest("[data-schedule-timing-export]");
     if (stExport) {
       e.preventDefault();
-      var sh = ["Name", "Job Title", "User Available Timings", "Shift", "Source"];
-      var sd = (getScheduleTimingRowsCache() || []).map(function (r) {
-        return [r.name || "", r.jobTitle || "", r.availableTimings || "", r.shiftName || "", r.source || ""];
-      });
-      downloadCsv("schedule-timing.csv", sh, sd);
+      var format = String(stExport.getAttribute("data-schedule-timing-export") || "csv").toLowerCase();
+      if (format !== "xlsx") {
+        format = "csv";
+      }
+
+      var searchEl = document.querySelector("[data-schedule-timing-search]");
+      var sortEl = document.querySelector("[data-schedule-timing-sort]");
+      var deptEl = document.querySelector("[data-schedule-timing-dept-filter]");
+      var params = new URLSearchParams();
+      params.set("format", format);
+      params.set("sort", sortEl ? String(sortEl.value || "name_asc") : "name_asc");
+      if (searchEl && String(searchEl.value || "").trim()) {
+        params.set("search", String(searchEl.value || "").trim());
+      }
+      if (deptEl && String(deptEl.value || "").trim()) {
+        params.set("department", String(deptEl.value || "").trim());
+      }
+
+      window.location.assign("/v1/hcm/schedule-timing/export?" + params.toString());
       return;
     }
 

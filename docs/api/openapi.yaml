@@ -3455,6 +3455,27 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { type: object } } } }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/attendance/admin/export:
+    get:
+      tags: [Attendance]
+      summary: Export attendance admin report (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: format, in: query, required: false, schema: { type: string, enum: [xlsx, csv], default: xlsx } }
+        - { name: source, in: query, required: false, schema: { type: string, enum: [live, archive], default: live } }
+        - { name: date, in: query, required: false, schema: { type: string, format: date } }
+        - { name: department, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, required: false, schema: { type: string, enum: [present, absent, needs_review] } }
+        - { name: sort, in: query, required: false, schema: { type: string, enum: [name_asc, name_desc, checkin_asc, checkin_desc, production_desc, production_asc] } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: snapshotId, in: query, required: false, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK (XLSX/CSV file stream) }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/attendance/admin/record:
     put:
       tags: [Attendance]
@@ -3641,10 +3662,27 @@ paths:
         - { name: sort, in: query, required: false, schema: { type: string } }
         - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
         - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: department, in: query, required: false, schema: { type: string, maxLength: 100 } }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/schedule-timing/export:
+    get:
+      tags: [Attendance]
+      summary: Export schedule timing list (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: format, in: query, required: false, schema: { type: string, enum: [csv, xlsx] } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: sort, in: query, required: false, schema: { type: string, enum: [name_asc, name_desc, start_asc, start_desc] } }
+        - { name: department, in: query, required: false, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200': { description: File stream (csv/xlsx) }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/schedule-timing/{userId}:
     put:
       tags: [Attendance]
@@ -9468,7 +9506,7 @@ components:
         estimatedPkwtCompensationThisMonth: { type: number }
     EmployeeCreateRequest:
       type: object
-      required: [name, email, password, confirmPassword, departmentId, designationId, employeeType, baseSalary, salaryType, contractType, contractStatus, contractStartDate, nik, phone, provinceId, regencyId, districtId, villageId, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, bankName, bankAccountNo, bankAccountHolderName, emergencyContacts]
+      required: [name, email, password, confirmPassword, departmentId, designationId, employeeType, baseSalary, salaryType, contractType, contractStatus, contractStartDate, nik, phone, provinceId, regencyId, districtId, placeOfBirth, dateOfBirth, gender, maritalStatus, religion, bankName, bankAccountNo, bankAccountHolderName, emergencyContacts]
       properties:
         name:
           type: string
@@ -9567,10 +9605,10 @@ components:
           description: Alias of nik for frontend compatibility
         phone:
           type: string
-          maxLength: 13
-          pattern: '^[0-9]{10,13}$'
+          maxLength: 16
+          pattern: '^\+?[0-9]{10,15}$'
           nullable: true
-          description: Required phone number, numeric only, 10–13 digits.
+          description: Required phone number; 10-15 digits and may start with +.
         provinceId:
           type: integer
           minimum: 1
@@ -9590,7 +9628,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: Required for create; selected village numeric id (wilayah_villages.id) and must belong to selected district.
+          description: Conditionally required for create; selected village numeric id (wilayah_villages.id) and must belong to selected district. May be null if selected district has no village master data and addressDetail is provided.
         address:
           type: string
           maxLength: 2000
@@ -9757,8 +9795,8 @@ components:
           nullable: true
         phone:
           type: string
-          maxLength: 13
-          pattern: '^[0-9]{10,13}$'
+          maxLength: 16
+          pattern: '^\+?[0-9]{10,15}$'
           nullable: true
         provinceId:
           type: integer
@@ -9779,7 +9817,7 @@ components:
           type: integer
           minimum: 1
           nullable: true
-          description: Village numeric id from wilayah_villages.id; must match selected district.
+          description: Village numeric id from wilayah_villages.id; must match selected district. May be null if selected district has no village master data and addressDetail is provided.
         address:
           type: string
           maxLength: 2000

@@ -5,6 +5,14 @@ const flush = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 describe('company invoices wiring', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -22,36 +30,45 @@ describe('company invoices wiring', () => {
       <div id="count_overdue"></div>
       <div id="paid_this_month"></div>
       <div data-company-invoices-list-container></div>
-      <div data-company-invoice-modal></div>
-      <div data-company-invoice-print-root></div>
-      <div data-invoice-modal-number></div>
-      <div data-invoice-modal-status-wrap><span data-invoice-modal-status></span></div>
-      <div data-invoice-modal-company></div>
-      <div data-invoice-modal-package-name></div>
-      <div data-invoice-modal-package-summary></div>
-      <div data-invoice-modal-summary></div>
-      <div data-invoice-modal-payment-status-wrap><span data-invoice-modal-payment-status></span></div>
-      <div data-invoice-modal-issue-date></div>
-      <div data-invoice-modal-due-date></div>
-      <div data-invoice-modal-paid-date></div>
-      <div data-invoice-modal-billing-cycle></div>
-      <div data-invoice-modal-next-billing-date></div>
-      <div data-invoice-modal-current-period></div>
-      <div data-invoice-modal-amount></div>
-      <div data-invoice-modal-line-label></div>
-      <div data-invoice-modal-line-caption></div>
-      <div data-invoice-modal-charge-status-wrap><span data-invoice-modal-charge-status></span></div>
-      <div data-invoice-modal-table-amount></div>
-      <div data-invoice-modal-tax-row style="display:none">
-        <div data-invoice-modal-tax-label></div>
-        <div data-invoice-modal-tax-amount></div>
+      <div data-company-invoice-modal>
+        <div data-invoice-modal-loading class="d-none">
+          <div data-invoice-modal-loading-message></div>
+        </div>
+        <div data-invoice-modal-content>
+          <div data-invoice-modal-number></div>
+          <div data-invoice-modal-status-wrap><span data-invoice-modal-status></span></div>
+          <div data-invoice-modal-company></div>
+          <div data-invoice-modal-package-name></div>
+          <div data-invoice-modal-package-summary></div>
+          <div data-invoice-modal-summary></div>
+          <div data-invoice-modal-payment-status-wrap><span data-invoice-modal-payment-status></span></div>
+          <div data-invoice-modal-issue-date></div>
+          <div data-invoice-modal-due-date></div>
+          <div data-invoice-modal-paid-date></div>
+          <div data-invoice-modal-billing-cycle></div>
+          <div data-invoice-modal-next-billing-date></div>
+          <div data-invoice-modal-current-period></div>
+          <div data-invoice-modal-amount></div>
+          <div data-invoice-modal-line-label></div>
+          <div data-invoice-modal-line-caption></div>
+          <div data-invoice-modal-charge-status-wrap><span data-invoice-modal-charge-status></span></div>
+          <div data-invoice-modal-table-amount></div>
+          <div data-invoice-modal-tax-row style="display:none">
+            <div data-invoice-modal-tax-label></div>
+            <div data-invoice-modal-tax-amount></div>
+          </div>
+          <div data-invoice-modal-table-total></div>
+          <div data-invoice-modal-tax-breakdown class="d-none">
+            <ul data-invoice-modal-tax-breakdown-list></ul>
+          </div>
+          <div data-invoice-modal-guidance></div>
+          <div data-invoice-modal-terms-summary></div>
+          <div data-invoice-modal-header-terms></div>
+          <div data-invoice-modal-footer-terms></div>
+          <div data-invoice-modal-notes></div>
+        </div>
       </div>
-      <div data-invoice-modal-table-total></div>
-      <div data-invoice-modal-guidance></div>
-      <div data-invoice-modal-terms-summary></div>
-      <div data-invoice-modal-header-terms></div>
-      <div data-invoice-modal-footer-terms></div>
-      <div data-invoice-modal-notes></div>
+      <div data-company-invoice-print-root></div>
       <button type="button" data-company-invoice-download></button>
       <button type="button" data-company-invoice-print></button>
     `;
@@ -182,7 +199,7 @@ describe('company invoices wiring', () => {
 
     expect(document.querySelector('[data-company-invoices-list-container]')?.textContent).toContain('INV-88');
     expect(document.querySelector('[data-company-invoices-list-container]')?.textContent).toContain('Starter');
-    expect(document.querySelector('[data-company-invoices-list-container]')?.textContent).toContain('Next payment');
+    expect(document.querySelector('[data-company-invoices-list-container]')?.textContent).toContain('Next Payment');
     expect(document.getElementById('total_due')?.textContent).toContain('Rp');
     expect(document.getElementById('count_unpaid')?.textContent).toBe('1');
     expect(document.getElementById('paid_this_month')?.textContent).toContain('Rp');
@@ -401,18 +418,112 @@ describe('company invoices wiring', () => {
 
     expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices/89', undefined);
     expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/invoice-settings', undefined);
+    expect(document.querySelector('[data-invoice-modal-loading]')?.classList.contains('d-none')).toBe(true);
     expect(document.querySelector('[data-invoice-modal-number]')?.textContent).toContain('INV-89');
     expect(document.querySelector('[data-invoice-modal-payment-status]')?.textContent).toContain('Paid');
     expect(document.querySelector('[data-invoice-modal-package-name]')?.textContent).toContain('Growth');
     expect(document.querySelector('[data-invoice-modal-next-billing-date]')?.textContent).toContain('2027');
     expect(document.querySelector('[data-invoice-modal-guidance]')?.textContent).toContain('Pembayaran sudah diterima');
-    expect(document.querySelector('[data-invoice-modal-terms-summary]')?.textContent).toContain('Prefix TENANT-');
+    expect(document.querySelector('[data-invoice-modal-terms-summary]')?.textContent).toContain('Nomor diawali TENANT-');
     expect(document.querySelector('[data-invoice-modal-header-terms]')?.textContent).toContain('Header term tenant invoice');
     expect(document.querySelector('[data-invoice-modal-footer-terms]')?.textContent).toContain('Footer term tenant invoice');
     expect(document.querySelector('[data-invoice-modal-notes]')?.textContent).toBe('Catatan teknis tersimpan pada metadata invoice.');
     expect(document.querySelector('[data-invoice-modal-notes]')?.textContent).not.toContain('SELECT');
     expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('Rp');
     expect(showSpy).toHaveBeenCalled();
+  });
+
+  it('shows a loading state before invoice detail finishes loading', async () => {
+    const showSpy = vi.fn();
+    const detailRequest = deferred();
+    window.bootstrap = {
+      Modal: {
+        getOrCreateInstance: () => ({ show: showSpy }),
+      },
+    };
+
+    window.AuthApi.request = vi.fn((method, path) => {
+      if (method === 'get' && path === '/hcm/billing/invoices') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: [
+              {
+                id: 93,
+                invoiceNumber: 'INV-93',
+                company: 'Loading Corp',
+                subscriptionId: 83,
+                packageName: 'Starter',
+                packageCode: 'starter',
+                billingCycle: 'monthly',
+                billingCycleLabel: 'Bulanan',
+                nextBillingDate: '2027-04-06',
+                issueDate: '2026-04-01',
+                dueDate: '2026-04-05',
+                amountDue: 500000,
+                status: 'sent',
+                isPaid: false,
+              },
+            ],
+          },
+        });
+      }
+      if (method === 'get' && path === '/hcm/billing/invoices/93') {
+        return detailRequest.promise;
+      }
+      if (method === 'get' && path === '/hcm/invoice-settings') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            data: {
+              invoice_prefix: 'INV-',
+              invoice_due_days: '30',
+              invoice_show_tax: '1',
+              invoice_round_off_enabled: '0',
+              invoice_round_off: 'none',
+              invoice_header_terms: '',
+              invoice_footer_terms: '',
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected: ${method} ${path}`);
+    });
+
+    await import('../../../frontend/resources/js/company-invoices.js');
+    await flush();
+
+    document.querySelector('[data-invoice-view="93"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flush();
+
+    expect(showSpy).toHaveBeenCalled();
+    expect(document.querySelector('[data-invoice-modal-loading]')?.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-invoice-modal-loading-message]')?.textContent).toContain('Memuat detail invoice');
+
+    detailRequest.resolve({
+      data: {
+        success: true,
+        data: {
+          id: 93,
+          invoiceNumber: 'INV-93',
+          company: 'Loading Corp',
+          subscriptionId: 83,
+          packageName: 'Starter',
+          packageCode: 'starter',
+          billingCycle: 'monthly',
+          billingCycleLabel: 'Bulanan',
+          nextBillingDate: '2027-04-06',
+          issueDate: '2026-04-01',
+          dueDate: '2026-04-05',
+          amountDue: 500000,
+          status: 'sent',
+          isPaid: false,
+        },
+      },
+    });
+    await flush();
+
+    expect(document.querySelector('[data-invoice-modal-loading]')?.classList.contains('d-none')).toBe(true);
   });
 
   it('closes fallback modal via dismiss button when bootstrap runtime is unavailable', async () => {
@@ -431,34 +542,14 @@ describe('company invoices wiring', () => {
       <div id="paid_this_month"></div>
       <div data-company-invoices-list-container></div>
       <div data-company-invoice-modal class="modal fade" aria-hidden="true">
-        <button type="button" data-bs-dismiss="modal">Close</button>
+        <div data-invoice-modal-loading class="d-none">
+          <div data-invoice-modal-loading-message></div>
+        </div>
+        <div data-invoice-modal-content>
+          <button type="button" data-bs-dismiss="modal">Close</button>
+        </div>
       </div>
       <div data-company-invoice-print-root></div>
-      <div data-invoice-modal-number></div>
-      <div data-invoice-modal-status-wrap><span data-invoice-modal-status></span></div>
-      <div data-invoice-modal-company></div>
-      <div data-invoice-modal-package-name></div>
-      <div data-invoice-modal-package-summary></div>
-      <div data-invoice-modal-summary></div>
-      <div data-invoice-modal-payment-status-wrap><span data-invoice-modal-payment-status></span></div>
-      <div data-invoice-modal-issue-date></div>
-      <div data-invoice-modal-due-date></div>
-      <div data-invoice-modal-paid-date></div>
-      <div data-invoice-modal-billing-cycle></div>
-      <div data-invoice-modal-next-billing-date></div>
-      <div data-invoice-modal-current-period></div>
-      <div data-invoice-modal-amount></div>
-      <div data-invoice-modal-line-label></div>
-      <div data-invoice-modal-line-caption></div>
-      <div data-invoice-modal-charge-status-wrap><span data-invoice-modal-charge-status></span></div>
-      <div data-invoice-modal-table-amount></div>
-      <div data-invoice-modal-tax-row style="display:none">
-        <div data-invoice-modal-tax-label></div>
-        <div data-invoice-modal-tax-amount></div>
-      </div>
-      <div data-invoice-modal-table-total></div>
-      <div data-invoice-modal-guidance></div>
-      <div data-invoice-modal-notes></div>
       <button type="button" data-company-invoice-download></button>
       <button type="button" data-company-invoice-print></button>
     `;
@@ -597,6 +688,10 @@ describe('company invoices wiring', () => {
                 subscriptionTaxRate: 11,
                 subscriptionTaxAmount: 110000,
                 totalAmount: 1110000,
+                components: [
+                  { label: 'PPN', rate: 11, amount: 110000 },
+                  { label: 'PPh 23', rate: 2, amount: 20000 },
+                ],
               },
             },
           },
@@ -634,6 +729,9 @@ describe('company invoices wiring', () => {
     expect(document.querySelector('[data-invoice-modal-tax-amount]')?.textContent).toContain('110.000');
     // Tax row should be visible
     expect(document.querySelector('[data-invoice-modal-tax-row]')?.style.display).not.toBe('none');
+    expect(document.querySelector('[data-invoice-modal-tax-breakdown]')?.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-invoice-modal-tax-breakdown-list]')?.textContent).toContain('PPN');
+    expect(document.querySelector('[data-invoice-modal-tax-breakdown-list]')?.textContent).toContain('PPh 23');
     // Total stays as amountDue
     expect(document.querySelector('[data-invoice-modal-table-total]')?.textContent).toContain('1.110.000');
   });

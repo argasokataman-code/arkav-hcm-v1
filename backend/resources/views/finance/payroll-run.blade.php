@@ -329,7 +329,6 @@
                         <div><span class="text-muted">Total Karyawan:</span> <strong data-payroll-run-emp-count>0</strong></div>
                         <div><span class="text-muted">Dipilih:</span> <strong data-payroll-run-selected-count>0</strong></div>
                         <div><span class="text-muted">Total Line (Rincian):</span> <strong data-payroll-run-line-count>0</strong></div>
-                        <div><span class="text-muted">Biaya Layanan Payroll:</span> <strong data-payroll-run-service-fee>Rp0</strong></div>
                         <div><span class="text-muted">Status Periode:</span> <strong data-payroll-run-status>—</strong></div>
                         <div><span class="text-muted">Status Pembayaran:</span> <strong data-payroll-run-payment-status>—</strong></div>
                         <div><span class="text-muted">Tenant Aktif:</span> <strong data-payroll-run-tenant-context>—</strong></div>
@@ -412,7 +411,6 @@
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Karyawan dipilih</span><strong data-payroll-gateway-count>0</strong></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total Penghasilan</span><span class="text-success fw-semibold" data-payroll-gateway-gross>Rp0</span></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total Potongan</span><span class="text-danger fw-semibold" data-payroll-gateway-deductions>Rp0</span></div>
-                                    <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Biaya Layanan Payroll (run)</span><strong data-payroll-gateway-service-fee>Rp0</strong></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total THP</span><strong data-payroll-gateway-total>Rp0</strong></div>
                                 </div>
                             </div>

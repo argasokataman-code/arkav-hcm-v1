@@ -47,15 +47,20 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                     ->exists();
 
                 if (! $existingUnpaid) {
-                    $amountDue = (float) ($subscription->amount ?? 0);
-                    if ($amountDue <= 0 && $subscription->package) {
-                        $amountDue = $subscription->billing_cycle === 'yearly'
+                    $baseAmount = (float) ($subscription->amount ?? 0);
+                    if ($baseAmount <= 0 && $subscription->package) {
+                        $baseAmount = $subscription->billing_cycle === 'yearly'
                             ? (float) $subscription->package->yearly_price
                             : (float) $subscription->package->monthly_price;
                     }
 
                     $taxRateSnapshot = app(BillingTaxCalculationService::class)
                         ->resolvePolicyRateSnapshot($subscription->company_id, $now->format('Y-m'));
+
+                    $subscriptionTaxAmount = $taxRateSnapshot > 0
+                        ? round($baseAmount * ($taxRateSnapshot / 100), 2)
+                        : 0.0;
+                    $amountDue = round($baseAmount + $subscriptionTaxAmount, 2);
 
                     $invoice = Invoice::query()->create([
                         'company_id' => $subscription->company_id,
@@ -66,7 +71,13 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                         'amount_due' => $amountDue,
                         'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
                         'status' => 'draft',
-                        'notes' => 'Auto-generated after trial ended.',
+                        'notes' => $this->buildInvoicePricingNotes('trial_expiry_conversion', [
+                            'base_amount' => round($baseAmount, 2),
+                            'subscription_tax_rate' => $taxRateSnapshot,
+                            'subscription_tax_amount' => $subscriptionTaxAmount,
+                            'total_amount' => $amountDue,
+                            'billing_month' => $now->format('Y-m'),
+                        ], 'Auto-generated after trial ended.'),
                     ]);
 
                     // Auto-send invoice email async (best effort). Uses owner email fallback.
@@ -91,6 +102,18 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
                 ]);
             }
         }
+    }
+
+    private function buildInvoicePricingNotes(string $source, array $pricingBreakdown, string $fallbackMessage): string
+    {
+        $payload = [
+            'source' => $source,
+            'message' => $fallbackMessage,
+            'pricing_breakdown' => $pricingBreakdown,
+        ];
+
+        $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        return is_string($encoded) ? $encoded : $fallbackMessage;
     }
 }
 

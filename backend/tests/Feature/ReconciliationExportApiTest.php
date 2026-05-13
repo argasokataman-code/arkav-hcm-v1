@@ -423,9 +423,6 @@ class ReconciliationExportApiTest extends TestCase
         $this->assertStringContainsString('user_id', $csvContent);
         $this->assertStringContainsString('component_code', $csvContent);
         $this->assertStringContainsString('amount', $csvContent);
-        $this->assertStringContainsString('service_fee_rate_percent', $csvContent);
-        $this->assertStringContainsString('service_fee_amount', $csvContent);
-        $this->assertStringContainsString('service_fee_billing_month', $csvContent);
         $this->assertStringContainsString('gross_total', $csvContent);
         $this->assertStringContainsString('deductions_total', $csvContent);
         $this->assertStringContainsString('net_total', $csvContent);

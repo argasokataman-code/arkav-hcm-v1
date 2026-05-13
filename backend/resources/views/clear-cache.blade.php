@@ -1,1 +1,0 @@
-@include('settings.clear-cache')

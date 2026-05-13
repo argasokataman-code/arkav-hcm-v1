@@ -47,7 +47,7 @@
                     <a href="#" class="nav-link {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','company-profile','security-settings','notification-settings','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'approval-settings','invoice-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
+                            'approval-settings','invoice-settings','leave-type','email-settings') ? 'show active ' : '' }}" title="Administration" data-bs-toggle="tab" data-bs-target="#administration">
                         <i class="ti ti-cash"></i>
                     </a>
                     <a href="#" class="nav-link {{ Request::is('pages','blogs','blog-categories','blog-comments','blog-tags','countries','states','cities','villages','testimonials','faq') ? '  active subdrop' : '' }}" title="Content" data-bs-toggle="tab" data-bs-target="#content">
@@ -179,7 +179,7 @@
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
                             <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                             <li><a href="{{url('companies')}}" class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
-                            <li><a href="{{url('saas/billing-overview')}}" class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing</a></li>
+                            <li><a href="{{url('saas/billing-overview')}}" class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing Dashboard</a></li>
                             <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                             <li><a href="{{ route('super-admin.package-compliance') }}" class="{{ Request::is('super-admin/package-compliance') ? 'active' : '' }}">Package Compliance</a></li>
                             <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
@@ -432,9 +432,9 @@
                     'profile-settings','security-settings','notification-settings',
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                     'approval-settings','invoice-settings','leave-type',
-                    'email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
-                    'payment-gateways','currencies',
-                    'custom-css','custom-js','storage-settings','ban-ip-address','backup','clear-cache'
+                    'email-settings',
+                    
+                    
                     ) ? ' show active ' : '' }}" id="administration">
                         <ul>
                             <li class="menu-title"><span>ADMINISTRATION</span></li>
@@ -500,17 +500,12 @@
                             </li>
                             @if ($isGlobalHcmAdmin)
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">
+                                <a href="javascript:void(0);" class="{{ Request::is('business-settings') ? 'active subdrop' : '' }}">
                                     Website Settings
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
                                     <li><a href="{{url('business-settings')}}" class="{{ Request::is('business-settings') ? 'active' : '' }}">Business Settings</a></li>
-                                    <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
-                                    <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
-                                    <li><a href="{{url('language')}}" class="{{ Request::is('language') ? 'active' : '' }}">Language</a></li>
-                                    <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
-                                    <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
                                     <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
                                     <li><a href="{{url('performance-appraisal')}}" class="{{ Request::is('performance-appraisal') ? 'active' : '' }}">Appearance</a></li>
                                 </ul>
@@ -520,54 +515,23 @@
                                 <a href="javascript:void(0);" class="{{ Request::is('approval-settings','invoice-settings','leave-type','appearance') ? 'active subdrop' : '' }}">App Settings<span class="menu-arrow"></span></a>
                                 <ul>
                                     <li><a href="{{url('approval-settings')}}" class="{{ Request::is('approval-settings') ? 'active' : '' }}">Approval Settings</a></li>
-                                    <li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>
+                                    @if ($isGlobalHcmAdmin)<li><a href="{{url('invoice-settings')}}" class="{{ Request::is('invoice-settings') ? 'active' : '' }}">Invoice Settings</a></li>@endif
                                     <li><a href="{{url('leave-type')}}" class="{{ Request::is('leave-type') ? 'active' : '' }}">Leave Type</a></li>
-                                    @if (!$isGlobalHcmAdmin)
                                     <li><a href="{{url('appearance')}}" class="{{ Request::is('appearance') ? 'active' : '' }}">Appearance</a></li>
-                                    @endif
                                 </ul>
                             </li>
                             @if ($isGlobalHcmAdmin)
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">
+                                <a href="javascript:void(0);" class="{{ Request::is('email-settings') ? 'active subdrop' : '' }}">
                                     System Settings
                                     <span class="menu-arrow"></span>
                                 </a>
                                 <ul>
-                                    <li><a href="{{url('sms-settings')}}" class="{{ Request::is('sms-settings') ? 'active' : '' }}">SMS Settings</a></li>
-                                    <li><a href="{{url('sms-template')}}" class="{{ Request::is('sms-template') ? 'active' : '' }}">SMS Templates</a></li>
-                                    <li><a href="{{url('otp-settings')}}" class="{{ Request::is('otp-settings') ? 'active' : '' }}">OTP</a></li>
-                                    <li><a href="{{url('gdpr')}}" class="{{ Request::is('gdpr') ? 'active' : '' }}">GDPR Cookies</a></li>
-                                    <li><a href="{{url('maintenance-mode')}}" class="{{ Request::is('maintenance-mode') ? 'active' : '' }}">Maintenance Mode</a></li>
+                                    @include('layout.partials.sidebar.sections.shared.system-settings-links')
                                 </ul>
                             </li>
                             @endif
-                            <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">
-                                    Financial Settings
-                                    <span class="menu-arrow"></span>
-                                </a>
-                                <ul>
-                                    @if ($isGlobalHcmAdmin)
-                                    <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
-                                    @endif
-                                    @if ($isGlobalHcmAdmin)
-                                    <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
-                                    @endif
-                                </ul>
-                            </li>
                             @if ($isGlobalHcmAdmin)
-                            <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('custom-css','custom-js','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
-                                <ul>
-                                    <li><a href="{{url('custom-css')}}" class="{{ Request::is('custom-css') ? 'active' : '' }}">Custom CSS</a></li>
-                                    <li><a href="{{url('custom-js')}}" class="{{ Request::is('custom-js') ? 'active' : '' }}">Custom JS</a></li>
-                                    <li><a href="{{url('storage-settings')}}" class="{{ Request::is('storage-settings') ? 'active' : '' }}">Storage</a></li>
-                                    <li><a href="{{url('ban-ip-address')}}" class="{{ Request::is('ban-ip-address') ? 'active' : '' }}">Ban IP Address</a></li>
-                                    <li><a href="{{url('backup')}}" class="{{ Request::is('backup') ? 'active' : '' }}">Backup</a></li>
-                                    <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
-                                </ul>
-                            </li>
                             @endif
 @endif
                         </ul>

@@ -54,11 +54,6 @@
                 </li>
                 @if ($isGlobalHcmAdmin)
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial
-                        Settings</a>
-                </li>
-
                 @endif
                 @if ($isGlobalHcmAdmin)
                 <li class="nav-item">
@@ -79,12 +74,8 @@
                                     JS</a>
                                 <a href="{{ url('cronjob') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3">Cronjob</a>
-                                <a href="{{ url('storage-settings') }}"
                                     class="d-inline-flex align-items-center rounded py-2 px-3">Storage</a>
-                                <a href="{{ url('ban-ip-address') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Ban
                                     IP Address</a>
-                                <a href="{{ url('backup') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Backup</a>
-                                <a href="{{ url('clear-cache') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Clear
                                     Cache</a>
                             </div>
                         </div>

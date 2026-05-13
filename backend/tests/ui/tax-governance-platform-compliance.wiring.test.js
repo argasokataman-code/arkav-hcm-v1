@@ -5,7 +5,7 @@
  * government-tax-obligation table with explicit tenant obligation cycle and
  * renewal detail, while still avoiding the billing-style revenue stream layout.
  *
- * Revenue stream fields (payroll_service_fee, addon_markup_rate) must NOT
+ * Revenue stream fields (addon_markup_rate) must NOT
  * appear as visible columns on the government compliance report table.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -135,7 +135,6 @@ describe('platform-tax-compliance government table (7-col)', () => {
                                 billing_cycle_type: 'yearly',
                                 subscription_tax_rate: 22,
                                 transaction_tax_rate: 11,
-                                payroll_service_fee: 0,
                                 addon_markup_rate: 0,
                                 status: 'active',
                                 notes: JSON.stringify({

@@ -160,8 +160,6 @@
             if (Number.isFinite(normalizedBaseAmount) && Number.isFinite(normalizedTaxRate) && Number.isFinite(normalizedTaxAmount) && Number.isFinite(normalizedTotalAmount)) {
                 return {
                     baseAmount: normalizedBaseAmount,
-                    serviceFeeRate: Number(normalized.serviceFeeRate || 0),
-                    serviceFeeAmount: Number(normalized.serviceFeeAmount || 0),
                     taxRate: normalizedTaxRate,
                     taxAmount: normalizedTaxAmount,
                     totalAmount: normalizedTotalAmount,
@@ -178,13 +176,11 @@
             if (!breakdown) return null;
 
             var baseAmount = Number(breakdown.base_amount || 0);
-            var serviceFeeRate = Number(breakdown.service_fee_rate || 0);
-            var serviceFeeAmount = Number(breakdown.service_fee_amount || 0);
             var taxRate = Number(breakdown.subscription_tax_rate || 0);
             var taxAmount = Number(breakdown.subscription_tax_amount || 0);
             var totalAmount = Number(breakdown.total_amount || 0);
 
-            if (!Number.isFinite(baseAmount) || !Number.isFinite(serviceFeeRate) || !Number.isFinite(serviceFeeAmount) || !Number.isFinite(taxRate) || !Number.isFinite(taxAmount) || !Number.isFinite(totalAmount)) {
+            if (!Number.isFinite(baseAmount) || !Number.isFinite(taxRate) || !Number.isFinite(taxAmount) || !Number.isFinite(totalAmount)) {
                 return null;
             }
 
@@ -205,8 +201,6 @@
 
             return {
                 baseAmount: baseAmount,
-                serviceFeeRate: serviceFeeRate,
-                serviceFeeAmount: serviceFeeAmount,
                 taxRate: taxRate,
                 taxAmount: taxAmount,
                 totalAmount: totalAmount,

@@ -39,30 +39,23 @@
                 <a class="nav-link " href="{{url('profile-settings')}}"><i class="ti ti-settings me-2"></i>General Settings</a>
             </li>
             @if ($isGlobalHcmAdmin)
-
             <li class="nav-item">
                 <a class="nav-link" href="{{url('business-settings')}}"><i class="ti ti-world-cog me-2"></i>Website Settings</a>
             </li>
-
             @endif
             <li class="nav-item">
+                <a class="nav-link active" href="{{url('approval-settings')}}"><i class="ti ti-device-ipad-horizontal-cog me-2"></i>App Settings</a>
             </li>
+            @if ($isGlobalHcmAdmin)
             <li class="nav-item">
                 <a class="nav-link" href="{{url('email-settings')}}"><i class="ti ti-server-cog me-2"></i>System Settings</a>
             </li>
-            @if ($isGlobalHcmAdmin)
-
-            <li class="nav-item">
-                <a class="nav-link" href="{{url('payment-gateways')}}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
-            </li>
-
             @endif
             @if ($isGlobalHcmAdmin)
-
+            @endif
+            @if ($isGlobalHcmAdmin)
             <li class="nav-item">
-                <a class="nav-link" href="{{url('custom-css')}}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
-
             @endif
         </ul>
         <div class="row">
@@ -71,8 +64,9 @@
                     <div class="card-body">
                         <div class="d-flex flex-column list-group settings-list">
                             <a href="{{url('approval-settings')}}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Approval Settings</a>
-                            <a href="{{url('invoice-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Invoice Settings</a>
+                            @if ($isGlobalHcmAdmin)<a href="{{url('invoice-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Invoice Settings</a>@endif
                             <a href="{{url('leave-type')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Leave Type</a>
+                            <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
                         </div>
                     </div>
                 </div>

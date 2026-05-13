@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class NotificationController extends Controller
 {
@@ -42,21 +43,27 @@ class NotificationController extends Controller
         }
 
         $validated = $validator->validated();
+        $deliveryUuid = (string) Str::uuid();
 
         try {
             Mail::to($validated['to'])->send(new AdminComposeMailable(
                 subjectLine: $validated['subject'],
                 messageBody: $validated['message'],
                 senderName: (string) ($request->user()?->name ?? config('app.name', 'ARCAV')),
+                deliveryUuid: $deliveryUuid,
             ));
 
             app(NotificationDeliveryRecorder::class)->recordSent('email.compose.sent', 'mail', [
+                'notificationUuid' => $deliveryUuid,
                 'recipient' => $validated['to'],
                 'metadata' => [
+                    'deliveryUuid' => $deliveryUuid,
                     'subject' => $validated['subject'],
                     'messagePreview' => mb_substr($validated['message'], 0, 160),
                     'senderUserId' => (int) ($request->user()?->id ?? 0),
                     'senderEmail' => (string) ($request->user()?->email ?? ''),
+                    'transportAccepted' => true,
+                    'mailDefaultDriver' => (string) config('mail.default', ''),
                 ],
             ]);
 

@@ -74,6 +74,3 @@ Route::get('/purchase-transaction', function () {
     return view('saas.transactions');
 })->middleware('hcm.web.global-admin')->name('purchase-transaction');
 
-Route::get('/currencies', function () {
-    return view(view: 'currencies');
-})->middleware('hcm.web.global-admin')->name('currencies');

@@ -12,7 +12,7 @@
 | Self-audit report enhanced | ✅ Done | Endpoint aktif |
 | Self-audit export (json/pdf) | ✅ Done | Endpoint aktif |
 | Anomaly registry (tenant) | ✅ Done | resolve + acknowledge tersedia |
-| Revenue capture event-driven | ✅ Done | PayrollFinalized → CapturePayrollServiceRevenue |
+| Revenue capture event-driven | ✅ Done | SubscriptionCreated/AddOnPurchased listeners aktif |
 | Platform billing policies/reports/invoices | ✅ Done | Endpoint aktif |
 | Government layer (platform-tax-compliance) | ✅ Done | Endpoint aktif |
 | Frontend halaman employee tax profiles | ✅ Done | `/tax-employees/employee-tax-profiles` aktif |

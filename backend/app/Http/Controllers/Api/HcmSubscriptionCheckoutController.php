@@ -474,7 +474,7 @@ class HcmSubscriptionCheckoutController
         }
 
         $defaultSubscriptionTaxRate = (float) ($policy?->tax_rate_percentage ?? 0);
-        [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount] =
+        [$components, $subscriptionTaxRate, $subscriptionTaxAmount] =
             $this->resolvePricingComponents($policy, $baseAmount, $defaultSubscriptionTaxRate);
 
         $totalAdjustments = round((float) collect($components)->sum(fn (array $component): float => (float) ($component['amount'] ?? 0)), 2);
@@ -486,8 +486,6 @@ class HcmSubscriptionCheckoutController
             'base_amount' => round($baseAmount, 2),
             'components' => $components,
             'total_adjustments' => $totalAdjustments,
-            'service_fee_rate' => $serviceFeeRate,
-            'service_fee_amount' => $serviceFeeAmount,
             'subscription_tax_rate' => $subscriptionTaxRate,
             'subscription_tax_amount' => $subscriptionTaxAmount,
             'total_amount' => $totalAmount,
@@ -585,8 +583,6 @@ class HcmSubscriptionCheckoutController
             $resolvedRates['subscription_tax_rate'] = $defaultSubscriptionTaxRate;
         }
 
-        unset($resolvedRates['payroll_service_fee']);
-
         $defaultLabels = [
             'subscription_tax_rate' => 'Pajak langganan',
             'addon_markup_rate' => 'Corporate tax',
@@ -605,22 +601,16 @@ class HcmSubscriptionCheckoutController
             ];
         }
 
-        $serviceFeeRate = 0.0;
-        $serviceFeeAmount = 0.0;
         $subscriptionTaxRate = 0.0;
         $subscriptionTaxAmount = 0.0;
         foreach ($components as $component) {
-            if (($component['key'] ?? null) === 'payroll_service_fee') {
-                $serviceFeeRate = (float) ($component['rate'] ?? 0);
-                $serviceFeeAmount = (float) ($component['amount'] ?? 0);
-            }
             if (($component['key'] ?? null) === 'subscription_tax_rate') {
                 $subscriptionTaxRate = (float) ($component['rate'] ?? 0);
                 $subscriptionTaxAmount = (float) ($component['amount'] ?? 0);
             }
         }
 
-        return [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount];
+        return [$components, $subscriptionTaxRate, $subscriptionTaxAmount];
     }
 
     private function buildInvoicePricingNotes(string $source, array $pricingBreakdown, string $fallbackMessage): string

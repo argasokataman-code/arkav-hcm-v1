@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollLine;
-use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
 use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
@@ -383,8 +382,6 @@ class ReconciliationExportController extends Controller
                 ->map(fn ($value) => (bool) $value)
                 ->all();
         }
-        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
-
         $employeeTotals = [];
         foreach ($payrollLines as $line) {
             $uid = (int) $line->user_id;
@@ -407,8 +404,7 @@ class ReconciliationExportController extends Controller
         $headers = [
             'run_id', 'user_id', 'user_name', 'kind', 'component_code', 'component_name',
             'amount', 'affects_net_pay', 'gross_total', 'deductions_total', 'net_total',
-            'service_fee_rate_percent', 'service_fee_base_amount', 'service_fee_amount',
-            'service_fee_billing_month', 'dataset_checksum',
+            'dataset_checksum',
         ];
 
         $data = [];
@@ -417,10 +413,6 @@ class ReconciliationExportController extends Controller
         $data[] = [
             (string) $runId, '', '', '', '', 'METADATA', '', '',
             '', '', '',
-            (string) round($serviceFeeRate, 2),
-            (string) round($serviceFeeBase, 2),
-            (string) round($serviceFeeAmount, 2),
-            $serviceFeeBillingMonth,
             $datasetChecksum,
         ];
 
@@ -439,10 +431,6 @@ class ReconciliationExportController extends Controller
                 (string) $line->amount,
                 $affectsNetPay ? 'yes' : 'no',
                 '', '', '',
-                (string) round($serviceFeeRate, 2),
-                (string) round($serviceFeeBase, 2),
-                (string) round($serviceFeeAmount, 2),
-                $serviceFeeBillingMonth,
                 '',
             ];
         }
@@ -460,10 +448,6 @@ class ReconciliationExportController extends Controller
                 (string) round($totals['gross'], 2),
                 (string) round($totals['deductions'], 2),
                 (string) round($net, 2),
-                (string) round($serviceFeeRate, 2),
-                (string) round($serviceFeeBase, 2),
-                (string) round($serviceFeeAmount, 2),
-                $serviceFeeBillingMonth,
                 '',
             ];
         }
@@ -475,10 +459,6 @@ class ReconciliationExportController extends Controller
             (string) round($grandGross, 2),
             (string) round($grandDeductions, 2),
             (string) round($grandGross - $grandDeductions, 2),
-            (string) round($serviceFeeRate, 2),
-            (string) round($serviceFeeBase, 2),
-            (string) round($serviceFeeAmount, 2),
-            $serviceFeeBillingMonth,
             $datasetChecksum,
         ];
 
@@ -531,8 +511,6 @@ class ReconciliationExportController extends Controller
                 ->map(fn ($value) => (bool) $value)
                 ->all();
         }
-        [$serviceFeeRate, $serviceFeeBase, $serviceFeeAmount, $serviceFeeBillingMonth] = $this->resolvePayrollServiceFeeSnapshot($runId, $companyId, $payrollLines);
-
         // Pre-compute per-employee totals
         $employeeTotals = [];
         foreach ($payrollLines as $line) {
@@ -571,10 +549,6 @@ class ReconciliationExportController extends Controller
             'gross_total',
             'deductions_total',
             'net_total',
-            'service_fee_rate_percent',
-            'service_fee_base_amount',
-            'service_fee_amount',
-            'service_fee_billing_month',
             'dataset_checksum',
         ]);
 
@@ -590,10 +564,6 @@ class ReconciliationExportController extends Controller
             '',
             '',
             '',
-            (string) round($serviceFeeRate, 2),
-            (string) round($serviceFeeBase, 2),
-            (string) round($serviceFeeAmount, 2),
-            $serviceFeeBillingMonth,
             $datasetChecksum,
         ]);
 
@@ -612,10 +582,6 @@ class ReconciliationExportController extends Controller
                 '',
                 '',
                 '',
-                (string) round($serviceFeeRate, 2),
-                (string) round($serviceFeeBase, 2),
-                (string) round($serviceFeeAmount, 2),
-                $serviceFeeBillingMonth,
                 '',
             ]);
         }
@@ -640,10 +606,6 @@ class ReconciliationExportController extends Controller
                 (string) round($totals['gross'], 2),
                 (string) round($totals['deductions'], 2),
                 (string) round($net, 2),
-                (string) round($serviceFeeRate, 2),
-                (string) round($serviceFeeBase, 2),
-                (string) round($serviceFeeAmount, 2),
-                $serviceFeeBillingMonth,
                 '',
             ]);
         }
@@ -662,10 +624,6 @@ class ReconciliationExportController extends Controller
             (string) round($grandGross, 2),
             (string) round($grandDeductions, 2),
             (string) round($grandGross - $grandDeductions, 2),
-            (string) round($serviceFeeRate, 2),
-            (string) round($serviceFeeBase, 2),
-            (string) round($serviceFeeAmount, 2),
-            $serviceFeeBillingMonth,
             $datasetChecksum,
         ]);
 
@@ -674,29 +632,6 @@ class ReconciliationExportController extends Controller
         fclose($stream);
 
         return $content;
-    }
-
-    /**
-     * @param  \Illuminate\Support\Collection<int, HcmPayrollLine>  $payrollLines
-     * @return array{0: float, 1: float, 2: float, 3: string}
-     */
-    private function resolvePayrollServiceFeeSnapshot(int $runId, ?int $companyId, $payrollLines): array
-    {
-        $runQuery = HcmPayrollRun::query()->with('period')->whereKey($runId);
-        if ($companyId !== null) {
-            $runQuery->where('company_id', $companyId);
-        }
-
-        $run = $runQuery->first();
-        if (! $run) {
-            return [0.0, 0.0, 0.0, ''];
-        }
-
-        $billingMonth = $run->period
-            ? sprintf('%04d-%02d', (int) $run->period->period_year, (int) $run->period->period_month)
-            : now()->format('Y-m');
-
-        return [0.0, 0.0, 0.0, $billingMonth];
     }
 
     public function index(Request $request): JsonResponse

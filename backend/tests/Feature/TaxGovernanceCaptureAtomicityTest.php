@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Events\SubscriptionCreated;
 use App\Listeners\CaptureAddonRevenue;
-use App\Listeners\CapturePayrollServiceRevenue;
 use App\Listeners\CaptureSubscriptionRevenue;
 use App\Models\Company;
 use App\Models\Package;
@@ -116,7 +115,6 @@ class TaxGovernanceCaptureAtomicityTest extends TestCase
 
         $listeners = [
             new CaptureSubscriptionRevenue($validator, $guard),
-            new CapturePayrollServiceRevenue($validator, $guard),
             new CaptureAddonRevenue($validator, $guard),
         ];
 

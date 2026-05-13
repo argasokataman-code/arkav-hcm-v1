@@ -180,9 +180,9 @@
                     'profile-settings','security-settings','notification-settings',
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                     'approval-settings','invoice-settings','leave-type',
-                    'email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode',
-                    'payment-gateways','currencies',
-                    'custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache'
+                    'email-settings',
+                    
+                    'custom-css','custom-js','cronjob',
                     ) ? ' show active ' : '' }}" id="administration">
                         <ul>
                             <li class="menu-title"><span>ADMINISTRATION</span></li>

@@ -937,7 +937,7 @@ function loadPricingPlansScreenModuleLoader() {
         var table = tbody.closest("table");
         var headerCells = table && table.tHead && table.tHead.rows[0] ? table.tHead.rows[0].cells.length : 0;
         var isGovernmentHistory = screen === "platform-tax-compliance";
-        var hasPayrollColumn = !isGovernmentHistory && headerCells >= 7;
+        var hasPayrollColumn = false;
 
         function getStatusMeta(statusValue) {
             var status = String(statusValue || "").toLowerCase();
@@ -998,10 +998,6 @@ function loadPricingPlansScreenModuleLoader() {
 
             if (isGovernmentHistory) {
                 return "<tr><td>" + escapeHtml(item.version || "-") + "</td><td>" + escapeHtml(String(item.government_tax_rate ?? item.subscription_tax_rate ?? item.tax_rate_percentage ?? 0)) + "%</td><td>" + escapeHtml(String(item.transaction_tax_rate ?? 0)) + "%</td><td>" + statusCell + "</td><td>" + escapeHtml(formatDate(item.created_at)) + "</td><td>" + escapeHtml(item.effective_from || "-") + "</td></tr>";
-            }
-
-            if (hasPayrollColumn) {
-                return "<tr><td>" + escapeHtml(item.version || "-") + "</td><td>" + escapeHtml(String(item.subscription_tax_rate ?? item.tax_rate_percentage ?? 0)) + "%</td><td>" + escapeHtml(String(item.payroll_service_fee ?? 0)) + "%</td><td>" + escapeHtml(String(item.addon_markup_rate ?? 0)) + "%</td><td>" + statusCell + "</td><td>" + escapeHtml(formatDate(item.created_at)) + "</td><td>" + escapeHtml(item.effective_from || "-") + "</td></tr>";
             }
 
             return "<tr><td>" + escapeHtml(item.version || "-") + "</td><td>" + escapeHtml(String(item.subscription_tax_rate ?? item.tax_rate_percentage ?? 0)) + "%</td><td>" + escapeHtml(String(item.addon_markup_rate ?? 0)) + "%</td><td>" + statusCell + "</td><td>" + escapeHtml(formatDate(item.created_at)) + "</td><td>" + escapeHtml(item.effective_from || "-") + "</td></tr>";
@@ -1468,7 +1464,6 @@ function loadPricingPlansScreenModuleLoader() {
                 var payload = subscriptionField
                     ? {
                         subscription_tax_rate: Number(subscriptionField.value || 0),
-                        payroll_service_fee: 0,
                         addon_markup_rate: Number((qs("[name=\"addon_markup_rate\"]", policyForm) || {}).value || 0),
                         billing_cycle_type: String((qs("[name=\"billing_cycle_type\"]", policyForm) || {}).value || "monthly"),
                         status: String((qs("[name=\"status\"]", policyForm) || {}).value || "active"),

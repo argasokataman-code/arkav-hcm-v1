@@ -213,46 +213,6 @@ Route::get('/ai-settings', function () {
     return view('settings.ai-settings');
 })->middleware('hcm.web.global-admin')->name('ai-settings');
 
-Route::get('/sms-settings', function () {
-    return view('settings.sms-settings');
-})->middleware('hcm.web.global-admin')->name('sms-settings');
-
-Route::get('/sms-template', function () {
-    return view('settings.sms-template');
-})->middleware('hcm.web.global-admin')->name('sms-template');
-
-Route::get('/otp-settings', function () {
-    return view('settings.otp-settings');
-})->middleware('hcm.web.global-admin')->name('otp-settings');
-
-Route::get('/gdpr', function () {
-    return view('settings.gdpr');
-})->middleware('hcm.web.global-admin')->name('gdpr');
-
-Route::get('/maintenance-mode', function () {
-    return view('settings.maintenance-mode');
-})->middleware('hcm.web.global-admin')->name('maintenance-mode');
-
-Route::get('/payment-gateways', function () {
-    return view('finance.payment-gateways');
-})->middleware('hcm.web.global-admin')->name('payment-gateways');
-
-Route::get('/storage-settings', function () {
-    return view('settings.storage-settings');
-})->middleware('hcm.web.global-admin')->name('storage-settings');
-
-Route::get('/ban-ip-address', function () {
-    return view('settings.ban-ip-address');
-})->middleware('hcm.web.global-admin')->name('ban-ip-address');
-
-Route::get('/backup', function () {
-    return view('settings.backup');
-})->middleware('hcm.web.global-admin')->name('backup');
-
-Route::get('/clear-cache', function () {
-    return view('settings.clear-cache');
-})->middleware('hcm.web.global-admin')->name('clear-cache');
-
 Route::get('/custom-css', function () {
     return view('settings.custom-css');
 })->middleware('hcm.web.global-admin')->name('custom-css');

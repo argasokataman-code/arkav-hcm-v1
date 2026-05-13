@@ -31,10 +31,6 @@
                             <a href="{{ url('custom-css') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Custom CSS</a>
                             <a href="{{ url('custom-js') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Custom JS</a>
                             <a href="{{ url('cronjob') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Cronjob</a>
-                            <a href="{{ url('storage-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Storage</a>
-                            <a href="{{ url('ban-ip-address') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Ban IP Address</a>
-                            <a href="{{ url('backup') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Backup</a>
-                            <a href="{{ url('clear-cache') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Clear Cache</a>
                         </div>
                     </div>
                 </div>

@@ -497,7 +497,6 @@ class WebHcmRouteGuardTest extends TestCase
             '/bussiness-settings',
             '/seo-settings',
             '/localization-settings',
-            '/currencies',
             '/language',
             '/language-web',
             '/add-language',

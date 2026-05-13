@@ -107,10 +107,10 @@ class SidebarAssetMenuVisibilityTest extends TestCase
         // System/settings menus are still visible (not feature-gated)
         $response->assertSee('href="'.url('email-settings').'"', false);
         $response->assertSee('href="'.url('business-settings').'"', false);
-        $response->assertSee('href="'.url('currencies').'"', false);
-        $response->assertSee('href="'.url('language').'"', false);
-        $response->assertSee('href="'.url('authentication-settings').'"', false);
-        $response->assertSee('href="'.url('ai-settings').'"', false);
+        $response->assertDontSee('href="'.url('currencies').'"', false);
+        $response->assertDontSee('href="'.url('language').'"', false);
+        $response->assertDontSee('href="'.url('authentication-settings').'"', false);
+        $response->assertDontSee('href="'.url('ai-settings').'"', false);
 
         $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)

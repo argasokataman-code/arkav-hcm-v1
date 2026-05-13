@@ -54,15 +54,10 @@
                 </li>
                 @if ($isGlobalHcmAdmin)
 
-                <li class="nav-item">
-                    <a class="nav-link" href="{{url('payment-gateways')}}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
-                </li>
-
                 @endif
                 @if ($isGlobalHcmAdmin)
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{{url('custom-css')}}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
                 </li>
 
                 @endif
@@ -74,24 +69,6 @@
                             <div class="d-flex flex-column list-group settings-list">
                                 @if ($isGlobalHcmAdmin)
                                 <a href="{{url('business-settings')}}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Business Settings</a>
-                                @endif
-                                @if ($isGlobalHcmAdmin)
-                                <a href="{{url('seo-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">SEO Settings</a>
-                                @endif
-                                @if ($isGlobalHcmAdmin)
-                                <a href="{{url('localization-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Localization</a>
-                                @endif
-                                @if ($isGlobalHcmAdmin)
-                                @endif
-                                <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
-                                @if ($isGlobalHcmAdmin)
-                                <a href="{{url('language')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Language</a>
-                                @endif
-                                @if ($isGlobalHcmAdmin)
-                                <a href="{{url('authentication-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Authentication Settings</a>
-                                @endif
-                                @if ($isGlobalHcmAdmin)
-                                <a href="{{url('ai-settings')}}" class="d-inline-flex align-items-center rounded py-2 px-3">AI Settings</a>
                                 @endif
                             </div>
                         </div>

@@ -97,6 +97,7 @@ require __DIR__ . '/api/data-privacy.php';
 
 // Settings
 require __DIR__ . '/api/settings.php';
+require __DIR__ . '/api/email-settings.php';
 
 // Notifications (Compose Email)
 require __DIR__ . '/api/notifications.php';

@@ -290,8 +290,7 @@ Source route: [backend/routes/web/settings.php](backend/routes/web/settings.php)
 - `/email-settings`, `/email-template`
 - `/sms-settings`, `/sms-template`, `/otp-settings`
 - `/gdpr`, `/maintenance-mode`
-- `/payment-gateways`, `/storage-settings`
-- `/ban-ip-address`, `/backup`, `/clear-cache`
+- `/storage-settings`
 - `/custom-css`, `/custom-js`
 - `/platform-tax-compliance/policies`, `/platform-tax-compliance/reports`
 

@@ -2,6 +2,26 @@
 
 ## Status Snapshot
 
+- Tanggal: 2026-05-13
+- Status: recurring renewal billing tax + schema hardening
+- Scope audit: renewal invoice generator, tax snapshot parity, schema compatibility invoice/payment, dan trial-expiry billing amount parity
+
+## Changes Closed In This Audit
+
+- `ProcessRecurringSubscriptionBilling` tidak lagi memakai field invoice legacy (`amount`, `type`, `pending`) dan sekarang menulis kontrak invoice aktif (`amount_due`, `billing_tax_rate_snapshot`, `status=draft`, `notes` pricing breakdown).
+- Renewal amount sekarang tax-aware menggunakan policy aktif (`HcmBillingTaxPolicy`) dengan snapshot rate yang disimpan ke invoice.
+- Dependensi tabel legacy `payment_attempts` dihapus dari recurring flow; retry state dipindahkan ke metadata record `payments` yang sudah ada.
+- Renewal payment collection tidak lagi menulis kolom invoice non-eksis (`gateway_reference`, `metadata`), melainkan menyimpan referensi gateway di `payments`.
+- Trial expiry conversion (`ConvertExpiredTrialsToPendingPaymentJob`) sekarang menghitung total invoice tax-inclusive berdasarkan snapshot rate (parity dengan flow checkout).
+- Regression test ditambah untuk recurring renewal tax-inclusive invoice dan trial-expiry tax snapshot amount.
+
+## Evidence
+
+- `tests/Feature/ProcessRecurringSubscriptionBillingJobTest.php` — renewal invoice harus tax-inclusive + schema valid.
+- `tests/Feature/ConvertExpiredTrialsJobTest.php` — trial-expiry invoice harus tax-inclusive + snapshot tersimpan.
+
+## Status Snapshot
+
 - Tanggal: 2026-04-24
 - Status: payment-safe hardening for subscription change flow
 - Scope audit: queue approval guard code-1, payment gate bypass prevention pada upgrade approval, validasi package aktif, dan scoping notifikasi approver

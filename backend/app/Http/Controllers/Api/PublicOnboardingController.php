@@ -101,8 +101,6 @@ class PublicOnboardingController
             'base_amount' => isset($pricing['base_amount']) ? (float) $pricing['base_amount'] : null,
             'subscription_tax_rate' => isset($pricing['subscription_tax_rate']) ? (float) $pricing['subscription_tax_rate'] : null,
             'subscription_tax_amount' => isset($pricing['subscription_tax_amount']) ? (float) $pricing['subscription_tax_amount'] : null,
-            'service_fee_rate' => isset($pricing['service_fee_rate']) ? (float) $pricing['service_fee_rate'] : null,
-            'service_fee_amount' => isset($pricing['service_fee_amount']) ? (float) $pricing['service_fee_amount'] : null,
             'total_amount' => isset($pricing['total_amount']) ? (float) $pricing['total_amount'] : null,
             'components' => is_array($pricing['components'] ?? null) ? array_values($pricing['components']) : [],
         ];
@@ -451,7 +449,7 @@ class PublicOnboardingController
         }
 
         $defaultSubscriptionTaxRate = (float) ($policy?->tax_rate_percentage ?? 0);
-        [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount] =
+        [$components, $subscriptionTaxRate, $subscriptionTaxAmount] =
             $this->resolvePricingComponents($policy, $baseAmount, $defaultSubscriptionTaxRate);
 
         $totalAdjustments = round((float) collect($components)->sum(fn (array $component): float => (float) ($component['amount'] ?? 0)), 2);
@@ -463,8 +461,6 @@ class PublicOnboardingController
             'base_amount' => round($baseAmount, 2),
             'components' => $components,
             'total_adjustments' => $totalAdjustments,
-            'service_fee_rate' => $serviceFeeRate,
-            'service_fee_amount' => $serviceFeeAmount,
             'subscription_tax_rate' => $subscriptionTaxRate,
             'subscription_tax_amount' => $subscriptionTaxAmount,
             'total_amount' => $totalAmount,
@@ -499,8 +495,6 @@ class PublicOnboardingController
             $resolvedRates['subscription_tax_rate'] = $defaultSubscriptionTaxRate;
         }
 
-        unset($resolvedRates['payroll_service_fee']);
-
         $defaultLabels = [
             'subscription_tax_rate' => 'Pajak langganan',
             'addon_markup_rate' => 'Corporate tax',
@@ -519,22 +513,16 @@ class PublicOnboardingController
             ];
         }
 
-        $serviceFeeRate = 0.0;
-        $serviceFeeAmount = 0.0;
         $subscriptionTaxRate = 0.0;
         $subscriptionTaxAmount = 0.0;
         foreach ($components as $component) {
-            if (($component['key'] ?? null) === 'payroll_service_fee') {
-                $serviceFeeRate = (float) ($component['rate'] ?? 0);
-                $serviceFeeAmount = (float) ($component['amount'] ?? 0);
-            }
             if (($component['key'] ?? null) === 'subscription_tax_rate') {
                 $subscriptionTaxRate = (float) ($component['rate'] ?? 0);
                 $subscriptionTaxAmount = (float) ($component['amount'] ?? 0);
             }
         }
 
-        return [$components, $serviceFeeRate, $serviceFeeAmount, $subscriptionTaxRate, $subscriptionTaxAmount];
+        return [$components, $subscriptionTaxRate, $subscriptionTaxAmount];
     }
 
     private function buildInvoicePricingNotes(string $source, array $pricingBreakdown, string $fallbackMessage): string

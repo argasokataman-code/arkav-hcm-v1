@@ -22,7 +22,6 @@ Revenue capture bukan endpoint publik API. Capture terjadi secara otomatis via e
 | Domain Event | Listener | Table | Idempotency Key Pattern |
 |---|---|---|---|
 | `SubscriptionCreated` | `CaptureSubscriptionRevenue` | `platform_revenue_transactions` | `subscription_created:{id}` |
-| `PayrollFinalized` | `CapturePayrollServiceRevenue` | `platform_revenue_transactions` | `payroll_finalized:{id}` |
 | `AddonPurchased` | `CaptureAddonRevenue` | `platform_revenue_transactions` | `addon_purchased:{id}` |
 
 ### Runtime Guarantees
@@ -295,7 +294,7 @@ Query opsional:
 
 Response `200`:
 - `data.items`: payload kompatibilitas legacy per company.
-- `data.items_global`: agregasi kebijakan global berisi `version`, `subscription_tax_rate`, `payroll_service_fee` (selalu `0` sebagai field kompatibilitas), `addon_markup_rate`, `status`, `created_at`, `effective_from`.
+- `data.items_global`: agregasi kebijakan global berisi `version`, `subscription_tax_rate`, `addon_markup_rate`, `status`, `created_at`, `effective_from`.
 
 ### `POST /v1/hcm/tax-governance/platform-billing/policies`
 
@@ -307,7 +306,6 @@ Body minimum:
    - `billing_month` (opsional, default bulan berjalan)
    - `effective_from` (opsional, default hari ini)
    - `notes` (opsional)
-   - catatan: `payroll_service_fee` tidak lagi dikonfigurasi; runtime memaksa nilai `0`.
 2. **Mode legacy per company (tetap didukung):**
    - `company_id`, `billing_month`, `billing_cycle_type`, `tax_rate_percentage`, `base_calculation_method`, `effective_from`
 
@@ -331,7 +329,6 @@ Response `200`:
 - setiap row tenant mencakup field clearing-aware paralel: `taxable_revenue_amount`, `cleared_revenue_amount`, `uncleared_revenue_amount`, `disputed_revenue_amount`, `reversed_revenue_amount`.
 - tambahan payload `summary_global` untuk UI global:
    - `total_subscription_revenue`
-   - `total_payroll_service_fee` (selalu `0` untuk kompatibilitas)
    - `total_addon_revenue`
    - `total_gross_revenue`
    - `total_tax_due`
@@ -341,7 +338,7 @@ Response `200`:
    - jika capture stream runtime pada bulan berjalan belum tersedia, `total_gross_revenue` mengikuti `total_taxable_revenue_amount` (invoice fallback) agar tidak terjadi kondisi `gross=0` tetapi `tax_due>0`.
    - pada kondisi fallback yang sama, `total_net_revenue` dihitung dari `total_gross_revenue - total_tax_due`.
 - tambahan payload `tenants_global[]` untuk tabel global:
-   - `tenant`, `plan`, `subscription_revenue`, `payroll_service_fee` (selalu `0`), `addon_revenue`, `gross_revenue`, `tax_amount_due`, `net_revenue`
+   - `tenant`, `plan`, `subscription_revenue`, `addon_revenue`, `gross_revenue`, `tax_amount_due`, `net_revenue`
 
 ### `GET /v1/hcm/tax-governance/platform-tax-compliance/policies`
 
@@ -357,7 +354,6 @@ Response `200`:
    - `data.view_context = government_tax_compliance`
    - setiap `items_global[]` menambahkan:
       - `government_tax_rate`
-      - `payroll_component_rate`
       - `addon_component_rate`
 
 ### `POST /v1/hcm/tax-governance/platform-tax-compliance/policies`
@@ -387,7 +383,6 @@ Response `200`:
    - `data.summary_compliance`:
       - `total_taxable_revenue`
       - `total_collected_tax_liability`
-      - `total_payroll_component`
       - `total_addon_component`
       - `total_tax_payable`
       - `total_net_revenue`
@@ -400,7 +395,6 @@ Response `200`:
    - `data.tenants_compliance[]`:
       - `taxable_revenue`
       - `collected_tax_liability`
-      - `payroll_component`
       - `addon_component`
       - `total_tax_payable`
 

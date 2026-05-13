@@ -58,14 +58,9 @@
             </li>
             @if ($isGlobalHcmAdmin)
 
-            <li class="nav-item">
-                <a class="nav-link" href="{{ url('payment-gateways') }}"><i class="ti ti-settings-dollar me-2"></i>Financial Settings</a>
-            </li>
-
             @endif
             @if ($isGlobalHcmAdmin)
             <li class="nav-item">
-                <a class="nav-link" href="{{ url('custom-css') }}"><i class="ti ti-settings-2 me-2"></i>Other Settings</a>
             </li>
             @endif
         </ul>

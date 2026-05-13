@@ -14,7 +14,6 @@
                                 <a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a>
                             </li>
                             <li class="breadcrumb-item">
-                                <a href="{{ url('payment-gateways') }}">Financial Settings</a>
                             </li>
                             <li class="breadcrumb-item active" aria-current="page">Salary Component</li>
                         </ol>

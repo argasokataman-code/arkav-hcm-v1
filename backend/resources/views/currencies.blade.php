@@ -1,1 +1,0 @@
-@include('finance.currencies')

@@ -60,16 +60,6 @@ type PayrollRun = {
     status?: string;
     paymentStatus?: string;
     finalizedAt?: string | null;
-    platformServiceFeeRate?: number;
-    platformServiceFeeBase?: number;
-    platformServiceFeeAmount?: number;
-    platformServiceFeeBillingMonth?: string | null;
-    totals?: {
-        platformServiceFeeRate?: number;
-        platformServiceFeeBase?: number;
-        platformServiceFeeAmount?: number;
-        platformServiceFeeBillingMonth?: string | null;
-    };
     period?: { periodYear: number; periodMonth: number; status: string };
     policySnapshot?: PayrollPolicySnapshot | null;
     taxGovernancePolicy?: TaxGovernancePolicySnapshot | null;
@@ -335,7 +325,6 @@ const _state: {
     currentTaxGovernancePolicy: TaxGovernancePolicySnapshot | null;
     activeTenantContext: TenantContextSnapshot;
     currentRows: EmployeeRow[];
-    currentRunServiceFeeAmount: number;
     currentTaxAnomalies: PayrollTaxAnomalies;
     loading: boolean;
     /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
@@ -351,7 +340,6 @@ const _state: {
         companyName: null,
     },
     currentRows: [],
-    currentRunServiceFeeAmount: 0,
     currentTaxAnomalies: {
         missingTaxProfileUserCount: 0,
         missingTaxProfileUserIds: [],
@@ -1984,14 +1972,10 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
         _state.currentRunStatus = deriveRunLifecycleStatus(runData);
         _state.currentPolicySnapshot = runData.policySnapshot || null;
         _state.currentTaxGovernancePolicy = runData.taxGovernancePolicy || extractTaxGovernancePolicyFromLines(lines) || null;
-        const feeFromTotals = Number(runData.totals?.platformServiceFeeAmount || 0);
-        const feeFromRoot = Number(runData.platformServiceFeeAmount || 0);
-        _state.currentRunServiceFeeAmount = Number.isFinite(feeFromTotals) && feeFromTotals > 0 ? feeFromTotals : feeFromRoot;
     } else if (!_state.currentRunId) {
         _state.currentRunStatus = null;
         _state.currentPolicySnapshot = null;
         _state.currentTaxGovernancePolicy = null;
-        _state.currentRunServiceFeeAmount = 0;
         _state.currentTaxAnomalies = normalizeTaxAnomalies(null);
     }
 
@@ -2000,7 +1984,6 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
     const lineCountEl = root.querySelector<HTMLElement>("[data-payroll-run-line-count]");
     const periodStatusEl = root.querySelector<HTMLElement>("[data-payroll-run-status]");
     const paymentStatusEl = root.querySelector<HTMLElement>("[data-payroll-run-payment-status]");
-    const serviceFeeEl = root.querySelector<HTMLElement>("[data-payroll-run-service-fee]");
     const emptyEl = root.querySelector<HTMLElement>("[data-payroll-run-empty]");
     const gridEl = root.querySelector<HTMLElement>("[data-payroll-run-grid]");
     const tbody = gridEl?.querySelector("tbody");
@@ -2039,10 +2022,6 @@ function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | null = n
         const badgeClass = paymentStatus === "paid" ? "success" : paymentStatus === "partial" ? "warning text-dark" : "secondary";
         paymentStatusEl.innerHTML = `<span class="badge bg-${badgeClass}">${String(paymentStatus).toUpperCase()}</span>`;
     }
-    if (serviceFeeEl) {
-        serviceFeeEl.textContent = formatIdr(_state.currentRunServiceFeeAmount || 0);
-    }
-
     syncCalculateDraftButton();
     syncExportReconciliationButton();
     renderRunContextSummary();
@@ -2383,7 +2362,6 @@ function populateGatewayModal(userIds: number[]): EmployeeRow[] {
     setText("[data-payroll-gateway-gross]", formatIdr(totalGross));
     setText("[data-payroll-gateway-deductions]", formatIdr(totalDeductions));
     setText("[data-payroll-gateway-total]", formatIdr(totalNet));
-    setText("[data-payroll-gateway-service-fee]", formatIdr(_state.currentRunServiceFeeAmount || 0));
     const statusEl = modal.querySelector<HTMLElement>("[data-payroll-gateway-status]");
     if (statusEl) {
         const hasPaid = _state.currentRows.some((row) => row.paymentStatus === "paid");

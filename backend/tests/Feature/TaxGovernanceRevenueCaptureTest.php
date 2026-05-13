@@ -3,16 +3,11 @@
 namespace Tests\Feature;
 
 use App\Events\AddonPurchased;
-use App\Events\PayrollFinalized;
 use App\Events\SubscriptionCreated;
 use App\Models\Company;
-use App\Models\HcmPayrollLine;
-use App\Models\HcmPayrollPeriod;
-use App\Models\HcmPayrollRun;
 use App\Models\Package;
 use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -72,47 +67,6 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
         SubscriptionCreated::dispatch((int) $subscription->id, null);
 
         $this->assertDatabaseCount('platform_revenue_transactions', 1);
-    }
-
-    public function test_payroll_finalized_event_does_not_capture_revenue_when_service_fee_zero(): void
-    {
-        $company = Company::factory()->create();
-        $user = User::factory()->create();
-
-        $period = HcmPayrollPeriod::query()->create([
-            'company_id' => $company->id,
-            'period_year' => 2026,
-            'period_month' => 4,
-            'status' => HcmPayrollPeriod::STATUS_POSTED,
-        ]);
-
-        $run = HcmPayrollRun::query()->create([
-            'company_id' => $company->id,
-            'hcm_payroll_period_id' => $period->id,
-            'purpose' => HcmPayrollRun::PURPOSE_MONTHLY,
-            'status' => HcmPayrollRun::STATUS_FINALIZED,
-            'finalized_at' => now(),
-            'meta' => [
-                'platform_service_fee_amount' => 0,
-            ],
-        ]);
-
-        HcmPayrollLine::query()->create([
-            'company_id' => $company->id,
-            'hcm_payroll_run_id' => $run->id,
-            'user_id' => $user->id,
-            'kind' => 'earning',
-            'category' => 'base',
-            'amount' => 4000000,
-            'component_code' => 'BASIC',
-            'component_name' => 'Basic Salary',
-            'sort_order' => 1,
-        ]);
-
-        PayrollFinalized::dispatch((int) $run->id, null);
-        PayrollFinalized::dispatch((int) $run->id, null);
-
-        $this->assertDatabaseCount('platform_revenue_transactions', 0);
     }
 
     public function test_addon_purchased_event_captures_revenue_once(): void

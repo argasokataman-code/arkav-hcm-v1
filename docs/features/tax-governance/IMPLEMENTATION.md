@@ -74,7 +74,6 @@ Revenue dari domain events di-capture secara event-driven:
 | Event | Listener | Idempotency Key |
 |---|---|---|
 | `SubscriptionCreated` | `CaptureSubscriptionRevenue` | `subscription_created:{id}` |
-| `PayrollFinalized` | `CapturePayrollServiceRevenue` | `payroll_finalized:{id}` |
 | `AddonPurchased` | `CaptureAddonRevenue` | `addon_purchased:{id}` |
 
 Jaminan runtime:

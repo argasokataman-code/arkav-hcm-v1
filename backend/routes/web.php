@@ -915,10 +915,6 @@ Route::get('/blog-2', function () {
     return view(view: 'blog-2');
 })->name('blog-2');
 
-Route::get('/currencies', function () {
-    return view(view: 'currencies');
-})->middleware('hcm.web.global-admin')->name('currencies');
-
 Route::get('/email-reply', function ()       {
     return view(view: 'email-reply');
 })->name('email-reply');
@@ -1526,29 +1522,9 @@ Route::get( '/custom-fields', function () {
     return view('custom-fields');
 })->middleware('hcm.web.admin')->name('custom-fields');
 
-Route::get( '/sms-settings', function () {
-    return view('sms-settings');
-})->middleware('hcm.web.global-admin')->name('sms-settings');
-
-Route::get( '/sms-template', function () {
-    return view('sms-template');
-})->middleware('hcm.web.global-admin')->name('sms-template');
-
-Route::get( '/otp-settings', function () {
-    return view('otp-settings');
-})->middleware('hcm.web.global-admin')->name('otp-settings');
-
-Route::get( '/gdpr', function () {
-    return view('gdpr');
-})->middleware('hcm.web.global-admin')->name('gdpr');
-
-Route::get( '/maintenance-mode', function () {
-    return view('maintenance-mode');
-})->middleware('hcm.web.global-admin')->name('maintenance-mode');
-
-Route::get( '/payment-gateways', function () {
-    return view( 'payment-gateways');
-})->middleware('hcm.web.global-admin')->name( 'payment-gateways');
+Route::get('/email-settings', function () {
+    return view('settings.email-settings');
+})->middleware('hcm.web.global-admin')->name('email-settings');
 
 Route::get( '/tax-rates', function () {
     return view( 'tax-rates');
@@ -1684,22 +1660,6 @@ Route::post('/cronjob', [CronjobController::class, 'update'])->middleware('hcm.w
 Route::get('/cronjob-schedule', function () {
     return view('cronjob-schedule');
 })->middleware('hcm.web.global-admin')->name('cronjob-schedule');
-
-Route::get('/storage-settings', function () {
-    return view('storage-settings');
-})->middleware('hcm.web.global-admin')->name('storage-settings');
-
-Route::get('/ban-ip-address', function () {
-    return view('ban-ip-address');
-})->middleware('hcm.web.global-admin')->name('ban-ip-address');
-
-Route::get('/backup', function () {
-    return view('backup');
-})->middleware('hcm.web.global-admin')->name('backup');
-
-Route::get('/clear-cache', function () {
-    return view('clear-cache');
-})->middleware('hcm.web.global-admin')->name('clear-cache');
 
 Route::get('/success', function () {
     return view('success');

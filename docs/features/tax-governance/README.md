@@ -66,7 +66,7 @@ API runtime (prefix `/v1/hcm/tax-governance`):
 ### Flow Platform (Super Admin)
 
 1. Platform admin memantau compliance lintas tenant via dashboard dan anomaly registry.
-2. Revenue dari payroll finalization di-capture otomatis via event `PayrollFinalized → CapturePayrollServiceRevenue`.
+2. Revenue platform domain subscription dan addon di-capture otomatis via event domain terkait.
 3. Billing tax reports dan invoices tersedia untuk rekonsiliasi platform.
 4. Halaman `platform-tax-compliance/policies` default ke mode **Overview (read-only)** untuk mengurangi risiko salah edit. Form edit hanya muncul setelah klik **Edit Konfigurasi Aktif** atau **Buat Konfigurasi Baru**, lalu simpan dilindungi dialog konfirmasi ringkasan perubahan.
 
@@ -123,7 +123,7 @@ Kategori PTKP standar:
 3. **Optimistic lock**: Update draft wajib kirim `version` untuk mencegah race condition.
 4. **Workflow owner-direct tetap didukung**: Submit/approve/reject/publish aktif di runtime, tetapi otorisasi masih berada pada tenant owner atau global admin. Approval chain multi-party formal belum ditambahkan.
 5. **Owner-direct mode**: Policy tenant langsung bisa di-publish oleh tenant owner atau global admin tanpa approval chain.
-6. **Revenue capture event-driven**: Capture revenue payroll terjadi otomatis (listener `CapturePayrollServiceRevenue`), tidak ada endpoint manual.
+6. **Revenue capture event-driven**: Capture revenue platform dilakukan otomatis via listener domain subscription/addon, tidak ada endpoint manual.
 7. **Idempotency via `draftKey`**: Create policy dengan `draftKey` sama bersifat idempotent — aman di-retry tanpa duplikasi.
 
 ## Existing vs Target
@@ -135,7 +135,7 @@ Kategori PTKP standar:
 | Identifier | Numeric ID | UUID-only untuk policy path runtime |
 | Workflow | Owner-direct | Owner-direct + explicit submit/approve/reject/publish aktif |
 | Compliance snapshot | Tidak ada | Ada, termasuk employee_pph21_compliance (NPWP/PTKP quality) |
-| Revenue capture | Manual / tidak ada | Event-driven otomatis via PayrollFinalized |
+| Revenue capture | Manual / tidak ada | Event-driven otomatis via domain event platform |
 | Anomaly registry | Tidak ada | Registry anomali tenant + resolve/acknowledge |
 
 ## Cross-check Role dan Permission

@@ -62,7 +62,7 @@
                         <div class="tab-pane fade {{ Request::is('assets','asset-categories','knowledgebase','knowledgebase/*','users','roles-permissions',
                         'expenses-report','invoice-report','payment-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
                         'profile-settings','company-profile','security-settings','notification-settings','business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
-                            'approval-settings','leave-type','email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode','payment-gateways','currencies','custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'show active ' : '' }}" id="menu-administration">
+                            'approval-settings','leave-type','email-settings','cronjob') ? 'show active ' : '' }}" id="menu-administration">
                             <ul class="stack-submenu">
 @if ($canSeeAssetManagementMenu)
                                 <li class="submenu">
@@ -122,18 +122,13 @@
                                     </ul>
                                 </li>
                                 <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings') ? 'active subdrop' : '' }}">
+                                    <a href="javascript:void(0);" class="{{ Request::is('business-settings') ? 'active subdrop' : '' }}">
                                         Website Settings
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
                                         @if ($isGlobalHcmAdmin)
                                         <li><a href="{{url('business-settings')}}" class="{{ Request::is('business-settings') ? 'active' : '' }}">Business Settings</a></li>
-                                        <li><a href="{{url('seo-settings')}}" class="{{ Request::is('seo-settings') ? 'active' : '' }}">SEO Settings</a></li>
-                                        <li><a href="{{url('localization-settings')}}" class="{{ Request::is('localization-settings') ? 'active' : '' }}">Localization</a></li>
-                                        <li><a href="{{url('language')}}" class="{{ Request::is('language') ? 'active' : '' }}">Language</a></li>
-                                        <li><a href="{{url('authentication-settings')}}" class="{{ Request::is('authentication-settings') ? 'active' : '' }}">Authentication</a></li>
-                                        <li><a href="{{url('ai-settings')}}" class="{{ Request::is('ai-settings') ? 'active' : '' }}">AI Settings</a></li>
                                         @endif
                                         @if (!$isGlobalHcmAdmin)
                                         <li><a href="{{url('preferences')}}" class="{{ Request::is('preferences') ? 'active' : '' }}">Preferences</a></li>
@@ -150,46 +145,21 @@
                                 </li>
                                 @if ($isGlobalHcmAdmin)
                                 <li class="submenu">
-                                    <a href="javascript:void(0);"  class="{{ Request::is('email-settings','email-template','sms-settings','sms-template','otp-settings','gdpr','maintenance-mode') ? 'active subdrop' : '' }}">
+                                    <a href="javascript:void(0);"  class="{{ Request::is('email-settings') ? 'active subdrop' : '' }}">
                                         System Settings
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
-                                        <li><a href="{{url('sms-settings')}}" class="{{ Request::is('sms-settings') ? 'active' : '' }}">SMS Settings</a></li>
-                                        <li><a href="{{url('sms-template')}}" class="{{ Request::is('sms-template') ? 'active' : '' }}">SMS Templates</a></li>
-                                        <li><a href="{{url('otp-settings')}}" class="{{ Request::is('otp-settings') ? 'active' : '' }}">OTP</a></li>
-                                        <li><a href="{{url('gdpr')}}" class="{{ Request::is('gdpr') ? 'active' : '' }}">GDPR Cookies</a></li>
-                                        <li><a href="{{url('maintenance-mode')}}" class="{{ Request::is('maintenance-mode') ? 'active' : '' }}">Maintenance Mode</a></li>
+                                        @include('layout.partials.sidebar.sections.shared.system-settings-links')
 
                                     </ul>
                                 </li>
-                                <li class="submenu">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payment-gateways','currencies') ? 'active subdrop' : '' }}">
-                                        Financial Settings
-                                        <span class="menu-arrow"></span>
-                                    </a>
-                                    <ul>
-                                        @if ($isGlobalHcmAdmin)
-                                        <li><a href="{{url('payment-gateways')}}" class="{{ Request::is('payment-gateways') ? 'active' : '' }}">Payment Gateways</a></li>
                                         @endif
                                         @if ($isGlobalHcmAdmin)
-                                        <li><a href="{{url('currencies')}}" class="{{ Request::is('currencies') ? 'active' : '' }}">Currencies</a></li>
                                         @endif
                                     </ul>
                                 </li>
                                 @if ($isGlobalHcmAdmin)
-                                <li class="submenu">
-                                    <a href="javascript:void(0);"  class="{{ Request::is('custom-css','custom-js','cronjob','storage-settings','ban-ip-address','backup','clear-cache') ? 'active subdrop' : '' }}">Other Settings<span class="menu-arrow"></span></a>
-                                    <ul>
-                                        <li><a href="{{url('custom-css')}}" class="{{ Request::is('custom-css') ? 'active' : '' }}">Custom CSS</a></li>
-                                        <li><a href="{{url('custom-js')}}" class="{{ Request::is('custom-js') ? 'active' : '' }}">Custom JS</a></li>
-                                        <li><a href="{{url('cronjob')}}" class="{{ Request::is('cronjob') ? 'active' : '' }}">Cronjob</a></li>
-                                        <li><a href="{{url('storage-settings')}}" class="{{ Request::is('storage-settings') ? 'active' : '' }}">Storage</a></li>
-                                        <li><a href="{{url('ban-ip-address')}}" class="{{ Request::is('ban-ip-address') ? 'active' : '' }}">Ban IP Address</a></li>
-                                        <li><a href="{{url('backup')}}" class="{{ Request::is('backup') ? 'active' : '' }}">Backup</a></li>
-                                        <li><a href="{{url('clear-cache')}}" class="{{ Request::is('clear-cache') ? 'active' : '' }}">Clear Cache</a></li>
-                                    </ul>
-                                </li>
                                 @endif
                                 @endif
                                 @endif

@@ -313,8 +313,6 @@ paths:
                               base_amount: { type: number, nullable: true }
                               subscription_tax_rate: { type: number, nullable: true }
                               subscription_tax_amount: { type: number, nullable: true }
-                              service_fee_rate: { type: number, nullable: true }
-                              service_fee_amount: { type: number, nullable: true }
                               total_amount: { type: number, nullable: true }
                               components:
                                 type: array

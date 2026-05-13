@@ -69,8 +69,6 @@ describe('subscription checkout wiring', () => {
                         amount: 220000,
                       },
                     ],
-                    service_fee_rate: 0,
-                    service_fee_amount: 0,
                     subscription_tax_rate: 7,
                     subscription_tax_amount: 70000,
                     total_amount: 1290000,

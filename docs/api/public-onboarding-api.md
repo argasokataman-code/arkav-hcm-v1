@@ -128,8 +128,6 @@ Saat mode onboarding langsung berbayar (`pending_payment`), node `invoice` beris
       "base_amount": 500000,
       "subscription_tax_rate": 11,
       "subscription_tax_amount": 55000,
-      "service_fee_rate": 0,
-      "service_fee_amount": 0,
       "total_amount": 555000,
       "components": [
         {

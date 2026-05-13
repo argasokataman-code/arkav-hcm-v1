@@ -1750,7 +1750,6 @@ class HcmTaxGovernanceController extends Controller
 
             $globalRates = [
                 'subscription_tax_rate' => (float) $validated['subscription_tax_rate'],
-                'payroll_service_fee' => 0.0,
                 'addon_markup_rate' => (float) $validated['addon_markup_rate'],
             ];
             $propagationKey = (string) Str::uuid();
@@ -1842,7 +1841,6 @@ class HcmTaxGovernanceController extends Controller
                     'effective_from' => $effectiveFrom,
                     'status' => $status,
                     'subscription_tax_rate' => $globalRates['subscription_tax_rate'],
-                    'payroll_service_fee' => $globalRates['payroll_service_fee'],
                     'addon_markup_rate' => $globalRates['addon_markup_rate'],
                     'affected_company_count' => $companyIds->count(),
                     'notes' => $validated['notes'] ?? null,
@@ -1933,7 +1931,6 @@ class HcmTaxGovernanceController extends Controller
                 'billing_cycle_type' => $item['billing_cycle_type'] ?? null,
                 'next_renewal_month' => $item['next_renewal_month'] ?? null,
                 'subscription_revenue' => (float) ($item['subscription_revenue'] ?? 0),
-                'payroll_service_fee' => (float) ($item['payroll_service_fee'] ?? 0),
                 'addon_revenue' => (float) ($item['addon_revenue'] ?? 0),
                 'gross_revenue' => (float) ($item['gross_revenue'] ?? 0),
                 'tax_amount_due' => (float) ($item['tax_amount_due'] ?? 0),
@@ -1946,7 +1943,6 @@ class HcmTaxGovernanceController extends Controller
         $summary = $report['summary'] ?? [];
         $summaryGlobal = [
             'total_subscription_revenue' => (float) ($summary['total_subscription_revenue'] ?? 0),
-            'total_payroll_service_fee' => (float) ($summary['total_payroll_service_fee'] ?? 0),
             'total_addon_revenue' => (float) ($summary['total_addon_revenue'] ?? 0),
             'total_gross_revenue' => (float) ($summary['total_gross_revenue'] ?? 0),
             'total_tax_due' => (float) ($summary['total_tax_due'] ?? 0),
@@ -1997,7 +1993,6 @@ class HcmTaxGovernanceController extends Controller
 
             $payload['data']['items_global'] = array_map(function (array $item) use ($activeByMonth): array {
                 $item['government_tax_rate'] = (float) ($item['subscription_tax_rate'] ?? $item['tax_rate_percentage'] ?? 0);
-                $item['payroll_component_rate'] = (float) ($item['payroll_service_fee'] ?? 0);
                 $item['addon_component_rate'] = (float) ($item['addon_markup_rate'] ?? 0);
 
                 $notesDecoded = json_decode((string) ($item['notes'] ?? ''), true);
@@ -2136,7 +2131,6 @@ class HcmTaxGovernanceController extends Controller
         $payload['data']['summary_compliance'] = [
             'total_taxable_revenue' => (float) ($summaryGlobal['total_gross_revenue'] ?? 0),
             'total_collected_tax_liability' => (float) ($summaryGlobal['total_collected_tax_liability'] ?? 0),
-            'total_payroll_component' => (float) ($summaryGlobal['total_payroll_service_fee'] ?? 0),
             'total_addon_component' => (float) ($summaryGlobal['total_addon_revenue'] ?? 0),
             'total_tax_payable' => (float) ($summaryGlobal['total_tax_due'] ?? 0),
             'total_net_revenue' => (float) ($summaryGlobal['total_net_revenue'] ?? 0),
@@ -2148,7 +2142,6 @@ class HcmTaxGovernanceController extends Controller
                 return array_merge($item, [
                     'taxable_revenue' => (float) ($item['gross_revenue'] ?? $item['taxable_revenue_amount'] ?? 0),
                     'collected_tax_liability' => (float) ($item['collected_tax_liability'] ?? 0),
-                    'payroll_component' => (float) ($item['payroll_service_fee'] ?? 0),
                     'addon_component' => (float) ($item['addon_revenue'] ?? 0),
                     'total_tax_payable' => (float) ($item['tax_amount_due'] ?? 0),
                 ]);
@@ -2262,7 +2255,6 @@ class HcmTaxGovernanceController extends Controller
                 $key = implode('|', [
                     (string) ($policy->billing_month ?? ''),
                     (string) $rates['subscription_tax_rate'],
-                    (string) $rates['payroll_service_fee'],
                     (string) $rates['addon_markup_rate'],
                     (string) ($policy->billing_cycle_type ?? ''),
                     (string) $rates['source'],
@@ -2283,7 +2275,6 @@ class HcmTaxGovernanceController extends Controller
                 'billing_month' => (string) ($policy->billing_month ?? ''),
                 'billing_cycle_type' => (string) ($policy->billing_cycle_type ?? ''),
                 'subscription_tax_rate' => $rates['subscription_tax_rate'],
-                'payroll_service_fee' => $rates['payroll_service_fee'],
                 'addon_markup_rate' => $rates['addon_markup_rate'],
                 'source' => $rates['source'],
                 'domain' => $rates['domain'],
@@ -2298,7 +2289,7 @@ class HcmTaxGovernanceController extends Controller
     }
 
     /**
-    * @return array{subscription_tax_rate: float, payroll_service_fee: float, addon_markup_rate: float, notes: string, source: string, domain: string, propagation_key: string}
+    * @return array{subscription_tax_rate: float, addon_markup_rate: float, notes: string, source: string, domain: string, propagation_key: string}
      */
     private function extractGlobalRatesFromPolicy(HcmBillingTaxPolicy $policy): array
     {
@@ -2310,7 +2301,6 @@ class HcmTaxGovernanceController extends Controller
 
         return [
             'subscription_tax_rate' => (float) ($globalRates['subscription_tax_rate'] ?? $policy->tax_rate_percentage ?? 0),
-            'payroll_service_fee' => (float) ($globalRates['payroll_service_fee'] ?? 0),
             'addon_markup_rate' => (float) ($globalRates['addon_markup_rate'] ?? 0),
             'notes' => (string) ($decoded['notes'] ?? (string) ($rawNotes ?? '')),
             'source' => (string) ($decoded['source'] ?? 'global_platform_policy'),

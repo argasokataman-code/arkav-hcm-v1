@@ -275,7 +275,7 @@ Template Name: Smarthr - Bootstrap Admin Template
 		showComposeFeedback('info', 'Mengirim email runtime...');
 
 		try {
-			var response = await fetch('/v1/hcm/email-settings/compose', {
+			var response = await fetch('/v1/hcm/notifications/send-email', {
 				method: 'POST',
 				headers: buildHeaders(),
 				credentials: 'same-origin',

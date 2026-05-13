@@ -492,7 +492,6 @@ class WebHcmRouteGuardTest extends TestCase
             '/packages',
             '/domain',
             '/purchase-transaction',
-            '/email-settings',
             '/cronjob-schedule',
             '/business-settings',
             '/bussiness-settings',

@@ -1526,14 +1526,6 @@ Route::get( '/custom-fields', function () {
     return view('custom-fields');
 })->middleware('hcm.web.admin')->name('custom-fields');
 
-Route::get( '/email-settings', function () {
-    return view('email-settings');
-})->middleware('hcm.web.global-admin')->name('email-settings');
-
-Route::get( '/email-template', function () {
-    return view('email-template');
-})->middleware('hcm.web.global-admin')->name('email-template');
-
 Route::get( '/sms-settings', function () {
     return view('sms-settings');
 })->middleware('hcm.web.global-admin')->name('sms-settings');

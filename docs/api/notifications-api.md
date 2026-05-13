@@ -16,6 +16,53 @@ Dokumen ini adalah kontrak runtime Phase 1 untuk inbox notifikasi dan preferensi
 
 ## Endpoints
 
+### POST /v1/hcm/notifications/send-email
+
+Endpoint untuk kirim email manual dari halaman compose (`/email`) tanpa menyimpan konfigurasi SMTP ke database.
+
+Auth & role:
+- Wajib login bearer token.
+- Hanya global HCM admin (`isGlobalHcmAdmin`) yang boleh akses.
+- Tetap tenant-scoped melalui middleware `tenant.context`.
+
+Request body:
+
+```json
+{
+  "to": "recipient@example.com",
+  "subject": "Subject email",
+  "message": "Isi pesan email"
+}
+```
+
+Validasi:
+- `to` wajib email valid.
+- `subject` wajib string, max 255.
+- `message` wajib string, max 5000.
+
+Response 200:
+
+```json
+{
+  "success": true,
+  "data": {
+    "to": "recipient@example.com",
+    "subject": "Subject email",
+    "sentAt": "2026-05-13T19:00:00+07:00"
+  },
+  "message": "Email berhasil dikirim ke recipient@example.com."
+}
+```
+
+Response 403:
+- user bukan global HCM admin.
+
+Response 422:
+- payload tidak valid (`VALIDATION_ERROR`).
+
+Response 500:
+- pengiriman email gagal (`MAIL_ERROR`).
+
 ### GET /v1/hcm/notifications
 
 Query opsional:

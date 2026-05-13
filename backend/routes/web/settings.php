@@ -213,14 +213,6 @@ Route::get('/ai-settings', function () {
     return view('settings.ai-settings');
 })->middleware('hcm.web.global-admin')->name('ai-settings');
 
-Route::get('/email-settings', function () {
-    return view('settings.email-settings');
-})->middleware('hcm.web.global-admin')->name('email-settings');
-
-Route::get('/email-template', function () {
-    return view('settings.email-template');
-})->middleware('hcm.web.global-admin')->name('email-template');
-
 Route::get('/sms-settings', function () {
     return view('settings.sms-settings');
 })->middleware('hcm.web.global-admin')->name('sms-settings');

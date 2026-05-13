@@ -98,8 +98,8 @@ require __DIR__ . '/api/data-privacy.php';
 // Settings
 require __DIR__ . '/api/settings.php';
 
-// Email Settings & Compose (Global Admin)
-require __DIR__ . '/api/email-settings.php';
+// Notifications (Compose Email)
+require __DIR__ . '/api/notifications.php';
 
 // Billing & Subscriptions
 require __DIR__ . '/api/billing.php';

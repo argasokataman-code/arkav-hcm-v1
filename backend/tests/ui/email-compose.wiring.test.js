@@ -186,7 +186,7 @@ describe('email compose wiring', function () {
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     const call = global.fetch.mock.calls[0];
-    expect(call[0]).toBe('/v1/hcm/email-settings/compose');
+    expect(call[0]).toBe('/v1/hcm/notifications/send-email');
     expect(call[1].method).toBe('POST');
     expect(call[1].credentials).toBe('same-origin');
     expect(call[1].headers.Authorization).toBe('Bearer compose-token');

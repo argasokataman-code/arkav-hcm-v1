@@ -380,10 +380,6 @@
     <script src="{{ URL::asset('build/js/activity-data.js') }}?v={{ file_exists(public_path('build/js/activity-data.js')) ? filemtime(public_path('build/js/activity-data.js')) : time() }}"></script>
 @endif
 
-@if (Route::is(['email-settings']))
-    <script src="{{ URL::asset('build/js/email-settings-data.js') }}?v={{ file_exists(public_path('build/js/email-settings-data.js')) ? filemtime(public_path('build/js/email-settings-data.js')) : time() }}"></script>
-@endif
-
 @if (Route::is(['performance-indicator', 'performance-appraisal', 'performance-review']))
     <script src="{{ URL::asset('build/js/performance-data.js') }}"></script>
 @endif

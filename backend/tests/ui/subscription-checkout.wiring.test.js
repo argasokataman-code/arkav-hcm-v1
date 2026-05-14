@@ -205,7 +205,8 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).not.toContain('Biaya layanan');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Pajak langganan 7%');
-    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).toContain('Corporate tax 22%');
+    // Internal components (Corporate tax, etc) are filtered from public UI
+    expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).not.toContain('Corporate tax 22%');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.classList.contains('d-none')).toBe(false);
 
     // Form must be locked (hidden) when a pending invoice exists — prevents double invoice creation.

@@ -13,67 +13,62 @@ class PackageFeatureCatalogRuntimeService
     private const MODULE_META = [
         'employee' => [
             'title' => 'Employee Management',
-            'description' => 'Fitur employee yang terdeteksi dari runtime route/docs repository.',
+            'description' => 'Direktori karyawan, profil employee, dan kontrol kuota aktif.',
             'order' => 10,
         ],
         'attendance' => [
-            'title' => 'Attendance',
-            'description' => 'Fitur attendance yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Attendance & Presence',
+            'description' => 'Absensi harian, jadwal shift, kalender kerja, dan lembur.',
             'order' => 20,
         ],
         'leave' => [
             'title' => 'Leave Management',
-            'description' => 'Fitur leave yang terdeteksi dari runtime route/docs repository.',
+            'description' => 'Pengajuan cuti, approval workflow, dan kalender hari libur.',
             'order' => 30,
         ],
         'payroll' => [
-            'title' => 'Payroll',
-            'description' => 'Fitur payroll yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Payroll & Compensation',
+            'description' => 'Run gaji bulanan, komponen kompensasi, THR, dan slip gaji.',
             'order' => 40,
         ],
         'performance' => [
-            'title' => 'Performance',
-            'description' => 'Fitur performance yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Performance Management',
+            'description' => 'Appraisal, goal tracking, dan riwayat performa karyawan.',
             'order' => 50,
         ],
         'training' => [
-            'title' => 'Training',
-            'description' => 'Fitur training yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Training & Development',
+            'description' => 'Manajemen pelatihan, trainer, dan pengembangan SDM.',
             'order' => 60,
         ],
         'assets' => [
             'title' => 'Asset Management',
-            'description' => 'Fitur asset yang terdeteksi dari runtime route/docs repository.',
+            'description' => 'Lifecycle aset perusahaan: penugasan, pengembalian, monitoring.',
             'order' => 70,
         ],
         'platform' => [
-            'title' => 'Platform',
-            'description' => 'Fitur platform yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Platform & Tools',
+            'description' => 'Sistem internal: notifikasi, FAQ, catatan, dan billing dashboard.',
             'order' => 80,
         ],
         'governance' => [
-            'title' => 'Governance',
-            'description' => 'Fitur governance compliance yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Governance & Compliance',
+            'description' => 'Kepatuhan: pajak, benefit BPJS, data privacy, SPT Masa PPh21.',
             'order' => 85,
         ],
         'tickets' => [
-            'title' => 'Tickets',
-            'description' => 'Fitur ticketing yang terdeteksi dari runtime route/docs repository.',
+            'title' => 'Tickets & Support',
+            'description' => 'Helpdesk internal: tiket support dan issue tracking.',
             'order' => 90,
         ],
         'lifecycle' => [
             'title' => 'Employee Lifecycle',
-            'description' => 'Fitur mutasi lifecycle employee yang terdeteksi dari runtime route/docs repository.',
+            'description' => 'Mutasi karyawan: promosi, resign, terminasi, dan settlement.',
             'order' => 95,
         ],
-        'collaboration' => [
-            'title' => 'Collaboration',
-            'description' => 'Fitur kolaborasi dan knowledge internal yang terdeteksi dari runtime route/docs repository.',
-            'order' => 96,
-        ],
         'custom' => [
-            'title' => 'Custom Features',
-            'description' => 'Fitur runtime yang belum punya klasifikasi modul baku.',
+            'title' => 'Add-ons (Unclassified)',
+            'description' => 'Fitur tambahan yang masih dalam evaluasi atau setup khusus.',
             'order' => 999,
         ],
     ];
@@ -480,11 +475,11 @@ class PackageFeatureCatalogRuntimeService
             return 'tickets';
         }
 
-        if (in_array($code, ['notifications', 'trial_billing_dashboard', 'tax_governance'], true)) {
+        if (in_array($code, ['notifications', 'trial_billing_dashboard', 'notes', 'faq'], true)) {
             return 'platform';
         }
 
-        if (in_array($code, ['allowance_governance', 'bpjs_governance', 'spt_masa_pph21'], true)) {
+        if (in_array($code, ['allowance_governance', 'bpjs_governance', 'spt_masa_pph21', 'data_privacy', 'tax_governance'], true)) {
             return 'governance';
         }
 
@@ -492,8 +487,8 @@ class PackageFeatureCatalogRuntimeService
             return 'lifecycle';
         }
 
-        if (in_array($code, ['data_privacy', 'notes', 'faq', 'calendar_events'], true)) {
-            return 'collaboration';
+        if ($code === 'calendar_events') {
+            return 'attendance';
         }
 
         if ($code === 'overtime') {

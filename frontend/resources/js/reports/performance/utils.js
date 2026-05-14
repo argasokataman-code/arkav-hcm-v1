@@ -1,0 +1,118 @@
+/* global bootstrap */
+
+(function (window) {
+  'use strict';
+
+  function esc(s) {
+    return String(s ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function notify(type, message) {
+    try {
+      if (window.ArcavUi && typeof window.ArcavUi.toast === 'function') {
+        window.ArcavUi.toast(type, message);
+        return;
+      }
+    } catch (_) {}
+    if (type === 'error') console.error(message);
+    else console.log(message);
+  }
+
+  function getAuthHeaders() {
+    const headers = {};
+    const token = window.AuthApi && typeof window.AuthApi.getToken === 'function'
+      ? window.AuthApi.getToken()
+      : null;
+    const tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === 'function'
+      ? (window.AuthApi.getTenantContext() || {})
+      : {};
+
+    if (token) {
+      headers.Authorization = 'Bearer ' + token;
+    }
+    if (tenant.companyCode) {
+      headers['X-Company-Code'] = tenant.companyCode;
+    }
+    if (tenant.companyId) {
+      headers['X-Company-Id'] = String(tenant.companyId);
+    }
+    if (tenant.companyUuid) {
+      headers['X-Company-UUID'] = String(tenant.companyUuid);
+    }
+
+    return headers;
+  }
+
+  async function apiRequest(method, url, body) {
+    const headers = {
+      Accept: 'application/json',
+      ...getAuthHeaders(),
+    };
+
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (window.axios) {
+      try {
+        const res = await window.axios.request({
+          method,
+          url,
+          data: body,
+          headers,
+          withCredentials: true,
+        });
+        return res.data;
+      } catch (err) {
+        const status = err?.response?.status;
+        const data = err?.response?.data;
+        if (status === 401 || data?.error?.code === 'AUTH_UNAUTHORIZED') {
+          window.location.replace('/login');
+          return new Promise(() => {});
+        }
+        throw err;
+      }
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+    });
+
+    const text = await res.text();
+    let json;
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch (_) {
+      json = { success: false, error: { message: text || 'Invalid response' } };
+    }
+    if (!res.ok) {
+      if (res.status === 401 || json?.error?.code === 'AUTH_UNAUTHORIZED') {
+        window.location.replace('/login');
+        return new Promise(() => {});
+      }
+      throw json;
+    }
+    return json;
+  }
+
+  function apiErrorMessage(err) {
+    const e = err?.response?.data ?? err;
+    return e?.error?.message || e?.message || 'Terjadi kesalahan. Silakan coba lagi.';
+  }
+
+  window.ArcavPerformanceUtils = {
+    esc,
+    notify,
+    getAuthHeaders,
+    apiRequest,
+    apiErrorMessage,
+  };
+})(window);

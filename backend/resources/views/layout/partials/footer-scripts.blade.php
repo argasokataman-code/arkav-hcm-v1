@@ -1,9 +1,9 @@
 
 <!-- jQuery -->
-<script src="{{ URL::asset('build/js/jquery-3.7.1.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/jquery-3.7.1.min.js') }}"></script>
 
 <!-- Bootstrap Core JS -->
-<script src="{{ URL::asset('build/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/bootstrap.bundle.min.js') }}"></script>
 
 <!-- Authorization/Permissions Utility (MUST BE LOADED EARLY) -->
 <script>
@@ -51,24 +51,24 @@
         name: '{{ $footerAuthUser?->name ?? '' }}',
 	};
 </script>
-<script src="{{ URL::asset('build/js/auth-permissions-utils.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/auth-permissions-utils.js') }}"></script>
 
 <!-- Feather Icon JS -->
-<script src="{{ URL::asset('build/js/feather.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/feather.min.js') }}"></script>
 
 <!-- Slimscroll JS -->
-<script src="{{ URL::asset('build/js/jquery.slimscroll.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/jquery.slimscroll.min.js') }}"></script>
 
 <!-- Summernote JS -->
 <script src="{{ URL::asset('build/plugins/summernote/summernote-lite.min.js') }}"></script>
 
 <!-- Color Picker JS -->
-<script src="{{ URL::asset('build/js/plyr-js.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/plyr-js.js') }}"></script>
 <script src="{{ URL::asset('build/plugins/@simonwep/pickr/pickr.es5.min.js') }}"></script>
 
 <!-- Datatable JS -->
-<script src="{{ URL::asset('build/js/jquery.dataTables.min.js') }}"></script>
-<script src="{{ URL::asset('build/js/dataTables.bootstrap5.min.js') }}"></script>	
+<script src="{{ URL::asset('build/js/vendor/jquery.dataTables.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/dataTables.bootstrap5.min.js') }}"></script>	
 
 <!-- Bootstrap Tagsinput JS -->
 <script src="{{ URL::asset('build/plugins/bootstrap-tagsinput/bootstrap-tagsinput.js') }}"></script>
@@ -77,7 +77,7 @@
 <script src="{{ URL::asset('build/plugins/owlcarousel/owl.carousel.min.js') }}"></script>
 
 <!-- Daterangepikcer JS -->
-<script src="{{ URL::asset('build/js/moment.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/moment.js') }}"></script>
 <script src="{{ URL::asset('build/plugins/daterangepicker/daterangepicker.js') }}"></script>
 
 @if (Route::is(['ui-rangeslider']))
@@ -91,7 +91,7 @@
 <script src="{{ URL::asset('build/plugins/fullcalendar/calendar-data.js') }}"></script>
 
 <!-- Datetimepicker JS -->
-<script src="{{ URL::asset('build/js/bootstrap-datetimepicker.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/bootstrap-datetimepicker.min.js') }}"></script>
 
 <!-- Select2 JS -->
 <script src="{{ URL::asset('build/plugins/select2/js/select2.min.js') }}"></script>
@@ -101,7 +101,7 @@
 <script src="{{ URL::asset('build/plugins/theia-sticky-sidebar/ResizeSensor.min.js') }}"></script>
 
 <!-- Owl Carousel JS -->
-<script src="{{ URL::asset('build/js/owl.carousel.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/owl.carousel.min.js') }}"></script>
 
 @if (Route::is(['ui-clipboard']))
     <!-- Clipboard JS -->
@@ -113,11 +113,11 @@
 <script src="{{ URL::asset('build/plugins/jsvectormap/js/jsvectormap.min.js') }}"></script>
 <!-- JSVector Maps MapsJS -->
 <script src="{{ URL::asset('build/plugins/jsvectormap/maps/world-merc.js') }}"></script>
-<script src="{{ URL::asset('build/js/us-merc-en.js') }}"></script>
-<script src="{{ URL::asset('build/js/russia.js') }}"></script>
-<script src="{{ URL::asset('build/js/spain.js') }}"></script>
-<script src="{{ URL::asset('build/js/canada.js') }}"></script>
-<script src="{{ URL::asset('build/js/jsvectormap.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/us-merc-en.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/russia.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/spain.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/canada.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/jsvectormap.js') }}"></script>
 <script src="{{ URL::asset('build/plugins/@simonwep/pickr/pickr.min.js') }}"></script>
 
 @endif
@@ -125,7 +125,7 @@
 @if (Route::is(['maps-leaflet']))
 
 <script src="{{ URL::asset('build/plugins/leaflet/leaflet.js') }}"></script>
-<script src="{{ URL::asset('build/js/leaflet.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/leaflet.js') }}"></script>
 
 @endif
 
@@ -144,8 +144,8 @@
 
 @if (Route::is(['ui-stickynote', 'candidates-kanban']))
     <!-- Stickynote JS -->
-    <script src="{{ URL::asset('build/js/jquery-ui.min.js') }}"></script>
-    <script src="{{ URL::asset('build/js/jquery.ui.touch-punch.min.js') }}"></script>    
+    <script src="{{ URL::asset('build/js/vendor/jquery-ui.min.js') }}"></script>
+    <script src="{{ URL::asset('build/js/vendor/jquery.ui.touch-punch.min.js') }}"></script>    
 @endif
 
 @if (Route::is(['ui-stickynote']))
@@ -203,14 +203,14 @@
 @endif
 
 <!-- Slimscroll JS -->
-<script src="{{ URL::asset('build/js/jquery.slimscroll.min.js') }}"></script>
+<script src="{{ URL::asset('build/js/vendor/jquery.slimscroll.min.js') }}"></script>
 
 @if (Route::is(['ui-rating']))
     <!-- Rater JS -->
     <script src="{{ URL::asset('build/plugins/rater-js/index.js') }}"></script>
 
     <!-- Internal Ratings JS -->
-    <script src="{{ URL::asset('build/js/ratings.js') }}"></script>
+    <script src="{{ URL::asset('build/js/vendor/ratings.js') }}"></script>
 @endif
 
 @if (Route::is(['ui-toasts']))
@@ -241,8 +241,8 @@
 
 @if (Route::is(['form-mask']))
     <!-- Mask JS -->
-    <script src="{{ URL::asset('build/js/jquery.maskedinput.min.js') }}"></script>
-    <script src="{{ URL::asset('build/js/mask.js') }}"></script>
+    <script src="{{ URL::asset('build/js/vendor/jquery.maskedinput.min.js') }}"></script>
+    <script src="{{ URL::asset('build/js/core/mask.js') }}"></script>
 @endif
 
 <!-- Sticky Sidebar JS -->
@@ -251,11 +251,11 @@
 
 @if (Route::is(['reset-password','reset-password-2','reset-password-3']))
 <!-- Validation-->
-<script src="{{ URL::asset('build/js/validation.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/validation.js') }}"></script>
 @endif
 
 @if (Route::is(['email-verification','email-verification-2','email-verification-3','two-step-verification','two-step-verification-2','two-step-verification-3']))
-<script src="{{ URL::asset('build/js/otp.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/otp.js') }}"></script>
 @endif
 
 
@@ -266,11 +266,12 @@
 @endif
 
 @if (Route::is(['employee-salary']))
-<script src="{{ URL::asset('build/js/employee-salary-data.js') }}?v={{ file_exists(public_path('build/js/employee-salary-data.js')) ? filemtime(public_path('build/js/employee-salary-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/employees/employee-salary-data.js') }}?v={{ file_exists(public_path('build/js/employees/employee-salary-data.js')) ? filemtime(public_path('build/js/employees/employee-salary-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['assets', 'asset-categories']))
-<script src="{{ URL::asset('build/js/asset-management-data.js') }}?v={{ file_exists(public_path('build/js/asset-management-data.js')) ? filemtime(public_path('build/js/asset-management-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/assets/asset-management/utils.js') }}?v={{ file_exists(public_path('build/js/assets/asset-management/utils.js')) ? filemtime(public_path('build/js/assets/asset-management/utils.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/assets/asset-management-data.js') }}?v={{ file_exists(public_path('build/js/assets/asset-management-data.js')) ? filemtime(public_path('build/js/assets/asset-management-data.js')) : time() }}"></script>
 @endif
 
 
@@ -286,38 +287,41 @@
 <script src="{{ URL::asset('build/plugins/pickr/pickr.js') }}"></script>
 
 <!-- Page JS -->
-<script src="{{ URL::asset('build/js/forms-pickers.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/forms-pickers.js') }}"></script>
 @endif
 
 
 @if (Route::is(['coming-soon']))
-<script src="{{ URL::asset('build/js/coming-soon.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/coming-soon.js') }}"></script>
 @endif
 
-<script src="{{ URL::asset('build/js/email.js') }}"></script>
-<script src="{{ URL::asset('build/js/kanban.js') }}"></script>
-<script src="{{ URL::asset('build/js/invoice.js') }}"></script>
-<script src="{{ URL::asset('build/js/projects.js') }}"></script>
-<script src="{{ URL::asset('build/js/add-comments.js')}}"></script>
-<script src="{{ URL::asset('build/js/file-manager.js') }}"></script>
-<script src="{{ URL::asset('build/js/api-client.js') }}"></script>
-<script src="{{ URL::asset('build/js/arcav-validation.js') }}"></script>
-<script src="{{ URL::asset('build/js/arcav-template-cleanup.js') }}"></script>
-<script src="{{ URL::asset('build/js/auth-logout.js') }}"></script>
-<script src="{{ URL::asset('build/js/notification-inbox-data.js') }}"></script>
-<script src="{{ URL::asset('build/js/global-search-data.js') }}?v={{ file_exists(public_path('build/js/global-search-data.js')) ? filemtime(public_path('build/js/global-search-data.js')) : time() }}"></script>
-<script src="{{ URL::asset('build/js/ai-chat-widget.js') }}?v={{ file_exists(public_path('build/js/ai-chat-widget.js')) ? filemtime(public_path('build/js/ai-chat-widget.js')) : time() }}"></script>
-<script src="{{ URL::asset('build/js/employees-view-toggle.js') }}"></script>
-<script src="{{ URL::asset('build/js/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees-data.js')) ? filemtime(public_path('build/js/employees-data.js')) : time() }}"></script>
-<script src="{{ URL::asset('build/js/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm-pages-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/crm/email.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/kanban.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/invoice.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/projects.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/add-comments.js')}}"></script>
+<script src="{{ URL::asset('build/js/crm/file-manager.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/api-client.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/arcav-validation.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/arcav-template-cleanup.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/auth-logout.js') }}"></script>
+<script src="{{ URL::asset('build/js/notifications/notification-inbox-data.js') }}"></script>
+<script src="{{ URL::asset('build/js/notifications/global-search-data.js') }}?v={{ file_exists(public_path('build/js/notifications/global-search-data.js')) ? filemtime(public_path('build/js/notifications/global-search-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/notifications/ai-chat-widget.js') }}?v={{ file_exists(public_path('build/js/notifications/ai-chat-widget.js')) ? filemtime(public_path('build/js/notifications/ai-chat-widget.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/employees/employees-view-toggle.js') }}"></script>
+<script src="{{ URL::asset('build/js/employees/module-loaders.js') }}?v={{ file_exists(public_path('build/js/employees/module-loaders.js')) ? filemtime(public_path('build/js/employees/module-loaders.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/employees/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees/employees-data.js')) ? filemtime(public_path('build/js/employees/employees-data.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/hcm/hcm-pages/utils.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-pages/utils.js')) ? filemtime(public_path('build/js/hcm/hcm-pages/utils.js')) : time() }}"></script>
+<script src="{{ URL::asset('build/js/hcm/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm/hcm-pages-data.js')) : time() }}"></script>
 @if (Route::is(['pages']))
-    <script src="{{ URL::asset('build/js/pages-hcm-hub.js') }}?v={{ file_exists(public_path('build/js/pages-hcm-hub.js')) ? filemtime(public_path('build/js/pages-hcm-hub.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/hcm/pages-hcm-hub.js') }}?v={{ file_exists(public_path('build/js/hcm/pages-hcm-hub.js')) ? filemtime(public_path('build/js/hcm/pages-hcm-hub.js')) : time() }}"></script>
 @endif
 @if (Route::is(['index']))
-    <script src="{{ URL::asset('build/js/index-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/index-dashboard-data.js')) ? filemtime(public_path('build/js/index-dashboard-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/index-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/reports/index-dashboard-data.js')) ? filemtime(public_path('build/js/reports/index-dashboard-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['employee-dashboard']))
-    <script src="{{ URL::asset('build/js/employee-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/employee-dashboard-data.js')) ? filemtime(public_path('build/js/employee-dashboard-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/employees/employee-dashboard/template-binders.js') }}?v={{ file_exists(public_path('build/js/employees/employee-dashboard/template-binders.js')) ? filemtime(public_path('build/js/employees/employee-dashboard/template-binders.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/employees/employee-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/employees/employee-dashboard-data.js')) ? filemtime(public_path('build/js/employees/employee-dashboard-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['attendance-employee', 'employee-dashboard']))
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -330,113 +334,121 @@
     <script src="{{ URL::asset('build/vendor/fullcalendar/timegrid/index.global.min.js') }}"></script>
     <script src="{{ URL::asset('build/vendor/fullcalendar/list/index.global.min.js') }}"></script>
 @endif
-<script type="module" src="{{ URL::asset('build/js/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance-data.js')) ? filemtime(public_path('build/js/attendance-data.js')) : time() }}"></script>
+<script type="module" src="{{ URL::asset('build/js/attendance/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-data.js')) ? filemtime(public_path('build/js/attendance/attendance-data.js')) : time() }}"></script>
 
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
-    <script src="{{ URL::asset('build/js/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm-extras-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/hcm/hcm-extras/module-loaders.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras/module-loaders.js')) ? filemtime(public_path('build/js/hcm/hcm-extras/module-loaders.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/hcm/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm/hcm-extras-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['tickets', 'tickets-admin', 'tickets-employee', 'tickets-grid', 'ticket-details', 'ticket-master']))
-    <script src="{{ URL::asset('build/js/tickets-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/documents/tickets-data.js') }}"></script>
 @endif
 
 @if (Route::is(['profile']))
-    <script src="{{ URL::asset('build/js/profile-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/employees/profile-data.js') }}"></script>
 @endif
 
 @if (Route::is(['profile-settings']))
-    <script src="{{ URL::asset('build/js/profile-settings-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/employees/profile-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['company-profile']))
-    <script src="{{ URL::asset('build/js/company-profile-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/company/company-profile-data.js') }}"></script>
 @endif
 
 @if (Route::is(['company-overview']))
-    <script src="{{ URL::asset('build/js/company-overview-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/company/company-overview-data.js') }}"></script>
 @endif
 
 @if (Route::is(['invoice-settings']))
-    <script src="{{ URL::asset('build/js/invoice-settings-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/settings/invoice-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['notification-settings']))
-    <script src="{{ URL::asset('build/js/notification-settings-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/notifications/notification-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['security-settings']))
-    <script src="{{ URL::asset('build/js/security-settings-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/security/security-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['security-incidents']))
-    <script src="{{ URL::asset('build/js/security-incidents-data.js') }}?v={{ file_exists(public_path('build/js/security-incidents-data.js')) ? filemtime(public_path('build/js/security-incidents-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/security/security-incidents-data.js') }}?v={{ file_exists(public_path('build/js/security/security-incidents-data.js')) ? filemtime(public_path('build/js/security/security-incidents-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['notification-observability']))
-    <script src="{{ URL::asset('build/js/notification-observability-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/notifications/notification-observability-data.js') }}"></script>
 @endif
 
 @if (Route::is(['activity']))
-    <script src="{{ URL::asset('build/js/activity-data.js') }}?v={{ file_exists(public_path('build/js/activity-data.js')) ? filemtime(public_path('build/js/activity-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/activity-data.js') }}?v={{ file_exists(public_path('build/js/reports/activity-data.js')) ? filemtime(public_path('build/js/reports/activity-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['performance-indicator', 'performance-appraisal', 'performance-review']))
-    <script src="{{ URL::asset('build/js/performance-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/reports/performance/utils.js') }}?v={{ file_exists(public_path('build/js/reports/performance/utils.js')) ? filemtime(public_path('build/js/reports/performance/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/performance-data.js') }}"></script>
 @endif
 
 @if (Route::is(['goal-tracking', 'goal-type']))
-    <script src="{{ URL::asset('build/js/goal-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/reports/goal-data.js') }}"></script>
 @endif
 
 @if (Route::is(['training', 'training-type']))
-    <script src="{{ URL::asset('build/js/training-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/reports/training/utils.js') }}?v={{ file_exists(public_path('build/js/reports/training/utils.js')) ? filemtime(public_path('build/js/reports/training/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/training-data.js') }}"></script>
 @endif
 
 @if (Route::is(['document-center']))
-    <script src="{{ URL::asset('build/js/document-center.js') }}?v={{ file_exists(public_path('build/js/document-center.js')) ? filemtime(public_path('build/js/document-center.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/documents/document-center.js') }}?v={{ file_exists(public_path('build/js/documents/document-center.js')) ? filemtime(public_path('build/js/documents/document-center.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['users']))
-    <script src="{{ URL::asset('build/js/users-management.js') }}?v={{ file_exists(public_path('build/js/users-management.js')) ? filemtime(public_path('build/js/users-management.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/employees/users-management.js') }}?v={{ file_exists(public_path('build/js/employees/users-management.js')) ? filemtime(public_path('build/js/employees/users-management.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['roles-permissions']))
-    <script src="{{ URL::asset('build/js/roles-permissions.js') }}?v={{ file_exists(public_path('build/js/roles-permissions.js')) ? filemtime(public_path('build/js/roles-permissions.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/security/roles-permissions.js') }}?v={{ file_exists(public_path('build/js/security/roles-permissions.js')) ? filemtime(public_path('build/js/security/roles-permissions.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['reports-hub']))
-    <script src="{{ URL::asset('build/js/reports-hub.js') }}?v={{ file_exists(public_path('build/js/reports-hub.js')) ? filemtime(public_path('build/js/reports-hub.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/reports-hub.js') }}?v={{ file_exists(public_path('build/js/reports/reports-hub.js')) ? filemtime(public_path('build/js/reports/reports-hub.js')) : time() }}"></script>
 @endif
 
 @if (request()->is('tax-rates*') || request()->is('tax-employees*') || request()->is('platform-tax-compliance*') || request()->is('saas/pricing*'))
-    <script src="{{ URL::asset('build/js/tax-governance-dashboard.js') }}?v={{ file_exists(public_path('build/js/tax-governance-dashboard.js')) ? filemtime(public_path('build/js/tax-governance-dashboard.js')) : time() }}"></script>
-    <script src="{{ URL::asset('build/js/tax-employee-profiles.js') }}?v={{ file_exists(public_path('build/js/tax-employee-profiles.js')) ? filemtime(public_path('build/js/tax-employee-profiles.js')) : time() }}"></script>
-    <script src="{{ URL::asset('build/js/tax-tenant-compliance.js') }}?v={{ file_exists(public_path('build/js/tax-tenant-compliance.js')) ? filemtime(public_path('build/js/tax-tenant-compliance.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/tax-governance/dashboard-utils.js') }}?v={{ file_exists(public_path('build/js/payroll/tax-governance/dashboard-utils.js')) ? filemtime(public_path('build/js/payroll/tax-governance/dashboard-utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/tax-governance/compliance-renderers.js') }}?v={{ file_exists(public_path('build/js/payroll/tax-governance/compliance-renderers.js')) ? filemtime(public_path('build/js/payroll/tax-governance/compliance-renderers.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/tax-governance-dashboard.js') }}?v={{ file_exists(public_path('build/js/payroll/tax-governance-dashboard.js')) ? filemtime(public_path('build/js/payroll/tax-governance-dashboard.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/tax-employee-profiles.js') }}?v={{ file_exists(public_path('build/js/payroll/tax-employee-profiles.js')) ? filemtime(public_path('build/js/payroll/tax-employee-profiles.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/tax-tenant-compliance.js') }}?v={{ file_exists(public_path('build/js/payroll/tax-tenant-compliance.js')) ? filemtime(public_path('build/js/payroll/tax-tenant-compliance.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['invoice-report', 'payment-report', 'user-report', 'daily-report']))
-    <script src="{{ URL::asset('build/js/reports-api-sync.js') }}?v={{ file_exists(public_path('build/js/reports-api-sync.js')) ? filemtime(public_path('build/js/reports-api-sync.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/reports-api-sync.js') }}?v={{ file_exists(public_path('build/js/reports/reports-api-sync.js')) ? filemtime(public_path('build/js/reports/reports-api-sync.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['trainers']))
-    <script src="{{ URL::asset('build/js/training-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/reports/training/utils.js') }}?v={{ file_exists(public_path('build/js/reports/training/utils.js')) ? filemtime(public_path('build/js/reports/training/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/reports/training-data.js') }}"></script>
 @endif
 
 @if (Route::is(['shift-master']))
-    <script src="{{ URL::asset('build/js/shift-master-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/shift-master-data.js') }}"></script>
 @endif
 
 @if (Route::is(['salary-component-master']))
-    <script src="{{ URL::asset('build/js/salary-component-master-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/salary-component-master/utils.js') }}?v={{ file_exists(public_path('build/js/payroll/salary-component-master/utils.js')) ? filemtime(public_path('build/js/payroll/salary-component-master/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/salary-component-master-data.js') }}"></script>
 @endif
 @if (request()->is('bpjs-governance*'))
-    <script src="{{ URL::asset('build/js/bpjs-governance-data.js') }}?v={{ file_exists(public_path('build/js/bpjs-governance-data.js')) ? filemtime(public_path('build/js/bpjs-governance-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/bpjs-governance/utils.js') }}?v={{ file_exists(public_path('build/js/payroll/bpjs-governance/utils.js')) ? filemtime(public_path('build/js/payroll/bpjs-governance/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/bpjs-governance-data.js') }}?v={{ file_exists(public_path('build/js/payroll/bpjs-governance-data.js')) ? filemtime(public_path('build/js/payroll/bpjs-governance-data.js')) : time() }}"></script>
 @endif
 @if (request()->is('employee-allowance-governance*'))
-    <script src="{{ URL::asset('build/js/employee-allowance-governance-data.js') }}?v={{ file_exists(public_path('build/js/employee-allowance-governance-data.js')) ? filemtime(public_path('build/js/employee-allowance-governance-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/employees/employee-allowance-governance-data.js') }}?v={{ file_exists(public_path('build/js/employees/employee-allowance-governance-data.js')) ? filemtime(public_path('build/js/employees/employee-allowance-governance-data.js')) : time() }}"></script>
 @endif
 @if (request()->is('spt-masa-pph21*'))
-    <script src="{{ URL::asset('build/js/spt-masa-data.js') }}?v={{ file_exists(public_path('build/js/spt-masa-data.js')) ? filemtime(public_path('build/js/spt-masa-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/spt-masa-data.js') }}?v={{ file_exists(public_path('build/js/payroll/spt-masa-data.js')) ? filemtime(public_path('build/js/payroll/spt-masa-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['payroll-run']))
     <script src="{{ URL::asset('build/js/payroll-run.js') }}?v={{ file_exists(public_path('build/js/payroll-run.js')) ? filemtime(public_path('build/js/payroll-run.js')) : time() }}"></script>
@@ -446,60 +458,63 @@
     @endif
 @endif
 @if (Route::is(['payroll-run-history']))
-    <script src="{{ URL::asset('build/js/payroll-run-history-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/payroll-run-history-data.js') }}"></script>
 @endif
 @if (Route::is(['payroll-thr']))
-    <script src="{{ URL::asset('build/js/payroll-thr-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/payroll-thr-data.js') }}"></script>
     {{-- Cache-bust: bundel lama pernah mem-minify apiRequest jadi global `$` dan menimpa jQuery --}}
     <script src="{{ URL::asset('build/js/thr-payroll-batch.js') }}?v=20260411-disburse-modal"></script>
 @endif
 @if (Route::is(['payroll-pkwt-compensation']))
-    <script src="{{ URL::asset('build/js/pkwt-compensation-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/pkwt-compensation-data.js') }}"></script>
 @endif
 
 @if (Route::is(['payroll-overtime']))
-    <script src="{{ URL::asset('build/js/payroll-overtime-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/payroll-overtime-data.js') }}"></script>
 @endif
 
 @if (Route::is(['payslip']))
-    <script src="{{ URL::asset('build/js/payslip-data.js') }}?v={{ file_exists(public_path('build/js/payslip-data.js')) ? filemtime(public_path('build/js/payslip-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/payslip-data.js') }}?v={{ file_exists(public_path('build/js/payroll/payslip-data.js')) ? filemtime(public_path('build/js/payroll/payslip-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['payslip-report']))
-    <script src="{{ URL::asset('build/js/payslip-admin-data.js') }}?v={{ file_exists(public_path('build/js/payslip-admin-data.js')) ? filemtime(public_path('build/js/payslip-admin-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/payslip-admin-data.js') }}?v={{ file_exists(public_path('build/js/payroll/payslip-admin-data.js')) ? filemtime(public_path('build/js/payroll/payslip-admin-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['overtime-master']))
-    <script src="{{ URL::asset('build/js/overtime-master-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/payroll/overtime-master-data.js') }}"></script>
 @endif
 
 @if (Route::is(['leave-settings']))
-    <script src="{{ URL::asset('build/js/leave-settings-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/leave/leave-settings/utils.js') }}"></script>
+    <script src="{{ URL::asset('build/js/leave/leave-settings-data.js') }}"></script>
 @endif
 
 @if (Route::is(['saas.billing-overview', 'saas.billing-overview.invoice-detail']))
-    <script src="{{ URL::asset('build/js/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas-billing-overview.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/saas/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas/saas-billing-overview.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['upgrade']))
-    <script src="{{ URL::asset('build/js/upgrade-data.js') }}?v={{ file_exists(public_path('build/js/upgrade-data.js')) ? filemtime(public_path('build/js/upgrade-data.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/saas/upgrade/utils.js') }}?v={{ file_exists(public_path('build/js/saas/upgrade/utils.js')) ? filemtime(public_path('build/js/saas/upgrade/utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/saas/upgrade-data.js') }}?v={{ file_exists(public_path('build/js/saas/upgrade-data.js')) ? filemtime(public_path('build/js/saas/upgrade-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['promotion', 'employee-details']))
-    <script src="{{ URL::asset('build/js/promotion-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/super-admin/promotion-data.js') }}"></script>
 @endif
 
 @if (Route::is(['resignation', 'employee-details']))
-    <script src="{{ URL::asset('build/js/resignation-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/super-admin/resignation-data.js') }}"></script>
 @endif
 
 @if (Route::is(['termination', 'employee-details']))
-    <script src="{{ URL::asset('build/js/termination-data.js') }}"></script>
+    <script src="{{ URL::asset('build/js/super-admin/termination-utils.js') }}?v={{ file_exists(public_path('build/js/super-admin/termination-utils.js')) ? filemtime(public_path('build/js/super-admin/termination-utils.js')) : time() }}"></script>
+    <script src="{{ URL::asset('build/js/super-admin/termination-data.js') }}"></script>
 @endif
 
 @stack('scripts')
 
 <!-- Custom JS -->
-<script src="{{ URL::asset('build/js/todo.js') }}"></script>
-<script src="{{ URL::asset('build/js/theme-colorpicker.js') }}"></script>
-<script src="{{ URL::asset('build/js/script.js') }}"></script>
+<script src="{{ URL::asset('build/js/crm/todo.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/theme-colorpicker.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/script.js') }}"></script>

@@ -225,7 +225,9 @@
     </div>
 </div>
 
-<script src="{{ asset('build/js/subscriptions-management.js') }}?v={{ filemtime(public_path('build/js/subscriptions-management.js')) }}"></script>
+<script src="{{ asset('build/js/saas/subscriptions/http-client.js') }}?v={{ file_exists(public_path('build/js/saas/subscriptions/http-client.js')) ? filemtime(public_path('build/js/saas/subscriptions/http-client.js')) : time() }}"></script>
+<script src="{{ asset('build/js/saas/subscriptions/utils.js') }}?v={{ file_exists(public_path('build/js/saas/subscriptions/utils.js')) ? filemtime(public_path('build/js/saas/subscriptions/utils.js')) : time() }}"></script>
+<script src="{{ asset('build/js/saas/subscriptions-management.js') }}?v={{ filemtime(public_path('build/js/saas/subscriptions-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.SubscriptionsManager?.init?.();

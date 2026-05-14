@@ -199,6 +199,7 @@
         </div>
     </div>
 
-    <script src="{{ asset('build/js/super-admin-dashboard-data.js') }}?v={{ filemtime(public_path('build/js/super-admin-dashboard-data.js')) }}"></script>
+    <script src="{{ asset('build/js/saas/super-admin-dashboard-utils.js') }}?v={{ file_exists(public_path('build/js/saas/super-admin-dashboard-utils.js')) ? filemtime(public_path('build/js/saas/super-admin-dashboard-utils.js')) : time() }}"></script>
+    <script src="{{ asset('build/js/saas/super-admin-dashboard-data.js') }}?v={{ filemtime(public_path('build/js/saas/super-admin-dashboard-data.js')) }}"></script>
 
 @endsection

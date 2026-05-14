@@ -3,201 +3,37 @@
 
   const API_BASE = "/v1/saas/subscriptions";
   const PAGE_SIZE = 10;
-  let apiToken = null;
-
-  /**
-   * Fetch API token from /api-token endpoint
-   */
-  function getApiToken() {
-    if (apiToken) {
-      return Promise.resolve(apiToken);
-    }
-
-    return fetch("/api-token", {
-      method: "GET",
+  const subscriptionsHttp = window.ArcavSubscriptionsHttp || {};
+  const apiRequest = subscriptionsHttp.apiRequest || function (method, url, body) {
+    const opts = {
+      method: method,
       headers: {
         Accept: "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/json",
       },
       credentials: "same-origin",
-    })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok || !data.success) {
-            return Promise.reject({
-              status: res.status,
-              data: data,
-            });
-          }
-          apiToken = data.data.token;
-          return apiToken;
-        });
-      })
-      .catch(function (err) {
-        console.error("Failed to fetch API token:", err);
-        throw err;
-      });
-  }
-
-  // Utility: API request with auth headers
-  function apiRequest(method, url, body) {
-    return getApiToken()
-      .then(function (token) {
-        const headers = {
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-          "Authorization": "Bearer " + token,
-        };
-
-        if (body && typeof body === "object" && !(body instanceof FormData)) {
-          headers["Content-Type"] = "application/json";
-        }
-
-        const opts = {
-          method: method,
-          headers: headers,
-          credentials: "same-origin",
-        };
-
-        if (body && method !== "GET") {
-          opts.body = body instanceof FormData ? body : JSON.stringify(body);
-        }
-
-        return fetch(url, opts)
-          .then(function (res) {
-            return res
-              .json()
-              .catch(function () {
-                return {};
-              })
-              .then(function (data) {
-                if (!res.ok) {
-                  return Promise.reject({
-                    status: res.status,
-                    data: data,
-                  });
-                }
-                return data;
-              });
-          });
-      })
-      .catch(function (err) {
-        console.error("API request failed:", err);
-        throw err;
-      });
-  }
-
-  function formatCompanyReference(row) {
-    const companyCode = row && row.company_code ? String(row.company_code).trim() : "";
-    if (companyCode) {
-      return companyCode;
+    };
+    if (body && method !== "GET") {
+      opts.body = JSON.stringify(body);
     }
-    const companyId = Number(row && row.company_id);
-    if (Number.isFinite(companyId) && companyId > 0) {
-      return "CMP-" + String(Math.trunc(companyId));
-    }
-    return "Company tercatat";
-  }
+    return fetch(url, opts).then(function (res) {
+      return res.json();
+    });
+  };
 
-  // Helper: escape HTML
-  function esc(v) {
-    return String(v || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function normalizeAnomalyBadges(flags) {
-    const list = Array.isArray(flags) ? flags : [];
-    if (!list.length) {
-      return '<span class="badge bg-success-subtle text-success">No anomaly</span>';
-    }
-
-    return list.map(function (rawFlag) {
-      const flag = String(rawFlag || "").toUpperCase();
-      let cls = "bg-warning-subtle text-warning";
-      let label = flag;
-
-      if (flag === "BILLING_OVERDUE_INVOICE") {
-        cls = "bg-danger-subtle text-danger";
-        label = "Invoice overdue";
-      } else if (flag === "BILLING_PARTIAL_PAYMENT") {
-        cls = "bg-warning-subtle text-warning";
-        label = "Partial payment";
-      } else if (flag === "BILLING_UNPAID_INVOICE") {
-        cls = "bg-warning-subtle text-warning";
-        label = "Invoice unpaid";
-      } else if (flag === "SUBSCRIPTION_NOT_ACTIVE") {
-        cls = "bg-info-subtle text-info";
-        label = "Subscription non-active";
-      }
-
-      return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
-    }).join(" ");
-  }
-
-  // Format date as DD/MM/YYYY
-  function formatDate(dateStr) {
-    if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    return (
-      ("0" + d.getDate()).slice(-2) +
-      "/" +
-      ("0" + (d.getMonth() + 1)).slice(-2) +
-      "/" +
-      d.getFullYear()
-    );
-  }
-
-  function formatDateTime(dateStr) {
-    if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return String(dateStr);
-    return (
-      ("0" + d.getDate()).slice(-2) +
-      "/" +
-      ("0" + (d.getMonth() + 1)).slice(-2) +
-      "/" +
-      d.getFullYear() +
-      " " +
-      ("0" + d.getHours()).slice(-2) +
-      ":" +
-      ("0" + d.getMinutes()).slice(-2)
-    );
-  }
-
-  // Format currency
-  function formatCurrency(amount) {
-    if (!amount) return "Rp 0";
-    return "Rp " + parseInt(amount).toLocaleString("id-ID");
-  }
-
-  function subscriptionRouteKey(sub) {
-    if (!sub || typeof sub !== "object") return "";
-    return String(sub.uuid || sub.id || "");
-  }
-
-  /** Suggested new ends_at for renew flow (from today + billing cycle). */
-  function defaultRenewEndDateFromBillingCycle(billingCycle) {
-    const d = new Date();
-    if (billingCycle === "yearly") {
-      d.setFullYear(d.getFullYear() + 1);
-    } else {
-      d.setMonth(d.getMonth() + 1);
-    }
-    return d.toISOString().slice(0, 10);
-  }
-
-  function isRenewableSubscriptionStatus(status) {
-    return (
-      status === "expired" ||
-      status === "cancelled" ||
-      status === "suspended" ||
-      status === "inactive"
-    );
-  }
+  const subscriptionsUtils = window.ArcavSubscriptionsUtils || {};
+  const formatCompanyReference = subscriptionsUtils.formatCompanyReference || function (row) {
+    return row && row.company_code ? String(row.company_code) : "Company tercatat";
+  };
+  const esc = subscriptionsUtils.esc || function (v) { return String(v || ""); };
+  const normalizeAnomalyBadges = subscriptionsUtils.normalizeAnomalyBadges || function () { return '<span class="badge bg-success-subtle text-success">No anomaly</span>'; };
+  const formatDate = subscriptionsUtils.formatDate || function (v) { return v ? String(v) : "-"; };
+  const formatDateTime = subscriptionsUtils.formatDateTime || function (v) { return v ? String(v) : "-"; };
+  const formatCurrency = subscriptionsUtils.formatCurrency || function (amount) { return "Rp " + String(amount || 0); };
+  const subscriptionRouteKey = subscriptionsUtils.subscriptionRouteKey || function (sub) { return String((sub && (sub.uuid || sub.id)) || ""); };
+  const defaultRenewEndDateFromBillingCycle = subscriptionsUtils.defaultRenewEndDateFromBillingCycle || function () { return new Date().toISOString().slice(0, 10); };
+  const isRenewableSubscriptionStatus = subscriptionsUtils.isRenewableSubscriptionStatus || function (status) { return String(status || "") !== "active"; };
 
   // Main SubscriptionsManager object
   const SubscriptionsManager = {

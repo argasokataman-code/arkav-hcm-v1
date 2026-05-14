@@ -14,7 +14,10 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 function loadScript(dom, relPath) {
-    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + relPath), 'utf8');
+    const resolvedPath = relPath === 'tax-governance-dashboard.js'
+        ? 'payroll/tax-governance-dashboard.js'
+        : relPath;
+    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + resolvedPath), 'utf8');
     const el = dom.window.document.createElement('script');
     el.textContent = code;
     dom.window.document.body.appendChild(el);

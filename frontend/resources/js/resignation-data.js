@@ -1,0 +1,1 @@
+import "./super-admin/resignation-data";

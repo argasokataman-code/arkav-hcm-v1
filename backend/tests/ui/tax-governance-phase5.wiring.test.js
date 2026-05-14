@@ -13,10 +13,25 @@ import { resolve } from 'path';
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 function loadScript(dom, scriptPath) {
-    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + scriptPath), 'utf8');
-    const scriptEl = dom.window.document.createElement('script');
-    scriptEl.textContent = code;
-    dom.window.document.body.appendChild(scriptEl);
+    const pathMap = {
+        'tax-employee-profiles.js': 'payroll/tax-employee-profiles.js',
+        'tax-tenant-compliance.js': 'payroll/tax-tenant-compliance.js',
+        'tax-governance-dashboard.js': 'payroll/tax-governance-dashboard.js',
+    };
+    const resolvedPaths = scriptPath === 'tax-governance-dashboard.js'
+        ? [
+            'payroll/tax-governance/dashboard-utils.js',
+            'payroll/tax-governance/compliance-renderers.js',
+            'payroll/tax-governance-dashboard.js',
+        ]
+        : [pathMap[scriptPath] || scriptPath];
+
+    resolvedPaths.forEach(function (resolvedPath) {
+        const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + resolvedPath), 'utf8');
+        const scriptEl = dom.window.document.createElement('script');
+        scriptEl.textContent = code;
+        dom.window.document.body.appendChild(scriptEl);
+    });
 }
 
 function flush() {

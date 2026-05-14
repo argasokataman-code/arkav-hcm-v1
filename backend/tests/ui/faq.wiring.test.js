@@ -4,7 +4,10 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 function loadScript(dom, relPath) {
-    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + relPath), 'utf8');
+    const resolvedPath = relPath === 'faq-data.js'
+        ? 'documents/faq-data.js'
+        : relPath;
+    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + resolvedPath), 'utf8');
     const scriptEl = dom.window.document.createElement('script');
     scriptEl.textContent = code;
     dom.window.document.body.appendChild(scriptEl);

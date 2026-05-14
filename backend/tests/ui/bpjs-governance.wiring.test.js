@@ -4,10 +4,16 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 function loadScript(dom, scriptPath) {
-    const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + scriptPath), 'utf8');
-    const scriptEl = dom.window.document.createElement('script');
-    scriptEl.textContent = code;
-    dom.window.document.body.appendChild(scriptEl);
+    var resolvedPaths = scriptPath === 'bpjs-governance-data.js'
+        ? ['payroll/bpjs-governance/utils.js', 'payroll/bpjs-governance-data.js']
+        : [scriptPath];
+
+    resolvedPaths.forEach(function (resolvedPath) {
+        const code = readFileSync(resolve(__dirname, '../../../frontend/resources/js/' + resolvedPath), 'utf8');
+        const scriptEl = dom.window.document.createElement('script');
+        scriptEl.textContent = code;
+        dom.window.document.body.appendChild(scriptEl);
+    });
 }
 
 function flush() {

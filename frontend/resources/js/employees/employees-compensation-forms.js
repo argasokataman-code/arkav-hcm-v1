@@ -1617,4 +1617,59 @@ export function bindEmployeeCompensationFormsModule(deps) {
                 });
         });
     }
+
+    function validateComplianceFields(form) {
+        if (!form) {
+            return true;
+        }
+
+        var npwpInput = form.querySelector('[data-employee-add-field="npwp"], [data-employee-edit-field="npwp"]');
+        var bpjsKesInput = form.querySelector('[data-employee-add-field="bpjsKesehatanNo"], [data-employee-edit-field="bpjsKesehatanNo"]');
+        var bpjsKetInput = form.querySelector('[data-employee-add-field="bpjsKetenagakerjaanNo"], [data-employee-edit-field="bpjsKetenagakerjaanNo"]');
+
+        var npwp = String(npwpInput && npwpInput.value ? npwpInput.value : "").trim();
+        var bpjsKes = String(bpjsKesInput && bpjsKesInput.value ? bpjsKesInput.value : "").trim();
+        var bpjsKet = String(bpjsKetInput && bpjsKetInput.value ? bpjsKetInput.value : "").trim();
+
+        var NPWP_REGEX = /^[0-9]{15}$/;
+        var BPJS_REGEX = /^[0-9]{11,13}$/;
+
+        if (npwp && !NPWP_REGEX.test(npwp)) {
+            return failField(npwpInput, "Nomor NPWP harus terdiri dari 15 digit angka.");
+        }
+
+        if (bpjsKes && !BPJS_REGEX.test(bpjsKes)) {
+            return failField(bpjsKesInput, "Nomor BPJS Kesehatan harus terdiri dari 11-13 digit angka.");
+        }
+
+        if (bpjsKet && !BPJS_REGEX.test(bpjsKet)) {
+            return failField(bpjsKetInput, "Nomor BPJS Ketenagakerjaan harus terdiri dari 11-13 digit angka.");
+        }
+
+        return true;
+    }
+
+    function validateEmployeeForm(form) {
+        if (!form) {
+            return false;
+        }
+
+        if (!validateComplianceFields(form)) {
+            return false;
+        }
+
+        if (!validateEducationRows(form)) {
+            return false;
+        }
+
+        if (!validateExperienceRows(form)) {
+            return false;
+        }
+
+        if (!validateEmergencyContactRows(form)) {
+            return false;
+        }
+
+        return true;
+    }
 }

@@ -5,6 +5,7 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\ApplyLocalizationSettings;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
@@ -30,6 +31,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust reverse-proxy headers (ngrok/load balancer) so generated URLs keep HTTPS scheme.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+                | Request::HEADER_X_FORWARDED_AWS_ELB
+        );
+
         $middleware->append(TraceIdMiddleware::class);
         $middleware->append(HandleCorsRequests::class);
         $middleware->append(SecurityHeadersMiddleware::class);

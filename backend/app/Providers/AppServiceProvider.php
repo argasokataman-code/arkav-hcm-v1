@@ -12,6 +12,7 @@ use App\Services\Media\ImageProcessor;
 use App\Services\Media\MediaFileDeleter;
 use App\Services\Media\PolicyAttachmentStorageService;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Intervention\Image\ImageManager;
 
@@ -48,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->applyRuntimeUrlSchemeFromRequest();
+
         RuntimeLocalization::apply();
 
         $this->applyRuntimeEmailTransportProfile();
@@ -134,5 +137,26 @@ class AppServiceProvider extends ServiceProvider
             'mail.mailers.smtp.username' => $username,
             'mail.mailers.smtp.password' => $password,
         ]);
+    }
+
+    private function applyRuntimeUrlSchemeFromRequest(): void
+    {
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
+        try {
+            $request = $this->app['request'];
+            $host = (string) $request->getHost();
+            $forwardedProto = strtolower((string) $request->headers->get('x-forwarded-proto', ''));
+            $isNgrokHost = str_contains($host, '.ngrok-free.dev') || str_contains($host, '.ngrok.app');
+
+            if ($isNgrokHost || $forwardedProto === 'https') {
+                URL::forceScheme('https');
+                URL::forceRootUrl('https://' . $host);
+            }
+        } catch (\Throwable) {
+            // Ignore request-scoped URL forcing failures to avoid breaking boot.
+        }
     }
 }

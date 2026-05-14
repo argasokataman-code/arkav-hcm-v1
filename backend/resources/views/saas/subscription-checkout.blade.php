@@ -309,10 +309,22 @@
 </style>
 
 <div class="page-wrapper">
+    @php
+        $requestHost = strtolower((string) request()->getHost());
+        $forwardedHost = strtolower(trim((string) request()->header('X-Forwarded-Host', '')));
+        $appUrlHost = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
+        $isNgrokRuntime = str_contains($requestHost, 'ngrok')
+            || str_contains($forwardedHost, 'ngrok')
+            || str_contains($appUrlHost, 'ngrok');
+
+        $checkoutHostedEnabled = $isNgrokRuntime
+            ? (bool) config('services.xendit.api_key')
+            : (app()->isLocal() || (bool) config('services.xendit.api_key') || (bool) config('app.mock_payments_enabled'));
+    @endphp
     <div
         class="content"
         data-subscription-checkout-page
-        data-checkout-mock-pay-enabled="{{ app()->isLocal() || config('app.mock_payments_enabled') ? '1' : '0' }}"
+        data-checkout-hosted-pay-enabled="{{ $checkoutHostedEnabled ? '1' : '0' }}"
         data-checkout-pending-lock="{{ $isPendingPaymentLock ? '1' : '0' }}"
         data-checkout-active-only="{{ $isActiveCheckoutOnly ? '1' : '0' }}"
     >

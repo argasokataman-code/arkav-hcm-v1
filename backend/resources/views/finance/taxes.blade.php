@@ -289,7 +289,7 @@
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <h6 class="fs-14 fw-medium text-gray-9 me-2">Corporate Tax</h6>
+                                            <h6 class="fs-14 fw-medium text-gray-9 me-2">Platform Tax</h6>
                                             <a href="#" class="text-info" data-bs-toggle="tooltip"
                                                 data-bs-placement="right"
                                                 title="Comprehensive tax on the supply of goods and services.">

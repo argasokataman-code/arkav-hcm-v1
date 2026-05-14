@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\HcmSubscriptionCheckoutController;
-use App\Http\Controllers\Api\HcmSubscriptionChangeController;
-use App\Http\Controllers\Api\HcmCompanyInvoiceController;
+use App\Http\Controllers\Api\Billing\HcmSubscriptionCheckoutController;
+use App\Http\Controllers\Api\Billing\HcmSubscriptionChangeController;
+use App\Http\Controllers\Api\Billing\HcmCompanyInvoiceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

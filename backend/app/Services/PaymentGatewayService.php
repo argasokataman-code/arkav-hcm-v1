@@ -129,38 +129,29 @@ class PaymentGatewayService
     private function chargeWithXendit(array $data): array
     {
         try {
-            $response = Http::withBasicAuth(config('services.xendit.key'), '')
-                ->post('https://api.xendit.co/charges', [
-                    'reference_id' => $data['reference_id'] ?? uniqid(),
-                    'currency' => strtoupper($data['currency'] ?? 'IDR'),
-                    'amount' => (int) $data['amount'],
-                    'payment_method' => [
-                        'type' => $data['payment_type'] ?? 'CARD',
-                        'card' => [
-                            'number' => $data['card_number'] ?? null,
-                            'cvv' => $data['card_cvv'] ?? null,
-                            'exp_month' => $data['card_exp_month'] ?? null,
-                            'exp_year' => $data['card_exp_year'] ?? null,
-                        ],
-                    ],
-                    'metadata' => [
-                        'payment_id' => $data['payment_id'] ?? null,
-                    ],
-                ]);
+            $xenditService = app(XenditService::class);
+            $externalId = (string) ($data['reference_id'] ?? $data['external_id'] ?? ('payment-'.uniqid()));
+            $invoice = $xenditService->createInvoice([
+                'external_id' => $externalId,
+                'amount' => (int) round((float) ($data['amount'] ?? 0)),
+                'currency' => strtoupper((string) ($data['currency'] ?? 'IDR')),
+                'description' => (string) ($data['description'] ?? 'Payment charge'),
+                'customer_name' => (string) ($data['customer_name'] ?? 'Customer'),
+                'customer_email' => (string) ($data['customer_email'] ?? ''),
+                'success_url' => $data['success_url'] ?? null,
+                'failure_url' => $data['failure_url'] ?? null,
+            ]);
 
-            if ($response->successful()) {
-                $charge = $response->json();
+            if ($invoice && ! empty($invoice['id'])) {
                 return [
                     'success' => true,
-                    'gateway_reference' => $charge['id'],
-                    'status' => $charge['status'] ?? 'pending',
+                    'gateway_reference' => (string) $invoice['id'],
+                    'external_id' => $externalId,
+                    'status' => (string) ($invoice['status'] ?? 'PENDING'),
                 ];
             }
 
-            return [
-                'success' => false,
-                'error' => $response->json()['message'] ?? 'Charge failed',
-            ];
+            return ['success' => false, 'error' => 'Invoice creation failed'];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
@@ -169,19 +160,19 @@ class PaymentGatewayService
     private function verifyWithXendit(string $reference): array
     {
         try {
-            $response = Http::withBasicAuth(config('services.xendit.key'), '')
-                ->get("https://api.xendit.co/charges/$reference");
+            $xenditService = app(XenditService::class);
+            $invoice = $xenditService->getInvoice($reference);
 
-            if ($response->successful()) {
-                $charge = $response->json();
+            if ($invoice) {
+                $status = strtoupper((string) ($invoice['status'] ?? ''));
                 return [
                     'success' => true,
-                    'status' => $charge['status'],
-                    'paid' => strtolower($charge['status']) === 'succeeded',
+                    'status' => $status,
+                    'paid' => in_array($status, ['SETTLED', 'PAID'], true),
                 ];
             }
 
-            return ['success' => false, 'error' => 'Charge not found'];
+            return ['success' => false, 'error' => 'Invoice not found'];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
@@ -189,13 +180,32 @@ class PaymentGatewayService
 
     private function handleXenditWebhook(array $payload): array
     {
-        $chargeId = $payload['id'] ?? null;
-        $status = $payload['status'] ?? null;
+        $eventType = $payload['event'] ?? $payload['type'] ?? null;
+        $invoiceId = $payload['id'] ?? null;
+        $externalId = $payload['external_id'] ?? null;
+        $status = strtoupper((string) ($payload['status'] ?? ''));
 
-        if ($status === 'SUCCEEDED') {
-            $payment = Payment::where('gateway_reference', $chargeId)->first();
+        if (in_array($eventType, ['invoice.paid', 'payment.successful'], true) || in_array($status, ['SETTLED', 'PAID', 'SUCCEEDED'], true)) {
+            $payment = Payment::query()
+                ->where(function ($query) use ($invoiceId, $externalId): void {
+                    if ($invoiceId) {
+                        $query->where('gateway_reference', $invoiceId)
+                            ->orWhere('metadata->xendit_invoice_id', $invoiceId);
+                    }
+                    if ($externalId) {
+                        $query->orWhere('gateway_reference', $externalId)
+                            ->orWhere('metadata->xendit_external_id', $externalId);
+                    }
+                })
+                ->latest('id')
+                ->first();
+
             if ($payment) {
-                $payment->update(['status' => 'completed', 'verified_at' => now()]);
+                $payment->update([
+                    'status' => 'completed',
+                    'paid_at' => now(),
+                    'verified_at' => now(),
+                ]);
                 return ['success' => true];
             }
         }

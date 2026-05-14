@@ -41,6 +41,8 @@ class XenditService
                 'success_redirect_url' => $params['success_url'] ?? null,
                 'failure_redirect_url' => $params['failure_url'] ?? null,
                 'reminder_time' => $params['reminder_time'] ?? 1,
+                'available_payment_methods' => $params['available_payment_methods'] ?? null,
+                'metadata' => $params['metadata'] ?? null,
             ]);
 
             Log::info('Xendit invoice created', [
@@ -267,6 +269,12 @@ class XenditService
         $decoded = json_decode($response, true);
         if ($httpCode >= 400) {
             $errorMsg = $decoded['error_code'] ?? $decoded['message'] ?? 'Unknown error';
+            Log::debug('Xendit API validation failed', [
+                'endpoint' => $endpoint,
+                'http_code' => $httpCode,
+                'request_data' => $data,
+                'response_body' => $decoded,
+            ]);
             throw new \RuntimeException("Xendit API error ($httpCode): $errorMsg");
         }
 

@@ -162,7 +162,7 @@
                     <div class="modal-body">
                         <ul class="mb-0 ps-3">
                             <li>Layer ini khusus untuk kewajiban pajak platform ke pemerintah.</li>
-                            <li>Tarif bisa diubah mengikuti regulasi (misalnya PPh 21 dan corporate tax).</li>
+                            <li>Tarif bisa diubah mengikuti regulasi pajak yang berlaku.</li>
                             <li>Rekap di halaman ini dipakai untuk tax payable dan evidence compliance global platform.</li>
                             <li>Domain ini berbeda dari Billing & Revenue yang fokus ke charge/invoice tenant.</li>
                         </ul>
@@ -208,7 +208,7 @@
                         <div class="tax-overview-item__value" data-tax-platform-overview-transaction-rate>-</div>
                     </div>
                     <div class="tax-overview-item">
-                        <div class="tax-overview-item__label">Corporate Tax (PPh Badan)</div>
+                        <div class="tax-overview-item__label">Tarif Pajak Platform</div>
                         <div class="tax-overview-item__value" data-tax-platform-overview-corporate-rate>-</div>
                     </div>
                     <div class="tax-overview-item">
@@ -289,7 +289,7 @@
                     <div class="col-12">
                         <div class="border rounded p-3 h-100">
                             <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                                <h6 class="mb-0">Corporate Tax (PPh Badan)</h6>
+                                <h6 class="mb-0">Tarif Pajak Platform</h6>
                                 <span class="badge bg-warning-subtle text-warning">Paid by platform (Tax Expense)</span>
                             </div>
                             <div class="row g-3">
@@ -307,7 +307,7 @@
                                 <div class="col-md-3">
                                     <label class="form-label">Tax Base</label>
                                     <input type="text" class="form-control" value="Net Profit" readonly>
-                                    <small class="text-muted">Basis tetap untuk corporate tax.</small>
+                                    <small class="text-muted">Basis tetap untuk perhitungan pajak platform.</small>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Status</label>
@@ -388,7 +388,7 @@
                         <thead class="thead-light">
                             <tr>
                                 <th>Versi</th>
-                                <th>Corporate Tax Rate (%)</th>
+                                <th>Tarif Pajak Platform (%)</th>
                                 <th>Transaction Tax (PPN) (%)</th>
                                 <th>Status Rule</th>
                                 <th>Dibuat</th>
@@ -436,7 +436,7 @@
             <div class="col-md-6 col-xl-6">
                 <div class="card h-100">
                     <div class="card-body">
-                        <div class="text-muted fs-13 mb-1">Corporate Tax Expense (PPh Badan)</div>
+                        <div class="text-muted fs-13 mb-1">Beban Pajak Platform</div>
                         <h4 class="mb-1" data-tax-compliance-summary-corporate-tax-expense>Rp 0</h4>
                         <div class="small text-muted">Expense pajak langsung berbasis Net Profit.</div>
                     </div>
@@ -447,7 +447,7 @@
                     <div class="card-body">
                         <div class="text-muted fs-13 mb-1">Net Profit</div>
                         <h4 class="mb-1 text-success" data-tax-compliance-summary-net-profit>Rp 0</h4>
-                        <div class="small text-muted">Net revenue setelah dikurangi corporate tax expense.</div>
+                        <div class="small text-muted">Net revenue setelah dikurangi beban pajak platform.</div>
                     </div>
                 </div>
             </div>
@@ -475,7 +475,7 @@
                                 <th>Tipe Kewajiban &amp; Renewal</th>
                                 <th>Gross Revenue (Rp)</th>
                                 <th>Tax Liability - PPN (Rp)</th>
-                                <th>Corporate Tax Expense (Rp)</th>
+                                <th>Beban Pajak Platform (Rp)</th>
                                 <th>Net Profit (Rp)</th>
                                 <th>Status</th>
                             </tr>

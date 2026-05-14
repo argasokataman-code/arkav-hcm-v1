@@ -416,5 +416,5 @@
 </div>
 <!-- /Page Wrapper -->
 
-<script src="{{ asset('build/js/platform-tax.js') }}?v={{ filemtime(public_path('build/js/platform-tax.js')) }}"></script>
+<script src="{{ asset('build/js/payroll/platform-tax.js') }}?v={{ filemtime(public_path('build/js/payroll/platform-tax.js')) }}"></script>
 @endsection

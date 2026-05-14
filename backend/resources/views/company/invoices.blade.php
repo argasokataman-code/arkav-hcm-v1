@@ -493,6 +493,6 @@
         to { transform: rotate(360deg); }
     }
 </style>
-<script src="{{ asset('build/js/company-invoices.js') }}?v={{ file_exists(public_path('build/js/company-invoices.js')) ? filemtime(public_path('build/js/company-invoices.js')) : time() }}"></script>
+<script src="{{ asset('build/js/company/company-invoices.js') }}?v={{ file_exists(public_path('build/js/company/company-invoices.js')) ? filemtime(public_path('build/js/company/company-invoices.js')) : time() }}"></script>
 
 @endsection

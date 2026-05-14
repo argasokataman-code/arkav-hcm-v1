@@ -340,6 +340,6 @@
     </div>
 </div>
 
-<script src="{{ URL::asset('build/js/api-client.js') }}"></script>
-<script src="{{ URL::asset('build/js/auth-login.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/api-client.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/auth-login.js') }}"></script>
 @endsection

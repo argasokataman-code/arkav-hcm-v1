@@ -827,5 +827,5 @@
 
 @endsection
 
-<script src="{{ URL::asset('build/js/api-client.js') }}"></script>
-<script src="{{ URL::asset('build/js/auth-guard.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/api-client.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/auth-guard.js') }}"></script>

@@ -1738,15 +1738,15 @@
 	}
 </style>
 
-<script src="{{ url('build/js/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ url('build/js/api-client.js') }}"></script>
-<script src="{{ url('build/js/arcav-validation.js') }}"></script>
+<script src="{{ url('build/js/vendor/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url('build/js/core/api-client.js') }}"></script>
+<script src="{{ url('build/js/core/arcav-validation.js') }}"></script>
 <link rel="stylesheet" href="{{ url('build/css/public-landing-react.min.css') }}?v={{ file_exists(public_path('build/css/public-landing-react.min.css')) ? filemtime(public_path('build/css/public-landing-react.min.css')) : time() }}">
 <link rel="stylesheet" href="{{ url('build/vendor/swiper-bundle.min.css') }}?v={{ file_exists(public_path('build/vendor/swiper-bundle.min.css')) ? filemtime(public_path('build/vendor/swiper-bundle.min.css')) : time() }}">
 <script src="{{ url('build/vendor/swiper-bundle.min.js') }}?v={{ file_exists(public_path('build/vendor/swiper-bundle.min.js')) ? filemtime(public_path('build/vendor/swiper-bundle.min.js')) : time() }}"></script>
 <script src="{{ url('build/vendor/countUp.umd.js') }}?v={{ file_exists(public_path('build/vendor/countUp.umd.js')) ? filemtime(public_path('build/vendor/countUp.umd.js')) : time() }}"></script>
-<script src="{{ url('build/js/landing-vendor-init.js') }}?v={{ file_exists(public_path('build/js/landing-vendor-init.js')) ? filemtime(public_path('build/js/landing-vendor-init.js')) : time() }}"></script>
-<script src="{{ url('build/js/public-landing-onboarding.js') }}?v={{ file_exists(public_path('build/js/public-landing-onboarding.js')) ? filemtime(public_path('build/js/public-landing-onboarding.js')) : time() }}"></script>
+<script src="{{ url('build/js/public/landing-vendor-init.js') }}?v={{ file_exists(public_path('build/js/public/landing-vendor-init.js')) ? filemtime(public_path('build/js/public/landing-vendor-init.js')) : time() }}"></script>
+<script src="{{ url('build/js/public/public-landing-onboarding.js') }}?v={{ file_exists(public_path('build/js/public/public-landing-onboarding.js')) ? filemtime(public_path('build/js/public/public-landing-onboarding.js')) : time() }}"></script>
 <script type="module" src="{{ url('build/js/public-landing-react.js') }}?v={{ file_exists(public_path('build/js/public-landing-react.js')) ? filemtime(public_path('build/js/public-landing-react.js')) : time() }}"></script>
 @endsection
 

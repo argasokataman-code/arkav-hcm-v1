@@ -207,6 +207,6 @@
     </div>
 
     @push('scripts')
-    <script src="{{ asset('build/js/team-master-data.js') }}"></script>
+    <script src="{{ asset('build/js/employees/team-master-data.js') }}"></script>
     @endpush
 @endsection

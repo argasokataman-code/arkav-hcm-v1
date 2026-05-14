@@ -160,7 +160,7 @@
     </div>
 </div>
 
-<script src="{{ asset('build/js/payments-management.js') }}?v={{ filemtime(public_path('build/js/payments-management.js')) }}"></script>
+<script src="{{ asset('build/js/saas/payments-management.js') }}?v={{ filemtime(public_path('build/js/saas/payments-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.PaymentsManager?.init?.();

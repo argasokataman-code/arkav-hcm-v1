@@ -852,6 +852,6 @@
     </div>
 </div>
 
-<script src="{{ asset('build/js/subscription-checkout.js') }}?v={{ file_exists(public_path('build/js/subscription-checkout.js')) ? filemtime(public_path('build/js/subscription-checkout.js')) : time() }}"></script>
+<script src="{{ asset('build/js/saas/subscription-checkout.js') }}?v={{ file_exists(public_path('build/js/saas/subscription-checkout.js')) ? filemtime(public_path('build/js/saas/subscription-checkout.js')) : time() }}"></script>
 
 @endsection

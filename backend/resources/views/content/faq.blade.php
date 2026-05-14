@@ -153,7 +153,7 @@
 @endsection
 
 @push('scripts')
-<script src="{{ URL::asset('build/js/faq-data.js') }}"></script>
+<script src="{{ URL::asset('build/js/documents/faq-data.js') }}"></script>
 @endpush
 
             <!-- Breadcrumb -->

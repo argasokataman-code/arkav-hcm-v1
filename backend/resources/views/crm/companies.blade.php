@@ -308,7 +308,7 @@
         </div>
     </div>
 
-    <script src="{{ asset('build/js/companies-management.js') }}?v={{ filemtime(public_path('build/js/companies-management.js')) }}"></script>
+    <script src="{{ asset('build/js/company/companies-management.js') }}?v={{ filemtime(public_path('build/js/company/companies-management.js')) }}"></script>
 
     @component('components.modal-popup')
     @endcomponent

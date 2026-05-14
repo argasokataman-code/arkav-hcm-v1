@@ -151,7 +151,7 @@
     </div>
 </div>
 
-<script src="{{ asset('build/js/invoices-management.js') }}?v={{ filemtime(public_path('build/js/invoices-management.js')) }}"></script>
+<script src="{{ asset('build/js/saas/invoices-management.js') }}?v={{ filemtime(public_path('build/js/saas/invoices-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.InvoicesManager?.init?.();

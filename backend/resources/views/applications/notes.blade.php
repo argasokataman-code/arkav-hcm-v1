@@ -82,5 +82,5 @@
 @endsection
 
 @push('scripts')
-<script src="{{ URL::asset('build/js/notes-data.js') }}"></script>
+<script src="{{ URL::asset('build/js/documents/notes-data.js') }}"></script>
 @endpush

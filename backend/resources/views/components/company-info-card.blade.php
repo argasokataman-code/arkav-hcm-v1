@@ -9,7 +9,7 @@
 </div>
 
 @push('scripts')
-<script src="{{ url('build/js/company-info.js') }}"></script>
+<script src="{{ url('build/js/company/company-info.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.CompanyInfo?.loadCompanyCard('#company-card-container');

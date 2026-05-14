@@ -18,7 +18,7 @@
 'layout-without-header', 'layout-rtl', 'layout-dark'
 ]))
 <!-- Theme Script js -->
-<script src="{{ URL::asset('build/js/theme-script.js') }}"></script>
+<script src="{{ URL::asset('build/js/core/theme-script.js') }}"></script>
 @endif
 
 @if (!Route::is(['layout-rtl']))

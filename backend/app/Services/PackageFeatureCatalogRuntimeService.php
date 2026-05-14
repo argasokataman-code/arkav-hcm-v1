@@ -252,6 +252,166 @@ class PackageFeatureCatalogRuntimeService
     }
 
     /**
+     * @param  array<int, string>  $selectedFeatureCodes
+     * @return array<string, mixed>
+     */
+    public function checkPackageCompliance(array $selectedFeatureCodes): array
+    {
+        $selectedCodes = collect($selectedFeatureCodes)
+            ->map(fn (mixed $code): string => trim((string) $code))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $selectedLookup = array_fill_keys($selectedCodes, true);
+
+        $regulatoryItems = [];
+        $pdpItems = [];
+        $dependencyItems = [];
+
+        $this->appendRequiredFeatureChecks(
+            $regulatoryItems,
+            $selectedLookup,
+            'payroll',
+            [
+                'bpjs_governance' => 'BPJS Governance',
+                'tax_governance' => 'Tax Governance',
+                'allowance_governance' => 'Allowance Governance',
+            ],
+            'REGULATORY'
+        );
+
+        $this->appendRequiredFeatureChecks(
+            $regulatoryItems,
+            $selectedLookup,
+            'attendance',
+            [
+                'leave_management' => 'Leave Management',
+                'calendar_events' => 'Calendar Events',
+            ],
+            'REGULATORY'
+        );
+
+        $this->appendRequiredFeatureChecks(
+            $regulatoryItems,
+            $selectedLookup,
+            'employee_management',
+            [
+                'employee_document_center' => 'Employee Document Center',
+            ],
+            'REGULATORY'
+        );
+
+        $handlesEmployeeData = isset($selectedLookup['employee_management'])
+            || isset($selectedLookup['employee_lifecycle'])
+            || isset($selectedLookup['employee_document_center'])
+            || isset($selectedLookup['attendance'])
+            || isset($selectedLookup['leave_management'])
+            || isset($selectedLookup['payroll']);
+
+        if ($handlesEmployeeData && ! isset($selectedLookup['data_privacy'])) {
+            $pdpItems[] = $this->buildIssue(
+                'MISSING_DATA_PRIVACY',
+                'Data Privacy',
+                'missing',
+                'error',
+                'Data karyawan/sensitif terdeteksi, tetapi fitur data privacy belum dipilih.'
+            );
+        } else {
+            $pdpItems[] = $this->buildIssue(
+                'DATA_PRIVACY_READY',
+                'Data Privacy',
+                'ok',
+                'info',
+                'Kontrol perlindungan data tersedia untuk paket ini.'
+            );
+        }
+
+        if (isset($selectedLookup['payroll']) && ! isset($selectedLookup['payroll_thr'])) {
+            $dependencyItems[] = $this->buildIssue(
+                'MISSING_PAYROLL_THR',
+                'Payroll + THR',
+                'warning',
+                'warning',
+                'Payroll aktif tanpa THR. Di Indonesia umumnya THR menjadi komponen penting.'
+            );
+        }
+
+        if (isset($selectedLookup['attendance']) && ! isset($selectedLookup['attendance_shift_scheduling'])) {
+            $dependencyItems[] = $this->buildIssue(
+                'MISSING_SHIFT_SCHEDULING',
+                'Attendance + Shift Scheduling',
+                'warning',
+                'warning',
+                'Attendance aktif tanpa shift scheduling. Pastikan memang tidak butuh penjadwalan shift.'
+            );
+        }
+
+        if (isset($selectedLookup['performance'])
+            && ! isset($selectedLookup['goal_tracking'])
+            && ! isset($selectedLookup['performance_goal_tracking'])) {
+            $dependencyItems[] = $this->buildIssue(
+                'MISSING_GOAL_TRACKING',
+                'Performance + Goal Tracking',
+                'warning',
+                'warning',
+                'Performance aktif tanpa goal tracking. Paket menjadi kurang lengkap untuk appraisal berbasis target.'
+            );
+        }
+
+        $sections = [
+            [
+                'key' => 'regulatory',
+                'title' => 'Regulasi Ketenagakerjaan',
+                'items' => $regulatoryItems,
+            ],
+            [
+                'key' => 'pdp',
+                'title' => 'Perlindungan Data (PDP)',
+                'items' => $pdpItems,
+            ],
+            [
+                'key' => 'dependency',
+                'title' => 'Fitur Dependency',
+                'items' => $dependencyItems,
+            ],
+        ];
+
+        $errors = 0;
+        $warnings = 0;
+        $passes = 0;
+
+        foreach ($sections as $index => $section) {
+            $items = $section['items'];
+            foreach ($items as $item) {
+                if (($item['severity'] ?? '') === 'error') {
+                    $errors++;
+                } elseif (($item['severity'] ?? '') === 'warning') {
+                    $warnings++;
+                } elseif (($item['status'] ?? '') === 'ok') {
+                    $passes++;
+                }
+            }
+
+            $sections[$index]['status'] = $this->deriveSectionStatus($items);
+        }
+
+        $overall = $errors > 0 ? 'error' : ($warnings > 0 ? 'warning' : 'ok');
+
+        return [
+            'selected_feature_codes' => $selectedCodes,
+            'sections' => $sections,
+            'summary' => [
+                'overall' => $overall,
+                'errors' => $errors,
+                'warnings' => $warnings,
+                'passes' => $passes,
+            ],
+        ];
+    }
+
+    /**
      * @return array<int, string>
      */
     private function discoverFeatureCodesFromRoutes(): array
@@ -284,6 +444,92 @@ class PackageFeatureCatalogRuntimeService
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, string>>  $target
+     * @param  array<string, bool>  $selectedLookup
+     * @param  array<string, string>  $requiredCodes
+     */
+    private function appendRequiredFeatureChecks(
+        array &$target,
+        array $selectedLookup,
+        string $sourceCode,
+        array $requiredCodes,
+        string $prefix
+    ): void {
+        if (! isset($selectedLookup[$sourceCode])) {
+            return;
+        }
+
+        foreach ($requiredCodes as $requiredCode => $label) {
+            if (! isset($selectedLookup[$requiredCode])) {
+                $target[] = $this->buildIssue(
+                    sprintf('MISSING_%s_%s', $prefix, Str::upper($requiredCode)),
+                    $label,
+                    'missing',
+                    'error',
+                    sprintf('%s aktif, tetapi %s belum dipilih.', $this->resolveFeatureLabel($sourceCode), $label)
+                );
+            } else {
+                $target[] = $this->buildIssue(
+                    sprintf('%s_READY_%s', $prefix, Str::upper($requiredCode)),
+                    $label,
+                    'ok',
+                    'info',
+                    sprintf('%s sudah terpenuhi.', $label)
+                );
+            }
+        }
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function buildIssue(
+        string $code,
+        string $label,
+        string $status,
+        string $severity,
+        string $message
+    ): array {
+        return [
+            'code' => $code,
+            'label' => $label,
+            'status' => $status,
+            'severity' => $severity,
+            'message' => $message,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, string>>  $items
+     */
+    private function deriveSectionStatus(array $items): string
+    {
+        foreach ($items as $item) {
+            if (($item['severity'] ?? '') === 'error') {
+                return 'error';
+            }
+        }
+
+        foreach ($items as $item) {
+            if (($item['severity'] ?? '') === 'warning') {
+                return 'warning';
+            }
+        }
+
+        return 'ok';
+    }
+
+    private function resolveFeatureLabel(string $featureCode): string
+    {
+        $meta = self::FEATURE_META[$featureCode] ?? null;
+        if (is_array($meta) && isset($meta['name']) && is_string($meta['name']) && trim($meta['name']) !== '') {
+            return trim($meta['name']);
+        }
+
+        return Str::headline($featureCode);
     }
 
     /**

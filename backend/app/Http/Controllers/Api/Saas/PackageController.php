@@ -74,6 +74,39 @@ class PackageController extends Controller
     }
 
     /**
+     * GET /v1/saas/packages/check-compliance
+     * Return package compliance snapshot for selected feature codes.
+     */
+    public function checkCompliance(Request $request): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $rawFeatureCodes = $request->query('feature_codes', []);
+        if (is_string($rawFeatureCodes)) {
+            $rawFeatureCodes = explode(',', $rawFeatureCodes);
+        }
+
+        if (! is_array($rawFeatureCodes)) {
+            $rawFeatureCodes = [];
+        }
+
+        $snapshot = $this->featureCatalogRuntimeService->checkPackageCompliance($rawFeatureCodes);
+
+        return response()->json([
+            'success' => true,
+            'data' => $snapshot,
+            'meta' => [
+                'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
      * GET /v1/saas/packages
      * List all packages (public endpoint, no auth required)
      */

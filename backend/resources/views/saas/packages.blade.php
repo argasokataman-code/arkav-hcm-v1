@@ -183,10 +183,23 @@
                                     </div>
                                 </div>
                                 <div class="small text-muted mb-2" data-feature-healthcheck-status>Healthcheck: belum dijalankan.</div>
-                                <div class="mb-3">
-                                    <input type="text" class="form-control" id="input_package_feature_search" placeholder="Cari fitur: payroll, approval, API, laporan, dll">
+                                <div class="row g-3">
+                                    <div class="col-xl-8">
+                                        <div class="mb-3">
+                                            <input type="text" class="form-control" id="input_package_feature_search" placeholder="Cari fitur: payroll, approval, API, laporan, dll">
+                                        </div>
+                                        <div id="input_package_feature_chips" class="package-feature-catalog"></div>
+                                    </div>
+                                    <div class="col-xl-4">
+                                        <div class="package-compliance-panel" data-package-compliance-snapshot>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <h6 class="fw-bold mb-0">Package Compliance</h6>
+                                                <span class="badge text-bg-light" data-package-compliance-overall>Checking...</span>
+                                            </div>
+                                            <p class="text-muted small mb-0">Snapshot compliance akan otomatis diperbarui saat fitur package diubah.</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="input_package_feature_chips" class="package-feature-catalog"></div>
                             </div>
                         </div>
                     </div>
@@ -459,6 +472,49 @@
         font-size: 0.75rem;
         font-weight: 600;
         color: #344054;
+    }
+
+    .package-compliance-panel {
+        border: 1px solid #e4e7ec;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 0.75rem;
+        max-height: 56vh;
+        overflow-y: auto;
+    }
+
+    .package-compliance-section + .package-compliance-section {
+        margin-top: 0.75rem;
+    }
+
+    .package-compliance-section-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #344054;
+        margin-bottom: 0.25rem;
+    }
+
+    .package-compliance-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 0.4rem 0.5rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .package-compliance-item-label {
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .package-compliance-item-note {
+        font-size: 0.7rem;
+        color: #6b7280;
+    }
+
+    .package-compliance-item:last-child {
+        margin-bottom: 0;
     }
 
     @media (max-width: 991.98px) {

@@ -6786,6 +6786,76 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/saas/packages/check-compliance:
+    get:
+      tags: [SaaS]
+      summary: Package compliance snapshot (global admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: feature_codes[]
+          in: query
+          required: false
+          description: Daftar feature code package yang sedang dipilih.
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      selected_feature_codes:
+                        type: array
+                        items:
+                          type: string
+                      sections:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                            title:
+                              type: string
+                            status:
+                              type: string
+                              enum: [ok, warning, error]
+                            items:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  code: { type: string }
+                                  label: { type: string }
+                                  status: { type: string }
+                                  severity: { type: string, enum: [info, warning, error] }
+                                  message: { type: string }
+                      summary:
+                        type: object
+                        properties:
+                          overall: { type: string, enum: [ok, warning, error] }
+                          errors: { type: integer }
+                          warnings: { type: integer }
+                          passes: { type: integer }
+                  meta:
+                    type: object
+                    properties:
+                      generated_at: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /v1/saas/packages/{package}:
     get:
       tags: [SaaS]

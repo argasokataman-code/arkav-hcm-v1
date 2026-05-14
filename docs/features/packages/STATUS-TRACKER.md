@@ -1,5 +1,30 @@
 # Packages Status Tracker
 
+## Snapshot 2026-05-14
+
+- Status umum: compliance guard pada package composer sudah ditambah melalui snapshot realtime berbasis backend rules agar super admin tidak menyusun package yang melanggar baseline regulasi/PDP/dependency.
+
+### Evidence Runtime
+
+- Endpoint baru `GET /v1/saas/packages/check-compliance` (global admin only) mengevaluasi `feature_codes[]` dan mengembalikan snapshot terstruktur: section `regulatory`, `pdp`, `dependency`, plus summary `errors/warnings/passes`.
+- `frontend/resources/js/packages-management.js` sekarang memanggil endpoint compliance snapshot setiap perubahan checklist fitur atau limit `max_employees`, lalu merender panel **Package Compliance** di modal Add/Edit.
+- `backend/resources/views/saas/packages.blade.php` sekarang punya panel compliance di sisi kanan composer fitur agar warning/missing terlihat sebelum klik Save.
+
+### Evidence Test
+
+- `php artisan test tests/Feature/PackageServiceTest.php` (ditambah test endpoint compliance check: admin success + non-admin forbidden).
+
+### Dokumen Yang Disinkronkan
+
+- `docs/api/packages-api.md`
+- `docs/api/openapi.yaml`
+- `docs/features/packages/README.md`
+- `docs/features/packages/STATUS-TRACKER.md`
+
+### Gap Yang Masih Tersisa
+
+- Snapshot saat ini berfungsi sebagai guard observability (warning/error) di modal, belum memblok submit package secara hard validation saat ada error compliance.
+
 ## Snapshot 2026-05-09
 
 - Status umum: hardening katalog package ditutup dengan sinkronisasi fallback frontend ke katalog kanonik backend, plus arsip fitur non-aktif (`api_access`, `priority_support`) agar tidak lagi muncul sebagai entitlement package aktif.

@@ -265,6 +265,51 @@ class PackageServiceTest extends TestCase
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
 
+    public function test_package_compliance_check_returns_snapshot_for_admin(): void
+    {
+        $response = $this->request()->getJson('/v1/saas/packages/check-compliance?feature_codes[]=payroll&feature_codes[]=attendance&feature_codes[]=employee_management');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.summary.overall', 'error')
+            ->assertJsonPath('data.summary.errors', 7)
+            ->assertJsonPath('data.summary.warnings', 2);
+
+        $regulatoryCodes = collect($response->json('data.sections.0.items'))->pluck('code')->all();
+        $pdpCodes = collect($response->json('data.sections.1.items'))->pluck('code')->all();
+        $dependencyCodes = collect($response->json('data.sections.2.items'))->pluck('code')->all();
+
+        $this->assertContains('MISSING_REGULATORY_BPJS_GOVERNANCE', $regulatoryCodes);
+        $this->assertContains('MISSING_REGULATORY_LEAVE_MANAGEMENT', $regulatoryCodes);
+        $this->assertContains('MISSING_DATA_PRIVACY', $pdpCodes);
+        $this->assertContains('MISSING_PAYROLL_THR', $dependencyCodes);
+        $this->assertContains('MISSING_SHIFT_SCHEDULING', $dependencyCodes);
+    }
+
+    public function test_package_compliance_check_requires_admin(): void
+    {
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Tenant Compliance User',
+            'email' => 'tenant.compliance@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'tenant.compliance@example.com',
+            'password' => 'StrongPass1',
+        ]);
+
+        $token = $login->json('data.accessToken');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/v1/saas/packages/check-compliance?feature_codes[]=payroll');
+
+        $response->assertStatus(403)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
+    }
+
     /**
      * Test: list package add-ons returns active add-ons
      */

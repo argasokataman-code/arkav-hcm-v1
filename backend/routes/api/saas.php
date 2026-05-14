@@ -19,6 +19,7 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::get('/packages', [PackageController::class, 'index']);
     Route::get('/packages/feature-catalog', [PackageController::class, 'featureCatalog']);
     Route::get('/packages/feature-catalog/healthcheck', [PackageController::class, 'featureCatalogHealthcheck']);
+    Route::get('/packages/check-compliance', [PackageController::class, 'checkCompliance']);
     Route::get('/packages/{package}', [PackageController::class, 'show']);
     Route::post('/packages', [PackageController::class, 'store']);
     Route::put('/packages/{package}', [PackageController::class, 'update']);

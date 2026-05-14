@@ -106,6 +106,58 @@ Success `200` (ringkas):
 }
 ```
 
+### GET `/packages/check-compliance`
+
+RBAC:
+- Global admin only (`ADMIN_REQUIRED` untuk non-admin).
+
+Query:
+- `feature_codes[]` optional array of string (boleh diulang)
+- fallback: `feature_codes` string dipisah koma
+
+Behavior:
+- Mengevaluasi kombinasi fitur package dan mengembalikan snapshot compliance bisnis.
+- Snapshot mencakup 3 section:
+  - `regulatory` (aturan wajib Indonesia)
+  - `pdp` (perlindungan data)
+  - `dependency` (kelengkapan kombinasi fitur)
+- Summary menyediakan total `errors`, `warnings`, dan `passes` untuk banner overall di UI modal packages.
+
+Success `200` (ringkas):
+```json
+{
+  "success": true,
+  "data": {
+    "selected_feature_codes": ["payroll", "attendance", "employee_management"],
+    "sections": [
+      {
+        "key": "regulatory",
+        "title": "Regulasi Ketenagakerjaan",
+        "status": "error",
+        "items": [
+          {
+            "code": "MISSING_REGULATORY_BPJS_GOVERNANCE",
+            "label": "BPJS Governance",
+            "status": "missing",
+            "severity": "error",
+            "message": "Payroll Run aktif, tetapi BPJS Governance belum dipilih."
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "overall": "error",
+      "errors": 7,
+      "warnings": 2,
+      "passes": 0
+    }
+  },
+  "meta": {
+    "generated_at": "2026-05-14T11:00:00+07:00"
+  }
+}
+```
+
 ### GET `/packages`
 
 Query:

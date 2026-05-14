@@ -54,6 +54,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 - Existing: CRUD package, feature assignment, detail viewer, dan add-on catalog sudah aktif.
 - Existing: katalog feature composer di `/packages` memakai backend endpoint `GET /v1/saas/packages/feature-catalog` sebagai sumber utama (dirakit dinamis dari route feature gate + dokumen klasifikasi runtime), lalu fallback ke derivasi payload package runtime bila endpoint katalog tidak tersedia. Tidak ada fallback daftar statis seeder/frontend.
 - Existing: modal compose/edit package menyediakan tombol **Healthcheck** untuk memeriksa drift route-vs-docs katalog runtime via `GET /v1/saas/packages/feature-catalog/healthcheck` (global admin only).
+- Existing: modal compose/edit package sekarang menampilkan **Package Compliance Snapshot** (regulatory, PDP, dependency) secara real-time di sisi kanan daftar fitur melalui endpoint `GET /v1/saas/packages/check-compliance`.
 - Existing: halaman `/packages` sekarang menyediakan tombol **List All Features** untuk menampilkan katalog feature code lintas modul (beserta package coverage) tanpa harus membuka form create/edit.
 - Existing: composer feature per modul sekarang memiliki tombol **Preview** di header accordion agar admin bisa melihat detail semua fitur dalam modul tertentu secara read-only.
 - Existing: tabel package sekarang menyediakan mode **Compare Selected** (2-3 package) untuk menampilkan matrix perbandingan fitur side-by-side.
@@ -125,6 +126,7 @@ Catatan: relasi utama package feature harus dibaca lewat `package_uuid`. `packag
 
 Packages:
 - `GET /v1/saas/packages/feature-catalog`
+- `GET /v1/saas/packages/check-compliance`
 - `GET /v1/saas/packages`
 - `GET /v1/saas/packages/{package}` (`{package}` = UUID)
 - `POST /v1/saas/packages`

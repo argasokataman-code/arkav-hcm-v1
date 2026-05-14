@@ -197,6 +197,15 @@
         }
     }
 
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function buildPendingPaymentLoginUrl(companyCode) {
         var params = new URLSearchParams();
         params.set("mode", "company");
@@ -221,6 +230,16 @@
         return "Terjadi kesalahan. Coba lagi.";
     }
 
+    function isInternalBillingComponent(component) {
+        var key = String(component && component.key ? component.key : "").toLowerCase();
+        var label = String(component && component.label ? component.label : "").toLowerCase();
+        return key === "addon_markup_rate"
+            || key === "payroll_service_fee"
+            || key === "service_fee"
+            || label.indexOf("corporate tax") !== -1
+            || label.indexOf("payroll service fee") !== -1;
+    }
+
     function buildInvoiceBreakdownMessage(invoice) {
         if (!invoice) return "";
 
@@ -238,7 +257,11 @@
             lines.push("Harga paket: " + formatIdr(baseAmount));
         }
 
-        var components = Array.isArray(breakdown.components) ? breakdown.components : [];
+        var components = Array.isArray(breakdown.components)
+            ? breakdown.components.filter(function (component) {
+                return !isInternalBillingComponent(component);
+            })
+            : [];
         if (components.length > 0) {
             components.forEach(function (component) {
                 var label = String(component && component.label ? component.label : "Komponen");
@@ -262,6 +285,45 @@
         }
 
         return lines.join("\n");
+    }
+
+    function buildOnboardingSuccessMessageHtml(params) {
+        var companyCode = params && params.companyCode ? String(params.companyCode) : "-";
+        var ownerEmail = params && params.ownerEmail ? String(params.ownerEmail) : "-";
+        var invoice = params && params.invoice ? params.invoice : null;
+        var isPendingPayment = !!(params && params.isPendingPayment);
+
+        var html = '';
+        html += '<div class="small text-muted mb-3">';
+        html += isPendingPayment
+            ? 'Registrasi selesai. Langkah berikutnya adalah menyelesaikan pembayaran agar akun langsung aktif.'
+            : 'Registrasi selesai. Akun company Anda siap digunakan.';
+        html += '</div>';
+
+        html += '<div class="border rounded-3 p-3 mb-3 bg-light">';
+        html += '<div class="fw-semibold mb-2">Informasi akun</div>';
+        html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Company code</span><span class="fw-semibold">' + escapeHtml(companyCode) + '</span></div>';
+        html += '<div class="d-flex justify-content-between small"><span class="text-muted">Email login</span><span class="fw-semibold">' + escapeHtml(ownerEmail) + '</span></div>';
+        html += '</div>';
+
+        if (invoice) {
+            var invoiceNumber = invoice.invoiceNumber ? String(invoice.invoiceNumber) : '-';
+            var dueDate = invoice.dueDate ? String(invoice.dueDate) : '-';
+            html += '<div class="border rounded-3 p-3 mb-3">';
+            html += '<div class="fw-semibold mb-2">Ringkasan invoice</div>';
+            html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Nomor invoice</span><span class="fw-semibold">' + escapeHtml(invoiceNumber) + '</span></div>';
+            html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Total tagihan</span><span class="fw-semibold">' + escapeHtml(formatIdr(invoice.amountDue || 0)) + '</span></div>';
+            html += '<div class="d-flex justify-content-between small"><span class="text-muted">Jatuh tempo</span><span class="fw-semibold">' + escapeHtml(dueDate) + '</span></div>';
+            html += '</div>';
+        }
+
+        html += '<div class="small text-muted">';
+        html += isPendingPayment
+            ? 'Klik tombol di bawah untuk login dan lanjutkan ke checkout pembayaran.'
+            : 'Klik tombol di bawah untuk login ke aplikasi.';
+        html += '</div>';
+
+        return html;
     }
 
     function formatValidationErrors(err) {
@@ -731,42 +793,25 @@
                 var isPendingPayment = !!subscription && subscription.status === "pending_payment";
                 var redirectUrl = isPendingPayment ? buildPendingPaymentLoginUrl(companyCode) : "/login";
                 var actionLabel = isPendingPayment ? "Login untuk lanjut bayar" : "Login sekarang";
-
                 var message = isPendingPayment
-                    ? "Registrasi company berhasil, tetapi subscription masih menunggu pembayaran."
-                    : "Onboarding berhasil.";
-                if (companyCode) {
-                    message += "\n\nCompany code: " + String(companyCode);
-                }
-                if (ownerEmail) {
-                    message += "\nLogin email: " + String(ownerEmail);
-                }
-                if (invoice) {
-                    if (invoice.invoiceNumber) {
-                        message += "\nInvoice: " + String(invoice.invoiceNumber);
-                    }
-                    if (invoice.amountDue != null) {
-                        message += "\nAmount due: " + formatIdr(invoice.amountDue);
-                    }
-                    if (invoice.dueDate) {
-                        message += "\nDue date: " + String(invoice.dueDate);
-                    }
-
-                    var breakdownText = buildInvoiceBreakdownMessage(invoice);
-                    if (breakdownText) {
-                        message += "\n\n" + breakdownText;
-                    }
-                }
-                message += isPendingPayment
-                    ? "\n\nLanjutkan dengan Login Company untuk membuka checkout payment."
-                    : "\n\nKlik “Login sekarang” untuk masuk.";
+                    ? "Registrasi selesai. Lanjutkan ke login untuk menyelesaikan pembayaran."
+                    : "Registrasi selesai. Login untuk masuk ke aplikasi.";
+                var messageHtml = buildOnboardingSuccessMessageHtml({
+                    companyCode: companyCode,
+                    ownerEmail: ownerEmail,
+                    invoice: invoice,
+                    isPendingPayment: isPendingPayment,
+                });
 
                 if (window.ArcavUi && typeof window.ArcavUi.selectOption === "function") {
                     Promise.resolve()
                         .then(function () {
                             return window.ArcavUi.selectOption({
-                                title: "Onboarding berhasil",
+                                title: isPendingPayment ? "Registrasi Berhasil" : "Akun Siap Digunakan",
                                 message: message,
+                                messageHtml: messageHtml,
+                                optionLayout: "buttons",
+                                hideCancel: true,
                                 options: [{ value: "login", label: actionLabel }],
                             });
                         })

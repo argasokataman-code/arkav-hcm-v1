@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmTrainingController;
+use App\Http\Controllers\Api\Training\HcmTrainingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/training')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:training'])->group(function () {

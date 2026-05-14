@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmTerminationController;
+use App\Http\Controllers\Api\Termination\HcmTerminationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/terminations')->middleware(['api.token', 'tenant.context'])->group(function () {

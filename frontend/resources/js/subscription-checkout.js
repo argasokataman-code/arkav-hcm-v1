@@ -33,7 +33,11 @@
     var activePackageCode = document.querySelector("[data-checkout-active-package-code]");
     var activePackagePrice = document.querySelector("[data-checkout-active-package-price]");
     var activePackageUnit = document.querySelector("[data-checkout-active-package-unit]");
-    var mockPayEnabled = String(root.getAttribute("data-checkout-mock-pay-enabled") || "0") === "1";
+    var hostedPayEnabled = String(
+        root.getAttribute("data-checkout-hosted-pay-enabled")
+        || root.getAttribute("data-checkout-mock-pay-enabled")
+        || "0"
+    ) === "1";
     var isPendingLock = String(root.getAttribute("data-checkout-pending-lock") || "0") === "1";
     var isActiveOnly = String(root.getAttribute("data-checkout-active-only") || "0") === "1";
     var upgradeForm = document.querySelector("[data-checkout-form].checkout-upgrade-form") || form;
@@ -115,6 +119,16 @@
         payNowBtn.disabled = isPaying;
     }
 
+    function isInternalBillingComponent(component) {
+        var key = String(component && component.key ? component.key : "").toLowerCase();
+        var label = String(component && component.label ? component.label : "").toLowerCase();
+        return key === "addon_markup_rate"
+            || key === "payroll_service_fee"
+            || key === "service_fee"
+            || label.indexOf("corporate tax") !== -1
+            || label.indexOf("payroll service fee") !== -1;
+    }
+
     function formatRupiah(num) {
         var n = Number(num || 0);
         try {
@@ -122,6 +136,17 @@
         } catch (_e) {
             return "Rp " + String(n);
         }
+    }
+
+    function formatRate(num) {
+        var n = Number(num || 0);
+        if (!Number.isFinite(n)) return "0%";
+        var rounded = Math.round(n * 100) / 100;
+        var text = String(rounded);
+        if (text.indexOf(".") !== -1) {
+            text = text.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+        }
+        return text + "%";
     }
 
     function billingCycleValue() {
@@ -155,6 +180,7 @@
                         };
                     })
                     .filter(Boolean)
+                    .filter(function (item) { return !isInternalBillingComponent(item); })
                 : [];
 
             if (Number.isFinite(normalizedBaseAmount) && Number.isFinite(normalizedTaxRate) && Number.isFinite(normalizedTaxAmount) && Number.isFinite(normalizedTotalAmount)) {
@@ -166,6 +192,29 @@
                     components: normalizedComponents,
                 };
             }
+        }
+
+        var amountDue = Number(invoice.amountDue || 0);
+        var taxRateSnapshot = Number(invoice.billingTaxRateSnapshot || 0);
+
+        if (Number.isFinite(amountDue) && amountDue > 0 && Number.isFinite(taxRateSnapshot) && taxRateSnapshot > 0) {
+            var taxAmountSnapshot = Math.round(amountDue * (taxRateSnapshot / (100 + taxRateSnapshot)));
+            var baseAmountSnapshot = Math.max(0, Math.round(amountDue - taxAmountSnapshot));
+
+            return {
+                baseAmount: baseAmountSnapshot,
+                taxRate: taxRateSnapshot,
+                taxAmount: taxAmountSnapshot,
+                totalAmount: amountDue,
+                components: [
+                    {
+                        key: "subscription_tax_rate",
+                        label: "Pajak",
+                        rate: taxRateSnapshot,
+                        amount: taxAmountSnapshot,
+                    },
+                ],
+            };
         }
 
         if (!invoice.notes) return null;
@@ -197,6 +246,7 @@
                     };
                 })
                 .filter(Boolean)
+                .filter(function (item) { return !isInternalBillingComponent(item); })
                 : [];
 
             return {
@@ -251,7 +301,7 @@
         }
 
         if (payNowBtn) {
-            payNowBtn.classList.toggle("d-none", !unpaid || !mockPayEnabled);
+            payNowBtn.classList.toggle("d-none", !unpaid || !hostedPayEnabled);
             payNowBtn.textContent = unpaid ? "Bayar sekarang" : "Sudah dibayar";
         }
 
@@ -284,7 +334,7 @@
 
         if (invoiceBreakdowns.length > 0) {
             var breakdown = parsePricingBreakdown(currentInvoice);
-            var breakdownText = "";
+                var breakdownHtml = '';
             if (breakdown) {
                 var lineItems = Array.isArray(breakdown.components) && breakdown.components.length > 0
                     ? breakdown.components
@@ -297,26 +347,32 @@
                         },
                     ];
 
-                var componentText = lineItems
-                    .map(function (item) {
-                        return String(item.label || "Komponen")
-                            + " " + String(item.rate) + "% (" + formatRupiah(item.amount) + ")";
-                    })
-                    .join(" + ");
-
-                breakdownText = "Subtotal " + formatRupiah(breakdown.baseAmount)
-                    + (componentText ? " + " + componentText : "")
-                    + " = Total " + formatRupiah(breakdown.totalAmount);
+                    breakdownHtml += ''
+                        + '<div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">'
+                        + '  <div class="fw-semibold text-dark">Rincian pembayaran</div>'
+                        + '  <span class="badge bg-light text-secondary border">Tax rate ' + formatRate(breakdown.taxRate) + '</span>'
+                        + '</div>'
+                        + '<div class="mt-2 small">'
+                        + '  <div class="d-flex justify-content-between gap-3"><span>Subtotal</span><strong>' + formatRupiah(breakdown.baseAmount) + '</strong></div>'
+                        + lineItems.map(function (item) {
+                            return '  <div class="d-flex justify-content-between gap-3"><span>'
+                                + String(item.label || "Komponen")
+                                + ' ' + formatRate(item.rate) + '</span><strong>'
+                                + formatRupiah(item.amount)
+                                + '</strong></div>';
+                        }).join("")
+                        + '  <div class="d-flex justify-content-between gap-3 border-top pt-2 mt-2"><span class="fw-semibold">Total</span><strong class="text-dark">' + formatRupiah(breakdown.totalAmount) + '</strong></div>'
+                        + '</div>';
             }
 
             invoiceBreakdowns.forEach(function (node) {
                 if (!node) return;
                 if (breakdown) {
                     node.classList.remove("d-none");
-                    node.textContent = breakdownText;
+                        node.innerHTML = breakdownHtml;
                 } else {
                     node.classList.add("d-none");
-                    node.textContent = "";
+                        node.innerHTML = "";
                 }
             });
         }

@@ -527,6 +527,54 @@ Route::get('/subscription', function () {
     return view('saas.subscription-checkout');
 })->middleware('hcm.web.admin')->name('subscription');
 
+// Invoice checkout preview (display breakdown before redirect to Xendit)
+Route::get('/company/invoices/{invoiceId}/checkout-preview', function (Request $request, $invoiceId) {
+    $user = auth()->user();
+    if (!$user) {
+        return redirect()->route('login');
+    }
+
+    $invoice = \App\Models\Invoice::with(['company', 'subscription'])
+        ->where('id', (int) $invoiceId)
+        ->first();
+
+    if (!$invoice) {
+        abort(404);
+    }
+
+    // Check user has access to this company/invoice
+    $hasAccess = \App\Models\CompanyUser::where('user_id', $user->id)
+        ->where('company_id', $invoice->company_id)
+        ->exists();
+
+    if (!$hasAccess) {
+        abort(403);
+    }
+
+    // Calculate breakdown
+    $baseAmount = (float) $invoice->amount_due;
+    $taxRate = (float) ($invoice->billing_tax_rate_snapshot ?? 0);
+
+    if ($taxRate > 0) {
+        $taxAmount = round($baseAmount * ($taxRate / 100), 0);
+        $baseWithoutTax = round($baseAmount - $taxAmount, 0);
+    } else {
+        $baseWithoutTax = $baseAmount;
+        $taxAmount = 0;
+    }
+
+    $totalAmount = $baseWithoutTax + $taxAmount;
+
+    return view('company-invoice-checkout', [
+        'invoice' => $invoice,
+        'company' => $invoice->company,
+        'baseAmount' => $baseWithoutTax,
+        'taxRate' => $taxRate,
+        'taxAmount' => $taxAmount,
+        'totalAmount' => $totalAmount,
+    ]);
+})->middleware('hcm.web.admin')->name('company.invoices.checkout-preview');
+
 Route::get('/packages', function () {
     return view('saas.packages');
 })->middleware('hcm.web.global-admin')->name('packages');

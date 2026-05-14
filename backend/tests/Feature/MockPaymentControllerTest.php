@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Api\MockPaymentController;
+use App\Http\Controllers\Api\Payment\MockPaymentController;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Payment;

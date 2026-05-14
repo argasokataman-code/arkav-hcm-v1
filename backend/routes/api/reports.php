@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\ReportSnapshotController;
+use App\Http\Controllers\Api\Reports\ReportSnapshotController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/reports')->middleware(['api.token', 'tenant.context'])->group(function () {

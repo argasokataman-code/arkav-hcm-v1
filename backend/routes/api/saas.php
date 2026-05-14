@@ -1,17 +1,17 @@
 <?php
 
-use App\Http\Controllers\Api\PackageController;
-use App\Http\Controllers\Api\SubscriptionController;
-use App\Http\Controllers\Api\HcmSubscriptionChangeController;
-use App\Http\Controllers\Api\TransactionController;
-use App\Http\Controllers\Api\DomainController;
-use App\Http\Controllers\Api\InvoiceController;
-use App\Http\Controllers\Api\PaymentController;
-use App\Http\Controllers\Api\BulkPaymentImportController;
-use App\Http\Controllers\Api\SuperAdminDashboardController;
-use App\Http\Controllers\Api\ReportController;
-use App\Http\Controllers\Api\SaasCompanyBillingOverviewController;
-use App\Http\Controllers\Api\PlatformTaxSummaryController;
+use App\Http\Controllers\Api\Saas\PackageController;
+use App\Http\Controllers\Api\Saas\SubscriptionController;
+use App\Http\Controllers\Api\Billing\HcmSubscriptionChangeController;
+use App\Http\Controllers\Api\Saas\TransactionController;
+use App\Http\Controllers\Api\Billing\InvoiceController;
+use App\Http\Controllers\Api\Payment\PaymentController;
+use App\Http\Controllers\Api\Saas\SuperAdminDashboardController;
+use App\Http\Controllers\Api\Reports\ReportController;
+use App\Http\Controllers\Api\Saas\SaasCompanyBillingOverviewController;
+use App\Http\Controllers\Api\TaxGovernance\PlatformTaxSummaryController;
+use App\Http\Controllers\Api\Domain\DomainController; // Added this line for completeness
+use App\Http\Controllers\Api\Saas\BulkPaymentImportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {

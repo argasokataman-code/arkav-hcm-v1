@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmEmployeeAllowanceGovernanceController;
+use App\Http\Controllers\Api\AllowanceGovernance\HcmEmployeeAllowanceGovernanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/allowance-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {

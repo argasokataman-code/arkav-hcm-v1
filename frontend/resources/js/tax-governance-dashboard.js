@@ -910,7 +910,7 @@ function loadPricingPlansScreenModuleLoader() {
 
         var message = "Konfirmasi simpan konfigurasi pajak?\n"
             + "- PPN: " + (Number.isFinite(transactionRate) ? transactionRate.toFixed(2) : "0.00") + "%\n"
-            + "- PPh Badan: " + (Number.isFinite(corporateRate) ? corporateRate.toFixed(2) : "0.00") + "%\n"
+            + "- Tarif Pajak Platform: " + (Number.isFinite(corporateRate) ? corporateRate.toFixed(2) : "0.00") + "%\n"
             + "- Billing Month: " + month + "\n"
             + "- Effective Date: " + effective + "\n"
             + "- Status: " + status;

@@ -1,15 +1,15 @@
 <?php
 
-use App\Http\Controllers\Api\HcmPayrollPeriodController;
-use App\Http\Controllers\Api\HcmPayrollRunController;
-use App\Http\Controllers\Api\HcmPayrollWorkArrangementController;
-use App\Http\Controllers\Api\HcmPayrollItemController;
-use App\Http\Controllers\Api\HcmPayrollItemAssignmentController;
-use App\Http\Controllers\Api\HcmPayrollPkwtCompensationController;
-use App\Http\Controllers\Api\HcmPayrollThrController;
-use App\Http\Controllers\Api\HcmPayrollThrBatchController;
-use App\Http\Controllers\Api\HcmPayrollThrSettingsController;
-use App\Http\Controllers\Api\HcmPayrollSettingsController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollPeriodController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollRunController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollWorkArrangementController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollItemController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollItemAssignmentController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollPkwtCompensationController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollThrController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollThrBatchController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollThrSettingsController;
+use App\Http\Controllers\Api\Payroll\HcmPayrollSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:payroll'])->group(function (): void {

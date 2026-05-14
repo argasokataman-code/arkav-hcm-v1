@@ -156,6 +156,25 @@ function parseError(error) {
     };
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function isInternalBillingComponent(component) {
+    const key = String(component?.key || '').toLowerCase();
+    const label = String(component?.label || '').toLowerCase();
+    return key === 'addon_markup_rate'
+        || key === 'payroll_service_fee'
+        || key === 'service_fee'
+        || label.includes('corporate tax')
+        || label.includes('payroll service fee');
+}
+
 function buildInvoiceBreakdownMessage(invoice) {
     const amountDue = Number(invoice?.amountDue || 0);
     const breakdown = invoice?.pricingBreakdown && typeof invoice.pricingBreakdown === 'object'
@@ -167,7 +186,9 @@ function buildInvoiceBreakdownMessage(invoice) {
     }
 
     const subtotal = Number(breakdown.base_amount || 0);
-    const components = Array.isArray(breakdown.components) ? breakdown.components : [];
+    const components = Array.isArray(breakdown.components)
+        ? breakdown.components.filter((component) => !isInternalBillingComponent(component))
+        : [];
     const total = Number(breakdown.total_amount || amountDue || 0);
 
     const lines = [`Harga paket: ${formatIdr(subtotal)}`];
@@ -189,6 +210,45 @@ function buildInvoiceBreakdownMessage(invoice) {
 
     lines.push(`Total tagihan: ${formatIdr(total)}`);
     return lines.join('\n');
+}
+
+function buildOnboardingSuccessMessageHtml(params) {
+    const companyCode = params?.companyCode ? String(params.companyCode) : '-';
+    const ownerEmail = params?.ownerEmail ? String(params.ownerEmail) : '-';
+    const invoice = params?.invoice || null;
+    const isPendingPayment = Boolean(params?.isPendingPayment);
+
+    let html = '';
+    html += '<div class="small text-muted mb-3">';
+    html += isPendingPayment
+        ? 'Registrasi selesai. Langkah berikutnya adalah menyelesaikan pembayaran agar akun langsung aktif.'
+        : 'Registrasi selesai. Akun company Anda siap digunakan.';
+    html += '</div>';
+
+    html += '<div class="border rounded-3 p-3 mb-3 bg-light">';
+    html += '<div class="fw-semibold mb-2">Informasi akun</div>';
+    html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Company code</span><span class="fw-semibold">' + escapeHtml(companyCode) + '</span></div>';
+    html += '<div class="d-flex justify-content-between small"><span class="text-muted">Email login</span><span class="fw-semibold">' + escapeHtml(ownerEmail) + '</span></div>';
+    html += '</div>';
+
+    if (invoice) {
+        const invoiceNumber = invoice.invoiceNumber ? String(invoice.invoiceNumber) : '-';
+        const dueDate = invoice.dueDate ? String(invoice.dueDate) : '-';
+        html += '<div class="border rounded-3 p-3 mb-3">';
+        html += '<div class="fw-semibold mb-2">Ringkasan invoice</div>';
+        html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Nomor invoice</span><span class="fw-semibold">' + escapeHtml(invoiceNumber) + '</span></div>';
+        html += '<div class="d-flex justify-content-between small mb-1"><span class="text-muted">Total tagihan</span><span class="fw-semibold">' + escapeHtml(formatIdr(invoice.amountDue || 0)) + '</span></div>';
+        html += '<div class="d-flex justify-content-between small"><span class="text-muted">Jatuh tempo</span><span class="fw-semibold">' + escapeHtml(dueDate) + '</span></div>';
+        html += '</div>';
+    }
+
+    html += '<div class="small text-muted">';
+    html += isPendingPayment
+        ? 'Klik tombol di bawah untuk login dan lanjutkan ke checkout pembayaran.'
+        : 'Klik tombol di bawah untuk login ke aplikasi.';
+    html += '</div>';
+
+    return html;
 }
 
 function apiFieldToFormKey(apiField) {
@@ -1450,32 +1510,22 @@ export function PublicLandingReferenceApp({ bootstrap }) {
             setOnboardingOpen(false);
 
             if (isPendingPayment) {
-                let pendingMessage = 'Registrasi company berhasil. Lanjutkan ke checkout untuk menyelesaikan pembayaran.';
-
-                if (companyCode) {
-                    pendingMessage += `\n\nCompany code: ${companyCode}`;
-                }
-
-                if (ownerEmail) {
-                    pendingMessage += `\nLogin email: ${ownerEmail}`;
-                }
-
-                if (invoice?.invoiceNumber) {
-                    pendingMessage += `\nInvoice: ${invoice.invoiceNumber}`;
-                }
-
-                const breakdownText = buildInvoiceBreakdownMessage(invoice);
-                if (breakdownText) {
-                    pendingMessage += `\n\n${breakdownText}`;
-                }
-
-                pendingMessage += '\n\nKlik "Login untuk lanjut bayar" untuk membuka checkout billing.';
+                const pendingMessage = 'Registrasi selesai. Lanjutkan ke login untuk menyelesaikan pembayaran.';
+                const pendingMessageHtml = buildOnboardingSuccessMessageHtml({
+                    companyCode,
+                    ownerEmail,
+                    invoice,
+                    isPendingPayment: true,
+                });
 
                 try {
                     if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
                         await window.ArcavUi.selectOption({
                             title: 'Onboarding berhasil',
                             message: pendingMessage,
+                            messageHtml: pendingMessageHtml,
+                            optionLayout: 'buttons',
+                            hideCancel: true,
                             options: [{ value: 'proceed', label: 'Login untuk lanjut bayar' }],
                         });
                     } else {
@@ -1489,23 +1539,22 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                 return;
             }
 
-            let message = 'Onboarding berhasil.';
-
-            if (companyCode) {
-                message += `\n\nCompany code: ${companyCode}`;
-            }
-
-            if (ownerEmail) {
-                message += `\nLogin email: ${ownerEmail}`;
-            }
-
-            message += '\n\nKlik "Login sekarang" untuk masuk.';
+            const message = 'Registrasi selesai. Login untuk masuk ke aplikasi.';
+            const messageHtml = buildOnboardingSuccessMessageHtml({
+                companyCode,
+                ownerEmail,
+                invoice,
+                isPendingPayment: false,
+            });
 
             try {
                 if (window.ArcavUi && typeof window.ArcavUi.selectOption === 'function') {
                     await window.ArcavUi.selectOption({
                         title: 'Onboarding berhasil',
                         message,
+                        messageHtml,
+                        optionLayout: 'buttons',
+                        hideCancel: true,
                         options: [{ value: 'login', label: 'Login sekarang' }],
                     });
                 } else {

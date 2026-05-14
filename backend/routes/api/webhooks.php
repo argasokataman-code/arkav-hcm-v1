@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\PaymentWebhookController;
+use App\Http\Controllers\Api\Payment\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Webhooks (outside auth middleware, signature-validated instead)

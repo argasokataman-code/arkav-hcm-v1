@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\HcmInvoiceSettingsController;
-use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\Settings\HcmInvoiceSettingsController;
+use App\Http\Controllers\Api\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/settings')->middleware(['api.token', 'tenant.context'])->group(function () {

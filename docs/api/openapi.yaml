@@ -26,6 +26,9 @@ info:
 
     ## Recent Security Updates (Non-Contract)
 
+    **2026-05-14:** Backend API controller/route file reorganization and namespace refactor.
+    No API endpoint contract/response shape changes.
+
     **2026-05-10:** Payroll settings snapshots UUID migration for multi-tenant FK integrity.
     No API endpoint contract/response shape changes. Internal schema hardening only.
 

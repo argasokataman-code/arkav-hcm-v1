@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmSalaryComponentController;
+use App\Http\Controllers\Api\Payroll\HcmSalaryComponentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

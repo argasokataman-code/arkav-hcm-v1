@@ -75,11 +75,12 @@ Catatan penting:
 
 ## Existing Vs Target
 
-- Existing: tenant invoice flow sudah bisa men-trigger mock payment sampai invoice paid, payment `completed`, dan subscription activation melalui gateway label `xendit_mock`.
+- Existing: endpoint hosted checkout tenant invoice (`POST /v1/hcm/billing/invoices/{id}/mock-hosted-checkout`) sekarang berjalan **Xendit-first** saat konfigurasi Xendit tersedia, dan hanya fallback ke hosted simulator lokal saat mode dev/mock diperlukan.
 - Existing: utility endpoint `/v1/mock/*`, `/mock-payment-tester.html`, dan `/mock-hosted-payment.html` tersedia untuk pengujian cepat di environment development.
 - Existing: hasil mock payment menulis invoice/payment nyata ke database sehingga dashboard billing dan modul lain bisa membaca outcome yang sama seperti flow billing normal.
-- Target: parity penuh dengan hosted Xendit tetap belum ada karena callback token, URL hosted, dan settlement masih seluruhnya berjalan di domain lokal, bukan provider eksternal.
-- Gap aktif: helper dev sudah meniru hosted checkout lokal, tetapi tetap diposisikan sebagai simulator runtime lokal, bukan bukti integrasi jaringan/provider nyata.
+- Existing: pada mode Xendit-first, invoice tenant menghasilkan `payment.gateway = xendit`, metadata `xendit_invoice_id`, dan redirect ke `checkout.xendit.co` untuk channel VA/QR/paylater/e-wallet sesuai konfigurasi akun Xendit.
+- Target: endpoint path lama akan diganti nama ke path netral pada major cleanup berikutnya (saat ini dipertahankan demi backward compatibility frontend).
+- Gap aktif: coverage event webhook spesifik channel (misalnya `qr_code` atau `fva_paid`) belum menjadi hard requirement karena flow saat ini memakai status invoice (`invoice.paid`/`invoice.expired`) sebagai source of truth settlement.
 
 ## Dokumentasi
 

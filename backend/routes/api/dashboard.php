@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\Api\HcmAiChatController;
-use App\Http\Controllers\Api\HcmDashboardController;
-use App\Http\Controllers\Api\HcmGlobalSearchController;
-use App\Http\Controllers\Api\HcmNotificationController;
-use App\Http\Controllers\Api\HcmActivityController;
+use App\Http\Controllers\Api\Dashboard\HcmAiChatController;
+use App\Http\Controllers\Api\Dashboard\HcmDashboardController;
+use App\Http\Controllers\Api\Dashboard\HcmGlobalSearchController;
+use App\Http\Controllers\Api\Notifications\HcmNotificationController;
+use App\Http\Controllers\Api\Dashboard\HcmActivityController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmTaxGovernanceController;
+use App\Http\Controllers\Api\TaxGovernance\HcmTaxGovernanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {

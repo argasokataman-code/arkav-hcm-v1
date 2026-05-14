@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\HcmDataPrivacyController;
-use App\Http\Controllers\Api\HcmDataPrivacyAiController;
-use App\Http\Controllers\Api\HcmSecurityIncidentController;
+use App\Http\Controllers\Api\DataPrivacy\HcmDataPrivacyController;
+use App\Http\Controllers\Api\DataPrivacy\HcmDataPrivacyAiController;
+use App\Http\Controllers\Api\DataPrivacy\HcmSecurityIncidentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/data-privacy')->middleware(['api.token', 'tenant.context'])->group(function () {

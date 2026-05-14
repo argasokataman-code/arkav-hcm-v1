@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\ReconciliationExportController;
+use App\Http\Controllers\Api\Reconciliation\ReconciliationExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/reconciliation')->middleware(['api.token', 'tenant.context'])->group(function () {

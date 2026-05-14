@@ -122,3 +122,10 @@ require __DIR__ . '/api/health.php';
 
 // Mock Payments (Development Only)
 require __DIR__ . '/api/mock-payments.php';
+
+// Invoice Management
+require __DIR__ . '/api/invoice.php';
+
+use App\Http\Controllers\Api\InvoiceController;
+
+Route::post('/invoices', [InvoiceController::class, 'create'])->name('api.invoices.create');

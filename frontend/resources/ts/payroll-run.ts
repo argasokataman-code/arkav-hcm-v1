@@ -2564,9 +2564,9 @@ async function settleMockHostedReturnAndDisburse(): Promise<void> {
 
     if (status !== "completed") {
         if (status === "failed") {
-            toast("Pembayaran mock gateway belum berhasil. Silakan ulangi proses Pay via Gateway.", true);
+            toast("Pembayaran gateway belum berhasil. Silakan ulangi proses Pay via Gateway.", true);
         } else {
-            toast("Pembayaran mock gateway belum selesai.", true);
+            toast("Pembayaran gateway belum selesai.", true);
         }
         clearHostedParams();
         return;

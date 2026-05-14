@@ -679,11 +679,11 @@
             '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
             "</div>" +
             '<div class="modal-body">' +
-            '<p class="mb-3 text-muted" data-arcav-select-body></p>' +
+            '<div class="mb-3 text-muted" data-arcav-select-body></div>' +
             '<div class="list-group" data-arcav-select-options></div>' +
             "</div>" +
             '<div class="modal-footer">' +
-            '<button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>' +
+            '<button type="button" class="btn btn-light" data-arcav-select-cancel data-bs-dismiss="modal">Batal</button>' +
             "</div>" +
             "</div>" +
             "</div>";
@@ -829,7 +829,7 @@
 
     /**
      * Template-aligned select modal (Bootstrap modal).
-     * @param {{title?: string, message?: string, options: Array<{value: string, label: string}>}} payload
+     * @param {{title?: string, message?: string, messageHtml?: string, hideCancel?: boolean, cancelLabel?: string, optionLayout?: string, options: Array<{value: string, label: string}>}} payload
      * @returns {Promise<string|null>}
      */
     window.ArcavUi.selectOption = function (payload) {
@@ -846,18 +846,34 @@
             var titleEl = el.querySelector("[data-arcav-select-title]");
             var bodyEl = el.querySelector("[data-arcav-select-body]");
             var listEl = el.querySelector("[data-arcav-select-options]");
+            var footerEl = el.querySelector(".modal-footer");
+            var cancelBtn = el.querySelector("[data-arcav-select-cancel]");
+            var useButtonsLayout = (payload && payload.optionLayout) === "buttons" || opts.length === 1;
             if (titleEl) {
                 titleEl.textContent = (payload && payload.title) || "Pilih";
             }
             if (bodyEl) {
-                bodyEl.textContent = (payload && payload.message) || "";
+                if (payload && typeof payload.messageHtml === "string" && payload.messageHtml.trim() !== "") {
+                    bodyEl.innerHTML = payload.messageHtml;
+                } else {
+                    bodyEl.textContent = (payload && payload.message) || "";
+                }
+            }
+            if (footerEl) {
+                footerEl.classList.toggle("d-none", !!(payload && payload.hideCancel));
+            }
+            if (cancelBtn) {
+                cancelBtn.textContent = (payload && payload.cancelLabel) || "Batal";
             }
             if (listEl) {
+                listEl.className = useButtonsLayout ? "d-grid gap-2" : "list-group";
                 listEl.innerHTML = "";
                 opts.forEach(function (item) {
                     var btn = document.createElement("button");
                     btn.type = "button";
-                    btn.className = "list-group-item list-group-item-action";
+                    btn.className = useButtonsLayout
+                        ? "btn btn-primary"
+                        : "list-group-item list-group-item-action";
                     btn.textContent = String(item && item.label ? item.label : item.value);
                     btn.addEventListener(
                         "click",

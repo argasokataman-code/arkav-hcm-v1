@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\HcmEmployeeController;
-use App\Http\Controllers\Api\HcmTeamController;
-use App\Http\Controllers\Api\WilayahLookupController;
+use App\Http\Controllers\Api\Employee\HcmEmployeeController;
+use App\Http\Controllers\Api\Employee\HcmTeamController;
+use App\Http\Controllers\Api\Location\WilayahLookupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:employee_management'])->group(function () {

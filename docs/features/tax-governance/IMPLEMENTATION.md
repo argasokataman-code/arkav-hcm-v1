@@ -53,6 +53,10 @@ Domain:
 
 `backend/app/Http/Controllers/Api/HcmTaxGovernanceController.php`
 
+Trait modular (platform scope) untuk memisahkan tanggung jawab controller:
+
+`backend/app/Http/Controllers/Api/TaxGovernance/Concerns/HandlesPlatformTaxGovernance.php`
+
 Method runtime yang aktif:
 - `index()` — list policy tenant
 - `store()` — buat draft policy (idempotent via `draftKey`)

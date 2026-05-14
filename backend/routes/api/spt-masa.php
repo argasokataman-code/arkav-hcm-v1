@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmSptMasaController;
+use App\Http\Controllers\Api\SptMasa\HcmSptMasaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/spt-masa')->middleware(['api.token', 'tenant.context'])->group(function (): void {

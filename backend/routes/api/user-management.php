@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmUserManagementController;
+use App\Http\Controllers\Api\UserManagement\HcmUserManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/user-management')->middleware(['api.token', 'tenant.context'])->group(function () {

@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\AttendanceController;
-use App\Http\Controllers\Api\HcmSmartAttendanceController;
-use App\Http\Controllers\Api\HcmShiftController;
+use App\Http\Controllers\Api\Attendance\AttendanceController;
+use App\Http\Controllers\Api\Attendance\HcmSmartAttendanceController;
+use App\Http\Controllers\Api\Attendance\HcmShiftController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance'])->group(function () {

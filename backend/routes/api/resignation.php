@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmResignationController;
+use App\Http\Controllers\Api\Resignation\HcmResignationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/resignations')->middleware(['api.token', 'tenant.context'])->group(function () {

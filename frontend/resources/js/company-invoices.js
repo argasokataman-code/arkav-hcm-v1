@@ -321,6 +321,16 @@
         }
     }
 
+    function isInternalBillingComponent(component) {
+        var key = String(component && component.key ? component.key : "").toLowerCase();
+        var label = String(component && component.label ? component.label : "").toLowerCase();
+        return key === "addon_markup_rate"
+            || key === "payroll_service_fee"
+            || key === "service_fee"
+            || label.indexOf("corporate tax") !== -1
+            || label.indexOf("payroll service fee") !== -1;
+    }
+
     function renderTaxBreakdown(inv) {
         if (!taxBreakdownWrap || !taxBreakdownList) return;
 
@@ -328,6 +338,7 @@
         var components = pb && Array.isArray(pb.components) ? pb.components : [];
         var items = components.map(function (component) {
             if (!component || typeof component !== "object") return null;
+            if (isInternalBillingComponent(component)) return null;
             var label = String(component.label || component.key || "Pajak").trim();
             var rate = component.rate != null && component.rate !== "" ? " (" + String(component.rate) + "%)" : "";
             var amount = component.amount != null ? fmtMoney(component.amount) : fmtMoney(0);
@@ -611,7 +622,7 @@
                                                             <button class="btn btn-sm btn-white" type="button" data-invoice-download="${esc(r.id)}" title="Download PDF">
                                 <i class="ti ti-download"></i>
                                                             </button>
-                              ${r.isPaid ? "" : `<button class="btn btn-sm btn-primary" data-invoice-mock-pay="${esc(r.id)}">Mock Pay</button>`}
+                              ${r.isPaid ? "" : `<button class="btn btn-sm btn-primary" data-invoice-mock-pay="${esc(r.id)}">Pay Now</button>`}
                             </div>
                           </td>
                         </tr>
@@ -817,7 +828,7 @@
                 api("post", "/hcm/billing/invoices/" + encodeURIComponent(id2) + "/mock-hosted-checkout", {}).then(function (payload) {
                     var hostedCheckoutUrl = payload && payload.flow ? String(payload.flow.hostedCheckoutUrl || "").trim() : "";
                     if (!payload || payload.success !== true || !hostedCheckoutUrl) {
-                        throw new Error("Gagal membuka halaman mock payment.");
+                        throw new Error("Gagal membuka halaman pembayaran.");
                     }
                     clearFeedback();
                     redirectTo(hostedCheckoutUrl);

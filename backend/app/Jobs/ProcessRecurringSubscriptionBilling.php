@@ -301,13 +301,13 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
 
         try {
             // Attempt payment based on gateway
-            $success = match ($gateway) {
+            $resultState = match ($gateway) {
                 'xendit' => $this->chargeViaXendit($invoice, $subscription, $payment),
                 'stripe' => $this->chargeViaStripe($invoice, $subscription, $payment),
                 default => throw new \RuntimeException("Unsupported gateway: $gateway"),
             };
 
-            if ($success) {
+            if ($resultState === 'paid') {
                 $payment->update([
                     'status' => 'completed',
                     'paid_at' => now(),
@@ -330,6 +330,22 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 // Send payment receipt
                 $notificationService = new NotificationService();
                 $notificationService->notifyPaymentReceived($payment->fresh(), $invoice->fresh());
+            } elseif ($resultState === 'pending') {
+                $nextAttempt = now()->addHours(24)->toIso8601String();
+                $payment->update([
+                    'status' => 'pending',
+                    'metadata' => array_merge($payment->metadata ?? [], [
+                        'next_attempt_at' => $nextAttempt,
+                        'awaiting_gateway_settlement' => true,
+                        'last_gateway_poll_at' => now()->toIso8601String(),
+                    ]),
+                ]);
+
+                Log::info('Gateway charge created and awaiting settlement', [
+                    'invoice_id' => $invoice->id,
+                    'gateway' => $gateway,
+                    'next_attempt' => $nextAttempt,
+                ]);
             } else {
                 $nextAttempt = now()->addHours(24)->toIso8601String();
                 $payment->update([
@@ -365,7 +381,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
     /**
      * Attempt charge via Stripe
      */
-    private function chargeViaStripe(Invoice $invoice, Subscription $subscription, Payment $payment): bool
+    private function chargeViaStripe(Invoice $invoice, Subscription $subscription, Payment $payment): string
     {
         try {
             $stripeService = app(StripeService::class);
@@ -375,7 +391,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $invoice->id,
                     'subscription_id' => $subscription->id,
                 ]);
-                return false;
+                return 'failed';
             }
             
             // Use stored payment method or create one-time payment intent
@@ -406,23 +422,24 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 ]);
             }
 
-            return $accepted;
+            return $accepted ? 'paid' : 'failed';
         } catch (\Exception $e) {
             Log::error('Stripe payment attempt failed', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
-            return false;
+            return 'failed';
         }
     }
 
     /**
      * Attempt charge via Xendit
      */
-    private function chargeViaXendit(Invoice $invoice, Subscription $subscription, Payment $payment): bool
+    private function chargeViaXendit(Invoice $invoice, Subscription $subscription, Payment $payment): string
     {
         try {
             $xenditService = app(XenditService::class);
+            $metadata = is_array($payment->metadata) ? $payment->metadata : [];
 
             $company = $invoice->company;
             if (! $company || empty($company->email)) {
@@ -430,11 +447,32 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $invoice->id,
                     'company_id' => $invoice->company_id,
                 ]);
-                return false;
+                return 'failed';
             }
 
+            $existingInvoiceId = isset($metadata['xendit_invoice_id']) ? (string) $metadata['xendit_invoice_id'] : '';
+            if ($existingInvoiceId !== '') {
+                $existing = $xenditService->getInvoice($existingInvoiceId);
+                $existingStatus = strtoupper((string) ($existing['status'] ?? ''));
+
+                if (in_array($existingStatus, ['SETTLED', 'PAID'], true)) {
+                    return 'paid';
+                }
+
+                if ($existingStatus !== '' && ! in_array($existingStatus, ['EXPIRED', 'FAILED'], true)) {
+                    Log::info('Xendit renewal invoice still pending settlement', [
+                        'invoice_id' => $invoice->id,
+                        'xendit_invoice_id' => $existingInvoiceId,
+                        'status' => $existingStatus,
+                    ]);
+
+                    return 'pending';
+                }
+            }
+
+            $externalId = $this->buildRecurringExternalId($invoice);
             $result = $xenditService->createInvoice([
-                'external_id' => "renewal-inv-{$invoice->id}",
+                'external_id' => $externalId,
                 'amount' => (int) round((float) $invoice->amount_due),
                 'description' => 'Recurring renewal invoice '.$invoice->invoice_number,
                 'customer_name' => $company->name,
@@ -447,8 +485,9 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             if ($result && !empty($result['id'])) {
                 $payment->update([
                     'gateway_reference' => (string) $result['id'],
-                    'metadata' => array_merge($payment->metadata ?? [], [
+                    'metadata' => array_merge($metadata, [
                         'xendit_invoice_id' => $result['id'],
+                        'xendit_external_id' => $externalId,
                         'invoice_url' => $result['invoice_url'] ?? null,
                     ]),
                 ]);
@@ -458,17 +497,22 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'xendit_invoice_id' => $result['id'],
                 ]);
 
-                return true;
+                return 'pending';
             }
 
-            return false;
+            return 'failed';
         } catch (\Exception $e) {
             Log::error('Xendit payment attempt failed', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
-            return false;
+            return 'failed';
         }
+    }
+
+    private function buildRecurringExternalId(Invoice $invoice): string
+    {
+        return "renewal-inv-{$invoice->id}";
     }
 
     private function buildSubscriptionPricingBreakdown(int $companyId, float $baseAmount): array
@@ -501,7 +545,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             }
         }
 
-        $defaultSubscriptionTaxRate = (float) ($policy?->tax_rate_percentage ?? 0);
+        $defaultSubscriptionTaxRate = $this->resolveDefaultSubscriptionTaxRate($policy);
         [$components, $subscriptionTaxRate, $subscriptionTaxAmount] =
             $this->resolvePricingComponents($policy, $baseAmount, $defaultSubscriptionTaxRate);
 
@@ -544,6 +588,15 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             $resolvedRates[$componentKey] = (float) $value;
         }
 
+        // Government compliance policy stores customer transaction tax in nested notes,
+        // while global subscription_tax_rate is used for corporate tax reporting.
+        if (is_array($notes) && (string) ($notes['source'] ?? '') === 'government_tax_compliance_policy') {
+            $transactionTaxRate = $this->extractGovernmentTransactionTaxRate($notes);
+            if ($transactionTaxRate !== null) {
+                $resolvedRates['subscription_tax_rate'] = $transactionTaxRate;
+            }
+        }
+
         if (! array_key_exists('subscription_tax_rate', $resolvedRates)) {
             $resolvedRates['subscription_tax_rate'] = $defaultSubscriptionTaxRate;
         }
@@ -576,6 +629,42 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         }
 
         return [$components, $subscriptionTaxRate, $subscriptionTaxAmount];
+    }
+
+    private function resolveDefaultSubscriptionTaxRate(?HcmBillingTaxPolicy $policy): float
+    {
+        $defaultRate = (float) ($policy?->tax_rate_percentage ?? 0);
+        $notes = json_decode((string) ($policy?->notes ?? ''), true);
+
+        if (! is_array($notes) || (string) ($notes['source'] ?? '') !== 'government_tax_compliance_policy') {
+            return max(0.0, min(100.0, $defaultRate));
+        }
+
+        $transactionTaxRate = $this->extractGovernmentTransactionTaxRate($notes);
+        if ($transactionTaxRate === null) {
+            return max(0.0, min(100.0, $defaultRate));
+        }
+
+        return $transactionTaxRate;
+    }
+
+    private function extractGovernmentTransactionTaxRate(array $policyNotes): ?float
+    {
+        $rawNotes = $policyNotes['notes'] ?? null;
+        $nestedNotes = is_array($rawNotes)
+            ? $rawNotes
+            : (is_string($rawNotes) ? json_decode($rawNotes, true) : null);
+
+        if (! is_array($nestedNotes)) {
+            return null;
+        }
+
+        $rate = $nestedNotes['transaction_tax']['tax_rate'] ?? null;
+        if (! is_numeric($rate)) {
+            return null;
+        }
+
+        return max(0.0, min(100.0, (float) $rate));
     }
 
     private function buildInvoicePricingNotes(string $source, array $pricingBreakdown, string $fallbackMessage): string

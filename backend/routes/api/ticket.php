@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmTicketController;
+use App\Http\Controllers\Api\Ticket\HcmTicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

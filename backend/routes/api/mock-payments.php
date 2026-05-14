@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\MockPaymentController;
+use App\Http\Controllers\Api\Payment\MockPaymentController;
 use Illuminate\Support\Facades\Route;
 
 // Mock Payments (Development only - for testing without Stripe/Xendit subscription)

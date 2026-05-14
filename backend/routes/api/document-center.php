@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmEmployeeDocumentController;
+use App\Http\Controllers\Api\Employee\HcmEmployeeDocumentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/document-center')

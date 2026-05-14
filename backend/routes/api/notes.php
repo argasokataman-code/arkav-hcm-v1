@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmNoteController;
+use App\Http\Controllers\Api\Notes\HcmNoteController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {

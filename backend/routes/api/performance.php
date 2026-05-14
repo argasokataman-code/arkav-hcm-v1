@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmPerformanceController;
+use App\Http\Controllers\Api\Performance\HcmPerformanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/performance')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:performance'])->group(function () {

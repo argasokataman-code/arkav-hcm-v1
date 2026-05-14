@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\Company\CompanyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/company')->middleware(['api.token'])->group(function () {

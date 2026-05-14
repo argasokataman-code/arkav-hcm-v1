@@ -54,6 +54,44 @@ Contoh respons ringkas:
 
 Mengembalikan detail satu invoice tenant untuk company aktif. Struktur `data` sama dengan item invoice pada endpoint list, sehingga UI list dan modal detail bisa menampilkan metadata package, billing cycle, dan next billing date secara konsisten.
 
+## POST `/v1/hcm/billing/invoices/{id}/mock-hosted-checkout`
+
+Memulai hosted checkout untuk invoice tenant. Nama path tetap `mock-hosted-checkout` demi kompatibilitas frontend lama, tetapi runtime sekarang **Xendit-first**:
+
+- Jika konfigurasi Xendit aktif, endpoint membuat hosted invoice Xendit dan mengembalikan `flow.hostedCheckoutUrl` dari `invoice_url` Xendit.
+- Runtime policy checkout:
+  - **Local murni (tanpa ngrok/public host):** selalu fallback ke hosted simulator lokal (mock) untuk menghindari ketergantungan gateway eksternal saat development.
+  - **Ngrok/public host aktif:** mock otomatis dinonaktifkan; checkout diarahkan ke Xendit jika API key tersedia.
+  - **Production/public runtime:** gunakan Xendit; mock tidak dipakai sebagai default runtime.
+
+Request body opsional:
+
+- `gatewayMode`: `auto` (default), `xendit`, atau `mock`.
+- `paymentMethod`: `bank_transfer`, `e_wallet`, `paylater`, `qr_code`, `card` (dipakai sebagai channel hint metadata).
+
+Contoh respons sukses (Xendit):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "invoiceNumber": "INV-202605-0123"
+  },
+  "payment": {
+    "id": 998,
+    "gateway": "xendit",
+    "gatewayReference": "64f2d8b1-bf1a-4c56-acde-123456789abc",
+    "status": "pending"
+  },
+  "flow": {
+    "mode": "hosted",
+    "provider": "xendit",
+    "hostedCheckoutUrl": "https://checkout.xendit.co/web/..."
+  }
+}
+```
+
 ## Catatan bisnis
 
 - Untuk invoice one-time atau invoice yang tidak berasal dari subscription aktif, field package/cycle/next billing bisa `null`.

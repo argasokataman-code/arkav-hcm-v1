@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmBpjsGovernanceController;
+use App\Http\Controllers\Api\BpjsGovernance\HcmBpjsGovernanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/bpjs-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {

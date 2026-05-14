@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\HcmEmailSettingsController;
+use App\Http\Controllers\Api\Settings\HcmEmailSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm/email-settings')->middleware(['api.token', 'tenant.context'])->group(function () {

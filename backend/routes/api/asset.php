@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\HcmAssetController;
-use App\Http\Controllers\Api\HcmAssetCategoryController;
+use App\Http\Controllers\Api\Asset\HcmAssetController;
+use App\Http\Controllers\Api\Asset\HcmAssetCategoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:asset_management'])->group(function () {

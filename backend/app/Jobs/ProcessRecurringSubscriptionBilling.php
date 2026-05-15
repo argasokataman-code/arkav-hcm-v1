@@ -6,7 +6,9 @@ use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
 use App\Services\BillingTaxCalculationService;
+use App\Services\CompanyStatusSynchronizer;
 use App\Services\NotificationService;
 use App\Services\StripeService;
 use App\Services\XenditService;
@@ -21,6 +23,9 @@ use Illuminate\Support\Facades\Log;
 class ProcessRecurringSubscriptionBilling implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    private const RETRY_SCHEDULE_HOURS = [1, 24, 72];
+    private const FAILURE_SPIKE_THRESHOLD = 3;
 
     /**
      * Execute the job.
@@ -53,6 +58,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            $this->emitRenewalAlert('worker_crash', 'RENEWAL_WORKER_CRASHED', $e->getMessage());
             throw $e;
         }
     }
@@ -126,13 +132,23 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
      */
     private function processSubscriptionRenewals($today): void
     {
+        $this->sendSuspensionWarnings();
+        $this->escalateExpiredGracePeriods();
+
         // Find due renewal invoices created by this recurring renewal job.
         $invoices = Invoice::query()
             ->where('is_paid', false)
             ->whereIn('status', ['draft', 'issued', 'sent'])
             ->whereDate('due_date', '<=', $today->toDateString())
             ->whereNotNull('subscription_id')
-            ->where('notes', 'like', '%"source":"recurring_subscription_renewal"%')
+            ->where(function ($query): void {
+                $query->whereNull('renewal_reason_code')
+                    ->orWhereNotIn('renewal_reason_code', ['AWAITING_GATEWAY_SETTLEMENT']);
+            })
+            ->where(function ($query): void {
+                $query->whereNotNull('renewal_period_key')
+                    ->orWhere('notes', 'like', '%"source":"recurring_subscription_renewal"%');
+            })
             ->with(['subscription.company', 'subscription.package', 'company'])
             ->get();
 
@@ -155,84 +171,110 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
      */
     private function createRenewalInvoice(Subscription $subscription): void
     {
-        $company = $subscription->company;
-        $package = $subscription->package;
-        $billingCycle = $subscription->billing_cycle ?? 'monthly';
+        DB::transaction(function () use ($subscription): void {
+            $lockedSubscription = Subscription::query()
+                ->whereKey($subscription->getKey())
+                ->lockForUpdate()
+                ->with(['company', 'package'])
+                ->first();
 
-        // Calculate next billing period
-        $currentEnd = $subscription->ends_at;
-        $nextEnd = match ($billingCycle) {
-            'yearly' => $currentEnd->clone()->addYear(),
-            'quarterly' => $currentEnd->clone()->addMonths(3),
-            default => $currentEnd->clone()->addMonth(), // monthly
-        };
+            if (! $lockedSubscription || ! $lockedSubscription->auto_renew) {
+                return;
+            }
 
-        $baseAmount = (float) ($subscription->amount ?? 0);
-        if ($baseAmount <= 0 && $package) {
-            $baseAmount = $billingCycle === 'yearly'
-                ? (float) $package->yearly_price
-                : (float) $package->monthly_price;
-        }
+            $company = $lockedSubscription->company;
+            $package = $lockedSubscription->package;
+            if (! $company) {
+                return;
+            }
 
-        $pricingBreakdown = $this->buildSubscriptionPricingBreakdown((int) $company->id, $baseAmount);
-        $amountDue = (float) ($pricingBreakdown['total_amount'] ?? $baseAmount);
+            $billingCycle = $lockedSubscription->billing_cycle ?? 'monthly';
+            $periodAnchor = $lockedSubscription->ends_at
+                ?? $lockedSubscription->starts_at
+                ?? $lockedSubscription->created_at
+                ?? now();
+            $currentEnd = $lockedSubscription->ends_at ?? $periodAnchor;
+            $nextEnd = match ($billingCycle) {
+                'yearly' => $currentEnd->clone()->addYear(),
+                'quarterly' => $currentEnd->clone()->addMonths(3),
+                default => $currentEnd->clone()->addMonth(), // monthly
+            };
 
-        $taxRateSnapshot = app(BillingTaxCalculationService::class)
-            ->resolvePolicyRateSnapshot((int) $company->id, now()->format('Y-m'));
+            $renewalPeriodKey = $this->buildRenewalPeriodKey($lockedSubscription, $periodAnchor);
 
-        // Idempotency: avoid duplicate renewal invoices for the same subscription/day.
-        $existingUnpaidRenewal = Invoice::query()
-            ->where('company_id', $company->id)
-            ->where('subscription_id', $subscription->id)
-            ->where('is_paid', false)
-            ->where('notes', 'like', '%"source":"recurring_subscription_renewal"%')
-            ->whereDate('issue_date', now()->toDateString())
-            ->exists();
+            $baseAmount = (float) ($lockedSubscription->amount ?? 0);
+            if ($baseAmount <= 0 && $package) {
+                $baseAmount = $billingCycle === 'yearly'
+                    ? (float) $package->yearly_price
+                    : (float) $package->monthly_price;
+            }
 
-        if ($existingUnpaidRenewal) {
-            Log::info('Skipped duplicate renewal invoice creation', [
-                'subscription_id' => $subscription->id,
+            $pricingBreakdown = $this->buildSubscriptionPricingBreakdown((int) $company->id, $baseAmount);
+            $amountDue = (float) ($pricingBreakdown['total_amount'] ?? $baseAmount);
+
+            $taxRateSnapshot = app(BillingTaxCalculationService::class)
+                ->resolvePolicyRateSnapshot((int) $company->id, now()->format('Y-m'));
+
+            // Idempotency: avoid duplicate renewal invoices for the same subscription/renewal period.
+            $existingRenewal = Invoice::query()
+                ->where('company_id', $company->id)
+                ->where('subscription_id', $lockedSubscription->id)
+                ->where('renewal_period_key', $renewalPeriodKey)
+                ->exists();
+
+            if ($existingRenewal) {
+                Log::info('Skipped duplicate renewal invoice creation', [
+                    'subscription_id' => $lockedSubscription->id,
+                    'company_id' => $company->id,
+                    'renewal_period_key' => $renewalPeriodKey,
+                ]);
+                return;
+            }
+
+            $invoice = Invoice::query()->create([
+                'company_id' => $company->id,
+                'subscription_id' => $lockedSubscription->id,
+                'renewal_period_key' => $renewalPeriodKey,
+                'purchase_transaction_id' => null,
+                'issue_date' => now()->toDateString(),
+                'due_date' => now()->addDays(7)->toDateString(),
+                'amount_due' => $amountDue,
+                'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
+                'status' => 'draft',
+                'renewal_reason_code' => 'RENEWAL_INVOICE_CREATED',
+                'renewal_reason_message' => 'Renewal invoice created and waiting for payment attempt.',
+                'notes' => $this->buildInvoicePricingNotes('recurring_subscription_renewal', array_merge(
+                    $pricingBreakdown,
+                    [
+                        'package_name' => $package?->name,
+                        'billing_cycle' => $billingCycle,
+                        'billing_period_start' => $currentEnd->toDateString(),
+                        'billing_period_end' => $nextEnd->toDateString(),
+                    ]
+                ), 'Auto-generated recurring renewal invoice.'),
+            ]);
+
+            Log::info('Renewal invoice created', [
+                'invoice_id' => $invoice->id,
+                'subscription_id' => $lockedSubscription->id,
+                'amount_due' => $invoice->amount_due,
                 'company_id' => $company->id,
             ]);
-            return;
-        }
 
-        $invoice = Invoice::query()->create([
-            'company_id' => $company->id,
-            'subscription_id' => $subscription->id,
-            'purchase_transaction_id' => null,
-            'issue_date' => now()->toDateString(),
-            'due_date' => now()->addDays(7)->toDateString(),
-            'amount_due' => $amountDue,
-            'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
-            'status' => 'draft',
-            'notes' => $this->buildInvoicePricingNotes('recurring_subscription_renewal', array_merge(
-                $pricingBreakdown,
-                [
-                    'package_name' => $package?->name,
-                    'billing_cycle' => $billingCycle,
-                    'billing_period_start' => $currentEnd->toDateString(),
-                    'billing_period_end' => $nextEnd->toDateString(),
-                ]
-            ), 'Auto-generated recurring renewal invoice.'),
-        ]);
+            $this->recordSubscriptionEvent($lockedSubscription, $invoice, null, 'renewal_invoice_created', 'RENEWAL_INVOICE_CREATED', 'Renewal invoice created and waiting payment attempt.');
 
-        Log::info('Renewal invoice created', [
-            'invoice_id' => $invoice->id,
-            'subscription_id' => $subscription->id,
-            'amount_due' => $invoice->amount_due,
-            'company_id' => $company->id,
-        ]);
+            if ((float) $invoice->amount_due <= 0) {
+                $invoice->markAsPaid();
+                $this->updateRenewalReason($invoice, 'ZERO_AMOUNT_AUTO_SETTLED', 'Renewal auto-settled because invoice amount is zero.');
+                $this->recordSubscriptionEvent($lockedSubscription, $invoice, null, 'renewal_paid', 'ZERO_AMOUNT_AUTO_SETTLED', 'Renewal auto-settled because invoice amount is zero.');
+                $this->extendSubscriptionPeriod($lockedSubscription);
+                return;
+            }
 
-        if ((float) $invoice->amount_due <= 0) {
-            $invoice->markAsPaid();
-            $this->extendSubscriptionPeriod($subscription);
-            return;
-        }
-
-        // Send invoice to company
-        $notificationService = new NotificationService();
-        $notificationService->notifyInvoiceIssued($invoice);
+            // Send invoice to company
+            $notificationService = new NotificationService();
+            $notificationService->notifyInvoiceIssued($invoice);
+        });
     }
 
     /**
@@ -240,148 +282,367 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
      */
     private function attemptPaymentCollection(Invoice $invoice): void
     {
-        $subscription = $invoice->subscription;
-        if (! $subscription) {
-            Log::warning('Skipping payment collection because subscription is missing', [
-                'invoice_id' => $invoice->id,
-            ]);
-            return;
-        }
+        DB::transaction(function () use ($invoice): void {
+            $lockedInvoice = Invoice::query()
+                ->whereKey($invoice->getKey())
+                ->lockForUpdate()
+                ->first();
 
-        $gateway = $this->resolveGateway($subscription);
-        $maxAttempts = 3;
+            if (! $lockedInvoice || (bool) $lockedInvoice->is_paid) {
+                return;
+            }
 
-        $payment = Payment::query()
-            ->where('invoice_id', $invoice->id)
-            ->whereIn('status', ['pending', 'failed'])
-            ->latest('id')
-            ->first();
+            $subscription = Subscription::query()
+                ->whereKey($lockedInvoice->subscription_id)
+                ->lockForUpdate()
+                ->first();
 
-        if (! $payment) {
-            $payment = Payment::query()->create([
-                'company_id' => $invoice->company_id,
-                'subscription_id' => $subscription->id,
-                'purchase_transaction_id' => null,
-                'invoice_id' => $invoice->id,
-                'amount' => (float) $invoice->amount_due,
-                'currency' => 'IDR',
-                'status' => 'pending',
-                'payment_method' => $this->resolvePaymentMethod($subscription),
-                'gateway' => $gateway,
-                'metadata' => [
-                    'attempt_count' => 0,
-                    'source' => 'recurring_subscription_renewal',
-                ],
-            ]);
-        }
-
-        $attemptCount = (int) (($payment->metadata['attempt_count'] ?? 0));
-
-        // Check if max retries exceeded
-        if ($attemptCount >= $maxAttempts) {
-            $payment->update([
-                'status' => 'failed',
-                'metadata' => array_merge($payment->metadata ?? [], [
-                    'attempt_count' => $attemptCount,
-                    'failed_at' => now()->toIso8601String(),
-                ]),
-            ]);
-
-            $invoice->update(['status' => 'overdue']);
-            Log::warning('Payment collection abandoned after max attempts', [
-                'invoice_id' => $invoice->id,
-                'attempts' => $attemptCount,
-            ]);
-
-            // Send payment failure notification
-            $notificationService = new NotificationService();
-            $notificationService->notifyPaymentFailed($invoice);
-            return;
-        }
-
-        try {
-            // Attempt payment based on gateway
-            $resultState = match ($gateway) {
-                'xendit' => $this->chargeViaXendit($invoice, $subscription, $payment),
-                'stripe' => $this->chargeViaStripe($invoice, $subscription, $payment),
-                default => throw new \RuntimeException("Unsupported gateway: $gateway"),
-            };
-
-            if ($resultState === 'paid') {
-                $payment->update([
-                    'status' => 'completed',
-                    'paid_at' => now(),
-                    'verified_at' => now(),
-                    'amount' => (float) $invoice->amount_due,
-                    'metadata' => array_merge($payment->metadata ?? [], [
-                        'attempt_count' => $attemptCount + 1,
-                        'completed_at' => now()->toIso8601String(),
-                    ]),
+            if (! $subscription) {
+                Log::warning('Skipping payment collection because subscription is missing', [
+                    'invoice_id' => $lockedInvoice->id,
                 ]);
+                return;
+            }
 
-                $invoice->markAsPaid();
-                $this->extendSubscriptionPeriod($subscription);
+            $gateway = $this->resolveGateway($subscription);
+            $maxAttempts = 3;
 
-                Log::info('Payment collected successfully', [
-                    'invoice_id' => $invoice->id,
-                    'gateway' => $gateway,
-                ]);
+            $payment = Payment::query()
+                ->where('invoice_id', $lockedInvoice->id)
+                ->whereIn('status', ['pending', 'failed'])
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
 
-                // Send payment receipt
-                $notificationService = new NotificationService();
-                $notificationService->notifyPaymentReceived($payment->fresh(), $invoice->fresh());
-            } elseif ($resultState === 'pending') {
-                $nextAttempt = now()->addHours(24)->toIso8601String();
-                $payment->update([
+            if (! $payment) {
+                $payment = Payment::query()->create([
+                    'company_id' => $lockedInvoice->company_id,
+                    'subscription_id' => $subscription->id,
+                    'purchase_transaction_id' => null,
+                    'invoice_id' => $lockedInvoice->id,
+                    'amount' => (float) $lockedInvoice->amount_due,
+                    'currency' => 'IDR',
                     'status' => 'pending',
-                    'metadata' => array_merge($payment->metadata ?? [], [
-                        'next_attempt_at' => $nextAttempt,
-                        'awaiting_gateway_settlement' => true,
-                        'last_gateway_poll_at' => now()->toIso8601String(),
-                    ]),
-                ]);
-
-                Log::info('Gateway charge created and awaiting settlement', [
-                    'invoice_id' => $invoice->id,
+                    'payment_method' => $this->resolvePaymentMethod($subscription),
                     'gateway' => $gateway,
-                    'next_attempt' => $nextAttempt,
-                ]);
-            } else {
-                $nextAttempt = now()->addHours(24)->toIso8601String();
-                $payment->update([
-                    'status' => 'pending',
-                    'metadata' => array_merge($payment->metadata ?? [], [
-                        'attempt_count' => $attemptCount + 1,
-                        'next_attempt_at' => $nextAttempt,
-                    ]),
-                ]);
-
-                Log::warning('Payment collection attempt failed, will retry', [
-                    'invoice_id' => $invoice->id,
-                    'attempt' => $attemptCount + 1,
-                    'next_attempt' => $nextAttempt,
+                    'metadata' => [
+                        'attempt_count' => 0,
+                        'source' => 'recurring_subscription_renewal',
+                    ],
                 ]);
             }
-        } catch (\Exception $e) {
-            DB::table('payment_attempts')
-                ->where('invoice_id', $invoice->id)
-                ->update([
-                    'attempt_count' => $attemptCount + 1,
-                    'error_message' => $e->getMessage(),
-                    'updated_at' => now(),
+
+            $attemptCount = (int) (($payment->metadata['attempt_count'] ?? 0));
+            $nextAttemptAt = isset($payment->metadata['next_attempt_at'])
+                ? \Illuminate\Support\Carbon::parse((string) $payment->metadata['next_attempt_at'])
+                : null;
+
+            if ($nextAttemptAt && $nextAttemptAt->isFuture()) {
+                Log::info('Skipping payment attempt because next retry window has not arrived', [
+                    'invoice_id' => $lockedInvoice->id,
+                    'next_attempt_at' => $nextAttemptAt->toIso8601String(),
+                ]);
+                return;
+            }
+
+            // Check if max retries exceeded
+            if ($attemptCount >= $maxAttempts) {
+                $payment->update([
+                    'status' => 'failed',
+                    'metadata' => array_merge($payment->metadata ?? [], [
+                        'attempt_count' => $attemptCount,
+                        'failed_at' => now()->toIso8601String(),
+                    ]),
                 ]);
 
-            Log::error('Payment collection error', [
-                'invoice_id' => $invoice->id,
-                'error' => $e->getMessage(),
-            ]);
+                $lockedInvoice->update(['status' => 'overdue']);
+                $this->updateRenewalReason($lockedInvoice, 'RENEWAL_MAX_RETRY_EXCEEDED', 'Renewal payment attempts exceeded max retry policy.');
+                $this->moveSubscriptionToGracePeriod($subscription, $lockedInvoice, $payment);
+                $this->emitRenewalMetric('renewal_retry_exhausted', 'RENEWAL_MAX_RETRY_EXCEEDED', $lockedInvoice, [
+                    'attempt_count' => $attemptCount,
+                ]);
+                $this->emitFailureSpikeAlert($lockedInvoice, 'RENEWAL_MAX_RETRY_EXCEEDED');
+                Log::warning('Payment collection abandoned after max attempts', [
+                    'invoice_id' => $lockedInvoice->id,
+                    'attempts' => $attemptCount,
+                ]);
+
+                // Send payment failure notification
+                $notificationService = new NotificationService();
+                $notificationService->notifyPaymentFailed($lockedInvoice);
+                return;
+            }
+
+            try {
+                // Attempt payment based on gateway
+                $result = match ($gateway) {
+                    'xendit' => $this->chargeViaXendit($lockedInvoice, $subscription, $payment),
+                    'stripe' => $this->chargeViaStripe($lockedInvoice, $subscription, $payment),
+                    default => throw new \RuntimeException("Unsupported gateway: $gateway"),
+                };
+
+                $resultState = $result['state'] ?? 'failed';
+
+                if ($resultState === 'paid') {
+                    $payment->update([
+                        'status' => 'completed',
+                        'paid_at' => now(),
+                        'verified_at' => now(),
+                        'amount' => (float) $lockedInvoice->amount_due,
+                        'metadata' => array_merge($payment->metadata ?? [], [
+                            'attempt_count' => $attemptCount + 1,
+                            'completed_at' => now()->toIso8601String(),
+                        ]),
+                    ]);
+
+                    $lockedInvoice->markAsPaid();
+                    $this->updateRenewalReason($lockedInvoice, 'RENEWAL_PAYMENT_CONFIRMED', 'Renewal payment confirmed and invoice marked paid.');
+                    $this->recordSubscriptionEvent($subscription, $lockedInvoice, $payment, 'renewal_paid', 'RENEWAL_PAYMENT_CONFIRMED', 'Renewal payment confirmed and invoice marked paid.');
+                    $this->extendSubscriptionPeriod($subscription);
+
+                    Log::info('Payment collected successfully', [
+                        'invoice_id' => $lockedInvoice->id,
+                        'gateway' => $gateway,
+                    ]);
+
+                    // Send payment receipt
+                    $notificationService = new NotificationService();
+                    $notificationService->notifyPaymentReceived($payment->fresh(), $lockedInvoice->fresh());
+                } elseif ($resultState === 'pending') {
+                    $nextAttempt = $this->resolveNextAttemptAt($attemptCount + 1)->toIso8601String();
+                    $payment->update([
+                        'status' => 'pending',
+                        'metadata' => array_merge($payment->metadata ?? [], [
+                            'attempt_count' => $attemptCount + 1,
+                            'next_attempt_at' => $nextAttempt,
+                            'awaiting_gateway_settlement' => true,
+                            'last_gateway_poll_at' => now()->toIso8601String(),
+                        ]),
+                    ]);
+                    $this->updateRenewalReason($lockedInvoice, 'AWAITING_GATEWAY_SETTLEMENT', 'Gateway charge is created and waiting settlement callback.');
+                    $this->recordSubscriptionEvent($subscription, $lockedInvoice, $payment, 'renewal_retry_attempted', 'AWAITING_GATEWAY_SETTLEMENT', 'Gateway charge created and waiting settlement callback.');
+
+                    Log::info('Gateway charge created and awaiting settlement', [
+                        'invoice_id' => $lockedInvoice->id,
+                        'gateway' => $gateway,
+                        'next_attempt' => $nextAttempt,
+                    ]);
+                } else {
+                    $nextAttempt = $this->resolveNextAttemptAt($attemptCount + 1)->toIso8601String();
+                    $reasonCode = (string) ($result['reason_code'] ?? 'RENEWAL_RETRY_SCHEDULED');
+                    $reasonMessage = (string) ($result['reason_message'] ?? 'Renewal charge failed, next retry has been scheduled.');
+                    $payment->update([
+                        'status' => 'pending',
+                        'metadata' => array_merge($payment->metadata ?? [], [
+                            'attempt_count' => $attemptCount + 1,
+                            'next_attempt_at' => $nextAttempt,
+                        ]),
+                    ]);
+                    $this->updateRenewalReason($lockedInvoice, $reasonCode, $reasonMessage);
+                    $this->recordSubscriptionEvent(
+                        $subscription,
+                        $lockedInvoice,
+                        $payment,
+                        $reasonCode === 'RENEWAL_RETRY_SCHEDULED' ? 'renewal_retry_attempted' : 'renewal_anomaly',
+                        $reasonCode,
+                        $reasonMessage
+                    );
+                    $this->emitRenewalMetric('renewal_attempt_failed', $reasonCode, $lockedInvoice, [
+                        'attempt_count' => $attemptCount + 1,
+                        'next_attempt_at' => $nextAttempt,
+                        'gateway' => $gateway,
+                    ]);
+                    if ($reasonCode !== 'RENEWAL_RETRY_SCHEDULED') {
+                        $this->emitRenewalAlert('gateway_down', $reasonCode, $reasonMessage, $lockedInvoice, [
+                            'attempt_count' => $attemptCount + 1,
+                            'gateway' => $gateway,
+                        ]);
+                    }
+                    $this->emitFailureSpikeAlert($lockedInvoice, $reasonCode);
+
+                    Log::warning('Payment collection attempt failed, will retry', [
+                        'invoice_id' => $lockedInvoice->id,
+                        'attempt' => $attemptCount + 1,
+                        'next_attempt' => $nextAttempt,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $nextAttempt = $this->resolveNextAttemptAt($attemptCount + 1)->toIso8601String();
+
+                $payment->update([
+                    'metadata' => array_merge($payment->metadata ?? [], [
+                        'attempt_count' => $attemptCount + 1,
+                        'next_attempt_at' => $nextAttempt,
+                        'last_error' => $e->getMessage(),
+                    ]),
+                ]);
+
+                Log::error('Payment collection error', [
+                    'invoice_id' => $lockedInvoice->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->updateRenewalReason($lockedInvoice, 'RENEWAL_PROCESS_EXCEPTION', $e->getMessage());
+                $this->recordSubscriptionEvent($subscription, $lockedInvoice, $payment, 'renewal_exception', 'RENEWAL_PROCESS_EXCEPTION', $e->getMessage());
+                $this->emitRenewalMetric('renewal_process_exception', 'RENEWAL_PROCESS_EXCEPTION', $lockedInvoice, [
+                    'attempt_count' => $attemptCount + 1,
+                ]);
+                $this->emitRenewalAlert('worker_crash', 'RENEWAL_PROCESS_EXCEPTION', $e->getMessage(), $lockedInvoice, [
+                    'attempt_count' => $attemptCount + 1,
+                ]);
+                $this->emitFailureSpikeAlert($lockedInvoice, 'RENEWAL_PROCESS_EXCEPTION');
+            }
+        });
+    }
+
+    private function buildRenewalPeriodKey(Subscription $subscription, $periodAnchor): string
+    {
+        $period = $periodAnchor->format('Y_m');
+
+        return sprintf('sub_%d_%s', (int) $subscription->id, $period);
+    }
+
+    private function updateRenewalReason(Invoice $invoice, string $reasonCode, string $reasonMessage): void
+    {
+        $invoice->forceFill([
+            'renewal_reason_code' => $reasonCode,
+            'renewal_reason_message' => mb_substr($reasonMessage, 0, 255),
+        ])->save();
+    }
+
+    private function resolveNextAttemptAt(int $attemptNumber): \Illuminate\Support\Carbon
+    {
+        $index = max(1, min($attemptNumber, count(self::RETRY_SCHEDULE_HOURS))) - 1;
+        $hours = self::RETRY_SCHEDULE_HOURS[$index];
+
+        return now()->addHours($hours);
+    }
+
+    private function moveSubscriptionToGracePeriod(Subscription $subscription, Invoice $invoice, Payment $payment): void
+    {
+        if (in_array($subscription->status, ['suspended', 'cancelled', 'expired'], true)) {
+            return;
         }
+
+        $graceStartedAt = now();
+        $graceDays = max(1, (int) config('hcm.saas.renewal_grace_period_days', 3));
+        $graceEndsAt = $graceStartedAt->copy()->addDays($graceDays);
+
+        $subscription->forceFill([
+            'status' => 'grace_period',
+            'grace_started_at' => $graceStartedAt,
+            'grace_ends_at' => $graceEndsAt,
+        ])->save();
+
+        $this->recordSubscriptionEvent(
+            $subscription,
+            $invoice,
+            $payment,
+            'grace_started',
+            'RENEWAL_GRACE_PERIOD_STARTED',
+            'Subscription entered grace period after retry policy was exhausted.',
+            ['grace_ends_at' => $graceEndsAt->toIso8601String()]
+        );
+
+        $notificationService = new NotificationService();
+        $notificationService->notifyGracePeriodStarted($subscription->fresh(['company']), $invoice->fresh(['company']));
+    }
+
+    private function sendSuspensionWarnings(): void
+    {
+        $warningDate = now()->addDay()->toDateString();
+
+        Subscription::query()
+            ->where('status', 'grace_period')
+            ->whereNotNull('grace_ends_at')
+            ->whereDate('grace_ends_at', $warningDate)
+            ->with(['company'])
+            ->chunkById(100, function ($subscriptions) use ($warningDate): void {
+                foreach ($subscriptions as $subscription) {
+                    $metadata = is_array($subscription->metadata) ? $subscription->metadata : [];
+                    $lastWarningDate = (string) ($metadata['suspension_warning_sent_for'] ?? '');
+
+                    if ($lastWarningDate === $warningDate) {
+                        continue;
+                    }
+
+                    $notificationService = new NotificationService();
+                    $notificationService->notifySuspensionWarning($subscription);
+
+                    $subscription->forceFill([
+                        'metadata' => array_merge($metadata, [
+                            'suspension_warning_sent_for' => $warningDate,
+                            'suspension_warning_sent_at' => now()->toIso8601String(),
+                        ]),
+                    ])->save();
+                }
+            });
+    }
+
+    private function escalateExpiredGracePeriods(): void
+    {
+        Subscription::query()
+            ->where('status', 'grace_period')
+            ->whereNotNull('grace_ends_at')
+            ->where('grace_ends_at', '<=', now())
+            ->chunkById(100, function ($subscriptions): void {
+                $companyStatusSynchronizer = app(CompanyStatusSynchronizer::class);
+
+                foreach ($subscriptions as $subscription) {
+                    $subscription->forceFill([
+                        'status' => 'inactive',
+                        'suspended_at' => now(),
+                        'suspension_reason' => 'Grace period expired without successful renewal payment.',
+                    ])->save();
+
+                    $companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
+
+                    $this->recordSubscriptionEvent(
+                        $subscription,
+                        null,
+                        null,
+                        'inactive',
+                        'RENEWAL_GRACE_EXPIRED',
+                        'Subscription inactivated because grace period expired without successful renewal.'
+                    );
+
+                    $notificationService = new NotificationService();
+                    $notificationService->notifySubscriptionSuspended($subscription->fresh(['company']));
+                }
+            });
+    }
+
+    private function recordSubscriptionEvent(
+        Subscription $subscription,
+        ?Invoice $invoice,
+        ?Payment $payment,
+        string $eventType,
+        ?string $reasonCode = null,
+        ?string $reasonMessage = null,
+        array $payload = []
+    ): void {
+        SubscriptionEvent::query()->create([
+            'company_id' => $subscription->company_id,
+            'company_uuid' => $subscription->getAttribute('company_uuid'),
+            'subscription_id' => $subscription->id,
+            'subscription_uuid' => $subscription->uuid ?? null,
+            'invoice_id' => $invoice?->id,
+            'invoice_uuid' => $invoice?->uuid,
+            'payment_id' => $payment?->id,
+            'payment_uuid' => $payment?->uuid,
+            'renewal_period_key' => $invoice?->renewal_period_key,
+            'event_type' => $eventType,
+            'reason_code' => $reasonCode,
+            'reason_message' => $reasonMessage !== null ? mb_substr($reasonMessage, 0, 255) : null,
+            'payload' => $payload === [] ? null : $payload,
+            'occurred_at' => now(),
+            'created_at' => now(),
+        ]);
     }
 
     /**
      * Attempt charge via Stripe
      */
-    private function chargeViaStripe(Invoice $invoice, Subscription $subscription, Payment $payment): string
+    private function chargeViaStripe(Invoice $invoice, Subscription $subscription, Payment $payment): array
     {
         try {
             $stripeService = app(StripeService::class);
@@ -391,7 +652,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $invoice->id,
                     'subscription_id' => $subscription->id,
                 ]);
-                return 'failed';
+                return ['state' => 'failed'];
             }
             
             // Use stored payment method or create one-time payment intent
@@ -422,20 +683,20 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 ]);
             }
 
-            return $accepted ? 'paid' : 'failed';
-        } catch (\Exception $e) {
+            return ['state' => $accepted ? 'paid' : 'failed'];
+        } catch (\Throwable $e) {
             Log::error('Stripe payment attempt failed', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
-            return 'failed';
+            return ['state' => 'failed'];
         }
     }
 
     /**
      * Attempt charge via Xendit
      */
-    private function chargeViaXendit(Invoice $invoice, Subscription $subscription, Payment $payment): string
+    private function chargeViaXendit(Invoice $invoice, Subscription $subscription, Payment $payment): array
     {
         try {
             $xenditService = app(XenditService::class);
@@ -447,7 +708,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $invoice->id,
                     'company_id' => $invoice->company_id,
                 ]);
-                return 'failed';
+                return ['state' => 'failed'];
             }
 
             $existingInvoiceId = isset($metadata['xendit_invoice_id']) ? (string) $metadata['xendit_invoice_id'] : '';
@@ -456,7 +717,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 $existingStatus = strtoupper((string) ($existing['status'] ?? ''));
 
                 if (in_array($existingStatus, ['SETTLED', 'PAID'], true)) {
-                    return 'paid';
+                    return ['state' => 'paid'];
                 }
 
                 if ($existingStatus !== '' && ! in_array($existingStatus, ['EXPIRED', 'FAILED'], true)) {
@@ -466,7 +727,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                         'status' => $existingStatus,
                     ]);
 
-                    return 'pending';
+                    return ['state' => 'pending'];
                 }
             }
 
@@ -497,22 +758,110 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'xendit_invoice_id' => $result['id'],
                 ]);
 
-                return 'pending';
+                return ['state' => 'pending'];
             }
 
-            return 'failed';
+            return ['state' => 'failed'];
         } catch (\Exception $e) {
             Log::error('Xendit payment attempt failed', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
-            return 'failed';
+            return [
+                'state' => 'failed',
+                'reason_code' => 'XENDIT_DOWN',
+                'reason_message' => 'Xendit gateway unavailable, next retry has been scheduled.',
+            ];
         }
     }
 
     private function buildRecurringExternalId(Invoice $invoice): string
     {
         return "renewal-inv-{$invoice->id}";
+    }
+
+    private function emitRenewalMetric(string $metricKey, string $reasonCode, ?Invoice $invoice = null, array $context = []): void
+    {
+        Log::info('renewal_monitoring.metric', array_merge([
+            'metric_key' => $metricKey,
+            'reason_code' => $reasonCode,
+            'invoice_id' => $invoice?->id,
+            'company_id' => $invoice?->company_id,
+            'renewal_period_key' => $invoice?->renewal_period_key,
+            'recorded_at' => now()->toIso8601String(),
+        ], $context));
+    }
+
+    private function emitRenewalAlert(string $alertType, string $reasonCode, string $message, ?Invoice $invoice = null, array $context = []): void
+    {
+        Log::warning('renewal_monitoring.alert', array_merge([
+            'alert_type' => $alertType,
+            'reason_code' => $reasonCode,
+            'message' => $message,
+            'invoice_id' => $invoice?->id,
+            'company_id' => $invoice?->company_id,
+            'renewal_period_key' => $invoice?->renewal_period_key,
+            'recorded_at' => now()->toIso8601String(),
+        ], $context));
+
+        if (in_array($alertType, ['gateway_down', 'worker_crash'], true)) {
+            (new NotificationService())->notifyAdminOperationalAlert(
+                $alertType,
+                $reasonCode,
+                $message,
+                array_merge(['invoice_id' => $invoice?->id, 'company_id' => $invoice?->company_id], $context)
+            );
+        }
+    }
+
+    private function emitFailureSpikeAlert(?Invoice $invoice, string $reasonCode): void
+    {
+        $failureCodes = [
+            'XENDIT_DOWN',
+            'RENEWAL_PROCESS_EXCEPTION',
+            'RENEWAL_MAX_RETRY_EXCEEDED',
+            'XENDIT_PAYMENT_FAILED',
+            'XENDIT_INVOICE_EXPIRED',
+        ];
+
+        if (! in_array($reasonCode, $failureCodes, true)) {
+            return;
+        }
+
+        $count = Invoice::query()
+            ->whereNotNull('renewal_period_key')
+            ->whereIn('renewal_reason_code', $failureCodes)
+            ->whereDate('issue_date', '>=', now()->subDay()->toDateString())
+            ->count();
+
+        $this->emitRenewalMetric('renewal_failure_count_24h', $reasonCode, $invoice, [
+            'window' => '24h',
+            'count' => $count,
+        ]);
+
+        if ($count < self::FAILURE_SPIKE_THRESHOLD) {
+            return;
+        }
+
+        $this->emitRenewalAlert('failure_spike', 'RENEWAL_FAILURE_SPIKE', 'Renewal failure spike threshold reached in the last 24 hours.', $invoice, [
+            'window' => '24h',
+            'count' => $count,
+            'threshold' => self::FAILURE_SPIKE_THRESHOLD,
+            'trigger_reason_code' => $reasonCode,
+        ]);
+
+        (new NotificationService())->notifyAdminOperationalAlert(
+            'failure_spike',
+            'RENEWAL_FAILURE_SPIKE',
+            "Renewal failure spike: {$count} failures in the last 24 hours (threshold: " . self::FAILURE_SPIKE_THRESHOLD . ").",
+            [
+                'window' => '24h',
+                'count' => $count,
+                'threshold' => self::FAILURE_SPIKE_THRESHOLD,
+                'trigger_reason_code' => $reasonCode,
+                'invoice_id' => $invoice?->id,
+            ]
+        );
     }
 
     private function buildSubscriptionPricingBreakdown(int $companyId, float $baseAmount): array
@@ -709,6 +1058,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
 
     private function extendSubscriptionPeriod(Subscription $subscription): void
     {
+        $previousStatus = (string) $subscription->status;
         $currentEnd = $subscription->ends_at ?? now();
         $billingCycle = $subscription->billing_cycle ?? 'monthly';
 
@@ -721,6 +1071,32 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         $subscription->update([
             'status' => 'active',
             'ends_at' => $nextEnd,
+            'grace_started_at' => null,
+            'grace_ends_at' => null,
+            'suspended_at' => null,
+            'suspension_reason' => null,
         ]);
+
+        $latestInvoice = $subscription->invoices()->latest('id')->first();
+        $this->recordSubscriptionEvent(
+            $subscription,
+            $latestInvoice,
+            null,
+            'renewed',
+            'RENEWAL_SUBSCRIPTION_EXTENDED',
+            'Subscription period extended after renewal payment.',
+            ['next_ends_at' => $nextEnd->toIso8601String()]
+        );
+
+        if (in_array($previousStatus, ['grace_period', 'suspended'], true)) {
+            $this->recordSubscriptionEvent(
+                $subscription,
+                $latestInvoice,
+                null,
+                'resumed',
+                'RENEWAL_SUBSCRIPTION_RESUMED',
+                'Subscription resumed from grace/suspended state after renewal payment.'
+            );
+        }
     }
 }

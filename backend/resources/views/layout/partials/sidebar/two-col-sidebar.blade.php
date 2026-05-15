@@ -20,7 +20,7 @@
                         <i class="ti ti-layout-grid-add"></i>
                     </a>
                     @if ($isGlobalHcmAdmin)
-                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
+                    <a href="#" class="nav-link {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/renewal-monitoring','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? 'show active' : '' }}" title="Super Admin" data-bs-toggle="tab" data-bs-target="#super-admin">
                         <i class="ti ti-user-star"></i>
                     </a>
                     @endif
@@ -174,12 +174,13 @@
                         </ul>
                     </div>
 @if ($isGlobalHcmAdmin)
-                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? '  show active' : '' }}" id="super-admin">
+                    <div class="tab-pane fade {{ Request::is('dashboard','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/renewal-monitoring','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob','payment-report') ? '  show active' : '' }}" id="super-admin">
                         <ul>
                             <li class="menu-title"><span>SUPER ADMIN</span></li>
                             <li><a href="{{url('dashboard')}}" class="{{ Request::is('dashboard') ? 'active' : '' }}">Dashboard</a></li>
                             <li><a href="{{url('companies')}}" class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
                             <li><a href="{{url('saas/billing-overview')}}" class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing Dashboard</a></li>
+                            <li><a href="{{url('saas/renewal-monitoring')}}" class="{{ Request::is('saas/renewal-monitoring') ? 'active' : '' }}">Renewal Monitoring</a></li>
                             <li><a href="{{url('saas/subscriptions')}}" class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                             <li><a href="{{ route('super-admin.package-compliance') }}" class="{{ Request::is('super-admin/package-compliance') ? 'active' : '' }}">Package Compliance</a></li>
                             <li><a href="{{url('packages')}}" class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>

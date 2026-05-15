@@ -11,6 +11,7 @@ use App\Jobs\SuspendServicesForOverdueInvoicesJob;
 use App\Jobs\CheckEmployeeCountLimitsJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
 use App\Jobs\ProcessRecurringSubscriptionBilling;
+use App\Jobs\ReconcilePendingRenewalPayments;
 use App\Jobs\ApplySubscriptionChangeJob;
 use App\Jobs\ClearRevenueTransactionsJob;
 use App\Jobs\CloseMonthlyFinancialReportJob;
@@ -143,10 +144,21 @@ $recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling())
     ->name('saas-recurring-billing')
     ->description('Process subscription renewals and recurring billing tasks')
     ->timezone((string) ($recurringBilling['timezone'] ?? 'Asia/Jakarta'))
-    ->dailyAt((string) ($recurringBilling['time'] ?? '06:00'))
+    ->everyThirtyMinutes()
     ->withoutOverlapping(60);
 if (($recurringBilling['enabled'] ?? true) !== true) {
     $recurringBillingTask->skip(fn (): bool => true);
+}
+
+$reconcileRenewal = CronjobSettings::get('saas_reconcile_pending_renewals');
+$reconcileRenewalTask = Schedule::job(new ReconcilePendingRenewalPayments())
+    ->name('saas-reconcile-pending-renewals')
+    ->description('Reconcile pending renewal payments against gateway status and surface anomalies')
+    ->timezone((string) ($reconcileRenewal['timezone'] ?? 'Asia/Jakarta'))
+    ->everyThirtyMinutes()
+    ->withoutOverlapping(25);
+if (($reconcileRenewal['enabled'] ?? true) !== true) {
+    $reconcileRenewalTask->skip(fn (): bool => true);
 }
 
 $applyPlanChanges = CronjobSettings::get('saas_apply_subscription_plan_changes');

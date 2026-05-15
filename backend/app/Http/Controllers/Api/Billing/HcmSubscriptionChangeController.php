@@ -340,7 +340,19 @@ class HcmSubscriptionChangeController extends Controller
         if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
             return $block;
         }
-        $action = $this->determineAction($subscription?->package, $target, $validated['action']);
+
+        $currentPackage = $subscription?->package;
+        if ($target && $currentPackage && $target->uuid === $currentPackage->uuid) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SAME_PACKAGE_NOT_ALLOWED',
+                    'message' => 'Paket target tidak boleh sama dengan paket aktif saat ini.',
+                ],
+            ], 422);
+        }
+
+        $action = $this->determineAction($currentPackage, $target, $validated['action']);
         if ($action === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
             $target = null;
         }
@@ -409,7 +421,19 @@ class HcmSubscriptionChangeController extends Controller
         if ($block = $this->ensureTargetPackageActive($target, (string) $validated['action'])) {
             return $block;
         }
-        $action = $this->determineAction($subscription?->package, $target, $validated['action']);
+
+        $currentPackage = $subscription?->package;
+        if ($target && $currentPackage && $target->uuid === $currentPackage->uuid) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'SAME_PACKAGE_NOT_ALLOWED',
+                    'message' => 'Paket target tidak boleh sama dengan paket aktif saat ini.',
+                ],
+            ], 422);
+        }
+
+        $action = $this->determineAction($currentPackage, $target, $validated['action']);
         if ($action === HcmSubscriptionChangeRequest::ACTION_CANCEL) {
             $target = null;
         }
@@ -728,9 +752,14 @@ class HcmSubscriptionChangeController extends Controller
 
     private function formatRequest(HcmSubscriptionChangeRequest $record): array
     {
+        $record->load('company');
+        $company = $record->company;
+
         return [
             'id' => $record->id,
             'company_uuid' => $record->company_uuid,
+            'company_code' => $company?->code ?? '',
+            'company_name' => $company?->name ?? '',
             'user_uuid' => $record->user_uuid,
             'action' => $record->action,
             'status' => $record->status,

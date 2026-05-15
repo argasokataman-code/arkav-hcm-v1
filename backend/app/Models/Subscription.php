@@ -28,6 +28,8 @@ class Subscription extends Model
         'termination_reason',
         'suspended_at',
         'suspension_reason',
+        'grace_started_at',
+        'grace_ends_at',
         'metadata',
     ];
 
@@ -37,6 +39,8 @@ class Subscription extends Model
         'trial_ends_at' => 'datetime',
         'terminated_at' => 'datetime',
         'suspended_at' => 'datetime',
+        'grace_started_at' => 'datetime',
+        'grace_ends_at' => 'datetime',
         'auto_renew' => 'boolean',
         'amount' => 'decimal:2',
         'metadata' => 'array',
@@ -62,6 +66,11 @@ class Subscription extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function events(): HasMany
+    {
+        return $this->hasMany(SubscriptionEvent::class);
+    }
+
     public function latestInvoice(): HasOne
     {
         return $this->hasOne(Invoice::class)->latestOfMany('id');
@@ -73,7 +82,7 @@ class Subscription extends Model
     public static function activeForCompany(int $companyId): ?self
     {
         return static::where('company_id', $companyId)
-            ->whereIn('status', ['active', 'trial'])
+            ->whereIn('status', ['active', 'trial', 'grace_period'])
             ->where(function ($q): void {
                 $q->whereNull('ends_at')
                     ->orWhere('ends_at', '>', now());

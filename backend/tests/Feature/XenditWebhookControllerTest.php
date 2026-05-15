@@ -135,6 +135,9 @@ class XenditWebhookControllerTest extends TestCase
         $subscription->refresh();
         $this->assertTrue($firstEndsAt->greaterThan($originalEndsAt));
         $this->assertSame($firstEndsAt->toDateTimeString(), $subscription->ends_at->toDateTimeString());
+
+        $invoice->refresh();
+        $this->assertSame('WEBHOOK_INVOICE_PAID', $invoice->renewal_reason_code);
     }
 
     public function test_missing_xendit_webhook_id_uses_fallback_and_is_idempotent(): void

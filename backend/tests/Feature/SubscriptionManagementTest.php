@@ -154,13 +154,17 @@ class SubscriptionManagementTest extends TestCase
 
         $this->assertEquals('active', $this->subscription->status);
 
-        // Suspend due to overdue
+        // Inactivate due to overdue renewal delinquency
         $result = $this->terminationService->suspendDueToOverdueInvoice($this->subscription, $invoice);
 
         $this->assertTrue($result);
         $this->assertDatabaseHas('subscriptions', [
             'id' => $this->subscription->id,
-            'status' => 'suspended',
+            'status' => 'inactive',
+        ]);
+        $this->assertDatabaseHas('companies', [
+            'id' => $this->company->id,
+            'status' => 'inactive',
         ]);
 
         // Check suspension reason contains invoice number

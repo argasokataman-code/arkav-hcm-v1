@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Saas\SuperAdminDashboardController;
 use App\Http\Controllers\Api\Reports\ReportController;
 use App\Http\Controllers\Api\Saas\SaasCompanyBillingOverviewController;
+use App\Http\Controllers\Api\Saas\RenewalMonitoringController;
 use App\Http\Controllers\Api\TaxGovernance\PlatformTaxSummaryController;
 use App\Http\Controllers\Api\Domain\DomainController; // Added this line for completeness
 use App\Http\Controllers\Api\Saas\BulkPaymentImportController;
@@ -96,6 +97,14 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 
         // Billing overview (companies)
         Route::get('/companies/billing-overview', [SaasCompanyBillingOverviewController::class, 'index']);
+
+        // Renewal monitoring
+        Route::prefix('/renewal-monitoring')->group(function () {
+            Route::get('/summary', [RenewalMonitoringController::class, 'summary']);
+            Route::get('/records', [RenewalMonitoringController::class, 'records']);
+            Route::get('/records/{renewalPeriodKey}', [RenewalMonitoringController::class, 'show']);
+            Route::get('/anomalies', [RenewalMonitoringController::class, 'anomalies']);
+        });
 
         // Platform Tax Reporting — SPT PPN / PPh 23 (Global Super Admin only)
         Route::prefix('/tax')->group(function () {

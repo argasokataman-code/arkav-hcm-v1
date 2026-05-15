@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Billing\HcmCompanyInvoiceController;
 use App\Http\Controllers\Api\Payment\MockPaymentController;
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Payment;
@@ -15,6 +16,7 @@ use App\Services\InvoiceService;
 use App\Services\XenditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Mockery;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
@@ -127,7 +129,8 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
             'purchase_transaction_id' => null,
             'issue_date' => now()->toDateString(),
             'due_date' => now()->addDays(7)->toDateString(),
-            'amount_due' => 350000,
+            'amount_due' => 1110000,
+            'billing_tax_rate_snapshot' => 11,
             'status' => 'draft',
             'is_paid' => false,
             'notes' => 'Xendit hosted checkout invoice',
@@ -137,6 +140,21 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
         $xenditMock
             ->shouldReceive('createInvoice')
             ->once()
+            ->withArgs(function (array $payload): bool {
+                return (int) ($payload['amount'] ?? 0) === 1110000
+                    && ($payload['items'] ?? null) === [
+                        [
+                            'name' => 'Subscription / Invoice',
+                            'quantity' => 1,
+                            'price' => 1000000,
+                        ],
+                        [
+                            'name' => 'Tax (11%)',
+                            'quantity' => 1,
+                            'price' => 110000,
+                        ],
+                    ];
+            })
             ->andReturn([
                 'id' => 'xnd_inv_test_001',
                 'invoice_url' => 'https://checkout.xendit.co/web/xnd_inv_test_001',
@@ -168,6 +186,89 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
         $this->assertSame('e_wallet', $payment->payment_method);
         $this->assertSame('xnd_inv_test_001', $payment->gateway_reference);
         $this->assertSame('qr_code', (string) data_get($payment->metadata, 'xendit_channel_hint'));
+    }
+
+    public function test_legacy_unpaid_subscription_invoice_is_healed_with_tax_before_display_and_payment(): void
+    {
+        $company = $this->createIsolatedTestCompany();
+        $this->createHcmAdminWithCompany([
+            'email' => 'invoice-legacy-tax-owner@example.com',
+        ], $company);
+        $user = User::query()->where('email', 'invoice-legacy-tax-owner@example.com')->firstOrFail();
+
+        HcmBillingTaxPolicy::query()->create([
+            'id' => (string) Str::uuid(),
+            'company_id' => $company->id,
+            'billing_month' => now()->format('Y-m'),
+            'billing_cycle_type' => 'monthly',
+            'tax_rate_percentage' => 11,
+            'base_calculation_method' => 'invoice_amount_due',
+            'effective_from' => now()->startOfMonth()->toDateString(),
+            'effective_to' => now()->endOfMonth()->toDateString(),
+            'status' => 'active',
+            'notes' => json_encode([
+                'global_rates' => [
+                    'subscription_tax_rate' => 11,
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'legacy-renewal',
+            'status' => 'inactive',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->subDays(7),
+            'billing_cycle' => 'monthly',
+            'amount' => 100000,
+        ]);
+
+        $invoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(3)->toDateString(),
+            'amount_due' => 100000,
+            'status' => 'draft',
+            'is_paid' => false,
+            'notes' => 'Legacy renewal invoice without tax snapshot',
+        ]);
+
+        $controller = app(HcmCompanyInvoiceController::class);
+
+        $showRequest = Request::create('/v1/hcm/billing/invoices/'.$invoice->id, 'GET');
+        $showRequest->attributes->set('activeCompanyId', $company->id);
+        $showRequest->attributes->set('activeCompany', $company);
+        $showRequest->attributes->set('activeCompanyCode', $company->code);
+        $showRequest->setUserResolver(fn () => $user);
+
+        $showResponse = $controller->show($showRequest, $invoice->id);
+        $showPayload = json_decode((string) $showResponse->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(200, $showResponse->getStatusCode());
+        $this->assertTrue($showPayload['success']);
+        $this->assertEqualsWithDelta(111000, (float) ($showPayload['data']['amountDue'] ?? 0), 0.01);
+        $this->assertEqualsWithDelta(11, (float) ($showPayload['data']['billingTaxRateSnapshot'] ?? 0), 0.01);
+
+        $checkoutRequest = Request::create('/v1/hcm/billing/invoices/'.$invoice->id.'/mock-hosted-checkout', 'POST');
+        $checkoutRequest->attributes->set('activeCompanyId', $company->id);
+        $checkoutRequest->attributes->set('activeCompany', $company);
+        $checkoutRequest->attributes->set('activeCompanyCode', $company->code);
+        $checkoutRequest->setUserResolver(fn () => $user);
+
+        $checkoutResponse = $controller->mockHostedCheckout($checkoutRequest, $invoice->id);
+        $checkoutPayload = json_decode((string) $checkoutResponse->getContent(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(200, $checkoutResponse->getStatusCode());
+        $this->assertTrue($checkoutPayload['success']);
+        $this->assertEqualsWithDelta(111000, (float) ($checkoutPayload['data']['amountDue'] ?? 0), 0.01);
+        $this->assertEqualsWithDelta(111000, (float) ($checkoutPayload['payment']['amount'] ?? 0), 0.01);
+
+        $invoice->refresh();
+        $this->assertEqualsWithDelta(111000, (float) $invoice->amount_due, 0.01);
+        $this->assertEqualsWithDelta(11, (float) ($invoice->billing_tax_rate_snapshot ?? 0), 0.01);
     }
 
     public function test_company_invoice_download_returns_pdf_binary_for_existing_generated_pdf(): void

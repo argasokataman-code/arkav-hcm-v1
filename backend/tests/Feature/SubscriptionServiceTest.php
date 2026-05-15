@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -239,6 +240,47 @@ class SubscriptionServiceTest extends TestCase
         $this->assertEquals('suspended', $response->json('data.status'));
     }
 
+    public function test_update_reactivates_suspended_subscription_and_clears_suspension_fields(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $this->basicPackage->uuid,
+            'plan_code' => 'basic',
+            'status' => 'suspended',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addDays(10),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+            'grace_started_at' => now()->subDays(7),
+            'grace_ends_at' => now()->addDay(),
+            'suspended_at' => now()->subDays(1),
+            'suspension_reason' => 'Invoice overdue',
+        ]);
+
+        $response = $this->request()->putJson("/v1/saas/subscriptions/{$subscription->uuid}", [
+            'status' => 'active',
+            'ends_at' => now()->addMonth()->toDateString(),
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.status', 'active');
+
+        $subscription->refresh();
+        $this->assertNull($subscription->suspended_at);
+        $this->assertNull($subscription->suspension_reason);
+        $this->assertNull($subscription->grace_started_at);
+        $this->assertNull($subscription->grace_ends_at);
+
+        $event = SubscriptionEvent::query()
+            ->where('subscription_id', $subscription->id)
+            ->where('event_type', 'resumed')
+            ->where('reason_code', 'SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE')
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($event);
+    }
+
     public function test_create_trial_subscription_success(): void
     {
         $starts = now()->toDateString();
@@ -411,6 +453,47 @@ class SubscriptionServiceTest extends TestCase
 
         $renew->assertOk();
         $renew->assertJsonPath('data.status', 'active');
+    }
+
+    public function test_renew_suspended_subscription_clears_suspension_fields_and_records_event(): void
+    {
+        $subscription = Subscription::create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $this->basicPackage->uuid,
+            'plan_code' => 'basic',
+            'status' => 'suspended',
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->subDay(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+            'grace_started_at' => now()->subDays(10),
+            'grace_ends_at' => now()->subDays(3),
+            'suspended_at' => now()->subDays(2),
+            'suspension_reason' => 'Grace ended without payment',
+        ]);
+
+        $futureDate = now()->addMonths(1)->toDateString();
+        $renew = $this->request()->postJson("/v1/saas/subscriptions/{$subscription->uuid}/renew", [
+            'ends_at' => $futureDate,
+        ]);
+
+        $renew->assertOk();
+        $renew->assertJsonPath('data.status', 'active');
+
+        $subscription->refresh();
+        $this->assertNull($subscription->suspended_at);
+        $this->assertNull($subscription->suspension_reason);
+        $this->assertNull($subscription->grace_started_at);
+        $this->assertNull($subscription->grace_ends_at);
+
+        $event = SubscriptionEvent::query()
+            ->where('subscription_id', $subscription->id)
+            ->where('event_type', 'resumed')
+            ->where('reason_code', 'SUBSCRIPTION_REACTIVATED_MANUAL_RENEW')
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($event);
     }
 
     public function test_non_admin_cannot_create_subscription()

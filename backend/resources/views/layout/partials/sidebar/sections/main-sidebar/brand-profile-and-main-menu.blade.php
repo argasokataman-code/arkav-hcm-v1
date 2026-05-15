@@ -118,7 +118,7 @@
                         </li> -->
 @if ($isGlobalHcmAdmin)
                         <li class="submenu">
-                            <a href="#" class="{{ Request::is('dashboard','activity','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob-schedule','payment-report') ? 'active subdrop' : '' }}">
+                            <a href="#" class="{{ Request::is('dashboard','activity','companies','subscription','packages','packages-grid','domain','purchase-transaction','saas/packages','saas/subscriptions','saas/domains','saas/transactions','saas/invoices','saas/payments','saas/reports','saas/reminders','saas/billing-overview','saas/billing-overview/*','saas/renewal-monitoring','saas/pricing*','saas/platform-tax*','platform-tax-compliance*','notification-observability','cronjob-schedule','payment-report') ? 'active subdrop' : '' }}">
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul>
@@ -128,6 +128,7 @@
 @endif
                                 <li><a href="{{url('companies')}}"  class="{{ Request::is('companies') ? 'active' : '' }}">Companies</a></li>
                                 <li><a href="{{url('saas/billing-overview')}}"  class="{{ Request::is('saas/billing-overview','saas/billing-overview/*') ? 'active' : '' }}">Trial & Billing Dashboard</a></li>
+                                <li><a href="{{url('saas/renewal-monitoring')}}" class="{{ Request::is('saas/renewal-monitoring') ? 'active' : '' }}">Renewal Monitoring</a></li>
                                 <li><a href="{{url('saas/subscriptions')}}"  class="{{ Request::is('saas/subscriptions') ? 'active' : '' }}">Subscriptions</a></li>
                                 <li><a href="{{url('packages')}}"  class="{{ Request::is('packages','packages-grid','saas/packages') ? 'active' : '' }}">Packages</a></li>
                                 <li><a href="{{url('domain')}}"  class="{{ Request::is('domain','saas/domains') ? 'active' : '' }}">Domain</a></li>

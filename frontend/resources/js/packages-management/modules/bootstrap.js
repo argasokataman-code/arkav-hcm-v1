@@ -1,4 +1,4 @@
-import { API_FEATURE_CATALOG, FEATURE_LIMIT_INPUT_CODE, apiRequest, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, isRecognizedRuntimeFeatureCode, setFeatureLibrary } from "../shared";
+import { API_FEATURE_CATALOG, FEATURE_LIMIT_INPUT_CODE, apiRequest, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, isRecognizedRuntimeFeatureCode, setFeatureLibrary } from "../shared.js";
 
 const bootstrapMethods = {
     init: function () {

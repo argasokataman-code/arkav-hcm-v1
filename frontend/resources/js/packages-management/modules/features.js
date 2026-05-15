@@ -1,7 +1,7 @@
-import featureSelectionMethods from "./features/selection";
-import featureCatalogUiMethods from "./features/catalog-ui";
-import featureHealthcheckMethods from "./features/healthcheck";
-import featureComplianceMethods from "./features/compliance";
+import featureSelectionMethods from "./features/selection.js";
+import featureCatalogUiMethods from "./features/catalog-ui.js";
+import featureHealthcheckMethods from "./features/healthcheck.js";
+import featureComplianceMethods from "./features/compliance.js";
 
 const featureMethods = Object.assign(
   {},

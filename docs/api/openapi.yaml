@@ -7156,6 +7156,11 @@ paths:
     put:
       tags: [SaaS]
       summary: Update subscription (HCM admin)
+      description: |
+        Supports manual status updates.
+        If status transitions from `suspended` to `active`, server clears suspension/grace markers,
+        records a `subscription_events` audit entry (`event_type=resumed`, reason code `SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE`),
+        and sends reactivation email to the company billing contact.
       security:
         - bearerAuth: []
       requestBody:
@@ -7208,6 +7213,9 @@ paths:
       summary: Renew subscription — sets active, starts_at now, ends_at from body (HCM admin)
       description: |
         Typical prior statuses: expired, cancelled, suspended, inactive. Not valid for `pending_payment` (422).
+        When renewing from `suspended`, server also clears suspension/grace markers,
+        records a `subscription_events` audit entry (`event_type=resumed`, reason code `SUBSCRIPTION_REACTIVATED_MANUAL_RENEW`),
+        and sends reactivation email to the company billing contact.
         Web UI `/saas/subscriptions` may resolve `{subscription}` via **Renew by UUID** (`GET /v1/saas/subscriptions/{subscription}` first).
       security:
         - bearerAuth: []
@@ -7502,6 +7510,227 @@ paths:
                               label: { type: string }
                               kind: { type: string, enum: [warning, danger, info, success, secondary] }
                               message: { type: string }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/renewal-monitoring/summary:
+    get:
+      tags: [SaaS]
+      summary: Renewal monitoring summary for global super admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      windowDays: { type: integer }
+                      summary:
+                        type: object
+                        properties:
+                          totalRecords: { type: integer }
+                          paid: { type: integer }
+                          retrying: { type: integer }
+                          gracePeriod: { type: integer }
+                          inactive: { type: integer }
+                          suspended: { type: integer }
+                          anomalies: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/renewal-monitoring/records:
+    get:
+      tags: [SaaS]
+      summary: Renewal monitoring records across tenant subscriptions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [paid, pending, failed] }
+        - name: reason_code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: company_id
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        renewalPeriodKey: { type: string }
+                        invoice:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            uuid: { type: string, format: uuid }
+                            number: { type: string, nullable: true }
+                            issueDate: { type: string, format: date, nullable: true }
+                            dueDate: { type: string, format: date, nullable: true }
+                            amountDue: { type: number }
+                            status: { type: string }
+                            isPaid: { type: boolean }
+                        company:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            uuid: { type: string, format: uuid, nullable: true }
+                            code: { type: string, nullable: true }
+                            name: { type: string, nullable: true }
+                        subscription:
+                          type: object
+                          properties:
+                            id: { type: integer, nullable: true }
+                            uuid: { type: string, format: uuid, nullable: true }
+                            status: { type: string, nullable: true }
+                            billingCycle: { type: string, nullable: true }
+                            graceStartedAt: { type: string, format: date-time, nullable: true }
+                            graceEndsAt: { type: string, format: date-time, nullable: true }
+                        reason:
+                          type: object
+                          properties:
+                            code: { type: string, nullable: true }
+                            message: { type: string, nullable: true }
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/renewal-monitoring/records/{renewalPeriodKey}:
+    get:
+      tags: [SaaS]
+      summary: Detail timeline for one renewal period key
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: renewalPeriodKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      renewalPeriodKey: { type: string }
+                      reason:
+                        type: object
+                        properties:
+                          code: { type: string, nullable: true }
+                          message: { type: string, nullable: true }
+                      timeline:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            event_type: { type: string }
+                            reason_code: { type: string, nullable: true }
+                            reason_message: { type: string, nullable: true }
+                            occurred_at: { type: string, format: date-time, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/saas/renewal-monitoring/anomalies:
+    get:
+      tags: [SaaS]
+      summary: Renewal anomalies list across tenants
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: per_page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        renewalPeriodKey: { type: string }
+                        invoiceId: { type: integer }
+                        invoiceUuid: { type: string, format: uuid }
+                        reasonCode: { type: string, nullable: true }
+                        reasonMessage: { type: string, nullable: true }
+                        issueDate: { type: string, format: date, nullable: true }
+                        dueDate: { type: string, format: date, nullable: true }
+                        isPaid: { type: boolean }
                   pagination:
                     type: object
                     properties:

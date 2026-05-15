@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\User;
 use App\Support\ArcavAccessTokenResolver;
 use App\Support\TenantContextResolver;
+use App\Services\CompanyStatusSynchronizer;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,7 +15,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureHcmWebPagesAuthenticated
 {
-    public function __construct(private readonly TenantContextResolver $tenantContextResolver)
+    public function __construct(
+        private readonly TenantContextResolver $tenantContextResolver,
+        private readonly CompanyStatusSynchronizer $companyStatusSynchronizer,
+    )
     {
     }
 
@@ -168,29 +172,40 @@ class EnsureHcmWebPagesAuthenticated
         $latestSubscription = Subscription::query()
             ->where('company_id', $company->id)
             ->latest('id')
-            ->first(['id', 'company_id', 'status']);
+            ->first(['id', 'company_id', 'status', 'suspension_reason']);
 
-        if (($latestSubscription?->status ?? null) !== 'pending_payment') {
+        if ($latestSubscription && (string) $latestSubscription->status === 'suspended') {
+            $latestSubscription->forceFill([
+                'status' => 'inactive',
+            ])->save();
+
+            $this->companyStatusSynchronizer->syncFromSubscription($latestSubscription->fresh('company'));
+            $latestSubscription->refresh();
+        }
+
+        if (! in_array(($latestSubscription?->status ?? null), ['pending_payment', 'inactive'], true)) {
             return null;
         }
 
-        // Legacy safeguard: unlimited/zero-priced checkout could leave a
-        // pending_payment row with unpaid 0 invoice. Auto-settle and unlock.
-        $zeroAmountInvoice = Invoice::query()
-            ->where('company_id', $company->id)
-            ->where('subscription_id', $latestSubscription->id)
-            ->where('is_paid', false)
-            ->whereIn('status', ['draft', 'sent'])
-            ->where('amount_due', '<=', 0)
-            ->latest('id')
-            ->first();
+        if (($latestSubscription?->status ?? null) === 'pending_payment') {
+            // Legacy safeguard: unlimited/zero-priced checkout could leave a
+            // pending_payment row with unpaid 0 invoice. Auto-settle and unlock.
+            $zeroAmountInvoice = Invoice::query()
+                ->where('company_id', $company->id)
+                ->where('subscription_id', $latestSubscription->id)
+                ->where('is_paid', false)
+                ->whereIn('status', ['draft', 'sent'])
+                ->where('amount_due', '<=', 0)
+                ->latest('id')
+                ->first();
 
-        if ($zeroAmountInvoice) {
-            $zeroAmountInvoice->markAsPaid();
-            $latestSubscription->refresh();
+            if ($zeroAmountInvoice) {
+                $zeroAmountInvoice->markAsPaid();
+                $latestSubscription->refresh();
 
-            if (($latestSubscription->status ?? null) !== 'pending_payment') {
-                return null;
+                if (($latestSubscription->status ?? null) !== 'pending_payment') {
+                    return null;
+                }
             }
         }
 

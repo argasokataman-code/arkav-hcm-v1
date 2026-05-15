@@ -1,1 +1,1 @@
-import "./packages-management/index";
+import "./packages-management/index.js";

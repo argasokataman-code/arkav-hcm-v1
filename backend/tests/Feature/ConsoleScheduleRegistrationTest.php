@@ -39,7 +39,8 @@ class ConsoleScheduleRegistrationTest extends TestCase
             ['expression' => '30 0 * * *',  'timezone' => 'Asia/Jakarta', 'description' => 'Auto-terminate subscriptions with expired end_date'],
             ['expression' => '0 6 * * *',   'timezone' => 'Asia/Jakarta', 'description' => 'Auto-suspend services with overdue unpaid invoices'],
             ['expression' => '0 1 * * *',   'timezone' => 'Asia/Jakarta', 'description' => 'Monitor and enforce employee count limits against subscription plans'],
-            ['expression' => '0 6 * * *',   'timezone' => 'Asia/Jakarta', 'description' => 'Process subscription renewals and recurring billing tasks'],
+            ['expression' => '*/30 * * * *', 'timezone' => 'Asia/Jakarta', 'description' => 'Process subscription renewals and recurring billing tasks'],
+            ['expression' => '*/30 * * * *', 'timezone' => 'Asia/Jakarta', 'description' => 'Reconcile pending renewal payments against gateway status and surface anomalies'],
         ];
     }
 

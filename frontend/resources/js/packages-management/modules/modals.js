@@ -1,4 +1,4 @@
-import { API_BASE, API_ADDONS_BASE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared";
+import { API_BASE, API_ADDONS_BASE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared.js";
 
 const modalMethods = {
     resetPackageModalState: function () {

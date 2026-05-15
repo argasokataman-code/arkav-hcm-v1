@@ -1,4 +1,4 @@
-import { API_PACKAGE_COMPLIANCE_CHECK, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc } from "../../shared";
+import { API_PACKAGE_COMPLIANCE_CHECK, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc } from "../../shared.js";
 
 const featureComplianceMethods = {
   collectEffectiveSelectedFeatureCodes: function () {

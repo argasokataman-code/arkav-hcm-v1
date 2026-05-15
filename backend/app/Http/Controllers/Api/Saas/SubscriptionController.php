@@ -7,12 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
+use App\Services\CompanyStatusSynchronizer;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notificationService,
+        private readonly CompanyStatusSynchronizer $companyStatusSynchronizer
+    )
+    {
+    }
+
     /**
      * GET /v1/saas/subscriptions
      * List subscriptions (admin, with filtering)
@@ -275,7 +286,37 @@ class SubscriptionController extends Controller
                 : $package->monthly_price;
         }
 
-        $subscription->update($validated);
+        $wasSuspended = $subscription->status === 'suspended';
+        $isReactivation = $wasSuspended && $mergedStatus === 'active';
+
+        if ($isReactivation) {
+            $validated['suspended_at'] = null;
+            $validated['suspension_reason'] = null;
+            $validated['grace_started_at'] = null;
+            $validated['grace_ends_at'] = null;
+        }
+
+        DB::transaction(function () use ($subscription, $validated, $isReactivation, $request): void {
+            $subscription->update($validated);
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
+
+            if ($isReactivation) {
+                $this->recordManualReactivationEvent(
+                    $request,
+                    $subscription,
+                    'SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE',
+                    'Subscription reactivated by admin via subscription update endpoint.',
+                    [
+                        'source' => 'subscription_update',
+                    ]
+                );
+            }
+        });
+
+        if ($isReactivation) {
+            $this->notificationService->notifySubscriptionReactivated($subscription->fresh(['company', 'package']));
+        }
+
         $subscription->load('company', 'package');
 
         return response()->json([
@@ -336,12 +377,38 @@ class SubscriptionController extends Controller
             return $guard;
         }
 
-        $subscription->update([
-            'status' => 'active',
-            'starts_at' => now(),
-            'ends_at' => $validated['ends_at'],
-            'trial_ends_at' => null,
-        ]);
+        $wasSuspended = $subscription->status === 'suspended';
+
+        DB::transaction(function () use ($subscription, $validated, $wasSuspended, $request): void {
+            $subscription->update([
+                'status' => 'active',
+                'starts_at' => now(),
+                'ends_at' => $validated['ends_at'],
+                'trial_ends_at' => null,
+                'grace_started_at' => null,
+                'grace_ends_at' => null,
+                'suspended_at' => null,
+                'suspension_reason' => null,
+            ]);
+
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
+
+            if ($wasSuspended) {
+                $this->recordManualReactivationEvent(
+                    $request,
+                    $subscription,
+                    'SUBSCRIPTION_REACTIVATED_MANUAL_RENEW',
+                    'Subscription reactivated by admin via renew endpoint.',
+                    [
+                        'source' => 'subscription_renew',
+                    ]
+                );
+            }
+        });
+
+        if ($wasSuspended) {
+            $this->notificationService->notifySubscriptionReactivated($subscription->fresh(['company', 'package']));
+        }
 
         $subscription->load('company', 'package');
 
@@ -444,6 +511,36 @@ class SubscriptionController extends Controller
                 'message' => 'Company already has an active or trial subscription. Update the existing subscription instead of creating another active/trial record.',
             ],
         ], 422);
+    }
+
+    private function recordManualReactivationEvent(
+        Request $request,
+        Subscription $subscription,
+        string $reasonCode,
+        string $reasonMessage,
+        array $payload = []
+    ): void {
+        $subscription->loadMissing('company');
+
+        $auditPayload = array_merge([
+            'source' => 'manual_admin_action',
+            'actor_user_id' => $request->user()?->id,
+            'from_status' => 'suspended',
+            'to_status' => 'active',
+        ], $payload);
+
+        SubscriptionEvent::query()->create([
+            'company_id' => $subscription->company_id,
+            'company_uuid' => $subscription->company?->uuid,
+            'subscription_id' => $subscription->id,
+            'subscription_uuid' => $subscription->uuid,
+            'event_type' => 'resumed',
+            'reason_code' => $reasonCode,
+            'reason_message' => mb_substr($reasonMessage, 0, 255),
+            'payload' => $auditPayload,
+            'occurred_at' => now(),
+            'created_at' => now(),
+        ]);
     }
 
     /**

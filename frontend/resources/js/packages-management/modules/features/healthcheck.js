@@ -1,4 +1,4 @@
-import { API_FEATURE_CATALOG_HEALTHCHECK, apiRequest } from "../../shared";
+import { API_FEATURE_CATALOG_HEALTHCHECK, apiRequest } from "../../shared.js";
 
 const featureHealthcheckMethods = {
   renderFeatureHealthcheckStatus: function (payload) {

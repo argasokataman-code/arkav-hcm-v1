@@ -1,4 +1,4 @@
-import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared";
+import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared.js";
 
 const dataMethods = {
     loadPackages: function () {

@@ -50,7 +50,13 @@
     subscriptionModalInstance: null,
     subscriptionRenewModalInstance: null,
     subscriptionRenewByIdModalInstance: null,
+    subscriptionReactivateConfirmModalInstance: null,
+    pendingReactivateConfirmResolver: null,
+    pendingReactivateConfirmHandled: false,
     pendingRenewId: null,
+    pendingRenewSourceStatus: null,
+    pendingRenewContext: null,
+    currentEditStatus: null,
     renewByIdLoadedSub: null,
 
     /**
@@ -73,10 +79,26 @@
       this.subscriptionRenewByIdModalInstance =
         window.bootstrap && renewByIdEl ? window.bootstrap.Modal.getOrCreateInstance(renewByIdEl) : null;
 
+      const reactivateConfirmEl = document.getElementById("subscriptionReactivateConfirmModal");
+      this.subscriptionReactivateConfirmModalInstance =
+        window.bootstrap && reactivateConfirmEl ? window.bootstrap.Modal.getOrCreateInstance(reactivateConfirmEl) : null;
+
       if (renewByIdEl) {
         const selfInit = this;
         renewByIdEl.addEventListener("hidden.bs.modal", function () {
           selfInit.resetRenewByIdModalUi();
+        });
+      }
+
+      if (reactivateConfirmEl) {
+        const selfInit = this;
+        reactivateConfirmEl.addEventListener("hidden.bs.modal", function () {
+          if (selfInit.pendingReactivateConfirmResolver && !selfInit.pendingReactivateConfirmHandled) {
+            selfInit.pendingReactivateConfirmHandled = true;
+            selfInit.pendingReactivateConfirmResolver(false);
+          }
+          selfInit.pendingReactivateConfirmResolver = null;
+          selfInit.pendingReactivateConfirmHandled = false;
         });
       }
 
@@ -351,6 +373,19 @@
       if (renewConfirm) {
         renewConfirm.addEventListener("click", function () {
           self.confirmRenewSubscription();
+        });
+      }
+
+      const reactivateConfirmBtn = document.getElementById("btn_confirm_subscription_reactivation");
+      if (reactivateConfirmBtn) {
+        reactivateConfirmBtn.addEventListener("click", function () {
+          if (self.pendingReactivateConfirmResolver && !self.pendingReactivateConfirmHandled) {
+            self.pendingReactivateConfirmHandled = true;
+            self.pendingReactivateConfirmResolver(true);
+          }
+          if (self.subscriptionReactivateConfirmModalInstance) {
+            self.subscriptionReactivateConfirmModalInstance.hide();
+          }
         });
       }
 
@@ -810,6 +845,7 @@
       }
 
       this.currentEditId = null;
+      this.currentEditStatus = null;
 
       const form = document.getElementById("subscriptionForm");
       if (form) form.reset();
@@ -860,7 +896,7 @@
       if (submitBtn) submitBtn.textContent = "Save Subscription";
     },
 
-    handleSaveSubscription: function () {
+    handleSaveSubscription: async function () {
       if (!this.canManageSubscriptions) {
         this.showError("Admin access required.");
         return;
@@ -907,6 +943,22 @@
         }
       }
 
+      const requiresReactivateConfirm = isEdit
+        && String(this.currentEditStatus || "") === "suspended"
+        && status === "active";
+
+      if (requiresReactivateConfirm) {
+        const confirmed = await this.confirmSuspendedReactivation({
+          actionLabel: "status update",
+          companyName: this.subscriptions.find(function (sub) {
+            return String(subscriptionRouteKey(sub)) === String(self.currentEditId);
+          })?.companyName || null,
+        });
+        if (!confirmed) {
+          return;
+        }
+      }
+
       let data;
       if (isEdit) {
         data = {
@@ -939,6 +991,7 @@
           if (response.success) {
             self.showSuccess(isEdit ? "Subscription updated successfully" : "Subscription created successfully");
             self.currentEditId = null;
+            self.currentEditStatus = null;
             if (self.subscriptionModalInstance) self.subscriptionModalInstance.hide();
             self.currentPage = 1;
             self.loadSubscriptions();
@@ -996,6 +1049,7 @@
             self.toggleSubscriptionTrialUI();
 
             self.currentEditId = id;
+            self.currentEditStatus = sub.status || null;
             const title = document.getElementById("subscriptionModalTitle");
             const submitBtn = document.querySelector("#subscriptionForm button[type='submit']");
             if (title) title.textContent = "Edit Subscription";
@@ -1147,6 +1201,11 @@
       }
 
       this.pendingRenewId = id;
+      this.pendingRenewSourceStatus = String(sub.status || "");
+      this.pendingRenewContext = {
+        actionLabel: "renew",
+        companyName: sub.companyName || sub.company?.name || null,
+      };
       const endInput = document.getElementById("input_renew_ends_at");
       if (endInput) {
         endInput.value = defaultRenewEndDateFromBillingCycle(sub.billingCycle);
@@ -1172,6 +1231,34 @@
       if (endIn) endIn.value = "";
       const renewBtn = document.getElementById("btn_confirm_renew_by_id");
       if (renewBtn) renewBtn.classList.add("d-none");
+    },
+
+    confirmSuspendedReactivation: async function (context) {
+      const actionLabel = context?.actionLabel || "reactivation";
+      const companyName = context?.companyName ? String(context.companyName) : "this company";
+      const dialogMessage =
+        "You are about to reactivate a suspended subscription for "
+        + companyName
+        + ". Continue with " + actionLabel + "?";
+
+      const modalMessage = document.getElementById("reactivate_confirm_message");
+      if (modalMessage) {
+        modalMessage.textContent = dialogMessage;
+      }
+
+      if (this.subscriptionReactivateConfirmModalInstance) {
+        return new Promise(function (resolve) {
+          this.pendingReactivateConfirmResolver = resolve;
+          this.pendingReactivateConfirmHandled = false;
+          this.subscriptionReactivateConfirmModalInstance.show();
+        }.bind(this));
+      }
+
+      if (window.ArcavUi && typeof window.ArcavUi.confirm === "function") {
+        return window.ArcavUi.confirm(dialogMessage, "Reactivate Subscription");
+      }
+
+      return window.confirm(dialogMessage);
     },
 
     openRenewByIdModal: function () {
@@ -1230,6 +1317,12 @@
           const endIn = document.getElementById("input_renew_by_id_ends_at");
           const renewBtn = document.getElementById("btn_confirm_renew_by_id");
 
+          self.pendingRenewSourceStatus = String(sub.status || "");
+          self.pendingRenewContext = {
+            actionLabel: "renew",
+            companyName: sub.companyName || sub.company?.name || null,
+          };
+
           if (!isRenewableSubscriptionStatus(sub.status)) {
             self.showError("Status tidak mendukung renew (hanya: expired, cancelled, suspended, inactive).");
             if (step2) step2.classList.add("d-none");
@@ -1248,7 +1341,7 @@
         });
     },
 
-    confirmRenewById: function () {
+    confirmRenewById: async function () {
       const self = this;
       const sub = this.renewByIdLoadedSub;
       const routeKey = subscriptionRouteKey(sub);
@@ -1262,11 +1355,23 @@
         return;
       }
 
+      if (String(sub.status || "") === "suspended") {
+        const confirmed = await this.confirmSuspendedReactivation({
+          actionLabel: "renew",
+          companyName: sub.companyName || sub.company?.name || null,
+        });
+        if (!confirmed) {
+          return;
+        }
+      }
+
       apiRequest("POST", API_BASE + "/" + encodeURIComponent(routeKey) + "/renew", { ends_at: endsAt })
         .then(function (response) {
           if (response.success) {
             self.showSuccess("Berhasil diperpanjang / renewed successfully.");
             self.renewByIdLoadedSub = null;
+            self.pendingRenewSourceStatus = null;
+            self.pendingRenewContext = null;
             if (self.subscriptionRenewByIdModalInstance) self.subscriptionRenewByIdModalInstance.hide();
             self.loadSubscriptions();
           } else {
@@ -1278,7 +1383,7 @@
         });
     },
 
-    confirmRenewSubscription: function () {
+    confirmRenewSubscription: async function () {
       const self = this;
       const id = this.pendingRenewId;
       const endsAt = document.getElementById("input_renew_ends_at")?.value;
@@ -1288,11 +1393,23 @@
         return;
       }
 
+      if (this.pendingRenewSourceStatus === "suspended") {
+        const confirmed = await this.confirmSuspendedReactivation(this.pendingRenewContext || {
+          actionLabel: "renew",
+          companyName: null,
+        });
+        if (!confirmed) {
+          return;
+        }
+      }
+
       apiRequest("POST", API_BASE + "/" + id + "/renew", { ends_at: endsAt })
         .then(function (response) {
           if (response.success) {
             self.showSuccess("Subscription renewed successfully");
             self.pendingRenewId = null;
+            self.pendingRenewSourceStatus = null;
+            self.pendingRenewContext = null;
             if (self.subscriptionRenewModalInstance) self.subscriptionRenewModalInstance.hide();
             self.loadSubscriptions();
           } else {

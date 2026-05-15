@@ -14,6 +14,10 @@ Route::get('/saas/billing-overview', function () {
     return view('saas.billing-overview');
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview');
 
+Route::get('/saas/renewal-monitoring', function () {
+    return view('saas.renewal-monitoring');
+})->middleware('hcm.web.global-admin')->name('saas.renewal-monitoring');
+
 Route::get('/saas/billing-overview/invoices/{invoice}', function (\App\Models\Invoice $invoice) {
     return view('saas.billing-overview-invoice-detail', ['invoice' => $invoice]);
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview.invoice-detail');

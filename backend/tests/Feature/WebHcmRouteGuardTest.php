@@ -487,6 +487,7 @@ class WebHcmRouteGuardTest extends TestCase
             '/saas-dashboard',
             '/saas/subscriptions',
             '/saas/billing-overview',
+            '/saas/renewal-monitoring',
             '/saas/transactions',
             '/companies',
             '/packages',
@@ -513,6 +514,44 @@ class WebHcmRouteGuardTest extends TestCase
         $this->actingAs($user)
             ->withHeader('X-Company-Code', $company->code)
             ->get('/subscription')
+            ->assertOk();
+    }
+
+    public function test_primary_global_admin_can_open_renewal_monitoring_page(): void
+    {
+        config(['hcm.admin_email' => 'qa.login@example.com']);
+
+        $company = Company::query()->create([
+            'name' => 'Renewal Monitoring Guard Co',
+            'code' => 'RMG1',
+            'email' => 'rmg1@example.com',
+            'phone' => '0219991001',
+            'address' => 'Jakarta',
+            'city' => 'Jakarta',
+            'state' => 'DKI',
+            'country' => 'ID',
+            'postal_code' => '10110',
+            'status' => 'active',
+        ]);
+
+        $primary = User::query()->create([
+            'name' => 'Primary Admin',
+            'email' => 'qa.login@example.com',
+            'password' => bcrypt('password'),
+            'is_super_admin' => true,
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $primary->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($primary)
+            ->withHeader('X-Company-Code', $company->code)
+            ->get('/saas/renewal-monitoring')
             ->assertOk();
     }
 

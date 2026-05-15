@@ -40,8 +40,14 @@
     ) === "1";
     var isPendingLock = String(root.getAttribute("data-checkout-pending-lock") || "0") === "1";
     var isActiveOnly = String(root.getAttribute("data-checkout-active-only") || "0") === "1";
+    var isInactiveContext = String(root.getAttribute("data-checkout-inactive-context") || "0") === "1";
+    var hasPreloadedPendingInvoice = String(root.getAttribute("data-checkout-preloaded-pending-invoice") || "0") === "1";
+    var isCreationLocked = String(root.getAttribute("data-checkout-creation-locked") || "0") === "1";
     var upgradeForm = document.querySelector("[data-checkout-form].checkout-upgrade-form") || form;
     var currentInvoice = null;
+    var invoiceStateBar = document.querySelector("[data-checkout-invoice-statebar]");
+    var invoiceStateBadge = document.querySelector("[data-checkout-invoice-state-badge]");
+    var invoiceStateNote = document.querySelector("[data-checkout-invoice-state-note]");
 
     function setFieldValue(el, value) {
         if (!el) return;
@@ -147,6 +153,29 @@
             text = text.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
         }
         return text + "%";
+    }
+
+    function formatDateLabel(value) {
+        if (!value) return "-";
+        try {
+            return new Intl.DateTimeFormat("id-ID", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            }).format(new Date(value));
+        } catch (_e) {
+            return String(value);
+        }
+    }
+
+    function calendarDayDiff(value) {
+        if (!value) return 0;
+        var target = new Date(value);
+        var today = new Date();
+        if (!Number.isFinite(target.getTime()) || !Number.isFinite(today.getTime())) return 0;
+        target.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return Math.round((target.getTime() - today.getTime()) / 86400000);
     }
 
     function billingCycleValue() {
@@ -293,16 +322,74 @@
         return invoice.invoiceNumber || invoice.id || "—";
     }
 
+    function resolveInvoiceContext(invoice, reused) {
+        var unpaid = !!(invoice && !invoice.isPaid);
+        var overdue = !!(invoice && invoice.isOverdue);
+        var dueSoon = !!(invoice && invoice.isDueSoon);
+        var dueDiff = calendarDayDiff(invoice && invoice.dueDate);
+
+        if (invoice && invoice.isPaid) {
+            return {
+                title: "Invoice sudah dibayar",
+                subtitle: "Invoice #" + invoiceLabel(invoice),
+                dueText: invoice.paidDate ? ("Dibayar pada " + formatDateLabel(invoice.paidDate)) : "Pembayaran berhasil diverifikasi.",
+                note: isInactiveContext
+                    ? "Pembayaran reaktivasi selesai. Kamu bisa lanjut masuk lagi ke aplikasi."
+                    : "Pembayaran berhasil dan invoice ini sudah ditutup.",
+                badgeClass: "bg-success-subtle text-success border border-success-subtle",
+                badgeLabel: isInactiveContext ? "Reaktivasi selesai" : "Lunas",
+            };
+        }
+
+        if (isInactiveContext && unpaid) {
+            var dueText = invoice && invoice.dueDate ? ("Jatuh tempo " + formatDateLabel(invoice.dueDate)) : "Menunggu jadwal jatuh tempo invoice.";
+            if (overdue || dueDiff < 0) {
+                var overdueDays = Math.max(1, Math.abs(dueDiff));
+                dueText = "Lewat jatuh tempo " + overdueDays + " hari";
+            } else if (dueDiff === 0) {
+                dueText = "Jatuh tempo hari ini";
+            } else if (dueSoon || dueDiff <= 7) {
+                dueText = "Jatuh tempo " + dueDiff + " hari lagi";
+            }
+
+            return {
+                title: reused ? "Invoice reaktivasi aktif" : "Invoice reaktivasi dibuat",
+                subtitle: "Invoice #" + invoiceLabel(invoice) + " untuk mengaktifkan akses kembali.",
+                dueText: dueText,
+                note: overdue || dueDiff < 0
+                    ? "Tagihan ini masih jadi penghalang utama akses. Bayar sekarang untuk memulihkan langganan."
+                    : "Begitu invoice ini dibayar, akses company akan aktif kembali tanpa perlu bikin tagihan lain.",
+                badgeClass: overdue || dueDiff < 0
+                    ? "bg-danger-subtle text-danger border border-danger-subtle"
+                    : "bg-warning-subtle text-warning border border-warning-subtle",
+                badgeLabel: overdue || dueDiff < 0 ? "Reaktivasi tertunda" : "Menunggu reaktivasi",
+            };
+        }
+
+        return {
+            title: reused ? "Invoice pending ditemukan" : "Invoice dibuat",
+            subtitle: "Invoice #" + invoiceLabel(invoice),
+            dueText: invoice && invoice.isPaid
+                ? (invoice.paidDate ? ("Dibayar: " + formatDateLabel(invoice.paidDate)) : "Status: paid")
+                : (invoice && invoice.dueDate ? ("Jatuh tempo: " + formatDateLabel(invoice.dueDate)) : "—"),
+            note: "Selesaikan invoice ini sebelum membuat invoice baru.",
+            badgeClass: "bg-light text-secondary border",
+            badgeLabel: reused ? "Pending aktif" : "Invoice baru",
+        };
+    }
+
     function updateInvoiceActions(invoice) {
         var unpaid = !!(invoice && !invoice.isPaid);
 
         if (openInvoicesBtn) {
-            openInvoicesBtn.classList.remove("d-none");
+            openInvoicesBtn.classList.toggle("d-none", isInactiveContext && unpaid);
         }
 
         if (payNowBtn) {
             payNowBtn.classList.toggle("d-none", !unpaid || !hostedPayEnabled);
-            payNowBtn.textContent = unpaid ? "Bayar sekarang" : "Sudah dibayar";
+            payNowBtn.textContent = unpaid
+                ? (isInactiveContext ? "Bayar & aktifkan kembali" : "Bayar sekarang")
+                : "Sudah dibayar";
         }
 
         if (goDashboardBtn) {
@@ -313,24 +400,21 @@
     function renderInvoice(data, reused) {
         if (!data || !data.invoice) return;
         currentInvoice = data.invoice;
+        var contextCopy = resolveInvoiceContext(currentInvoice, reused);
         if (invoiceHint) invoiceHint.classList.add("d-none");
         if (invoiceBox) invoiceBox.classList.remove("d-none");
-        if (invoiceTitle) {
-            if (currentInvoice.isPaid) {
-                invoiceTitle.textContent = "Invoice sudah dibayar";
-            } else {
-                invoiceTitle.textContent = reused ? "Invoice pending ditemukan" : "Invoice dibuat";
-            }
-        }
+        if (invoiceTitle) invoiceTitle.textContent = contextCopy.title;
         if (invoiceSubtitle) {
-            invoiceSubtitle.textContent = "Invoice #" + invoiceLabel(currentInvoice);
+            invoiceSubtitle.textContent = contextCopy.subtitle;
         }
         if (invoiceAmount) invoiceAmount.textContent = formatRupiah(currentInvoice.amountDue);
-        if (invoiceDue) {
-            invoiceDue.textContent = currentInvoice.isPaid
-                ? (currentInvoice.paidDate ? ("Dibayar: " + currentInvoice.paidDate) : "Status: paid")
-                : (currentInvoice.dueDate ? ("Jatuh tempo: " + currentInvoice.dueDate) : "—");
+        if (invoiceDue) invoiceDue.textContent = contextCopy.dueText;
+        if (invoiceStateBar) invoiceStateBar.classList.remove("d-none");
+        if (invoiceStateBadge) {
+            invoiceStateBadge.className = "badge " + contextCopy.badgeClass;
+            invoiceStateBadge.textContent = contextCopy.badgeLabel;
         }
+        if (invoiceStateNote) invoiceStateNote.textContent = contextCopy.note;
 
         if (invoiceBreakdowns.length > 0) {
             var breakdown = parsePricingBreakdown(currentInvoice);
@@ -444,7 +528,9 @@
             if (!pendingInvoice) return null;
             renderInvoice({ invoice: pendingInvoice }, true);
             if (!isPendingLock) {
-                showFeedback("warning", "Ada invoice pending yang belum dibayar. Selesaikan pembayaran ini sebelum membuat invoice baru.");
+                showFeedback("warning", isInactiveContext
+                    ? "Ada invoice reaktivasi yang belum dibayar. Selesaikan tagihan ini dulu sebelum lanjut ke langkah lain."
+                    : "Ada invoice pending yang belum dibayar. Selesaikan pembayaran ini sebelum membuat invoice baru.");
             } else {
                 clearFeedback();
             }
@@ -480,17 +566,17 @@
         }
 
         if (status === "completed") {
-            await loadInvoiceById(invoiceId, "Pembayaran berhasil.", "success");
+            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran berhasil. Akses company sedang dipulihkan." : "Pembayaran berhasil.", "success");
             return true;
         }
 
         if (status === "failed") {
-            await loadInvoiceById(invoiceId, "Pembayaran belum berhasil. Coba lagi.", "warning");
+            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran reaktivasi belum berhasil. Coba lagi dari tagihan yang sama." : "Pembayaran belum berhasil. Coba lagi.", "warning");
             return true;
         }
 
         if (status === "pending") {
-            await loadInvoiceById(invoiceId, "Pembayaran belum selesai.", "info");
+            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran reaktivasi belum selesai. Lanjutkan dari invoice aktif ini." : "Pembayaran belum selesai.", "info");
             return true;
         }
 
@@ -802,16 +888,22 @@
                 clearFeedback();
                 return;
             }
+            if (payNowBtn) payNowBtn.addEventListener("click", payCurrentInvoice);
+            var handledHostedReturn = await handleHostedReturn();
+            if (handledHostedReturn) {
+                return;
+            }
+
+            var pendingInvoice = await loadPendingInvoice();
+            if (pendingInvoice || hasPreloadedPendingInvoice || isCreationLocked) {
+                return;
+            }
+
             await loadPackages();
             await loadAddons();
             if (form) form.addEventListener("submit", submitCheckout);
             var addonForm = document.querySelector("[data-checkout-form].checkout-addon-form");
             if (addonForm) addonForm.addEventListener("submit", submitAddonCheckout);
-            if (payNowBtn) payNowBtn.addEventListener("click", payCurrentInvoice);
-            var handledHostedReturn = await handleHostedReturn();
-            if (!handledHostedReturn) {
-                await loadPendingInvoice();
-            }
         } catch (e) {
             showFeedback("danger", e && e.message ? e.message : "Gagal memuat halaman checkout.");
         }

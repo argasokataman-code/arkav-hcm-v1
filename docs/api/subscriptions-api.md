@@ -173,6 +173,11 @@ PUT /v1/saas/subscriptions/{id}
 
 Mengupdate subscription.
 
+Catatan reactivation manual:
+- Jika status berubah dari `suspended` ke `active`, server akan otomatis menghapus jejak suspension (`suspended_at`, `suspension_reason`) dan window grace (`grace_started_at`, `grace_ends_at`).
+- Server juga mencatat audit event `subscription_events.event_type = resumed` dengan reason code `SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE`.
+- Notifikasi email reactivation dikirim ke billing contact company (`company.owner`).
+
 **Request Parameters**
 | Name | Type | Description |
 |------|------|-------------|
@@ -217,6 +222,11 @@ POST /v1/saas/subscriptions/{id}/renew
 ```
 
 Memperpanjang subscription: mengaktifkan kembali (`status` → `active`), `starts_at` = sekarang (server), `ends_at` dari body. Status sumber yang didukung (sama dengan UI): **expired**, **cancelled**, **suspended**, **inactive**.
+
+Untuk sumber status `suspended`, endpoint renew akan otomatis:
+- reset `suspended_at`, `suspension_reason`, `grace_started_at`, `grace_ends_at`;
+- mencatat audit event `subscription_events.event_type = resumed` dengan reason code `SUBSCRIPTION_REACTIVATED_MANUAL_RENEW`;
+- mengirim email notifikasi reactivation ke billing contact company.
 
 Guard integritas: renew akan ditolak `422 ACTIVE_SUBSCRIPTION_ALREADY_EXISTS` jika company sudah punya record lain berstatus `active`/`trial` yang masih berlaku.
 

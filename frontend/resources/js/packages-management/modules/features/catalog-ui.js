@@ -1,4 +1,4 @@
-import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures } from "../../shared";
+import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures } from "../../shared.js";
 
 const featureCatalogUiMethods = {
   buildFeatureGroups: function (featureCodes, selectedCodesSet) {

@@ -49,6 +49,9 @@
             ->when(! $isGlobalHcmAdmin, function ($query): void {
                 $query->where('is_global_admin_only', false);
             })
+            ->when($currentPackage, function ($query) use ($currentPackage): void {
+                $query->where('uuid', '!=', $currentPackage->uuid);
+            })
             ->whereHas('features', function ($featureQuery) use ($normalizedBlockedFeature): void {
                 $featureQuery->where('feature_code', $normalizedBlockedFeature);
             })
@@ -434,7 +437,8 @@
              data-blocked-feature-label="{{ $blockedFeatureLabel }}"
              data-is-primary-super-admin="{{ $isPrimarySuperAdminCodeOne ? '1' : '0' }}"
              data-recommended-packages='@json($recommendedPackages)'
-             data-current-package='@json($currentPackageSummary)'>
+               data-current-package='@json($currentPackageSummary)'
+               data-checked-out-addon-ids='@json($checkedOutAddonIds)'>
         </div>
 
         @if (session('error'))
@@ -550,7 +554,7 @@
                         <div class="upgrade-headline">Fitur Tambahan Siap Aktif</div>
                         <p class="upgrade-subline">Pilih add-on, buat invoice, selesaikan pembayaran, lalu fitur aktif otomatis di tenant kamu.</p>
                     </div>
-                    <span class="badge bg-primary-subtle text-primary">Alur E2E Add-on</span>
+                    <span class="badge bg-primary-subtle text-primary">Add-on</span>
                 </div>
 
                 <div class="alert alert-light border mb-3 small" role="status">
@@ -565,37 +569,13 @@
 
                 <div id="upgrade-addon-feedback" class="d-none mb-3"></div>
 
-                <div class="row g-3">
-                    @forelse ($activeAddons as $addon)
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <div class="upgrade-addon-card p-3">
-                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-                                    <span class="upgrade-addon-icon">
-                                        <i class="ti ti-puzzle"></i>
-                                    </span>
-                                    <span class="badge bg-light text-dark">{{ strtoupper((string) ($addon->unit_name ?: 'unit')) }}</span>
-                                </div>
-                                <div class="upgrade-addon-title mb-1">{{ $addon->name }}</div>
-                                <div class="text-muted small mb-2">{{ strtoupper((string) $addon->code) }}</div>
-                                <div class="fw-bold text-primary mb-2">Rp {{ number_format((float) $addon->price_per_unit, 0, ',', '.') }}</div>
-                                <div class="upgrade-addon-description mb-3">{{ $addon->description ?: 'Add-on untuk memperluas kemampuan operasional tim.' }}</div>
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-outline-primary w-100"
-                                    data-upgrade-addon-checkout="{{ $addon->id }}"
-                                    data-upgrade-addon-name="{{ $addon->name }}"
-                                >
-                                    <i class="ti ti-receipt me-1"></i> Buat Invoice Add-on
-                                </button>
-                            </div>
+                <div id="upgrade-addon-catalog" class="row g-3">
+                    <div class="col-12">
+                        <div class="upgrade-state-empty small text-muted">
+                            <div class="spinner-border spinner-border-sm me-2"></div>
+                            Memuat katalog add-on...
                         </div>
-                    @empty
-                        <div class="col-12">
-                            <div class="upgrade-state-empty small text-muted">
-                                Saat ini belum ada add-on aktif yang bisa ditampilkan.
-                            </div>
-                        </div>
-                    @endforelse
+                    </div>
                 </div>
             </div>
         </div>
@@ -608,7 +588,7 @@
                         <h4 class="card-title mb-1">Ajukan Perubahan Paket</h4>
                         <p class="text-muted mb-0">Pilih aksi, tentukan paket target, cek preview biaya, lalu ajukan untuk approval admin platform.</p>
                     </div>
-                    <span class="badge bg-primary-subtle text-primary">Flow Upgrade</span>
+                    <span class="badge bg-primary-subtle text-primary">Upgrade</span>
                 </div>
 
                 <div class="row g-4 align-items-start">

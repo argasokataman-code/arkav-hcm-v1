@@ -1,4 +1,4 @@
-import { FEATURE_LIMIT_INPUT_CODE, getFeatureLibrary } from "../../shared";
+import { FEATURE_LIMIT_INPUT_CODE, getFeatureLibrary } from "../../shared.js";
 
 const featureSelectionMethods = {
   featureMetaFromCode: function (code) {

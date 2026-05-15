@@ -494,6 +494,10 @@
     <script src="{{ URL::asset('build/js/saas/saas-billing-overview.js') }}?v={{ file_exists(public_path('build/js/saas/saas-billing-overview.js')) ? filemtime(public_path('build/js/saas/saas-billing-overview.js')) : time() }}"></script>
 @endif
 
+@if (Route::is(['saas.renewal-monitoring']))
+    <script src="{{ URL::asset('build/js/saas/saas-renewal-monitoring.js') }}?v={{ file_exists(public_path('build/js/saas/saas-renewal-monitoring.js')) ? filemtime(public_path('build/js/saas/saas-renewal-monitoring.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['upgrade']))
     <script src="{{ URL::asset('build/js/saas/upgrade/utils.js') }}?v={{ file_exists(public_path('build/js/saas/upgrade/utils.js')) ? filemtime(public_path('build/js/saas/upgrade/utils.js')) : time() }}"></script>
     <script src="{{ URL::asset('build/js/saas/upgrade-data.js') }}?v={{ file_exists(public_path('build/js/saas/upgrade-data.js')) ? filemtime(public_path('build/js/saas/upgrade-data.js')) : time() }}"></script>

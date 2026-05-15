@@ -138,6 +138,172 @@ class LoginWebTest extends TestCase
             ->assertSee('30 hari lagi');
     }
 
+    public function test_inactive_company_is_redirected_to_subscription_checkout_until_reactivated(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Suspended Company',
+            'email' => 'owner.suspended@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'inactive_company_access',
+            'name' => 'Inactive Company Access',
+            'status' => 'inactive',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'starter',
+            'status' => 'inactive',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->subDays(7),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 199000,
+            'suspended_at' => now()->subDay(),
+            'suspension_reason' => 'Grace period expired.',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/index')
+            ->assertRedirect(url('subscription'));
+
+        $this->actingAs($user)
+            ->get('/subscription')
+            ->assertOk()
+            ->assertSee('Aktifkan kembali langganan')
+            ->assertSee('sedang nonaktif');
+    }
+
+    public function test_inactive_company_with_unpaid_invoice_hides_checkout_forms_on_first_paint(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Inactive Pending Invoice',
+            'email' => 'owner.inactive.pending@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'inactive_pending_invoice',
+            'name' => 'Inactive Pending Invoice Co',
+            'status' => 'inactive',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'starter',
+            'status' => 'inactive',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->subDays(7),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 199000,
+        ]);
+
+        Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'issue_date' => now()->subDays(2)->toDateString(),
+            'due_date' => now()->addDays(3)->toDateString(),
+            'amount_due' => 199000,
+            'status' => 'draft',
+            'is_paid' => false,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/subscription')
+            ->assertOk()
+            ->assertSee('Selesaikan invoice reaktivasi dulu')
+            ->assertSee('Form paket dan add-on disembunyikan sementara')
+            ->assertDontSee('checkout-upgrade-form', false)
+            ->assertDontSee('checkout-addon-form', false);
+    }
+
+    public function test_legacy_suspended_company_is_normalized_to_inactive_and_redirected_to_subscription(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Owner Legacy Suspended Company',
+            'email' => 'owner.legacy.suspended@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $company = Company::query()->create([
+            'code' => 'legacy_suspended_company',
+            'name' => 'Legacy Suspended Company',
+            'status' => 'suspended',
+            'owner_user_id' => $user->id,
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'owner',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => null,
+            'plan_code' => 'starter',
+            'status' => 'suspended',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->subDays(7),
+            'trial_ends_at' => null,
+            'auto_renew' => false,
+            'billing_cycle' => 'monthly',
+            'amount' => 199000,
+            'suspended_at' => now()->subDay(),
+            'suspension_reason' => 'Grace period expired without successful renewal payment.',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/index')
+            ->assertRedirect(url('subscription'));
+
+        $this->assertDatabaseHas('companies', [
+            'id' => $company->id,
+            'status' => 'inactive',
+        ]);
+
+        $this->assertDatabaseHas('subscriptions', [
+            'company_id' => $company->id,
+            'status' => 'inactive',
+        ]);
+    }
+
     public function test_active_subscription_page_shows_paid_addons_dynamically(): void
     {
         $user = User::query()->create([

@@ -225,6 +225,30 @@
     </div>
 </div>
 
+<!-- Reactivation confirmation modal -->
+<div class="modal fade" id="subscriptionReactivateConfirmModal" tabindex="-1" role="dialog" data-bs-backdrop="static">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reactivate Subscription?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="reactivate_confirm_message">
+                    This action will reactivate a suspended subscription and restore service access.
+                </p>
+                <p class="text-muted small mb-0" id="reactivate_confirm_hint">
+                    Proceed only if payment or the blocking issue has been resolved.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn_confirm_subscription_reactivation">Yes, Reactivate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="{{ asset('build/js/saas/subscriptions/http-client.js') }}?v={{ file_exists(public_path('build/js/saas/subscriptions/http-client.js')) ? filemtime(public_path('build/js/saas/subscriptions/http-client.js')) : time() }}"></script>
 <script src="{{ asset('build/js/saas/subscriptions/utils.js') }}?v={{ file_exists(public_path('build/js/saas/subscriptions/utils.js')) ? filemtime(public_path('build/js/saas/subscriptions/utils.js')) : time() }}"></script>
 <script src="{{ asset('build/js/saas/subscriptions-management.js') }}?v={{ filemtime(public_path('build/js/saas/subscriptions-management.js')) }}"></script>

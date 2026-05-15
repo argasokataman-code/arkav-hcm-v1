@@ -8,6 +8,7 @@ import {
     CurrencyCircleDollar,
     FileText,
     Lightning,
+    SquaresFour,
     Target,
     Users,
     UsersFour,

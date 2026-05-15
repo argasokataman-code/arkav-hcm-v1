@@ -556,8 +556,8 @@ Route::get('/company/invoices/{invoiceId}/checkout-preview', function (Request $
     $taxRate = (float) ($invoice->billing_tax_rate_snapshot ?? 0);
 
     if ($taxRate > 0) {
-        $taxAmount = round($baseAmount * ($taxRate / 100), 0);
-        $baseWithoutTax = round($baseAmount - $taxAmount, 0);
+        $baseWithoutTax = round($baseAmount / (1 + ($taxRate / 100)), 0);
+        $taxAmount = round($baseAmount - $baseWithoutTax, 0);
     } else {
         $baseWithoutTax = $baseAmount;
         $taxAmount = 0;
@@ -1358,6 +1358,8 @@ Route::get('/error-404', function () {
 Route::get('/error-500', function () {
     return view('error-500');
 })->name('error-500');
+
+require __DIR__.'/web/saas.php';
 Route::get('/coming-soon', function () {
     return view('coming-soon');
 })->name('coming-soon');

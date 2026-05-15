@@ -21,6 +21,7 @@ class Invoice extends Model
         'company_id',
         'purchase_transaction_id',
         'subscription_id',
+        'renewal_period_key',
         'issue_date',
         'due_date',
         'amount_due',
@@ -29,6 +30,8 @@ class Invoice extends Model
         'paid_date',
         'pdf_path',
         'status',
+        'renewal_reason_code',
+        'renewal_reason_message',
         'notes',
     ];
 

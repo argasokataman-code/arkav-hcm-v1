@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Log;
  */
 class SubscriptionActivationFromInvoiceService
 {
+    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer)
+    {
+    }
+
     /**
      * After an invoice is marked paid: if {@code subscription_id} points to a
      * {@code pending_payment} subscription for the same company, flip to {@code active}
@@ -59,6 +63,8 @@ class SubscriptionActivationFromInvoiceService
                 'pending_invoice_source' => null,
             ]),
         ]);
+
+        $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
         Log::info('Subscription activated from paid invoice', [
             'subscription_id' => $subscription->id,

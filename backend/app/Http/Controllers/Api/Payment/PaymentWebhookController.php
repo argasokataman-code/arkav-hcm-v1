@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PaymentWebhookController extends Controller
@@ -95,10 +96,32 @@ class PaymentWebhookController extends Controller
             'amount' => $amount,
         ]);
 
-        // Find payment by Stripe charge ID
-        $payment = Payment::where('gateway_reference', $stripeChargeId)->first();
+        // Find payment by Stripe charge ID.
+        $payment = Payment::query()
+            ->where('gateway', 'stripe')
+            ->where(function ($query) use ($stripeChargeId): void {
+                $query->where('gateway_reference', $stripeChargeId)
+                    ->orWhere('metadata->stripe_charge_id', $stripeChargeId)
+                    ->orWhere('metadata->latest_charge_id', $stripeChargeId);
+            })
+            ->latest('id')
+            ->first();
+
         if ($payment) {
-            $payment->update(['status' => 'completed']);
+            $payment->update([
+                'status' => 'completed',
+                'paid_at' => now(),
+                'verified_at' => now(),
+                'metadata' => array_merge($payment->metadata ?? [], [
+                    'stripe_charge_id' => $stripeChargeId,
+                ]),
+            ]);
+
+            $invoice = $payment->invoice;
+            if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
+                $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_CHARGE_SUCCEEDED', 'Recurring renewal charge succeeded via Stripe webhook.');
+            }
+
             Log::info('Payment marked completed', ['payment_id' => $payment->id]);
         }
     }
@@ -152,23 +175,44 @@ class PaymentWebhookController extends Controller
     {
         $stripeInvoiceId = $invoice['id'];
         $stripeCustomerId = $invoice['customer'] ?? null;
+        $stripePaymentIntentId = (string) ($invoice['payment_intent'] ?? '');
 
         Log::info('Stripe invoice payment succeeded', [
             'invoice_id' => $stripeInvoiceId,
             'customer_id' => $stripeCustomerId,
         ]);
 
-        // Update corresponding invoice and subscription if applicable
-        $invoiceRecord = \App\Models\Invoice::where('gateway_reference', $stripeInvoiceId)->first();
-        if ($invoiceRecord) {
-            $invoiceRecord->update(['status' => 'paid']);
+        $payment = Payment::query()
+            ->where('gateway', 'stripe')
+            ->where(function ($query) use ($stripeInvoiceId, $stripePaymentIntentId): void {
+                $query->where('gateway_reference', $stripeInvoiceId)
+                    ->orWhere('metadata->stripe_invoice_id', $stripeInvoiceId);
+
+                if ($stripePaymentIntentId !== '') {
+                    $query->orWhere('gateway_reference', $stripePaymentIntentId)
+                        ->orWhere('metadata->stripe_intent_id', $stripePaymentIntentId);
+                }
+            })
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            Log::warning('Stripe invoice payment succeeded: no payment matched', [
+                'invoice_id' => $stripeInvoiceId,
+                'payment_intent' => $stripePaymentIntentId,
+            ]);
+
+            return;
         }
+
+        $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_INVOICE_PAID', 'Recurring renewal invoice settled via Stripe invoice webhook.');
     }
 
     private function handleInvoicePaymentFailed(array $invoice): void
     {
         $stripeInvoiceId = $invoice['id'];
         $stripeCustomerId = $invoice['customer'] ?? null;
+        $stripePaymentIntentId = (string) ($invoice['payment_intent'] ?? '');
         $failureReason = $invoice['last_finalization_error']['message'] ?? 'Unknown reason';
 
         Log::warning('Stripe invoice payment failed', [
@@ -177,14 +221,49 @@ class PaymentWebhookController extends Controller
             'reason' => $failureReason,
         ]);
 
-        $invoiceRecord = \App\Models\Invoice::where('gateway_reference', $stripeInvoiceId)->first();
-        if ($invoiceRecord) {
-            $invoiceRecord->update([
-                'status' => 'payment_failed',
-                'metadata' => array_merge($invoiceRecord->metadata ?? [], [
-                    'failure_reason' => $failureReason,
-                ]),
+        $payment = Payment::query()
+            ->where('gateway', 'stripe')
+            ->where(function ($query) use ($stripeInvoiceId, $stripePaymentIntentId): void {
+                $query->where('gateway_reference', $stripeInvoiceId)
+                    ->orWhere('metadata->stripe_invoice_id', $stripeInvoiceId);
+
+                if ($stripePaymentIntentId !== '') {
+                    $query->orWhere('gateway_reference', $stripePaymentIntentId)
+                        ->orWhere('metadata->stripe_intent_id', $stripePaymentIntentId);
+                }
+            })
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            Log::warning('Stripe invoice payment failed: no payment matched', [
+                'invoice_id' => $stripeInvoiceId,
+                'payment_intent' => $stripePaymentIntentId,
             ]);
+
+            return;
+        }
+
+        $payment->update([
+            'status' => 'failed',
+            'metadata' => array_merge($payment->metadata ?? [], [
+                'failure_reason' => $failureReason,
+                'stripe_invoice_id' => $stripeInvoiceId,
+                'stripe_payment_intent_id' => $stripePaymentIntentId,
+            ]),
+        ]);
+
+        $invoiceRecord = $payment->invoice;
+        if ($invoiceRecord) {
+            $invoiceRecord->update(['status' => 'payment_failed']);
+
+            if ($this->isRecurringRenewalInvoice($invoiceRecord)) {
+                $this->setRecurringRenewalReason(
+                    $invoiceRecord,
+                    'STRIPE_INVOICE_PAYMENT_FAILED',
+                    (string) $failureReason
+                );
+            }
         }
     }
 
@@ -198,8 +277,12 @@ class PaymentWebhookController extends Controller
             'status' => $status,
         ]);
 
-        // Find corresponding Subscription record and update status
-        $sub = Subscription::where('gateway_reference', $stripeSubscriptionId)->first();
+        // Find corresponding Subscription record via metadata mapping.
+        $sub = Subscription::query()
+            ->where('metadata->stripe_subscription_id', $stripeSubscriptionId)
+            ->latest('id')
+            ->first();
+
         if ($sub) {
             $sub->update([
                 'status' => $status === 'active' ? 'active' : 'suspended',
@@ -222,7 +305,11 @@ class PaymentWebhookController extends Controller
             'canceled_at' => $canceledAt,
         ]);
 
-        $sub = Subscription::where('gateway_reference', $stripeSubscriptionId)->first();
+        $sub = Subscription::query()
+            ->where('metadata->stripe_subscription_id', $stripeSubscriptionId)
+            ->latest('id')
+            ->first();
+
         if ($sub) {
             $sub->update([
                 'status' => 'canceled',
@@ -348,13 +435,7 @@ class PaymentWebhookController extends Controller
             ]),
         ]);
 
-        $markedNow = $this->markInvoicePaidForPayment($payment);
-
-        $payment->refresh();
-        $invoice = $payment->invoice;
-        if ($markedNow && $invoice && $this->isRecurringRenewalInvoice($invoice)) {
-            $this->extendSubscriptionForRecurringRenewal($payment->subscription);
-        }
+        $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_INVOICE_PAID', 'Recurring renewal invoice settled via webhook callback.');
     }
 
     private function handleXenditInvoiceExpired(array $data): void
@@ -370,6 +451,15 @@ class PaymentWebhookController extends Controller
         $payment = $this->findPaymentByXenditIdentifiers($xenditInvoiceId, $externalId);
         if ($payment) {
             $payment->update(['status' => 'expired']);
+
+            $invoice = $payment->invoice;
+            if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
+                $this->setRecurringRenewalReason(
+                    $invoice,
+                    'XENDIT_INVOICE_EXPIRED',
+                    'Gateway marked recurring renewal invoice as expired.'
+                );
+            }
         }
     }
 
@@ -389,8 +479,12 @@ class PaymentWebhookController extends Controller
                 'status' => 'completed',
                 'paid_at' => now(),
                 'verified_at' => now(),
+                'metadata' => array_merge($payment->metadata ?? [], [
+                    'xendit_payment_id' => $xenditPaymentId,
+                    'xendit_external_id' => $externalId,
+                ]),
             ]);
-            $this->markInvoicePaidForPayment($payment);
+            $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_CHARGE_SUCCEEDED', 'Recurring renewal payment settled via Xendit payment.successful webhook.');
         }
     }
 
@@ -414,6 +508,15 @@ class PaymentWebhookController extends Controller
                     'failure_reason' => $failureReason,
                 ]),
             ]);
+
+            $invoice = $payment->invoice;
+            if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
+                $this->setRecurringRenewalReason(
+                    $invoice,
+                    'XENDIT_PAYMENT_FAILED',
+                    (string) $failureReason
+                );
+            }
         }
     }
 
@@ -491,6 +594,61 @@ class PaymentWebhookController extends Controller
         $subscription->update([
             'status' => 'active',
             'ends_at' => $newEnd,
+            'grace_started_at' => null,
+            'grace_ends_at' => null,
+            'suspended_at' => null,
+            'suspension_reason' => null,
         ]);
+    }
+
+    private function markRecurringRenewalPaidFromWebhook(Payment $payment, string $reasonCode, string $reasonMessage): void
+    {
+        DB::transaction(function () use ($payment, $reasonCode, $reasonMessage): void {
+            $lockedPayment = Payment::query()->whereKey($payment->getKey())->lockForUpdate()->with(['invoice', 'subscription'])->first();
+            if (! $lockedPayment) {
+                return;
+            }
+
+            $lockedInvoice = $lockedPayment->invoice
+                ? Invoice::query()->whereKey($lockedPayment->invoice->getKey())->lockForUpdate()->first()
+                : null;
+
+            if (! $lockedInvoice) {
+                return;
+            }
+
+            $alreadyPaid = (bool) $lockedInvoice->is_paid;
+            if (! $alreadyPaid) {
+                $lockedInvoice->markAsPaid();
+            }
+
+            if (! $this->isRecurringRenewalInvoice($lockedInvoice)) {
+                return;
+            }
+
+            $this->setRecurringRenewalReason($lockedInvoice, $reasonCode, $reasonMessage);
+
+            if ($alreadyPaid) {
+                return;
+            }
+
+            $lockedSubscription = $lockedPayment->subscription
+                ? Subscription::query()->whereKey($lockedPayment->subscription->getKey())->lockForUpdate()->first()
+                : null;
+
+            if (! $lockedSubscription) {
+                return;
+            }
+
+            $this->extendSubscriptionForRecurringRenewal($lockedSubscription);
+        });
+    }
+
+    private function setRecurringRenewalReason(Invoice $invoice, string $reasonCode, string $reasonMessage): void
+    {
+        $invoice->forceFill([
+            'renewal_reason_code' => $reasonCode,
+            'renewal_reason_message' => mb_substr($reasonMessage, 0, 255),
+        ])->save();
     }
 }

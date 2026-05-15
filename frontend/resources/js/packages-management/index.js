@@ -1,8 +1,8 @@
-import bootstrapMethods from "./modules/bootstrap";
-import dataMethods from "./modules/data";
-import featureMethods from "./modules/features";
-import modalMethods from "./modules/modals";
-import feedbackMethods from "./modules/feedback";
+import bootstrapMethods from "./modules/bootstrap.js";
+import dataMethods from "./modules/data.js";
+import featureMethods from "./modules/features.js";
+import modalMethods from "./modules/modals.js";
+import feedbackMethods from "./modules/feedback.js";
 
 const PackagesManager = {
   isInitialized: false,

@@ -167,6 +167,9 @@ class DatabaseSeeder extends Seeder
 
         // Baseline role/permission catalog untuk user management.
         $this->call(HcmUserManagementSeeder::class);
+
+        // Demo data untuk Renewal Monitoring (5 skenario: paid, retry, grace, suspended, anomaly).
+        $this->call(RenewalMonitoringSeeder::class);
     }
 
     private function ensureDefaultCompanyMembership(): void

@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Log;
  */
 class SubscriptionTerminationService
 {
+    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer)
+    {
+    }
+
     /**
      * Terminate subscription due to expiration.
      * Status becomes 'expired', invoice remains for audit.
@@ -42,6 +46,8 @@ class SubscriptionTerminationService
                 'termination_reason' => $reason,
             ]);
 
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
+
             // Notify company of termination
             $this->notifySubscriptionTerminated($subscription, 'expiration');
 
@@ -50,8 +56,8 @@ class SubscriptionTerminationService
     }
 
     /**
-     * Suspend service due to overdue invoice (payment not received).
-     * Status becomes 'suspended', not deleted.
+    * Inactivate service due to overdue invoice (payment not received).
+    * Billing delinquency should not be classified as suspended enforcement.
      */
     public function suspendDueToOverdueInvoice(Subscription $subscription, Invoice $invoice): bool
     {
@@ -68,10 +74,12 @@ class SubscriptionTerminationService
             ]);
 
             $subscription->update([
-                'status' => 'suspended',
+                'status' => 'inactive',
                 'suspension_reason' => "Invoice {$invoice->invoice_number} overdue by {$daysOverdue} days",
                 'suspended_at' => now(),
             ]);
+
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
             // Notify company immediately
             $this->notifySubscriptionSuspended($subscription, $invoice);
@@ -104,6 +112,8 @@ class SubscriptionTerminationService
                 'suspension_reason' => "Employee count ({$currentCount}) exceeds plan limit ({$planLimit}) by {$excess}",
                 'suspended_at' => now(),
             ]);
+
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
             // Notify company with grace period for correction
             $this->notifyEmployeeCountViolation($subscription, $currentCount, $planLimit);
@@ -138,6 +148,8 @@ class SubscriptionTerminationService
                 'suspended_at' => null,
                 'suspension_reason' => null,
             ]);
+
+            $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
             $this->notifySubscriptionReactivated($subscription);
 
@@ -299,10 +311,9 @@ class SubscriptionTerminationService
     private function notifySubscriptionReactivated(Subscription $subscription): void
     {
         try {
-            // TODO: Send confirmation email
-            Log::info('Service reactivation notification would be sent', [
-                'company_id' => $subscription->company_id,
-            ]);
+            app(NotificationService::class)->notifySubscriptionReactivated(
+                $subscription->fresh(['company', 'package'])
+            );
         } catch (\Exception $e) {
             Log::error('Failed to notify service reactivation', [
                 'subscription_id' => $subscription->id,

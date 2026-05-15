@@ -318,7 +318,7 @@
         var earlyActivateWrap = byId("upgrade-early-activate-wrap");
         var earlyActivateBtn = byId("upgrade-early-activate-btn");
         var addonFeedback = byId("upgrade-addon-feedback");
-        var addonCheckoutButtons = Array.prototype.slice.call(document.querySelectorAll("[data-upgrade-addon-checkout]"));
+        var addonCatalog = byId("upgrade-addon-catalog");
         var modalEarlyActivateEl = byId("modalEarlyActivate");
         var modalTargetName = byId("modal-early-target-name");
         var modalRiskCheck = byId("earlyActivateRiskCheck");
@@ -415,6 +415,8 @@
             recommendedPackages: [],
             currentPackage: null,
             packages: [],
+            addons: [],
+            checkedOutAddonIds: new Set(),
         };
 
         try {
@@ -429,6 +431,81 @@
                 : null;
         } catch (_e2) {
             ctx.currentPackage = null;
+        }
+
+        try {
+            var checkedOutAddonIds = JSON.parse(contextEl.dataset.checkedOutAddonIds || "[]");
+            if (Array.isArray(checkedOutAddonIds)) {
+                checkedOutAddonIds.forEach(function (addonId) {
+                    var normalizedId = Number(addonId || 0);
+                    if (normalizedId > 0) {
+                        ctx.checkedOutAddonIds.add(normalizedId);
+                    }
+                });
+            }
+        } catch (_e3) {
+            ctx.checkedOutAddonIds = new Set();
+        }
+
+        function renderAddonCatalog() {
+            if (!addonCatalog) {
+                return;
+            }
+
+            var addons = Array.isArray(ctx.addons) ? ctx.addons : [];
+            if (!addons.length) {
+                addonCatalog.innerHTML = '<div class="col-12"><div class="upgrade-state-empty small text-muted">Saat ini belum ada add-on aktif yang bisa ditampilkan.</div></div>';
+                return;
+            }
+
+            addonCatalog.innerHTML = addons.map(function (addon) {
+                var addonId = Number(addon && addon.id || 0);
+                var addonName = String(addon && addon.name || "Add-on");
+                var addonCode = String(addon && addon.code || "").toUpperCase();
+                var addonUnit = String(addon && addon.unitName || "unit").toUpperCase();
+                var addonDescription = String(addon && addon.description || "Add-on untuk memperluas kemampuan operasional tim.");
+                var addonPrice = money(Number(addon && addon.pricePerUnit || 0));
+                var isCheckedOut = ctx.checkedOutAddonIds.has(addonId);
+                var buttonClass = isCheckedOut ? 'btn btn-sm btn-outline-secondary w-100 disabled' : 'btn btn-sm btn-outline-primary w-100';
+                var buttonLabel = isCheckedOut
+                    ? '<i class="ti ti-check me-1"></i>Sudah aktif / pending'
+                    : '<i class="ti ti-receipt me-1"></i> Buat Invoice Add-on';
+
+                return '<div class="col-12 col-md-6 col-xl-3">'
+                    + '<div class="upgrade-addon-card p-3">'
+                    + '<div class="d-flex align-items-start justify-content-between gap-2 mb-2">'
+                    + '<span class="upgrade-addon-icon"><i class="ti ti-puzzle"></i></span>'
+                    + '<span class="badge bg-light text-dark">' + esc(addonUnit) + '</span>'
+                    + '</div>'
+                    + '<div class="upgrade-addon-title mb-1">' + esc(addonName) + '</div>'
+                    + '<div class="text-muted small mb-2">' + esc(addonCode) + '</div>'
+                    + '<div class="fw-bold text-primary mb-2">' + esc(addonPrice) + '</div>'
+                    + '<div class="upgrade-addon-description mb-3">' + esc(addonDescription) + '</div>'
+                    + '<button type="button" class="' + buttonClass + '" data-upgrade-addon-checkout="' + esc(String(addonId)) + '" data-upgrade-addon-name="' + esc(addonName) + '"' + (isCheckedOut ? ' disabled' : '') + '>'
+                    + buttonLabel
+                    + '</button>'
+                    + '</div>'
+                    + '</div>';
+            }).join('');
+        }
+
+        function loadAddons() {
+            return apiRequest("get", "/saas/package-addons", { status: "active", per_page: 100 })
+                .then(function (payload) {
+                    var rows = Array.isArray(payload && payload.data) ? payload.data : [];
+                    ctx.addons = rows.slice().sort(function (a, b) {
+                        var codeA = String(a && a.code || '').toLowerCase();
+                        var codeB = String(b && b.code || '').toLowerCase();
+                        return codeA.localeCompare(codeB);
+                    });
+                    renderAddonCatalog();
+                })
+                .catch(function () {
+                    if (!addonCatalog) {
+                        return;
+                    }
+                    addonCatalog.innerHTML = '<div class="col-12"><div class="upgrade-state-empty small text-muted">Gagal memuat add-on aktif. Coba refresh halaman.</div></div>';
+                });
         }
 
         function showStatus(message, kind) {
@@ -471,8 +548,20 @@
         }
 
         function syncSelectionState() {
-            renderPackageCatalog(packageCatalog, ctx.packages, packageEl.value, ctx.blockedFeature, ctx.blockedFeatureLabel, actionEl.value);
-            renderSelectionSummary(selectionSummary, actionEl.value, ctx.currentPackage, findPackageByUuid(ctx.packages, packageEl.value), ctx.blockedFeature, ctx.blockedFeatureLabel);
+            var action = String(actionEl.value || "");
+            var isCancel = action === "cancel";
+            var selectedUuid = String(packageEl.value || "");
+            var isSameAsCurrent = !isCancel
+                && ctx.currentPackage
+                && String(ctx.currentPackage.uuid || "") !== ""
+                && selectedUuid === String(ctx.currentPackage.uuid);
+            var hasValidTarget = isCancel || (selectedUuid !== "" && !isSameAsCurrent);
+
+            if (previewBtn) { previewBtn.disabled = !hasValidTarget; }
+            if (submitBtn) { submitBtn.disabled = !hasValidTarget; }
+
+            renderPackageCatalog(packageCatalog, ctx.packages, packageEl.value, ctx.blockedFeature, ctx.blockedFeatureLabel, action);
+            renderSelectionSummary(selectionSummary, action, ctx.currentPackage, findPackageByUuid(ctx.packages, packageEl.value), ctx.blockedFeature, ctx.blockedFeatureLabel);
         }
 
         function renderCurrentPackagePanel() {
@@ -588,6 +677,13 @@
                 if (ctx.blockedFeature) {
                     rows = rows.filter(function (pkg) {
                         return packageHasFeature(pkg, ctx.blockedFeature);
+                    });
+                }
+
+                // Exclude current active package — prevent same-package submission (IDOR guard)
+                if (ctx.currentPackage && ctx.currentPackage.uuid) {
+                    rows = rows.filter(function (pkg) {
+                        return String(pkg.uuid || "") !== String(ctx.currentPackage.uuid);
                     });
                 }
 
@@ -766,64 +862,70 @@
                 });
         });
 
-        if (addonCheckoutButtons.length > 0) {
-            addonCheckoutButtons.forEach(function (button) {
-                button.addEventListener("click", function () {
-                    var addonId = Number(button.getAttribute("data-upgrade-addon-checkout") || 0);
-                    var addonName = String(button.getAttribute("data-upgrade-addon-name") || "Add-on");
+        if (addonCatalog) {
+            addonCatalog.addEventListener("click", function (event) {
+                var button = event.target.closest("[data-upgrade-addon-checkout]");
+                if (!button || button.disabled) {
+                    return;
+                }
 
-                    if (!addonId) {
-                        showAddonStatus("ID add-on tidak valid. Muat ulang halaman lalu coba lagi.", "error");
-                        return;
-                    }
+                var addonId = Number(button.getAttribute("data-upgrade-addon-checkout") || 0);
+                var addonName = String(button.getAttribute("data-upgrade-addon-name") || "Add-on");
 
-                    setAddonLoading(button, true);
-                    apiRequest("post", "/hcm/billing/addons/checkout", { addon_id: addonId })
-                        .then(function (response) {
-                            var payload = response && response.data ? response.data : null;
-                            var invoice = payload && payload.invoice ? payload.invoice : null;
-                            var invoiceId = invoice && invoice.id ? String(invoice.id) : "";
-                            var paidInstantly = !!(invoice && invoice.isPaid);
+                if (!addonId) {
+                    showAddonStatus("ID add-on tidak valid. Muat ulang halaman lalu coba lagi.", "error");
+                    return;
+                }
 
-                            if (paidInstantly) {
-                                showAddonStatus(
-                                    '<div class="fw-semibold">' + esc(addonName) + ' berhasil aktif.</div>'
-                                    + '<div class="small mt-1">Tidak ada pembayaran tambahan yang perlu dilakukan.</div>',
-                                    "success"
-                                );
-                                return;
-                            }
+                setAddonLoading(button, true);
+                apiRequest("post", "/hcm/billing/addons/checkout", { addon_id: addonId })
+                    .then(function (response) {
+                        var payload = response && response.data ? response.data : null;
+                        var invoice = payload && payload.invoice ? payload.invoice : null;
+                        var invoiceId = invoice && invoice.id ? String(invoice.id) : "";
+                        var paidInstantly = !!(invoice && invoice.isPaid);
 
-                            var detailText = payload && payload.reused
-                                ? "Invoice pending ditemukan. Lanjutkan pembayaran untuk aktivasi add-on."
-                                : "Invoice add-on berhasil dibuat. Lanjutkan pembayaran untuk aktivasi add-on.";
+                        ctx.checkedOutAddonIds.add(addonId);
+                        renderAddonCatalog();
 
-                            var invoiceHint = invoiceId
-                                ? '<div class="small mt-2">Invoice ID: <span class="fw-semibold">' + esc(invoiceId) + '</span></div>'
-                                : '';
-
+                        if (paidInstantly) {
                             showAddonStatus(
-                                '<div class="fw-semibold">Checkout ' + esc(addonName) + ' berhasil diproses.</div>'
-                                + '<div class="small mt-1">' + esc(detailText) + '</div>'
-                                + invoiceHint
-                                + '<div class="mt-2"><a href="/company/invoices" class="btn btn-sm btn-outline-secondary"><i class="ti ti-file-invoice me-1"></i>Buka Invoice</a></div>',
+                                '<div class="fw-semibold">' + esc(addonName) + ' berhasil aktif.</div>'
+                                + '<div class="small mt-1">Tidak ada pembayaran tambahan yang perlu dilakukan.</div>',
                                 "success"
                             );
-                        })
-                        .catch(function (err) {
-                            var message = err && err.response && err.response.data && err.response.data.error
-                                ? err.response.data.error.message
-                                : "Gagal membuat invoice add-on.";
-                            showAddonStatus(esc(message), "error");
-                        })
-                        .finally(function () {
-                            setAddonLoading(button, false);
-                        });
-                });
+                            return;
+                        }
+
+                        var detailText = payload && payload.reused
+                            ? "Invoice pending ditemukan. Lanjutkan pembayaran untuk aktivasi add-on."
+                            : "Invoice add-on berhasil dibuat. Lanjutkan pembayaran untuk aktivasi add-on.";
+
+                        var invoiceHint = invoiceId
+                            ? '<div class="small mt-2">Invoice ID: <span class="fw-semibold">' + esc(invoiceId) + '</span></div>'
+                            : '';
+
+                        showAddonStatus(
+                            '<div class="fw-semibold">Checkout ' + esc(addonName) + ' berhasil diproses.</div>'
+                            + '<div class="small mt-1">' + esc(detailText) + '</div>'
+                            + invoiceHint
+                            + '<div class="mt-2"><a href="/company/invoices" class="btn btn-sm btn-outline-secondary"><i class="ti ti-file-invoice me-1"></i>Buka Invoice</a></div>',
+                            "success"
+                        );
+                    })
+                    .catch(function (err) {
+                        var message = err && err.response && err.response.data && err.response.data.error
+                            ? err.response.data.error.message
+                            : "Gagal membuat invoice add-on.";
+                        showAddonStatus(esc(message), "error");
+                    })
+                    .finally(function () {
+                        setAddonLoading(button, false);
+                    });
             });
         }
 
-        Promise.all([loadPackages(), loadTenantRequests(), loadAdminQueue()]).catch(function () {
+        Promise.all([loadPackages(), loadTenantRequests(), loadAdminQueue(), loadAddons()]).catch(function () {
             showStatus("Sebagian data gagal dimuat. Coba refresh halaman.", "warning");
         });
 

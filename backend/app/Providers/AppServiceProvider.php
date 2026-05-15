@@ -120,6 +120,10 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
+        if ($this->app->runningUnitTests()) {
+            return;
+        }
+
         $host = trim((string) ($transport['host'] ?? ''));
         $username = trim((string) ($transport['username'] ?? ''));
         $password = (string) ($transport['password'] ?? '');

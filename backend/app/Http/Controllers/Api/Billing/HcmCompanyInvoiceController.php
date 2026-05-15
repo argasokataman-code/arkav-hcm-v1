@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\BillingTaxCalculationService;
 use App\Services\InvoiceService;
 use App\Services\MockPaymentGatewayService;
 use App\Services\XenditService;
@@ -70,7 +71,10 @@ class HcmCompanyInvoiceController
 
         $p = $q->latest('issue_date')->paginate($perPage);
 
-        $items = collect($p->items())->map(fn (Invoice $inv) => $this->invoiceService->formatInvoice($inv))->values();
+        $items = collect($p->items())
+            ->map(fn (Invoice $inv) => $this->healLegacyUnpaidSubscriptionInvoiceTax($inv))
+            ->map(fn (Invoice $inv) => $this->invoiceService->formatInvoice($inv))
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -103,6 +107,8 @@ class HcmCompanyInvoiceController
             ->whereKey($id)
             ->firstOrFail();
 
+        $invoice = $this->healLegacyUnpaidSubscriptionInvoiceTax($invoice);
+
         return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
     }
 
@@ -125,6 +131,8 @@ class HcmCompanyInvoiceController
             ->where('company_id', $companyId)
             ->whereKey($id)
             ->firstOrFail();
+
+        $invoice = $this->healLegacyUnpaidSubscriptionInvoiceTax($invoice);
 
         $path = $invoice->pdf_path ?: $this->invoiceService->generatePdf($invoice);
         if (! $path) {
@@ -157,6 +165,8 @@ class HcmCompanyInvoiceController
             ->where('company_id', $companyId)
             ->whereKey($id)
             ->firstOrFail();
+
+        $invoice = $this->healLegacyUnpaidSubscriptionInvoiceTax($invoice);
 
         $validated = $request->validate([
             'paymentMethod' => ['nullable', 'string', 'in:mock_card,mock_bank,mock_ewallet'],
@@ -258,6 +268,8 @@ class HcmCompanyInvoiceController
             ->where('company_id', $companyId)
             ->whereKey($id)
             ->firstOrFail();
+
+        $invoice = $this->healLegacyUnpaidSubscriptionInvoiceTax($invoice);
 
         if ($invoice->is_paid) {
             return response()->json([
@@ -657,22 +669,22 @@ class HcmCompanyInvoiceController
     private function buildXenditInvoiceItems(Invoice $invoice): array
     {
         $items = [];
-        
+
         // Base subscription/invoice item
         $baseAmount = (float) $invoice->amount_due;
         $taxRate = (float) ($invoice->billing_tax_rate_snapshot ?? 0);
-        
+
         if ($taxRate > 0) {
-            // If tax is applied, calculate base and tax amounts
-            $taxAmount = round($baseAmount * ($taxRate / 100), 0);
-            $baseWithoutTax = round($baseAmount - $taxAmount, 0);
-            
+            // `amount_due` is tax-inclusive, so split the tax portion back out for gateway itemization.
+            $baseWithoutTax = round($baseAmount / (1 + ($taxRate / 100)), 0);
+            $taxAmount = round($baseAmount - $baseWithoutTax, 0);
+
             $items[] = [
                 'name' => 'Subscription / Invoice',
                 'quantity' => 1,
                 'price' => (int) $baseWithoutTax,
             ];
-            
+
             $items[] = [
                 'name' => "Tax ({$taxRate}%)",
                 'quantity' => 1,
@@ -686,8 +698,48 @@ class HcmCompanyInvoiceController
                 'price' => (int) $baseAmount,
             ];
         }
-        
+
         return $items;
+    }
+
+    private function healLegacyUnpaidSubscriptionInvoiceTax(Invoice $invoice): Invoice
+    {
+        if ($invoice->is_paid || $invoice->subscription_id === null || $invoice->billing_tax_rate_snapshot !== null) {
+            return $invoice;
+        }
+
+        $billingMonth = $invoice->issue_date?->format('Y-m')
+            ?? $invoice->due_date?->format('Y-m')
+            ?? now()->format('Y-m');
+
+        $taxRateSnapshot = app(BillingTaxCalculationService::class)
+            ->resolvePolicyRateSnapshot((int) $invoice->company_id, $billingMonth);
+
+        if ($taxRateSnapshot <= 0) {
+            return $invoice;
+        }
+
+        $decodedNotes = json_decode((string) ($invoice->notes ?? ''), true);
+        $pricingBreakdown = is_array($decodedNotes) && is_array($decodedNotes['pricing_breakdown'] ?? null)
+            ? $decodedNotes['pricing_breakdown']
+            : null;
+
+        $baseAmount = isset($pricingBreakdown['base_amount']) && is_numeric($pricingBreakdown['base_amount'])
+            ? (float) $pricingBreakdown['base_amount']
+            : (float) $invoice->amount_due;
+        $taxAmount = isset($pricingBreakdown['subscription_tax_amount']) && is_numeric($pricingBreakdown['subscription_tax_amount'])
+            ? (float) $pricingBreakdown['subscription_tax_amount']
+            : round($baseAmount * ($taxRateSnapshot / 100), 2);
+        $totalAmount = isset($pricingBreakdown['total_amount']) && is_numeric($pricingBreakdown['total_amount'])
+            ? (float) $pricingBreakdown['total_amount']
+            : round($baseAmount + $taxAmount, 2);
+
+        $invoice->forceFill([
+            'billing_tax_rate_snapshot' => $taxRateSnapshot,
+            'amount_due' => $totalAmount,
+        ])->save();
+
+        return $invoice->fresh();
     }
 }
 

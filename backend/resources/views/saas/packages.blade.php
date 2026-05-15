@@ -538,7 +538,7 @@
     }
 </style>
 
-<script src="{{ asset('build/js/packages-management.js') }}?v={{ filemtime(public_path('build/js/packages-management.js')) }}"></script>
+<script type="module" src="{{ asset('build/js/packages-management.js') }}?v={{ filemtime(public_path('build/js/packages-management.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         window.PackagesManager?.init?.();

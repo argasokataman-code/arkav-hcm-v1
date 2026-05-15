@@ -43,6 +43,11 @@ Output utama:
 Kegunaan:
 - Ringkasan KPI pajak platform untuk dashboard reporting.
 
+Catatan runtime:
+- Basis PPN pada dashboard mengikuti invoice periode berjalan dengan back-out DPP dari `amount_due` jika invoice punya `billing_tax_rate_snapshot`.
+- Basis PPh 23 pada dashboard mengikuti total `payments.status=completed` pada periode berjalan agar selaras dengan tab detail SPT PPh 23.
+- Export dashboard XLSX hanya memuat metrik yang benar-benar tampil di runtime saat ini: PPN, deadline PPN, PPh 23, deadline PPh 23, dan total kewajiban pajak.
+
 ### GET /dashboard/export
 
 Query:
@@ -64,11 +69,18 @@ Query:
 
 Output utama:
 - form_type
+- batas_setor
+- batas_lapor
 - summary
 - detail_penyerahan
 
 Kegunaan:
 - Data SPT Masa PPN 1111 berbasis invoice periode berjalan.
+
+Catatan runtime:
+- Jika invoice menyimpan `billing_tax_rate_snapshot`, endpoint menganggap `amount_due` sudah tax-inclusive dan menghitung ulang DPP = `amount_due / (1 + rate)`.
+- Jika snapshot rate belum ada pada invoice lama, endpoint memakai fallback legacy: `amount_due` sebagai DPP dan `ppn_rate` query/default sebagai tarif hitung.
+- Invoice dengan `amount_due <= 0` tidak dimasukkan ke detail SPT PPN agar laporan tidak tercampur baris nol rupiah/non-billable.
 
 ### GET /spt-ppn/export
 
@@ -90,6 +102,8 @@ Query:
 
 Output utama:
 - form_type
+- batas_setor
+- batas_lapor
 - summary
 - detail_pemotongan
 
@@ -116,6 +130,8 @@ Query:
 Output utama:
 - year
 - form_type
+- batas_pelunasan
+- batas_lapor
 - summary
 - monthly_breakdown
 - catatan
@@ -123,6 +139,11 @@ Output utama:
 Kegunaan:
 - Estimasi internal SPT Tahunan PPh Badan untuk monitoring platform.
 - Bukan pengganti filing final DJP.
+
+Catatan runtime:
+- `taxable_revenue` pada estimasi tahunan mengikuti basis DPP invoice periode terkait, bukan total gross invoice tax-inclusive.
+- `transaction_tax_liability` mengikuti back-out komponen pajak transaksi per invoice jika snapshot tarif tersedia; jika tidak, runtime memakai fallback rate policy aktif tenant pada bulan tersebut.
+- `batas_pelunasan` dan `batas_lapor` ditampilkan sebagai anchor operasional tahunan untuk memudahkan finance review, tetapi filing final tetap wajib direkonsiliasi dengan akuntan.
 
 ### GET /spt-pph-badan/export
 

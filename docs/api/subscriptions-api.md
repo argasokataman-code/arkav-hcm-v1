@@ -205,13 +205,16 @@ Catatan reactivation manual:
 DELETE /v1/saas/subscriptions/{id}
 ```
 
-Membatalkan/menghapus subscription.
+Hard delete untuk subscription sudah dinonaktifkan demi keamanan operasional. Gunakan endpoint cancel/update status untuk mengakhiri lifecycle subscription.
 
-**Response (200 OK)**
+**Response (409 Conflict)**
 ```json
 {
-  "success": true,
-  "message": "Subscription cancelled successfully."
+  "success": false,
+  "error": {
+    "code": "SUBSCRIPTION_DELETE_DISABLED",
+    "message": "Hard delete is disabled for subscriptions. Use cancel to end the subscription lifecycle."
+  }
 }
 ```
 

@@ -232,6 +232,15 @@
         pane.classList.remove("d-none");
     }
 
+    function formatNotesHtml(notes, emptyLabel) {
+        var value = String(notes == null ? "" : notes).trim();
+        if (!value) {
+            return '<span class="text-muted">' + esc(emptyLabel || '-') + '</span>';
+        }
+
+        return esc(value).replace(/\n/g, "<br>");
+    }
+
     function renderTenantRequestList(target, rows) {
         if (!Array.isArray(rows) || rows.length === 0) {
             target.innerHTML = '<div class="upgrade-history-empty text-muted">Belum ada pengajuan perubahan paket.</div>';
@@ -239,7 +248,7 @@
         }
 
         var html = '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
-            + '<thead><tr><th>Aksi</th><th>Status</th><th>Dibuat</th><th>Efektif</th><th>Paket Target</th></tr></thead><tbody>';
+            + '<thead><tr><th>Aksi</th><th>Status</th><th>Dibuat</th><th>Efektif</th><th>Paket Target</th><th>Catatan / Alasan</th></tr></thead><tbody>';
 
         html += rows.map(function (row) {
             var preview = row.preview || {};
@@ -250,6 +259,7 @@
                 + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'
                 + '<td>' + esc(formatDateTime(row.effective_at)) + '</td>'
                 + '<td>' + esc(toPackage ? (toPackage.name + ' (' + toPackage.code + ')') : '-') + '</td>'
+                + '<td class="small">' + formatNotesHtml(row.notes, 'Belum ada catatan.') + '</td>'
                 + '</tr>';
         }).join("");
 
@@ -274,7 +284,7 @@
 
         var html = '<div class="alert alert-warning py-2 mb-2">Ada <strong>' + pendingRows.length + '</strong> pengajuan pending baru.</div>';
         html += '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
-            + '<thead><tr><th>Company</th><th>Aksi</th><th>Target</th><th>Dibuat</th><th>Status</th></tr></thead><tbody>';
+            + '<thead><tr><th>Company</th><th>Aksi</th><th>Target</th><th>Dibuat</th><th>Status</th><th>Catatan / Alasan</th></tr></thead><tbody>';
 
         html += pendingRows.map(function (row) {
             var preview = row.preview || {};
@@ -288,6 +298,7 @@
                 + '<td>' + normalizeStatusBadge(row.status)
                 + '<div class="mt-1 d-flex flex-wrap gap-1">' + normalizeAnomalyBadges(flags) + '</div>'
                 + '</td>'
+                + '<td class="small">' + formatNotesHtml(row.notes, 'Tenant belum menambahkan catatan.') + '</td>'
                 + '</tr>';
         }).join("");
 
@@ -776,6 +787,42 @@
             return payload;
         }
 
+        function syncActionCopy() {
+            var action = String(actionEl && actionEl.value ? actionEl.value : "upgrade");
+            var isCancel = action === "cancel";
+            var isDowngrade = action === "downgrade";
+            var notesLabel = document.querySelector('label[for="upgrade-notes"]');
+            var packageLabel = document.querySelector('label[for="upgrade-target-package"]');
+            var submitIcon = submitBtn ? submitBtn.querySelector("i") : null;
+            var submitText = submitBtn ? submitBtn.querySelector("span") : null;
+
+            if (notesLabel) {
+                notesLabel.textContent = isCancel ? "Alasan pembatalan" : "Catatan (opsional)";
+            }
+
+            if (notesEl) {
+                notesEl.placeholder = isCancel
+                    ? "Jelaskan alasan pembatalan subscription"
+                    : (isDowngrade
+                        ? "Alasan downgrade / informasi tambahan"
+                        : "Alasan upgrade / informasi tambahan");
+            }
+
+            if (packageLabel) {
+                packageLabel.textContent = isCancel ? "Paket Target (tidak diperlukan)" : "Paket Target";
+            }
+
+            if (submitText) {
+                submitText.textContent = isCancel
+                    ? "Ajukan Pembatalan"
+                    : (isDowngrade ? "Ajukan Downgrade" : "Ajukan Upgrade");
+            }
+
+            if (submitIcon) {
+                submitIcon.className = isCancel ? "ti ti-ban me-1" : "ti ti-send me-1";
+            }
+        }
+
         if (packageCatalog) {
             packageCatalog.addEventListener("click", function (event) {
                 var card = event.target.closest("[data-upgrade-package-card]");
@@ -805,6 +852,7 @@
 
         actionEl.addEventListener("change", function () {
             packageEl.disabled = String(actionEl.value || "") === "cancel";
+            syncActionCopy();
             syncSelectionState();
         });
 
@@ -840,7 +888,29 @@
 
         submitBtn.addEventListener("click", function () {
             var payload = buildPayload();
+            var action = String(actionEl.value || "").trim();
             var notes = String(notesEl && notesEl.value ? notesEl.value : "").trim();
+
+            if (action === "cancel" && !notes) {
+                var prompted = window.prompt("Tuliskan alasan pembatalan subscription:", "");
+                if (prompted === null) {
+                    return;
+                }
+
+                notes = String(prompted || "").trim();
+                if (!notes) {
+                    showStatus("Alasan pembatalan perlu diisi agar pengajuan jelas saat direview admin platform.", "warning");
+                    if (notesEl) {
+                        notesEl.focus();
+                    }
+                    return;
+                }
+
+                if (notesEl) {
+                    notesEl.value = notes;
+                }
+            }
+
             if (notes) {
                 payload.notes = notes;
             }
@@ -848,7 +918,7 @@
             setLoading(submitBtn, true);
             apiRequest("post", "/hcm/subscriptions/change-plan", payload)
                 .then(function () {
-                    showStatus("Pengajuan perubahan paket berhasil dikirim.", "success");
+                    showStatus(action === "cancel" ? "Pengajuan pembatalan subscription berhasil dikirim." : "Pengajuan perubahan paket berhasil dikirim.", "success");
                     return Promise.all([loadTenantRequests(), loadAdminQueue()]);
                 })
                 .catch(function (err) {
@@ -930,6 +1000,7 @@
         });
 
         renderCurrentPackagePanel();
+        syncActionCopy();
         syncSelectionState();
 
         // Keep package state panel fresh when request status changes externally (e.g. approved by super-admin)

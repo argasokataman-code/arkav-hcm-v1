@@ -35,6 +35,21 @@
   const defaultRenewEndDateFromBillingCycle = subscriptionsUtils.defaultRenewEndDateFromBillingCycle || function () { return new Date().toISOString().slice(0, 10); };
   const isRenewableSubscriptionStatus = subscriptionsUtils.isRenewableSubscriptionStatus || function (status) { return String(status || "") !== "active"; };
 
+  function normalizeStatusLabel(status) {
+    return String(status || "-")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, function (segment) { return segment.toUpperCase(); });
+  }
+
+  function formatRequestNotes(notes, emptyLabel) {
+    const value = String(notes == null ? '' : notes).trim();
+    if (!value) {
+      return '<span class="text-muted">' + esc(emptyLabel || '-') + '</span>';
+    }
+
+    return esc(value).replace(/\n/g, '<br>');
+  }
+
   // Main SubscriptionsManager object
   const SubscriptionsManager = {
     isInitialized: false,
@@ -129,7 +144,8 @@
     },
 
     /**
-     * Open create modal from Packages deep link: /subscription?packageId=&companyId=&status=
+     * Open create modal with package/company prefill from query string.
+     * System-managed statuses such as pending_payment are ignored here.
      */
     applyQueryStringDefaults: function () {
       if (!this.canManageSubscriptions) return;
@@ -142,13 +158,14 @@
       const allowed = [
         "active",
         "trial",
-        "pending_payment",
         "inactive",
         "expired",
         "cancelled",
         "suspended",
       ];
       const statusParam = status && allowed.indexOf(status) !== -1 ? status : null;
+
+      if (!packageId && !companyId && !statusParam) return;
 
       this.openCreateModal({
         packageId: packageId ? String(packageId) : null,
@@ -203,20 +220,27 @@
     },
 
     loadChangeRequestQueue: function () {
-      const self = this;
       const queueContent = document.querySelector("[data-subscription-change-queue-content]");
       const queueCount = document.querySelector("[data-subscription-change-queue-count]");
+      const queueFilter = document.querySelector("[data-subscription-change-queue-filter]");
+      const selectedFilter = String(queueFilter?.value || 'all').toLowerCase();
+      const requestUrl = selectedFilter === 'pending'
+        ? '/v1/saas/subscription-change-requests?status=pending'
+        : '/v1/saas/subscription-change-requests';
 
       if (!this.canManageSubscriptions || !this.isPrimarySuperAdminCodeOne) {
         return Promise.resolve();
       }
 
-      return apiRequest("GET", "/v1/saas/subscription-change-requests?status=pending", null)
+      return apiRequest("GET", requestUrl, null)
         .then(function (response) {
           const rows = Array.isArray(response?.data) ? response.data : [];
+          const pendingCount = rows.filter(function (row) {
+            return String(row?.status || '').toLowerCase() === 'pending';
+          }).length;
 
           if (queueCount) {
-            queueCount.textContent = rows.length + " pending";
+            queueCount.textContent = selectedFilter === 'pending' ? (rows.length + ' pending') : (rows.length + ' records');
           }
 
           if (!queueContent) {
@@ -224,7 +248,9 @@
           }
 
           if (!rows.length) {
-            queueContent.innerHTML = '<div class="alert alert-success mb-0">Tidak ada pengajuan pending baru.</div>';
+            queueContent.innerHTML = selectedFilter === 'pending'
+              ? '<div class="alert alert-success mb-0">Tidak ada pengajuan pending baru.</div>'
+              : '<div class="alert alert-secondary mb-0">Belum ada riwayat pengajuan subscription change.</div>';
             return;
           }
 
@@ -234,11 +260,13 @@
           }).length;
 
           queueContent.innerHTML =
-            (anomalyCount > 0
-              ? '<div class="alert alert-danger py-2 mb-2">Perhatian: <strong>' + anomalyCount + '</strong> pengajuan memiliki anomali billing. Wajib review sebelum approve.</div>'
-              : '<div class="alert alert-success py-2 mb-2">Semua pengajuan pending tidak memiliki anomali billing kritikal.</div>')
+            (selectedFilter === 'pending'
+              ? (anomalyCount > 0
+                  ? '<div class="alert alert-danger py-2 mb-2">Perhatian: <strong>' + anomalyCount + '</strong> pengajuan memiliki anomali billing. Wajib review sebelum approve.</div>'
+                  : '<div class="alert alert-success py-2 mb-2">Semua pengajuan pending tidak memiliki anomali billing kritikal.</div>')
+              : '<div class="alert alert-light py-2 mb-2">Riwayat memuat <strong>' + rows.length + '</strong> request, dengan <strong>' + pendingCount + '</strong> yang masih pending review.</div>')
             + '<div class="table-responsive"><table class="table table-sm align-middle mb-0">'
-            + '<thead><tr><th>Company</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th><th>Risk</th><th>Aksi Admin</th></tr></thead><tbody>'
+            + '<thead><tr><th>Company</th><th>Aksi</th><th>Target Paket</th><th>Dibuat</th><th>Status</th><th>Catatan / Alasan</th><th>Risk</th><th>Aksi Admin</th></tr></thead><tbody>'
             + rows.map(function (row) {
               const preview = row?.preview || {};
               const toPackage = preview?.to_package || null;
@@ -246,16 +274,20 @@
               const detailLine = preview?.anomaly_details?.invoice_number
                 ? ('<div class="small text-muted mt-1">Invoice ' + esc(preview.anomaly_details.invoice_number) + '</div>')
                 : '';
+              const isPending = String(row?.status || '').toLowerCase() === 'pending';
               return '<tr>'
                 + '<td>' + esc(formatCompanyReference(row)) + '</td>'
-                + '<td>' + esc(row.action || "-") + '</td>'
+                + '<td>' + esc(normalizeStatusLabel(row.action || '-')) + '</td>'
                 + '<td>' + esc(toPackage ? ((toPackage.name || "-") + " (" + (toPackage.code || "-") + ")") : "-") + '</td>'
                 + '<td>' + esc(formatDateTime(row.created_at)) + '</td>'
-                + '<td><span class="badge badge-warning d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + esc(row.status || "pending") + '</span></td>'
+                + '<td><span class="badge badge-warning d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + esc(normalizeStatusLabel(row.status || 'pending')) + '</span></td>'
+                + '<td class="small">' + formatRequestNotes(row.notes, 'Belum ada catatan.') + '</td>'
                 + '<td><div class="d-flex flex-wrap gap-1">' + normalizeAnomalyBadges(flags) + '</div>' + detailLine + '</td>'
                 + '<td class="text-nowrap">'
-                + '<button type="button" class="btn btn-sm btn-success me-1" data-approve-change-request="' + esc(row.id || "") + '">Approve</button>'
-                + '<button type="button" class="btn btn-sm btn-outline-danger" data-reject-change-request="' + esc(row.id || "") + '">Reject</button>'
+                + (isPending
+                    ? '<button type="button" class="btn btn-sm btn-success me-1" data-approve-change-request="' + esc(row.id || '') + '">Approve</button>'
+                      + '<button type="button" class="btn btn-sm btn-outline-danger" data-reject-change-request="' + esc(row.id || '') + '">Reject</button>'
+                    : '<span class="text-muted small">Tidak ada aksi lanjutan</span>')
                 + '</td>'
                 + '</tr>';
             }).join("")
@@ -300,16 +332,6 @@
         });
       }
 
-      const addPendingBtn = document.getElementById("btn_add_pending_subscription");
-      if (addPendingBtn) {
-        addPendingBtn.addEventListener("click", function () {
-          self.openCreateModal({ status: "pending_payment" });
-          if (self.subscriptionModalInstance) {
-            self.subscriptionModalInstance.show();
-          }
-        });
-      }
-
       const statusFilter = document.getElementById("filter_status");
       if (statusFilter) {
         statusFilter.addEventListener("change", function () {
@@ -323,6 +345,13 @@
         cycleFilter.addEventListener("change", function () {
           self.currentPage = 1;
           self.loadSubscriptions();
+        });
+      }
+
+      const changeQueueFilter = document.querySelector('[data-subscription-change-queue-filter]');
+      if (changeQueueFilter) {
+        changeQueueFilter.addEventListener('change', function () {
+          self.loadChangeRequestQueue();
         });
       }
 
@@ -446,13 +475,6 @@
           e.preventDefault();
           const id = editBtn.getAttribute("data-edit-subscription");
           self.editSubscription(id);
-        }
-
-        const deleteBtn = e.target.closest("[data-delete-subscription]");
-        if (deleteBtn) {
-          e.preventDefault();
-          const id = deleteBtn.getAttribute("data-delete-subscription");
-          self.deleteSubscription(id);
         }
 
         const cancelBtn = e.target.closest("[data-cancel-subscription]");
@@ -644,6 +666,21 @@
       select.innerHTML = '<option value="">Select company</option>' + options;
     },
 
+    setSubscriptionModalMode: function (mode, companyName) {
+      const selectGroup = document.querySelector("[data-subscription-company-select-group]");
+      const readonlyGroup = document.querySelector("[data-subscription-company-readonly-group]");
+      const readonlyInput = document.getElementById("input_subscription_company_readonly");
+      const companySelect = document.getElementById("input_subscription_company");
+      const impactNote = document.querySelector("[data-subscription-edit-impact-note]");
+      const isEdit = mode === "edit";
+
+      if (selectGroup) selectGroup.classList.toggle("d-none", isEdit);
+      if (readonlyGroup) readonlyGroup.classList.toggle("d-none", !isEdit);
+      if (readonlyInput) readonlyInput.value = isEdit ? String(companyName || "") : "";
+      if (companySelect) companySelect.disabled = isEdit;
+      if (impactNote) impactNote.classList.toggle("d-none", !isEdit);
+    },
+
     renderPackageOptions: function () {
       const select = document.getElementById("input_subscription_package");
       if (!select) return;
@@ -708,8 +745,10 @@
               <table class="table table-hover mb-0">
                 <thead class="table-light">
                   <tr>
+                    <th>ID</th>
                     <th>Company</th>
                     <th>Package</th>
+                    <th>Amount</th>
                     <th>Status</th>
                     <th>Start Date</th>
                     <th>End Date</th>
@@ -735,8 +774,10 @@
                         : "badge-danger";
                     const companyName = sub.companyName || sub.company?.name || "-";
                     const packageName = sub.packageName || sub.package?.name || sub.planCode || "-";
+                    const amount = sub.amount != null ? formatCurrency(sub.amount) : "-";
                     const startDate = sub.startDate || sub.startsAt || null;
                     const endDate = sub.endDate || sub.endsAt || null;
+                    const canEdit = sub.status !== "pending_payment";
                     const canCancel =
                       sub.status === "active" ||
                       sub.status === "trial" ||
@@ -749,11 +790,19 @@
                       sub.status === "inactive";
                     return `
                       <tr data-subscription-row="${subscriptionRouteKey(sub)}">
+                        <td>
+                          <div class="fw-semibold">#${esc(sub.id)}</div>
+                          <div class="text-muted small">${esc(subscriptionRouteKey(sub))}</div>
+                        </td>
                         <td>${esc(companyName)}</td>
                         <td>${esc(packageName)}</td>
                         <td>
+                          <div class="fw-semibold">${esc(amount)}</div>
+                          <div class="text-muted small">${esc(sub.billingCycle || "-")}</div>
+                        </td>
+                        <td>
                           <span class="badge ${statusBadgeClass} d-inline-flex align-items-center badge-xs">
-                            <i class="ti ti-point-filled me-1"></i>${esc(sub.status)}
+                            <i class="ti ti-point-filled me-1"></i>${esc(normalizeStatusLabel(sub.status))}
                           </span>
                         </td>
                         <td>${formatDate(startDate)}</td>
@@ -769,12 +818,14 @@
                               <i class="ti ti-eye"></i>
                             </button>
                             ${this.canManageSubscriptions ? `
-                              <button class="btn btn-icon btn-sm me-2" data-edit-subscription="${subscriptionRouteKey(sub)}" title="Edit">
-                                <i class="ti ti-edit"></i>
-                              </button>
+                              ${canEdit
+                                ? `<button class="btn btn-icon btn-sm me-2" data-edit-subscription="${subscriptionRouteKey(sub)}" title="Edit">
+                                     <i class="ti ti-edit"></i>
+                                   </button>`
+                                : ""}
                               ${
                                 showRenew
-                                  ? `<button class="btn btn-icon btn-sm me-2" data-renew-subscription="${subscriptionRouteKey(sub)}" title="Renew">
+                                  ? `<button class="btn btn-icon btn-sm me-2" data-renew-subscription="${subscriptionRouteKey(sub)}" title="Reactivate Manually">
                                       <i class="ti ti-refresh"></i>
                                     </button>`
                                   : ""
@@ -786,9 +837,6 @@
                                     </button>`
                                   : ""
                               }
-                              <button class="btn btn-icon btn-sm" data-delete-subscription="${subscriptionRouteKey(sub)}" title="Delete">
-                                <i class="ti ti-trash"></i>
-                              </button>
                             ` : ""}
                           </div>
                         </td>
@@ -851,7 +899,7 @@
       if (form) form.reset();
 
       const companySel = document.getElementById("input_subscription_company");
-      if (companySel) companySel.disabled = false;
+      this.setSubscriptionModalMode("create");
 
       const startEl = document.getElementById("input_subscription_start");
       if (startEl) {
@@ -865,7 +913,6 @@
       const allowed = [
         "active",
         "trial",
-        "pending_payment",
         "inactive",
         "expired",
         "cancelled",
@@ -874,8 +921,6 @@
       if (statusEl) {
         if (opts && opts.status && allowed.indexOf(opts.status) !== -1) {
           statusEl.value = opts.status;
-        } else if (opts && opts.packageId && !opts.status) {
-          statusEl.value = "pending_payment";
         } else {
           statusEl.value = "active";
         }
@@ -990,6 +1035,7 @@
         .then(function (response) {
           if (response.success) {
             self.showSuccess(isEdit ? "Subscription updated successfully" : "Subscription created successfully");
+
             self.currentEditId = null;
             self.currentEditStatus = null;
             if (self.subscriptionModalInstance) self.subscriptionModalInstance.hide();
@@ -1020,7 +1066,16 @@
         .then(function (response) {
           if (response.success && response.data) {
             const sub = response.data;
+            if (sub.status === "pending_payment") {
+              self.showError("Pending payment dikelola oleh sistem. Gunakan invoice atau checkout flow untuk memproses status ini.");
+              return;
+            }
             const companySel = document.getElementById("input_subscription_company");
+            const companyName = sub.company?.name
+              || self.companies.find(function (company) {
+                return String(company.id) === String(sub.companyId);
+              })?.name
+              || "";
             if (companySel) {
               const companyUuid = sub.company?.uuid
                 || (self.companies.find(function (company) {
@@ -1028,8 +1083,8 @@
                 }) || {}).uuid
                 || String(sub.companyId || "");
               companySel.value = String(companyUuid || "");
-              companySel.disabled = true;
             }
+            self.setSubscriptionModalMode("edit", companyName);
             document.getElementById("input_subscription_package").value = String(sub.packageId || "");
             document.getElementById("input_subscription_start").value = sub.startDate || "";
             document.getElementById("input_subscription_cycle").value = sub.billingCycle || "monthly";
@@ -1103,43 +1158,6 @@
         });
     },
 
-    deleteSubscription: async function (id) {
-      if (!this.canManageSubscriptions) {
-        this.showError("Admin access required.");
-        return;
-      }
-
-      let confirmed = false;
-      if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === "function") {
-        confirmed = await window.ArcavUi.confirmDelete(
-          "Hapus subscription ini? Tindakan tidak dapat dibatalkan.",
-          "Delete Subscription"
-        );
-      } else {
-        confirmed = window.ArcavUi && typeof window.ArcavUi.confirm === "function"
-          ? await window.ArcavUi.confirm("Are you sure you want to delete this subscription?", "Delete Subscription")
-          : false;
-      }
-      if (!confirmed) return;
-
-      const self = this;
-      const url = API_BASE + "/" + id;
-
-      apiRequest("DELETE", url, null)
-        .then(function (response) {
-          if (response.success) {
-            self.showSuccess("Subscription deleted successfully");
-            self.loadSubscriptions();
-          } else {
-            self.showError(response.error?.message || "Failed to delete subscription");
-          }
-        })
-        .catch(function (err) {
-          console.error(err);
-          self.showError("Error deleting subscription");
-        });
-    },
-
     /**
      * View subscription details
      */
@@ -1190,20 +1208,20 @@
 
       if (!sub) {
         this.showError(
-          "Langganan tidak ada di halaman ini. Gunakan tombol Renew by ID, masukkan Subscription ID, lalu Load."
+          "Langganan tidak ada di halaman ini. Gunakan tombol Reactivate by ID, masukkan Subscription ID, lalu Load."
         );
         return;
       }
 
       if (!isRenewableSubscriptionStatus(sub.status)) {
-        this.showError("Renew is only available for expired, cancelled, suspended, or inactive subscriptions.");
+        this.showError("Manual reactivation is only available for expired, cancelled, suspended, or inactive subscriptions.");
         return;
       }
 
       this.pendingRenewId = id;
       this.pendingRenewSourceStatus = String(sub.status || "");
       this.pendingRenewContext = {
-        actionLabel: "renew",
+        actionLabel: "manual reactivation",
         companyName: sub.companyName || sub.company?.name || null,
       };
       const endInput = document.getElementById("input_renew_ends_at");
@@ -1310,7 +1328,7 @@
             summary.innerHTML =
               "<strong>ID " + esc(sub.id) + "</strong><br>" +
               esc(sub.companyName || "-") + " — " + esc(sub.packageName || sub.planCode || "-") + "<br>" +
-              "Status: <strong>" + esc(sub.status) + "</strong> · Cycle: " + esc(sub.billingCycle || "-");
+              "Status: <strong>" + esc(normalizeStatusLabel(sub.status)) + "</strong> · Cycle: " + esc(sub.billingCycle || "-");
           }
 
           const step2 = document.getElementById("renew_by_id_step2");
@@ -1319,12 +1337,12 @@
 
           self.pendingRenewSourceStatus = String(sub.status || "");
           self.pendingRenewContext = {
-            actionLabel: "renew",
+            actionLabel: "manual reactivation",
             companyName: sub.companyName || sub.company?.name || null,
           };
 
           if (!isRenewableSubscriptionStatus(sub.status)) {
-            self.showError("Status tidak mendukung renew (hanya: expired, cancelled, suspended, inactive).");
+            self.showError("Status tidak mendukung reaktivasi manual (hanya: expired, cancelled, suspended, inactive).");
             if (step2) step2.classList.add("d-none");
             if (renewBtn) renewBtn.classList.add("d-none");
             return;
@@ -1357,7 +1375,7 @@
 
       if (String(sub.status || "") === "suspended") {
         const confirmed = await this.confirmSuspendedReactivation({
-          actionLabel: "renew",
+          actionLabel: "manual reactivation",
           companyName: sub.companyName || sub.company?.name || null,
         });
         if (!confirmed) {
@@ -1368,18 +1386,18 @@
       apiRequest("POST", API_BASE + "/" + encodeURIComponent(routeKey) + "/renew", { ends_at: endsAt })
         .then(function (response) {
           if (response.success) {
-            self.showSuccess("Berhasil diperpanjang / renewed successfully.");
+            self.showSuccess("Subscription reactivated successfully.");
             self.renewByIdLoadedSub = null;
             self.pendingRenewSourceStatus = null;
             self.pendingRenewContext = null;
             if (self.subscriptionRenewByIdModalInstance) self.subscriptionRenewByIdModalInstance.hide();
             self.loadSubscriptions();
           } else {
-            self.showError(response.error?.message || "Renew failed");
+            self.showError(response.error?.message || "Manual reactivation failed");
           }
         })
         .catch(function (err) {
-          self.showError(err?.data?.error?.message || "Error renewing subscription");
+          self.showError(err?.data?.error?.message || "Error reactivating subscription");
         });
     },
 
@@ -1395,7 +1413,7 @@
 
       if (this.pendingRenewSourceStatus === "suspended") {
         const confirmed = await this.confirmSuspendedReactivation(this.pendingRenewContext || {
-          actionLabel: "renew",
+          actionLabel: "manual reactivation",
           companyName: null,
         });
         if (!confirmed) {
@@ -1406,18 +1424,18 @@
       apiRequest("POST", API_BASE + "/" + id + "/renew", { ends_at: endsAt })
         .then(function (response) {
           if (response.success) {
-            self.showSuccess("Subscription renewed successfully");
+            self.showSuccess("Subscription reactivated successfully");
             self.pendingRenewId = null;
             self.pendingRenewSourceStatus = null;
             self.pendingRenewContext = null;
             if (self.subscriptionRenewModalInstance) self.subscriptionRenewModalInstance.hide();
             self.loadSubscriptions();
           } else {
-            self.showError(response.error?.message || "Renew failed");
+            self.showError(response.error?.message || "Manual reactivation failed");
           }
         })
         .catch(function (err) {
-          self.showError(err?.data?.error?.message || "Error renewing subscription");
+          self.showError(err?.data?.error?.message || "Error reactivating subscription");
         });
     },
 

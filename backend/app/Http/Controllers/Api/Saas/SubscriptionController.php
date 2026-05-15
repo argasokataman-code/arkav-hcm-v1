@@ -338,12 +338,13 @@ class SubscriptionController extends Controller
             ], 403);
         }
 
-        $subscription->delete();
-
         return response()->json([
-            'success' => true,
-            'message' => 'Subscription cancelled successfully.',
-        ]);
+            'success' => false,
+            'error' => [
+                'code' => 'SUBSCRIPTION_DELETE_DISABLED',
+                'message' => 'Hard delete is disabled for subscriptions. Use cancel to end the subscription lifecycle.',
+            ],
+        ], 409);
     }
 
     /**
@@ -393,14 +394,31 @@ class SubscriptionController extends Controller
 
             $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
+            $this->recordSubscriptionEvent(
+                $request,
+                $subscription,
+                'renewed',
+                'SUBSCRIPTION_MANUAL_RENEWED',
+                'Subscription renewed manually by admin.',
+                [
+                    'source' => 'subscription_renew',
+                    'from_status' => $wasSuspended ? 'suspended' : $subscription->status,
+                    'to_status' => 'active',
+                    'renewed_ends_at' => $validated['ends_at'],
+                ]
+            );
+
             if ($wasSuspended) {
-                $this->recordManualReactivationEvent(
+                $this->recordSubscriptionEvent(
                     $request,
                     $subscription,
+                    'resumed',
                     'SUBSCRIPTION_REACTIVATED_MANUAL_RENEW',
                     'Subscription reactivated by admin via renew endpoint.',
                     [
                         'source' => 'subscription_renew',
+                        'from_status' => 'suspended',
+                        'to_status' => 'active',
                     ]
                 );
             }
@@ -513,9 +531,10 @@ class SubscriptionController extends Controller
         ], 422);
     }
 
-    private function recordManualReactivationEvent(
+    private function recordSubscriptionEvent(
         Request $request,
         Subscription $subscription,
+        string $eventType,
         string $reasonCode,
         string $reasonMessage,
         array $payload = []
@@ -525,8 +544,6 @@ class SubscriptionController extends Controller
         $auditPayload = array_merge([
             'source' => 'manual_admin_action',
             'actor_user_id' => $request->user()?->id,
-            'from_status' => 'suspended',
-            'to_status' => 'active',
         ], $payload);
 
         SubscriptionEvent::query()->create([
@@ -534,7 +551,7 @@ class SubscriptionController extends Controller
             'company_uuid' => $subscription->company?->uuid,
             'subscription_id' => $subscription->id,
             'subscription_uuid' => $subscription->uuid,
-            'event_type' => 'resumed',
+            'event_type' => $eventType,
             'reason_code' => $reasonCode,
             'reason_message' => mb_substr($reasonMessage, 0, 255),
             'payload' => $auditPayload,

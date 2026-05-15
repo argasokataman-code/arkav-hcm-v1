@@ -396,10 +396,11 @@ class SubscriptionServiceTest extends TestCase
 
         $response = $this->request()->deleteJson("/v1/saas/subscriptions/{$subscription->uuid}");
 
-        $response->assertOk();
-        $response->assertJson(['success' => true]);
+        $response->assertStatus(409);
+        $response->assertJsonPath('success', false);
+        $response->assertJsonPath('error.code', 'SUBSCRIPTION_DELETE_DISABLED');
 
-        $this->assertDatabaseMissing('subscriptions', ['id' => $subscription->id]);
+        $this->assertDatabaseHas('subscriptions', ['id' => $subscription->id]);
     }
 
     public function test_renew_subscription()
@@ -428,6 +429,12 @@ class SubscriptionServiceTest extends TestCase
         $this->assertDatabaseHas('subscriptions', [
             'id' => $subscription->id,
             'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('subscription_events', [
+            'subscription_id' => $subscription->id,
+            'event_type' => 'renewed',
+            'reason_code' => 'SUBSCRIPTION_MANUAL_RENEWED',
         ]);
     }
 

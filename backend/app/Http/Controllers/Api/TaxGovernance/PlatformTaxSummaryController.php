@@ -56,15 +56,13 @@ class PlatformTaxSummaryController extends Controller
         $ppnRate = $this->resolvePpnRate($request->query('ppn_rate'));
 
         $report = $this->billingTaxService->generateCrossTenantMonthlyReport($month);
+        $ppnInvoiceSummary = $this->summarizePpnInvoices($month, $ppnRate);
 
         $grossRevenue = (float) ($report['summary']['total_gross_revenue'] ?? 0);
-        // DPP untuk PPN: jika billing_tax_rate_snapshot sudah terisi, total sudah termasuk pajak,
-        // maka DPP = total / (1 + rate/100). Untuk saat ini semua snapshot NULL → gunakan amount_due langsung sebagai DPP.
-        $dppPpn = $this->calculateDppFromInvoices($month);
-
-        $ppnTerutang = round($dppPpn * ($ppnRate / 100), 2);
-        $pph23Terutang = round($grossRevenue * (self::PPH23_RATE / 100), 2);
-        $pphFinalTerutang = round($grossRevenue * (self::PPH_FINAL_RATE / 100), 2);
+        $dppPpn = (float) ($ppnInvoiceSummary['total_dpp'] ?? 0);
+        $ppnTerutang = (float) ($ppnInvoiceSummary['total_ppn'] ?? 0);
+        $pph23Base = $this->getCompletedPaymentGrossForMonth($month);
+        $pph23Terutang = round($pph23Base * (self::PPH23_RATE / 100), 2);
 
         $paidRevenue = $this->getPaidRevenueForMonth($month);
         $pendingRevenue = max(0, $grossRevenue - $paidRevenue);
@@ -99,27 +97,14 @@ class PlatformTaxSummaryController extends Controller
                         'label' => 'PPh Pasal 23 atas Jasa Platform',
                         'dasar_hukum' => 'PMK-141/PMK.03/2015',
                         'rate' => self::PPH23_RATE,
-                        'dpp' => $grossRevenue,
+                        'dpp' => $pph23Base,
                         'amount' => $pph23Terutang,
                         'masa_pelaporan' => $this->getMasaPelaporan($month),
                         'batas_setor' => $this->getBatasSetor($month, 10),
                         'batas_lapor' => $this->getBatasLapor($month, 'pph23'),
                         'kode_akun_pajak' => '411124',
                         'kode_jenis_setoran' => '104',
-                        'catatan' => 'Berlaku jika platform menerima pembayaran dari badan (wajib potong oleh pembayar)',
-                    ],
-                    'pph_final' => [
-                        'label' => 'PPh Final PP 23/2018 (UMKM)',
-                        'dasar_hukum' => 'PP No. 23/2018',
-                        'rate' => self::PPH_FINAL_RATE,
-                        'dpp' => $grossRevenue,
-                        'amount' => $pphFinalTerutang,
-                        'masa_pelaporan' => $this->getMasaPelaporan($month),
-                        'batas_setor' => $this->getBatasSetor($month, 15),
-                        'batas_lapor' => $this->getBatasLapor($month, 'pph_final'),
-                        'kode_akun_pajak' => '411128',
-                        'kode_jenis_setoran' => '420',
-                        'catatan' => 'Berlaku jika omset tahunan < Rp 4.800.000.000 (empat koma delapan miliar). Tidak berlaku bersamaan dengan PPh Badan.',
+                        'catatan' => 'Basis mengikuti pembayaran completed pada periode berjalan; kewajiban dipotong oleh tenant badan saat membayar ke platform.',
                     ],
                 ],
                 'total_kewajiban_pajak' => round($ppnTerutang + $pph23Terutang, 2),
@@ -144,6 +129,7 @@ class PlatformTaxSummaryController extends Controller
         $invoices = DB::table('invoices as i')
             ->join('companies as c', 'c.id', '=', 'i.company_id')
             ->whereBetween('i.issue_date', [$periodStart, $periodEnd])
+            ->where('i.amount_due', '>', 0)
             ->select(
                 'i.id',
                 'i.uuid',
@@ -163,33 +149,22 @@ class PlatformTaxSummaryController extends Controller
             ->get();
 
         $rows = [];
-        $totalDpp = 0.0;
-        $totalPpn = 0.0;
+        $invoiceSummaries = $this->summarizePpnInvoices($month, $ppnRate, $invoices);
+        $totalDpp = (float) ($invoiceSummaries['total_dpp'] ?? 0);
+        $totalPpn = (float) ($invoiceSummaries['total_ppn'] ?? 0);
 
-        foreach ($invoices as $inv) {
-            $effectiveRate = $inv->billing_tax_rate_snapshot !== null
-                ? (float) $inv->billing_tax_rate_snapshot
-                : $ppnRate;
-
-            // DPP = amount_due (karena saat ini amount_due belum termasuk PPN — invoices tidak mencantumkan PPN terpisah)
-            $dpp = (float) $inv->amount_due;
-            $ppn = round($dpp * ($effectiveRate / 100), 2);
-
-            $totalDpp += $dpp;
-            $totalPpn += $ppn;
-
+        foreach ($invoiceSummaries['rows'] as $row) {
             $rows[] = [
                 'no' => count($rows) + 1,
-                'invoice_number' => $inv->invoice_number,
-                'invoice_date' => $inv->issue_date,
-                'npwp_pembeli' => '-',           // data tenant NPWP belum ada di schema
-                'nama_pembeli' => $inv->company_name,
-                'dpp' => $dpp,
-                'ppn_rate' => $effectiveRate,
-                'ppn' => $ppn,
-                'faktur_status' => 'normal',     // default; e-faktur integration future
-                'invoice_status' => (bool)$inv->is_paid || strtolower((string)$inv->status) === 'paid'
-                    ? 'paid' : 'unpaid',
+                'invoice_number' => $row['invoice_number'],
+                'invoice_date' => $row['invoice_date'],
+                'npwp_pembeli' => '-',
+                'nama_pembeli' => $row['company_name'],
+                'dpp' => $row['dpp'],
+                'ppn_rate' => $row['ppn_rate'],
+                'ppn' => $row['ppn'],
+                'faktur_status' => 'normal',
+                'invoice_status' => $row['invoice_status'],
             ];
         }
 
@@ -199,6 +174,7 @@ class PlatformTaxSummaryController extends Controller
                 'period' => $month,
                 'form_type' => 'SPT Masa PPN 1111',
                 'masa_pajak' => $this->getMasaPelaporan($month),
+                'batas_setor' => $this->getBatasSetor($month, 15),
                 'batas_lapor' => $this->getBatasLapor($month, 'ppn'),
                 'ppn_rate_used' => $ppnRate,
                 'summary' => [
@@ -210,7 +186,7 @@ class PlatformTaxSummaryController extends Controller
                 ],
                 'detail_penyerahan' => $rows,
                 'catatan' => [
-                    'Nilai DPP diambil dari amount_due di tabel invoices.',
+                    'Jika invoice memiliki billing_tax_rate_snapshot, amount_due diperlakukan tax-inclusive dan DPP dihitung ulang dari nilai total invoice.',
                     'PPN Masukan (PM) belum dikelola dalam sistem — isi manual saat lapor.',
                     'NPWP pembeli tenant belum tersedia — lengkapi sebelum e-faktur.',
                 ],
@@ -372,6 +348,8 @@ class PlatformTaxSummaryController extends Controller
             'data' => [
                 'year' => $year,
                 'form_type' => 'SPT Tahunan PPh Badan (Estimasi Internal)',
+                'batas_pelunasan' => $this->getAnnualPphBadanSettlementDeadline($year),
+                'batas_lapor' => $this->getAnnualPphBadanReportDeadline($year),
                 'summary' => [
                     'total_taxable_revenue' => round($totalTaxableRevenue, 2),
                     'total_transaction_tax_liability' => round($totalTransactionTaxLiability, 2),
@@ -382,6 +360,7 @@ class PlatformTaxSummaryController extends Controller
                 'catatan' => [
                     'Data bersifat estimasi internal untuk monitoring; bukan pengganti filing final DJP.',
                     'Perhitungan memakai policy government tax compliance yang aktif pada bulan terkait.',
+                    'Pelunasan PPh Badan kurang bayar dilakukan sebelum SPT Tahunan 1771 dilaporkan.',
                     'Lakukan rekonsiliasi final dengan tim akuntansi sebelum pelaporan SPT Tahunan 1771.',
                 ],
             ],
@@ -493,8 +472,11 @@ class PlatformTaxSummaryController extends Controller
             ['', ''],
             ['Jenis Pajak', 'Pajak Terutang'],
             ['PPN', $this->formatRupiah((float) (($taxes['ppn']['amount'] ?? 0)))],
+            ['PPN Batas Setor', (string) (($taxes['ppn']['batas_setor'] ?? '-'))],
+            ['PPN Batas Lapor', (string) (($taxes['ppn']['batas_lapor'] ?? '-'))],
             ['PPh 23', $this->formatRupiah((float) (($taxes['pph23']['amount'] ?? 0)))],
-            ['PPh Final', $this->formatRupiah((float) (($taxes['pph_final']['amount'] ?? 0)))],
+            ['PPh 23 Batas Setor', (string) (($taxes['pph23']['batas_setor'] ?? '-'))],
+            ['PPh 23 Batas Lapor', (string) (($taxes['pph23']['batas_lapor'] ?? '-'))],
             ['Total Kewajiban Pajak', $this->formatRupiah((float) ($data['total_kewajiban_pajak'] ?? 0))],
         ];
 
@@ -655,14 +637,91 @@ class PlatformTaxSummaryController extends Controller
         return max(7.0, min(15.0, $r));
     }
 
-    private function calculateDppFromInvoices(string $month): float
+    /**
+     * @return array{dpp: float, tax: float, effective_rate: float}
+     */
+    private function splitInvoiceTaxComponents(float $amountDue, ?float $snapshotRate, float $fallbackRate): array
     {
-        $periodStart = $month . '-01';
-        $periodEnd = date('Y-m-t', strtotime($periodStart));
+        $effectiveRate = $snapshotRate !== null ? $snapshotRate : $fallbackRate;
 
-        return (float) DB::table('invoices')
-            ->whereBetween('issue_date', [$periodStart, $periodEnd])
-            ->sum('amount_due');
+        if ($snapshotRate !== null && $snapshotRate > 0) {
+            $dpp = round($amountDue / (1 + ($snapshotRate / 100)), 2);
+            $tax = round($amountDue - $dpp, 2);
+        } else {
+            $dpp = round($amountDue, 2);
+            $tax = round($dpp * ($effectiveRate / 100), 2);
+        }
+
+        return [
+            'dpp' => $dpp,
+            'tax' => $tax,
+            'effective_rate' => $effectiveRate,
+        ];
+    }
+
+    private function summarizePpnInvoices(string $month, float $defaultRate, $invoiceRows = null): array
+    {
+        if ($invoiceRows === null) {
+            $periodStart = $month . '-01';
+            $periodEnd = date('Y-m-t', strtotime($periodStart));
+
+            $invoiceRows = DB::table('invoices as i')
+                ->join('companies as c', 'c.id', '=', 'i.company_id')
+                ->whereBetween('i.issue_date', [$periodStart, $periodEnd])
+                ->where('i.amount_due', '>', 0)
+                ->select(
+                    'i.invoice_number',
+                    'i.issue_date',
+                    'i.amount_due',
+                    'i.billing_tax_rate_snapshot',
+                    'i.status',
+                    'i.is_paid',
+                    'c.name as company_name'
+                )
+                ->orderBy('i.issue_date')
+                ->orderBy('i.id')
+                ->get();
+        }
+
+        $rows = [];
+        $totalDpp = 0.0;
+        $totalPpn = 0.0;
+
+        foreach ($invoiceRows as $invoice) {
+            $amountDue = round((float) ($invoice->amount_due ?? 0), 2);
+            if ($amountDue <= 0) {
+                continue;
+            }
+
+            $snapshotRate = $invoice->billing_tax_rate_snapshot !== null
+                ? (float) $invoice->billing_tax_rate_snapshot
+                : null;
+            $taxParts = $this->splitInvoiceTaxComponents($amountDue, $snapshotRate, $defaultRate);
+            $effectiveRate = (float) $taxParts['effective_rate'];
+            $dpp = (float) $taxParts['dpp'];
+            $ppn = (float) $taxParts['tax'];
+
+            $totalDpp += $dpp;
+            $totalPpn += $ppn;
+
+            $rows[] = [
+                'invoice_number' => (string) ($invoice->invoice_number ?? '-'),
+                'invoice_date' => (string) ($invoice->issue_date ?? ''),
+                'company_name' => (string) ($invoice->company_name ?? '-'),
+                'dpp' => $dpp,
+                'ppn_rate' => $effectiveRate,
+                'ppn' => $ppn,
+                'invoice_status' => (bool) ($invoice->is_paid ?? false) || strtolower((string) ($invoice->status ?? '')) === 'paid'
+                    ? 'paid'
+                    : 'unpaid',
+            ];
+        }
+
+        return [
+            'rows' => $rows,
+            'total_dpp' => round($totalDpp, 2),
+            'total_ppn' => round($totalPpn, 2),
+        ];
     }
 
     private function getPaidRevenueForMonth(string $month): float
@@ -678,6 +737,17 @@ class PlatformTaxSummaryController extends Controller
             ->sum('amount_due');
     }
 
+    private function getCompletedPaymentGrossForMonth(string $month): float
+    {
+        $periodStart = $month . '-01 00:00:00';
+        $periodEnd = date('Y-m-t', strtotime($month . '-01')) . ' 23:59:59';
+
+        return round((float) (DB::table('payments')
+            ->whereBetween('paid_at', [$periodStart, $periodEnd])
+            ->where('status', 'completed')
+            ->sum('amount') ?? 0), 2);
+    }
+
     private function getInvoiceCountForMonth(string $month): int
     {
         $periodStart = $month . '-01';
@@ -685,6 +755,7 @@ class PlatformTaxSummaryController extends Controller
 
         return (int) DB::table('invoices')
             ->whereBetween('issue_date', [$periodStart, $periodEnd])
+            ->where('amount_due', '>', 0)
             ->count();
     }
 
@@ -726,6 +797,16 @@ class PlatformTaxSummaryController extends Controller
         };
     }
 
+    private function getAnnualPphBadanSettlementDeadline(int $year): string
+    {
+        return ($year + 1) . '-04-30';
+    }
+
+    private function getAnnualPphBadanReportDeadline(int $year): string
+    {
+        return ($year + 1) . '-04-30';
+    }
+
     private function resolveYear(mixed $year): int
     {
         $resolved = is_numeric($year) ? (int) $year : (int) date('Y');
@@ -757,12 +838,11 @@ class PlatformTaxSummaryController extends Controller
     {
         $invoiceRows = DB::table('invoices')
             ->whereBetween('issue_date', [$month . '-01', date('Y-m-t', strtotime($month . '-01'))])
-            ->select('company_id', 'amount_due', 'issue_date')
+            ->where('amount_due', '>', 0)
+            ->select('company_id', 'amount_due', 'billing_tax_rate_snapshot', 'issue_date')
             ->get();
 
-        $taxableRevenue = (float) $invoiceRows->sum('amount_due');
-
-        if ($taxableRevenue <= 0.0) {
+        if ($invoiceRows->isEmpty()) {
             return [
                 'taxable_revenue' => 0.0,
                 'transaction_tax_liability' => 0.0,
@@ -783,11 +863,25 @@ class PlatformTaxSummaryController extends Controller
             ->get();
 
         if ($activePolicies->isEmpty()) {
+            $taxableRevenue = 0.0;
+
+            foreach ($invoiceRows as $invoice) {
+                $amount = (float) ($invoice->amount_due ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $snapshotRate = $invoice->billing_tax_rate_snapshot !== null
+                    ? (float) $invoice->billing_tax_rate_snapshot
+                    : null;
+                $taxableRevenue += $this->splitInvoiceTaxComponents($amount, $snapshotRate, 0.0)['dpp'];
+            }
+
             return [
-                'taxable_revenue' => $taxableRevenue,
+                'taxable_revenue' => round($taxableRevenue, 2),
                 'transaction_tax_liability' => 0.0,
                 'pph_badan_payable' => 0.0,
-                'net_profit_estimate' => $taxableRevenue,
+                'net_profit_estimate' => round($taxableRevenue, 2),
                 'effective_pph_badan_rate' => 0.0,
                 'policy_configured' => false,
             ];
@@ -795,6 +889,7 @@ class PlatformTaxSummaryController extends Controller
 
         $policyByCompany = $this->buildLatestPolicyByCompany($activePolicies);
 
+        $taxableRevenue = 0.0;
         $transactionTaxLiability = 0.0;
         $pphBadanPayable = 0.0;
 
@@ -810,8 +905,17 @@ class PlatformTaxSummaryController extends Controller
             }
 
             $rates = $policyByCompany[$companyId];
-            $transactionTaxLiability += $amount * ($rates['transaction_tax_rate'] / 100);
-            $pphBadanPayable += $amount * ($rates['corporate_tax_rate'] / 100);
+            $snapshotRate = $invoice->billing_tax_rate_snapshot !== null
+                ? (float) $invoice->billing_tax_rate_snapshot
+                : null;
+            $taxParts = $this->splitInvoiceTaxComponents($amount, $snapshotRate, (float) $rates['transaction_tax_rate']);
+
+            $dpp = (float) $taxParts['dpp'];
+            $transactionTax = (float) $taxParts['tax'];
+
+            $taxableRevenue += $dpp;
+            $transactionTaxLiability += $transactionTax;
+            $pphBadanPayable += $dpp * ($rates['corporate_tax_rate'] / 100);
         }
 
         $transactionTaxLiability = round($transactionTaxLiability, 2);

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Subscriptions module mengelola hubungan company dengan package SaaS: create langganan, update status, renew periode, dan lifecycle tracking.
+Subscriptions module mengelola hubungan company dengan package SaaS: create langganan, update status, override reaktivasi manual, dan lifecycle tracking.
 
 > Untuk “behaviour” (happy path + negative handling), baca dulu: **`SCENARIOS.md`**.
 
@@ -100,9 +100,9 @@ Guard tambahan (domain validation):
 
 `DELETE /v1/saas/subscriptions/{subscription}`
 
-Endpoint ini hard delete sesuai implementasi saat ini.
+Endpoint hard delete sekarang diblok dan mengembalikan `409 SUBSCRIPTION_DELETE_DISABLED`. Pengakhiran lifecycle operasional harus memakai cancel/status action, bukan menghapus record subscription.
 
-### 6) Renew Subscription (Admin)
+### 6) Manual Reactivation (Admin)
 
 `POST /v1/saas/subscriptions/{subscription}/renew`
 
@@ -187,7 +187,7 @@ Sumber API: `backend/routes/api.php` (prefix `/v1/saas`) + `SubscriptionControll
 | Update | `PUT /v1/saas/subscriptions/{id}` | ✅ | Body: `package_uuid`, `status` (nilai saat load), `starts_at`, `ends_at`, `billing_cycle`, `auto_renew` — bukan hitung ulang diam-diam tanpa input. |
 | Cancel | `PUT /v1/saas/subscriptions/{id}` body `{ status: cancelled }` | ✅ | Tombol cancel untuk `active`, `trial`, `suspended`. |
 | Delete | `DELETE /v1/saas/subscriptions/{id}` | ✅ | Hard delete. |
-| Renew | `GET /v1/saas/subscriptions/{id}` + `POST .../renew` | ✅ | Baris tabel: modal `#subscriptionRenewModal`. **Renew by ID** (admin): tombol toolbar → modal `#subscriptionRenewByIdModal` → Load (GET) → tanggal akhir → Renew (POST). Status eligible: expired, cancelled, suspended, inactive. |
+| Manual Reactivation | `GET /v1/saas/subscriptions/{id}` + `POST .../renew` | ✅ | Baris tabel: modal `#subscriptionRenewModal`. **Reactivate by ID** (admin): tombol toolbar → modal `#subscriptionRenewByIdModal` → Load (GET) → tanggal akhir → Reactivate (POST). Status eligible: expired, cancelled, suspended, inactive. |
 | View detail | `GET /v1/saas/subscriptions/{id}` | ✅ | Refetch lalu `ArcavUi.showInfo` (bukan cache list saja). |
 | Auto-terminate / suspend / employee job | Jobs + `SubscriptionTerminationService` | ❌ | **Tidak ada UI** di halaman ini; hanya efek ke data subscription (status) saat job jalan. |
 | Billing invoice/payment | `/v1/saas/invoices`, `/v1/saas/payments`, … | ❌ | **Halaman lain** (`/saas/invoices`, dll.); tidak terintegrasi di layar subscription. |
@@ -201,7 +201,7 @@ Modal `#actionsModal` (Pause/Resume) dan `#deleteModal` duplicate sudah **dihapu
 
 ## TODO FE (Subscriptions SaaS page)
 
-Selesai baru-baru ini: filter + badge `suspended`, field `ends_at` + suggest dari start/cycle, **status + `trial_ends_at` di modal** (create/edit) dengan validasi BE (`trial_ends_at` wajib jika `trial`, antara `starts_at` dan `ends_at`), renew + modal, **Renew by ID** (GET + POST tanpa baris di halaman), notice read-only EN/ID ringkas, view detail refetch, hapus dead modal, `per_page` list selaras BE.
+Selesai baru-baru ini: filter + badge `suspended`, field `ends_at` + suggest dari start/cycle, **status + `trial_ends_at` di modal** (create/edit) dengan validasi BE (`trial_ends_at` wajib jika `trial`, antara `starts_at` dan `ends_at`), manual reactivation + modal, **Reactivate by ID** (GET + POST tanpa baris di halaman), notice read-only EN/ID ringkas, view detail refetch, hapus dead modal, `per_page` list selaras BE.
 
 Masih terbuka (polish):
 
@@ -246,7 +246,7 @@ Perlu keputusan implementasi (gap produk):
 - Add subscription baru sukses.
 - Edit subscription berhasil update.
 - Cancel subscription mengubah status ke `cancelled`.
-- Renew (row eligible) memanggil `POST .../renew` dengan `ends_at` baru; **Renew by ID** memuat `GET .../{id}` lalu renew.
+- Manual reactivation (row eligible) memanggil `POST .../renew` dengan `ends_at` baru; **Reactivate by ID** memuat `GET .../{id}` lalu reaktivasi.
 - Delete subscription menghapus record.
 - Filter status/cycle/search bekerja sesuai query.
 - Non-admin list/detail/mutasi mendapat `403 ADMIN_REQUIRED`.

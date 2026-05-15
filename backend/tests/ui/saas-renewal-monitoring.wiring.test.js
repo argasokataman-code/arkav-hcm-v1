@@ -49,11 +49,11 @@ describe('SaaS renewal monitoring wiring', () => {
           <div data-renewal-records-pagination></div>
           <table><tbody data-renewal-records-body></tbody></table>
           <div data-renewal-anomalies-list></div>
-          <div data-renewal-detail-modal>
-            <div data-renewal-detail-key></div>
-            <div data-renewal-detail-panel></div>
-          </div>
         </div>
+      </div>
+      <div data-renewal-detail-modal>
+        <div data-renewal-detail-key></div>
+        <div data-renewal-detail-panel></div>
       </div>
     `;
 

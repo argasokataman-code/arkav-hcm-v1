@@ -2,7 +2,7 @@
 
 ## Objective
 
-Memastikan alur UI Subscriptions berjalan end-to-end untuk admin: create, update, cancel, delete, filter, dan validasi akses.
+Memastikan alur UI Subscriptions berjalan end-to-end untuk admin: create, update, cancel, manual reactivation, filter, dan validasi akses.
 
 ## Mandatory Execution Order (Wajib)
 
@@ -44,7 +44,7 @@ Gunakan baseline berikut sebelum menjalankan test manual UI:
 3. Expected:
    - List subscriptions tampil.
    - Tombol Add Subscription tampil.
-   - Tombol **Renew by ID** tampil (HCM admin).
+   - Tombol **Reactivate by ID** tampil (HCM admin).
    - Tidak ada error JS kritis di console.
 
 ## Scenario 2 - Add Subscription
@@ -78,13 +78,14 @@ Gunakan baseline berikut sebelum menjalankan test manual UI:
    - Toast cancel sukses.
    - Status berubah jadi cancelled.
 
-## Scenario 5 - Delete Subscription
+## Scenario 5 - Destructive Guard: Delete Tidak Diekspos
 
-1. Klik icon delete pada row test.
-2. Konfirmasi delete.
-3. Expected:
-   - Toast delete sukses.
-   - Row hilang dari list.
+1. Buka list subscriptions.
+2. Pastikan row tidak menampilkan icon delete.
+3. Jika melakukan request manual `DELETE /v1/saas/subscriptions/{uuid}`.
+4. Expected:
+   - UI tidak menyediakan hard delete.
+   - API mengembalikan `409 SUBSCRIPTION_DELETE_DISABLED`.
 
 ## Scenario 6 - Search and Filter
 
@@ -97,14 +98,14 @@ Gunakan baseline berikut sebelum menjalankan test manual UI:
 7. Klik Reset.
 8. Expected: semua filter kosong dan list kembali default.
 
-## Scenario 8 - Renew by subscription ID (admin)
+## Scenario 8 - Reactivate by subscription ID (admin override)
 
-1. Siapkan atau catat **subscription ID** dengan status eligible renew: `expired`, `cancelled`, `suspended`, atau `inactive`.
+1. Siapkan atau catat **subscription ID** dengan status eligible reactivation: `expired`, `cancelled`, `suspended`, atau `inactive`.
 2. Atur filter / halaman sehingga baris itu **tidak** terlihat di tabel (opsional; alur ini untuk kasus ID diketahui dari luar list).
-3. Klik **Renew by ID**.
+3. Klik **Reactivate by ID**.
 4. Masukkan ID → **Load** (atau Enter di field ID).
 5. Expected: ringkasan (company, package, status); langkah tanggal **New end date** muncul; default tanggal terisi.
-6. Klik **Renew**.
+6. Klik **Reactivate**.
 7. Expected: feedback sukses; `GET /v1/saas/subscriptions/{id}` menunjukkan `status` **active** dan `ends_at` sesuai pilihan.
 
 ## Scenario 7 - Access Restriction Non-Admin
@@ -191,7 +192,7 @@ Automated UI contract validation yang sudah dijalankan:
 - Hasil: `6 passed`
 
 Cakupan validasi role:
-- Admin flow: create, list/filter, update, delete, renew.
+- Admin flow: create, list/filter, update, cancel, manual reactivation.
 - Non-admin/company flow: list/detail/mutasi subscriptions ditolak dengan `403 ADMIN_REQUIRED`, termasuk direct bearer-token access.
 - Web access flow: halaman `/saas/subscriptions` tetap admin-only via web guard; audit ini belum rerun browser Playwright end-to-end.
 

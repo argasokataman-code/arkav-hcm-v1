@@ -2,6 +2,24 @@
 
 ## Status Snapshot
 
+- Tanggal: 2026-05-15
+- Status: subscription change history UI parity fix
+- Scope audit: visibilitas catatan/alasan request tenant, history review di halaman super-admin subscriptions, dan UX cancel subscription pada halaman upgrade
+
+## Changes Closed In This Audit
+
+- Halaman `/upgrade` sekarang menampilkan `notes` pada riwayat request tenant dan queue pending admin code-1, sehingga alasan tenant atau alasan keputusan admin bisa dibaca langsung tanpa inspeksi API.
+- UX action `cancel` pada `/upgrade` sekarang memakai copy yang spesifik ke pembatalan subscription dan akan meminta alasan pembatalan bila field catatan masih kosong saat submit.
+- Panel `/saas/subscriptions` untuk primary super admin tidak lagi terkunci ke `status=pending`; UI sekarang bisa toggle `Semua status` vs `Pending saja`, menampilkan history status, catatan/alasan, dan membatasi tombol approve/reject hanya untuk row pending.
+- Vitest wiring ditambah untuk memastikan panel history subscriptions memuat endpoint tanpa filter pending by default dan merender notes/alasan.
+
+## Evidence
+
+- `cd backend && npx vitest run tests/ui/subscriptions-management.wiring.test.js` → `PASS (4 tests)`.
+- `cd backend && npm run build` → `PASS`.
+
+## Status Snapshot
+
 - Tanggal: 2026-05-13
 - Status: recurring renewal billing tax + schema hardening
 - Scope audit: renewal invoice generator, tax snapshot parity, schema compatibility invoice/payment, dan trial-expiry billing amount parity

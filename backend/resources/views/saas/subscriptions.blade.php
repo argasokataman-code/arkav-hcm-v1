@@ -24,12 +24,7 @@
             <div class="d-flex my-xl-auto right-content align-items-center flex-wrap">
                 <div class="mb-2 me-2">
                     <button type="button" class="btn btn-outline-primary d-none d-flex align-items-center" id="btn_open_renew_by_id" data-subscription-renew-by-id-button>
-                        <i class="ti ti-refresh me-2"></i>Renew by ID
-                    </button>
-                </div>
-                <div class="mb-2 me-2">
-                    <button type="button" class="btn btn-outline-warning d-flex align-items-center" id="btn_add_pending_subscription" data-subscription-add-button>
-                        <i class="ti ti-receipt-2 me-2"></i>Pending Payment
+                        <i class="ti ti-refresh me-2"></i>Reactivate by ID
                     </button>
                 </div>
                 <div class="mb-2">
@@ -47,11 +42,20 @@
 
         <div class="card d-none" data-subscription-change-queue-card>
             <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Queue Pengajuan Upgrade/Downgrade</h5>
-                <span class="badge bg-warning-subtle text-warning" data-subscription-change-queue-count>0 pending</span>
+                <div>
+                    <h5 class="card-title mb-0">Riwayat Pengajuan Upgrade/Downgrade</h5>
+                    <small class="text-muted">Pantau request pending atau seluruh history status per company dari satu panel.</small>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm" data-subscription-change-queue-filter>
+                        <option value="all">Semua status</option>
+                        <option value="pending">Pending saja</option>
+                    </select>
+                    <span class="badge bg-warning-subtle text-warning" data-subscription-change-queue-count>0 records</span>
+                </div>
             </div>
             <div class="card-body" data-subscription-change-queue-content>
-                <div class="text-muted">Memuat queue pengajuan...</div>
+                <div class="text-muted">Memuat riwayat pengajuan...</div>
             </div>
         </div>
 
@@ -111,8 +115,15 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Company *</label>
-                            <select class="form-select" id="input_subscription_company" required></select>
+                            <div data-subscription-company-select-group>
+                                <label class="form-label">Company *</label>
+                                <select class="form-select" id="input_subscription_company" required></select>
+                            </div>
+                            <div class="d-none" data-subscription-company-readonly-group>
+                                <label class="form-label">Company</label>
+                                <input type="text" class="form-control" id="input_subscription_company_readonly" readonly>
+                                <small class="text-muted">Company tidak bisa diubah setelah subscription dibuat.</small>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Package *</label>
@@ -144,13 +155,12 @@
                             <select class="form-select" id="input_subscription_status" required>
                                 <option value="active">Active</option>
                                 <option value="trial">Trial</option>
-                                <option value="pending_payment">Pending payment (aktif setelah invoice dibayar)</option>
                                 <option value="inactive">Inactive</option>
                                 <option value="expired">Expired</option>
                                 <option value="cancelled">Cancelled</option>
                                 <option value="suspended">Suspended</option>
                             </select>
-                            <small class="text-muted">Trial requires trial end date (on or before end date). <strong>Pending payment</strong>: hubungkan invoice ke subscription ini lalu tandai bayar — status jadi Active dan periode dihitung dari tanggal bayar.</small>
+                            <small class="text-muted">Trial requires trial end date (on or before end date). Pending payment dikelola oleh sistem dari flow checkout, onboarding, atau konversi trial.</small>
                         </div>
                     </div>
                     <div class="row d-none" id="subscription_trial_row">
@@ -159,6 +169,9 @@
                             <input type="date" class="form-control" id="input_subscription_trial_end">
                             <small class="text-muted">Last day of trial (after start date, not after subscription end date).</small>
                         </div>
+                    </div>
+                    <div class="alert alert-warning d-none small py-2" data-subscription-edit-impact-note role="note">
+                        Perubahan package, status, billing cycle, atau tanggal dapat memengaruhi billing dan entitlement tenant.
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Special Instructions</label>
@@ -174,37 +187,39 @@
     </div>
 </div>
 
-<!-- Renew subscription (new ends_at) -->
+<!-- Reactivate subscription manually (new ends_at) -->
 <div class="modal fade" id="subscriptionRenewModal" tabindex="-1" role="dialog" data-bs-backdrop="static">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Renew subscription</h5>
+                <h5 class="modal-title">Reactivate subscription manually</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-3">Status becomes <strong>active</strong>; start date is set to today on the server.</p>
+                <p class="text-muted small mb-2">Gunakan hanya jika operator perlu mengaktifkan lagi subscription secara manual.</p>
+                <p class="text-muted small mb-3">Status menjadi <strong>active</strong>; start date di-set ke hari ini oleh server.</p>
                 <label class="form-label">New end date *</label>
                 <input type="date" class="form-control" id="input_renew_ends_at" required>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="btn_confirm_renew_subscription">Renew</button>
+                <button type="button" class="btn btn-primary" id="btn_confirm_renew_subscription">Reactivate</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Renew by subscription ID (when row is not on current list page) -->
+<!-- Reactivate by subscription ID (when row is not on current list page) -->
 <div class="modal fade" id="subscriptionRenewByIdModal" tabindex="-1" role="dialog" data-bs-backdrop="static">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Renew by subscription ID</h5>
+                <h5 class="modal-title">Reactivate by subscription ID</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small mb-2">Gunakan jika langganan tidak terlihat di tabel (filter/halaman lain). Muat dulu dari server, lalu set tanggal akhir baru.</p>
+                <p class="text-muted small mb-2">Gunakan jika subscription tidak terlihat di tabel dan operator perlu mengaktifkan ulang secara manual.</p>
+                <p class="text-muted small mb-3">ID subscription tampil di kolom pertama tabel. Muat dulu dari server, lalu set tanggal akhir baru.</p>
                 <label class="form-label">Subscription ID / Reference *</label>
                 <div class="input-group">
                     <input type="text" class="form-control" id="input_renew_lookup_id" placeholder="e.g. 42 atau SUB-10042">
@@ -212,14 +227,14 @@
                 </div>
                 <div id="renew_by_id_summary" class="alert alert-light border mt-3 mb-0 d-none small" role="status"></div>
                 <div id="renew_by_id_step2" class="mt-3 d-none">
-                    <p class="text-muted small mb-2">Status becomes <strong>active</strong>; start date is set to today on the server.</p>
+                    <p class="text-muted small mb-2">Status menjadi <strong>active</strong>; start date di-set ke hari ini oleh server.</p>
                     <label class="form-label">New end date *</label>
                     <input type="date" class="form-control" id="input_renew_by_id_ends_at" required>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary d-none" id="btn_confirm_renew_by_id">Renew</button>
+                <button type="button" class="btn btn-primary d-none" id="btn_confirm_renew_by_id">Reactivate</button>
             </div>
         </div>
     </div>

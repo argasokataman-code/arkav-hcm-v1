@@ -626,7 +626,7 @@
                                     <i class="ti ti-eye me-1"></i>Preview
                                 </button>
                                 <button type="button" class="btn btn-primary upgrade-primary-action" id="upgrade-submit-btn">
-                                    <i class="ti ti-send me-1"></i>Ajukan Upgrade
+                                    <i class="ti ti-send me-1"></i><span>Ajukan Upgrade</span>
                                 </button>
                             </div>
                         </div>
@@ -661,12 +661,14 @@
 
                 <div class="mt-4">
                     <h5 class="mb-2">Riwayat Pengajuan Saya</h5>
+                    <div class="small text-muted mb-2">Riwayat menampilkan status request beserta catatan tenant atau alasan keputusan admin platform.</div>
                     <div id="upgrade-request-list" class="border rounded p-3 small text-muted">Memuat data...</div>
                 </div>
 
                 @if ($isPrimarySuperAdminCodeOne)
                     <div class="mt-4">
-                        <h5 class="mb-2">Pengajuan Upgrade Baru (Admin Code 1)</h5>
+                        <h5 class="mb-2">Queue Pengajuan Pending (Admin Code 1)</h5>
+                        <div class="small text-muted mb-2">Queue ini fokus ke request pending baru dan menampilkan catatan tenant sebagai konteks review cepat.</div>
                         <div id="upgrade-admin-queue" class="border rounded p-3 small text-muted">Memuat data...</div>
                     </div>
                 @endif

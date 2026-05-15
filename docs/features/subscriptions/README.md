@@ -14,6 +14,7 @@ Modul ini mengelola hubungan langganan company ke package SaaS, termasuk lifecyc
 
 - Entry points: `/saas/subscriptions` dan `/subscription`.
 - Manager script aktif: `frontend/resources/js/subscriptions-management.js`.
+- `pending_payment` tetap menjadi lifecycle aktif di backend, tetapi tidak lagi dibuat manual dari UI subscriptions; state ini dihasilkan oleh checkout, onboarding, atau job sistem.
 - Dokumen perilaku dan audit tambahan tersedia di [SCENARIOS.md](SCENARIOS.md), [IMPLEMENTATION.md](IMPLEMENTATION.md), [E2E-TESTING.md](E2E-TESTING.md), dan [tracker.md](tracker.md).
 
 ## Flow Bisnis End-to-End
@@ -21,7 +22,7 @@ Modul ini mengelola hubungan langganan company ke package SaaS, termasuk lifecyc
 1. Super admin atau billing admin membuat subscription untuk company pada package tertentu.
 2. Subscription menyimpan `package_uuid`, `plan_code`, billing cycle, amount, dan status lifecycle.
 3. Selama lifecycle berjalan, company dapat berada di status trial, pending payment, active, suspended, expired, atau cancelled.
-4. Renewal dapat dipicu dari baris tabel atau deep link renew-by-id.
+4. Override operasional untuk mengaktifkan ulang subscription dapat dipicu dari baris tabel atau deep link reactivate-by-id.
 5. Saat invoice terkait ditandai paid, subscription `pending_payment` diaktifkan menjadi `active`.
 6. Default window `pending_payment` untuk flow onboarding/checkout adalah **24 jam** sejak proses billing dimulai.
 
@@ -69,6 +70,7 @@ Snapshot status audit, gap aktif, dan evidence validasi terbaru.
 - Existing (F4+, 2026-04-24): endpoint global queue approval (`GET /v1/saas/subscription-change-requests`, `POST approve/reject`) diperketat menjadi **primary super admin code-1 only** (`hcm.admin_email`) untuk mencegah approval dari akun super-admin sekunder.
 - Existing (F4+, 2026-04-24): halaman `/upgrade?blocked=<feature>` kini menampilkan rekomendasi target paket yang punya feature tersebut, plus daftar riwayat pengajuan tenant; admin code-1 juga mendapat panel queue pending request.
 - Existing (F4++, 2026-04-24): approve action `upgrade` tidak lagi auto-apply package untuk mencegah bypass payment gate; apply otomatis via scheduler hanya untuk action `downgrade` dan `cancel`, sedangkan target package non-active ditolak `422 PACKAGE_NOT_ACTIVE` pada `preview-change` dan `change-plan`.
+- Existing (UI parity, 2026-05-15): riwayat request pada `/upgrade` dan panel history `/saas/subscriptions` kini menampilkan catatan/alasan request, serta panel subscriptions primary-super-admin bisa toggle `Semua status` vs `Pending saja` untuk review history per company tanpa kehilangan row yang sudah approved/rejected/cancelled.
 - Existing (2026-05-13): recurring renewal invoice generator aktif dengan hardening tax snapshot + schema parity terhadap invoice runtime (`amount_due`, `billing_tax_rate_snapshot`, `status=draft`, pricing breakdown di notes).
 - Target: renewal notification orchestration lanjutan dan workflow upgrade/downgrade wizard masih backlog.
 
@@ -78,15 +80,16 @@ Fitur utama modul saat ini:
 - ✅ List subscriptions dengan pagination
 - ✅ Create subscription (admin)
 - ✅ Update subscription (admin)
-- ✅ Cancel/Delete subscription (admin)
-- ✅ Renew subscription (admin) — per baris di tabel atau **Renew by ID** (`GET` detail + `POST` renew jika baris tidak terlihat karena filter/halaman)
+- ✅ Cancel subscription (admin)
+- ✅ Hard delete subscription dinonaktifkan untuk mencegah penghapusan record lifecycle secara tidak sengaja
+- ✅ Reactivate subscription manually (admin override) — per baris di tabel atau **Reactivate by ID** (`GET` detail + `POST` renew jika baris tidak terlihat karena filter/halaman)
 - ✅ Filter berdasarkan status, billing cycle, dan search
 - ✅ Auto-management (terminate expired, suspend overdue invoice, suspend employee violation)
 - ✅ Employee limit enforcement pada create/bulk employee (HCM API)
 - ✅ Status **`pending_payment`** + aktivasi otomatis ke **`active`** saat invoice terkait **mark paid** (kolom `invoices.subscription_id`)
 - ✅ Default timeout `pending_payment` flow onboarding/checkout: **24 jam** (invoice due date default H+1)
 - ✅ Gate paket: `active|trial|pending_payment` hanya boleh memakai package **`packages.status=active`**
-- ✅ Deep link dari **Packages** → **Subscriptions** (`/subscription?packageId=&status=pending_payment`)
+- ✅ `pending_payment` dibuat oleh flow checkout/onboarding/job sistem, bukan tombol manual di halaman subscriptions
 
 Out of scope saat ini:
 - ⏳ Renewal notification automation
@@ -123,6 +126,8 @@ Out of scope saat ini:
 - `DELETE /v1/saas/subscriptions/{subscription}`
 - `POST /v1/saas/subscriptions/{subscription}/renew`
 
+Catatan: `DELETE /v1/saas/subscriptions/{subscription}` tetap ada untuk backward compatibility, tetapi runtime sekarang mengembalikan `409 SUBSCRIPTION_DELETE_DISABLED`; operator harus memakai cancel/lifecycle action, bukan hard delete.
+
 Semua endpoint di atas admin-only (return `403 ADMIN_REQUIRED` jika non-admin, termasuk list/detail).
 
 ---
@@ -149,7 +154,7 @@ Mulai dari [SCENARIOS.md](SCENARIOS.md) untuk pemahaman flow + negative handling
 **Backend** (PHPUnit feature + service tests):
 - `SubscriptionServiceTest.php` — auto-terminate/suspend/employee-count logic
 - `SaasSubscriptionsAdminOnlyTest.php` — list/detail/create/update/delete/renew admin-only enforcement
-- `SubscriptionManagementTest.php` — create/update/filter/delete contracts
+- `SubscriptionManagementTest.php` — create/update/filter contracts
 - `InvoicePaidActivatesSubscriptionTest.php` — pending_payment → active flow
 - Run: `cd backend && php artisan test tests/Feature/SubscriptionServiceTest.php tests/Feature/SaasSubscriptionsAdminOnlyTest.php tests/Feature/SubscriptionManagementTest.php tests/Feature/InvoicePaidActivatesSubscriptionTest.php`
 

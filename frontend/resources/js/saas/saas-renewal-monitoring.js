@@ -176,9 +176,9 @@
         var errorBox = qs("[data-renewal-error]", root);
         var recordsBody = qs("[data-renewal-records-body]", root);
         var anomaliesList = qs("[data-renewal-anomalies-list]", root);
-        var detailPanel = qs("[data-renewal-detail-panel]", root);
-        var detailKey = qs("[data-renewal-detail-key]", root);
-        var detailModalElement = qs("[data-renewal-detail-modal]", root);
+        var detailPanel = qs("[data-renewal-detail-panel]");
+        var detailKey = qs("[data-renewal-detail-key]");
+        var detailModalElement = qs("[data-renewal-detail-modal]");
         var recordsPageInfo = qs("[data-renewal-records-page-info]", root);
         var recordsPagination = qs("[data-renewal-records-pagination]", root);
         var detailModalInstance = null;

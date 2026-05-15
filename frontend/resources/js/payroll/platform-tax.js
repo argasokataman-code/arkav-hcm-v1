@@ -226,7 +226,7 @@
         value: fmtRp(taxes.pph23 && taxes.pph23.amount),
         icon: "ti-receipt",
         color: "text-bg-warning",
-        note: "Dipotong oleh tenant"
+        note: "Basis: pembayaran completed"
       },
       {
         label: "Total Kewajiban Pajak",
@@ -281,7 +281,7 @@
       revBody.innerHTML =
         '<div class="row g-3">' +
         '<div class="col-md-4">' +
-        '<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>Total Revenue (DPP PPN)</span><strong>' + fmtRp(rev.dpp_ppn) + '</strong></div>' +
+        '<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>DPP PPN (setelah back-out pajak)</span><strong>' + fmtRp(rev.dpp_ppn) + '</strong></div>' +
         '<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>Revenue Dibayar</span><strong class="text-success">' + fmtRp(rev.paid_revenue) + '</strong></div>' +
         '<div class="d-flex justify-content-between align-items-center py-2"><span>Revenue Belum Dibayar</span><strong class="text-warning">' + fmtRp(rev.pending_revenue) + '</strong></div>' +
         '</div>' +
@@ -291,7 +291,6 @@
         '<ul class="mb-0 mt-1">' +
         '<li>PPN 11% (UU HPP No. 7/2021) berlaku mulai April 2022. Kenaikan ke 12% diamanatkan UU namun masih ditunda pemerintah per Mei 2026.</li>' +
         '<li>PPh 23 (2%) atas jasa dipotong oleh pembayar (tenant badan).</li>' +
-        '<li>PPh Final 0,5% (PP 23/2018): ambang omzet tahunan yang relevan adalah Rp 4.800.000.000 (4,8 miliar). Verifikasi kriteria sebelum menerapkan PPh Final.</li>' +
         '<li>PPh Badan 22%: dihitung tahunan oleh akuntan/konsultan.</li>' +
         '</ul>' +
         '</div>' +
@@ -308,6 +307,7 @@
 
     // Update badges & labels
     setText('ppn_period_label', 'Masa Pajak: ' + (data.masa_pajak || data.period));
+    setText('ppn_batas_setor_badge', 'Batas setor: ' + fmtDate(data.batas_setor));
     setText('ppn_batas_lapor_badge', 'Batas lapor: ' + fmtDate(data.batas_lapor));
     setText('ppn_total_dpp', fmtRp(summary.total_penyerahan_dpp));
     setText('ppn_total_keluaran', fmtRp(summary.total_ppn_keluaran));
@@ -381,6 +381,8 @@
     var fallbackYear = String(fallbackPeriod).slice(0, 4);
     var reportYear = data && data.year ? String(data.year) : fallbackYear;
     setText('pph_badan_period_label', 'Periode acuan: Tahun ' + reportYear);
+    setText('pph_badan_batas_pelunasan_badge', 'Pelunasan estimasi: ' + fmtDate(data && data.batas_pelunasan));
+    setText('pph_badan_batas_lapor_badge', 'Batas lapor: ' + fmtDate(data && data.batas_lapor));
 
     var statusBadge = document.getElementById('pph_badan_status_badge');
     var tbody = document.getElementById('pph_badan_detail_tbody');
@@ -390,6 +392,8 @@
       setText('pph_badan_tax_payable', fmtRp(0));
       setText('pph_badan_net_revenue', fmtRp(0));
       setText('pph_badan_net_profit', fmtRp(0));
+      setText('pph_badan_batas_pelunasan_badge', 'Pelunasan estimasi: —');
+      setText('pph_badan_batas_lapor_badge', 'Batas lapor: —');
 
       if (statusBadge) {
         statusBadge.className = 'badge text-bg-secondary';

@@ -204,9 +204,9 @@ Catatan sisa (non-blocking):
 - Untuk SPT PPh23 (per baris pemotongan): `payment_ref`, `paid_at`, `invoice_ref` (jika relevan), `payer_npwp`, `payee_npwp`, `gross_amount`, `withholding_rate`, `tax_withheld`, `withholding_code`, `bank_ref`.
 
 ### Informasi Pajak (Ringkasan dan Batas Waktu)
-- PPN: tarif 11% (UU HPP No. 7/2021). PPN Masa umumnya disetor dan dilaporkan mengikuti ketentuan fiskal (sering: setor paling lambat akhir bulan berikutnya; lapor lewat e‑Filing DJP). Pastikan mekanisme penyetoran dan bukti bank tercatat.
+- PPN: tarif 11% (UU HPP No. 7/2021). Pada halaman `/saas/platform-tax`, tab SPT PPN kini menampilkan dua anchor operasional: **batas setor tanggal 15 bulan berikutnya** dan **batas lapor akhir bulan berikutnya**. DPP dihitung dari back-out invoice tax-inclusive bila `billing_tax_rate_snapshot` tersedia.
 - PPh 23: tarif umum 2% (tergantung objek). Pemotongan dilakukan saat tenant membayar ke platform. Batas penyetoran biasanya tanggal 10 bulan berikutnya; pelaporan/penyampaian SPT Masa mengikuti ketentuan DJP (konfirmasi peraturan terbaru; sering ada tenggat pelaporan hingga tanggal 20 bulan berikutnya).
-- PPh Final 0.5% (PP 23/2018): berlaku untuk wajib pajak tertentu; ambang omzet tahunan yang relevan adalah Rp 4.800.000.000 (empat koma delapan miliar rupiah) — pastikan verifikasi kriteria sebelum menerapkan PPh Final.
+- PPh Badan tahunan pada tab estimasi platform kini menampilkan **pelunasan estimasi** dan **batas lapor tahunan** sebagai anchor tanggal kerja finance. Angka di tab ini memakai basis DPP invoice per bulan dan tetap bersifat estimasi internal, bukan pengganti perhitungan laba fiskal final.
 
 Catatan: semua angka di atas adalah estimasi yang disediakan sistem — wajib rekonsiliasi dan konfirmasi dengan akuntan/konsultan pajak sebelum penyetoran atau pelaporan ke DJP.
 

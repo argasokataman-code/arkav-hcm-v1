@@ -41,7 +41,7 @@ Catatan penting:
 
 **Goal**: company belum mendapat entitlement sampai pembayaran tercatat.
 
-- **UI Packages**: tombol **Subscribe** (paket aktif) → `/subscription?packageId=…&status=pending_payment` → modal create terisi.
+- **Trigger sistem**: checkout tenant, onboarding public, atau job konversi trial membuat subscription `pending_payment` tanpa entry manual dari UI subscriptions.
 - **API**: `POST /v1/saas/subscriptions` dengan `status=pending_payment`, `ends_at` = batas/tenggat jendela provisioning.
 - **Invoice**: `POST /v1/saas/invoices` dengan `company_id` + **`subscription_id`** mengarah ke baris tersebut.
 - **Bayar**: `PUT /v1/saas/invoices/{id}/mark-paid` (atau verify payment yang memicu `Invoice::markAsPaid()`).
@@ -60,7 +60,8 @@ Catatan penting:
   - `amount` optional → auto-calc dari package
 - **Outcome**:
   - subscription tersimpan; `plan_code` diisi dari package
-  - Untuk `active|trial` langsung memberi entitlement; untuk **`pending_payment`** entitlement mengikuti HP-0 (setelah invoice paid).
+  - Untuk `active|trial` langsung memberi entitlement.
+  - Status **`pending_payment`** tidak dibuat manual dari UI ini; jika record berada di state itu, pemrosesan lanjut dilakukan lewat billing system.
 
 **UX expectation**:
 - Sukses → toast sukses + row muncul di tabel.
@@ -77,12 +78,13 @@ Catatan penting:
 - **Outcome**:
   - `plan_code` update jika `package_uuid` berubah
   - Jika **`package_uuid`** berubah, **`amount`** disinkronkan ke harga katalog (`monthly_price` / `yearly_price`) sesuai `billing_cycle` efektif
+  - Record `pending_payment` diperlakukan sebagai state system-managed; operator mengelola invoice/payment, bukan memindahkan status ini dari modal subscriptions.
 
 ---
 
-### HP-3 — Admin renew subscription yang expired/cancelled (manual)
+### HP-3 — Admin reactivate subscription yang expired/cancelled (manual override)
 
-- **UI**: `/saas/subscriptions` (aksi renew di UI jika ada)
+- **UI**: `/saas/subscriptions` (aksi reaktivasi manual di UI jika ada)
 - **API**: `POST /v1/saas/subscriptions/{id}/renew` (admin-only)
 - **Input**: `ends_at` future
 - **Outcome**:
@@ -239,7 +241,7 @@ Dokumen lanjutan bisa dipisah (mis. `UPGRADE-FLOW.md`) bila scope proration dipu
   - `GET /v1/saas/subscriptions`
   - `POST /v1/saas/subscriptions` (admin)
   - `PUT /v1/saas/subscriptions/{id}` (admin)
-  - `DELETE /v1/saas/subscriptions/{id}` (admin)
+  - `DELETE /v1/saas/subscriptions/{id}` (admin) sekarang ditolak dengan `409 SUBSCRIPTION_DELETE_DISABLED`; gunakan cancel/lifecycle action
   - `POST /v1/saas/subscriptions/{id}/renew` (admin)
 
 ### 5.2 Auto-management (jobs)

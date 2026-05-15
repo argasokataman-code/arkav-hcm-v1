@@ -52,7 +52,7 @@
                             <li>Tab <strong>SPT PPN</strong>: rincian faktur pajak keluaran per invoice (formulir 1111).</li>
                             <li>Tab <strong>SPT PPh 23</strong>: rincian pemotongan per pembayaran yang completed.</li>
                             <li>Tab <strong>PPh Badan (Estimasi)</strong>: ringkasan tahunan berbasis policy compliance aktif per bulan.</li>
-                            <li>Gunakan <strong>Tarif PPN</strong> untuk override tarif jika ada perubahan regulasi.</li>
+                            <li><strong>Tarif PPN</strong> di halaman ini bersifat read-only dan mengikuti policy aktif dari Tax Compliance Settings.</li>
                         </ul>
                     </div>
                     <div class="col-md-6">
@@ -215,6 +215,7 @@
                             <small class="text-muted" id="ppn_period_label">—</small>
                         </div>
                         <div class="d-flex gap-2">
+                            <span class="badge text-bg-secondary" id="ppn_batas_setor_badge">Batas setor: —</span>
                             <span class="badge text-bg-info" id="ppn_batas_lapor_badge">Batas lapor: —</span>
                         </div>
                     </div>
@@ -223,25 +224,25 @@
                             <div class="col-md-3">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">Total DPP</small>
-                                    <strong class="fs-3 fw-bold" id="ppn_total_dpp">—</strong>
+                                    <strong class="d-block fs-24 fw-bold mt-2" id="ppn_total_dpp">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">PPN Keluaran</small>
-                                    <strong class="fs-3 fw-bold text-danger" id="ppn_total_keluaran">—</strong>
+                                    <strong class="d-block fs-24 fw-bold text-danger mt-2" id="ppn_total_keluaran">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">PPN Masukan</small>
-                                    <strong class="fs-3 fw-bold text-success" id="ppn_total_masukan">Rp 0</strong>
+                                    <strong class="d-block fs-24 fw-bold text-success mt-2" id="ppn_total_masukan">Rp 0</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-danger bg-opacity-10 rounded p-3 text-center">
                                     <small class="text-muted d-block">PPN Kurang Bayar</small>
-                                    <strong class="fs-3 fw-bold text-danger" id="ppn_kurang_bayar">—</strong>
+                                    <strong class="d-block fs-24 fw-bold text-danger mt-2" id="ppn_kurang_bayar">—</strong>
                                 </div>
                             </div>
                         </div>
@@ -251,7 +252,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th width="40">No</th>
-                                    <th>No. Faktur / Invoice</th>
+                                    <th>No. Invoice Billing</th>
                                     <th>Tanggal</th>
                                     <th>Nama Pembeli (Tenant)</th>
                                     <th>NPWP Pembeli</th>
@@ -269,7 +270,7 @@
                     <div class="card-footer">
                         <div class="alert alert-info mb-0 py-2 fs-12">
                             <i class="ti ti-info-circle me-1"></i>
-                            DPP = <code>amount_due</code> dari invoices. PPN Masukan (PM) belum dikelola — isi manual saat lapor ke DJP.
+                            Jika invoice menyimpan snapshot tarif pajak, <code>amount_due</code> diperlakukan tax-inclusive lalu DPP dihitung ulang dari total invoice. PPN Kurang Bayar saat ini masih sama dengan PPN Keluaran karena PPN Masukan (PM) belum dikelola dan harus diisi manual saat lapor ke DJP.
                         </div>
                     </div>
                 </div>
@@ -293,19 +294,19 @@
                             <div class="col-md-4">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">Total Bruto</small>
-                                    <strong class="fs-3 fw-bold" id="pph23_total_bruto">—</strong>
+                                    <strong class="d-block fs-24 fw-bold mt-2" id="pph23_total_bruto">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="bg-danger bg-opacity-10 rounded p-3 text-center">
                                     <small class="text-muted d-block">PPh 23 Terutang (2%)</small>
-                                    <strong class="fs-3 fw-bold text-danger" id="pph23_total_terutang">—</strong>
+                                    <strong class="d-block fs-24 fw-bold text-danger mt-2" id="pph23_total_terutang">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">Jumlah Pembayaran</small>
-                                    <strong class="fs-3 fw-bold" id="pph23_payment_count">—</strong>
+                                    <strong class="d-block fs-24 fw-bold mt-2" id="pph23_payment_count">—</strong>
                                 </div>
                             </div>
                         </div>
@@ -351,6 +352,8 @@
                         </div>
                         <div>
                             <span class="badge text-bg-info" id="pph_badan_status_badge">Status: menunggu data</span>
+                            <span class="badge text-bg-secondary" id="pph_badan_batas_pelunasan_badge">Pelunasan estimasi: —</span>
+                            <span class="badge text-bg-info" id="pph_badan_batas_lapor_badge">Batas lapor: —</span>
                         </div>
                     </div>
                     <div class="card-body">
@@ -358,25 +361,25 @@
                             <div class="col-md-3">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">Taxable Revenue (Estimasi)</small>
-                                    <strong class="fs-4 fw-bold" id="pph_badan_taxable_revenue">—</strong>
+                                    <strong class="d-block fs-32 fw-bold mt-2 lh-sm" id="pph_badan_taxable_revenue">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-warning bg-opacity-10 rounded p-3 text-center">
                                     <small class="text-muted d-block">PPh Badan Payable (Estimasi)</small>
-                                    <strong class="fs-4 fw-bold text-warning" id="pph_badan_tax_payable">—</strong>
+                                    <strong class="d-block fs-32 fw-bold text-warning mt-2 lh-sm" id="pph_badan_tax_payable">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-light rounded p-3 text-center">
                                     <small class="text-muted d-block">Net Revenue (After Liability)</small>
-                                    <strong class="fs-4 fw-bold" id="pph_badan_net_revenue">—</strong>
+                                    <strong class="d-block fs-32 fw-bold mt-2 lh-sm" id="pph_badan_net_revenue">—</strong>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="bg-success bg-opacity-10 rounded p-3 text-center">
                                     <small class="text-muted d-block">Net Profit (Estimasi)</small>
-                                    <strong class="fs-4 fw-bold text-success" id="pph_badan_net_profit">—</strong>
+                                    <strong class="d-block fs-32 fw-bold text-success mt-2 lh-sm" id="pph_badan_net_profit">—</strong>
                                 </div>
                             </div>
                         </div>
@@ -385,9 +388,9 @@
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Tenant</th>
+                                        <th>Bulan</th>
                                         <th class="text-end">Taxable Revenue</th>
-                                        <th class="text-end">Tax Liability</th>
+                                        <th class="text-end">Kewajiban Pajak Transaksi</th>
                                         <th class="text-end">PPh Badan Payable</th>
                                         <th class="text-end">Net Profit</th>
                                         <th>Status</th>
@@ -403,7 +406,7 @@
                         <div class="alert alert-info mb-0 py-2 fs-12">
                             <i class="ti ti-info-circle me-1"></i>
                             Data tab ini ditarik dari endpoint <strong>SPT Tahunan PPh Badan (estimasi internal)</strong> berbasis policy compliance aktif per bulan.
-                            Ini bukan pengganti SPT Tahunan 1771 final, tetap wajib rekonsiliasi dan validasi akuntan.
+                            Ini bukan pengganti SPT Tahunan 1771 final. Pelunasan estimasi kurang bayar tetap harus direkonsiliasi dengan akuntan sebelum SPT Tahunan dilaporkan.
                         </div>
                     </div>
                 </div>
